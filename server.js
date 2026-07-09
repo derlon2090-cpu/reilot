@@ -26,10 +26,23 @@ function safePath(urlPath) {
   return resolved.startsWith(root) ? resolved : path.join(root, "index.html");
 }
 
+function publicPath(urlPath) {
+  const clean = decodeURIComponent(urlPath.split("?")[0]);
+  const filePath = clean.replace(/^\/+/, "");
+  const resolved = path.resolve(root, "public", filePath);
+  const publicRoot = path.resolve(root, "public");
+  return resolved.startsWith(publicRoot) ? resolved : path.join(root, "index.html");
+}
+
 createServer(async (req, res) => {
   try {
     const requested = safePath(req.url || "/");
-    const file = existsSync(requested) && !requested.endsWith(path.sep) ? requested : path.join(__dirname, "index.html");
+    const publicRequested = publicPath(req.url || "/");
+    const file = existsSync(requested) && !requested.endsWith(path.sep)
+      ? requested
+      : existsSync(publicRequested) && !publicRequested.endsWith(path.sep)
+        ? publicRequested
+        : path.join(root, "index.html");
     const ext = path.extname(file);
     const body = await readFile(file);
     res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream" });

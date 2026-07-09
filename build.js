@@ -9,7 +9,6 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 
 await cp(path.join(root, "index.html"), path.join(dist, "index.html"));
-await cp(path.join(root, "src"), path.join(dist, "src"), { recursive: true });
-await cp(path.join(root, "public"), path.join(dist, "public"), { recursive: true });
+await cp(path.join(root, "public"), dist, { recursive: true });
 
 console.log("Built RenewPilot AI static files in dist");
