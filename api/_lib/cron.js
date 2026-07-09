@@ -1,4 +1,4 @@
-export function validateCronRequest(req) {
+function validateCronRequest(req) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization || req.headers.Authorization;
 
@@ -13,13 +13,13 @@ export function validateCronRequest(req) {
   return { ok: true };
 }
 
-export function json(res, status, body) {
+function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
 }
 
-export function methodGuard(req, res) {
+function methodGuard(req, res) {
   if (req.method !== "GET") {
     json(res, 405, { ok: false, error: "Method not allowed" });
     return false;
@@ -28,7 +28,7 @@ export function methodGuard(req, res) {
   return true;
 }
 
-export function runCron(req, res, jobName, summary) {
+function runCron(req, res, jobName, summary) {
   if (!methodGuard(req, res)) return;
 
   const validation = validateCronRequest(req);
@@ -45,3 +45,10 @@ export function runCron(req, res, jobName, summary) {
     nextStep: "Connect Neon + Drizzle repository methods before enabling production sending."
   });
 }
+
+module.exports = {
+  validateCronRequest,
+  json,
+  methodGuard,
+  runCron
+};

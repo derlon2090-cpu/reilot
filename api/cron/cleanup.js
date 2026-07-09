@@ -1,8 +1,8 @@
-import { runCron } from "../_lib/cron.js";
+const { runCron } = require("../_lib/cron");
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   runCron(req, res, "cleanup", {
     action: "Clear stale QR cache, expired sessions, and old temporary queue records.",
     destructiveDeletes: false
   });
-}
+};
