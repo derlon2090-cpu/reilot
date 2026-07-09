@@ -41,3 +41,11 @@ npm run build
 ```
 
 ويخدم مخرجات `dist` مع fallback لمسارات التطبيق مثل `/login` و`/dashboard`.
+
+## الربط الحقيقي
+
+تمت إضافة بداية طبقة الربط الحقيقي:
+
+- `.env.example` يحتوي متغيرات Neon وBetter Auth وWhapi وResend وMoyasar.
+- `drizzle/0001_initial_schema.sql` يحتوي الجداول الأساسية والفهارس.
+- `drizzle/0002_seed_platform_plans.sql` يحتوي باقات Trial وStarter وPro وBusiness.
