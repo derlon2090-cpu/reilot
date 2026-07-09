@@ -49,3 +49,5 @@ npm run build
 - `.env.example` يحتوي متغيرات Neon وBetter Auth وWhapi وResend وMoyasar.
 - `drizzle/0001_initial_schema.sql` يحتوي الجداول الأساسية والفهارس.
 - `drizzle/0002_seed_platform_plans.sql` يحتوي باقات Trial وStarter وPro وBusiness.
+- `drizzle/0003_cron_auth_safety.sql` يحتوي queue وtenant_members وإعدادات حماية واتساب.
+- `api/cron/*` يحتوي مسارات Vercel Cron المحمية بـ `CRON_SECRET`.
