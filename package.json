@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "start": "node server.js"
+  },
+  "private": true,
+  "name": "renewpilot-ai",
+  "version": "1.0.0",
+  "type": "module"
+}
