@@ -32,15 +32,24 @@ http://127.0.0.1:3000
 
 الصور المرجعية موجودة داخل `public/references`.
 
-## النشر على Vercel
-
-Vercel يستخدم:
+## البناء المحلي
 
 ```bash
 npm run build
 ```
 
-ويخدم مخرجات `dist` مع fallback لمسارات التطبيق مثل `/login` و`/dashboard`.
+ينتج ملفات static داخل `dist` للاختبار المحلي.
+
+## النشر على Vercel
+
+Vercel يخدم:
+
+- `index.html` من جذر المشروع.
+- ملفات الواجهة من `public/app`.
+- الصور من `public/references`.
+- وظائف cron من `api/cron`.
+
+وتتم إعادة كتابة مسارات الواجهة مثل `/login` و`/dashboard` إلى `index.html`.
 
 ## الربط الحقيقي
 
