@@ -1,4 +1,19 @@
 {
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/renewal-reminders",
@@ -21,34 +36,50 @@
       "schedule": "30 2 * * *"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/features",
-      "destination": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
-      "source": "/pricing",
-      "destination": "/index.html"
+      "src": "/app/(.*)",
+      "dest": "/public/app/$1"
     },
     {
-      "source": "/support",
-      "destination": "/index.html"
+      "src": "/references/(.*)",
+      "dest": "/public/references/$1"
     },
     {
-      "source": "/login",
-      "destination": "/index.html"
+      "src": "/",
+      "dest": "/index.html"
     },
     {
-      "source": "/register",
-      "destination": "/index.html"
+      "src": "/features",
+      "dest": "/index.html"
     },
     {
-      "source": "/dashboard",
-      "destination": "/index.html"
+      "src": "/pricing",
+      "dest": "/index.html"
     },
     {
-      "source": "/dashboard/:path*",
-      "destination": "/index.html"
+      "src": "/support",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/login",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/register",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/dashboard",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/dashboard/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
