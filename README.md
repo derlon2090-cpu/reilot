@@ -31,3 +31,13 @@ http://127.0.0.1:3000
 - الإعدادات
 
 الصور المرجعية موجودة داخل `public/references`.
+
+## النشر على Vercel
+
+Vercel يستخدم:
+
+```bash
+npm run build
+```
+
+ويخدم مخرجات `dist` مع fallback لمسارات التطبيق مثل `/login` و`/dashboard`.
