@@ -1,9 +1,15 @@
 {
   "scripts": {
-    "build": "node build.mjs",
-    "start": "node server.mjs"
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
   },
   "private": true,
   "name": "renewpilot-ai",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "^15.4.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
 }

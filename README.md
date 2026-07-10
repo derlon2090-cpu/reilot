@@ -5,7 +5,7 @@
 ## التشغيل المحلي
 
 ```bash
-npm start
+npm run dev
 ```
 
 ثم افتح:
@@ -38,18 +38,18 @@ http://127.0.0.1:3000
 npm run build
 ```
 
-ينتج ملفات static داخل `dist` للاختبار المحلي.
+يبني تطبيق Next.js للنشر.
 
 ## النشر على Vercel
 
 Vercel يخدم:
 
-- `index.html` من جذر المشروع.
+- تطبيق Next.js من مجلد `app`.
 - ملفات الواجهة من `public/app`.
 - الصور من `public/references`.
-- وظائف cron من `api/cron`.
+- وظائف cron من `app/api/cron`.
 
-وتتم إعادة كتابة مسارات الواجهة مثل `/login` و`/dashboard` إلى `index.html`.
+وتتم معالجة مسارات الواجهة مثل `/login` و`/dashboard` عبر catch-all page.
 
 ## الربط الحقيقي
 
@@ -59,4 +59,4 @@ Vercel يخدم:
 - `drizzle/0001_initial_schema.sql` يحتوي الجداول الأساسية والفهارس.
 - `drizzle/0002_seed_platform_plans.sql` يحتوي باقات Trial وStarter وPro وBusiness.
 - `drizzle/0003_cron_auth_safety.sql` يحتوي queue وtenant_members وإعدادات حماية واتساب.
-- `api/cron/*` يحتوي مسارات Vercel Cron المحمية بـ `CRON_SECRET`.
+- `app/api/cron/*` يحتوي مسارات Vercel Cron المحمية بـ `CRON_SECRET`.
