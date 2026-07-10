@@ -6,11 +6,11 @@
     },
     {
       "path": "/api/cron/whatsapp-health-check",
-      "schedule": "0 * * * *"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/message-retry",
-      "schedule": "15 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/usage-reset",
