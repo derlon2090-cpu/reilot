@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { requireSession } from "../../src/lib/auth.js";
 import { GET } from "../../app/api/cron/renewal-reminders/route.js";
+import { POST as createInstance } from "../../app/api/whatsapp/instances/create/route.js";
 
 describe("API auth security", () => {
   afterEach(() => {
@@ -18,6 +19,11 @@ describe("API auth security", () => {
       headers: { authorization: "Bearer wrong-secret" }
     }));
 
+    expect(response.status).toBe(401);
+  });
+
+  it("protects WhatsApp instance APIs from anonymous requests", async () => {
+    const response = await createInstance(new Request("https://renew.test/api/whatsapp/instances/create", { method: "POST" }));
     expect(response.status).toBe(401);
   });
 });

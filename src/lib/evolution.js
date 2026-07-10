@@ -55,6 +55,45 @@ export async function getEvolutionQr({ tenantId, instanceId, env, evolution, rep
   return { ok: true, qrBase64: qr.qrBase64, pairingCode: qr.pairingCode, expiresAt: qr.expiresAt };
 }
 
+export function normalizeEvolutionPhone(phoneNumber) {
+  const value = String(phoneNumber || "").replace(/[+\s-]/g, "");
+  if (!/^[1-9]\d{10,14}$/.test(value)) {
+    return { ok: false, status: 400, code: "INVALID_WHATSAPP_PHONE" };
+  }
+  return { ok: true, phoneNumber: value };
+}
+
+export async function requestEvolutionPairingCode({ tenantId, instanceId, phoneNumber, env, evolution, repository }) {
+  assertEvolutionEnv(env);
+  const normalized = normalizeEvolutionPhone(phoneNumber);
+  if (!normalized.ok) return normalized;
+
+  const instance = await repository.getInstance(instanceId);
+  if (!instance || instance.tenantId !== tenantId) return { ok: false, status: 403 };
+  if (typeof evolution.requestPairingCode !== "function") {
+    return {
+      ok: false,
+      status: 501,
+      code: "PAIRING_CODE_NOT_SUPPORTED",
+      message: "رمز الاقتران غير مدعوم حاليا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود."
+    };
+  }
+
+  const result = await evolution.requestPairingCode({
+    baseUrl: env.EVOLUTION_API_URL,
+    apiKey: env.EVOLUTION_API_KEY,
+    instanceName: instance.instanceName,
+    phoneNumber: normalized.phoneNumber
+  });
+
+  return {
+    ok: true,
+    pairingCode: result.pairingCode,
+    expiresIn: result.expiresIn ?? 60,
+    phoneNumber: normalized.phoneNumber
+  };
+}
+
 export async function getEvolutionStatus({ tenantId, instanceId, env, evolution, repository }) {
   assertEvolutionEnv(env);
   const instance = await repository.getInstance(instanceId);
@@ -85,6 +124,23 @@ export async function sendEvolutionMessage({ tenantId, instanceId, to, message, 
 
   await repository.addActivity({ tenantId, type: "evolution.message.sent", title: "WhatsApp test message sent" });
   return redactSecrets({ ok: true, providerMessageId: sent.messageId, status: sent.status });
+}
+
+export async function queueEvolutionTestMessage({ tenantId, instanceId, to, message, repository }) {
+  const instance = await repository.getInstance(instanceId);
+  if (!instance || instance.tenantId !== tenantId) return { ok: false, status: 403 };
+  if (instance.status !== "connected") return { ok: false, status: 409, error: "instance_disconnected" };
+
+  const queued = await repository.enqueueMessage({
+    tenantId,
+    instanceId,
+    to,
+    message,
+    status: "pending",
+    channel: "whatsapp"
+  });
+
+  return { ok: true, queuedMessageId: queued.id, status: "pending" };
 }
 
 export async function updateEvolutionHealth({ instance, evolution, repository, env }) {

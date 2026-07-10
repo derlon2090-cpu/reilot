@@ -313,6 +313,7 @@ tbody tr:hover { background: #fbfeff; }
 .empty { padding: 34px; text-align: center; color: var(--text-muted); }
 .mobile-side-toggle { display: none; }
 .linked-subtitle { margin: -12px 0 22px; color: var(--text-muted); }
+.whatsapp-health-grid { margin-bottom: 18px; }
 .linked-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: stretch; }
 .linked-main-card { padding: 24px; display: grid; grid-template-columns: 300px 1fr; gap: 24px; min-height: 390px; overflow: hidden; }
 .device-art { position: relative; display: grid; place-items: center; min-height: 330px; background: radial-gradient(circle at 50% 50%, rgba(34,211,238,.18), transparent 64%); border-radius: 18px; }
@@ -333,6 +334,13 @@ tbody tr:hover { background: #fbfeff; }
 .or-divider { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-muted); font-weight: 800; }
 .pair-code { display: grid; gap: 10px; }
 .pair-code strong { padding: 14px; border: 1px solid var(--border); border-radius: 14px; text-align: center; background: white; letter-spacing: 1px; }
+.link-tabs { width: fit-content; max-width: 100%; }
+.pairing-layout { grid-template-columns: 1fr 1fr; }
+.pairing-form, .pairing-result { display: grid; gap: 12px; align-content: start; }
+.system-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.system-row:last-child { border-bottom: 0; }
+.safety-list { display: grid; gap: 8px; }
+.safety-list span { padding: 10px 12px; border-radius: 12px; background: var(--primary-light); color: var(--primary-dark); font-weight: 800; }
 .link-steps-card { padding: 22px; display: grid; gap: 14px; }
 .step-row { position: relative; display: grid; gap: 4px; padding: 0 52px 18px 0; border-right: 2px dashed rgba(14,154,167,.35); }
 .step-row:last-of-type { border-right: 0; padding-bottom: 0; }
@@ -375,6 +383,7 @@ tbody tr:hover { background: #fbfeff; }
 :root[data-theme="dark"] .tabs,
 :root[data-theme="dark"] .pricing-toggle,
 :root[data-theme="dark"] .pair-code strong,
+:root[data-theme="dark"] .safety-list span,
 :root[data-theme="dark"] .renewal-card { background: #0b1728; color: var(--text); border-color: var(--border); }
 :root[data-theme="dark"] th,
 :root[data-theme="dark"] tbody tr:hover,
@@ -427,6 +436,7 @@ tbody tr:hover { background: #fbfeff; }
   .hero { padding-top: 42px; }
   .linked-main-card { padding: 18px; }
   .link-box-grid { grid-template-columns: 1fr; }
+  .pairing-layout { grid-template-columns: 1fr; }
   .or-divider { margin: 0 auto; }
   .device-art { min-height: 260px; }
 }

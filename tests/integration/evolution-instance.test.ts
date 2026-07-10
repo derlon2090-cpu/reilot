@@ -5,6 +5,7 @@ import {
   disconnectEvolutionInstance,
   getEvolutionQr,
   getEvolutionStatus,
+  requestEvolutionPairingCode,
   sendEvolutionMessage
 } from "../../src/lib/evolution.js";
 
@@ -110,5 +111,53 @@ describe("Evolution instance integration", () => {
 
     await expect(disconnectEvolutionInstance({ tenantId: "tenant-a", instanceId: "instance-1", env, evolution, repository: repo })).resolves.toEqual({ ok: true });
     await expect(deleteEvolutionInstance({ tenantId: "tenant-a", instanceId: "instance-1", env, evolution, repository: repo })).resolves.toEqual({ ok: true });
+  });
+
+  it("requests pairing code only for the owning tenant and valid phone", async () => {
+    const repo = repository();
+    await createEvolutionInstance({
+      tenantId: "tenant-a",
+      env,
+      evolution: { createInstance: vi.fn(async () => ({ instanceId: "evo-1", instanceToken: "plain-token" })) },
+      repository: repo
+    });
+
+    const response = await requestEvolutionPairingCode({
+      tenantId: "tenant-a",
+      instanceId: "instance-1",
+      phoneNumber: "+966 50 123 4567",
+      env,
+      evolution: { requestPairingCode: vi.fn(async () => ({ pairingCode: "ABCD-EFGH", expiresIn: 60 })) },
+      repository: repo
+    });
+
+    expect(response).toMatchObject({ ok: true, pairingCode: "ABCD-EFGH", expiresIn: 60, phoneNumber: "966501234567" });
+    await expect(requestEvolutionPairingCode({
+      tenantId: "tenant-b",
+      instanceId: "instance-1",
+      phoneNumber: "966501234567",
+      env,
+      evolution: { requestPairingCode: vi.fn() },
+      repository: repo
+    })).resolves.toMatchObject({ ok: false, status: 403 });
+  });
+
+  it("returns a clear unsupported message when Evolution pairing code is unavailable", async () => {
+    const repo = repository();
+    await createEvolutionInstance({
+      tenantId: "tenant-a",
+      env,
+      evolution: { createInstance: vi.fn(async () => ({ instanceId: "evo-1", instanceToken: "plain-token" })) },
+      repository: repo
+    });
+
+    await expect(requestEvolutionPairingCode({
+      tenantId: "tenant-a",
+      instanceId: "instance-1",
+      phoneNumber: "966501234567",
+      env,
+      evolution: {},
+      repository: repo
+    })).resolves.toMatchObject({ ok: false, code: "PAIRING_CODE_NOT_SUPPORTED" });
   });
 });

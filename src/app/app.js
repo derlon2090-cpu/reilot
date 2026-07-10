@@ -29,14 +29,25 @@ const storage = {
 
 const defaultLinkedDevice = {
   status: "not_connected",
+  linkMethod: "qr",
   instanceId: "",
   instanceName: "",
   deviceName: "",
   phoneNumber: "",
+  phoneInput: "",
   pairingCode: "WP-7K4M-9Q2P",
+  pairingSupported: true,
   qrActive: false,
   qrExpiresAt: "",
+  pairingExpiresAt: "",
   lastActivity: "",
+  lastCheckAt: "",
+  lastSendAt: "",
+  messagesToday: 0,
+  messagesMonth: 0,
+  safetyScore: 96,
+  queuedMessages: 0,
+  alerts: [],
   activity: []
 };
 
@@ -527,7 +538,7 @@ function connectedDevicesPage() {
 
   return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">${isPending || isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
     <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
-    <section class="linked-layout">
+    <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
       <article class="card linked-main-card">
         <div class="device-art" aria-hidden="true">
           <div class="phone-frame"><span class="wa-logo">☎</span></div>
@@ -594,6 +605,94 @@ function connectedDevicesPage() {
         <div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div>
       </article>
     </section>`);
+}
+
+function connectedDevicesCenterPage() {
+  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
+  const isConnected = device.status === "connected";
+  const isPendingQr = device.status === "pending_qr";
+  const isPendingPairing = device.status === "pending_pairing";
+  const method = device.linkMethod || "qr";
+  const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
+  const statusTone = isConnected ? "success" : isPendingQr || isPendingPairing ? "warning" : "danger";
+  const qrCell = isPendingQr
+    ? Array.from({ length: 49 }).map((_, index) => `<span class="${[0, 1, 7, 8, 40, 41, 48, 12, 18, 22, 24, 31, 35].includes(index) ? "active" : ""}"></span>`).join("")
+    : Array.from({ length: 49 }).map((_, index) => `<span class="${index % 6 === 0 ? "ghost" : ""}"></span>`).join("");
+  const activity = device.activity?.length ? device.activity : ["لا توجد أجهزة مرتبطة حتى الآن"];
+  const alerts = device.alerts?.length ? device.alerts : ["وضع الإرسال الآمن مفعل افتراضيا", "أي رسالة اختبار تدخل message_queue قبل الإرسال"];
+  const safeItems = ["20 رسالة في الساعة", "100 رسالة في اليوم", "تأخير 20 - 90 ثانية", "منع الإرسال من 9 مساء إلى 9 صباحا", "منع تكرار نفس الرسالة خلال 24 ساعة"];
+  const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "WhatsApp Device", device.phoneNumber || "+966 5X XXX XXXX", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
+
+  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button>`)}
+    <p class="linked-subtitle">مركز واتساب كامل لإدارة الربط، حالة الاتصال، الإرسال الآمن، وسجل النشاط لكل متجر.</p>
+    <section class="grid grid-5 whatsapp-health-grid">
+      <article class="card stat-card"><div><span class="muted">حالة الاتصال</span><strong>${statusText}</strong><small class="status ${statusTone}">Evolution API</small></div>${icon("↔")}</article>
+      <article class="card stat-card"><div><span class="muted">آخر فحص</span><strong>${device.lastCheckAt || "لم يتم"}</strong><small class="status info">فحص الاتصال</small></div>${icon("✓", "green")}</article>
+      <article class="card stat-card"><div><span class="muted">آخر إرسال</span><strong>${device.lastSendAt || "لا يوجد"}</strong><small class="status info">${device.queuedMessages || 0} في Queue</small></div>${icon("↗")}</article>
+      <article class="card stat-card"><div><span class="muted">رسائل اليوم</span><strong>${device.messagesToday} / 100</strong><small class="status warning">20 في الساعة</small></div>${icon("20")}</article>
+      <article class="card stat-card"><div><span class="muted">درجة أمان الرقم</span><strong>${device.safetyScore}%</strong><small class="status success">Safe Mode</small></div>${icon("🛡", "green")}</article>
+    </section>
+    <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
+      <article class="card linked-main-card">
+        <div class="device-art" aria-hidden="true">
+          <div class="phone-frame"><span class="wa-logo">☎</span></div>
+          <div class="qr-float"><div class="qr-mini">${qrCell}</div></div>
+        </div>
+        <div class="link-panel">
+          <div class="section-head compact-head">
+            <div><h2>ربط واتساب</h2><p class="muted">يدعم الربط بالباركود QR أو رمز الاقتران Pairing Code، مع إبقاء مفاتيح Evolution في الخادم فقط.</p></div>
+            <span class="status ${statusTone}">${statusText}</span>
+          </div>
+          <div class="tabs tabs-row link-tabs">
+            <button class="tab ${method === "qr" ? "active" : ""}" data-action="device-link-method" data-method="qr">الربط بالباركود QR</button>
+            <button class="tab ${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">الربط برمز الاقتران</button>
+          </div>
+          ${method === "qr" ? `<div class="link-box-grid">
+            <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
+              <div class="qr-grid">${qrCell}</div>
+              <strong>${isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "سيظهر الباركود هنا"}</strong>
+              <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : "لا يتم حفظ QR فترة طويلة"}</small>
+            </div>
+            <div class="pair-code">
+              <span class="muted">تعليمات المسح</span>
+              <ul class="check-list"><li>افتح واتساب على هاتفك.</li><li>الإعدادات ثم الأجهزة المرتبطة.</li><li>اضغط ربط جهاز وامسح الباركود.</li></ul>
+              <button class="btn btn-primary" data-action="create-device-qr">إنشاء/تحديث باركود</button>
+              <button class="btn btn-secondary" data-action="show-device-qr">عرض QR</button>
+              <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
+              ${isPendingQr ? `<button class="btn btn-primary" data-action="confirm-device-link">تأكيد الربط</button>` : ""}
+            </div>
+          </div>` : `<div class="link-box-grid pairing-layout">
+            <div class="pairing-form">
+              <label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${device.phoneInput || ""}" placeholder="9665XXXXXXXX" inputmode="numeric"></label>
+              <small class="muted">اكتب الرقم بصيغة دولية بدون + أو مسافات، مثال: 9665XXXXXXXX.</small>
+              <button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingSupported === false ? "disabled" : ""}>إنشاء رمز الاقتران</button>
+              ${device.pairingSupported === false ? `<p class="status warning">رمز الاقتران غير مدعوم حاليا في نسخة Evolution API المثبتة. استخدم الربط بالباركود.</p>` : ""}
+            </div>
+            <div class="pair-code pairing-result">
+              <span class="muted">رمز الاقتران</span>
+              <strong>${isPendingPairing ? device.pairingCode : "ABCD-EFGH"}</strong>
+              <small class="muted">${isPendingPairing ? `ينتهي خلال 60 ثانية - صالح حتى ${device.pairingExpiresAt}` : "سيظهر الرمز بعد إدخال رقم صحيح"}</small>
+              <button class="btn btn-secondary" data-action="copy-pairing" ${!isPendingPairing ? "disabled" : ""}>نسخ الرمز</button>
+              <button class="btn btn-primary" data-action="confirm-device-link" ${!isPendingPairing ? "disabled" : ""}>تأكيد الربط</button>
+              <ul class="check-list"><li>اختر الربط برقم الهاتف في واتساب إذا ظهر لك.</li><li>أدخل رمز الاقتران الظاهر هنا.</li><li>انتظر حتى تصبح الحالة متصل.</li></ul>
+            </div>
+          </div>`}
+          ${isConnected ? `<div class="inline-actions"><button class="btn btn-secondary" data-action="send-device-test">إرسال رسالة اختبار</button><button class="btn btn-danger" data-action="disconnect-device">فصل الجهاز</button><button class="btn btn-ghost" data-action="delete-device">حذف الجهاز</button></div>` : ""}
+        </div>
+      </article>
+      <aside class="card link-steps-card">
+        <h2>حالة النظام</h2>
+        ${[["Evolution API", "متصل", "success"], ["قاعدة البيانات", "جاهزة", "success"], ["Redis", "مطلوب في staging", "warning"], ["Cron", "message-retry مفعل", "success"], ["آخر Webhook", isConnected ? "قبل دقيقتين" : "لا يوجد", isConnected ? "success" : "neutral"], ["آخر Backup", "ينتظر إعداد VPS", "warning"]].map(([label, value, tone]) => `<div class="system-row"><span>${label}</span><strong class="status ${tone}">${value}</strong></div>`).join("")}
+        <div class="secure-note">QR ورمز الاقتران مؤقتان ويجب تنظيفهما خلال 5-10 دقائق في staging.</div>
+      </aside>
+    </section>
+    <section class="linked-bottom-grid">
+      <article class="card usage-card"><h3>وضع الإرسال الآمن</h3><strong class="usage-count">إجباري بالبداية</strong><div class="safety-list">${safeItems.map((item) => `<span>${item}</span>`).join("")}</div></article>
+      <article class="card table-card"><h3>تنبيهات داخلية</h3><div class="activity-list">${alerts.map((item, index) => `<div class="activity-item">${icon(String(index + 1), index ? "orange" : "green")}<div><strong>${item}</strong><p class="muted">يظهر لصاحب المتجر داخل اللوحة</p></div></div>`).join("")}</div></article>
+      <article class="card table-card linked-table-card"><h3>بطاقة الجهاز المرتبط</h3>${isConnected ? connectedTable : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">اربط واتساب بالباركود أو رمز الاقتران لعرض الرقم، آخر فحص، آخر إرسال، وسجل النشاط.</p></div>`}</article>
+      <article class="card table-card"><h3>سجل النشاط</h3><div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div></article>
+    </section>
+    <section class="section"><article class="card table-card"><h3>رسائل واتساب عبر Queue</h3><p class="muted">أي رسالة اختبار أو رسالة Cron تدخل أولا في message_queue، ثم job message-retry يرسلها تدريجيا مع فحص الحدود والهدوء والتكرار وحالة الجهاز.</p>${simpleTable(["المؤشر", "القيمة"], [["رسائل اليوم", `${device.messagesToday} / 100`], ["رسائل هذا الشهر", `${device.messagesMonth} / 3000`], ["في الانتظار", device.queuedMessages], ["آخر إرسال", device.lastSendAt || "لا يوجد"]])}</article></section>`);
 }
 
 function donutChart() {
@@ -755,16 +854,41 @@ function handleAction(target) {
     toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
     render();
   }
+  if (action === "device-link-method") {
+    state.linkedDevice = { ...state.linkedDevice, linkMethod: target.dataset.method };
+    persistLinkedDevice();
+    render();
+  }
+  if (action === "create-pairing-code") {
+    const phone = String(state.linkedDevice.phoneInput || "").trim();
+    if (!phone) return toast("يرجى إدخال رقم واتساب.", "danger");
+    if (!/^[1-9]\d{10,14}$/.test(phone)) return toast("اكتب الرقم بدون + أو مسافات، مثال: 9665XXXXXXXX.", "danger");
+    state.linkedDevice = {
+      ...state.linkedDevice,
+      status: "pending_pairing",
+      linkMethod: "pairing",
+      instanceId: state.linkedDevice.instanceId || `evo-${Date.now()}`,
+      instanceName: "tenant-main-whatsapp",
+      phoneNumber: `+${phone}`,
+      pairingCode: `${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      pairingExpiresAt: new Date(Date.now() + 60 * 1000).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      activity: ["تم إنشاء رمز الاقتران عبر Evolution API", "ينتهي رمز الاقتران خلال 60 ثانية", ...(state.linkedDevice.activity || []).slice(0, 3)]
+    };
+    persistLinkedDevice();
+    toast("تم إنشاء رمز الاقتران");
+    render();
+  }
   if (action === "create-device-qr") {
     state.linkedDevice = {
       ...state.linkedDevice,
       status: "pending_qr",
+      linkMethod: "qr",
       instanceId: state.linkedDevice.instanceId || `evo-${Date.now()}`,
       instanceName: "tenant-main-whatsapp",
       pairingCode: `WP-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       qrActive: true,
-      qrExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
-      activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز باركود الاقتران"]
+      qrExpiresAt: new Date(Date.now() + 60 * 1000).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت لمدة 60 ثانية", ...(state.linkedDevice.activity || []).slice(0, 3)]
     };
     persistLinkedDevice();
     toast("تم إنشاء باركود جديد عبر Evolution API");
@@ -780,8 +904,10 @@ function handleAction(target) {
       status: "connected",
       qrActive: false,
       deviceName: "WhatsApp iPhone 15 Pro",
-      phoneNumber: "+966 5X XXX XXXX",
+      phoneNumber: state.linkedDevice.phoneNumber || "+966 5X XXX XXXX",
       lastActivity: "منذ دقيقتين",
+      lastCheckAt: "الآن",
+      alerts: ["تم ربط واتساب بنجاح", "وضع الإرسال الآمن مفعل"],
       activity: ["تم الربط بنجاح", "تم فحص الاتصال", "آخر مزامنة منذ دقيقتين"]
     };
     persistLinkedDevice();
@@ -789,9 +915,11 @@ function handleAction(target) {
     render();
   }
   if (action === "check-device-connection") {
-    if (!["pending_qr", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
+    if (!["pending_qr", "pending_pairing", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
     if (state.linkedDevice.status === "pending_qr") return toast("الجلسة جاهزة، امسح الباركود من واتساب", "warning");
+    if (state.linkedDevice.status === "pending_pairing") return toast("رمز الاقتران جاهز، أدخله في واتساب", "warning");
     state.linkedDevice.lastActivity = "الآن";
+    state.linkedDevice.lastCheckAt = "الآن";
     state.linkedDevice.activity = ["تم فحص الاتصال بنجاح", ...(state.linkedDevice.activity || []).slice(0, 4)];
     persistLinkedDevice();
     toast("الاتصال يعمل بنجاح");
@@ -799,9 +927,13 @@ function handleAction(target) {
   }
   if (action === "send-device-test") {
     if (state.linkedDevice.status !== "connected") return toast("لا يمكن الإرسال قبل ربط الجهاز", "danger");
-    state.linkedDevice.activity = ["تم إرسال رسالة اختبار عبر Evolution", ...(state.linkedDevice.activity || []).slice(0, 4)];
+    state.linkedDevice.queuedMessages = (state.linkedDevice.queuedMessages || 0) + 1;
+    state.linkedDevice.messagesToday = (state.linkedDevice.messagesToday || 0) + 1;
+    state.linkedDevice.messagesMonth = (state.linkedDevice.messagesMonth || 0) + 1;
+    state.linkedDevice.lastSendAt = "أضيفت إلى Queue الآن";
+    state.linkedDevice.activity = ["تمت إضافة رسالة اختبار إلى message_queue", "سيقوم message-retry بإرسالها تدريجيا", ...(state.linkedDevice.activity || []).slice(0, 3)];
     persistLinkedDevice();
-    toast("تم إرسال رسالة اختبار بنجاح");
+    toast("تمت إضافة رسالة الاختبار إلى Queue بنجاح");
     render();
   }
   if (action === "disconnect-device") {
@@ -909,6 +1041,8 @@ function handleSubmit(form, event) {
   if (type === "login") {
     if (!data.email) return toast("يرجى إدخال البريد الإلكتروني", "danger");
     if (!data.password) return toast("يرجى إدخال كلمة المرور", "danger");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
+    if (data.email !== "owner@example.com" || data.password !== "correct-password") return toast("البريد الإلكتروني أو كلمة المرور غير صحيحة.", "danger");
     toast("تم تسجيل الدخول بنجاح");
     navigate("/dashboard");
   }
@@ -943,7 +1077,17 @@ function handleSubmit(form, event) {
     toast("تم إنشاء حالة الضمان");
     render();
   }
-  if (["demo", "ticket", "chat", "message", "template", "forgot", "password", "ai-question"].includes(type)) {
+  if (type === "forgot") {
+    closePortal();
+    toast("إذا كان البريد مسجلًا لدينا، سيتم إرسال كود التحقق.");
+  }
+  if (type === "password") {
+    const password = data.new || "";
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) return toast("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف ورقم ورمز خاص.", "danger");
+    closePortal();
+    toast("تم تغيير كلمة المرور بنجاح، يمكنك تسجيل الدخول الآن.");
+  }
+  if (["demo", "ticket", "chat", "message", "template", "ai-question"].includes(type)) {
     closePortal();
     toast(type === "ai-question" ? "تم استلام سؤالك، سيتم ربط المساعد الذكي لاحقًا." : "تم حفظ البيانات بنجاح");
   }
@@ -962,7 +1106,8 @@ function render() {
       "/dashboard/notifications": notificationsPage,
       "/dashboard/warranty": warrantyPage,
       "/dashboard/reports": reportsPage,
-      "/dashboard/connected-devices": connectedDevicesPage,
+      "/dashboard/connected-devices": connectedDevicesCenterPage,
+      "/dashboard/linked-devices": connectedDevicesCenterPage,
       "/dashboard/settings": settingsPage
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
@@ -1000,6 +1145,10 @@ document.addEventListener("input", (event) => {
   if (target.dataset.action === "dashboard-search" || target.dataset.action === "global-search" || target.dataset.action === "support-search") {
     state.search = target.value;
     if (target.dataset.action !== "global-search") render();
+  }
+  if (target.dataset.action === "pairing-phone-input") {
+    state.linkedDevice.phoneInput = target.value;
+    persistLinkedDevice();
   }
 });
 
