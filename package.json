@@ -2,7 +2,14 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "node tests/e2e/run-e2e.mjs",
+    "test:security": "vitest run tests/security",
+    "test:cron": "vitest run tests/cron",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:security && npm run test:cron && npm run test:e2e"
   },
   "private": true,
   "name": "renewpilot-ai",
@@ -11,5 +18,12 @@
     "next": "^15.4.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }

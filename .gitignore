@@ -2,7 +2,10 @@ node_modules/
 .next/
 .pnpm-store/
 dist/
+test-results/
+playwright-report/
 npm-debug.log*
+debug.log
 server.out.log
 server.err.log
 .DS_Store
