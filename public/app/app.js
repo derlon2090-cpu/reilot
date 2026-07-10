@@ -80,14 +80,14 @@ const routes = [
 
 const dashboardRoutes = [
   ["/dashboard", "الرئيسية", "⌂"],
-  ["/dashboard/subscriptions", "الاشتراكات", "ا"],
-  ["/dashboard/customers", "العملاء", "ع"],
-  ["/dashboard/renewals", "التجديدات", "ت"],
-  ["/dashboard/notifications", "التنبيهات", "ن"],
-  ["/dashboard/warranty", "المركز الضماني", "ض"],
-  ["/dashboard/reports", "التقارير", "ر"],
+  ["/dashboard/subscriptions", "الاشتراكات", "▣"],
+  ["/dashboard/customers", "العملاء", "♙"],
+  ["/dashboard/renewals", "التجديدات", "↻"],
+  ["/dashboard/notifications", "التنبيهات", "♢"],
+  ["/dashboard/warranty", "المركز الضماني", "◇"],
+  ["/dashboard/reports", "التقارير", "▥"],
   ["/dashboard/connected-devices", "الأجهزة المرتبطة", "🔗"],
-  ["/dashboard/settings", "الإعدادات", "إ"]
+  ["/dashboard/settings", "الإعدادات", "⚙"]
 ];
 
 function applyPreferences() {
@@ -319,31 +319,42 @@ function supportPage() {
 }
 
 function loginPage() {
-  return `<main class="auth-page">
+  const isRegister = state.route === "/register";
+  return `<main class="auth-page ${isRegister ? "register-mode" : "login-mode"}">
+    <div class="auth-brand">${logo()}</div>
+    <div class="auth-top-actions">
+      <button class="btn btn-ghost icon-btn" data-action="theme" title="تبديل المظهر">${state.theme === "dark" ? "☾" : "☀"}</button>
+      <button class="btn btn-secondary" data-action="language">${state.language.toUpperCase()}</button>
+    </div>
     <section class="auth-shell">
       <article class="card auth-panel">
-        ${logo()}
-        <br><br>
-        <h1>مرحبًا بعودتك</h1>
-        <p class="lead">أدر التجديدات والاشتراكات بذكاء</p>
+        <span class="eyebrow">${isRegister ? "ابدأ حسابك الآن" : "مرحبًا بعودتك"}</span>
+        <h1>${isRegister ? "إنشاء حساب جديد" : "Welcome back"}</h1>
+        <p class="lead">${isRegister ? "أنشئ مساحة RenewPilot AI لإدارة الاشتراكات والتنبيهات والربط الذكي." : "Manage renewals smarter"}</p>
         ${state.query.get("plan") ? `<p class="badge">الخطة المختارة: ${state.query.get("plan")}</p>` : ""}
-        <form data-submit="login" class="grid">
-          <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" placeholder="name@example.com"></label>
-          <label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" placeholder="••••••••"></label>
-          <div class="inline-actions split-between">
-            <label><input type="checkbox" name="remember"> تذكرني</label>
-            <button type="button" class="btn btn-ghost" data-action="forgot-password">نسيت كلمة المرور؟</button>
-          </div>
-          <button class="btn btn-primary">تسجيل الدخول</button>
-          <button type="button" class="btn btn-secondary" data-action="google-login">المتابعة باستخدام Google</button>
-          <button type="button" class="btn btn-ghost" data-link="/login">إنشاء حساب جديد</button>
+        <form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form">
+          ${isRegister ? `<label class="field"><span>الاسم الكامل</span><input class="input" type="text" name="name" placeholder="أحمد العتيبي" required></label>` : ""}
+          <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" placeholder="you@example.com" required></label>
+          <label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" placeholder="Enter your password" required></label>
+          ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" placeholder="أعد كتابة كلمة المرور" required></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember" checked> تذكرني</label><button type="button" class="btn btn-ghost" data-action="forgot-password">نسيت كلمة المرور؟</button></div>`}
+          <button class="btn btn-primary auth-submit">${isRegister ? "إنشاء الحساب" : "Sign in"} <span>→</span></button>
+          <div class="auth-divider"><span>or</span></div>
+          <button type="button" class="btn btn-secondary google-btn" data-action="google-login"><span class="google-mark">G</span>${isRegister ? "التسجيل باستخدام Google" : "Continue with Google"}</button>
+          <p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "Create account"}</button></p>
         </form>
       </article>
-      <aside class="card auth-visual">
-        <span class="eyebrow">RenewPilot AI</span>
-        <h2>لوحة واحدة لتقليل التجديدات الفائتة</h2>
-        <p class="muted">تنبيهات تلقائية، روابط تجديد، مركز ضمان، وتحليلات تساعدك على اتخاذ القرار أسرع.</p>
-        ${dashboardPreview()}
+      <aside class="auth-visual">
+        <div class="auth-hero-logo"><span class="brand-mark">R</span><strong>RenewPilot <b>AI</b></strong></div>
+        <p>The intelligent way to manage renewals<br>Track. Automate. Renew with confidence.</p>
+        <div class="auth-dashboard-art">
+          <div class="art-top"><strong>Dashboard</strong><span></span></div>
+          <div class="art-stats">${["1,248,750", "324", "98", "23"].map((value) => `<span><small>Total</small><strong>${value}</strong></span>`).join("")}</div>
+          <div class="art-table">${["Professional Indemnity", "Commercial Property", "Motor Fleet", "Cyber Insurance"].map((item, index) => `<div><span>${item}</span><b>${index === 2 ? "Due Soon" : "Active"}</b></div>`).join("")}</div>
+        </div>
+        <div class="auth-feature-row">
+          <span>🔔 Smart Reminders</span><span>↻ Renewal Tracking</span><span>👥 Customer Portal</span>
+        </div>
+        <div class="auth-security-note">Built for security. Designed for trust.</div>
       </aside>
     </section>
   </main>`;
@@ -623,24 +634,18 @@ function connectedDevicesCenterPage() {
   const safeItems = ["20 رسالة في الساعة", "100 رسالة في اليوم", "تأخير 20 - 90 ثانية", "منع الإرسال من 9 مساء إلى 9 صباحا", "منع تكرار نفس الرسالة خلال 24 ساعة"];
   const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "WhatsApp Device", device.phoneNumber || "+966 5X XXX XXXX", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
 
-  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button>`)}
-    <p class="linked-subtitle">مركز واتساب كامل لإدارة الربط، حالة الاتصال، الإرسال الآمن، وسجل النشاط لكل متجر.</p>
-    <section class="grid grid-5 whatsapp-health-grid">
-      <article class="card stat-card"><div><span class="muted">حالة الاتصال</span><strong>${statusText}</strong><small class="status ${statusTone}">Evolution API</small></div>${icon("↔")}</article>
-      <article class="card stat-card"><div><span class="muted">آخر فحص</span><strong>${device.lastCheckAt || "لم يتم"}</strong><small class="status info">فحص الاتصال</small></div>${icon("✓", "green")}</article>
-      <article class="card stat-card"><div><span class="muted">آخر إرسال</span><strong>${device.lastSendAt || "لا يوجد"}</strong><small class="status info">${device.queuedMessages || 0} في Queue</small></div>${icon("↗")}</article>
-      <article class="card stat-card"><div><span class="muted">رسائل اليوم</span><strong>${device.messagesToday} / 100</strong><small class="status warning">20 في الساعة</small></div>${icon("20")}</article>
-      <article class="card stat-card"><div><span class="muted">درجة أمان الرقم</span><strong>${device.safetyScore}%</strong><small class="status success">Safe Mode</small></div>${icon("🛡", "green")}</article>
-    </section>
+  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">${isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
+    <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
     <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
       <article class="card linked-main-card">
         <div class="device-art" aria-hidden="true">
           <div class="phone-frame"><span class="wa-logo">☎</span></div>
+          <div class="wa-check ${isConnected ? "show" : ""}">✓</div>
           <div class="qr-float"><div class="qr-mini">${qrCell}</div></div>
         </div>
         <div class="link-panel">
           <div class="section-head compact-head">
-            <div><h2>ربط واتساب</h2><p class="muted">يدعم الربط بالباركود QR أو رمز الاقتران Pairing Code، مع إبقاء مفاتيح Evolution في الخادم فقط.</p></div>
+            <div><h2>ربط واتساب</h2><p class="muted">${isConnected ? "تم ربط حساب واتساب وجاهز لإرسال تنبيهات وتجديدات العملاء." : "اربط حساب واتساب لإدارة المحادثات والرد على العملاء مباشرة من المنصة."}</p><p class="muted lock-line">🔒 آمن، خاص، ومتوافق مع سياسات واتساب.</p></div>
             <span class="status ${statusTone}">${statusText}</span>
           </div>
           <div class="tabs tabs-row link-tabs">
@@ -654,10 +659,11 @@ function connectedDevicesCenterPage() {
               <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : "لا يتم حفظ QR فترة طويلة"}</small>
             </div>
             <div class="pair-code">
-              <span class="muted">تعليمات المسح</span>
-              <ul class="check-list"><li>افتح واتساب على هاتفك.</li><li>الإعدادات ثم الأجهزة المرتبطة.</li><li>اضغط ربط جهاز وامسح الباركود.</li></ul>
+              <span class="muted">رمز الاقتران</span>
+              <strong>${device.pairingCode}</strong>
+              <small class="muted">صالح لمدة 15 دقيقة</small>
               <button class="btn btn-primary" data-action="create-device-qr">إنشاء/تحديث باركود</button>
-              <button class="btn btn-secondary" data-action="show-device-qr">عرض QR</button>
+              <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
               <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
               ${isPendingQr ? `<button class="btn btn-primary" data-action="confirm-device-link">تأكيد الربط</button>` : ""}
             </div>
@@ -681,18 +687,17 @@ function connectedDevicesCenterPage() {
         </div>
       </article>
       <aside class="card link-steps-card">
-        <h2>حالة النظام</h2>
-        ${[["Evolution API", "متصل", "success"], ["قاعدة البيانات", "جاهزة", "success"], ["Redis", "مطلوب في staging", "warning"], ["Cron", "message-retry مفعل", "success"], ["آخر Webhook", isConnected ? "قبل دقيقتين" : "لا يوجد", isConnected ? "success" : "neutral"], ["آخر Backup", "ينتظر إعداد VPS", "warning"]].map(([label, value, tone]) => `<div class="system-row"><span>${label}</span><strong class="status ${tone}">${value}</strong></div>`).join("")}
-        <div class="secure-note">QR ورمز الاقتران مؤقتان ويجب تنظيفهما خلال 5-10 دقائق في staging.</div>
+        ${isConnected ? `<div class="success-device-state"><span>✓</span><h2>حساب واتساب متصل بنجاح</h2><p class="muted">حسابك جاهز لإرسال تنبيهات وتجديدات العملاء.</p><ul class="check-list"><li>جاهز لإرسال الرسائل</li><li>استقبال وإدارة الردود</li><li>مزامنة جهات الاتصال</li><li>تتبع نشاط المحادثات</li></ul></div>` : `<h2>طريقة الربط</h2>${[["1", "افتح واتساب على هاتفك", "افتح تطبيق واتساب على هاتفك الذكي."], ["2", "الأجهزة المرتبطة", "اذهب إلى الإعدادات ثم اختر الأجهزة المرتبطة."], ["3", "امسح الباركود أو أدخل رمز الاقتران", "اربط الجهاز ثم انتظر اكتمال الاتصال."]].map(([num, title, body]) => `<div class="step-row"><span>${num}</span><strong>${title}</strong><p class="muted">${body}</p></div>`).join("")}`}
+        <div class="secure-note">تأكد من إبقاء واتساب مفتوحًا أثناء عملية الربط حتى تكتمل بنجاح.</div>
       </aside>
     </section>
     <section class="linked-bottom-grid">
-      <article class="card usage-card"><h3>وضع الإرسال الآمن</h3><strong class="usage-count">إجباري بالبداية</strong><div class="safety-list">${safeItems.map((item) => `<span>${item}</span>`).join("")}</div></article>
-      <article class="card table-card"><h3>تنبيهات داخلية</h3><div class="activity-list">${alerts.map((item, index) => `<div class="activity-item">${icon(String(index + 1), index ? "orange" : "green")}<div><strong>${item}</strong><p class="muted">يظهر لصاحب المتجر داخل اللوحة</p></div></div>`).join("")}</div></article>
-      <article class="card table-card linked-table-card"><h3>بطاقة الجهاز المرتبط</h3>${isConnected ? connectedTable : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">اربط واتساب بالباركود أو رمز الاقتران لعرض الرقم، آخر فحص، آخر إرسال، وسجل النشاط.</p></div>`}</article>
-      <article class="card table-card"><h3>سجل النشاط</h3><div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div></article>
+      <article class="card usage-card"><span class="mini-icon">👥</span><h3>استخدام الأجهزة المرتبطة</h3><strong class="usage-count">1 / 1 جهاز مرتبط</strong><div class="usage-bar"><span style="width:${isConnected ? 100 : 8}%"></span></div><p class="${isConnected ? "success-text" : "danger-text"}">${isConnected ? "تم ربط جهاز واتساب بنجاح" : "لم يتم ربط أي جهاز بعد"}</p><button class="btn btn-ghost" data-link="/pricing">ترقية الخطة لزيادة الحد الأقصى</button></article>
+      <article class="card table-card security-card"><span class="mini-icon">🛡</span><h3>ملاحظات الأمان</h3><ul class="check-list">${["الاتصال مشفر بالكامل بين منصتك وواتساب.", "لا يتم تخزين أو عرض أي رموز أو توكنات.", "عند انتهاء الجلسة، سيتم طلب إعادة الربط.", "أوقف أي جهاز غير معروف من إعدادات واتساب."].map((item) => `<li>${item}</li>`).join("")}</ul></article>
+      <article class="card table-card linked-table-card"><h3>الأجهزة المرتبطة الأخيرة</h3>${isConnected ? connectedTable : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">قم بربط واتساب لعرض الأجهزة المرتبطة وسجل النشاط.</p></div>`}</article>
+      <article class="card table-card activity-card"><h3>النشاط الأخير</h3><div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div></article>
     </section>
-    <section class="section"><article class="card table-card"><h3>رسائل واتساب عبر Queue</h3><p class="muted">أي رسالة اختبار أو رسالة Cron تدخل أولا في message_queue، ثم job message-retry يرسلها تدريجيا مع فحص الحدود والهدوء والتكرار وحالة الجهاز.</p>${simpleTable(["المؤشر", "القيمة"], [["رسائل اليوم", `${device.messagesToday} / 100`], ["رسائل هذا الشهر", `${device.messagesMonth} / 3000`], ["في الانتظار", device.queuedMessages], ["آخر إرسال", device.lastSendAt || "لا يوجد"]])}</article></section>`);
+    <section class="section section-tight"><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3><div class="safety-list">${safeItems.map((item) => `<span>${item}</span>`).join("")}</div></article></section>`);
 }
 
 function donutChart() {
@@ -1044,6 +1049,15 @@ function handleSubmit(form, event) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
     if (data.email !== "owner@example.com" || data.password !== "correct-password") return toast("البريد الإلكتروني أو كلمة المرور غير صحيحة.", "danger");
     toast("تم تسجيل الدخول بنجاح");
+    navigate("/dashboard");
+  }
+  if (type === "register") {
+    if (!data.name || data.name.trim().length < 3) return toast("يرجى إدخال الاسم الكامل.", "danger");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(data.password || "")) return toast("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف ورقم.", "danger");
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور غير مطابق.", "danger");
+    storage.set("renewpilot.account", { name: data.name, email: data.email, createdAt: new Date().toISOString() });
+    toast("تم إنشاء الحساب بنجاح");
     navigate("/dashboard");
   }
   if (type === "subscription") {

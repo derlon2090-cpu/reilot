@@ -10,6 +10,7 @@ await mkdir(publicApp, { recursive: true });
 await cp(path.join(root, "src", "app", "app.js"), path.join(publicApp, "app.js"));
 await mkdir(path.join(publicApp, "styles"), { recursive: true });
 await cp(path.join(root, "src", "styles", "globals.css"), path.join(publicApp, "styles", "globals.css"));
+await cp(path.join(root, "src", "styles", "tokens.css"), path.join(publicApp, "styles", "tokens.css"));
 await mkdir(path.join(root, "public", "data"), { recursive: true });
 await cp(path.join(root, "src", "data"), path.join(root, "public", "data"), { recursive: true });
 

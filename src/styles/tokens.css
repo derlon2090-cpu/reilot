@@ -15,7 +15,7 @@
   --border: #E2E8F0;
   --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 12px 30px rgba(15, 23, 42, 0.08);
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
 }
