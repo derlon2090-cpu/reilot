@@ -1,6 +1,8 @@
 {
   "scripts": {
+    "prebuild": "node build.mjs",
     "build": "next build",
+    "predev": "node build.mjs",
     "dev": "next dev",
     "start": "next start",
     "test": "vitest",

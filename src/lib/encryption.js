@@ -38,7 +38,12 @@ export function redactSecrets(value) {
     "channel_token",
     "channelToken",
     "channel_token_encrypted",
-    "WHAPI_PARTNER_API_KEY",
+    "instanceToken",
+    "instance_token",
+    "instance_token_encrypted",
+    "instanceTokenEncrypted",
+    "EVOLUTION_API_KEY",
+    "EVOLUTION_WEBHOOK_SECRET",
     "DATABASE_URL",
     "ENCRYPTION_KEY"
   ]);

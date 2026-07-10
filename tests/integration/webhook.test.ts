@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleWebhookEvent } from "../../src/lib/whatsapp.js";
+import { handleEvolutionWebhookEvent } from "../../src/lib/evolution.js";
 
 describe("webhook integration", () => {
   it("rejects invalid secrets and applies valid events idempotently in the repository", () => {
@@ -12,8 +12,8 @@ describe("webhook integration", () => {
       })
     };
 
-    expect(handleWebhookEvent({ event: { id: "e1" }, secret: "bad", expectedSecret: "good", repository }).status).toBe(401);
-    expect(handleWebhookEvent({ event: { id: "e1", status: "delivered" }, secret: "good", expectedSecret: "good", repository })).toMatchObject({ ok: true, duplicated: false });
-    expect(handleWebhookEvent({ event: { id: "e1", status: "delivered" }, secret: "good", expectedSecret: "good", repository })).toMatchObject({ ok: true, duplicated: true });
+    expect(handleEvolutionWebhookEvent({ event: { id: "e1" }, secret: "bad", expectedSecret: "good", repository }).status).toBe(401);
+    expect(handleEvolutionWebhookEvent({ event: { id: "e1", status: "delivered" }, secret: "good", expectedSecret: "good", repository })).toMatchObject({ ok: true, duplicated: false });
+    expect(handleEvolutionWebhookEvent({ event: { id: "e1", status: "delivered" }, secret: "good", expectedSecret: "good", repository })).toMatchObject({ ok: true, duplicated: true });
   });
 });

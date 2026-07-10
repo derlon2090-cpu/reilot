@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { processMessageRetry } from "../../src/lib/cronJobs.js";
 
-describe("WhatsApp send integration", () => {
-  it("sends pending queue items with the mocked provider and records provider id", async () => {
+describe("Evolution send integration", () => {
+  it("sends pending queue items with the mocked Evolution provider and records provider id", async () => {
     const processed = await processMessageRetry({
       queue: [{ id: "m1", tenantId: "tenant-a", status: "pending", attempts: 0, maxAttempts: 3 }],
       safetyByTenant: { "tenant-a": { now: new Date("2026-07-10T12:00:00"), hourlySent: 0, dailySent: 0 } },

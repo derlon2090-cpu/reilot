@@ -5,15 +5,17 @@ import { redactSecrets } from "../../src/lib/encryption.js";
 describe("secrets leak security", () => {
   it("redacts sensitive keys from responses", () => {
     expect(redactSecrets({
-      WHAPI_PARTNER_API_KEY: "whapi",
+      EVOLUTION_API_KEY: "evolution-key",
+      EVOLUTION_WEBHOOK_SECRET: "webhook-secret",
       DATABASE_URL: "postgres://prod",
       ENCRYPTION_KEY: "enc",
-      nested: { channelToken: "channel-token" }
+      nested: { instanceToken: "instance-token" }
     })).toEqual({
-      WHAPI_PARTNER_API_KEY: "[REDACTED]",
+      EVOLUTION_API_KEY: "[REDACTED]",
+      EVOLUTION_WEBHOOK_SECRET: "[REDACTED]",
       DATABASE_URL: "[REDACTED]",
       ENCRYPTION_KEY: "[REDACTED]",
-      nested: { channelToken: "[REDACTED]" }
+      nested: { instanceToken: "[REDACTED]" }
     });
   });
 

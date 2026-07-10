@@ -2,69 +2,155 @@
 
 Date: 2026-07-10
 
+## Provider
+
+WhatsApp Provider:
+Evolution API self-hosted
+
+Infrastructure:
+VPS + Docker Compose + Evolution API + PostgreSQL + Redis + Nginx + SSL
+
 ## Scope
 
 Implemented and executed a professional automated test suite for:
 
-- Unit tests: auth, permissions, quota, message safety, template rendering, encryption.
-- Integration tests: database migration contracts, tenant isolation, WhatsApp channel creation/QR/send, webhook, email, subscription reminder flow.
-- Cron tests: renewal reminders, message retry, usage reset, WhatsApp health check, cleanup.
-- Security tests: secret redaction, API/session auth, tenant access, rate limiting, webhook verification.
-- E2E tests: login smoke flow, onboarding/dashboard smoke, WhatsApp integration modal, subscriptions, customers, notifications, settings persistence, billing plan selection.
+* Unit tests:
+  * auth
+  * permissions
+  * quota
+  * message safety
+  * template rendering
+  * encryption
+  * Evolution provider client contracts
 
-All provider-dependent tests use mocks. No production database, Whapi, Resend, or payment provider is used during tests.
+* Integration tests:
+  * database migration contracts
+  * tenant isolation
+  * Evolution instance creation
+  * QR generation
+  * WhatsApp connection status
+  * send test message
+  * webhook handling
+  * email mocks
+  * subscription reminder flow
 
-## Results
+* Cron tests:
+  * renewal reminders
+  * message queue
+  * message retry
+  * usage reset
+  * Evolution health check
+  * cleanup
 
-- Unit: 13 passed / 0 failed.
-- Integration: 8 passed / 0 failed.
-- Security: 7 passed / 0 failed.
-- Cron: 10 passed / 0 failed.
-- E2E: 8 passed / 0 failed.
-- Total: 46 passed / 0 failed.
-- Build: passed.
-- npm audit: passed, 0 vulnerabilities.
+* Security tests:
+  * secret redaction
+  * API/session auth
+  * tenant access
+  * rate limiting
+  * webhook verification
+  * Evolution API key protection
 
-## Commands
+* E2E tests:
+  * login smoke flow
+  * onboarding/dashboard smoke
+  * linked devices page
+  * WhatsApp QR modal
+  * WhatsApp connected state
+  * subscriptions
+  * customers
+  * notifications
+  * settings persistence
+  * billing plan selection
 
-```bash
-npm run test:unit
-npm run test:integration
-npm run test:security
-npm run test:cron
-npm run test:e2e
-npm run test:all
-npm run build
-npm audit --audit-level=moderate
-```
+All provider-dependent tests use mocks. No production database, real Evolution server, Resend, or payment provider is used during automated tests.
 
-## Important Paths Covered
+## Required Manual Staging Tests Before Launch
 
-- Login smoke: `tests/e2e/auth.spec.ts`
-- WhatsApp connect smoke: `tests/e2e/whatsapp-connect.spec.ts`
-- Cron reminders: `tests/cron/renewal-reminders.test.ts`
-- Message retry: `tests/cron/message-retry.test.ts`
-- Tenant isolation: `tests/integration/tenant-isolation.test.ts`
-- Quota exceeded behavior: `tests/unit/quota.test.ts`
-- Message safety: `tests/unit/message-safety.test.ts`
-- Secret handling: `tests/security/secrets-leak.test.ts`
+Before launch, run these manually on staging:
 
-## Issues Fixed During Testing
+1. VPS health:
+   * Docker is running.
+   * Evolution API container is running.
+   * Postgres container is running.
+   * Redis container is running.
+   * Nginx is running.
+   * SSL is active.
 
-- Added the missing automated test framework and scripts.
-- Added deterministic E2E runner for Windows that starts and stops Next.js cleanly.
-- Added npm `overrides` for `postcss` to close the moderate npm audit advisory inherited through Next.js.
-- Added `.gitignore` entries for Playwright and build/test artifacts.
-- Added testable domain modules for permissions, quota, message safety, encryption, tenant isolation, WhatsApp mocks, cron queue logic, session checks, and rate limiting.
+2. Evolution API URL:
+   * `EVOLUTION_API_URL` resolves successfully.
+   * HTTPS works.
+   * Port 8080 is not publicly exposed.
+   * Evolution API is only accessed through HTTPS reverse proxy.
 
-## Remaining Production Readiness Work
+3. RenewPilot environment:
+   * `WHATSAPP_PROVIDER=evolution`
+   * `EVOLUTION_API_URL` is set.
+   * `EVOLUTION_API_KEY` is set.
+   * `EVOLUTION_WEBHOOK_SECRET` is set.
+   * No duplicate `WHATSAPP_PROVIDER`.
 
-These tests validate the current implementation and mocked integration contracts. Before launch, the mocked integration tests should be extended against a dedicated Neon test branch and real staging credentials for:
+4. Linked devices flow:
+   * Create instance.
+   * Show QR.
+   * Scan QR from WhatsApp.
+   * Status becomes connected.
+   * Phone number appears.
+   * Send test message.
+   * Message arrives.
+   * Disconnect device.
+   * Reconnect device.
 
-- Better Auth full registration/login/session persistence.
-- Drizzle repository methods connected to Neon.
-- Whapi Partner staging/manual verification.
-- Resend staging/manual verification.
-- Vercel production environment variables and domain alias/protection settings.
+5. Tenant isolation:
+   * Tenant A cannot see or use tenant B instance.
+   * Tenant A cannot send through tenant B WhatsApp.
+   * API returns 403 for cross-tenant access.
 
-Do not use production data for these tests.
+6. Safety system:
+   * Message limits work.
+   * Queue works.
+   * Quiet hours work.
+   * Duplicate prevention works.
+   * Unsubscribe works.
+   * Risk score works.
+   * Sending stops when instance is disconnected.
+
+7. Cron:
+   * renewal-reminders creates queue only.
+   * message-retry sends through Evolution.
+   * health-check updates instance status.
+   * usage-reset creates new monthly usage.
+   * cleanup does not delete important logs.
+
+8. Security:
+   * `EVOLUTION_API_KEY` does not appear in frontend.
+   * `EVOLUTION_API_KEY` does not appear in API responses.
+   * `.env` is not committed.
+   * Logs do not print secrets.
+   * Webhook rejects invalid secret.
+   * Cron rejects invalid `CRON_SECRET`.
+
+## Current Result
+
+Automated tests passed:
+
+* Unit: 13 passed / 0 failed.
+* Integration: 9 passed / 0 failed.
+* Security: 11 passed / 0 failed.
+* Cron: 10 passed / 0 failed.
+* E2E: 8 passed / 0 failed.
+* Total: 51 passed / 0 failed.
+* Build: passed.
+* npm audit: passed, 0 vulnerabilities.
+
+## Important Note
+
+The automated tests are good, but they are mocked. Before production launch, we must run real staging tests against:
+
+* Dedicated Neon test branch.
+* Real Evolution API staging VPS.
+* Real QR scan.
+* Real WhatsApp test number.
+* Real Resend staging email.
+* Real Vercel environment variables.
+
+Do not use production data for staging tests.

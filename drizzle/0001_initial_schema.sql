@@ -108,7 +108,7 @@ CREATE TABLE renewal_links (
 CREATE TABLE whatsapp_channels (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  provider text NOT NULL DEFAULT 'whapi',
+  provider text NOT NULL DEFAULT 'evolution',
   channel_id text NOT NULL,
   channel_token_encrypted text NOT NULL,
   phone_number text,

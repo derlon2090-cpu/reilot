@@ -57,7 +57,7 @@ Vercel يخدم:
 
 تمت إضافة بداية طبقة الربط الحقيقي:
 
-- `.env.example` يحتوي متغيرات Neon وBetter Auth وWhapi وResend وMoyasar.
+- `.env.example` يحتوي متغيرات Neon وBetter Auth وEvolution API self-hosted وResend وMoyasar.
 - `drizzle/0001_initial_schema.sql` يحتوي الجداول الأساسية والفهارس.
 - `drizzle/0002_seed_platform_plans.sql` يحتوي باقات Trial وStarter وPro وBusiness.
 - `drizzle/0003_cron_auth_safety.sql` يحتوي queue وtenant_members وإعدادات حماية واتساب.

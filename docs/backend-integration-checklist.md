@@ -41,9 +41,19 @@
 - لا تكرار لنفس الرسالة داخل نافذة 24 ساعة.
 - إذا risk score تجاوز 70، يتم إيقاف الإرسال التلقائي مؤقتًا.
 
+## Evolution API Self-Hosted
+
+- `WHATSAPP_PROVIDER=evolution`.
+- `EVOLUTION_API_URL` يعمل عبر HTTPS reverse proxy.
+- `EVOLUTION_API_KEY` يستخدم في الباكند فقط.
+- Port 8080 غير مكشوف للعامة.
+- كل tenant يملك Evolution instance منفصلة.
+- QR cache لا يحتوي مفاتيح أو tokens خام.
+
 ## Production Secrets
 
-- `WHAPI_PARTNER_API_KEY` لا يظهر في الواجهة.
+- `EVOLUTION_API_KEY` لا يظهر في الواجهة.
+- `EVOLUTION_WEBHOOK_SECRET` لا يظهر في الواجهة.
 - `DATABASE_URL` لا يظهر في الواجهة.
-- channel token لا يظهر في أي response.
-- channel token يجب حفظه مشفرًا باستخدام `ENCRYPTION_KEY`.
+- instance token لا يظهر في أي response.
+- instance token يجب حفظه مشفرًا باستخدام `ENCRYPTION_KEY`.

@@ -27,11 +27,26 @@ const storage = {
   }
 };
 
+const defaultLinkedDevice = {
+  status: "not_connected",
+  instanceId: "",
+  instanceName: "",
+  deviceName: "",
+  phoneNumber: "",
+  pairingCode: "WP-7K4M-9Q2P",
+  qrActive: false,
+  qrExpiresAt: "",
+  lastActivity: "",
+  activity: []
+};
+
 const state = {
   route: location.pathname,
   query: new URLSearchParams(location.search),
   navOpen: false,
   sidebarOpen: false,
+  theme: storage.get("renewpilot.theme", "light"),
+  language: storage.get("renewpilot.language", "ar"),
   billing: storage.get("renewpilot.billing", "monthly"),
   filter: "الكل",
   search: "",
@@ -41,7 +56,8 @@ const state = {
   notifications: storage.get("renewpilot.notifications", seedNotifications),
   warrantyCases: storage.get("renewpilot.warranty", seedWarrantyCases),
   automation: storage.get("renewpilot.automation", { seven: true, three: true, same: false }),
-  settings: storage.get("renewpilot.settings", { whatsapp: true, email: true, sms: false, twoFactor: true, renewAuto: true })
+  settings: storage.get("renewpilot.settings", { whatsapp: true, email: true, sms: false, twoFactor: true, renewAuto: true }),
+  linkedDevice: storage.get("renewpilot.linkedDevice", defaultLinkedDevice)
 };
 
 const routes = [
@@ -59,8 +75,19 @@ const dashboardRoutes = [
   ["/dashboard/notifications", "التنبيهات", "ن"],
   ["/dashboard/warranty", "المركز الضماني", "ض"],
   ["/dashboard/reports", "التقارير", "ر"],
+  ["/dashboard/connected-devices", "الأجهزة المرتبطة", "🔗"],
   ["/dashboard/settings", "الإعدادات", "إ"]
 ];
+
+function applyPreferences() {
+  document.documentElement.dataset.theme = state.theme;
+  document.documentElement.lang = state.language;
+  document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
+}
+
+function persistLinkedDevice() {
+  storage.set("renewpilot.linkedDevice", state.linkedDevice);
+}
 
 function navigate(to) {
   const url = new URL(to, location.origin);
@@ -98,13 +125,14 @@ function logo() {
 
 function publicNavbar() {
   const links = routes.map(([path, label]) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}">${label}</button>`).join("");
+  const themeIcon = state.theme === "dark" ? "☾" : "☀";
   return `<nav class="public-nav ${state.navOpen ? "open" : ""}">
     <div class="container nav-inner">
       ${logo()}
       <div class="nav-links">${links}</div>
       <div class="nav-actions">
-        <button class="btn btn-ghost icon-btn" data-action="theme" title="الوضع الشمسي">☼</button>
-        <button class="btn btn-secondary" data-action="language">AR</button>
+        <button class="btn btn-ghost icon-btn" data-action="theme" title="تبديل المظهر">${themeIcon}</button>
+        <button class="btn btn-secondary" data-action="language">${state.language.toUpperCase()}</button>
         <button class="btn btn-secondary" data-link="/login">تسجيل الدخول</button>
         <button class="btn btn-primary" data-link="/login">ابدأ الآن</button>
       </div>
@@ -312,6 +340,7 @@ function loginPage() {
 
 function dashboardShell(content) {
   const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}"><span>${mark}</span>${label}</button>`).join("");
+  const themeIcon = state.theme === "dark" ? "☾" : "☀";
   return `<div class="dashboard-shell">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       ${logo()}
@@ -327,8 +356,8 @@ function dashboardShell(content) {
         <div class="topbar-tools">
           <span class="badge">Pro Plan</span>
           <button class="btn btn-ghost icon-btn" data-action="notifications">🔔</button>
-          <button class="btn btn-ghost icon-btn" data-action="theme">☼</button>
-          <button class="btn btn-secondary" data-action="language">AR</button>
+          <button class="btn btn-ghost icon-btn" data-action="theme">${themeIcon}</button>
+          <button class="btn btn-secondary" data-action="language">${state.language.toUpperCase()}</button>
           <span class="avatar">م</span><strong>محمد المدير</strong>
         </div>
       </header>
@@ -486,6 +515,87 @@ function reportsPage() {
     </div>`);
 }
 
+function connectedDevicesPage() {
+  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
+  const isConnected = device.status === "connected";
+  const isPending = device.status === "pending_qr";
+  const statusText = isConnected ? "متصل" : isPending ? "بانتظار المسح" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
+  const statusTone = isConnected ? "success" : isPending ? "warning" : "danger";
+  const usage = isConnected ? "1 / 1" : "0 / 1";
+  const activity = device.activity.length ? device.activity : ["لا توجد أجهزة مرتبطة حتى الآن"];
+  const qrCell = isPending ? Array.from({ length: 49 }).map((_, index) => `<span class="${[0, 1, 7, 8, 40, 41, 48, 12, 18, 22, 24, 31, 35].includes(index) ? "active" : ""}"></span>`).join("") : Array.from({ length: 49 }).map((_, index) => `<span class="${index % 6 === 0 ? "ghost" : ""}"></span>`).join("");
+
+  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">${isPending || isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
+    <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
+    <section class="linked-layout">
+      <article class="card linked-main-card">
+        <div class="device-art" aria-hidden="true">
+          <div class="phone-frame"><span class="wa-logo">☎</span></div>
+          <div class="qr-float">
+            <div class="qr-mini">${qrCell}</div>
+          </div>
+        </div>
+        <div class="link-panel">
+          <div class="section-head compact-head">
+            <div>
+              <h2>ربط واتساب</h2>
+              <p class="muted">اتصال آمن عبر Evolution API self-hosted من الخادم فقط.</p>
+            </div>
+            <span class="status ${statusTone}">${statusText}</span>
+          </div>
+          <div class="link-box-grid">
+            <div class="qr-box ${isPending ? "active" : ""}" data-action="show-device-qr">
+              <div class="qr-grid">${qrCell}</div>
+              <strong>${isPending ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "سيظهر الباركود هنا"}</strong>
+              <small class="muted">${isPending ? `صالح حتى ${device.qrExpiresAt}` : isConnected ? device.deviceName : "أنشئ جلسة Evolution لعرض QR"}</small>
+            </div>
+            <div class="or-divider">أو</div>
+            <div class="pair-code">
+              <span class="muted">رمز الاقتران</span>
+              <strong>${device.pairingCode}</strong>
+              <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
+              <button class="btn btn-primary" data-action="create-device-qr">${isPending || isConnected ? "إعادة إنشاء باركود" : "إنشاء باركود جديد"}</button>
+              <button class="btn btn-secondary" data-action="check-device-connection" ${!isPending && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
+              ${isPending ? `<button class="btn btn-primary" data-action="confirm-device-link">تأكيد الربط التجريبي</button>` : ""}
+              ${isConnected ? `<button class="btn btn-secondary" data-action="send-device-test">إرسال رسالة اختبار</button><button class="btn btn-danger" data-action="disconnect-device">فصل الجهاز</button><button class="btn btn-ghost" data-action="delete-device">حذف الجهاز</button>` : ""}
+            </div>
+          </div>
+        </div>
+      </article>
+      <aside class="card link-steps-card">
+        <h2>طريقة الربط</h2>
+        ${["افتح واتساب على هاتفك", "اذهب إلى الأجهزة المرتبطة", "امسح الباركود أو أدخل رمز الاقتران"].map((step, index) => `<div class="step-row"><span>${index + 1}</span><strong>${step}</strong><p class="muted">${index === 2 ? "اترك واتساب مفتوحا أثناء عملية الربط حتى تكتمل بنجاح." : "اتبع الخطوة من تطبيق واتساب الرسمي."}</p></div>`).join("")}
+        <div class="secure-note">اتصال مشفر ولا يتم عرض مفاتيح Evolution API في الواجهة.</div>
+      </aside>
+    </section>
+    <section class="linked-bottom-grid">
+      <article class="card usage-card">
+        <h3>استخدام الأجهزة المرتبطة</h3>
+        <strong class="usage-count">${usage} جهاز مرتبط</strong>
+        <div class="usage-bar"><span style="width:${isConnected ? 100 : 0}%"></span></div>
+        <p class="${isConnected ? "success-text" : "danger-text"}">${isConnected ? "تم ربط جهاز واتساب بنجاح" : "لم يتم ربط أي جهاز بعد"}</p>
+        <small class="muted">الحد الأقصى حسب خطتك الحالية</small>
+      </article>
+      <article class="card table-card">
+        <h3>ملاحظات الأمان</h3>
+        <ul class="check-list">
+          <li>كل طلبات Evolution تتم من الباكند فقط.</li>
+          <li>لا يتم تخزين أو عرض أي مفتاح API في الواجهة.</li>
+          <li>عند فصل الجهاز تتوقف رسائل واتساب تلقائيا.</li>
+          <li>لا يمكن لمستأجر استخدام جهاز مستأجر آخر.</li>
+        </ul>
+      </article>
+      <article class="card table-card linked-table-card">
+        <h3>الأجهزة المرتبطة الأخيرة</h3>
+        ${isConnected ? simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر نشاط", "الإجراءات"], [[device.deviceName, device.phoneNumber, status("نشط"), device.lastActivity || "الآن", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]) : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">قم بربط واتساب لعرض الأجهزة المرتبطة وسجل النشاط.</p></div>`}
+      </article>
+      <article class="card table-card">
+        <h3>النشاط الأخير</h3>
+        <div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div>
+      </article>
+    </section>`);
+}
+
 function donutChart() {
   return `<svg viewBox="0 0 160 160" width="100%" height="220" role="img" aria-label="رسم دائري">
     <circle cx="80" cy="80" r="52" fill="none" stroke="#e2e8f0" stroke-width="24" />
@@ -611,7 +721,7 @@ function exportCsv(filename, rows) {
   toast("تم تصدير الملف بنجاح");
 }
 
-async function copyText(text) {
+async function copyText(text, message = "تم نسخ رابط التجديد") {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -622,7 +732,7 @@ async function copyText(text) {
     document.execCommand("copy");
     area.remove();
   }
-  toast("تم نسخ رابط التجديد");
+  toast(message);
 }
 
 function handleAction(target) {
@@ -631,8 +741,81 @@ function handleAction(target) {
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
   if (action === "close-modal") closePortal();
-  if (action === "theme") toast("الوضع الشمسي مفعّل");
-  if (action === "language") toast("الواجهة العربية مفعّلة");
+  if (action === "theme") {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    storage.set("renewpilot.theme", state.theme);
+    applyPreferences();
+    toast(state.theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي");
+    render();
+  }
+  if (action === "language") {
+    state.language = state.language === "ar" ? "en" : "ar";
+    storage.set("renewpilot.language", state.language);
+    applyPreferences();
+    toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
+    render();
+  }
+  if (action === "create-device-qr") {
+    state.linkedDevice = {
+      ...state.linkedDevice,
+      status: "pending_qr",
+      instanceId: state.linkedDevice.instanceId || `evo-${Date.now()}`,
+      instanceName: "tenant-main-whatsapp",
+      pairingCode: `WP-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      qrActive: true,
+      qrExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+      activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز باركود الاقتران"]
+    };
+    persistLinkedDevice();
+    toast("تم إنشاء باركود جديد عبر Evolution API");
+    render();
+  }
+  if (action === "show-device-qr") {
+    openModal("باركود ربط واتساب", `<div class="qr-box active modal-qr"><div class="qr-grid">${Array.from({ length: 49 }).map((_, index) => `<span class="${index % 4 === 0 || [5, 11, 17, 23, 29, 35, 41].includes(index) ? "active" : ""}"></span>`).join("")}</div><strong>${state.linkedDevice.qrActive ? "امسح الباركود من واتساب" : "أنشئ باركود جديد أولا"}</strong><p class="muted">تتم عملية الربط من الخادم ولا يتم كشف EVOLUTION_API_KEY.</p></div>`, `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
+  }
+  if (action === "copy-pairing") copyText(state.linkedDevice.pairingCode || defaultLinkedDevice.pairingCode, "تم نسخ رمز الاقتران");
+  if (action === "confirm-device-link") {
+    state.linkedDevice = {
+      ...state.linkedDevice,
+      status: "connected",
+      qrActive: false,
+      deviceName: "WhatsApp iPhone 15 Pro",
+      phoneNumber: "+966 5X XXX XXXX",
+      lastActivity: "منذ دقيقتين",
+      activity: ["تم الربط بنجاح", "تم فحص الاتصال", "آخر مزامنة منذ دقيقتين"]
+    };
+    persistLinkedDevice();
+    toast("تم ربط حساب واتساب بنجاح");
+    render();
+  }
+  if (action === "check-device-connection") {
+    if (!["pending_qr", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
+    if (state.linkedDevice.status === "pending_qr") return toast("الجلسة جاهزة، امسح الباركود من واتساب", "warning");
+    state.linkedDevice.lastActivity = "الآن";
+    state.linkedDevice.activity = ["تم فحص الاتصال بنجاح", ...(state.linkedDevice.activity || []).slice(0, 4)];
+    persistLinkedDevice();
+    toast("الاتصال يعمل بنجاح");
+    render();
+  }
+  if (action === "send-device-test") {
+    if (state.linkedDevice.status !== "connected") return toast("لا يمكن الإرسال قبل ربط الجهاز", "danger");
+    state.linkedDevice.activity = ["تم إرسال رسالة اختبار عبر Evolution", ...(state.linkedDevice.activity || []).slice(0, 4)];
+    persistLinkedDevice();
+    toast("تم إرسال رسالة اختبار بنجاح");
+    render();
+  }
+  if (action === "disconnect-device") {
+    state.linkedDevice = { ...state.linkedDevice, status: "disconnected", qrActive: false, activity: ["تم فصل الجهاز", ...(state.linkedDevice.activity || []).slice(0, 4)] };
+    persistLinkedDevice();
+    toast("تم فصل الجهاز");
+    render();
+  }
+  if (action === "delete-device") {
+    state.linkedDevice = { ...defaultLinkedDevice, pairingCode: state.linkedDevice.pairingCode || defaultLinkedDevice.pairingCode };
+    persistLinkedDevice();
+    toast("تم حذف الجهاز المرتبط");
+    render();
+  }
   if (action === "notifications") toast("لديك 3 تنبيهات تحتاج مراجعة");
   if (action === "open-demo") openModal("احجز عرضًا توضيحيًا", demoForm());
   if (action === "billing") { state.billing = target.dataset.billing; storage.set("renewpilot.billing", state.billing); render(); }
@@ -761,13 +944,13 @@ function handleSubmit(form, event) {
     render();
   }
   if (["demo", "ticket", "chat", "message", "template", "forgot", "password", "ai-question"].includes(type)) {
-    console.log(type, data);
     closePortal();
     toast(type === "ai-question" ? "تم استلام سؤالك، سيتم ربط المساعد الذكي لاحقًا." : "تم حفظ البيانات بنجاح");
   }
 }
 
 function render() {
+  applyPreferences();
   state.route = location.pathname;
   state.query = new URLSearchParams(location.search);
   if (state.route.startsWith("/dashboard")) {
@@ -779,6 +962,7 @@ function render() {
       "/dashboard/notifications": notificationsPage,
       "/dashboard/warranty": warrantyPage,
       "/dashboard/reports": reportsPage,
+      "/dashboard/connected-devices": connectedDevicesPage,
       "/dashboard/settings": settingsPage
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
