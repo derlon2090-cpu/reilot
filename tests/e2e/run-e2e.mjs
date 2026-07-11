@@ -50,7 +50,8 @@ try {
   if (!process.env.E2E_BASE_URL) {
     server = spawn(npmCommand, ["run", "dev", "--", "-H", host, "-p", port], {
       stdio: "ignore",
-      shell: false
+      shell: false,
+      env: { ...process.env, E2E_UI_PREVIEW: "1" }
     });
     await waitForServer(baseUrl);
   }

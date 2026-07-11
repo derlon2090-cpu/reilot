@@ -14,6 +14,8 @@ import {
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
 const localPreview = ["127.0.0.1", "localhost"].includes(location.hostname);
+const e2ePreview = window.__RENEWPILOT_E2E_PREVIEW__ === true;
+let authenticatedSession = location.pathname.startsWith("/dashboard") && !e2ePreview;
 
 const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(async (locale) => {
   const response = await fetch(`/app/locales/${locale}.json`);
@@ -206,8 +208,27 @@ async function syncLinkedDevice() {
   }
 }
 
-function navigate(to) {
+async function browserSessionIsValid() {
+  try {
+    const response = await fetch("/api/auth/session", { cache: "no-store" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function navigate(to) {
   const url = new URL(to, location.origin);
+  if (url.pathname.startsWith("/dashboard") && !e2ePreview && !authenticatedSession) {
+    authenticatedSession = await browserSessionIsValid();
+    if (!authenticatedSession) {
+      history.pushState({}, "", "/login");
+      state.route = "/login";
+      render();
+      toast(t("auth.invalidCredentials"), "danger");
+      return;
+    }
+  }
   history.pushState({}, "", url.pathname + url.search);
   state.route = url.pathname;
   state.query = url.searchParams;
@@ -1009,6 +1030,7 @@ async function handleAction(target) {
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
   if (action === "logout") {
     const finishLogout = () => {
+      authenticatedSession = false;
       closePortal();
       storage.set("renewpilot.account", null);
       toast(t("auth.logoutSuccess"));
@@ -1301,21 +1323,18 @@ async function handleSubmit(form, event) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast(t("auth.invalidEmail"), "danger");
     const button = form.querySelector("button[type='submit'], button:not([type])");
     if (button) { button.disabled = true; button.textContent = t("common.loading"); }
-    const localDemoLogin = ["127.0.0.1", "localhost"].includes(location.hostname)
-      && data.email === "owner@example.com"
-      && data.password === "correct-password";
-    let authenticated = localDemoLogin;
-    if (!localDemoLogin) {
-      try {
-        const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-        authenticated = response.ok;
-      } catch {
-        authenticated = false;
-      }
+    let authenticated = false;
+    try {
+      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      authenticated = response.ok && await browserSessionIsValid();
+    } catch {
+      authenticated = false;
     }
-    if (!authenticated) { if (button) button.disabled = false; return toast(t("auth.invalidCredentials"), "danger"); }
+    if (!authenticated) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast(t("auth.invalidCredentials"), "danger"); }
+    authenticatedSession = true;
     toast(t("auth.loginSuccess"));
-    navigate("/dashboard");
+    await navigate("/dashboard");
+    return;
   }
   if (type === "register") {
     if (!data.name || data.name.trim().length < 3) return toast(state.language === "ar" ? "يرجى إدخال الاسم الكامل." : "Please enter your full name.", "danger");
@@ -1324,13 +1343,15 @@ async function handleSubmit(form, event) {
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
     try {
       const response = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      if (!response.ok && !["127.0.0.1", "localhost"].includes(location.hostname)) return toast(t("common.serverError"), "danger");
+      if (!response.ok || !await browserSessionIsValid()) return toast(t("common.serverError"), "danger");
     } catch {
-      if (!["127.0.0.1", "localhost"].includes(location.hostname)) return toast(t("common.serverError"), "danger");
+      return toast(t("common.serverError"), "danger");
     }
+    authenticatedSession = true;
     storage.set("renewpilot.account", { name: data.name, email: data.email, createdAt: new Date().toISOString() });
     toast(t("auth.registerSuccess"));
-    navigate("/dashboard");
+    await navigate("/dashboard");
+    return;
   }
   if (type === "subscription") {
     const editKey = form.dataset.editKey;

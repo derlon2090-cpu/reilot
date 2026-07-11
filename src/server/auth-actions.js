@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { createSession } from "./session.js";
-import { isStrongPassword, normalizeEmail } from "./security.js";
+import { isStrongPassword, normalizeEmail, sha256 } from "./security.js";
 
 function slugify(value) {
   const base = String(value || "store").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -74,9 +74,9 @@ export async function loginAccount({ email, password, ipAddress, userAgent }) {
   const user = result.rows[0];
   const valid = user ? await verifyPassword(password, user.password) : false;
   await query(
-    `INSERT INTO login_attempts (email, ip_address, user_agent, success, failure_reason)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [normalized, ipAddress || null, userAgent || null, valid, valid ? null : "invalid_credentials"]
+    `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [normalized, sha256(normalized), ipAddress || null, userAgent || null, valid, valid ? null : "invalid_credentials"]
   );
   if (!valid) return { ok: false, status: 401, reason: "invalid_credentials" };
 
