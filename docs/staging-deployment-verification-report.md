@@ -6,7 +6,7 @@
 
 المسار: `/opt/renewpilot`
 
-الإصدار المنشور: `6c3a52f`
+الإصدار المنشور: `79e3852`
 
 الحالة النهائية: **بوابة Staging منشورة وتعمل، لكنها غير معتمدة للإنتاج بعد.**
 
@@ -32,7 +32,8 @@
 
 - الجداول المطلوبة موجودة: `users`, `tenants`, `customers`, `subscriptions`, `password_reset_codes`, `email_logs`, `whatsapp_channels`, `message_queue`, `notification_logs`, `activity_logs`.
 - ملفات البيئة موجودة على الخادم بصلاحية `600` ولم تُرفع إلى Git.
-- لم تُدخل أي بيانات عملاء حقيقية. استُخدمت حسابات smoke test بنطاق `.invalid` فقط.
+- لم تُدخل أي بيانات عملاء حقيقية، وحُذفت جميع حسابات وinstances الاختبارية بعد التحقق.
+- أُغلقت حماية `/dashboard` على مستوى الخادم، وأزيل mock login، وأُبطلت جميع الجلسات التي سبقت الإصلاح الأمني.
 - UFW فعّال، وDocker وCron يعملان، وNginx المضيف متوقف لأن Nginx يعمل داخل Compose.
 - نجح البناء الإنتاجي، إضافة إلى 21 اختبار unit و11 integration و12 security و10 cron و13 E2E.
 
