@@ -10,7 +10,8 @@ function cookieValue(req, name) {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
 }
 export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const publicUrl = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+  const secure = publicUrl.startsWith("https://") ? "; Secure" : "";
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 

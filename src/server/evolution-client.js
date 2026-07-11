@@ -17,6 +17,31 @@ async function request(path, init = {}) {
   return body;
 }
 
+export async function evolutionHealth() {
+  const startedAt = Date.now();
+  const body = await request("/server/ok").catch(() => request("/"));
+  return { ok: true, latencyMs: Date.now() - startedAt, version: body?.version || body?.response?.version || null };
+}
+
+export function evolutionCreateInstance(instanceName) {
+  const webhookBase = process.env.EVOLUTION_WEBHOOK_URL;
+  const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET;
+  const webhook = webhookBase && webhookSecret ? {
+    enabled: true,
+    url: `${webhookBase}${webhookBase.includes("?") ? "&" : "?"}secret=${encodeURIComponent(webhookSecret)}`,
+    events: ["CONNECTION_UPDATE", "QRCODE_UPDATED", "MESSAGES_UPSERT"]
+  } : undefined;
+  return request("/instance/create", {
+    method: "POST",
+    body: JSON.stringify({ instanceName, qrcode: true, integration: "WHATSAPP-BAILEYS", ...(webhook ? { webhook } : {}) })
+  });
+}
+
+export function evolutionConnect(instanceName, phoneNumber) {
+  const query = phoneNumber ? `?number=${encodeURIComponent(phoneNumber)}` : "";
+  return request(`/instance/connect/${encodeURIComponent(instanceName)}${query}`);
+}
+
 export function evolutionConnectionState(instanceName) {
   return request(`/instance/connectionState/${encodeURIComponent(instanceName)}`);
 }
@@ -26,4 +51,12 @@ export function evolutionSendText(instanceName, number, text) {
     method: "POST",
     body: JSON.stringify({ number, text, delay: Number(process.env.DEFAULT_MIN_DELAY_SECONDS || 20) * 1000, linkPreview: false })
   });
+}
+
+export function evolutionLogout(instanceName) {
+  return request(`/instance/logout/${encodeURIComponent(instanceName)}`, { method: "DELETE" });
+}
+
+export function evolutionDelete(instanceName) {
+  return request(`/instance/delete/${encodeURIComponent(instanceName)}`, { method: "DELETE" });
 }

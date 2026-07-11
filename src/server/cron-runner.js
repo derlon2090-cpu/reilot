@@ -155,11 +155,18 @@ export async function runCronJob(jobName) {
   const runners = {
     "renewal-reminders": runRenewalReminders,
     "message-retry": runMessageRetry,
+    "message-worker": runMessageRetry,
     "whatsapp-health-check": runWhatsAppHealthCheck,
     "usage-reset": runUsageReset,
     cleanup: runCleanup
   };
   const runner = runners[jobName];
   if (!runner) throw new Error(`Unknown cron job: ${jobName}`);
-  return runner();
+  const result = await runner();
+  await query(
+    `INSERT INTO activity_logs (tenant_id, type, title, metadata)
+     SELECT id, 'cron.executed', $1, $2::jsonb FROM tenants`,
+    [`Cron ${jobName} executed`, JSON.stringify(result)]
+  );
+  return result;
 }

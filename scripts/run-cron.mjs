@@ -6,6 +6,7 @@ const allowed = new Set([
   "renewal-reminders",
   "whatsapp-health-check",
   "message-retry",
+  "message-worker",
   "usage-reset",
   "cleanup"
 ]);
