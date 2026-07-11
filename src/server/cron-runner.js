@@ -73,7 +73,14 @@ export async function runMessageRetry() {
   for (const item of items) {
     const safety = await transaction((client) => queueItemSafety(client, item));
     if (!safety.ok) {
-      await query("UPDATE message_queue SET status = 'pending', last_error = $2, scheduled_for = now() + interval '15 minutes', updated_at = now() WHERE id = $1", [item.id, safety.reason]);
+      await transaction(async (client) => {
+        await client.query("UPDATE message_queue SET status = 'pending', last_error = $2, scheduled_for = now() + interval '15 minutes', updated_at = now() WHERE id = $1", [item.id, safety.reason]);
+        await client.query(
+          `INSERT INTO operational_issues (tenant_id, category, source, source_id, severity, message, suggested_solution, metadata)
+           VALUES ($1, 'safe_mode', 'message_worker', $2, 'warning', $3, 'Review WhatsApp connection, customer consent, sending limits, and quiet hours.', $4::jsonb)`,
+          [item.tenant_id, item.id, safety.reason, JSON.stringify({ queueId: item.id, reason: safety.reason })]
+        );
+      });
       skipped += 1;
       continue;
     }

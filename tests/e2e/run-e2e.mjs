@@ -48,7 +48,15 @@ let server;
 
 try {
   if (!process.env.E2E_BASE_URL) {
-    server = spawn(npmCommand, ["run", "dev", "--", "-H", host, "-p", port], {
+    const buildCode = await run(npmCommand, ["run", "build"], {
+      env: {
+        ...process.env,
+        E2E_UI_PREVIEW: "1",
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --max-old-space-size=4096`.trim()
+      }
+    });
+    if (buildCode !== 0) throw new Error("The production build failed before E2E tests.");
+    server = spawn(npmCommand, ["run", "start", "--", "-H", host, "-p", port], {
       stdio: "ignore",
       shell: false,
       env: { ...process.env, E2E_UI_PREVIEW: "1" }

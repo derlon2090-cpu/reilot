@@ -1,5 +1,6 @@
 import { runCronJob } from "../../../src/server/cron-runner.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
+import { query } from "../../../src/server/db.js";
 
 export function validateCronRequest(req) {
   const cronSecret = process.env.CRON_SECRET;
@@ -35,6 +36,11 @@ export async function runCron(req, jobName, summary) {
     return Response.json({ ok: true, job: jobName, mode: "live", result });
   } catch (error) {
     console.error(`cron ${jobName} failed`, safeErrorMessage(error));
+    await query(
+      `INSERT INTO operational_issues (tenant_id, category, source, severity, message, suggested_solution, metadata)
+       SELECT id, 'cron', $1, 'error', $2, 'Review the cron logs, database connectivity, and worker configuration.', $3::jsonb FROM tenants`,
+      [jobName, safeErrorMessage(error), JSON.stringify({ jobName })]
+    ).catch(() => null);
     return Response.json({ ok: false, job: jobName, error: "Cron execution failed" }, { status: 500 });
   }
 }

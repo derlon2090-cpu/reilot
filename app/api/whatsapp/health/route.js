@@ -9,6 +9,7 @@ export async function GET(req) {
     `SELECT wc.id, wc.status, wc.phone_number AS "phoneNumber", wc.daily_sent AS "messagesToday",
             wc.hourly_sent AS "messagesHour", wc.failure_rate AS "failureRate", wc.last_disconnect_at AS "lastDisconnect",
             wc.warmup_day AS "warmupDay",
+            wc.risk_score AS "storedRiskScore",
             (SELECT count(*)::int FROM unsubscribe_list ul WHERE ul.tenant_id = wc.tenant_id AND ul.unsubscribed_at >= current_date) AS "unsubscribeCount"
        FROM whatsapp_channels wc WHERE wc.tenant_id = $1 ORDER BY wc.created_at DESC LIMIT 1`,
     [auth.session.tenantId]
@@ -21,6 +22,8 @@ export async function GET(req) {
     disconnected: channel.status !== "connected",
     hourlySent: channel.messagesHour
   });
+  score.risk = Math.max(score.risk, Number(channel.storedRiskScore || 0));
+  score.status = score.risk <= 15 ? "excellent" : score.risk <= 35 ? "good" : score.risk <= 70 ? "medium" : "danger";
   const dailyLimit = warmupDailyLimit(channel.warmupDay);
   const advice = channel.messagesToday >= dailyLimit
     ? "لا ترفع الإرسال اليومي اليوم؛ اكتمل حد التدرج الآمن."

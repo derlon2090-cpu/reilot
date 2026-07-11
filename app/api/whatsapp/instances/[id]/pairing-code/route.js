@@ -2,6 +2,7 @@ import { normalizeEvolutionPhone } from "../../../../../../src/lib/evolution.js"
 import { evolutionConnect } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
+import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
 import { ownedChannel, updateChannel } from "../../../../../../src/server/whatsapp-repository.js";
 
 export async function POST(req, { params }) {
@@ -15,11 +16,17 @@ export async function POST(req, { params }) {
   if (!channel) return Response.json({ ok: false, message: "Instance not found" }, { status: 404 });
   try {
     const result = await evolutionConnect(channel.instanceName, normalized.phoneNumber);
-    if (!result?.pairingCode) return Response.json({ ok: false, code: "PAIRING_CODE_NOT_SUPPORTED", message: "استخدم الربط بالباركود في نسخة Evolution الحالية." }, { status: 501 });
-    await updateChannel(id, auth.session.tenantId, { status: "connecting", phoneNumber: normalized.phoneNumber, lastError: null });
+    if (!result?.pairingCode) {
+      await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "pairing_code", source: "evolution", sourceId: id, severity: "warning", message: "Evolution API did not return a pairing code", suggestedSolution: "Use the QR connection method with the installed Evolution API version." });
+      return Response.json({ ok: false, code: "PAIRING_CODE_NOT_SUPPORTED", message: "Pairing Code is not supported by the installed Evolution API version. Use QR linking." }, { status: 501 });
+    }
+    await updateChannel(id, auth.session.tenantId, { status: "pending_pairing", phoneNumber: normalized.phoneNumber, lastPairingCodeGeneratedAt: new Date(), lastError: null });
+    await resolveOperationalIssues({ tenantId: auth.session.tenantId, category: "pairing_code", sourceId: id });
     return Response.json({ ok: true, instanceId: id, pairingCode: result.pairingCode, expiresIn: 60, phoneNumber: normalized.phoneNumber });
   } catch (error) {
     console.error("evolution pairing failed", safeErrorMessage(error));
+    await updateChannel(id, auth.session.tenantId, { status: "error", lastError: safeErrorMessage(error) });
+    await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "pairing_code", source: "evolution", sourceId: id, message: safeErrorMessage(error), suggestedSolution: "Check Evolution API support or use QR linking." }).catch(() => null);
     return Response.json({ ok: false, message: "Unable to generate pairing code" }, { status: 502 });
   }
 }

@@ -30,12 +30,15 @@ export async function POST(req) {
     if (event.includes("connection")) {
       const providerState = body.data?.state || body.data?.status || body.state || "disconnected";
       const status = ["open", "connected"].includes(providerState) ? "connected" : providerState === "connecting" ? "connecting" : "disconnected";
+      const phone = phoneFromJid(body.data?.instance?.ownerJid || body.data?.instance?.owner || body.data?.ownerJid || body.data?.owner);
+      const deviceName = body.data?.instance?.profileName || body.data?.instance?.name || null;
       await query(
         `UPDATE whatsapp_channels SET status = $2, last_health_check_at = now(), updated_at = now(),
+                phone_number = COALESCE(NULLIF($3, ''), phone_number), device_name = COALESCE($4, device_name),
                 connected_at = CASE WHEN $2 = 'connected' THEN COALESCE(connected_at, now()) ELSE connected_at END,
                 disconnected_at = CASE WHEN $2 = 'disconnected' THEN now() ELSE disconnected_at END
           WHERE id = $1`,
-        [channel.id, status]
+        [channel.id, status, phone, deviceName]
       );
       await query("INSERT INTO activity_logs (tenant_id, type, title, metadata) VALUES ($1, 'evolution.webhook.connection', $2, $3)", [channel.tenant_id, `WhatsApp ${status}`, JSON.stringify({ status })]);
     }

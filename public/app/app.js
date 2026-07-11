@@ -23,6 +23,85 @@ const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(asy
   return [locale, await response.json()];
 })));
 
+const operationalEnglishPhrases = {
+  "فحص الجاهزية": "Readiness Check",
+  "تشغيل اختبار شامل": "Run Comprehensive Test",
+  "إعادة الفحص": "Run Again",
+  "جاري فحص حالة المنصة...": "Checking platform status...",
+  "قاعدة البيانات": "Database",
+  "اتصال واتساب": "WhatsApp Connection",
+  "متغيرات البيئة": "Environment Variables",
+  "جاهز": "Ready",
+  "غير جاهز": "Not Ready",
+  "آخر فحص:": "Last check:",
+  "الناقص:": "Missing:",
+  "آخر نسخة احتياطية": "Last Backup",
+  "لا توجد نسخة احتياطية مسجلة": "No backup has been recorded",
+  "سجل المشاكل": "Issue Log",
+  "تحديث السجل": "Refresh Log",
+  "جاري تحميل سجل المشاكل...": "Loading issue log...",
+  "لا توجد مشاكل تشغيلية مسجلة": "No operational issues recorded",
+  "تم الحل": "Resolved",
+  "مفتوحة": "Open",
+  "المصدر:": "Source:",
+  "الحل المقترح:": "Suggested solution:",
+  "تم التجديد": "Renewed",
+  "إرسال تذكير": "Send Reminder",
+  "نسخ رابط التجديد": "Copy Renewal Link",
+  "سجل التنبيهات": "Notification History",
+  "تعديل الرقم": "Edit Number",
+  "إيقاف التذكيرات": "Pause Reminders",
+  "استئناف التذكيرات": "Resume Reminders",
+  "حالة واتساب": "WhatsApp Status",
+  "الإجراءات": "Actions",
+  "يجب ربط واتساب أولًا": "Connect WhatsApp first",
+  "الإرسال متوقف بسبب ارتفاع المخاطر": "Sending stopped due to high risk",
+  "التذكيرات موقوفة لهذا العميل": "Reminders are paused for this customer",
+  "جاري تحميل الاشتراكات من قاعدة البيانات...": "Loading subscriptions from the database...",
+  "لا توجد اشتراكات في قاعدة البيانات": "No subscriptions in the database",
+  "تعذر تحميل الاشتراكات": "Unable to load subscriptions",
+  "إعادة المحاولة": "Try Again",
+  "ممتاز": "Excellent",
+  "جيد": "Good",
+  "متوسط": "Medium",
+  "خطر": "Danger",
+  "تم إيقاف الإرسال التلقائي لأن درجة المخاطر أعلى من 70.": "Automatic sending is paused because the risk score is above 70.",
+  "مراجعة المخاطر": "Review Risks",
+  "حالة القناة": "Channel Status",
+  "لا يوجد رقم": "No phone number",
+  "ساعة": "hour",
+  "يوم": "day",
+  "جاري تحميل بيانات الحماية...": "Loading safety data...",
+  "لا توجد قناة واتساب مرتبطة": "No WhatsApp channel is connected",
+  "تعديل رقم واتساب": "Edit WhatsApp Number",
+  "رقم واتساب بصيغة دولية": "WhatsApp number in international format",
+  "حفظ الرقم": "Save Number",
+  "مدة التجديد": "Renewal Duration",
+  "شهر": "One month",
+  "3 أشهر": "3 months",
+  "6 أشهر": "6 months",
+  "سنة": "One year",
+  "تاريخ مخصص": "Custom Date",
+  "التاريخ المخصص": "Custom Date",
+  "إرسال إشعار بعد التجديد (اختياري)": "Send a notification after renewal (optional)",
+  "لا توجد تنبيهات لهذا الاشتراك": "No notifications for this subscription",
+  "تم تمديد الاشتراك وتسجيل العملية دون إرسال تلقائي.": "The subscription was extended and logged without automatic sending.",
+  "تمت إضافة التذكير إلى قائمة الإرسال": "The reminder was added to the send queue",
+  "تم تحديث رقم واتساب": "WhatsApp number updated",
+  "تم تحديث حالة التذكيرات": "Reminder status updated",
+  "الأجهزة المرتبطة": "Linked Devices",
+  "ربط واتساب": "Connect WhatsApp",
+  "إعادة إنشاء الباركود": "Regenerate QR Code",
+  "لا يوجد باركود حقيقي متاح": "No real QR code is available",
+  "لا يوجد باركود صالح": "No valid QR code is available",
+  "أنشئ باركود حقيقي من Evolution API.": "Generate a real QR code from Evolution API.",
+  "غير متوفر": "Unavailable",
+  "لا يظهر الرمز إلا بعد طلبه من Evolution API": "The code appears only after it is returned by Evolution API",
+  "لا يوجد رمز بعد": "No code yet",
+  "رمز الاقتران غير مدعوم حاليا في نسخة Evolution API المثبتة. استخدم الربط بالباركود.": "Pairing codes are not supported by the installed Evolution API version. Use QR linking.",
+  "تم إيقاف الإرسال التلقائي": "Automatic sending paused"
+};
+
 const storage = {
   get(key, fallback) {
     try {
@@ -60,7 +139,7 @@ function translatedPhrase(value) {
   if (!trimmed || !/[\u0600-\u06FF]/.test(trimmed)) return source;
   const prefix = trimmed.match(/^[^\u0600-\u06FF]*/)?.[0] || "";
   const core = trimmed.slice(prefix.length);
-  const translated = localeMessages.en.phrases?.[trimmed] || localeMessages.en.phrases?.[core];
+  const translated = operationalEnglishPhrases[trimmed] || operationalEnglishPhrases[core] || localeMessages.en.phrases?.[trimmed] || localeMessages.en.phrases?.[core];
   if (translated) return source.replace(trimmed, `${localeMessages.en.phrases?.[trimmed] ? "" : prefix}${translated}`);
   let composed = trimmed;
   for (const [arabic, english] of Object.entries(localeMessages.en.phrases || {}).sort((a, b) => b[0].length - a[0].length)) {
@@ -93,7 +172,7 @@ const defaultLinkedDevice = {
   deviceName: "",
   phoneNumber: "",
   phoneInput: "",
-  pairingCode: "WP-7K4M-9Q2P",
+  pairingCode: "",
   pairingSupported: true,
   qrActive: false,
   qrExpiresAt: "",
@@ -132,6 +211,12 @@ const state = {
   linkedDevice: storage.get("renewpilot.linkedDevice", defaultLinkedDevice)
 };
 
+state.dbSubscriptions = null;
+state.readiness = null;
+state.operationalIssues = null;
+state.whatsappHealth = null;
+state.remoteLoading = {};
+
 const routes = [
   ["/", "sidebar.home"],
   ["/features", "public.features"],
@@ -151,6 +236,8 @@ const dashboardRoutes = [
   ["/dashboard/warranty", "sidebar.warrantyCenter", "◇"],
   ["/dashboard/reports", "sidebar.reports", "▥"],
   ["/dashboard/activity", "sidebar.activity", "◷"],
+  ["/dashboard/readiness", "فحص الجاهزية", "✓"],
+  ["/dashboard/issues", "سجل المشاكل", "!"],
   ["/dashboard/billing", "sidebar.billing", "▤"],
   ["/dashboard/settings", "sidebar.settings", "⚙"]
 ];
@@ -175,6 +262,31 @@ async function fetchJson(url, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+async function loadRemotePage(key, url, target, options) {
+  if (state.remoteLoading[key]) return;
+  state.remoteLoading[key] = true;
+  try {
+    const payload = await fetchJson(url, options);
+    state[target] = payload.items ?? payload.report ?? payload;
+  } catch (error) {
+    state[target] = { error: error.message || "تعذر تحميل البيانات" };
+  } finally {
+    state.remoteLoading[key] = false;
+    render();
+  }
+}
+
+function syncRouteData(force = false) {
+  if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
+  if (state.route === "/dashboard/readiness" && (force || state.readiness === null)) void loadRemotePage("readiness", "/api/readiness", "readiness", force ? { method: "POST" } : undefined);
+  if (state.route === "/dashboard/issues" && (force || state.operationalIssues === null)) void loadRemotePage("issues", "/api/issues", "operationalIssues");
+  if (state.route === "/dashboard/whatsapp-safety" && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
 }
 
 async function ensureEvolutionInstance() {
@@ -528,10 +640,16 @@ function dashboardShell(content) {
 }
 
 function dashboardHome() {
+  const latest = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions.slice(0, 5) : [];
+  const latestContent = state.dbSubscriptions?.error
+    ? emptyState(escapeHtml(state.dbSubscriptions.error))
+    : state.dbSubscriptions === null
+      ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
+      : latest.length ? subscriptionsTable(latest, true) : emptyState("لا توجد اشتراكات في قاعدة البيانات");
   return dashboardShell(`${pageTitle("نظرة عامة", `<button class="btn btn-primary" data-link="/dashboard/subscriptions">عرض جميع الاشتراكات</button>`)}
     ${statGrid(metrics.dashboard)}
     <div class="section split">
-      <article class="card table-card"><div class="section-head"><div><h2>أحدث الاشتراكات</h2><p class="muted">آخر عمليات نشطة ومجدولة.</p></div></div>${subscriptionsTable(state.subscriptions.slice(0, 5), true)}</article>
+      <article class="card table-card"><div class="section-head"><div><h2>أحدث الاشتراكات</h2><p class="muted">آخر عمليات نشطة ومجدولة.</p></div></div>${latestContent}</article>
       <article class="card chart-card"><h2>الإيرادات</h2>${barsChart(reports.revenue)}<button class="btn btn-secondary" data-action="export-report">تصدير التقرير</button></article>
     </div>
     <div class="split">
@@ -556,19 +674,53 @@ function barsChart(values) {
   return `<div class="bars">${values.map((v, i) => `<div class="bar" style="height:${v}%"><span>${["ينا", "فبر", "مار", "أبر", "ماي", "يون", "يول", "أغس"][i]}</span></div>`).join("")}</div>`;
 }
 
+function readinessPage() {
+  const report = state.readiness;
+  if (report === null) return dashboardShell(`${pageTitle("فحص الجاهزية", `<button class="btn btn-primary" data-action="run-readiness">تشغيل اختبار شامل</button>`)}<div class="loading-state">جاري فحص حالة المنصة...</div>`);
+  if (report?.error) return dashboardShell(`${pageTitle("فحص الجاهزية", `<button class="btn btn-primary" data-action="run-readiness">إعادة الفحص</button>`)}${emptyState(escapeHtml(report.error))}`);
+  const labels = { database: "قاعدة البيانات", evolution: "Evolution API", whatsapp: "اتصال واتساب", resend: "Resend", cron: "Cron", https: "HTTPS", environment: "متغيرات البيئة" };
+  const cards = Object.entries(report.statuses || {}).map(([key, value]) => `<article class="card readiness-card"><div class="section-head"><h3>${labels[key] || key}</h3><span class="status ${value.ok ? "success" : "danger"}">${value.ok ? "جاهز" : "غير جاهز"}</span></div><strong>${escapeHtml(value.label || "")}</strong>${value.error ? `<p class="danger-text">${escapeHtml(value.error)}</p>` : ""}${value.missing?.length ? `<p class="muted">الناقص: ${value.missing.map(escapeHtml).join("، ")}</p>` : ""}</article>`).join("");
+  return dashboardShell(`${pageTitle("فحص الجاهزية", `<button class="btn btn-primary" data-action="run-readiness">تشغيل اختبار شامل</button>`)}
+    <div class="readiness-result ${report.result === "ready" ? "ready" : "not-ready"}"><strong>${report.result === "ready" ? "Ready" : "Not Ready"}</strong><span>آخر فحص: ${escapeHtml(report.checkedAt || "")}</span></div>
+    <div class="grid grid-3">${cards}</div>
+    <div class="grid grid-2 section"><article class="card table-card"><h3>آخر Webhook</h3>${report.lastWebhook ? `<strong>${escapeHtml(report.lastWebhook.title)}</strong><p class="muted">${escapeHtml(report.lastWebhook.createdAt)}</p>` : `<p class="muted">لا يوجد Webhook مسجل</p>`}</article><article class="card table-card"><h3>آخر نسخة احتياطية</h3>${report.lastBackup ? `<strong>${escapeHtml(report.lastBackup.title)}</strong><p class="muted">${escapeHtml(report.lastBackup.createdAt)}</p>` : `<p class="muted">لا توجد نسخة احتياطية مسجلة</p>`}</article></div>`);
+}
+
+function issuesPage() {
+  const issues = state.operationalIssues;
+  const content = issues === null ? `<div class="loading-state">جاري تحميل سجل المشاكل...</div>` : issues?.error ? emptyState(escapeHtml(issues.error)) : !issues.length ? emptyState("لا توجد مشاكل تشغيلية مسجلة") : `<div class="issue-list">${issues.map((issue) => `<article class="card issue-row"><div class="section-head"><div><span class="status ${issue.severity === "critical" || issue.severity === "error" ? "danger" : "warning"}">${escapeHtml(issue.category)}</span><h3>${escapeHtml(issue.message)}</h3></div><span class="status ${issue.status === "resolved" ? "success" : "danger"}">${issue.status === "resolved" ? "تم الحل" : "مفتوحة"}</span></div><p><strong>المصدر:</strong> ${escapeHtml(issue.source)}</p><p class="muted"><strong>الحل المقترح:</strong> ${escapeHtml(issue.suggestedSolution)}</p><small>${escapeHtml(issue.createdAt)}</small></article>`).join("")}</div>`;
+  return dashboardShell(`${pageTitle("سجل المشاكل", `<button class="btn btn-secondary" data-action="reload-issues">تحديث السجل</button>`)}${content}`);
+}
+
 function subscriptionsPage() {
-  const rows = filterRows(state.subscriptions, ["order", "customer", "plan", "status"]);
+  const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
+  const rows = filterRows(source, ["orderNumber", "customerName", "planName", "status"]);
+  const content = state.dbSubscriptions?.error
+    ? `<div class="empty-state"><strong>تعذر تحميل الاشتراكات</strong><p class="muted">${escapeHtml(state.dbSubscriptions.error)}</p><button class="btn btn-secondary" data-action="reload-subscriptions">إعادة المحاولة</button></div>`
+    : state.dbSubscriptions === null
+      ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
+      : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات في قاعدة البيانات");
   return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك جديد</button><button class="btn btn-secondary" data-action="bulk-import">لصق من Excel</button><button class="btn btn-secondary" data-action="columns">أعمدة</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير</button>`)}
-    ${statGrid(metrics.subscriptions)}
     ${tableToolbar(["الكل", "نشط", "تنتهي قريبًا", "متأخر", "موقوف", "تم التجديد"])}
-    <article class="card table-card">${rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات مطابقة")}</article>`);
+    <article class="card table-card">${content}</article>`);
 }
 
 function subscriptionsTable(rows, compact = false) {
-  const head = compact ? ["رقم الطلب", "العميل", "الباقة", "الحالة", "الإجراء"] : ["رقم الطلب", "العميل", "الباقة", "تاريخ البداية", "تاريخ الانتهاء", "الحالة", "التجديد", "الإجراء"];
-  const body = rows.map((row, index) => compact
-    ? [row.order, row.customer, row.plan, status(row.status), `<button class="btn btn-secondary" data-action="renew-now" data-key="${row.order}">تجديد الآن</button>`]
-    : [row.order, row.customer, row.plan, row.start, row.end, status(row.status), `<button class="btn btn-ghost" data-action="copy-renewal" data-link-value="${row.renewal}">نسخ الرابط</button>`, `<div class="inline-actions"><button class="btn btn-primary" data-action="mark-renewed" data-key="${row.order}">تم التجديد</button>${rowActions("subscription", row.order)}</div>`]).map((cells) => `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("");
+  const head = ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة", "حالة واتساب", "الإجراءات"];
+  const body = rows.map((row) => {
+    const disabled = row.canSend ? "" : "disabled";
+    const reason = row.whatsappStatus !== "connected" ? "يجب ربط واتساب أولًا" : Number(row.riskScore) > 70 ? "الإرسال متوقف بسبب ارتفاع المخاطر" : row.remindersPaused ? "التذكيرات موقوفة لهذا العميل" : "";
+    const actions = `<div class="subscription-actions">
+      <button class="btn btn-primary" data-action="mark-renewed" data-id="${row.id}">تم التجديد</button>
+      <button class="btn btn-secondary" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="${escapeHtml(reason)}">إرسال تذكير</button>
+      <button class="btn btn-ghost" data-action="copy-renewal" data-link-value="${escapeHtml(row.renewalUrl || "")}" ${row.renewalUrl ? "" : "disabled"}>نسخ رابط التجديد</button>
+      <button class="btn btn-ghost" data-action="subscription-notifications" data-id="${row.id}">سجل التنبيهات</button>
+      <button class="btn btn-ghost" data-action="edit-customer-phone" data-customer-id="${row.customerId}" data-phone="${escapeHtml(row.whatsappNumber || row.phone || "")}">تعديل الرقم</button>
+      <button class="btn btn-danger" data-action="toggle-customer-reminders" data-customer-id="${row.customerId}" data-paused="${row.remindersPaused}">${row.remindersPaused ? "استئناف التذكيرات" : "إيقاف التذكيرات"}</button>
+      <button class="btn btn-secondary" data-action="customer-timeline" data-customer-id="${row.customerId}">Timeline</button>
+    </div>`;
+    return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td>${escapeHtml(row.planName)}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td><td>${status(row.whatsappStatus)}</td><td>${actions}</td></tr>`;
+  }).join("");
   return `<div class="compare"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
@@ -676,87 +828,6 @@ function reportsPage() {
     </div>`);
 }
 
-function connectedDevicesPage() {
-  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
-  const isConnected = device.status === "connected";
-  const isPending = device.status === "pending_qr";
-  const statusText = isConnected ? "متصل" : isPending ? "بانتظار المسح" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
-  const statusTone = isConnected ? "success" : isPending ? "warning" : "danger";
-  const usage = isConnected ? "1 / 1" : "0 / 1";
-  const activity = device.activity.length ? device.activity : ["لا توجد أجهزة مرتبطة حتى الآن"];
-  const qrCell = isPending ? Array.from({ length: 49 }).map((_, index) => `<span class="${[0, 1, 7, 8, 40, 41, 48, 12, 18, 22, 24, 31, 35].includes(index) ? "active" : ""}"></span>`).join("") : Array.from({ length: 49 }).map((_, index) => `<span class="${index % 6 === 0 ? "ghost" : ""}"></span>`).join("");
-
-  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">${isPending || isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
-    <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
-    <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
-      <article class="card linked-main-card">
-        <div class="device-art" aria-hidden="true">
-          <div class="phone-frame"><span class="wa-logo">☎</span></div>
-          <div class="qr-float">
-            <div class="qr-mini">${qrCell}</div>
-          </div>
-        </div>
-        <div class="link-panel">
-          <div class="section-head compact-head">
-            <div>
-              <h2>ربط واتساب</h2>
-              <p class="muted">اتصال آمن عبر Evolution API self-hosted من الخادم فقط.</p>
-            </div>
-            <span class="status ${statusTone}">${statusText}</span>
-          </div>
-          <div class="link-box-grid">
-            <div class="qr-box ${isPending ? "active" : ""}" data-action="show-device-qr">
-              <div class="qr-grid">${qrCell}</div>
-              <strong>${isPending ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "سيظهر الباركود هنا"}</strong>
-              <small class="muted">${isPending ? `صالح حتى ${device.qrExpiresAt}` : isConnected ? device.deviceName : "أنشئ جلسة Evolution لعرض QR"}</small>
-            </div>
-            <div class="or-divider">أو</div>
-            <div class="pair-code">
-              <span class="muted">رمز الاقتران</span>
-              <strong>${device.pairingCode}</strong>
-              <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
-              <button class="btn btn-primary" data-action="create-device-qr">${isPending || isConnected ? "إعادة إنشاء باركود" : "إنشاء باركود جديد"}</button>
-              <button class="btn btn-secondary" data-action="check-device-connection" ${!isPending && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
-              ${isPending ? `<button class="btn btn-primary" data-action="confirm-device-link">تأكيد الربط التجريبي</button>` : ""}
-              ${isConnected ? `<button class="btn btn-secondary" data-action="send-device-test">إرسال رسالة اختبار</button><button class="btn btn-danger" data-action="disconnect-device">فصل الجهاز</button><button class="btn btn-ghost" data-action="delete-device">حذف الجهاز</button>` : ""}
-            </div>
-          </div>
-        </div>
-      </article>
-      <aside class="card link-steps-card">
-        <h2>طريقة الربط</h2>
-        ${["افتح واتساب على هاتفك", "اذهب إلى الأجهزة المرتبطة", "امسح الباركود أو أدخل رمز الاقتران"].map((step, index) => `<div class="step-row"><span>${index + 1}</span><strong>${step}</strong><p class="muted">${index === 2 ? "اترك واتساب مفتوحا أثناء عملية الربط حتى تكتمل بنجاح." : "اتبع الخطوة من تطبيق واتساب الرسمي."}</p></div>`).join("")}
-        <div class="secure-note">اتصال مشفر ولا يتم عرض مفاتيح Evolution API في الواجهة.</div>
-      </aside>
-    </section>
-    <section class="linked-bottom-grid">
-      <article class="card usage-card">
-        <h3>استخدام الأجهزة المرتبطة</h3>
-        <strong class="usage-count">${usage} جهاز مرتبط</strong>
-        <div class="usage-bar"><span style="width:${isConnected ? 100 : 0}%"></span></div>
-        <p class="${isConnected ? "success-text" : "danger-text"}">${isConnected ? "تم ربط جهاز واتساب بنجاح" : "لم يتم ربط أي جهاز بعد"}</p>
-        <small class="muted">الحد الأقصى حسب خطتك الحالية</small>
-      </article>
-      <article class="card table-card">
-        <h3>ملاحظات الأمان</h3>
-        <ul class="check-list">
-          <li>كل طلبات Evolution تتم من الباكند فقط.</li>
-          <li>لا يتم تخزين أو عرض أي مفتاح API في الواجهة.</li>
-          <li>عند فصل الجهاز تتوقف رسائل واتساب تلقائيا.</li>
-          <li>لا يمكن لمستأجر استخدام جهاز مستأجر آخر.</li>
-        </ul>
-      </article>
-      <article class="card table-card linked-table-card">
-        <h3>الأجهزة المرتبطة الأخيرة</h3>
-        ${isConnected ? simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر نشاط", "الإجراءات"], [[device.deviceName, device.phoneNumber, status("نشط"), device.lastActivity || "الآن", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]) : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">قم بربط واتساب لعرض الأجهزة المرتبطة وسجل النشاط.</p></div>`}
-      </article>
-      <article class="card table-card">
-        <h3>النشاط الأخير</h3>
-        <div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div>
-      </article>
-    </section>`);
-}
-
 function connectedDevicesCenterPage() {
   const device = { ...defaultLinkedDevice, ...state.linkedDevice };
   const isConnected = device.status === "connected";
@@ -765,16 +836,14 @@ function connectedDevicesCenterPage() {
   const method = device.linkMethod || "qr";
   const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
   const statusTone = isConnected ? "success" : isPendingQr || isPendingPairing ? "warning" : "danger";
-  const qrCell = isPendingQr
-    ? Array.from({ length: 49 }).map((_, index) => `<span class="${[0, 1, 7, 8, 40, 41, 48, 12, 18, 22, 24, 31, 35].includes(index) ? "active" : ""}"></span>`).join("")
-    : Array.from({ length: 49 }).map((_, index) => `<span class="${index % 6 === 0 ? "ghost" : ""}"></span>`).join("");
-  const qrImage = typeof device.qrBase64 === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(device.qrBase64)
+  const hasRealQr = typeof device.qrBase64 === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(device.qrBase64);
+  const qrImage = hasRealQr
     ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
-    : `<div class="qr-grid">${qrCell}</div>`;
+    : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود حقيقي من Evolution API.</p></div>`;
   const activity = device.activity?.length ? device.activity : ["لا توجد أجهزة مرتبطة حتى الآن"];
   const alerts = device.alerts?.length ? device.alerts : ["وضع الإرسال الآمن مفعل افتراضيا", "أي رسالة اختبار تدخل message_queue قبل الإرسال"];
   const safeItems = ["20 رسالة في الساعة", "100 رسالة في اليوم", "تأخير 20 - 90 ثانية", "منع الإرسال من 9 مساء إلى 9 صباحا", "منع تكرار نفس الرسالة خلال 24 ساعة"];
-  const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "WhatsApp Device", device.phoneNumber || "+966 5X XXX XXXX", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
+  const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "غير متوفر", device.phoneNumber || "غير متوفر", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
 
   return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">${isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
     <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
@@ -783,7 +852,7 @@ function connectedDevicesCenterPage() {
         <div class="device-art" aria-hidden="true">
           <div class="phone-frame"><span class="wa-logo">☎</span></div>
           <div class="wa-check ${isConnected ? "show" : ""}">✓</div>
-          <div class="qr-float">${device.qrBase64 ? qrImage : `<div class="qr-mini">${qrCell}</div>`}</div>
+          <div class="qr-float">${hasRealQr ? qrImage : `<div class="qr-unavailable">QR</div>`}</div>
         </div>
         <div class="link-panel">
           <div class="section-head compact-head">
@@ -802,12 +871,11 @@ function connectedDevicesCenterPage() {
             </div>
             <div class="pair-code">
               <span class="muted">رمز الاقتران</span>
-              <strong>${device.pairingCode}</strong>
-              <small class="muted">صالح لمدة 15 دقيقة</small>
+              <strong>${device.pairingCode || "غير متوفر"}</strong>
+              <small class="muted">لا يظهر الرمز إلا بعد طلبه من Evolution API</small>
               <button class="btn btn-primary" data-action="create-device-qr">إنشاء/تحديث باركود</button>
               <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
               <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
-              ${isPendingQr && localPreview ? `<button class="btn btn-primary" data-action="confirm-device-link">تأكيد الربط التجريبي</button>` : ""}
             </div>
           </div>` : `<div class="link-box-grid pairing-layout">
             <div class="pairing-form">
@@ -818,10 +886,9 @@ function connectedDevicesCenterPage() {
             </div>
             <div class="pair-code pairing-result">
               <span class="muted">رمز الاقتران</span>
-              <strong>${isPendingPairing ? device.pairingCode : "ABCD-EFGH"}</strong>
+              <strong>${isPendingPairing ? device.pairingCode : "لا يوجد رمز بعد"}</strong>
               <small class="muted">${isPendingPairing ? `ينتهي خلال 60 ثانية - صالح حتى ${device.pairingExpiresAt}` : "سيظهر الرمز بعد إدخال رقم صحيح"}</small>
               <button class="btn btn-secondary" data-action="copy-pairing" ${!isPendingPairing ? "disabled" : ""}>نسخ الرمز</button>
-              ${localPreview ? `<button class="btn btn-primary" data-action="confirm-device-link" ${!isPendingPairing ? "disabled" : ""}>تأكيد الربط التجريبي</button>` : ""}
               <ul class="check-list"><li>اختر الربط برقم الهاتف في واتساب إذا ظهر لك.</li><li>أدخل رمز الاقتران الظاهر هنا.</li><li>انتظر حتى تصبح الحالة متصل.</li></ul>
             </div>
           </div>`}
@@ -844,7 +911,14 @@ function connectedDevicesCenterPage() {
 
 function whatsappSafetyPage() {
   const warmup = [[1, 10], [2, 15], [3, 20], [4, 25], [5, 35], [7, 60], [14, 200]];
-  return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"), `<button class="btn btn-primary" data-link="/dashboard/connected-devices">${t("sidebar.linkedDevices")}</button>`)}<div class="grid grid-3"><article class="card table-card"><h2>${t("linkedDevices.health")}</h2><div class="risk-ring"><strong>22</strong><span>/100</span></div><p class="status success">${state.language === "ar" ? "صحة الرقم جيدة" : "Number health is good"}</p></article><article class="card table-card"><h2>${state.language === "ar" ? "حدود الحماية" : "Protection limits"}</h2><ul class="check-list"><li>20 ${state.language === "ar" ? "رسالة في الساعة" : "messages per hour"}</li><li>100 ${state.language === "ar" ? "رسالة في اليوم" : "messages per day"}</li><li>${state.language === "ar" ? "منع التكرار لمدة 24 ساعة" : "24-hour duplicate protection"}</li><li>${state.language === "ar" ? "ساعات هدوء 9م - 9ص" : "Quiet hours 9 PM - 9 AM"}</li></ul></article><article class="card table-card"><h2>${t("linkedDevices.smartAdvice")}</h2><p>${state.language === "ar" ? "لا ترفع الإرسال اليومي اليوم؛ الرقم جديد ويحتاج تدرجًا." : "Do not increase today's sending volume; this number is still warming up."}</p></article></div><section class="section"><article class="card table-card"><h2>${state.language === "ar" ? "جدول التدرج التلقائي" : "Automatic warm-up schedule"}</h2><div class="warmup-track">${warmup.map(([day, limit]) => `<span><small>${state.language === "ar" ? "اليوم" : "Day"} ${day}</small><strong>${limit}</strong></span>`).join("")}</div></article></section>`);
+  const payload = state.whatsappHealth;
+  if (payload === null) return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"))}<div class="loading-state">جاري تحميل بيانات الحماية...</div>`);
+  const health = payload?.health;
+  if (!health) return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"), `<button class="btn btn-primary" data-link="/dashboard/connected-devices">${t("sidebar.linkedDevices")}</button>`)}${emptyState("لا توجد قناة واتساب مرتبطة")}`);
+  const risk = Number(health.risk || 0);
+  const label = risk <= 15 ? "ممتاز" : risk <= 35 ? "جيد" : risk <= 70 ? "متوسط" : "خطر";
+  const tone = risk <= 35 ? "success" : risk <= 70 ? "warning" : "danger";
+  return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"), `<button class="btn btn-primary" data-link="/dashboard/connected-devices">${t("sidebar.linkedDevices")}</button>`)}<div class="grid grid-3"><article class="card table-card"><h2>${t("linkedDevices.health")}</h2><div class="risk-ring"><strong>${risk}</strong><span>/100</span></div><p class="status ${tone}">${label}</p>${risk > 70 ? `<p class="danger-text">تم إيقاف الإرسال التلقائي لأن درجة المخاطر أعلى من 70.</p><button class="btn btn-danger" data-link="/dashboard/issues">مراجعة المخاطر</button>` : ""}</article><article class="card table-card"><h2>حالة القناة</h2><strong>${escapeHtml(health.status)}</strong><p class="muted">${escapeHtml(health.phoneNumber || "لا يوجد رقم")}</p><p>${escapeHtml(health.messagesHour)} / ساعة · ${escapeHtml(health.messagesToday)} / يوم</p></article><article class="card table-card"><h2>${t("linkedDevices.smartAdvice")}</h2><p>${escapeHtml(health.advice)}</p></article></div><section class="section"><article class="card table-card"><h2>جدول التدرج التلقائي</h2><div class="warmup-track">${warmup.map(([day, limit]) => `<span><small>اليوم ${day}</small><strong>${limit}</strong></span>`).join("")}</div></article></section>`);
 }
 
 function unsubscribePage() {
@@ -1049,7 +1123,6 @@ async function handleAction(target) {
     if (!phone) return toast("يرجى إدخال رقم واتساب.", "danger");
     if (!/^[1-9]\d{10,14}$/.test(phone)) return toast("اكتب الرقم بدون + أو مسافات، مثال: 9665XXXXXXXX.", "danger");
     try {
-      if (localPreview) throw new Error("local-preview");
       const instance = await ensureEvolutionInstance();
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/pairing-code`, {
         method: "POST",
@@ -1061,16 +1134,11 @@ async function handleAction(target) {
       toast("تم إنشاء رمز الاقتران");
       render();
     } catch (error) {
-      if (!localPreview) return toast(error.message || "تعذر إنشاء رمز الاقتران", "danger");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", instanceId: `evo-${Date.now()}`, instanceName: "tenant-main-whatsapp", phoneNumber: `+${phone}`, pairingCode: `${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, pairingExpiresAt: new Date(Date.now() + 60_000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
-      persistLinkedDevice();
-      toast("تم إنشاء رمز الاقتران");
-      render();
+      toast(error.message || "تعذر إنشاء رمز الاقتران، استخدم الربط بالباركود.", "danger");
     }
   }
   if (action === "create-device-qr") {
     try {
-      if (localPreview) throw new Error("local-preview");
       const instance = await ensureEvolutionInstance();
       const payload = instance.qrBase64 ? { qrBase64: instance.qrBase64, expiresIn: 60 } : await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/qr`);
       state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrBase64: payload.qrBase64 || "", qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
@@ -1079,99 +1147,53 @@ async function handleAction(target) {
       closePortal();
       render();
     } catch (error) {
-      if (!localPreview) return toast(error.message || "تعذر إنشاء الباركود", "danger");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", instanceId: state.linkedDevice.instanceId || `evo-${Date.now()}`, instanceName: "tenant-main-whatsapp", qrActive: true, qrExpiresAt: new Date(Date.now() + 60_000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
+      state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrBase64: "" };
       persistLinkedDevice();
-      toast("تم إنشاء باركود جديد عبر Evolution API");
-      closePortal();
+      toast(error.message || "تعذر إنشاء الباركود من Evolution API. يرجى فحص حالة السيرفر.", "danger");
       render();
     }
   }
   if (action === "show-device-qr") {
-    const realQr = typeof state.linkedDevice.qrBase64 === "string" && state.linkedDevice.qrBase64.startsWith("data:image/png;base64,") ? `<img class="qr-real" src="${state.linkedDevice.qrBase64}" alt="باركود ربط واتساب">` : `<div class="qr-grid">${Array.from({ length: 49 }).map((_, index) => `<span class="${index % 4 === 0 ? "active" : ""}"></span>`).join("")}</div>`;
+    const realQr = typeof state.linkedDevice.qrBase64 === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(state.linkedDevice.qrBase64) ? `<img class="qr-real" src="${state.linkedDevice.qrBase64}" alt="باركود ربط واتساب">` : `<div class="qr-empty"><strong>لا يوجد باركود حقيقي متاح</strong><p class="muted">تعذر إنشاء الباركود من Evolution API. حاول مرة أخرى أو افحص حالة السيرفر.</p></div>`;
     openModal("باركود ربط واتساب", `<div class="qr-box active modal-qr">${realQr}<strong>${state.linkedDevice.qrActive ? "امسح الباركود من واتساب" : "أنشئ باركود جديد أولا"}</strong><p class="muted">تتم عملية الربط من الخادم ولا يتم كشف EVOLUTION_API_KEY.</p></div>`, `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   }
-  if (action === "copy-pairing") copyText(state.linkedDevice.pairingCode || defaultLinkedDevice.pairingCode, "تم نسخ رمز الاقتران");
-  if (action === "confirm-device-link") {
-    if (!localPreview) return toast("يتم تأكيد الربط تلقائيًا بعد مسح QR", "warning");
-    state.linkedDevice = {
-      ...state.linkedDevice,
-      status: "connected",
-      qrActive: false,
-      deviceName: "WhatsApp iPhone 15 Pro",
-      phoneNumber: state.linkedDevice.phoneNumber || "+966 5X XXX XXXX",
-      lastActivity: "منذ دقيقتين",
-      lastCheckAt: "الآن",
-      alerts: ["تم ربط واتساب بنجاح", "وضع الإرسال الآمن مفعل"],
-      activity: ["تم الربط بنجاح", "تم فحص الاتصال", "آخر مزامنة منذ دقيقتين"]
-    };
-    persistLinkedDevice();
-    toast("تم ربط حساب واتساب بنجاح");
-    render();
-  }
+  if (action === "copy-pairing") state.linkedDevice.pairingCode ? copyText(state.linkedDevice.pairingCode, "تم نسخ رمز الاقتران") : toast("لا يوجد رمز اقتران صادر من Evolution API", "warning");
   if (action === "check-device-connection") {
     if (!["pending_qr", "pending_pairing", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
     try {
-      if (localPreview) throw new Error("local-preview");
       const payload = await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/check`, { method: "POST" });
       state.linkedDevice = { ...state.linkedDevice, status: payload.status, phoneNumber: payload.phoneNumber || state.linkedDevice.phoneNumber, qrActive: payload.status !== "connected", qrBase64: payload.status === "connected" ? "" : state.linkedDevice.qrBase64, lastActivity: "الآن", lastCheckAt: "الآن", activity: [payload.status === "connected" ? "تم فحص الاتصال بنجاح" : "لا يزال الربط بانتظار واتساب", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       persistLinkedDevice();
       toast(payload.status === "connected" ? "الاتصال يعمل بنجاح" : "لم يكتمل الربط بعد", payload.status === "connected" ? "success" : "warning");
       render();
     } catch (error) {
-      if (!localPreview) return toast(error.message || "تعذر فحص الاتصال", "danger");
-      if (state.linkedDevice.status === "pending_qr") return toast("الجلسة جاهزة، امسح الباركود من واتساب", "warning");
-      if (state.linkedDevice.status === "pending_pairing") return toast("رمز الاقتران جاهز، أدخله في واتساب", "warning");
-      state.linkedDevice.lastActivity = "الآن";
-      state.linkedDevice.lastCheckAt = "الآن";
-      persistLinkedDevice();
-      toast("الاتصال يعمل بنجاح");
-      render();
+      toast(error.message || "تعذر فحص الاتصال", "danger");
     }
   }
   if (action === "send-device-test") {
     if (state.linkedDevice.status !== "connected") return toast("لا يمكن الإرسال قبل ربط الجهاز", "danger");
-    if (!localPreview) {
-      return openModal("إرسال رسالة اختبار", `<form data-submit="send-device-test" class="grid"><label class="field"><span>رقم المستلم التجريبي</span><input class="input" name="to" inputmode="numeric" placeholder="9665XXXXXXXX" required></label><label class="field"><span>الرسالة</span><textarea class="textarea" name="message" required>مرحبًا {{name}}، هذه رسالة اختبار من RenewPilot AI. أرسل إيقاف لإلغاء الرسائل.</textarea></label><button class="btn btn-primary" type="submit">إرسال الاختبار</button></form>`);
-    }
-    state.linkedDevice.queuedMessages = (state.linkedDevice.queuedMessages || 0) + 1;
-    state.linkedDevice.messagesToday = (state.linkedDevice.messagesToday || 0) + 1;
-    state.linkedDevice.messagesMonth = (state.linkedDevice.messagesMonth || 0) + 1;
-    state.linkedDevice.lastSendAt = "أضيفت إلى Queue الآن";
-    persistLinkedDevice();
-    toast("تمت إضافة رسالة الاختبار إلى Queue بنجاح");
-    render();
+    return openModal("إرسال رسالة اختبار", `<form data-submit="send-device-test" class="grid"><label class="field"><span>رقم المستلم التجريبي</span><input class="input" name="to" inputmode="numeric" placeholder="9665XXXXXXXX" required></label><label class="field"><span>الرسالة</span><textarea class="textarea" name="message" required>مرحبًا {{name}}، هذه رسالة اختبار من RenewPilot AI. أرسل إيقاف لإلغاء الرسائل.</textarea></label><button class="btn btn-primary" type="submit">إرسال الاختبار</button></form>`);
   }
   if (action === "disconnect-device") {
     try {
-      if (localPreview) throw new Error("local-preview");
       await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/disconnect`, { method: "POST" });
       state.linkedDevice = { ...state.linkedDevice, status: "disconnected", qrActive: false, qrBase64: "", activity: ["تم فصل الجهاز", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       persistLinkedDevice();
       toast("تم فصل الجهاز");
       render();
     } catch (error) {
-      if (!localPreview) return toast(error.message || "تعذر فصل الجهاز", "danger");
-      state.linkedDevice = { ...state.linkedDevice, status: "disconnected", qrActive: false };
-      persistLinkedDevice();
-      toast("تم فصل الجهاز");
-      render();
+      toast(error.message || "تعذر فصل الجهاز", "danger");
     }
   }
   if (action === "delete-device") {
     try {
-      if (localPreview) throw new Error("local-preview");
       await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}`, { method: "DELETE" });
       state.linkedDevice = { ...defaultLinkedDevice };
       persistLinkedDevice();
       toast("تم حذف الجهاز المرتبط");
       render();
     } catch (error) {
-      if (!localPreview) return toast(error.message || "تعذر حذف الجهاز", "danger");
-      state.linkedDevice = { ...defaultLinkedDevice };
-      persistLinkedDevice();
-      toast("تم حذف الجهاز المرتبط");
-      render();
+      toast(error.message || "تعذر حذف الجهاز", "danger");
     }
   }
   if (action === "notifications") toast("لديك 3 تنبيهات تحتاج مراجعة");
@@ -1188,7 +1210,37 @@ async function handleAction(target) {
   if (action === "support-chip") { state.search = target.dataset.term; render(); }
   if (action === "add-subscription") openModal("إضافة اشتراك جديد", subscriptionForm());
   if (action === "bulk-import") openModal(state.language === "ar" ? "استيراد اشتراكات من Excel" : "Import subscriptions from Excel", `<form data-submit="import-preview" class="grid"><label class="field"><span>${state.language === "ar" ? "الصق الجدول هنا" : "Paste the spreadsheet here"}</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="رقم الطلب\tاسم العميل\tرقم الجوال\tالخدمة\tتاريخ البداية\tتاريخ الانتهاء\tرابط التجديد"></textarea></label><button class="btn btn-primary">${state.language === "ar" ? "معاينة قبل الحفظ" : "Preview before saving"}</button></form><div id="import-preview"></div>`);
-  if (action === "mark-renewed") openModal(state.language === "ar" ? "تم التجديد" : "Mark as renewed", `<form data-submit="quick-renew" data-key="${target.dataset.key}" class="grid"><label class="field"><span>${state.language === "ar" ? "مدة التجديد" : "Renewal duration"}</span><select class="select" name="duration"><option value="month">${state.language === "ar" ? "شهر" : "One month"}</option><option value="three_months">${state.language === "ar" ? "3 أشهر" : "3 months"}</option><option value="six_months">${state.language === "ar" ? "6 أشهر" : "6 months"}</option><option value="year">${state.language === "ar" ? "سنة" : "One year"}</option><option value="custom">${state.language === "ar" ? "تاريخ مخصص" : "Custom date"}</option></select></label><label class="field"><span>${state.language === "ar" ? "التاريخ المخصص" : "Custom date"}</span><input class="input" type="date" name="customDate"></label><button class="btn btn-primary">${t("common.confirm")}</button><button type="button" class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button></form>`);
+  if (action === "mark-renewed") openModal(state.language === "ar" ? "تم التجديد" : "Mark as renewed", `<form data-submit="quick-renew" data-id="${target.dataset.id}" class="grid"><label class="field"><span>${state.language === "ar" ? "مدة التجديد" : "Renewal duration"}</span><select class="select" name="duration"><option value="month">${state.language === "ar" ? "شهر" : "One month"}</option><option value="three_months">${state.language === "ar" ? "3 أشهر" : "3 months"}</option><option value="six_months">${state.language === "ar" ? "6 أشهر" : "6 months"}</option><option value="year">${state.language === "ar" ? "سنة" : "One year"}</option><option value="custom">${state.language === "ar" ? "تاريخ مخصص" : "Custom date"}</option></select></label><label class="field"><span>${state.language === "ar" ? "التاريخ المخصص" : "Custom date"}</span><input class="input" type="date" name="customDate"></label><label class="check-row"><input type="checkbox" name="sendNotification" value="true"><span>إرسال إشعار بعد التجديد (اختياري)</span></label><button class="btn btn-primary">${t("common.confirm")}</button><button type="button" class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button></form>`);
+  if (action === "run-readiness") { state.readiness = null; syncRouteData(true); render(); }
+  if (action === "reload-issues") { state.operationalIssues = null; syncRouteData(true); render(); }
+  if (action === "reload-subscriptions") { state.dbSubscriptions = null; syncRouteData(true); render(); }
+  if (action === "send-subscription-reminder") {
+    try {
+      await fetchJson(`/api/subscriptions/${target.dataset.id}/remind`, { method: "POST" });
+      toast("تمت إضافة التذكير إلى قائمة الإرسال");
+    } catch (error) { toast(error.message || "تعذر إرسال التذكير", "danger"); }
+  }
+  if (action === "subscription-notifications") {
+    try {
+      const payload = await fetchJson(`/api/subscriptions/${target.dataset.id}/notifications`);
+      const content = payload.items.length ? payload.items.map((item) => `<div class="activity-item"><div><strong>${escapeHtml(item.status)} · ${escapeHtml(item.channel)}</strong><p class="muted">${escapeHtml(item.createdAt)} ${item.errorMessage ? `· ${escapeHtml(item.errorMessage)}` : ""}</p></div></div>`).join("") : `<p class="muted">لا توجد تنبيهات لهذا الاشتراك</p>`;
+      openDrawer("سجل التنبيهات", `<div class="activity-list">${content}</div>`);
+    } catch (error) { toast(error.message, "danger"); }
+  }
+  if (action === "edit-customer-phone") openModal("تعديل رقم واتساب", `<form data-submit="edit-customer-phone" data-id="${target.dataset.customerId}" class="grid"><label class="field"><span>رقم واتساب بصيغة دولية</span><input class="input" name="phoneNumber" value="${escapeHtml(target.dataset.phone || "")}" placeholder="9665XXXXXXXX" required></label><button class="btn btn-primary">حفظ الرقم</button></form>`);
+  if (action === "toggle-customer-reminders") {
+    try {
+      await fetchJson(`/api/customers/${target.dataset.customerId}/reminders`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused: target.dataset.paused !== "true" }) });
+      state.dbSubscriptions = null; syncRouteData(true); toast("تم تحديث حالة التذكيرات");
+    } catch (error) { toast(error.message, "danger"); }
+  }
+  if (action === "customer-timeline") {
+    try {
+      const payload = await fetchJson(`/api/customers/${target.dataset.customerId}/timeline`);
+      const content = payload.items.length ? payload.items.map((item) => `<div class="timeline-item"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.createdAt)}</small></div>`).join("") : `<p class="muted">لا يوجد نشاط مسجل</p>`;
+      openDrawer("Timeline العميل", `<div class="timeline">${content}</div>`);
+    } catch (error) { toast(error.message, "danger"); }
+  }
   if (action === "add-unsubscribe") openModal(t("sidebar.unsubscribe"), `<form data-submit="unsubscribe" class="grid">${field(state.language === "ar" ? "رقم واتساب" : "WhatsApp number", "phoneNumber", "tel")}${field(state.language === "ar" ? "السبب" : "Reason", "reason")}<button class="btn btn-primary">${t("common.save")}</button></form>`);
   if (action === "import-save") {
     const text = state.importText || "";
@@ -1425,16 +1477,25 @@ async function handleSubmit(form, event) {
     if (preview) preview.innerHTML = `<div class="import-summary"><span class="status success">${rows.length - invalid} ${state.language === "ar" ? "صف صحيح" : "valid rows"}</span><span class="status danger">${invalid} ${state.language === "ar" ? "صفوف فيها أخطاء" : "invalid rows"}</span><span class="status warning">${duplicatePhones.size} ${state.language === "ar" ? "أرقام مكررة" : "duplicate numbers"}</span></div><button class="btn btn-primary" data-action="import-save">${state.language === "ar" ? "حفظ الصفوف الصحيحة" : "Save valid rows"}</button>`;
   }
   if (type === "quick-renew") {
-    const row = state.subscriptions.find((item) => item.order === form.dataset.key);
-    if (!row) return toast(t("common.serverError"), "danger");
-    const months = { month: 1, three_months: 3, six_months: 6, year: 12 }[data.duration];
-    if (data.duration === "custom") row.end = data.customDate;
-    else { const end = new Date(`${row.end}T12:00:00Z`); end.setUTCMonth(end.getUTCMonth() + months); row.end = end.toISOString().slice(0, 10); }
-    row.status = "تم التجديد";
-    storage.set("renewpilot.subscriptions", state.subscriptions);
-    closePortal();
-    toast(state.language === "ar" ? "تم تمديد الاشتراك وتسجيل العملية." : "Subscription renewed and activity recorded.");
-    render();
+    try {
+      await fetchJson(`/api/subscriptions/${form.dataset.id}/renew`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ duration: data.duration, customDate: data.customDate || null }) });
+      closePortal();
+      state.dbSubscriptions = null;
+      syncRouteData(true);
+      toast(state.language === "ar" ? "تم تمديد الاشتراك وتسجيل العملية دون إرسال تلقائي." : "Subscription renewed without automatic sending.");
+      if (data.sendNotification === "true") toast("تم التجديد. استخدم زر إرسال تذكير بعد التأكد من اتصال واتساب.", "warning");
+    } catch (error) { toast(error.message || t("common.serverError"), "danger"); }
+    return;
+  }
+  if (type === "edit-customer-phone") {
+    try {
+      await fetchJson(`/api/customers/${form.dataset.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phoneNumber: data.phoneNumber }) });
+      closePortal();
+      state.dbSubscriptions = null;
+      syncRouteData(true);
+      toast("تم تحديث رقم واتساب");
+    } catch (error) { toast(error.message || "تعذر تحديث الرقم", "danger"); }
+    return;
   }
   if (type === "unsubscribe") {
     try { await fetch("/api/unsubscribes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); } catch {}
@@ -1471,11 +1532,14 @@ function render() {
       "/dashboard/whatsapp-safety": whatsappSafetyPage,
       "/dashboard/unsubscribe": unsubscribePage,
       "/dashboard/activity": activityPage,
+      "/dashboard/readiness": readinessPage,
+      "/dashboard/issues": issuesPage,
       "/dashboard/billing": billingPage,
       "/dashboard/settings": settingsPage
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
     localizeElement(app);
+    syncRouteData();
     return;
   }
   const pages = {

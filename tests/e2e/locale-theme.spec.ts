@@ -5,7 +5,7 @@ const routes = [
   "/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/renewals",
   "/dashboard/notifications", "/dashboard/linked-devices", "/dashboard/whatsapp-safety",
   "/dashboard/unsubscribe", "/dashboard/warranty", "/dashboard/reports", "/dashboard/activity",
-  "/dashboard/billing", "/dashboard/settings"
+  "/dashboard/billing", "/dashboard/settings", "/dashboard/readiness", "/dashboard/issues"
 ];
 
 test("English mode translates every required page and persists direction", async ({ page }) => {

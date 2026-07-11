@@ -871,3 +871,19 @@ tbody tr:hover { background: #fbfeff; }
   .or-divider { margin: 0 auto; }
   .device-art { min-height: 260px; }
 }
+
+.qr-empty, .qr-unavailable { display: grid; place-content: center; min-height: 150px; padding: 16px; text-align: center; color: var(--muted); border: 1px dashed var(--border); background: var(--surface-soft); }
+.qr-unavailable { min-height: 72px; font-weight: 800; }
+.readiness-result { display: flex; align-items: center; justify-content: space-between; padding: 18px; margin-bottom: 18px; border: 1px solid var(--border); background: var(--surface); }
+.readiness-result strong { font-size: 1.35rem; }
+.readiness-result.ready { border-color: #22c55e; }
+.readiness-result.not-ready { border-color: #ef4444; }
+.readiness-card { min-height: 150px; }
+.issue-list { display: grid; gap: 12px; }
+.issue-row h3 { margin: 8px 0; font-size: 1rem; }
+.subscription-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 420px; }
+.subscription-actions .btn { min-height: 34px; padding: 6px 10px; font-size: .78rem; }
+.timeline { display: grid; gap: 0; }
+.timeline-item { position: relative; display: grid; gap: 4px; padding: 0 24px 20px 0; border-right: 2px solid var(--border); }
+.timeline-item::before { content: ""; position: absolute; right: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+.loading-state { min-height: 180px; display: grid; place-content: center; color: var(--muted); }

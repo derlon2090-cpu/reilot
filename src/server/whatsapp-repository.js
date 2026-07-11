@@ -9,8 +9,10 @@ export function evolutionInstanceName(tenantId) {
 export async function latestTenantChannel(tenantId) {
   const result = await query(
     `SELECT id, tenant_id AS "tenantId", channel_id AS "instanceName", phone_number AS "phoneNumber",
-            display_name AS "displayName", status, qr_code_cache AS "qrBase64", connected_at AS "connectedAt",
-            disconnected_at AS "disconnectedAt", last_health_check_at AS "lastHealthCheckAt", last_error AS "lastError"
+            display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64",
+            connected_at AS "connectedAt", disconnected_at AS "disconnectedAt",
+            last_qr_generated_at AS "lastQrGeneratedAt", last_pairing_code_generated_at AS "lastPairingCodeGeneratedAt",
+            last_health_check_at AS "lastHealthCheckAt", last_error AS "lastError", risk_score AS "riskScore"
        FROM whatsapp_channels WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [tenantId]
   );
@@ -20,7 +22,7 @@ export async function latestTenantChannel(tenantId) {
 export async function ownedChannel(id, tenantId) {
   const result = await query(
     `SELECT id, tenant_id AS "tenantId", channel_id AS "instanceName", phone_number AS "phoneNumber",
-            display_name AS "displayName", status, qr_code_cache AS "qrBase64"
+            display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64", risk_score AS "riskScore"
        FROM whatsapp_channels WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
     [id, tenantId]
   );
@@ -29,11 +31,12 @@ export async function ownedChannel(id, tenantId) {
 
 export async function createChannel({ tenantId, instanceName, providerToken, qrBase64 }) {
   const encrypted = encryptSecret(providerToken || randomToken(32), process.env.ENCRYPTION_KEY);
+  const status = qrBase64 ? "pending_qr" : "not_connected";
   const result = await query(
-    `INSERT INTO whatsapp_channels (tenant_id, provider, channel_id, channel_token_encrypted, status, qr_code_cache, warmup_started_at)
-     VALUES ($1, 'evolution', $2, $3, 'pending_qr', $4, now())
+    `INSERT INTO whatsapp_channels (tenant_id, provider, channel_id, channel_token_encrypted, status, qr_code_cache, last_qr_generated_at, warmup_started_at)
+     VALUES ($1, 'evolution', $2, $3, $4, $5, CASE WHEN $5::text IS NOT NULL THEN now() END, now())
      RETURNING id, tenant_id AS "tenantId", channel_id AS "instanceName", status`,
-    [tenantId, instanceName, encrypted, qrBase64 || null]
+    [tenantId, instanceName, encrypted, status, qrBase64 || null]
   );
   return result.rows[0];
 }
@@ -46,6 +49,10 @@ export async function updateChannel(id, tenantId, patch) {
     qrBase64: "qr_code_cache",
     phoneNumber: "phone_number",
     displayName: "display_name",
+    deviceName: "device_name",
+    lastQrGeneratedAt: "last_qr_generated_at",
+    lastPairingCodeGeneratedAt: "last_pairing_code_generated_at",
+    riskScore: "risk_score",
     lastError: "last_error"
   };
   const sets = entries.map(([key], index) => `${names[key]} = $${index + 3}`);

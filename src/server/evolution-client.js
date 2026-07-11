@@ -17,6 +17,18 @@ async function request(path, init = {}) {
   return body;
 }
 
+export function normalizeEvolutionQr(value) {
+  const raw = String(value || "");
+  const match = raw.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
+  const encoded = match ? match[2] : /^[A-Za-z0-9+/=]+$/.test(raw) ? raw : "";
+  if (encoded.length < 1000) return null;
+  const bytes = Buffer.from(encoded, "base64");
+  const png = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
+  if (!png && !jpeg) return null;
+  return `data:image/${png ? "png" : "jpeg"};base64,${encoded}`;
+}
+
 export async function evolutionHealth() {
   const startedAt = Date.now();
   const body = await request("/server/ok").catch(() => request("/"));
