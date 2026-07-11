@@ -32,6 +32,20 @@ Date: 2026-07-11
 - Browser E2E: 13 passed, including Arabic/English coverage and a no-fake-QR/no-fake-pairing scenario.
 - Production build: passed.
 
+## Live Staging Verification
+
+- Deployed commit: `e9e9c02`.
+- Migration: `0006_operational_readiness.sql` applied.
+- Health: database connected; Evolution API connected on version 2.3.7.
+- A temporary verification tenant created an Evolution instance through the current application API.
+- `/api/whatsapp/instances/[id]/qr` returned a real, decodable image payload of 9,790 bytes with a valid PNG/JPEG signature.
+- Sending a test message before `connected` returned HTTP 409 and did not call the provider.
+- An invalid pairing phone returned HTTP 400 and no code was displayed or generated locally.
+- The Evolution instance and temporary tenant were deleted after verification.
+- Post-cleanup counts: users 0, tenants 0, customers 0, subscriptions 0, WhatsApp channels 0, operational issues 0.
+- PostgreSQL and Redis are not published; Evolution API is bound to `127.0.0.1:8080` only.
+- `staging.renewpilot.ai` does not currently resolve, port 443 is not active, and Resend is not configured. Production therefore remains NO-GO.
+
 ## Release Decision
 
 Production Launch: **NO-GO**
