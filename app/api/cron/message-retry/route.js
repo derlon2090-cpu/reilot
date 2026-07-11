@@ -1,6 +1,6 @@
 import { runCron } from "../../_lib/cron";
 
-export function GET(req) {
+export async function GET(req) {
   return runCron(req, "message-retry", {
     action: "Process pending message_queue items with quota, quiet-hours, duplicate, unsubscribe, and risk checks.",
     maxMessagesPerTenantPerRun: 20,

@@ -1,0 +1,5 @@
+0 6 * * * cd /opt/renewpilot && docker compose exec -T app node scripts/run-cron.mjs renewal-reminders >> /var/log/renewpilot-cron.log 2>&1
+0 7 * * * cd /opt/renewpilot && docker compose exec -T app node scripts/run-cron.mjs whatsapp-health-check >> /var/log/renewpilot-cron.log 2>&1
+0 8 * * * cd /opt/renewpilot && docker compose exec -T app node scripts/run-cron.mjs message-retry >> /var/log/renewpilot-cron.log 2>&1
+5 0 1 * * cd /opt/renewpilot && docker compose exec -T app node scripts/run-cron.mjs usage-reset >> /var/log/renewpilot-cron.log 2>&1
+30 2 * * * cd /opt/renewpilot && docker compose exec -T app node scripts/run-cron.mjs cleanup >> /var/log/renewpilot-cron.log 2>&1

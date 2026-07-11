@@ -5,6 +5,8 @@
     "predev": "node build.mjs",
     "dev": "next dev",
     "start": "next start",
+    "db:migrate": "node scripts/migrate.mjs",
+    "cron:run": "node scripts/run-cron.mjs",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
@@ -18,8 +20,10 @@
   "version": "1.0.0",
   "dependencies": {
     "next": "^15.4.0",
+    "pg": "^8.22.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "resend": "^6.17.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",

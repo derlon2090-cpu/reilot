@@ -1,3 +1,6 @@
+import { runCronJob } from "../../../src/server/cron-runner.js";
+import { safeErrorMessage } from "../../../src/server/security.js";
+
 export function validateCronRequest(req) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
@@ -13,7 +16,7 @@ export function validateCronRequest(req) {
   return { ok: true };
 }
 
-export function runCron(req, jobName, summary) {
+export async function runCron(req, jobName, summary) {
   const validation = validateCronRequest(req);
 
   if (!validation.ok) {
@@ -23,11 +26,15 @@ export function runCron(req, jobName, summary) {
     );
   }
 
-  return Response.json({
-    ok: true,
-    job: jobName,
-    mode: "scaffold",
-    summary,
-    nextStep: "Connect Neon + Drizzle repository methods before enabling production sending."
-  });
+  if (!process.env.DATABASE_URL) {
+    return Response.json({ ok: true, job: jobName, mode: "configuration_required", summary });
+  }
+
+  try {
+    const result = await runCronJob(jobName);
+    return Response.json({ ok: true, job: jobName, mode: "live", result });
+  } catch (error) {
+    console.error(`cron ${jobName} failed`, safeErrorMessage(error));
+    return Response.json({ ok: false, job: jobName, error: "Cron execution failed" }, { status: 500 });
+  }
 }

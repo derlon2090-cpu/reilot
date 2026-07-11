@@ -14,6 +14,12 @@ import {
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
 
+const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(async (locale) => {
+  const response = await fetch(`/app/locales/${locale}.json`);
+  if (!response.ok) throw new Error(`Unable to load ${locale} locale`);
+  return [locale, await response.json()];
+})));
+
 const storage = {
   get(key, fallback) {
     try {
@@ -26,6 +32,55 @@ const storage = {
     localStorage.setItem(key, JSON.stringify(value));
   }
 };
+
+function readPreference(key, legacyKey, fallback) {
+  const direct = localStorage.getItem(key);
+  if (direct === "ar" || direct === "en" || direct === "light" || direct === "dark") return direct;
+  const legacy = storage.get(legacyKey, fallback);
+  localStorage.setItem(key, legacy);
+  return legacy;
+}
+
+function getNestedValue(object, key) {
+  return key.split(".").reduce((value, part) => value?.[part], object);
+}
+
+function t(key, variables = {}) {
+  const value = getNestedValue(localeMessages[state?.language || "ar"], key) || getNestedValue(localeMessages.ar, key) || key;
+  return Object.entries(variables).reduce((text, [name, replacement]) => text.replaceAll(`{{${name}}}`, replacement), value);
+}
+
+function translatedPhrase(value) {
+  if (state.language !== "en") return value;
+  const source = String(value || "");
+  const trimmed = source.trim();
+  if (!trimmed || !/[\u0600-\u06FF]/.test(trimmed)) return source;
+  const prefix = trimmed.match(/^[^\u0600-\u06FF]*/)?.[0] || "";
+  const core = trimmed.slice(prefix.length);
+  const translated = localeMessages.en.phrases?.[trimmed] || localeMessages.en.phrases?.[core];
+  if (translated) return source.replace(trimmed, `${localeMessages.en.phrases?.[trimmed] ? "" : prefix}${translated}`);
+  let composed = trimmed;
+  for (const [arabic, english] of Object.entries(localeMessages.en.phrases || {}).sort((a, b) => b[0].length - a[0].length)) {
+    if (composed.includes(arabic)) composed = composed.replaceAll(arabic, english);
+  }
+  if (!/[\u0600-\u06FF]/.test(composed)) return source.replace(trimmed, composed);
+  return source.replace(/[\u0600-\u06FF][\u0600-\u06FF\s،؛؟ًٌٍَُِّْـ()-]*/g, t("common.untranslated"));
+}
+
+function localizeElement(root) {
+  if (!root || state.language !== "en") return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.parentElement?.closest("script,style")) continue;
+    node.nodeValue = translatedPhrase(node.nodeValue);
+  }
+  root.querySelectorAll("[placeholder],[title],[aria-label]").forEach((element) => {
+    for (const attribute of ["placeholder", "title", "aria-label"]) {
+      if (element.hasAttribute(attribute)) element.setAttribute(attribute, translatedPhrase(element.getAttribute(attribute)));
+    }
+  });
+}
 
 const defaultLinkedDevice = {
   status: "not_connected",
@@ -56,8 +111,11 @@ const state = {
   query: new URLSearchParams(location.search),
   navOpen: false,
   sidebarOpen: false,
-  theme: storage.get("renewpilot.theme", "light"),
-  language: storage.get("renewpilot.language", "ar"),
+  theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
+  language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
+  profileOpen: false,
+  resetStep: 1,
+  resetEmail: "",
   billing: storage.get("renewpilot.billing", "monthly"),
   filter: "الكل",
   search: "",
@@ -72,22 +130,26 @@ const state = {
 };
 
 const routes = [
-  ["/", "الرئيسية"],
-  ["/features", "المميزات"],
-  ["/pricing", "الأسعار"],
-  ["/support", "الدعم"]
+  ["/", "sidebar.home"],
+  ["/features", "public.features"],
+  ["/pricing", "public.pricing"],
+  ["/support", "public.support"]
 ];
 
 const dashboardRoutes = [
-  ["/dashboard", "الرئيسية", "⌂"],
-  ["/dashboard/subscriptions", "الاشتراكات", "▣"],
-  ["/dashboard/customers", "العملاء", "♙"],
-  ["/dashboard/renewals", "التجديدات", "↻"],
-  ["/dashboard/notifications", "التنبيهات", "♢"],
-  ["/dashboard/warranty", "المركز الضماني", "◇"],
-  ["/dashboard/reports", "التقارير", "▥"],
-  ["/dashboard/connected-devices", "الأجهزة المرتبطة", "🔗"],
-  ["/dashboard/settings", "الإعدادات", "⚙"]
+  ["/dashboard", "sidebar.home", "⌂"],
+  ["/dashboard/subscriptions", "sidebar.subscriptions", "▣"],
+  ["/dashboard/customers", "sidebar.customers", "♙"],
+  ["/dashboard/renewals", "sidebar.renewals", "↻"],
+  ["/dashboard/notifications", "sidebar.notifications", "♢"],
+  ["/dashboard/connected-devices", "sidebar.linkedDevices", "🔗"],
+  ["/dashboard/whatsapp-safety", "sidebar.whatsappSafety", "◉"],
+  ["/dashboard/unsubscribe", "sidebar.unsubscribe", "⊘"],
+  ["/dashboard/warranty", "sidebar.warrantyCenter", "◇"],
+  ["/dashboard/reports", "sidebar.reports", "▥"],
+  ["/dashboard/activity", "sidebar.activity", "◷"],
+  ["/dashboard/billing", "sidebar.billing", "▤"],
+  ["/dashboard/settings", "sidebar.settings", "⚙"]
 ];
 
 function applyPreferences() {
@@ -107,6 +169,7 @@ function navigate(to) {
   state.query = url.searchParams;
   state.navOpen = false;
   state.sidebarOpen = false;
+  state.profileOpen = false;
   state.search = "";
   state.filter = "الكل";
   render();
@@ -129,23 +192,24 @@ function icon(text, tone = "") {
 }
 
 function logo() {
-  return `<button class="brand btn-ghost" data-link="/" aria-label="RenewPilot AI">
+  const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
+  return `<button class="brand btn-ghost" data-link="${destination}" aria-label="RenewPilot AI">
     <span class="brand-mark">R</span><span>RenewPilot AI</span>
   </button>`;
 }
 
 function publicNavbar() {
-  const links = routes.map(([path, label]) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}">${label}</button>`).join("");
+  const links = routes.map(([path, key]) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}">${t(key)}</button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   return `<nav class="public-nav ${state.navOpen ? "open" : ""}">
     <div class="container nav-inner">
       ${logo()}
       <div class="nav-links">${links}</div>
       <div class="nav-actions">
-        <button class="btn btn-ghost icon-btn" data-action="theme" title="تبديل المظهر">${themeIcon}</button>
-        <button class="btn btn-secondary" data-action="language">${state.language.toUpperCase()}</button>
-        <button class="btn btn-secondary" data-link="/login">تسجيل الدخول</button>
-        <button class="btn btn-primary" data-link="/login">ابدأ الآن</button>
+        <button class="btn btn-ghost icon-btn" data-action="theme" title="${t("settings.theme")}">${themeIcon}</button>
+        <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
+        <button class="btn btn-secondary" data-link="/login">${t("auth.loginTitle")}</button>
+        <button class="btn btn-primary" data-link="/register">${t("auth.createAccount")}</button>
       </div>
       <button class="btn btn-secondary icon-btn mobile-menu" data-action="toggle-public-nav" aria-label="القائمة">☰</button>
     </div>
@@ -170,7 +234,7 @@ function pageHero(title, lead, actions = "") {
 function statGrid(items) {
   return `<div class="grid grid-5">${items.map((item) => `<article class="card stat-card">
     <div><span class="muted">${item.title}</span><strong>${item.value}</strong><small class="status ${item.tone === "purple" ? "info" : item.tone}">${item.change || "مباشر"}</small></div>
-    ${icon(item.title.slice(0, 1), item.tone === "purple" ? "purple" : "")}
+    ${icon(state.language === "en" ? "•" : item.title.slice(0, 1), item.tone === "purple" ? "purple" : "")}
   </article>`).join("")}</div>`;
 }
 
@@ -307,7 +371,7 @@ function supportPage() {
           ["الدردشة المباشرة", "ابدأ محادثة فورية مع فريق الدعم.", "ابدأ الدردشة", "open-chat"],
           ["تواصل عبر البريد", "اكتب رسالة دعم مفصلة عبر البريد.", "إرسال بريد", "open-email"],
           ["تواصل عبر واتساب", "افتح محادثة واتساب مبدئية.", "بدء محادثة واتساب", "open-whatsapp"]
-        ].map(([title, body, btn, action], i) => `<article class="card support-card">${icon(title.slice(0, 1), i === 1 ? "green" : i === 2 ? "purple" : i === 3 ? "orange" : "")}<h3>${title}</h3><p class="muted">${body}</p><button class="btn btn-secondary" data-action="${action}">${btn}</button></article>`).join("")}
+        ].map(([title, body, btn, action], i) => `<article class="card support-card">${icon(state.language === "en" ? "•" : title.slice(0, 1), i === 1 ? "green" : i === 2 ? "purple" : i === 3 ? "orange" : "")}<h3>${title}</h3><p class="muted">${body}</p><button class="btn btn-secondary" data-action="${action}">${btn}</button></article>`).join("")}
       </div>
     </div></section>
     <section class="section"><div class="container split">
@@ -323,64 +387,73 @@ function loginPage() {
   return `<main class="auth-page ${isRegister ? "register-mode" : "login-mode"}">
     <div class="auth-brand">${logo()}</div>
     <div class="auth-top-actions">
-      <button class="btn btn-ghost icon-btn" data-action="theme" title="تبديل المظهر">${state.theme === "dark" ? "☾" : "☀"}</button>
-      <button class="btn btn-secondary" data-action="language">${state.language.toUpperCase()}</button>
+      <button class="btn btn-ghost icon-btn" data-action="theme" title="${t("settings.theme")}">${state.theme === "dark" ? "☾" : "☀"}</button>
+      <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
     </div>
     <section class="auth-shell">
       <article class="card auth-panel">
-        <span class="eyebrow">${isRegister ? "ابدأ حسابك الآن" : "مرحبًا بعودتك"}</span>
-        <h1>${isRegister ? "إنشاء حساب جديد" : "Welcome back"}</h1>
-        <p class="lead">${isRegister ? "أنشئ مساحة RenewPilot AI لإدارة الاشتراكات والتنبيهات والربط الذكي." : "Manage renewals smarter"}</p>
+        <span class="eyebrow">RenewPilot AI</span>
+        <h1>${t(isRegister ? "auth.registerTitle" : "auth.loginTitle")}</h1>
+        <p class="lead">${t(isRegister ? "auth.registerSubtitle" : "auth.loginSubtitle")}</p>
         ${state.query.get("plan") ? `<p class="badge">الخطة المختارة: ${state.query.get("plan")}</p>` : ""}
-        <form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form">
-          ${isRegister ? `<label class="field"><span>الاسم الكامل</span><input class="input" type="text" name="name" placeholder="أحمد العتيبي" required></label>` : ""}
-          <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" placeholder="you@example.com" required></label>
-          <label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" placeholder="Enter your password" required></label>
-          ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" placeholder="أعد كتابة كلمة المرور" required></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember" checked> تذكرني</label><button type="button" class="btn btn-ghost" data-action="forgot-password">نسيت كلمة المرور؟</button></div>`}
-          <button class="btn btn-primary auth-submit">${isRegister ? "إنشاء الحساب" : "Sign in"} <span>→</span></button>
-          <div class="auth-divider"><span>or</span></div>
-          <button type="button" class="btn btn-secondary google-btn" data-action="google-login"><span class="google-mark">G</span>${isRegister ? "التسجيل باستخدام Google" : "Continue with Google"}</button>
-          <p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "Create account"}</button></p>
+        <form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form" novalidate>
+          ${isRegister ? `<label class="field"><span>${t("auth.name")}</span><input class="input" type="text" name="name" autocomplete="name" required></label>` : ""}
+          <label class="field"><span>${t("auth.email")}</span><input class="input" type="email" name="email" placeholder="you@example.com" autocomplete="email" required></label>
+          <label class="field"><span>${t("auth.password")}</span><input class="input" type="password" name="password" autocomplete="${isRegister ? "new-password" : "current-password"}" required></label>
+          ${isRegister ? `<label class="field"><span>${t("auth.confirmPassword")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember" checked> ${t("auth.remember")}</label><button type="button" class="btn btn-ghost" data-link="/forgot-password">${t("auth.forgotPassword")}</button></div>`}
+          <button class="btn btn-primary auth-submit">${t(isRegister ? "auth.register" : "auth.login")} <span>→</span></button>
+          <p class="auth-switch">${t(isRegister ? "auth.hasAccount" : "auth.noAccount")} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${t(isRegister ? "auth.loginLink" : "auth.createAccount")}</button></p>
         </form>
       </article>
       <aside class="auth-visual">
         <div class="auth-hero-logo"><span class="brand-mark">R</span><strong>RenewPilot <b>AI</b></strong></div>
-        <p>The intelligent way to manage renewals<br>Track. Automate. Renew with confidence.</p>
+        <p>${state.language === "ar" ? "الطريقة الذكية لإدارة التجديدات بثقة وأمان." : "The intelligent way to manage renewals. Track. Automate. Renew with confidence."}</p>
         <div class="auth-dashboard-art">
-          <div class="art-top"><strong>Dashboard</strong><span></span></div>
-          <div class="art-stats">${["1,248,750", "324", "98", "23"].map((value) => `<span><small>Total</small><strong>${value}</strong></span>`).join("")}</div>
-          <div class="art-table">${["Professional Indemnity", "Commercial Property", "Motor Fleet", "Cyber Insurance"].map((item, index) => `<div><span>${item}</span><b>${index === 2 ? "Due Soon" : "Active"}</b></div>`).join("")}</div>
+          <div class="art-top"><strong>${t("dashboard.title")}</strong><span></span></div>
+          <div class="art-stats">${["1,248,750", "324", "98", "23"].map((value) => `<span><small>${state.language === "ar" ? "الإجمالي" : "Total"}</small><strong>${value}</strong></span>`).join("")}</div>
+          <div class="art-table">${(state.language === "ar" ? ["اشتراك احترافي", "باقة أعمال", "خدمة المركبات", "خدمة رقمية"] : ["Professional Indemnity", "Commercial Property", "Motor Fleet", "Cyber Insurance"]).map((item, index) => `<div><span>${item}</span><b>${index === 2 ? (state.language === "ar" ? "قريب" : "Due Soon") : t("common.active")}</b></div>`).join("")}</div>
         </div>
         <div class="auth-feature-row">
-          <span>🔔 Smart Reminders</span><span>↻ Renewal Tracking</span><span>👥 Customer Portal</span>
+          <span>🔔 ${state.language === "ar" ? "تنبيهات ذكية" : "Smart Reminders"}</span><span>↻ ${state.language === "ar" ? "تتبع التجديد" : "Renewal Tracking"}</span><span>👥 ${state.language === "ar" ? "بوابة العملاء" : "Customer Portal"}</span>
         </div>
-        <div class="auth-security-note">Built for security. Designed for trust.</div>
+        <div class="auth-security-note">${state.language === "ar" ? "مصمم للأمان والثقة." : "Built for security. Designed for trust."}</div>
       </aside>
     </section>
   </main>`;
 }
 
+function forgotPasswordPage() {
+  const step = state.resetStep;
+  const content = step === 1
+    ? `<form data-submit="forgot" class="grid auth-form" novalidate><label class="field"><span>${t("auth.email")}</span><input class="input" type="email" name="email" value="${state.resetEmail}" autocomplete="email"></label><button class="btn btn-primary auth-submit">${t("auth.sendCode")}</button></form>`
+    : step === 2
+      ? `<form data-submit="reset-password" class="grid auth-form" novalidate><label class="field"><span>${t("auth.code")}</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6"></label><label class="field"><span>${t("auth.newPassword")}</span><input class="input" type="password" name="password" autocomplete="new-password"></label><label class="field"><span>${t("auth.confirmPassword")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password"></label><button class="btn btn-primary auth-submit">${t("auth.resetPassword")}</button></form>`
+      : `<div class="auth-success"><span class="success-mark">✓</span><p>${t("auth.passwordChanged")}</p><button class="btn btn-primary" data-link="/login">${t("auth.loginTitle")}</button></div>`;
+  return `<main class="auth-page reset-mode"><div class="auth-brand">${logo()}</div><div class="auth-top-actions"><button class="btn btn-ghost icon-btn" data-action="theme">${state.theme === "dark" ? "☾" : "☀"}</button><button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button></div><section class="auth-shell single-auth"><article class="card auth-panel"><span class="eyebrow">RenewPilot AI</span><h1>${t("auth.forgotTitle")}</h1><p class="lead">${step === 1 ? t("auth.forgotSubtitle") : step === 2 ? t("auth.codeSent") : t("auth.passwordChanged")}</p>${content}<button class="btn btn-ghost" data-link="/login">${t("auth.loginLink")}</button></article></section></main>`;
+}
+
 function dashboardShell(content) {
-  const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}"><span>${mark}</span>${label}</button>`).join("");
+  const links = dashboardRoutes.map(([path, key, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}"><span>${mark}</span>${t(key)}</button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   return `<div class="dashboard-shell">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       ${logo()}
       <nav class="side-links">${links}</nav>
-      <div class="ai-side"><strong>مساعد RenewPilot AI</strong><p class="muted">اقتراحات فورية للتجديدات والتنبيهات.</p><button class="btn btn-secondary" data-action="show-ai-tips">عرض الاقتراحات</button></div>
+      <div class="ai-side"><strong>${t("dashboard.assistant")}</strong><p class="muted">${t("dashboard.assistantText")}</p><button class="btn btn-secondary" data-action="show-ai-tips">${state.language === "ar" ? "عرض الاقتراحات" : "View suggestions"}</button></div>
     </aside>
     <main class="dashboard-main">
       <header class="topbar">
         <div class="topbar-tools">
           <button class="btn btn-secondary icon-btn mobile-side-toggle" data-action="toggle-sidebar">☰</button>
-          <div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="بحث سريع..." value="${state.search}"></div>
+          <div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${t("dashboard.search")}" value="${state.search}"></div>
         </div>
         <div class="topbar-tools">
           <span class="badge">Pro Plan</span>
           <button class="btn btn-ghost icon-btn" data-action="notifications">🔔</button>
           <button class="btn btn-ghost icon-btn" data-action="theme">${themeIcon}</button>
-          <button class="btn btn-secondary" data-action="language">${state.language.toUpperCase()}</button>
-          <span class="avatar">م</span><strong>محمد المدير</strong>
+          <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
+          <button class="profile-trigger" data-action="profile-menu"><span class="avatar">م</span><strong>${state.language === "ar" ? "محمد المدير" : "Mohammed, Admin"}</strong></button>
+          ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
         </div>
       </header>
       <div class="content">${content}</div>
@@ -402,7 +475,7 @@ function dashboardHome() {
 }
 
 function pageTitle(title, actions = "") {
-  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">RenewPilot AI · الوضع الشمسي</p></div><div class="toolbar">${actions}</div></div>`;
+  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">RenewPilot AI · ${t(state.theme === "dark" ? "settings.dark" : "settings.light")}</p></div><div class="toolbar">${actions}</div></div>`;
 }
 
 function activityList() {
@@ -419,7 +492,7 @@ function barsChart(values) {
 
 function subscriptionsPage() {
   const rows = filterRows(state.subscriptions, ["order", "customer", "plan", "status"]);
-  return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك جديد</button><button class="btn btn-secondary" data-action="columns">أعمدة</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير</button>`)}
+  return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك جديد</button><button class="btn btn-secondary" data-action="bulk-import">لصق من Excel</button><button class="btn btn-secondary" data-action="columns">أعمدة</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير</button>`)}
     ${statGrid(metrics.subscriptions)}
     ${tableToolbar(["الكل", "نشط", "تنتهي قريبًا", "متأخر", "موقوف", "تم التجديد"])}
     <article class="card table-card">${rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات مطابقة")}</article>`);
@@ -429,7 +502,7 @@ function subscriptionsTable(rows, compact = false) {
   const head = compact ? ["رقم الطلب", "العميل", "الباقة", "الحالة", "الإجراء"] : ["رقم الطلب", "العميل", "الباقة", "تاريخ البداية", "تاريخ الانتهاء", "الحالة", "التجديد", "الإجراء"];
   const body = rows.map((row, index) => compact
     ? [row.order, row.customer, row.plan, status(row.status), `<button class="btn btn-secondary" data-action="renew-now" data-key="${row.order}">تجديد الآن</button>`]
-    : [row.order, row.customer, row.plan, row.start, row.end, status(row.status), `<button class="btn btn-ghost" data-action="copy-renewal" data-link-value="${row.renewal}">نسخ الرابط</button>`, rowActions("subscription", row.order)]).map((cells) => `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("");
+    : [row.order, row.customer, row.plan, row.start, row.end, status(row.status), `<button class="btn btn-ghost" data-action="copy-renewal" data-link-value="${row.renewal}">نسخ الرابط</button>`, `<div class="inline-actions"><button class="btn btn-primary" data-action="mark-renewed" data-key="${row.order}">تم التجديد</button>${rowActions("subscription", row.order)}</div>`]).map((cells) => `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("");
   return `<div class="compare"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
@@ -697,7 +770,29 @@ function connectedDevicesCenterPage() {
       <article class="card table-card linked-table-card"><h3>الأجهزة المرتبطة الأخيرة</h3>${isConnected ? connectedTable : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">قم بربط واتساب لعرض الأجهزة المرتبطة وسجل النشاط.</p></div>`}</article>
       <article class="card table-card activity-card"><h3>النشاط الأخير</h3><div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div></article>
     </section>
-    <section class="section section-tight"><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3><div class="safety-list">${safeItems.map((item) => `<span>${item}</span>`).join("")}</div></article></section>`);
+    <section class="section section-tight health-and-safety"><article class="card table-card number-health-card"><div class="section-head"><div><h3>${t("linkedDevices.health")}</h3><p class="muted">${t("linkedDevices.safeSending")}</p></div><span class="health-score">${device.safetyScore || 96}/100</span></div><div class="health-metrics"><span><small>${t("linkedDevices.messagesToday")}</small><strong>${device.messagesToday || 0}</strong></span><span><small>${t("linkedDevices.messagesHour")}</small><strong>${device.messagesHour || 0}</strong></span><span><small>${t("linkedDevices.failureRate")}</small><strong>${device.failureRate || 0}%</strong></span><span><small>${t("linkedDevices.unsubscribeCount")}</small><strong>${device.unsubscribeCount || 0}</strong></span><span><small>${t("linkedDevices.riskScore")}</small><strong>${100 - (device.safetyScore || 96)}/100</strong></span></div><div class="secure-note"><strong>${t("linkedDevices.smartAdvice")}:</strong> ${state.language === "ar" ? "صحة الرقم مستقرة. استمر ضمن حدود التدرج ولا ترفع الإرسال اليومي فجأة." : "Number health is stable. Keep gradual sending limits and avoid sudden volume increases."}</div></article><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3><div class="safety-list">${safeItems.map((item) => `<span>${item}</span>`).join("")}</div></article></section>`);
+}
+
+function whatsappSafetyPage() {
+  const warmup = [[1, 10], [2, 15], [3, 20], [4, 25], [5, 35], [7, 60], [14, 200]];
+  return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"), `<button class="btn btn-primary" data-link="/dashboard/connected-devices">${t("sidebar.linkedDevices")}</button>`)}<div class="grid grid-3"><article class="card table-card"><h2>${t("linkedDevices.health")}</h2><div class="risk-ring"><strong>22</strong><span>/100</span></div><p class="status success">${state.language === "ar" ? "صحة الرقم جيدة" : "Number health is good"}</p></article><article class="card table-card"><h2>${state.language === "ar" ? "حدود الحماية" : "Protection limits"}</h2><ul class="check-list"><li>20 ${state.language === "ar" ? "رسالة في الساعة" : "messages per hour"}</li><li>100 ${state.language === "ar" ? "رسالة في اليوم" : "messages per day"}</li><li>${state.language === "ar" ? "منع التكرار لمدة 24 ساعة" : "24-hour duplicate protection"}</li><li>${state.language === "ar" ? "ساعات هدوء 9م - 9ص" : "Quiet hours 9 PM - 9 AM"}</li></ul></article><article class="card table-card"><h2>${t("linkedDevices.smartAdvice")}</h2><p>${state.language === "ar" ? "لا ترفع الإرسال اليومي اليوم؛ الرقم جديد ويحتاج تدرجًا." : "Do not increase today's sending volume; this number is still warming up."}</p></article></div><section class="section"><article class="card table-card"><h2>${state.language === "ar" ? "جدول التدرج التلقائي" : "Automatic warm-up schedule"}</h2><div class="warmup-track">${warmup.map(([day, limit]) => `<span><small>${state.language === "ar" ? "اليوم" : "Day"} ${day}</small><strong>${limit}</strong></span>`).join("")}</div></article></section>`);
+}
+
+function unsubscribePage() {
+  const rows = [
+    ["+966 50 123 4567", "إيقاف", "واتساب", "طلب المستخدم", "اليوم 10:22"],
+    ["+966 55 987 6543", "stop", "واتساب", "إلغاء التنبيهات", "أمس 18:40"]
+  ];
+  return dashboardShell(`${pageTitle(t("sidebar.unsubscribe"), `<button class="btn btn-primary" data-action="add-unsubscribe">${state.language === "ar" ? "إضافة رقم" : "Add number"}</button>`)}<div class="grid grid-3"><article class="card stat-card"><div><span class="muted">${state.language === "ar" ? "إجمالي القائمة" : "Total opted out"}</span><strong>2</strong></div>${icon("⊘", "orange")}</article><article class="card table-card full-two"><h2>${t("sidebar.unsubscribe")}</h2>${simpleTable([state.language === "ar" ? "الرقم" : "Number", state.language === "ar" ? "الكلمة" : "Keyword", state.language === "ar" ? "المصدر" : "Source", state.language === "ar" ? "السبب" : "Reason", state.language === "ar" ? "التاريخ" : "Date"], rows)}</article></div>`);
+}
+
+function activityPage() {
+  const items = ["تم إنشاء اشتراك جديد", "تم ربط واتساب", "عمل Cron للتجديدات", "تم إرسال رسالة تجديد", "تم تغيير إعدادات الحماية"];
+  return dashboardShell(`${pageTitle(t("sidebar.activity"))}<article class="card table-card"><div class="activity-list">${items.map((item, index) => `<div class="activity-item">${icon(String(index + 1), index < 2 ? "green" : "")}<div><strong>${item}</strong><p class="muted">${state.language === "ar" ? `منذ ${index + 1} ساعة · محمد المدير` : `${index + 1} hour(s) ago · Mohammed, Admin`}</p></div></div>`).join("")}</div></article>`);
+}
+
+function billingPage() {
+  return dashboardShell(`${pageTitle(t("sidebar.billing"))}<div class="grid grid-3">${pricingPlans.map((plan) => `<article class="card pricing-card ${plan.featured ? "featured" : ""}"><h2>${plan.name}</h2><div class="price">${plan.monthly} ${state.language === "ar" ? "ر.س / شهريًا" : "SAR / month"}</div><ul class="check-list">${plan.features.map((item) => `<li>${item}</li>`).join("")}</ul><button class="btn btn-primary" data-action="select-plan" data-plan="${plan.id}">${state.language === "ar" ? "اختيار الخطة" : "Choose plan"}</button></article>`).join("")}</div>`);
 }
 
 function donutChart() {
@@ -722,9 +817,9 @@ function settingsPage() {
     ["الفوترة والخطة", "الفواتير والخطة الحالية.", "إدارة الفواتير"],
     ["اللغة والمظهر", "العربية والوضع الشمسي مفعّلان.", "حفظ التغييرات"]
   ];
-  return dashboardShell(`${pageTitle("الإعدادات", `<button class="btn btn-primary" data-action="save-settings">حفظ التغييرات</button>`)}
-    <div class="grid grid-3">${sections.map(([title, body, action], i) => `<article class="card settings-card">
-      ${icon(title.slice(0, 1), i % 3 === 1 ? "purple" : i % 3 === 2 ? "green" : "")}
+  return dashboardShell(`${pageTitle(t("settings.title"), `<button class="btn btn-primary" data-action="save-settings">${t("common.save")}</button>`)}
+    <div class="grid grid-3"><article class="card settings-card session-card">${icon("↪", "orange")}<h3>${t("settings.sessionAccount")}</h3><p><strong>${state.language === "ar" ? "محمد المدير" : "Mohammed, Admin"}</strong><br><span class="muted">owner@example.com</span></p><p><span class="status success">${t("settings.active")}</span></p><button class="btn btn-danger" data-action="logout-confirm">${t("auth.logout")}</button></article>${sections.map(([title, body, action], i) => `<article class="card settings-card">
+      ${icon(state.language === "en" ? "•" : title.slice(0, 1), i % 3 === 1 ? "purple" : i % 3 === 2 ? "green" : "")}
       <h3>${title}</h3><p class="muted">${body}</p>
       ${i === 2 ? settingToggle("whatsapp", "واتساب") + settingToggle("email", "البريد الإلكتروني") + settingToggle("sms", "SMS") : ""}
       ${i === 4 ? settingToggle("renewAuto", "التجديد التلقائي") : ""}
@@ -746,18 +841,21 @@ function emptyState(text) {
 }
 
 function openModal(title, body, foot = "") {
-  portal.innerHTML = `<div class="modal-overlay" data-action="close-modal"><section class="modal" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+  portal.innerHTML = `<div class="modal-overlay" data-action="close-modal"><section class="modal" role="dialog" aria-modal="true" tabindex="-1">
     <header class="modal-head"><h2>${title}</h2><button class="btn btn-ghost icon-btn" data-action="close-modal">×</button></header>
     <div class="modal-body">${body}</div>
     ${foot ? `<footer class="modal-foot">${foot}</footer>` : ""}
   </section></div>`;
+  localizeElement(portal);
+  portal.querySelector(".modal")?.focus();
 }
 
 function openDrawer(title, body) {
-  portal.innerHTML = `<div class="drawer-overlay" data-action="close-modal"><aside class="drawer" onclick="event.stopPropagation()">
+  portal.innerHTML = `<div class="drawer-overlay" data-action="close-modal"><aside class="drawer">
     <header class="modal-head"><h2>${title}</h2><button class="btn btn-ghost icon-btn" data-action="close-modal">×</button></header>
     <div class="modal-body">${body}</div>
   </aside></div>`;
+  localizeElement(portal);
 }
 
 function closePortal() {
@@ -839,7 +937,7 @@ async function copyText(text, message = "تم نسخ رابط التجديد") {
   toast(message);
 }
 
-function handleAction(target) {
+async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
@@ -847,17 +945,27 @@ function handleAction(target) {
   if (action === "close-modal") closePortal();
   if (action === "theme") {
     state.theme = state.theme === "dark" ? "light" : "dark";
-    storage.set("renewpilot.theme", state.theme);
+    localStorage.setItem("renewpilot_theme", state.theme);
     applyPreferences();
     toast(state.theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي");
     render();
   }
   if (action === "language") {
     state.language = state.language === "ar" ? "en" : "ar";
-    storage.set("renewpilot.language", state.language);
+    localStorage.setItem("renewpilot_locale", state.language);
     applyPreferences();
     toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
     render();
+  }
+  if (action === "profile-menu") { state.profileOpen = !state.profileOpen; render(); }
+  if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
+  if (action === "logout") {
+    fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+      closePortal();
+      storage.set("renewpilot.account", null);
+      toast(t("auth.logoutSuccess"));
+      navigate("/login");
+    });
   }
   if (action === "device-link-method") {
     state.linkedDevice = { ...state.linkedDevice, linkMethod: target.dataset.method };
@@ -957,7 +1065,7 @@ function handleAction(target) {
   if (action === "open-demo") openModal("احجز عرضًا توضيحيًا", demoForm());
   if (action === "billing") { state.billing = target.dataset.billing; storage.set("renewpilot.billing", state.billing); render(); }
   if (action === "select-plan") navigate(`/login?plan=${target.dataset.plan}`);
-  if (action === "forgot-password") openModal("استعادة كلمة المرور", `<form data-submit="forgot" class="grid">${field("البريد الإلكتروني", "email", "email")}<button class="btn btn-primary">إرسال رابط الاستعادة</button></form>`);
+  if (action === "forgot-password") navigate("/forgot-password");
   if (action === "google-login") toast("سيتم ربط تسجيل الدخول عبر Google لاحقًا", "warning");
   if (action === "open-ticket") openModal("فتح تذكرة دعم", `<form data-submit="ticket" class="grid">${field("الموضوع", "subject")}${field("البريد", "email", "email")}<textarea class="textarea" name="body" required placeholder="وصف المشكلة"></textarea><button class="btn btn-primary">إرسال التذكرة</button></form>`);
   if (action === "open-chat") openDrawer("الدردشة المباشرة", `<div class="activity-list"><div class="activity-item">${icon("د")}<div><strong>فريق الدعم</strong><p class="muted">مرحبًا، كيف يمكننا مساعدتك؟</p></div></div></div><form data-submit="chat"><input class="input" name="message" required placeholder="اكتب رسالتك"><br><br><button class="btn btn-primary">إرسال</button></form>`);
@@ -966,6 +1074,27 @@ function handleAction(target) {
   if (action === "knowledge") toast(`تم فتح قسم ${target.dataset.term}`);
   if (action === "support-chip") { state.search = target.dataset.term; render(); }
   if (action === "add-subscription") openModal("إضافة اشتراك جديد", subscriptionForm());
+  if (action === "bulk-import") openModal(state.language === "ar" ? "استيراد اشتراكات من Excel" : "Import subscriptions from Excel", `<form data-submit="import-preview" class="grid"><label class="field"><span>${state.language === "ar" ? "الصق الجدول هنا" : "Paste the spreadsheet here"}</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="رقم الطلب\tاسم العميل\tرقم الجوال\tالخدمة\tتاريخ البداية\tتاريخ الانتهاء\tرابط التجديد"></textarea></label><button class="btn btn-primary">${state.language === "ar" ? "معاينة قبل الحفظ" : "Preview before saving"}</button></form><div id="import-preview"></div>`);
+  if (action === "mark-renewed") openModal(state.language === "ar" ? "تم التجديد" : "Mark as renewed", `<form data-submit="quick-renew" data-key="${target.dataset.key}" class="grid"><label class="field"><span>${state.language === "ar" ? "مدة التجديد" : "Renewal duration"}</span><select class="select" name="duration"><option value="month">${state.language === "ar" ? "شهر" : "One month"}</option><option value="three_months">${state.language === "ar" ? "3 أشهر" : "3 months"}</option><option value="six_months">${state.language === "ar" ? "6 أشهر" : "6 months"}</option><option value="year">${state.language === "ar" ? "سنة" : "One year"}</option><option value="custom">${state.language === "ar" ? "تاريخ مخصص" : "Custom date"}</option></select></label><label class="field"><span>${state.language === "ar" ? "التاريخ المخصص" : "Custom date"}</span><input class="input" type="date" name="customDate"></label><button class="btn btn-primary">${t("common.confirm")}</button><button type="button" class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button></form>`);
+  if (action === "add-unsubscribe") openModal(t("sidebar.unsubscribe"), `<form data-submit="unsubscribe" class="grid">${field(state.language === "ar" ? "رقم واتساب" : "WhatsApp number", "phoneNumber", "tel")}${field(state.language === "ar" ? "السبب" : "Reason", "reason")}<button class="btn btn-primary">${t("common.save")}</button></form>`);
+  if (action === "import-save") {
+    const text = state.importText || "";
+    try {
+      const response = await fetch("/api/subscriptions/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      if (!response.ok && location.hostname !== "127.0.0.1" && location.hostname !== "localhost") throw new Error("Import failed");
+    } catch {
+      if (location.hostname !== "127.0.0.1" && location.hostname !== "localhost") return toast(t("common.serverError"), "danger");
+    }
+    const lines = text.trim().split(/\r?\n/).slice(1);
+    lines.forEach((line) => {
+      const [order, customer, phone, service, start, end, renewal] = line.split("\t");
+      if (order && customer && /^\d{4}-\d{2}-\d{2}$/.test(end || "")) state.subscriptions.unshift({ order, customer, phone, service, plan: service, start, end, renewal, status: end < new Date().toISOString().slice(0, 10) ? "متأخر" : "نشط" });
+    });
+    storage.set("renewpilot.subscriptions", state.subscriptions);
+    closePortal();
+    toast(state.language === "ar" ? "تم حفظ الصفوف الصحيحة وعرض الأخطاء." : "Valid rows were saved and errors were reported.");
+    render();
+  }
   if (action === "add-customer") openModal("إضافة عميل", customerForm());
   if (action === "columns") toast("تم تثبيت أعمدة الجدول الحالية");
   if (action === "apply-filter") toast("تم تطبيق الفلترة");
@@ -1008,7 +1137,16 @@ function handleAction(target) {
   if (action === "send-alert") { closePortal(); toast("تم إرسال التنبيه"); }
   if (action === "follow-customer") openDrawer("سجل المتابعة", `<p class="muted">${target.dataset.customer}</p>${activityList()}`);
   if (action === "notification-tab") { state.notificationTab = target.dataset.tab; render(); }
-  if (action === "edit-template") openModal("تعديل القالب", `<form data-submit="template" class="grid"><textarea class="textarea" name="template" required>مرحبًا {{name}}، اشتراكك ينتهي قريبًا. جدد الآن من الرابط الآمن.</textarea><button class="btn btn-primary">حفظ القالب</button></form>`);
+  if (action === "edit-template") openModal("تعديل القالب", `<form data-submit="template" class="grid"><textarea class="textarea" name="template" required>مرحبًا {{name}}، اشتراكك ينتهي قريبًا. جدد الآن من الرابط الآمن. أرسل إيقاف لإلغاء الرسائل.</textarea><div id="message-quality"></div><button class="btn btn-secondary" type="button" data-action="check-message-quality">${state.language === "ar" ? "فحص جودة الرسالة" : "Check message quality"}</button><button class="btn btn-primary">${state.language === "ar" ? "حفظ القالب" : "Save template"}</button></form>`);
+  if (action === "check-message-quality") {
+    const textarea = portal.querySelector("textarea[name='template']");
+    const message = textarea?.value || "";
+    const links = (message.match(/https?:\/\//g) || []).length;
+    const problems = [links > 2 && (state.language === "ar" ? "روابط كثيرة" : "Too many links"), !/{{name}}|{{customer_name}}/.test(message) && (state.language === "ar" ? "اسم العميل غير موجود" : "Customer name is missing"), !/stop|unsubscribe|إيقاف|توقف|لا ترسل/i.test(message) && (state.language === "ar" ? "خيار الإيقاف غير موجود" : "Opt-out text is missing")].filter(Boolean);
+    const risk = problems.length * 25;
+    const quality = portal.querySelector("#message-quality");
+    if (quality) quality.innerHTML = `<div class="quality-result ${risk >= 50 ? "danger" : risk ? "warning" : "success"}"><strong>${risk >= 50 ? (state.language === "ar" ? "خطر" : "Risk") : risk ? (state.language === "ar" ? "يحتاج تحسين" : "Needs improvement") : (state.language === "ar" ? "ممتاز" : "Excellent")}</strong><span>${risk}/100</span><p>${problems.join(" · ") || (state.language === "ar" ? "الرسالة جاهزة للإرسال الآمن." : "The message is ready for safe sending.")}</p></div>`;
+  }
   if (["preview-template", "suggest-template", "message-view", "add-rule", "date-filter", "report-details", "all-insights", "show-ai-tips", "manage-integrations", "manage-team", "manage-billing"].includes(action)) openModal(target.textContent.trim() || "تفاصيل", `<p class="muted">تم فتح الإجراء المطلوب بنجاح، وسيتم ربطه بالنظام الخلفي لاحقًا.</p>`, `<button class="btn btn-primary" data-action="close-modal">تم</button>`);
   if (action === "resend-message") {
     const message = state.notifications.find((item) => item.recipient === target.dataset.key);
@@ -1039,25 +1177,45 @@ function customerDetails(row) {
   </div>`;
 }
 
-function handleSubmit(form, event) {
+async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
   if (type === "login") {
-    if (!data.email) return toast("يرجى إدخال البريد الإلكتروني", "danger");
-    if (!data.password) return toast("يرجى إدخال كلمة المرور", "danger");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
-    if (data.email !== "owner@example.com" || data.password !== "correct-password") return toast("البريد الإلكتروني أو كلمة المرور غير صحيحة.", "danger");
-    toast("تم تسجيل الدخول بنجاح");
+    if (!data.email) return toast(t("auth.emailRequired"), "danger");
+    if (!data.password) return toast(t("auth.passwordRequired"), "danger");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast(t("auth.invalidEmail"), "danger");
+    const button = form.querySelector("button[type='submit'], button:not([type])");
+    if (button) { button.disabled = true; button.textContent = t("common.loading"); }
+    const localDemoLogin = ["127.0.0.1", "localhost"].includes(location.hostname)
+      && data.email === "owner@example.com"
+      && data.password === "correct-password";
+    let authenticated = localDemoLogin;
+    if (!localDemoLogin) {
+      try {
+        const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+        authenticated = response.ok;
+      } catch {
+        authenticated = false;
+      }
+    }
+    if (!authenticated) { if (button) button.disabled = false; return toast(t("auth.invalidCredentials"), "danger"); }
+    toast(t("auth.loginSuccess"));
     navigate("/dashboard");
   }
   if (type === "register") {
-    if (!data.name || data.name.trim().length < 3) return toast("يرجى إدخال الاسم الكامل.", "danger");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
-    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(data.password || "")) return toast("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف ورقم.", "danger");
-    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور غير مطابق.", "danger");
+    if (!data.name || data.name.trim().length < 3) return toast(state.language === "ar" ? "يرجى إدخال الاسم الكامل." : "Please enter your full name.", "danger");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast(t("auth.invalidEmail"), "danger");
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
+    if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
+    try {
+      const response = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (!response.ok && !["127.0.0.1", "localhost"].includes(location.hostname)) return toast(t("common.serverError"), "danger");
+    } catch {
+      if (!["127.0.0.1", "localhost"].includes(location.hostname)) return toast(t("common.serverError"), "danger");
+    }
     storage.set("renewpilot.account", { name: data.name, email: data.email, createdAt: new Date().toISOString() });
-    toast("تم إنشاء الحساب بنجاح");
+    toast(t("auth.registerSuccess"));
     navigate("/dashboard");
   }
   if (type === "subscription") {
@@ -1092,8 +1250,61 @@ function handleSubmit(form, event) {
     render();
   }
   if (type === "forgot") {
+    if (!data.email) return toast(t("auth.emailRequired"), "danger");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast(t("auth.invalidEmail"), "danger");
+    const button = form.querySelector("button");
+    if (button) { button.disabled = true; button.textContent = t("common.loading"); }
+    try {
+      const response = await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: data.email, locale: state.language }) });
+      const body = await response.json();
+      if (!response.ok) { if (button) button.disabled = false; return toast(body.message || t("common.serverError"), "danger"); }
+      state.resetEmail = data.email;
+      state.resetStep = 2;
+      toast(body.message || t("auth.codeSent"));
+      render();
+    } catch {
+      if (button) button.disabled = false;
+      toast(t("common.serverError"), "danger");
+    }
+  }
+  if (type === "reset-password") {
+    if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
+    try {
+      const response = await fetch("/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.resetEmail, code: data.code, password: data.password }) });
+      if (!response.ok) return toast(state.language === "ar" ? "الكود غير صحيح أو منتهي." : "The code is invalid or expired.", "danger");
+      state.resetStep = 3;
+      toast(t("auth.passwordChanged"));
+      render();
+    } catch { toast(t("common.serverError"), "danger"); }
+  }
+  if (type === "import-preview") {
+    state.importText = data.text;
+    const lines = String(data.text || "").trim().split(/\r?\n/);
+    const rows = lines.slice(1);
+    const duplicatePhones = new Set();
+    const seen = new Set();
+    let invalid = 0;
+    rows.forEach((line) => { const cells = line.split("\t"); const phone = (cells[2] || "").replace(/\D/g, ""); if (seen.has(phone)) duplicatePhones.add(phone); seen.add(phone); if (cells.length < 7 || !/^\d{4}-\d{2}-\d{2}$/.test(cells[5] || "")) invalid++; });
+    const preview = portal.querySelector("#import-preview");
+    if (preview) preview.innerHTML = `<div class="import-summary"><span class="status success">${rows.length - invalid} ${state.language === "ar" ? "صف صحيح" : "valid rows"}</span><span class="status danger">${invalid} ${state.language === "ar" ? "صفوف فيها أخطاء" : "invalid rows"}</span><span class="status warning">${duplicatePhones.size} ${state.language === "ar" ? "أرقام مكررة" : "duplicate numbers"}</span></div><button class="btn btn-primary" data-action="import-save">${state.language === "ar" ? "حفظ الصفوف الصحيحة" : "Save valid rows"}</button>`;
+  }
+  if (type === "quick-renew") {
+    const row = state.subscriptions.find((item) => item.order === form.dataset.key);
+    if (!row) return toast(t("common.serverError"), "danger");
+    const months = { month: 1, three_months: 3, six_months: 6, year: 12 }[data.duration];
+    if (data.duration === "custom") row.end = data.customDate;
+    else { const end = new Date(`${row.end}T12:00:00Z`); end.setUTCMonth(end.getUTCMonth() + months); row.end = end.toISOString().slice(0, 10); }
+    row.status = "تم التجديد";
+    storage.set("renewpilot.subscriptions", state.subscriptions);
     closePortal();
-    toast("إذا كان البريد مسجلًا لدينا، سيتم إرسال كود التحقق.");
+    toast(state.language === "ar" ? "تم تمديد الاشتراك وتسجيل العملية." : "Subscription renewed and activity recorded.");
+    render();
+  }
+  if (type === "unsubscribe") {
+    try { await fetch("/api/unsubscribes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); } catch {}
+    closePortal();
+    toast(state.language === "ar" ? "تمت إضافة الرقم إلى قائمة الإيقاف." : "The number was added to the unsubscribe list.");
   }
   if (type === "password") {
     const password = data.new || "";
@@ -1122,9 +1333,14 @@ function render() {
       "/dashboard/reports": reportsPage,
       "/dashboard/connected-devices": connectedDevicesCenterPage,
       "/dashboard/linked-devices": connectedDevicesCenterPage,
+      "/dashboard/whatsapp-safety": whatsappSafetyPage,
+      "/dashboard/unsubscribe": unsubscribePage,
+      "/dashboard/activity": activityPage,
+      "/dashboard/billing": billingPage,
       "/dashboard/settings": settingsPage
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
+    localizeElement(app);
     return;
   }
   const pages = {
@@ -1133,9 +1349,12 @@ function render() {
     "/pricing": pricingPage,
     "/support": supportPage,
     "/login": loginPage,
-    "/register": loginPage
+    "/register": loginPage,
+    "/forgot-password": forgotPasswordPage,
+    "/reset-password": forgotPasswordPage
   };
   app.innerHTML = (pages[state.route] || homePage)();
+  localizeElement(app);
 }
 
 document.addEventListener("click", (event) => {
@@ -1146,12 +1365,19 @@ document.addEventListener("click", (event) => {
     return;
   }
   const action = event.target.closest("[data-action]");
-  if (action) handleAction(action);
+  if (action) {
+    if ((action.classList.contains("modal-overlay") || action.classList.contains("drawer-overlay")) && event.target !== action) return;
+    handleAction(action);
+  }
 });
 
 document.addEventListener("submit", (event) => {
   const form = event.target.closest("[data-submit]");
   if (form) handleSubmit(form, event);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && portal.innerHTML) closePortal();
 });
 
 document.addEventListener("input", (event) => {
