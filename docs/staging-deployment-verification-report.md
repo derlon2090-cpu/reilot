@@ -1,8 +1,11 @@
 # RenewPilot AI - Staging Deployment Verification Report
 
-تاريخ التحقق: 2026-07-11  
-الخادم: `ubuntu@51.210.77.137`  
-المسار: `/opt/renewpilot`  
+تاريخ التحقق: 2026-07-11
+
+الخادم: `ubuntu@51.210.77.137`
+
+المسار: `/opt/renewpilot`
+
 الإصدار المنشور: `6c3a52f`
 
 الحالة النهائية: **بوابة Staging منشورة وتعمل، لكنها غير معتمدة للإنتاج بعد.**
