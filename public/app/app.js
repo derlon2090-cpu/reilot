@@ -13,9 +13,6 @@ import {
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
-const localPreview = ["127.0.0.1", "localhost"].includes(location.hostname);
-const e2ePreview = window.__RENEWPILOT_E2E_PREVIEW__ === true;
-let authenticatedSession = location.pathname.startsWith("/dashboard") && !e2ePreview;
 
 const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(async (locale) => {
   const response = await fetch(`/app/locales/${locale}.json`);
@@ -174,6 +171,10 @@ const defaultLinkedDevice = {
   phoneInput: "",
   pairingCode: "",
   pairingSupported: true,
+  qrLoading: false,
+  pairingLoading: false,
+  qrError: "",
+  pairingError: "",
   qrActive: false,
   qrExpiresAt: "",
   pairingExpiresAt: "",
@@ -208,7 +209,7 @@ const state = {
   warrantyCases: storage.get("renewpilot.warranty", seedWarrantyCases),
   automation: storage.get("renewpilot.automation", { seven: true, three: true, same: false }),
   settings: storage.get("renewpilot.settings", { whatsapp: true, email: true, sms: false, twoFactor: true, renewAuto: true }),
-  linkedDevice: storage.get("renewpilot.linkedDevice", defaultLinkedDevice)
+  linkedDevice: { ...defaultLinkedDevice }
 };
 
 state.dbSubscriptions = null;
@@ -248,13 +249,8 @@ function applyPreferences() {
   document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
 }
 
-function persistLinkedDevice() {
-  const { qrBase64: _temporaryQr, ...persisted } = state.linkedDevice;
-  storage.set("renewpilot.linkedDevice", persisted);
-}
-
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, { credentials: "include", ...options });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed");
@@ -266,6 +262,10 @@ async function fetchJson(url, options = {}) {
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+function isRealQrDataUri(value) {
+  return typeof value === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(value);
 }
 
 async function loadRemotePage(key, url, target, options) {
@@ -299,12 +299,11 @@ async function ensureEvolutionInstance() {
     instanceName: payload.instance?.instanceName || "",
     qrBase64: payload.instance?.qrBase64 || ""
   };
-  persistLinkedDevice();
   return state.linkedDevice;
 }
 
 async function syncLinkedDevice() {
-  if (localPreview || state.deviceSyncing) return;
+  if (state.deviceSyncing) return;
   state.deviceSyncing = true;
   try {
     const response = await fetch("/api/whatsapp/instances/create");
@@ -312,7 +311,6 @@ async function syncLinkedDevice() {
     const payload = await response.json();
     if (payload.instance) {
       state.linkedDevice = { ...state.linkedDevice, ...payload.instance, instanceId: payload.instance.id };
-      persistLinkedDevice();
       render();
     }
   } finally {
@@ -322,7 +320,7 @@ async function syncLinkedDevice() {
 
 async function browserSessionIsValid() {
   try {
-    const response = await fetch("/api/auth/session", { cache: "no-store" });
+    const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "include" });
     return response.ok;
   } catch {
     return false;
@@ -331,9 +329,8 @@ async function browserSessionIsValid() {
 
 async function navigate(to) {
   const url = new URL(to, location.origin);
-  if (url.pathname.startsWith("/dashboard") && !e2ePreview && !authenticatedSession) {
-    authenticatedSession = await browserSessionIsValid();
-    if (!authenticatedSession) {
+  if (url.pathname.startsWith("/dashboard")) {
+    if (!await browserSessionIsValid()) {
       history.pushState({}, "", "/login");
       state.route = "/login";
       render();
@@ -831,12 +828,12 @@ function reportsPage() {
 function connectedDevicesCenterPage() {
   const device = { ...defaultLinkedDevice, ...state.linkedDevice };
   const isConnected = device.status === "connected";
-  const isPendingQr = device.status === "pending_qr";
-  const isPendingPairing = device.status === "pending_pairing";
+  const hasRealQr = isRealQrDataUri(device.qrBase64);
+  const isPendingQr = device.status === "pending_qr" && hasRealQr;
+  const isPendingPairing = device.status === "pending_pairing" && Boolean(device.pairingCode);
   const method = device.linkMethod || "qr";
   const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
   const statusTone = isConnected ? "success" : isPendingQr || isPendingPairing ? "warning" : "danger";
-  const hasRealQr = typeof device.qrBase64 === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(device.qrBase64);
   const qrImage = hasRealQr
     ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
     : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود حقيقي من Evolution API.</p></div>`;
@@ -845,7 +842,7 @@ function connectedDevicesCenterPage() {
   const safeItems = ["20 رسالة في الساعة", "100 رسالة في اليوم", "تأخير 20 - 90 ثانية", "منع الإرسال من 9 مساء إلى 9 صباحا", "منع تكرار نفس الرسالة خلال 24 ساعة"];
   const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "غير متوفر", device.phoneNumber || "غير متوفر", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
 
-  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr">${isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
+  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
     <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
     <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
       <article class="card linked-main-card">
@@ -866,14 +863,14 @@ function connectedDevicesCenterPage() {
           ${method === "qr" ? `<div class="link-box-grid">
             <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
               ${qrImage}
-              <strong>${isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "سيظهر الباركود هنا"}</strong>
-              <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : "لا يتم حفظ QR فترة طويلة"}</small>
+              <strong>${device.qrLoading ? "جاري طلب الباركود من Evolution API..." : isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "لا يوجد باركود صالح"}</strong>
+              <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : device.qrError ? escapeHtml(device.qrError) : "اضغط إنشاء باركود جديد."}</small>
             </div>
             <div class="pair-code">
               <span class="muted">رمز الاقتران</span>
               <strong>${device.pairingCode || "غير متوفر"}</strong>
               <small class="muted">لا يظهر الرمز إلا بعد طلبه من Evolution API</small>
-              <button class="btn btn-primary" data-action="create-device-qr">إنشاء/تحديث باركود</button>
+              <button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري التحميل..." : "إنشاء/تحديث باركود"}</button>
               <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
               <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
             </div>
@@ -881,8 +878,8 @@ function connectedDevicesCenterPage() {
             <div class="pairing-form">
               <label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${device.phoneInput || ""}" placeholder="9665XXXXXXXX" inputmode="numeric"></label>
               <small class="muted">اكتب الرقم بصيغة دولية بدون + أو مسافات، مثال: 9665XXXXXXXX.</small>
-              <button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingSupported === false ? "disabled" : ""}>إنشاء رمز الاقتران</button>
-              ${device.pairingSupported === false ? `<p class="status warning">رمز الاقتران غير مدعوم حاليا في نسخة Evolution API المثبتة. استخدم الربط بالباركود.</p>` : ""}
+              <button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingSupported === false || device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء رمز الاقتران..." : "إنشاء رمز الاقتران"}</button>
+              ${device.pairingError ? `<p class="status danger" data-pairing-error>${escapeHtml(device.pairingError)}</p>` : device.pairingSupported === false ? `<p class="status warning">رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.</p>` : ""}
             </div>
             <div class="pair-code pairing-result">
               <span class="muted">رمز الاقتران</span>
@@ -1104,24 +1101,22 @@ async function handleAction(target) {
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
   if (action === "logout") {
     const finishLogout = () => {
-      authenticatedSession = false;
       closePortal();
-      storage.set("renewpilot.account", null);
       toast(t("auth.logoutSuccess"));
       navigate("/login");
     };
-    if (localPreview) finishLogout();
-    else fetch("/api/auth/logout", { method: "POST" }).finally(finishLogout);
+    fetch("/api/auth/logout", { method: "POST", credentials: "include" }).finally(finishLogout);
   }
   if (action === "device-link-method") {
     state.linkedDevice = { ...state.linkedDevice, linkMethod: target.dataset.method };
-    persistLinkedDevice();
     render();
   }
   if (action === "create-pairing-code") {
-    const phone = String(state.linkedDevice.phoneInput || "").trim();
+    const phone = String(state.linkedDevice.phoneInput || "").replace(/\D/g, "");
     if (!phone) return toast("يرجى إدخال رقم واتساب.", "danger");
-    if (!/^[1-9]\d{10,14}$/.test(phone)) return toast("اكتب الرقم بدون + أو مسافات، مثال: 9665XXXXXXXX.", "danger");
+    if (!/^[1-9]\d{9,14}$/.test(phone)) return toast("اكتب الرقم بصيغة دولية بدون + أو مسافات.", "danger");
+    state.linkedDevice = { ...state.linkedDevice, phoneInput: phone, pairingLoading: true, pairingError: "", pairingCode: "" };
+    render();
     try {
       const instance = await ensureEvolutionInstance();
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/pairing-code`, {
@@ -1129,33 +1124,44 @@ async function handleAction(target) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber: phone })
       });
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
-      persistLinkedDevice();
+      if (!payload.pairingCode) throw new Error("رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.");
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingError: "", pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast("تم إنشاء رمز الاقتران");
-      render();
     } catch (error) {
-      toast(error.message || "تعذر إنشاء رمز الاقتران، استخدم الربط بالباركود.", "danger");
+      const message = error.message || "تعذر إنشاء رمز الاقتران، حاول استخدام الباركود.";
+      state.linkedDevice = { ...state.linkedDevice, status: state.linkedDevice.instanceId ? "error" : "not_connected", pairingError: message, pairingCode: "" };
+      toast(message, "danger");
+    } finally {
+      state.linkedDevice.pairingLoading = false;
+      render();
     }
   }
   if (action === "create-device-qr") {
+    state.linkedDevice = { ...state.linkedDevice, qrLoading: true, qrError: "", qrBase64: "", qrActive: false };
+    render();
     try {
-      const instance = await ensureEvolutionInstance();
-      const payload = instance.qrBase64 ? { qrBase64: instance.qrBase64, expiresIn: 60 } : await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/qr`);
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrBase64: payload.qrBase64 || "", qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
-      persistLinkedDevice();
+      const created = await fetchJson("/api/whatsapp/instances/create", { method: "POST" });
+      const instance = created.instance;
+      if (!instance?.id) throw new Error("تعذر إنشاء جلسة Evolution API.");
+      state.linkedDevice = { ...state.linkedDevice, ...instance, instanceId: instance.id, instanceName: instance.instanceName || "", qrBase64: "" };
+      const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`);
+      if (!isRealQrDataUri(payload.qrBase64)) throw new Error("تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.");
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrError: "", qrBase64: payload.qrBase64, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
       toast("تم إنشاء باركود جديد عبر Evolution API");
       closePortal();
-      render();
     } catch (error) {
-      state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrBase64: "" };
-      persistLinkedDevice();
-      toast(error.message || "تعذر إنشاء الباركود من Evolution API. يرجى فحص حالة السيرفر.", "danger");
+      const message = error.message || "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.";
+      state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrBase64: "", qrError: message };
+      toast(message, "danger");
+    } finally {
+      state.linkedDevice.qrLoading = false;
       render();
     }
   }
   if (action === "show-device-qr") {
-    const realQr = typeof state.linkedDevice.qrBase64 === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(state.linkedDevice.qrBase64) ? `<img class="qr-real" src="${state.linkedDevice.qrBase64}" alt="باركود ربط واتساب">` : `<div class="qr-empty"><strong>لا يوجد باركود حقيقي متاح</strong><p class="muted">تعذر إنشاء الباركود من Evolution API. حاول مرة أخرى أو افحص حالة السيرفر.</p></div>`;
-    openModal("باركود ربط واتساب", `<div class="qr-box active modal-qr">${realQr}<strong>${state.linkedDevice.qrActive ? "امسح الباركود من واتساب" : "أنشئ باركود جديد أولا"}</strong><p class="muted">تتم عملية الربط من الخادم ولا يتم كشف EVOLUTION_API_KEY.</p></div>`, `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
+    const hasRealQr = isRealQrDataUri(state.linkedDevice.qrBase64);
+    const realQr = hasRealQr ? `<img class="qr-real" src="${state.linkedDevice.qrBase64}" alt="باركود ربط واتساب">` : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">${escapeHtml(state.linkedDevice.qrError || "اضغط إنشاء باركود جديد.")}</p></div>`;
+    openModal("باركود ربط واتساب", `<div class="qr-box ${hasRealQr ? "active" : ""} modal-qr">${realQr}<strong>${hasRealQr ? "امسح الباركود من واتساب" : "لا يوجد باركود جاهز للمسح"}</strong><p class="muted">تتم عملية الربط من الخادم ولا يتم كشف EVOLUTION_API_KEY.</p></div>`, `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   }
   if (action === "copy-pairing") state.linkedDevice.pairingCode ? copyText(state.linkedDevice.pairingCode, "تم نسخ رمز الاقتران") : toast("لا يوجد رمز اقتران صادر من Evolution API", "warning");
   if (action === "check-device-connection") {
@@ -1163,7 +1169,6 @@ async function handleAction(target) {
     try {
       const payload = await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/check`, { method: "POST" });
       state.linkedDevice = { ...state.linkedDevice, status: payload.status, phoneNumber: payload.phoneNumber || state.linkedDevice.phoneNumber, qrActive: payload.status !== "connected", qrBase64: payload.status === "connected" ? "" : state.linkedDevice.qrBase64, lastActivity: "الآن", lastCheckAt: "الآن", activity: [payload.status === "connected" ? "تم فحص الاتصال بنجاح" : "لا يزال الربط بانتظار واتساب", ...(state.linkedDevice.activity || []).slice(0, 4)] };
-      persistLinkedDevice();
       toast(payload.status === "connected" ? "الاتصال يعمل بنجاح" : "لم يكتمل الربط بعد", payload.status === "connected" ? "success" : "warning");
       render();
     } catch (error) {
@@ -1178,7 +1183,6 @@ async function handleAction(target) {
     try {
       await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/disconnect`, { method: "POST" });
       state.linkedDevice = { ...state.linkedDevice, status: "disconnected", qrActive: false, qrBase64: "", activity: ["تم فصل الجهاز", ...(state.linkedDevice.activity || []).slice(0, 4)] };
-      persistLinkedDevice();
       toast("تم فصل الجهاز");
       render();
     } catch (error) {
@@ -1189,7 +1193,6 @@ async function handleAction(target) {
     try {
       await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}`, { method: "DELETE" });
       state.linkedDevice = { ...defaultLinkedDevice };
-      persistLinkedDevice();
       toast("تم حذف الجهاز المرتبط");
       render();
     } catch (error) {
@@ -1359,7 +1362,6 @@ async function handleSubmit(form, event) {
       state.linkedDevice.messagesMonth = (state.linkedDevice.messagesMonth || 0) + 1;
       state.linkedDevice.lastSendAt = "الآن";
       state.linkedDevice.activity = ["تم إرسال رسالة اختبار بنجاح", ...(state.linkedDevice.activity || []).slice(0, 4)];
-      persistLinkedDevice();
       closePortal();
       toast("تم إرسال رسالة الاختبار بنجاح");
       render();
@@ -1377,13 +1379,12 @@ async function handleSubmit(form, event) {
     if (button) { button.disabled = true; button.textContent = t("common.loading"); }
     let authenticated = false;
     try {
-      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const response = await fetch("/api/auth/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       authenticated = response.ok && await browserSessionIsValid();
     } catch {
       authenticated = false;
     }
     if (!authenticated) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast(t("auth.invalidCredentials"), "danger"); }
-    authenticatedSession = true;
     toast(t("auth.loginSuccess"));
     await navigate("/dashboard");
     return;
@@ -1394,13 +1395,11 @@ async function handleSubmit(form, event) {
     if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
     try {
-      const response = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const response = await fetch("/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       if (!response.ok || !await browserSessionIsValid()) return toast(t("common.serverError"), "danger");
     } catch {
       return toast(t("common.serverError"), "danger");
     }
-    authenticatedSession = true;
-    storage.set("renewpilot.account", { name: data.name, email: data.email, createdAt: new Date().toISOString() });
     toast(t("auth.registerSuccess"));
     await navigate("/dashboard");
     return;
@@ -1587,7 +1586,6 @@ document.addEventListener("input", (event) => {
   }
   if (target.dataset.action === "pairing-phone-input") {
     state.linkedDevice.phoneInput = target.value;
-    persistLinkedDevice();
   }
 });
 

@@ -4,7 +4,8 @@ import { sessionCookie } from "../../../../src/server/session.js";
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email) || !body.password) return Response.json({ ok: false, reason: "invalid_credentials" }, { status: 401 });
     const result = await loginAccount({

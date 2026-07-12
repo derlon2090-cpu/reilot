@@ -40,4 +40,16 @@ describe("POST /api/auth/login", () => {
     expect(response.headers.get("set-cookie")).toContain("renewpilot_session=");
     expect(JSON.stringify(body)).not.toContain("raw-session-token");
   });
+
+  it("returns 400 without a cookie for malformed JSON", async () => {
+    const response = await POST(new Request("http://localhost/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{invalid-json"
+    }));
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(loginAccount).not.toHaveBeenCalled();
+  });
 });

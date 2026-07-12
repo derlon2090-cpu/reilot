@@ -56,7 +56,7 @@ export async function getEvolutionQr({ tenantId, instanceId, env, evolution, rep
 }
 
 export function normalizeEvolutionPhone(phoneNumber) {
-  const value = String(phoneNumber || "").replace(/[+\s-]/g, "");
+  const value = String(phoneNumber || "").replace(/\D/g, "");
   if (!/^[1-9]\d{10,14}$/.test(value)) {
     return { ok: false, status: 400, code: "INVALID_WHATSAPP_PHONE" };
   }

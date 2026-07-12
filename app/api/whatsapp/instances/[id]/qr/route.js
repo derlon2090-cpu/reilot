@@ -19,7 +19,7 @@ export async function GET(req, { params }) {
       await updateChannel(id, auth.session.tenantId, { status: "error", qrBase64: null, lastError: message });
       await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.qr_failed", title: "WhatsApp QR generation failed" });
       await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "qr", source: "evolution", sourceId: id, message, suggestedSolution: "Check Evolution API health and create a new QR code." });
-      return Response.json({ ok: false, message: "Unable to generate a valid QR code from Evolution API" }, { status: 502 });
+      return Response.json({ ok: false, message: "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى." }, { status: 502 });
     }
     await updateChannel(id, auth.session.tenantId, { status: "pending_qr", qrBase64, lastQrGeneratedAt: new Date(), lastError: null });
     await resolveOperationalIssues({ tenantId: auth.session.tenantId, category: "qr", sourceId: id });
@@ -27,7 +27,8 @@ export async function GET(req, { params }) {
   } catch (error) {
     console.error("evolution QR failed", safeErrorMessage(error));
     await updateChannel(id, auth.session.tenantId, { status: "error", qrBase64: null, lastError: safeErrorMessage(error) });
+    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.qr_failed", title: "WhatsApp QR generation failed" }).catch(() => null);
     await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "qr", source: "evolution", sourceId: id, message: safeErrorMessage(error), suggestedSolution: "Check Evolution API connectivity and retry QR generation." }).catch(() => null);
-    return Response.json({ ok: false, message: "Unable to generate QR code" }, { status: 502 });
+    return Response.json({ ok: false, message: "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى." }, { status: 502 });
   }
 }

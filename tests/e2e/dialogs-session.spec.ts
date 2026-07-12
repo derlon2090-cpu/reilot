@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/test";
+import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
+
+test.skip(!hasLiveCredentials, "requires a real authenticated test account");
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("renewpilot_locale", "ar");
     localStorage.setItem("renewpilot_theme", "light");
   });
+  await loginWithLiveCredentials(page);
 });
 test("dialogs close using X, Escape, cancel, and overlay", async ({ page }) => {
   await page.goto("/dashboard/subscriptions");

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
 
 const routes = [
   "/", "/features", "/pricing", "/support", "/login", "/register", "/forgot-password",
@@ -15,7 +16,13 @@ test("English mode translates every required page and persists direction", async
     localStorage.setItem("renewpilot_theme", "light");
   });
 
+  let authenticated = false;
   for (const route of routes) {
+    if (route.startsWith("/dashboard") && !hasLiveCredentials) continue;
+    if (route.startsWith("/dashboard") && !authenticated) {
+      await loginWithLiveCredentials(page);
+      authenticated = true;
+    }
     await page.goto(route);
     await expect(page.locator("#app > *")).toBeVisible();
     const audit = await page.locator("body").innerText();
@@ -42,6 +49,8 @@ test("validation, dialog text, and toasts follow the selected language", async (
   await page.getByRole("button", { name: "Sign in →" }).click();
   await expect(page.getByText("Please enter your email address.")).toBeVisible();
 
+  if (!hasLiveCredentials) return;
+  await loginWithLiveCredentials(page);
   await page.goto("/dashboard/subscriptions");
   await page.locator("[data-action='add-subscription']").click();
   const dialogText = await page.locator(".modal").innerText();
@@ -58,6 +67,8 @@ test("Arabic mode and theme remain consistent across public and dashboard pages"
   await expect(page.getByRole("heading", { name: "تسجيل الدخول" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  if (!hasLiveCredentials) return;
+  await loginWithLiveCredentials(page);
   await page.goto("/dashboard/settings");
   await expect(page.getByRole("heading", { name: "الإعدادات" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

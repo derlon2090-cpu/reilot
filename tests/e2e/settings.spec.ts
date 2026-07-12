@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
+
+test.skip(!hasLiveCredentials, "requires a real authenticated test account");
 
 test("settings toggles are persisted to local storage", async ({ page }) => {
+  await loginWithLiveCredentials(page);
   await page.goto("/dashboard/settings");
   const whatsappToggle = page.locator("input[data-action='setting-toggle'][data-key='whatsapp']");
   await expect(whatsappToggle).toBeVisible();
