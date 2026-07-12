@@ -322,7 +322,8 @@ async function syncLinkedDevice() {
 async function browserSessionIsValid() {
   try {
     const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "include" });
-    return response.ok;
+    const payload = await response.json().catch(() => null);
+    return response.ok && payload?.ok === true && Boolean(payload.user?.id);
   } catch {
     return false;
   }
@@ -1397,7 +1398,8 @@ async function handleSubmit(form, event) {
     let loginAccepted = false;
     try {
       const response = await fetch("/api/auth/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      loginAccepted = response.ok;
+      const payload = await response.json().catch(() => null);
+      loginAccepted = response.ok && payload?.ok === true && Boolean(payload.user?.id);
     } catch {
       loginAccepted = false;
     }

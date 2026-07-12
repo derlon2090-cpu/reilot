@@ -11,6 +11,8 @@ describe("authentication boundary source", () => {
     expect(combined).not.toMatch(/E2E_UI_PREVIEW|authenticatedSession|localDemoLogin|skipPassword|allowLogin/);
     expect(client).not.toContain('storage.set("renewpilot.account"');
     expect(client).not.toContain('storage.get("renewpilot.linkedDevice"');
+    expect(client).toContain("payload?.ok === true");
+    expect(client).toContain("Boolean(payload.user?.id)");
     expect(page).toContain('if (isDashboard)');
     expect(page).toContain('if (!session) redirect("/login")');
   });

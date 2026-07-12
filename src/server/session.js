@@ -11,7 +11,10 @@ function cookieValue(req, name) {
 }
 export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
   const publicUrl = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
-  const secure = publicUrl.startsWith("https://") ? "; Secure" : "";
+  const secureCookie = process.env.COOKIE_SECURE === "true"
+    || process.env.NODE_ENV === "production"
+    || publicUrl.startsWith("https://");
+  const secure = secureCookie ? "; Secure" : "";
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
