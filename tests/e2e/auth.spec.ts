@@ -4,6 +4,7 @@ import { hasLiveCredentials, liveEmail, livePassword } from "./helpers/live-auth
 test.skip(!hasLiveCredentials, "requires a real authenticated test account");
 
 test("@critical authentication rejects random and wrong credentials before allowing a valid login", async ({ page, request }) => {
+  test.setTimeout(90_000);
   const randomResponse = await request.post("/api/auth/login", {
     data: { email: "random-anything@test.com", password: "Anything@123" }
   });

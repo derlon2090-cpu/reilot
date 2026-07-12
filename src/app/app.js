@@ -350,6 +350,19 @@ async function navigate(to) {
   if (["/dashboard/connected-devices", "/dashboard/linked-devices"].includes(state.route)) void syncLinkedDevice();
 }
 
+async function enterDashboardAfterSessionVerification() {
+  if (!await browserSessionIsValid()) return false;
+  history.pushState({}, "", "/dashboard");
+  state.route = "/dashboard";
+  state.query = new URLSearchParams();
+  state.navOpen = false;
+  state.sidebarOpen = false;
+  state.profileOpen = false;
+  state.search = "";
+  render();
+  return true;
+}
+
 function toneClass(value = "") {
   if (["نشط", "تم التجديد", "تم التسليم", "محلولة", "منخفض"].some((x) => value.includes(x))) return "success";
   if (["قريب", "انتظار", "مراجعة", "متوسطة"].some((x) => value.includes(x))) return "warning";
@@ -1377,16 +1390,16 @@ async function handleSubmit(form, event) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast(t("auth.invalidEmail"), "danger");
     const button = form.querySelector("button[type='submit'], button:not([type])");
     if (button) { button.disabled = true; button.textContent = t("common.loading"); }
-    let authenticated = false;
+    let loginAccepted = false;
     try {
       const response = await fetch("/api/auth/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      authenticated = response.ok && await browserSessionIsValid();
+      loginAccepted = response.ok;
     } catch {
-      authenticated = false;
+      loginAccepted = false;
     }
-    if (!authenticated) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast(t("auth.invalidCredentials"), "danger"); }
+    if (!loginAccepted) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast(t("auth.invalidCredentials"), "danger"); }
+    if (!await enterDashboardAfterSessionVerification()) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast("تعذر إنشاء الجلسة.", "danger"); }
     toast(t("auth.loginSuccess"));
-    await navigate("/dashboard");
     return;
   }
   if (type === "register") {
@@ -1396,12 +1409,11 @@ async function handleSubmit(form, event) {
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
     try {
       const response = await fetch("/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      if (!response.ok || !await browserSessionIsValid()) return toast(t("common.serverError"), "danger");
+      if (!response.ok || !await enterDashboardAfterSessionVerification()) return toast(t("common.serverError"), "danger");
     } catch {
       return toast(t("common.serverError"), "danger");
     }
     toast(t("auth.registerSuccess"));
-    await navigate("/dashboard");
     return;
   }
   if (type === "subscription") {
