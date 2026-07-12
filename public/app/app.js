@@ -843,12 +843,14 @@ function connectedDevicesCenterPage() {
   const device = { ...defaultLinkedDevice, ...state.linkedDevice };
   const isConnected = device.status === "connected";
   const hasRealQr = isRealQrDataUri(device.qrBase64);
-  const isPendingQr = device.status === "pending_qr" && hasRealQr && device.qrImageLoaded;
-  const isQrRendering = device.status === "pending_qr" && hasRealQr && !device.qrImageLoaded;
+  const hasQrSession = ["pending_qr", "connecting"].includes(device.status);
+  const isPendingQr = hasQrSession && hasRealQr && device.qrImageLoaded;
+  const isQrRendering = hasQrSession && hasRealQr && !device.qrImageLoaded;
+  const isQrExpired = hasQrSession && !hasRealQr;
   const isPendingPairing = device.status === "pending_pairing" && Boolean(device.pairingCode);
   const method = device.linkMethod || "qr";
-  const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isQrRendering ? "جاري عرض الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
-  const statusTone = isConnected ? "success" : isPendingQr || isQrRendering || isPendingPairing ? "warning" : "danger";
+  const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isQrRendering ? "جاري عرض الباركود" : isQrExpired ? "انتهت صلاحية الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
+  const statusTone = isConnected ? "success" : isPendingQr || isQrRendering || isQrExpired || isPendingPairing ? "warning" : "danger";
   const qrImage = hasRealQr
     ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
     : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود حقيقي من Evolution API.</p></div>`;

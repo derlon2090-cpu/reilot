@@ -6,6 +6,13 @@ export function evolutionInstanceName(tenantId) {
   return `renewpilot-${String(tenantId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
 }
 
+export function withoutExpiredQr(channel, now = Date.now()) {
+  if (!channel?.qrBase64) return channel;
+  const generatedAt = new Date(channel.lastQrGeneratedAt || 0).getTime();
+  const isFresh = Number.isFinite(generatedAt) && generatedAt > 0 && now - generatedAt < 60_000;
+  return isFresh ? channel : { ...channel, qrBase64: null };
+}
+
 export async function latestTenantChannel(tenantId) {
   const result = await query(
     `SELECT id, tenant_id AS "tenantId", channel_id AS "instanceName", phone_number AS "phoneNumber",
