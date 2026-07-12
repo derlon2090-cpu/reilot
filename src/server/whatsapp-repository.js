@@ -1,9 +1,12 @@
+import crypto from "node:crypto";
 import { encryptSecret } from "../lib/encryption.js";
 import { query } from "./db.js";
 import { randomToken } from "./security.js";
 
 export function evolutionInstanceName(tenantId) {
-  return `renewpilot-${String(tenantId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
+  const tenantShort = String(tenantId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "tenant";
+  const unique = `${Date.now().toString(36)}${crypto.randomBytes(4).toString("hex")}`;
+  return `rp_${tenantShort}_${unique}`;
 }
 
 export function withoutExpiredQr(channel, now = Date.now()) {
@@ -15,7 +18,7 @@ export function withoutExpiredQr(channel, now = Date.now()) {
 
 export async function latestTenantChannel(tenantId) {
   const result = await query(
-    `SELECT id, tenant_id AS "tenantId", channel_id AS "instanceName", phone_number AS "phoneNumber",
+    `SELECT id, tenant_id AS "tenantId", instance_name AS "instanceName", phone_number AS "phoneNumber",
             display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64",
             connected_at AS "connectedAt", disconnected_at AS "disconnectedAt",
             last_qr_generated_at AS "lastQrGeneratedAt", last_pairing_code_generated_at AS "lastPairingCodeGeneratedAt",
@@ -28,7 +31,7 @@ export async function latestTenantChannel(tenantId) {
 
 export async function ownedChannel(id, tenantId) {
   const result = await query(
-    `SELECT id, tenant_id AS "tenantId", channel_id AS "instanceName", phone_number AS "phoneNumber",
+    `SELECT id, tenant_id AS "tenantId", instance_name AS "instanceName", phone_number AS "phoneNumber",
             display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64", risk_score AS "riskScore"
        FROM whatsapp_channels WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
     [id, tenantId]
@@ -40,9 +43,9 @@ export async function createChannel({ tenantId, instanceName, providerToken, qrB
   const encrypted = encryptSecret(providerToken || randomToken(32), process.env.ENCRYPTION_KEY);
   const status = qrBase64 ? "pending_qr" : "not_connected";
   const result = await query(
-    `INSERT INTO whatsapp_channels (tenant_id, provider, channel_id, channel_token_encrypted, status, qr_code_cache, last_qr_generated_at, warmup_started_at)
-     VALUES ($1, 'evolution', $2, $3, $4, $5, CASE WHEN $5::text IS NOT NULL THEN now() END, now())
-     RETURNING id, tenant_id AS "tenantId", channel_id AS "instanceName", status`,
+    `INSERT INTO whatsapp_channels (tenant_id, provider, channel_id, instance_name, channel_token_encrypted, status, qr_code_cache, last_qr_generated_at, warmup_started_at)
+     VALUES ($1, 'evolution', $2, $2, $3, $4, $5, CASE WHEN $5::text IS NOT NULL THEN now() END, now())
+     RETURNING id, tenant_id AS "tenantId", instance_name AS "instanceName", status`,
     [tenantId, instanceName, encrypted, status, qrBase64 || null]
   );
   return result.rows[0];

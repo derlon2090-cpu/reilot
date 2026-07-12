@@ -170,7 +170,7 @@ const defaultLinkedDevice = {
   phoneNumber: "",
   phoneInput: "",
   pairingCode: "",
-  pairingSupported: false,
+  pairingSupported: true,
   qrLoading: false,
   qrImageLoaded: false,
   pairingLoading: false,
@@ -876,7 +876,7 @@ function connectedDevicesCenterPage() {
           </div>
           <div class="tabs tabs-row link-tabs">
             <button class="tab ${method === "qr" ? "active" : ""}" data-action="device-link-method" data-method="qr">الربط بالباركود QR</button>
-            <button class="tab ${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">الربط برمز الاقتران · غير مدعوم حاليًا</button>
+            <button class="tab ${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">الربط برمز الاقتران${device.pairingSupported === false ? " · غير مدعوم حاليًا" : ""}</button>
           </div>
           ${method === "qr" ? `<div class="link-box-grid">
             <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
@@ -1150,7 +1150,8 @@ async function handleAction(target) {
       toast("تم إنشاء رمز الاقتران");
     } catch (error) {
       const message = error.message || "تعذر إنشاء رمز الاقتران، حاول استخدام الباركود.";
-      state.linkedDevice = { ...state.linkedDevice, status: state.linkedDevice.instanceId ? "error" : "not_connected", pairingError: message, pairingCode: "" };
+      const nextStatus = state.linkedDevice.status === "connected" ? "connected" : state.linkedDevice.instanceId ? "error" : "not_connected";
+      state.linkedDevice = { ...state.linkedDevice, status: nextStatus, pairingSupported: error.status === 501 ? false : state.linkedDevice.pairingSupported, pairingError: message, pairingCode: "" };
       toast(message, "danger");
     } finally {
       state.linkedDevice.pairingLoading = false;

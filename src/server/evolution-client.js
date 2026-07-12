@@ -21,6 +21,26 @@ export function isEvolutionInstanceMissing(error) {
   return /Evolution API 404:/i.test(String(error?.message || ""));
 }
 
+export function isValidPairingCode(value) {
+  if (typeof value !== "string") return false;
+  const clean = value.trim();
+  if (!clean || clean.startsWith("data:image") || clean.length > 30) return false;
+  return /^[A-Za-z0-9-]{4,30}$/.test(clean);
+}
+
+export function extractEvolutionPairingCode(body) {
+  const candidates = [
+    body?.pairingCode,
+    body?.pairing_code,
+    body?.codePairing,
+    body?.data?.pairingCode,
+    body?.data?.code,
+    body?.code
+  ];
+  const value = candidates.find(isValidPairingCode);
+  return value ? String(value).trim() : null;
+}
+
 export function normalizeEvolutionQr(value) {
   const raw = String(value || "");
   const match = raw.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
@@ -56,6 +76,11 @@ export function evolutionCreateInstance(instanceName) {
 export function evolutionConnect(instanceName, phoneNumber) {
   const query = phoneNumber ? `?number=${encodeURIComponent(phoneNumber)}` : "";
   return request(`/instance/connect/${encodeURIComponent(instanceName)}${query}`);
+}
+
+export async function evolutionPairingCode(instanceName, phoneNumber) {
+  const body = await evolutionConnect(instanceName, phoneNumber);
+  return { body, pairingCode: extractEvolutionPairingCode(body) };
 }
 
 export function evolutionConnectionState(instanceName) {

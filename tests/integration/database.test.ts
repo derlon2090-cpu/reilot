@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 
 describe("database integration contract", () => {
   it("keeps required multi-tenant and performance indexes in migrations", () => {
-    const schema = readFileSync("drizzle/0001_initial_schema.sql", "utf8") + "\n" + readFileSync("drizzle/0003_cron_auth_safety.sql", "utf8");
+    const schema = ["0001_initial_schema.sql", "0003_cron_auth_safety.sql", "0008_whatsapp_unique_instances.sql"]
+      .map((file) => readFileSync(`drizzle/${file}`, "utf8"))
+      .join("\n");
 
     for (const indexName of [
       "idx_subscriptions_tenant_id",
@@ -18,5 +20,7 @@ describe("database integration contract", () => {
     ]) {
       expect(schema).toContain(indexName);
     }
+    expect(schema).toContain("whatsapp_channels_instance_name_unique");
+    expect(schema).toContain("whatsapp_channels_tenant_status_idx");
   });
 });

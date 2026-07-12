@@ -52,7 +52,7 @@ async function queueItemSafety(client, item) {
 export async function runMessageRetry() {
   const items = await transaction(async (client) => {
     const locked = await client.query(
-      `SELECT mq.*, c.whatsapp_number, c.phone, wc.channel_id,
+      `SELECT mq.*, c.whatsapp_number, c.phone, wc.instance_name,
               COALESCE(nt.body, 'مرحبًا {{customer_name}}، حان موعد تجديد اشتراكك. أرسل إيقاف لإلغاء الرسائل.') AS message_body,
               c.name AS customer_name
          FROM message_queue mq
@@ -87,7 +87,7 @@ export async function runMessageRetry() {
     const to = item.whatsapp_number || item.phone;
     const message = item.message_body.replace(/{{customer_name}}|{{name}}/g, item.customer_name);
     try {
-      const provider = await evolutionSendText(item.channel_id, to, message);
+      const provider = await evolutionSendText(item.instance_name, to, message);
       await transaction(async (client) => {
         await client.query("UPDATE message_queue SET status = 'sent', attempts = attempts + 1, updated_at = now() WHERE id = $1", [item.id]);
         await client.query(
@@ -114,12 +114,12 @@ export async function runMessageRetry() {
 }
 
 export async function runWhatsAppHealthCheck() {
-  const channels = await query("SELECT id, tenant_id, channel_id, status FROM whatsapp_channels ORDER BY created_at");
+  const channels = await query("SELECT id, tenant_id, instance_name, status FROM whatsapp_channels ORDER BY created_at");
   let connected = 0;
   let disconnected = 0;
   for (const channel of channels.rows) {
     try {
-      const response = await evolutionConnectionState(channel.channel_id);
+      const response = await evolutionConnectionState(channel.instance_name);
       const state = response?.instance?.state || response?.state || "disconnected";
       const status = state === "open" || state === "connected" ? "connected" : "disconnected";
       await query(

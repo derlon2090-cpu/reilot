@@ -1,4 +1,4 @@
-import { evolutionConnectionState, evolutionCreateInstance, isEvolutionInstanceMissing, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
+import { evolutionConnectionState, evolutionCreateInstance, evolutionDelete, isEvolutionInstanceMissing, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
 import { query } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
@@ -16,8 +16,14 @@ export async function POST(req) {
   const existing = await latestTenantChannel(auth.session.tenantId);
   if (existing) {
     try {
-      await evolutionConnectionState(existing.instanceName);
-      return Response.json({ ok: true, instance: withoutExpiredQr(existing), existing: true });
+      const provider = await evolutionConnectionState(existing.instanceName);
+      const providerState = provider?.instance?.state || provider?.state;
+      if (["open", "connected"].includes(providerState)) {
+        return Response.json({ ok: true, instance: withoutExpiredQr({ ...existing, status: "connected" }), existing: true });
+      }
+      await evolutionDelete(existing.instanceName);
+      await deleteChannel(existing.id, auth.session.tenantId);
+      await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.relink_started", title: "New Evolution instance requested" });
     } catch (error) {
       if (!isEvolutionInstanceMissing(error)) {
         console.error("evolution instance validation failed", safeErrorMessage(error));

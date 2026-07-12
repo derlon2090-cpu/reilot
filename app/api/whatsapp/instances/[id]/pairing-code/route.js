@@ -1,5 +1,5 @@
 import { normalizeEvolutionPhone } from "../../../../../../src/lib/evolution.js";
-import { evolutionConnect } from "../../../../../../src/server/evolution-client.js";
+import { evolutionPairingCode } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
@@ -15,10 +15,11 @@ export async function POST(req, { params }) {
   const channel = await ownedChannel(id, auth.session.tenantId);
   if (!channel) return Response.json({ ok: false, message: "Instance not found" }, { status: 404 });
   try {
-    const result = await evolutionConnect(channel.instanceName, normalized.phoneNumber);
-    if (!result?.pairingCode) {
+    const result = await evolutionPairingCode(channel.instanceName, normalized.phoneNumber);
+    if (!result.pairingCode) {
+      await updateChannel(id, auth.session.tenantId, { lastError: "Evolution API returned QR data without a valid pairing code" });
       await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.pairing_failed", title: "WhatsApp pairing code is not supported" }).catch(() => null);
-      await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "pairing_code", source: "evolution", sourceId: id, severity: "warning", message: "Evolution API did not return a pairing code", suggestedSolution: "Use the QR connection method with the installed Evolution API version." });
+      await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "pairing_code", source: "evolution", sourceId: id, severity: "warning", message: "Evolution API returned QR data without a valid pairing code", suggestedSolution: "Use QR linking or upgrade Evolution only after reviewing licensing requirements." });
       return Response.json({ ok: false, code: "PAIRING_CODE_NOT_SUPPORTED", message: "رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود." }, { status: 501 });
     }
     await updateChannel(id, auth.session.tenantId, { status: "pending_pairing", phoneNumber: normalized.phoneNumber, lastPairingCodeGeneratedAt: new Date(), lastError: null });

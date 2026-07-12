@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isEvolutionInstanceMissing, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { extractEvolutionPairingCode, isEvolutionInstanceMissing, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
   it("accepts only sufficiently sized PNG or JPEG payloads", () => {
@@ -17,5 +18,18 @@ describe("normalizeEvolutionQr", () => {
   it("recognizes a missing provider instance without masking other failures", () => {
     expect(isEvolutionInstanceMissing(new Error("Evolution API 404: instance does not exist"))).toBe(true);
     expect(isEvolutionInstanceMissing(new Error("Evolution API 503: unavailable"))).toBe(false);
+  });
+
+  it("extracts only short provider pairing codes and rejects QR payloads", () => {
+    expect(extractEvolutionPairingCode({ data: { pairingCode: "7K9M-2Q4P" } })).toBe("7K9M-2Q4P");
+    expect(extractEvolutionPairingCode({ pairingCode: null, code: "x".repeat(3000) })).toBeNull();
+    expect(isValidPairingCode("data:image/png;base64,abc")).toBe(false);
+  });
+
+  it("creates a unique tenant-scoped instance name for every link", () => {
+    const first = evolutionInstanceName("tn8f3-example");
+    const second = evolutionInstanceName("tn8f3-example");
+    expect(first).toMatch(/^rp_tn8f3exa_[a-z0-9]+$/);
+    expect(second).not.toBe(first);
   });
 });

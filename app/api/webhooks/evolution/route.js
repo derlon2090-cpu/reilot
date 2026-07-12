@@ -23,7 +23,7 @@ export async function POST(req) {
   if (!instanceName) return Response.json({ ok: true, ignored: true });
 
   try {
-    const channelResult = await query("SELECT id, tenant_id FROM whatsapp_channels WHERE channel_id = $1 LIMIT 1", [instanceName]);
+    const channelResult = await query("SELECT id, tenant_id FROM whatsapp_channels WHERE instance_name = $1 LIMIT 1", [instanceName]);
     const channel = channelResult.rows[0];
     if (!channel) return Response.json({ ok: true, ignored: true });
 
