@@ -1415,7 +1415,26 @@ async function handleSubmit(form, event) {
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
     try {
       const response = await fetch("/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      if (!response.ok || !await enterDashboardAfterSessionVerification()) return toast(t("common.serverError"), "danger");
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const messages = state.language === "ar" ? {
+          email_exists: "البريد الإلكتروني مستخدم مسبقًا.",
+          invalid_email: "صيغة البريد الإلكتروني غير صحيحة.",
+          weak_password: "كلمة المرور لا تحقق شروط الأمان.",
+          database_unavailable: "تعذر الاتصال بقاعدة البيانات، حاول لاحقًا.",
+          database_schema_missing: "تعذر إنشاء مساحة العمل، حاول لاحقًا."
+        } : {
+          email_exists: "This email is already in use.",
+          invalid_email: "The email address is invalid.",
+          weak_password: "The password does not meet the security requirements.",
+          database_unavailable: "The database is currently unavailable. Please try again later.",
+          database_schema_missing: "The workspace could not be created. Please try again later."
+        };
+        return toast(messages[payload?.reason] || t("common.serverError"), "danger");
+      }
+      if (!payload?.ok || !payload.user?.id || !await enterDashboardAfterSessionVerification()) {
+        return toast(state.language === "ar" ? "تعذر إنشاء الجلسة، حاول تسجيل الدخول." : "The session could not be created. Please sign in.", "danger");
+      }
     } catch {
       return toast(t("common.serverError"), "danger");
     }
