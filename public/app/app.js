@@ -1593,6 +1593,7 @@ function bindQrImageState() {
     image.addEventListener("error", markFailed, { once: true });
   });
   markLoaded();
+  requestAnimationFrame(markLoaded);
 }
 
 document.addEventListener("click", (event) => {
