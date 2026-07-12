@@ -170,7 +170,7 @@ const defaultLinkedDevice = {
   phoneNumber: "",
   phoneInput: "",
   pairingCode: "",
-  pairingSupported: true,
+  pairingSupported: false,
   qrLoading: false,
   qrImageLoaded: false,
   pairingLoading: false,
@@ -876,7 +876,7 @@ function connectedDevicesCenterPage() {
           </div>
           <div class="tabs tabs-row link-tabs">
             <button class="tab ${method === "qr" ? "active" : ""}" data-action="device-link-method" data-method="qr">الربط بالباركود QR</button>
-            <button class="tab ${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">الربط برمز الاقتران</button>
+            <button class="tab ${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">الربط برمز الاقتران · غير مدعوم حاليًا</button>
           </div>
           ${method === "qr" ? `<div class="link-box-grid">
             <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
@@ -892,12 +892,15 @@ function connectedDevicesCenterPage() {
               <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
               <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
             </div>
+          </div>` : device.pairingSupported === false ? `<div class="pairing-unsupported">
+            <p class="status warning">رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.</p>
+            <button class="btn btn-primary" data-action="device-link-method" data-method="qr">استخدام الباركود بدلًا من ذلك</button>
           </div>` : `<div class="link-box-grid pairing-layout">
             <div class="pairing-form">
               <label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${device.phoneInput || ""}" placeholder="9665XXXXXXXX" inputmode="numeric"></label>
               <small class="muted">اكتب الرقم بصيغة دولية بدون + أو مسافات، مثال: 9665XXXXXXXX.</small>
-              <button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingSupported === false || device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء رمز الاقتران..." : "إنشاء رمز الاقتران"}</button>
-              ${device.pairingError ? `<p class="status danger" data-pairing-error>${escapeHtml(device.pairingError)}</p>` : device.pairingSupported === false ? `<p class="status warning">رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.</p>` : ""}
+              <button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء رمز الاقتران..." : "إنشاء رمز الاقتران"}</button>
+              ${device.pairingError ? `<p class="status danger" data-pairing-error>${escapeHtml(device.pairingError)}</p>` : ""}
             </div>
             <div class="pair-code pairing-result">
               <span class="muted">رمز الاقتران</span>
