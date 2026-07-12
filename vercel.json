@@ -3,6 +3,26 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_APP_URL": "https://reilot.vercel.app",
+    "BETTER_AUTH_URL": "https://reilot.vercel.app",
+    "COOKIE_SECURE": "true",
+    "NODE_ENV": "production"
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "http://51.210.77.137/api/:path*"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "http://51.210.77.137/dashboard"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "http://51.210.77.137/dashboard/:path*"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/renewal-reminders",
