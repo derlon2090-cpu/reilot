@@ -172,6 +172,7 @@ const defaultLinkedDevice = {
   pairingCode: "",
   pairingSupported: true,
   qrLoading: false,
+  qrImageLoaded: false,
   pairingLoading: false,
   qrError: "",
   pairingError: "",
@@ -842,11 +843,12 @@ function connectedDevicesCenterPage() {
   const device = { ...defaultLinkedDevice, ...state.linkedDevice };
   const isConnected = device.status === "connected";
   const hasRealQr = isRealQrDataUri(device.qrBase64);
-  const isPendingQr = device.status === "pending_qr" && hasRealQr;
+  const isPendingQr = device.status === "pending_qr" && hasRealQr && device.qrImageLoaded;
+  const isQrRendering = device.status === "pending_qr" && hasRealQr && !device.qrImageLoaded;
   const isPendingPairing = device.status === "pending_pairing" && Boolean(device.pairingCode);
   const method = device.linkMethod || "qr";
-  const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
-  const statusTone = isConnected ? "success" : isPendingQr || isPendingPairing ? "warning" : "danger";
+  const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isQrRendering ? "جاري عرض الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
+  const statusTone = isConnected ? "success" : isPendingQr || isQrRendering || isPendingPairing ? "warning" : "danger";
   const qrImage = hasRealQr
     ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
     : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود حقيقي من Evolution API.</p></div>`;
@@ -876,8 +878,8 @@ function connectedDevicesCenterPage() {
           ${method === "qr" ? `<div class="link-box-grid">
             <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
               ${qrImage}
-              <strong>${device.qrLoading ? "جاري طلب الباركود من Evolution API..." : isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "لا يوجد باركود صالح"}</strong>
-              <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : device.qrError ? escapeHtml(device.qrError) : "اضغط إنشاء باركود جديد."}</small>
+              <strong>${device.qrLoading ? "جاري طلب الباركود من Evolution API..." : hasRealQr && !device.qrImageLoaded ? "جاري التحقق من صورة الباركود..." : isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "لا يوجد باركود صالح"}</strong>
+              <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : hasRealQr ? "يتم تحميل الصورة والتحقق منها داخل المتصفح." : device.qrError ? escapeHtml(device.qrError) : "اضغط إنشاء باركود جديد."}</small>
             </div>
             <div class="pair-code">
               <span class="muted">رمز الاقتران</span>
@@ -1150,7 +1152,7 @@ async function handleAction(target) {
     }
   }
   if (action === "create-device-qr") {
-    state.linkedDevice = { ...state.linkedDevice, qrLoading: true, qrError: "", qrBase64: "", qrActive: false };
+    state.linkedDevice = { ...state.linkedDevice, qrLoading: true, qrImageLoaded: false, qrError: "", qrBase64: "", qrActive: false };
     render();
     try {
       const created = await fetchJson("/api/whatsapp/instances/create", { method: "POST" });
@@ -1159,12 +1161,12 @@ async function handleAction(target) {
       state.linkedDevice = { ...state.linkedDevice, ...instance, instanceId: instance.id, instanceName: instance.instanceName || "", qrBase64: "" };
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`);
       if (!isRealQrDataUri(payload.qrBase64)) throw new Error("تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrError: "", qrBase64: payload.qrBase64, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrImageLoaded: false, qrError: "", qrBase64: payload.qrBase64, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
       toast("تم إنشاء باركود جديد عبر Evolution API");
       closePortal();
     } catch (error) {
       const message = error.message || "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.";
-      state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrBase64: "", qrError: message };
+      state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrImageLoaded: false, qrBase64: "", qrError: message };
       toast(message, "danger");
     } finally {
       state.linkedDevice.qrLoading = false;
@@ -1181,7 +1183,7 @@ async function handleAction(target) {
     if (!["pending_qr", "pending_pairing", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
     try {
       const payload = await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/check`, { method: "POST" });
-      state.linkedDevice = { ...state.linkedDevice, status: payload.status, phoneNumber: payload.phoneNumber || state.linkedDevice.phoneNumber, qrActive: payload.status !== "connected", qrBase64: payload.status === "connected" ? "" : state.linkedDevice.qrBase64, lastActivity: "الآن", lastCheckAt: "الآن", activity: [payload.status === "connected" ? "تم فحص الاتصال بنجاح" : "لا يزال الربط بانتظار واتساب", ...(state.linkedDevice.activity || []).slice(0, 4)] };
+      state.linkedDevice = { ...state.linkedDevice, status: payload.status, phoneNumber: payload.phoneNumber || state.linkedDevice.phoneNumber, qrActive: payload.status !== "connected", qrImageLoaded: payload.status === "connected" ? false : state.linkedDevice.qrImageLoaded, qrBase64: payload.status === "connected" ? "" : state.linkedDevice.qrBase64, lastActivity: "الآن", lastCheckAt: "الآن", activity: [payload.status === "connected" ? "تم فحص الاتصال بنجاح" : "لا يزال الربط بانتظار واتساب", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast(payload.status === "connected" ? "الاتصال يعمل بنجاح" : "لم يكتمل الربط بعد", payload.status === "connected" ? "success" : "warning");
       render();
     } catch (error) {
@@ -1195,7 +1197,7 @@ async function handleAction(target) {
   if (action === "disconnect-device") {
     try {
       await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/disconnect`, { method: "POST" });
-      state.linkedDevice = { ...state.linkedDevice, status: "disconnected", qrActive: false, qrBase64: "", activity: ["تم فصل الجهاز", ...(state.linkedDevice.activity || []).slice(0, 4)] };
+      state.linkedDevice = { ...state.linkedDevice, status: "disconnected", qrActive: false, qrImageLoaded: false, qrBase64: "", activity: ["تم فصل الجهاز", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast("تم فصل الجهاز");
       render();
     } catch (error) {
@@ -1550,6 +1552,7 @@ function render() {
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
     localizeElement(app);
+    bindQrImageState();
     syncRouteData();
     return;
   }
@@ -1565,6 +1568,31 @@ function render() {
   };
   app.innerHTML = (pages[state.route] || homePage)();
   localizeElement(app);
+}
+
+function bindQrImageState() {
+  const images = [...app.querySelectorAll("img.qr-real")];
+  if (!images.length) return;
+
+  const markFailed = () => {
+    if (!state.linkedDevice.qrBase64) return;
+    const message = "تعذر عرض الباركود في المتصفح. يرجى إعادة إنشاء الباركود.";
+    state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrImageLoaded: false, qrBase64: "", qrError: message };
+    toast(message, "danger");
+    render();
+  };
+  const markLoaded = () => {
+    if (!images.every((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0)) return;
+    if (state.linkedDevice.qrImageLoaded) return;
+    state.linkedDevice = { ...state.linkedDevice, qrImageLoaded: true };
+    render();
+  };
+
+  images.forEach((image) => {
+    image.addEventListener("load", markLoaded, { once: true });
+    image.addEventListener("error", markFailed, { once: true });
+  });
+  markLoaded();
 }
 
 document.addEventListener("click", (event) => {
