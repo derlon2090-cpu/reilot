@@ -6,6 +6,7 @@
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://reilot.vercel.app",
     "BETTER_AUTH_URL": "https://reilot.vercel.app",
+    "EVOLUTION_API_URL": "http://51.210.77.137/evolution",
     "COOKIE_SECURE": "true",
     "NODE_ENV": "production"
   },
