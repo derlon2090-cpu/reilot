@@ -22,20 +22,29 @@ test("@critical authentication rejects random and wrong credentials before allow
   expect(anonymousDashboard.headers().location).toBe("/login");
 
   await page.goto("/login");
+  const submit = page.locator("form[data-submit='login'] button.btn-primary");
   await page.locator("input[name='email']").fill("random-anything@test.com");
   await page.locator("input[name='password']").fill("Anything@123");
-  await page.locator("form[data-submit='login'] button.btn-primary").click();
+  const randomUiResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/login") && response.request().method() === "POST");
+  await submit.click();
+  expect((await randomUiResponse).status()).toBe(401);
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator(".toast.danger")).toBeVisible();
+  await expect(submit).toBeEnabled();
   await page.screenshot({ path: "test-results/critical-random-login.png", fullPage: true });
 
   await page.locator("input[name='email']").fill(liveEmail);
   await page.locator("input[name='password']").fill("Wrong@999");
-  await page.locator("form[data-submit='login'] button.btn-primary").click();
+  const wrongUiResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/login") && response.request().method() === "POST");
+  await submit.click();
+  expect((await wrongUiResponse).status()).toBe(401);
   await expect(page).toHaveURL(/\/login$/);
+  await expect(submit).toBeEnabled();
 
   await page.locator("input[name='password']").fill(livePassword);
-  await page.locator("form[data-submit='login'] button.btn-primary").click();
+  const validUiResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/login") && response.request().method() === "POST");
+  await submit.click();
+  expect((await validUiResponse).status()).toBe(200);
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.locator(".dashboard-shell")).toBeVisible();
   const session = await page.request.get("/api/auth/session");
