@@ -17,6 +17,10 @@ async function request(path, init = {}) {
   return body;
 }
 
+export function isEvolutionInstanceMissing(error) {
+  return /Evolution API 404:/i.test(String(error?.message || ""));
+}
+
 export function normalizeEvolutionQr(value) {
   const raw = String(value || "");
   const match = raw.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
