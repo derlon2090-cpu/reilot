@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
         [auth.session.tenantId]
       );
     });
-    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.test_sent", title: "WhatsApp test message sent", metadata: { providerMessageId: sent?.key?.id || sent?.id || null } });
+    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "send_test_message", title: "WhatsApp test message sent", metadata: { providerMessageId: sent?.key?.id || sent?.id || null } });
     await resolveOperationalIssues({ tenantId: auth.session.tenantId, category: "whatsapp_send", sourceId: id });
     return Response.json({ ok: true, providerMessageId });
   } catch (error) {

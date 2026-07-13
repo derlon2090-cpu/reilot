@@ -87,6 +87,15 @@ export function evolutionConnectionState(instanceName) {
   return request(`/instance/connectionState/${encodeURIComponent(instanceName)}`);
 }
 
+export async function evolutionInstanceDetails(instanceName) {
+  const body = await request(`/instance/fetchInstances?instanceName=${encodeURIComponent(instanceName)}`);
+  const instances = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
+  return instances.find((item) => {
+    const name = item?.name || item?.instanceName || item?.instance?.instanceName;
+    return name === instanceName;
+  }) || instances[0] || null;
+}
+
 export function evolutionSendText(instanceName, number, text) {
   return request(`/message/sendText/${encodeURIComponent(instanceName)}`, {
     method: "POST",

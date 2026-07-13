@@ -1,4 +1,4 @@
-import { evolutionConnectionState } from "../../../../../../src/server/evolution-client.js";
+import { evolutionConnectionState, evolutionInstanceDetails } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { addWhatsAppActivity, ownedChannel, updateChannel } from "../../../../../../src/server/whatsapp-repository.js";
@@ -13,9 +13,12 @@ export async function POST(req, { params }) {
     const result = await evolutionConnectionState(channel.instanceName);
     const providerState = result?.instance?.state || result?.state || "disconnected";
     const status = ["open", "connected"].includes(providerState) ? "connected" : providerState === "connecting" ? "connecting" : "disconnected";
-    const owner = result?.instance?.owner || result?.instance?.ownerJid || result?.owner || "";
+    const details = status === "connected" ? await evolutionInstanceDetails(channel.instanceName).catch(() => null) : null;
+    const owner = details?.ownerJid || details?.owner || details?.instance?.ownerJid || details?.instance?.owner
+      || result?.instance?.owner || result?.instance?.ownerJid || result?.owner || "";
     const phoneNumber = String(owner).split("@")[0].replace(/\D/g, "") || undefined;
-    const deviceName = result?.instance?.profileName || result?.instance?.name || undefined;
+    const deviceName = details?.profileName || details?.profile?.name || details?.instance?.profileName
+      || result?.instance?.profileName || result?.instance?.name || undefined;
     const updated = await updateChannel(id, auth.session.tenantId, { status, phoneNumber, deviceName, qrBase64: status === "connected" ? null : undefined, lastError: null });
     if (status === "connected") await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.connected", title: "WhatsApp connected" });
     return Response.json({ ok: true, instanceId: id, status, phoneNumber: updated?.phoneNumber || null, checkedAt: new Date().toISOString() });

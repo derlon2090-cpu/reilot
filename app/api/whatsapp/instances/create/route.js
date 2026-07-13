@@ -1,8 +1,8 @@
-import { evolutionConnectionState, evolutionCreateInstance, evolutionDelete, isEvolutionInstanceMissing, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
+import { evolutionConnectionState, evolutionCreateInstance, isEvolutionInstanceMissing, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
 import { query } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
-import { addWhatsAppActivity, createChannel, deleteChannel, evolutionInstanceName, latestTenantChannel, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
+import { addWhatsAppActivity, createChannel, deleteChannel, evolutionInstanceName, latestTenantChannel, updateChannel, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -18,12 +18,9 @@ export async function POST(req) {
     try {
       const provider = await evolutionConnectionState(existing.instanceName);
       const providerState = provider?.instance?.state || provider?.state;
-      if (["open", "connected"].includes(providerState)) {
-        return Response.json({ ok: true, instance: withoutExpiredQr({ ...existing, status: "connected" }), existing: true });
-      }
-      await evolutionDelete(existing.instanceName);
-      await deleteChannel(existing.id, auth.session.tenantId);
-      await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.relink_started", title: "New Evolution instance requested" });
+      const status = ["open", "connected"].includes(providerState) ? "connected" : providerState === "connecting" ? "connecting" : "disconnected";
+      const updated = await updateChannel(existing.id, auth.session.tenantId, { status, lastError: null });
+      return Response.json({ ok: true, instance: withoutExpiredQr({ ...existing, ...updated, status }), existing: true });
     } catch (error) {
       if (!isEvolutionInstanceMissing(error)) {
         console.error("evolution instance validation failed", safeErrorMessage(error));

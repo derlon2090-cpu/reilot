@@ -5,6 +5,7 @@ import {
   disconnectEvolutionInstance,
   getEvolutionQr,
   getEvolutionStatus,
+  normalizeEvolutionPhone,
   requestEvolutionPairingCode,
   sendEvolutionMessage
 } from "../../src/lib/evolution.js";
@@ -32,6 +33,11 @@ function repository() {
 }
 
 describe("Evolution instance integration", () => {
+  it("normalizes Saudi local WhatsApp numbers to international format", () => {
+    expect(normalizeEvolutionPhone("0556915980")).toEqual({ ok: true, phoneNumber: "966556915980" });
+    expect(normalizeEvolutionPhone("966556915980")).toEqual({ ok: true, phoneNumber: "966556915980" });
+  });
+
   it("creates one instance per tenant and never returns the instance token", async () => {
     const repo = repository();
     const evolution = {

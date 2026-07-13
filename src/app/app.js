@@ -1162,8 +1162,7 @@ async function handleAction(target) {
     state.linkedDevice = { ...state.linkedDevice, qrLoading: true, qrImageLoaded: false, qrError: "", qrBase64: "", qrActive: false };
     render();
     try {
-      const created = await fetchJson("/api/whatsapp/instances/create", { method: "POST" });
-      const instance = created.instance;
+      const instance = await ensureEvolutionInstance();
       if (!instance?.id) throw new Error("تعذر إنشاء جلسة Evolution API.");
       state.linkedDevice = { ...state.linkedDevice, ...instance, instanceId: instance.id, instanceName: instance.instanceName || "", qrBase64: "" };
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`);
