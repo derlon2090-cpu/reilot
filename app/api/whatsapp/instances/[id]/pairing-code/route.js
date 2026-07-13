@@ -1,5 +1,5 @@
 import { normalizeEvolutionPhone } from "../../../../../../src/lib/evolution.js";
-import { evolutionConnectionState, evolutionPairingCode, isEvolutionPairingUnsupported, isEvolutionTimeout } from "../../../../../../src/server/evolution-client.js";
+import { evolutionConnectionState, evolutionPairingCode, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
@@ -62,6 +62,7 @@ export async function POST(req, { params }) {
     const errorMessage = safeErrorMessage(error);
     const unsupported = isEvolutionPairingUnsupported(error);
     const timeout = isEvolutionTimeout(error);
+    const unreachable = isEvolutionUnreachable(error);
     console.error("evolution pairing failed", errorMessage);
     await updateChannel(id, auth.session.tenantId, { lastError: errorMessage });
     await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.pairing_failed", title: "WhatsApp pairing code generation failed" }).catch(() => null);
@@ -87,6 +88,7 @@ export async function POST(req, { params }) {
     }).catch(() => null);
     if (unsupported) return Response.json({ ok: false, code: "PAIRING_CODE_NOT_SUPPORTED", message: "رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود." }, { status: 501 });
     if (timeout) return Response.json({ ok: false, code: "EVOLUTION_TIMEOUT", message: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." }, { status: 504 });
+    if (unreachable) return Response.json({ ok: false, code: "EVOLUTION_UNREACHABLE", message: "تعذر الوصول إلى خدمة Evolution حاليًا. تحقق من تشغيل الخادم ثم حاول مرة أخرى." }, { status: 503 });
     return Response.json({ ok: false, code: "PAIRING_CODE_FAILED", message: "تعذر إنشاء رمز الاقتران لهذه المحاولة. حاول مرة أخرى دون تغيير الجهاز." }, { status: 502 });
   }
 }

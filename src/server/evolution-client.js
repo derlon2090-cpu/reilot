@@ -22,6 +22,11 @@ async function request(path, init = {}) {
       timeoutError.timeoutMs = timeoutMs;
       throw timeoutError;
     }
+    if (error instanceof TypeError || /fetch failed|network|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH/i.test(String(error?.message || ""))) {
+      const unavailableError = new Error("Evolution API is unreachable");
+      unavailableError.code = "EVOLUTION_UNREACHABLE";
+      throw unavailableError;
+    }
     throw error;
   }
   const body = await response.json().catch(() => ({}));
@@ -35,6 +40,10 @@ export function isEvolutionInstanceMissing(error) {
 
 export function isEvolutionTimeout(error) {
   return error?.code === "EVOLUTION_TIMEOUT" || /Evolution request timed out/i.test(String(error?.message || ""));
+}
+
+export function isEvolutionUnreachable(error) {
+  return error?.code === "EVOLUTION_UNREACHABLE" || /Evolution API is unreachable/i.test(String(error?.message || ""));
 }
 
 export function isEvolutionPairingUnsupported(error) {

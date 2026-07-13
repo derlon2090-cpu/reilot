@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evolutionConnect, extractEvolutionPairingCode, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionConnect, extractEvolutionPairingCode, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
@@ -46,6 +46,25 @@ describe("normalizeEvolutionQr", () => {
     try {
       await expect(evolutionConnect("rp_test", undefined, 20)).rejects.toMatchObject({ code: "EVOLUTION_TIMEOUT", timeoutMs: 20 });
       await evolutionConnect("rp_test", undefined, 20).catch((error) => expect(isEvolutionTimeout(error)).toBe(true));
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EVOLUTION_API_URL; else process.env.EVOLUTION_API_URL = previousUrl;
+    }
+  });
+
+  it("returns a stable unavailable code for provider network failures", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.EVOLUTION_API_KEY;
+    const previousUrl = process.env.EVOLUTION_API_URL;
+    process.env.EVOLUTION_API_KEY = "test-key";
+    process.env.EVOLUTION_API_URL = "https://evolution.test";
+    globalThis.fetch = async () => { throw new TypeError("fetch failed"); };
+    try {
+      await evolutionConnect("rp_test").catch((error) => {
+        expect(error).toMatchObject({ code: "EVOLUTION_UNREACHABLE" });
+        expect(isEvolutionUnreachable(error)).toBe(true);
+      });
     } finally {
       globalThis.fetch = previousFetch;
       if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;

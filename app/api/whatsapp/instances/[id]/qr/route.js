@@ -1,4 +1,4 @@
-import { evolutionConnect, evolutionConnectionState, isEvolutionTimeout, normalizeEvolutionQr } from "../../../../../../src/server/evolution-client.js";
+import { evolutionConnect, evolutionConnectionState, isEvolutionTimeout, isEvolutionUnreachable, normalizeEvolutionQr } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
@@ -72,6 +72,7 @@ export async function GET(req, { params }) {
   } catch (error) {
     const errorMessage = safeErrorMessage(error);
     const timeout = isEvolutionTimeout(error);
+    const unreachable = isEvolutionUnreachable(error);
     console.error("evolution QR failed", errorMessage);
     await updateChannel(id, auth.session.tenantId, { status: "error", qrBase64: null, lastError: errorMessage });
     await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.qr_failed", title: "WhatsApp QR generation failed" }).catch(() => null);
@@ -95,6 +96,12 @@ export async function GET(req, { params }) {
         errorMessage
       }
     }).catch(() => null);
-    return Response.json({ ok: false, code: timeout ? "EVOLUTION_TIMEOUT" : "QR_GENERATION_FAILED", message: timeout ? "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." : "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى." }, { status: timeout ? 504 : 502 });
+    const code = timeout ? "EVOLUTION_TIMEOUT" : unreachable ? "EVOLUTION_UNREACHABLE" : "QR_GENERATION_FAILED";
+    const message = timeout
+      ? "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى."
+      : unreachable
+        ? "تعذر الوصول إلى خدمة Evolution حاليًا. تحقق من تشغيل الخادم ثم حاول مرة أخرى."
+        : "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.";
+    return Response.json({ ok: false, code, message }, { status: timeout ? 504 : unreachable ? 503 : 502 });
   }
 }
