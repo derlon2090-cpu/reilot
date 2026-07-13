@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractEvolutionPairingCode, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionConnect, extractEvolutionPairingCode, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
@@ -30,6 +30,27 @@ describe("normalizeEvolutionQr", () => {
     expect(isEvolutionPairingUnsupported(new Error("Evolution API 501: not implemented"))).toBe(true);
     expect(isEvolutionPairingUnsupported(new Error("pairing code not supported"))).toBe(true);
     expect(isEvolutionPairingUnsupported(new Error("HTTP 200 without a valid pairing code"))).toBe(false);
+  });
+
+  it("returns a stable timeout code when Evolution exceeds its deadline", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.EVOLUTION_API_KEY;
+    const previousUrl = process.env.EVOLUTION_API_URL;
+    process.env.EVOLUTION_API_KEY = "test-key";
+    process.env.EVOLUTION_API_URL = "https://evolution.test";
+    globalThis.fetch = async () => {
+      const error = new Error("The operation timed out");
+      error.name = "TimeoutError";
+      throw error;
+    };
+    try {
+      await expect(evolutionConnect("rp_test", undefined, 20)).rejects.toMatchObject({ code: "EVOLUTION_TIMEOUT", timeoutMs: 20 });
+      await evolutionConnect("rp_test", undefined, 20).catch((error) => expect(isEvolutionTimeout(error)).toBe(true));
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EVOLUTION_API_URL; else process.env.EVOLUTION_API_URL = previousUrl;
+    }
   });
 
   it("keeps the provider pairing-capable by creating instances without an eager QR", async () => {

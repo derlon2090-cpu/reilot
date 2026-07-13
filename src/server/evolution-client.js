@@ -8,11 +8,22 @@ function config() {
 async function request(path, init = {}) {
   const { baseUrl, apiKey } = config();
   const { timeoutMs = 15_000, ...fetchInit } = init;
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...fetchInit,
-    headers: { apikey: apiKey, "Content-Type": "application/json", ...(fetchInit.headers || {}) },
-    signal: AbortSignal.timeout(timeoutMs)
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...fetchInit,
+      headers: { apikey: apiKey, "Content-Type": "application/json", ...(fetchInit.headers || {}) },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+  } catch (error) {
+    if (["AbortError", "TimeoutError"].includes(error?.name) || /timed?\s*out|timeout/i.test(String(error?.message || ""))) {
+      const timeoutError = new Error(`Evolution request timed out after ${timeoutMs}ms`);
+      timeoutError.code = "EVOLUTION_TIMEOUT";
+      timeoutError.timeoutMs = timeoutMs;
+      throw timeoutError;
+    }
+    throw error;
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Evolution API ${response.status}: ${body?.message || "request failed"}`);
   return body;
@@ -20,6 +31,10 @@ async function request(path, init = {}) {
 
 export function isEvolutionInstanceMissing(error) {
   return /Evolution API 404:/i.test(String(error?.message || ""));
+}
+
+export function isEvolutionTimeout(error) {
+  return error?.code === "EVOLUTION_TIMEOUT" || /Evolution request timed out/i.test(String(error?.message || ""));
 }
 
 export function isEvolutionPairingUnsupported(error) {
@@ -76,22 +91,23 @@ export function evolutionCreateInstance(instanceName) {
   } : undefined;
   return request("/instance/create", {
     method: "POST",
-    body: JSON.stringify({ instanceName, qrcode: false, integration: "WHATSAPP-BAILEYS", ...(webhook ? { webhook } : {}) })
+    body: JSON.stringify({ instanceName, qrcode: false, integration: "WHATSAPP-BAILEYS", ...(webhook ? { webhook } : {}) }),
+    timeoutMs: 20_000
   });
 }
 
-export function evolutionConnect(instanceName, phoneNumber) {
+export function evolutionConnect(instanceName, phoneNumber, timeoutMs = 20_000) {
   const query = phoneNumber ? `?number=${encodeURIComponent(phoneNumber)}` : "";
-  return request(`/instance/connect/${encodeURIComponent(instanceName)}${query}`);
+  return request(`/instance/connect/${encodeURIComponent(instanceName)}${query}`, { timeoutMs });
 }
 
-export async function evolutionPairingCode(instanceName, phoneNumber) {
-  const body = await evolutionConnect(instanceName, phoneNumber);
+export async function evolutionPairingCode(instanceName, phoneNumber, timeoutMs = 20_000) {
+  const body = await evolutionConnect(instanceName, phoneNumber, timeoutMs);
   return { body, pairingCode: extractEvolutionPairingCode(body) };
 }
 
-export function evolutionConnectionState(instanceName) {
-  return request(`/instance/connectionState/${encodeURIComponent(instanceName)}`);
+export function evolutionConnectionState(instanceName, timeoutMs = 15_000) {
+  return request(`/instance/connectionState/${encodeURIComponent(instanceName)}`, { timeoutMs });
 }
 
 export async function evolutionInstanceDetails(instanceName) {
@@ -108,7 +124,7 @@ export function evolutionSendText(instanceName, number, text) {
   return request(`/message/sendText/${encodeURIComponent(instanceName)}`, {
     method: "POST",
     body: JSON.stringify({ number, text, delay: delayMs, linkPreview: false }),
-    timeoutMs: delayMs + 15_000
+    timeoutMs: delayMs + 20_000
   });
 }
 

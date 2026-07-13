@@ -251,7 +251,18 @@ function applyPreferences() {
 }
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, { credentials: "include", ...options });
+  const { timeoutMessage, ...fetchOptions } = options;
+  let response;
+  try {
+    response = await fetch(url, { credentials: "include", ...fetchOptions });
+  } catch (error) {
+    if (["AbortError", "TimeoutError"].includes(error?.name)) {
+      const timeoutError = new Error(timeoutMessage || "استغرق الطلب وقتًا أطول من المتوقع. حاول مرة أخرى.");
+      timeoutError.code = "EVOLUTION_TIMEOUT";
+      throw timeoutError;
+    }
+    throw error;
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed");
@@ -291,9 +302,9 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/whatsapp-safety" && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
 }
 
-async function ensureEvolutionInstance() {
+async function ensureEvolutionInstance(options = {}) {
   if (state.linkedDevice.instanceId) return state.linkedDevice;
-  const payload = await fetchJson("/api/whatsapp/instances/create", { method: "POST" });
+  const payload = await fetchJson("/api/whatsapp/instances/create", { method: "POST", ...options });
   state.linkedDevice = {
     ...state.linkedDevice,
     ...payload.instance,
@@ -1135,19 +1146,28 @@ async function handleAction(target) {
     render();
   }
   if (action === "create-pairing-code") {
-    const phone = String(state.linkedDevice.phoneInput || "").replace(/\D/g, "");
+    let phone = String(state.linkedDevice.phoneInput || "").replace(/\D/g, "");
+    if (/^05\d{8}$/.test(phone)) phone = `966${phone.slice(1)}`;
     if (!phone) return toast("يرجى إدخال رقم واتساب.", "danger");
     if (!/^[1-9]\d{9,14}$/.test(phone)) return toast("اكتب الرقم بصيغة دولية بدون + أو مسافات.", "danger");
     state.linkedDevice = { ...state.linkedDevice, phoneInput: phone, pairingLoading: true, pairingError: "", pairingCode: "" };
     render();
+    const requestSignal = AbortSignal.timeout(20_000);
     try {
-      const instance = await ensureEvolutionInstance();
+      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." });
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/pairing-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber: phone })
+        body: JSON.stringify({ phoneNumber: phone }),
+        signal: requestSignal,
+        timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى."
       });
-      if (!payload.pairingCode) throw new Error("رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.");
+      if (payload.type === "connected" || payload.status === "connected") {
+        state.linkedDevice = { ...state.linkedDevice, status: "connected", pairingError: "", pairingCode: "", qrActive: false, qrBase64: "" };
+        toast(payload.message || "الجهاز متصل بالفعل.", "success");
+        return;
+      }
+      if (!payload.pairingCode) throw new Error("لم يرجع Evolution رمز اقتران لهذه المحاولة. حاول مرة أخرى أو استخدم الباركود.");
       state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", pairingSupported: true, phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingError: "", pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast("تم إنشاء رمز الاقتران");
     } catch (error) {
@@ -1167,13 +1187,20 @@ async function handleAction(target) {
   if (action === "create-device-qr") {
     state.linkedDevice = { ...state.linkedDevice, qrLoading: true, qrImageLoaded: false, qrError: "", qrBase64: "", qrActive: false };
     render();
+    const requestSignal = AbortSignal.timeout(20_000);
     try {
-      const instance = await ensureEvolutionInstance();
+      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." });
       if (!instance?.id) throw new Error("تعذر إنشاء جلسة Evolution API.");
       state.linkedDevice = { ...state.linkedDevice, ...instance, instanceId: instance.id, instanceName: instance.instanceName || "", qrBase64: "" };
-      const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`);
-      if (!isRealQrDataUri(payload.qrBase64)) throw new Error("تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrImageLoaded: false, qrError: "", qrBase64: payload.qrBase64, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
+      const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`, { signal: requestSignal, timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." });
+      if (payload.type === "connected" || payload.status === "connected") {
+        state.linkedDevice = { ...state.linkedDevice, status: "connected", qrActive: false, qrImageLoaded: false, qrError: "", qrBase64: "" };
+        toast(payload.message || "الجهاز متصل بالفعل.", "success");
+        return;
+      }
+      const qrDataUri = payload.qrDataUri || payload.qrBase64;
+      if (!isRealQrDataUri(qrDataUri)) throw new Error("لم يرجع Evolution باركود صالح لهذه المحاولة.");
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrImageLoaded: false, qrError: "", qrBase64: qrDataUri, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
       toast("تم إنشاء باركود جديد عبر Evolution API");
       closePortal();
     } catch (error) {
@@ -1194,7 +1221,7 @@ async function handleAction(target) {
   if (action === "check-device-connection") {
     if (!["pending_qr", "pending_pairing", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
     try {
-      const payload = await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/check`, { method: "POST" });
+      const payload = await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/check`, { method: "POST", signal: AbortSignal.timeout(15_000), timeoutMessage: "استغرق فحص الاتصال وقتًا أطول من المتوقع." });
       state.linkedDevice = { ...state.linkedDevice, status: payload.status, phoneNumber: payload.phoneNumber || state.linkedDevice.phoneNumber, qrActive: payload.status !== "connected", qrImageLoaded: payload.status === "connected" ? false : state.linkedDevice.qrImageLoaded, qrBase64: payload.status === "connected" ? "" : state.linkedDevice.qrBase64, lastActivity: "الآن", lastCheckAt: "الآن", activity: [payload.status === "connected" ? "تم فحص الاتصال بنجاح" : "لا يزال الربط بانتظار واتساب", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast(payload.status === "connected" ? "الاتصال يعمل بنجاح" : "لم يكتمل الربط بعد", payload.status === "connected" ? "success" : "warning");
       render();
@@ -1380,21 +1407,29 @@ async function handleSubmit(form, event) {
     const button = form.querySelector("button[type='submit']");
     if (button) { button.disabled = true; button.textContent = t("common.loading"); }
     try {
-      await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/send-test`, {
+      const payload = await fetchJson(`/api/whatsapp/instances/${state.linkedDevice.instanceId}/send-test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(60_000),
+        timeoutMessage: "تم إرسال الطلب إلى واتساب، جارٍ التحقق من حالة الإرسال."
       });
+      if (payload.status === "pending_verification") {
+        closePortal();
+        toast(payload.message || "تم إرسال الطلب إلى واتساب، جارٍ التحقق من حالة الإرسال.", "warning");
+        render();
+        return;
+      }
       state.linkedDevice.messagesToday = (state.linkedDevice.messagesToday || 0) + 1;
       state.linkedDevice.messagesMonth = (state.linkedDevice.messagesMonth || 0) + 1;
       state.linkedDevice.lastSendAt = "الآن";
       state.linkedDevice.activity = ["تم إرسال رسالة اختبار بنجاح", ...(state.linkedDevice.activity || []).slice(0, 4)];
       closePortal();
-      toast("تم إرسال رسالة الاختبار بنجاح");
+      toast(payload.message || "تم إرسال رسالة الاختبار بنجاح.");
       render();
     } catch (error) {
       if (button) { button.disabled = false; button.textContent = "إرسال الاختبار"; }
-      toast(error.message || "تعذر إرسال رسالة الاختبار", "danger");
+      toast(error.message || "تعذر إرسال رسالة الاختبار. تحقق من اتصال واتساب.", error.code === "EVOLUTION_TIMEOUT" ? "warning" : "danger");
     }
     return;
   }

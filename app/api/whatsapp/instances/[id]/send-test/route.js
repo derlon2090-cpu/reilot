@@ -1,10 +1,10 @@
 import { normalizeEvolutionPhone } from "../../../../../../src/lib/evolution.js";
 import { evaluateMessageQuality } from "../../../../../../src/lib/messageSafety.js";
-import { evolutionSendText } from "../../../../../../src/server/evolution-client.js";
+import { evolutionSendText, isEvolutionTimeout } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { addWhatsAppActivity, ownedChannel } from "../../../../../../src/server/whatsapp-repository.js";
-import { transaction } from "../../../../../../src/server/db.js";
+import { query, transaction } from "../../../../../../src/server/db.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
 
 export async function POST(req, { params }) {
@@ -24,14 +24,44 @@ export async function POST(req, { params }) {
     await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "safe_mode", source: "send_test", sourceId: id, severity: "critical", message: "WhatsApp risk score is above 70", suggestedSolution: "Review recent failures and reduce sending volume before resuming." });
     return Response.json({ ok: false, message: "Sending is blocked because the WhatsApp risk score is above 70" }, { status: 423 });
   }
+
+  let notificationLogId;
   try {
-    const sent = await evolutionSendText(channel.instanceName, normalized.phoneNumber, message);
-    const providerMessageId = sent?.key?.id || sent?.id || null;
+    const processingLog = await query(
+      `INSERT INTO notification_logs (tenant_id, whatsapp_channel_id, channel, to_number, message_type, message_body, status)
+       VALUES ($1, $2, 'whatsapp', $3, 'test', $4, 'sending') RETURNING id`,
+      [auth.session.tenantId, id, normalized.phoneNumber, message]
+    );
+    notificationLogId = processingLog.rows[0]?.id;
+  } catch (error) {
+    console.error("unable to create WhatsApp sending log", safeErrorMessage(error));
+    return Response.json({ ok: false, code: "SEND_LOG_FAILED", message: "تعذر بدء إرسال رسالة الاختبار بأمان. حاول مرة أخرى." }, { status: 503 });
+  }
+
+  let sent;
+  try {
+    sent = await evolutionSendText(channel.instanceName, normalized.phoneNumber, message);
+  } catch (error) {
+    const errorMessage = safeErrorMessage(error);
+    const timeout = isEvolutionTimeout(error);
+    console.error("evolution test message failed", errorMessage);
+    if (timeout) {
+      await query("UPDATE notification_logs SET error_message = $2 WHERE id = $1", [notificationLogId, "Provider response timed out; delivery verification is pending"]).catch(() => null);
+      await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "whatsapp_send", source: "send_test", sourceId: id, severity: "warning", message: errorMessage, suggestedSolution: "Verify delivery status before retrying to avoid a duplicate message.", metadata: { notificationLogId, status: "pending_verification" } }).catch(() => null);
+      return Response.json({ ok: true, type: "pending", status: "pending_verification", message: "تم إرسال الطلب إلى واتساب، جارٍ التحقق من حالة الإرسال." }, { status: 202 });
+    }
+    await query("UPDATE notification_logs SET status = 'failed', error_message = $2 WHERE id = $1", [notificationLogId, errorMessage]).catch(() => null);
+    await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "whatsapp_send", source: "send_test", sourceId: id, message: errorMessage, suggestedSolution: "Verify the WhatsApp connection and recipient number, then retry.", metadata: { notificationLogId } }).catch(() => null);
+    return Response.json({ ok: false, code: "WHATSAPP_SEND_FAILED", message: "تعذر إرسال رسالة الاختبار. تحقق من اتصال واتساب." }, { status: 502 });
+  }
+
+  const providerMessageId = sent?.key?.id || sent?.id || null;
+  let auditPending = false;
+  try {
     await transaction(async (client) => {
       await client.query(
-        `INSERT INTO notification_logs (tenant_id, whatsapp_channel_id, channel, to_number, message_type, message_body, provider_message_id, status, sent_at)
-         VALUES ($1, $2, 'whatsapp', $3, 'test', $4, $5, 'sent', now())`,
-        [auth.session.tenantId, id, normalized.phoneNumber, message, providerMessageId]
+        `UPDATE notification_logs SET provider_message_id = $2, status = 'sent', sent_at = now(), error_message = NULL WHERE id = $1`,
+        [notificationLogId, providerMessageId]
       );
       await client.query(
         `INSERT INTO message_usage (tenant_id, month, year, used_messages, message_limit)
@@ -42,10 +72,11 @@ export async function POST(req, { params }) {
     });
     await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "send_test_message", title: "WhatsApp test message sent", metadata: { providerMessageId: sent?.key?.id || sent?.id || null } });
     await resolveOperationalIssues({ tenantId: auth.session.tenantId, category: "whatsapp_send", sourceId: id });
-    return Response.json({ ok: true, providerMessageId });
   } catch (error) {
-    console.error("evolution test message failed", safeErrorMessage(error));
-    await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "whatsapp_send", source: "send_test", sourceId: id, message: safeErrorMessage(error), suggestedSolution: "Verify the WhatsApp connection and recipient number, then retry." }).catch(() => null);
-    return Response.json({ ok: false, message: "Unable to send test message" }, { status: 502 });
+    auditPending = true;
+    const errorMessage = safeErrorMessage(error);
+    console.error("WhatsApp message sent but audit persistence failed", errorMessage);
+    await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "whatsapp_send_audit", source: "send_test", sourceId: id, severity: "warning", message: errorMessage, suggestedSolution: "Reconcile the sent notification log without resending the message.", metadata: { notificationLogId, providerMessageIdPresent: Boolean(providerMessageId) } }).catch(() => null);
   }
+  return Response.json({ ok: true, type: "sent", status: "sent", providerMessageId, auditPending, message: "تم إرسال رسالة الاختبار بنجاح." });
 }

@@ -1,8 +1,8 @@
-import { evolutionConnectionState, evolutionCreateInstance, isEvolutionInstanceMissing, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
+import { evolutionCreateInstance, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
 import { query } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
-import { addWhatsAppActivity, createChannel, deleteChannel, evolutionInstanceName, latestTenantChannel, updateChannel, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
+import { addWhatsAppActivity, createChannel, evolutionInstanceName, latestTenantChannel, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -15,20 +15,7 @@ export async function POST(req) {
   if (!auth.ok) return auth.response;
   const existing = await latestTenantChannel(auth.session.tenantId);
   if (existing) {
-    try {
-      const provider = await evolutionConnectionState(existing.instanceName);
-      const providerState = provider?.instance?.state || provider?.state;
-      const status = ["open", "connected"].includes(providerState) ? "connected" : providerState === "connecting" ? "connecting" : "disconnected";
-      const updated = await updateChannel(existing.id, auth.session.tenantId, { status, lastError: null });
-      return Response.json({ ok: true, instance: withoutExpiredQr({ ...existing, ...updated, status }), existing: true });
-    } catch (error) {
-      if (!isEvolutionInstanceMissing(error)) {
-        console.error("evolution instance validation failed", safeErrorMessage(error));
-        return Response.json({ ok: false, message: "Unable to validate WhatsApp instance" }, { status: 502 });
-      }
-      await deleteChannel(existing.id, auth.session.tenantId);
-      await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.stale_removed", title: "Stale Evolution instance removed" });
-    }
+    return Response.json({ ok: true, instance: withoutExpiredQr(existing), existing: true });
   }
   const capacity = await query(
     `SELECT COALESCE(pp.whatsapp_channels_limit, 1) AS channel_limit,
