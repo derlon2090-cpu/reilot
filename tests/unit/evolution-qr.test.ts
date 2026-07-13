@@ -32,6 +32,28 @@ describe("normalizeEvolutionQr", () => {
     expect(isEvolutionPairingUnsupported(new Error("HTTP 200 without a valid pairing code"))).toBe(false);
   });
 
+  it("keeps the provider pairing-capable by creating instances without an eager QR", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.EVOLUTION_API_KEY;
+    const previousUrl = process.env.EVOLUTION_API_URL;
+    process.env.EVOLUTION_API_KEY = "test-key";
+    process.env.EVOLUTION_API_URL = "https://evolution.test";
+    let payload = null;
+    globalThis.fetch = async (_url, init) => {
+      payload = JSON.parse(String(init?.body || "{}"));
+      return new Response(JSON.stringify({ instance: { instanceName: "rp_test" } }), { status: 201, headers: { "Content-Type": "application/json" } });
+    };
+    const { evolutionCreateInstance } = await import("../../src/server/evolution-client.js");
+    try {
+      await evolutionCreateInstance("rp_test");
+      expect(payload).toMatchObject({ instanceName: "rp_test", qrcode: false, integration: "WHATSAPP-BAILEYS" });
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EVOLUTION_API_URL; else process.env.EVOLUTION_API_URL = previousUrl;
+    }
+  });
+
   it("creates a unique tenant-scoped instance name for every link", () => {
     const first = evolutionInstanceName("tn8f3-example");
     const second = evolutionInstanceName("tn8f3-example");

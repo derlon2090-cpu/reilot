@@ -7,10 +7,11 @@ function config() {
 }
 async function request(path, init = {}) {
   const { baseUrl, apiKey } = config();
+  const { timeoutMs = 15_000, ...fetchInit } = init;
   const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: { apikey: apiKey, "Content-Type": "application/json", ...(init.headers || {}) },
-    signal: AbortSignal.timeout(15_000)
+    ...fetchInit,
+    headers: { apikey: apiKey, "Content-Type": "application/json", ...(fetchInit.headers || {}) },
+    signal: AbortSignal.timeout(timeoutMs)
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Evolution API ${response.status}: ${body?.message || "request failed"}`);
@@ -75,7 +76,7 @@ export function evolutionCreateInstance(instanceName) {
   } : undefined;
   return request("/instance/create", {
     method: "POST",
-    body: JSON.stringify({ instanceName, qrcode: true, integration: "WHATSAPP-BAILEYS", ...(webhook ? { webhook } : {}) })
+    body: JSON.stringify({ instanceName, qrcode: false, integration: "WHATSAPP-BAILEYS", ...(webhook ? { webhook } : {}) })
   });
 }
 
@@ -103,9 +104,11 @@ export async function evolutionInstanceDetails(instanceName) {
 }
 
 export function evolutionSendText(instanceName, number, text) {
+  const delayMs = Number(process.env.DEFAULT_MIN_DELAY_SECONDS || 20) * 1000;
   return request(`/message/sendText/${encodeURIComponent(instanceName)}`, {
     method: "POST",
-    body: JSON.stringify({ number, text, delay: Number(process.env.DEFAULT_MIN_DELAY_SECONDS || 20) * 1000, linkPreview: false })
+    body: JSON.stringify({ number, text, delay: delayMs, linkPreview: false }),
+    timeoutMs: delayMs + 15_000
   });
 }
 

@@ -18,6 +18,9 @@ export async function POST(req, { params }) {
   const { id } = await params;
   const channel = await ownedChannel(id, auth.session.tenantId);
   if (!channel) return Response.json({ ok: false, message: "Instance not found" }, { status: 404 });
+  if (channel.status === "connected") {
+    return Response.json({ ok: false, code: "INSTANCE_ALREADY_CONNECTED", message: "الجهاز متصل بالفعل ولا يحتاج إلى رمز اقتران جديد." }, { status: 409 });
+  }
 
   try {
     const result = await evolutionPairingCode(channel.instanceName, normalized.phoneNumber);
