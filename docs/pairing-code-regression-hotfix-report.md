@@ -13,5 +13,8 @@ Date: 2026-07-13
 7. A connected channel now returns `INSTANCE_ALREADY_CONNECTED` and remains connected.
 8. QR, Pairing Code, connection checks, and sending continue to use the channel's same `instance_name`.
 9. Focused verification: 13 tests passed and the production build passed.
+10. Browser verification returned a real eight-character provider code; the code itself is not recorded in this report.
+11. A stale database status can no longer restart pairing for an already-open provider session: the API checks Evolution first, restores `connected`, and returns `INSTANCE_ALREADY_CONNECTED`.
+12. The Pairing Code panel now exposes connection checking while pairing is pending.
 
 Decision: **PASS** for new or disconnected linking sessions. An already connected device does not require a new pairing code.

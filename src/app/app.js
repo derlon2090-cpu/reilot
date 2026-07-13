@@ -256,6 +256,7 @@ async function fetchJson(url, options = {}) {
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed");
     error.status = response.status;
+    error.code = payload.code;
     throw error;
   }
   return payload;
@@ -907,6 +908,7 @@ function connectedDevicesCenterPage() {
               <strong>${isPendingPairing ? device.pairingCode : "لا يوجد رمز بعد"}</strong>
               <small class="muted">${isPendingPairing ? `ينتهي خلال 60 ثانية - صالح حتى ${device.pairingExpiresAt}` : "سيظهر الرمز بعد إدخال رقم صحيح"}</small>
               <button class="btn btn-secondary" data-action="copy-pairing" ${!isPendingPairing ? "disabled" : ""}>نسخ الرمز</button>
+              <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingPairing && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
               <ul class="check-list"><li>اختر الربط برقم الهاتف في واتساب إذا ظهر لك.</li><li>أدخل رمز الاقتران الظاهر هنا.</li><li>انتظر حتى تصبح الحالة متصل.</li></ul>
             </div>
           </div>`}
@@ -1150,6 +1152,11 @@ async function handleAction(target) {
       toast("تم إنشاء رمز الاقتران");
     } catch (error) {
       const message = error.message || "تعذر إنشاء رمز الاقتران، حاول استخدام الباركود.";
+      if (error.code === "INSTANCE_ALREADY_CONNECTED") {
+        state.linkedDevice = { ...state.linkedDevice, status: "connected", pairingError: "", pairingCode: "", qrActive: false, qrBase64: "" };
+        toast(message, "success");
+        return;
+      }
       state.linkedDevice = { ...state.linkedDevice, pairingSupported: error.status === 501 ? false : state.linkedDevice.pairingSupported, pairingError: message, pairingCode: "" };
       toast(message, "danger");
     } finally {

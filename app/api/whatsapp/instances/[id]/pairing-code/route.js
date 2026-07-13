@@ -1,5 +1,5 @@
 import { normalizeEvolutionPhone } from "../../../../../../src/lib/evolution.js";
-import { evolutionPairingCode, isEvolutionPairingUnsupported } from "../../../../../../src/server/evolution-client.js";
+import { evolutionConnectionState, evolutionPairingCode, isEvolutionPairingUnsupported } from "../../../../../../src/server/evolution-client.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
@@ -19,6 +19,13 @@ export async function POST(req, { params }) {
   const channel = await ownedChannel(id, auth.session.tenantId);
   if (!channel) return Response.json({ ok: false, message: "Instance not found" }, { status: 404 });
   if (channel.status === "connected") {
+    return Response.json({ ok: false, code: "INSTANCE_ALREADY_CONNECTED", message: "الجهاز متصل بالفعل ولا يحتاج إلى رمز اقتران جديد." }, { status: 409 });
+  }
+
+  const providerConnection = await evolutionConnectionState(channel.instanceName).catch(() => null);
+  const providerState = providerConnection?.instance?.state || providerConnection?.state;
+  if (["open", "connected"].includes(providerState)) {
+    await updateChannel(id, auth.session.tenantId, { status: "connected", lastError: null });
     return Response.json({ ok: false, code: "INSTANCE_ALREADY_CONNECTED", message: "الجهاز متصل بالفعل ولا يحتاج إلى رمز اقتران جديد." }, { status: 409 });
   }
 
