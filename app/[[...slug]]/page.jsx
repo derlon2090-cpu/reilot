@@ -17,7 +17,7 @@ export default async function SpaPage({ params }) {
     <>
       <div id="app" />
       <div id="portal" />
-      <Script src="/app/app.js?v=20260712-qr-render-v2" type="module" strategy="afterInteractive" />
+      <Script src="/app/app.js?v=20260713-dashboard-system-v1" type="module" strategy="afterInteractive" />
     </>
   );
 }

@@ -1,4 +1,5 @@
-import { query } from "../../../src/server/db.js";
+import crypto from "node:crypto";
+import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 
 export async function GET(req) {
@@ -21,4 +22,39 @@ export async function GET(req) {
     [auth.session.tenantId]
   );
   return Response.json({ ok: true, items: result.rows });
+}
+
+const allowedStatuses = new Set(["active", "expiring_soon", "expired", "renewed", "paused", "cancelled"]);
+
+export async function POST(req) {
+  const auth = await requireSession(req);
+  if (!auth.ok) return auth.response;
+  const body = await req.json().catch(() => ({}));
+  if (!body.customerId || !body.serviceName || !body.planName || !body.startDate || !body.endDate) {
+    return Response.json({ ok: false, reason: "missing_fields" }, { status: 400 });
+  }
+  if (new Date(body.endDate) < new Date(body.startDate)) {
+    return Response.json({ ok: false, reason: "invalid_dates" }, { status: 400 });
+  }
+  const item = await transaction(async (client) => {
+    const customer = await client.query("SELECT id FROM customers WHERE id = $1 AND tenant_id = $2", [body.customerId, auth.session.tenantId]);
+    if (!customer.rows[0]) return null;
+    const orderNumber = String(body.orderNumber || `RP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`).trim();
+    const inserted = await client.query(
+      `INSERT INTO subscriptions (
+         tenant_id, customer_id, order_number, service_name, plan_name, start_date, end_date,
+         renewal_url, status, auto_renew, price, notes
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, order_number AS "orderNumber"`,
+      [auth.session.tenantId, body.customerId, orderNumber, body.serviceName, body.planName, body.startDate, body.endDate,
+        body.renewalUrl || null, allowedStatuses.has(body.status) ? body.status : "active", Boolean(body.autoRenew), Number(body.price || 0), body.notes || null]
+    );
+    await client.query(
+      `INSERT INTO activity_logs (tenant_id, user_id, customer_id, type, title, metadata)
+       VALUES ($1, $2, $3, 'subscription.created', 'Subscription created', $4::jsonb)`,
+      [auth.session.tenantId, auth.session.userId, body.customerId, JSON.stringify({ subscriptionId: inserted.rows[0].id, orderNumber })]
+    );
+    return inserted.rows[0];
+  });
+  return item ? Response.json({ ok: true, item }, { status: 201 }) : Response.json({ ok: false, reason: "customer_not_found" }, { status: 404 });
 }

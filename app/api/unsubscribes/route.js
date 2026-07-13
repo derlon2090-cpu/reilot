@@ -31,3 +31,17 @@ export async function POST(req) {
   );
   return Response.json({ ok: true, item: result.rows[0] }, { status: 201 });
 }
+
+export async function DELETE(req) {
+  const auth = await requireSession(req);
+  if (!auth.ok) return auth.response;
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return Response.json({ ok: false, reason: "missing_id" }, { status: 400 });
+  const result = await query("DELETE FROM unsubscribe_list WHERE id = $1 AND tenant_id = $2 RETURNING phone_number", [id, auth.session.tenantId]);
+  if (!result.rows[0]) return Response.json({ ok: false }, { status: 404 });
+  await query(
+    "INSERT INTO activity_logs (tenant_id, user_id, type, title, metadata) VALUES ($1, $2, 'unsubscribe.removed', 'Contact resubscribed', $3::jsonb)",
+    [auth.session.tenantId, auth.session.userId, JSON.stringify({ phoneNumber: result.rows[0].phone_number })]
+  );
+  return Response.json({ ok: true });
+}

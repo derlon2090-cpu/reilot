@@ -1,15 +1,4 @@
-import {
-  metrics,
-  features,
-  pricingPlans,
-  subscriptions as seedSubscriptions,
-  customers as seedCustomers,
-  renewals,
-  notifications as seedNotifications,
-  warrantyCases as seedWarrantyCases,
-  reports,
-  knowledgeBase
-} from "../data/appData.js";
+import { features, pricingPlans, knowledgeBase } from "../data/publicData.js";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -184,7 +173,7 @@ const defaultLinkedDevice = {
   lastSendAt: "",
   messagesToday: 0,
   messagesMonth: 0,
-  safetyScore: 96,
+  safetyScore: 0,
   queuedMessages: 0,
   alerts: [],
   activity: []
@@ -201,19 +190,19 @@ const state = {
   resetStep: 1,
   resetEmail: "",
   billing: storage.get("renewpilot.billing", "monthly"),
+  reportPeriod: "6",
   filter: "الكل",
   search: "",
-  notificationTab: "واتساب",
-  subscriptions: storage.get("renewpilot.subscriptions", seedSubscriptions),
-  customers: storage.get("renewpilot.customers", seedCustomers),
-  notifications: storage.get("renewpilot.notifications", seedNotifications),
-  warrantyCases: storage.get("renewpilot.warranty", seedWarrantyCases),
-  automation: storage.get("renewpilot.automation", { seven: true, three: true, same: false }),
-  settings: storage.get("renewpilot.settings", { whatsapp: true, email: true, sms: false, twoFactor: true, renewAuto: true }),
+  settings: { whatsapp: false, email: false, sms: false, twoFactor: false, renewAuto: false },
   linkedDevice: { ...defaultLinkedDevice }
 };
 
 state.dbSubscriptions = null;
+state.dbCustomers = null;
+state.dashboardOverview = null;
+state.activities = null;
+state.unsubscribes = null;
+state.accountSettings = null;
 state.readiness = null;
 state.operationalIssues = null;
 state.whatsappHealth = null;
@@ -227,22 +216,28 @@ const routes = [
 ];
 
 const dashboardRoutes = [
-  ["/dashboard", "sidebar.home", "⌂"],
-  ["/dashboard/subscriptions", "sidebar.subscriptions", "▣"],
-  ["/dashboard/customers", "sidebar.customers", "♙"],
-  ["/dashboard/renewals", "sidebar.renewals", "↻"],
-  ["/dashboard/notifications", "sidebar.notifications", "♢"],
-  ["/dashboard/connected-devices", "sidebar.linkedDevices", "🔗"],
-  ["/dashboard/whatsapp-safety", "sidebar.whatsappSafety", "◉"],
-  ["/dashboard/unsubscribe", "sidebar.unsubscribe", "⊘"],
-  ["/dashboard/warranty", "sidebar.warrantyCenter", "◇"],
-  ["/dashboard/reports", "sidebar.reports", "▥"],
-  ["/dashboard/activity", "sidebar.activity", "◷"],
-  ["/dashboard/readiness", "فحص الجاهزية", "✓"],
-  ["/dashboard/issues", "سجل المشاكل", "!"],
-  ["/dashboard/billing", "sidebar.billing", "▤"],
-  ["/dashboard/settings", "sidebar.settings", "⚙"]
+  ["/dashboard", "الرئيسية", "home"],
+  ["/dashboard/subscriptions", "الاشتراكات", "subscriptions"],
+  ["/dashboard/customers", "العملاء", "customers"],
+  ["/dashboard/devices", "الأجهزة", "devices"],
+  ["/dashboard/security", "الحماية", "security"],
+  ["/dashboard/reports", "التقارير", "reports"],
+  ["/dashboard/settings", "الإعدادات", "settings"]
 ];
+
+const dashboardAliases = {
+  "/dashboard/renewals": "/dashboard/subscriptions",
+  "/dashboard/notifications": "/dashboard/customers",
+  "/dashboard/connected-devices": "/dashboard/devices",
+  "/dashboard/linked-devices": "/dashboard/devices",
+  "/dashboard/whatsapp-safety": "/dashboard/security",
+  "/dashboard/unsubscribe": "/dashboard/security",
+  "/dashboard/warranty": "/dashboard/security",
+  "/dashboard/activity": "/dashboard/reports",
+  "/dashboard/billing": "/dashboard/reports",
+  "/dashboard/readiness": "/dashboard/security",
+  "/dashboard/issues": "/dashboard/security"
+};
 
 function applyPreferences() {
   document.documentElement.dataset.theme = state.theme;
@@ -287,6 +282,15 @@ async function loadRemotePage(key, url, target, options) {
   try {
     const payload = await fetchJson(url, options);
     state[target] = payload.items ?? payload.report ?? payload;
+    if (target === "accountSettings" && payload.settings) {
+      state.settings = {
+        whatsapp: Boolean(payload.settings.notificationChannels?.whatsapp),
+        email: Boolean(payload.settings.notificationChannels?.email),
+        sms: Boolean(payload.settings.notificationChannels?.sms),
+        twoFactor: Boolean(payload.settings.security?.twoFactor),
+        renewAuto: Boolean(payload.settings.security?.renewAuto)
+      };
+    }
   } catch (error) {
     state[target] = { error: error.message || "تعذر تحميل البيانات" };
   } finally {
@@ -296,10 +300,12 @@ async function loadRemotePage(key, url, target, options) {
 }
 
 function syncRouteData(force = false) {
+  if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
   if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
-  if (state.route === "/dashboard/readiness" && (force || state.readiness === null)) void loadRemotePage("readiness", "/api/readiness", "readiness", force ? { method: "POST" } : undefined);
-  if (state.route === "/dashboard/issues" && (force || state.operationalIssues === null)) void loadRemotePage("issues", "/api/issues", "operationalIssues");
-  if (state.route === "/dashboard/whatsapp-safety" && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
+  if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
+  if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
+  if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
+  if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) void loadRemotePage("settings", "/api/settings", "accountSettings");
 }
 
 async function ensureEvolutionInstance(options = {}) {
@@ -343,6 +349,7 @@ async function browserSessionIsValid() {
 
 async function navigate(to) {
   const url = new URL(to, location.origin);
+  url.pathname = dashboardAliases[url.pathname] || url.pathname;
   if (url.pathname.startsWith("/dashboard")) {
     if (!await browserSessionIsValid()) {
       history.pushState({}, "", "/login");
@@ -361,7 +368,7 @@ async function navigate(to) {
   state.search = "";
   state.filter = "الكل";
   render();
-  if (["/dashboard/connected-devices", "/dashboard/linked-devices"].includes(state.route)) void syncLinkedDevice();
+  if (state.route === "/dashboard/devices") void syncLinkedDevice();
 }
 
 async function enterDashboardAfterSessionVerification() {
@@ -378,15 +385,24 @@ async function enterDashboardAfterSessionVerification() {
 }
 
 function toneClass(value = "") {
-  if (["نشط", "تم التجديد", "تم التسليم", "محلولة", "منخفض"].some((x) => value.includes(x))) return "success";
-  if (["قريب", "انتظار", "مراجعة", "متوسطة"].some((x) => value.includes(x))) return "warning";
-  if (["متأخر", "فشلت", "عالية", "مرتفع"].some((x) => value.includes(x))) return "danger";
-  if (["موقوف"].some((x) => value.includes(x))) return "neutral";
+  const normalized = String(value).toLowerCase();
+  if (["نشط", "تم التجديد", "تم التسليم", "محلولة", "منخفض", "active", "renewed", "connected", "sent", "delivered", "read"].some((x) => normalized.includes(x))) return "success";
+  if (["قريب", "انتظار", "مراجعة", "متوسطة", "pending", "expiring", "connecting"].some((x) => normalized.includes(x))) return "warning";
+  if (["متأخر", "فشلت", "عالية", "مرتفع", "expired", "failed", "error", "risk"].some((x) => normalized.includes(x))) return "danger";
+  if (["موقوف", "paused", "inactive", "disconnected", "cancelled"].some((x) => normalized.includes(x))) return "neutral";
   return "info";
 }
 
 function status(value) {
-  return `<span class="status ${toneClass(value)}">${value}</span>`;
+  const labels = state.language === "ar" ? {
+    active: "نشط", inactive: "غير نشط", expiring_soon: "ينتهي قريبًا", expired: "منتهي",
+    renewed: "تم التجديد", paused: "موقوف", cancelled: "ملغي", connected: "متصل",
+    disconnected: "غير متصل", not_connected: "غير متصل", pending_qr: "بانتظار الباركود",
+    pending_pairing: "بانتظار الاقتران", connecting: "جارٍ الاتصال", sent: "تم الإرسال",
+    delivered: "تم التسليم", read: "تمت القراءة", failed: "فشل"
+  } : {};
+  const label = labels[value] || value || (state.language === "ar" ? "غير محدد" : "Unknown");
+  return `<span class="status ${toneClass(value)}">${escapeHtml(label)}</span>`;
 }
 
 function icon(text, tone = "") {
@@ -396,8 +412,22 @@ function icon(text, tone = "") {
 function logo() {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="RenewPilot AI">
-    <span class="brand-mark">R</span><span>RenewPilot AI</span>
+    <span class="brand-mark" aria-hidden="true"><span>R</span></span><span class="brand-wordmark">RenewPilot <b>AI</b></span>
   </button>`;
+}
+
+function dashboardIcon(name) {
+  const paths = {
+    home: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    subscriptions: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 15h4"/>',
+    customers: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    devices: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
+    notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>'
+  };
+  return `<svg class="line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.home}</svg>`;
 }
 
 function publicNavbar() {
@@ -434,10 +464,31 @@ function pageHero(title, lead, actions = "") {
 }
 
 function statGrid(items) {
-  return `<div class="grid grid-5">${items.map((item) => `<article class="card stat-card">
-    <div><span class="muted">${item.title}</span><strong>${item.value}</strong><small class="status ${item.tone === "purple" ? "info" : item.tone}">${item.change || "مباشر"}</small></div>
-    ${icon(state.language === "en" ? "•" : item.title.slice(0, 1), item.tone === "purple" ? "purple" : "")}
+  return `<div class="grid grid-5 dashboard-stat-grid">${items.map((item) => `<article class="card stat-card ${item.tone || "info"}">
+    <div><span class="muted">${item.title}</span><strong>${item.value}</strong><small>${item.caption || item.change || ""}</small></div>
+    <span class="stat-card-icon">${dashboardIcon(item.icon || "reports")}</span>
   </article>`).join("")}</div>`;
+}
+
+function formatMoney(value) {
+  return `${Number(value || 0).toLocaleString(state.language === "ar" ? "ar-SA" : "en-US", { maximumFractionDigits: 2 })} ${state.language === "ar" ? "ر.س" : "SAR"}`;
+}
+
+function overviewStats() {
+  return state.dashboardOverview?.stats || {
+    totalSubscriptions: 0, upcomingRenewals: 0, expiredSubscriptions: 0,
+    totalCustomers: 0, activeCustomers: 0, activeToday: 0,
+    connectedDevices: 0, pendingDevices: 0, monthlyRevenue: 0,
+    totalMessages: 0, sentMessages: 0, deliveryRate: 0, successRate: 0,
+    blockedNumbers: 0, safeRules: 0, renewedCustomers: 0
+  };
+}
+
+function performanceChart(rows = []) {
+  const values = rows.map((row) => Number(row.value || 0));
+  const max = Math.max(...values, 0);
+  if (!max) return emptyState("لا توجد بيانات أداء بعد", "ستظهر حركة الإيراد هنا بعد إضافة الاشتراكات.");
+  return `<div class="performance-chart" aria-label="الأداء خلال ستة أشهر">${rows.map((row) => `<div class="performance-column"><span style="height:${Math.max(8, Math.round((Number(row.value || 0) / max) * 100))}%"></span><small>${escapeHtml(row.month)}</small></div>`).join("")}</div>`;
 }
 
 function dashboardPreview() {
@@ -452,11 +503,11 @@ function dashboardPreview() {
       </aside>
       <main class="preview-main">
         <div class="preview-stats">
-          ${["1,256", "86", "324", "184K"].map((value) => `<div class="preview-stat"><span class="muted">مؤشر</span><strong>${value}</strong></div>`).join("")}
+          ${Array.from({ length: 4 }, () => `<div class="preview-stat art-skeleton"><span></span><strong></strong></div>`).join("")}
         </div>
         <div class="table-skeleton">
           ${Array.from({ length: 6 }).map((_, index) => `<div class="sk-row">
-            <span class="fake-line ${index === 0 ? "active" : ""}"></span><span class="fake-line"></span><span class="fake-line"></span><span class="status ${index % 2 ? "success" : "warning"}">${index % 2 ? "نشط" : "قريب"}</span>
+            <span class="fake-line ${index === 0 ? "active" : ""}"></span><span class="fake-line"></span><span class="fake-line"></span><span class="fake-line"></span>
           </div>`).join("")}
         </div>
         <div class="bars">${[45, 68, 55, 82, 74, 96].map((h, i) => `<div class="bar" style="height:${h}%"><span>${["س", "ح", "ن", "ث", "ر", "خ"][i]}</span></div>`).join("")}</div>
@@ -612,8 +663,8 @@ function loginPage() {
         <p>${state.language === "ar" ? "الطريقة الذكية لإدارة التجديدات بثقة وأمان." : "The intelligent way to manage renewals. Track. Automate. Renew with confidence."}</p>
         <div class="auth-dashboard-art">
           <div class="art-top"><strong>${t("dashboard.title")}</strong><span></span></div>
-          <div class="art-stats">${["1,248,750", "324", "98", "23"].map((value) => `<span><small>${state.language === "ar" ? "الإجمالي" : "Total"}</small><strong>${value}</strong></span>`).join("")}</div>
-          <div class="art-table">${(state.language === "ar" ? ["اشتراك احترافي", "باقة أعمال", "خدمة المركبات", "خدمة رقمية"] : ["Professional Indemnity", "Commercial Property", "Motor Fleet", "Cyber Insurance"]).map((item, index) => `<div><span>${item}</span><b>${index === 2 ? (state.language === "ar" ? "قريب" : "Due Soon") : t("common.active")}</b></div>`).join("")}</div>
+          <div class="art-stats">${Array.from({ length: 4 }, () => `<span class="art-skeleton"><small></small><strong></strong></span>`).join("")}</div>
+          <div class="art-table">${Array.from({ length: 4 }, () => `<div class="art-skeleton-row"><span></span><b></b></div>`).join("")}</div>
         </div>
         <div class="auth-feature-row">
           <span>🔔 ${state.language === "ar" ? "تنبيهات ذكية" : "Smart Reminders"}</span><span>↻ ${state.language === "ar" ? "تتبع التجديد" : "Renewal Tracking"}</span><span>👥 ${state.language === "ar" ? "بوابة العملاء" : "Customer Portal"}</span>
@@ -635,26 +686,30 @@ function forgotPasswordPage() {
 }
 
 function dashboardShell(content) {
-  const links = dashboardRoutes.map(([path, key, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}"><span>${mark}</span>${t(key)}</button>`).join("");
+  const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : ({ "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "الأجهزة": "Devices", "الحماية": "Security", "التقارير": "Reports", "الإعدادات": "Settings" }[label])}</span></button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
+  const profile = state.dashboardOverview?.profile || {};
+  const profileName = profile.name || (state.language === "ar" ? "المستخدم" : "User");
+  const profileInitial = profileName.trim().slice(0, 1) || "R";
+  const planName = profile.planName || (state.language === "ar" ? "تجربة مجانية" : "Free Trial");
   return `<div class="dashboard-shell">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
-      ${logo()}
+      <div class="sidebar-brand">${logo()}</div>
       <nav class="side-links">${links}</nav>
-      <div class="ai-side"><strong>${t("dashboard.assistant")}</strong><p class="muted">${t("dashboard.assistantText")}</p><button class="btn btn-secondary" data-action="show-ai-tips">${state.language === "ar" ? "عرض الاقتراحات" : "View suggestions"}</button></div>
+      <div class="sidebar-foot"><span class="sidebar-foot-icon">AI</span><div><strong>RenewPilot AI</strong><small>${state.language === "ar" ? "إدارة التجديدات بوضوح" : "Renewals, clearly managed"}</small></div></div>
     </aside>
     <main class="dashboard-main">
       <header class="topbar">
         <div class="topbar-tools">
           <button class="btn btn-secondary icon-btn mobile-side-toggle" data-action="toggle-sidebar">☰</button>
-          <div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${t("dashboard.search")}" value="${state.search}"></div>
+          <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${state.search}"></div>
         </div>
         <div class="topbar-tools">
-          <span class="badge">Pro Plan</span>
-          <button class="btn btn-ghost icon-btn" data-action="notifications">🔔</button>
-          <button class="btn btn-ghost icon-btn" data-action="theme">${themeIcon}</button>
+          <span class="plan-badge">${escapeHtml(planName)}</span>
+          <button class="btn btn-ghost icon-btn" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
+          <button class="btn btn-ghost icon-btn" data-action="notifications" title="${state.language === "ar" ? "التنبيهات" : "Notifications"}">${dashboardIcon("notifications")}</button>
           <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
-          <button class="profile-trigger" data-action="profile-menu"><span class="avatar">م</span><strong>${state.language === "ar" ? "محمد المدير" : "Mohammed, Admin"}</strong></button>
+          <button class="profile-trigger" data-action="profile-menu"><span class="avatar">${escapeHtml(profileInitial)}</span><span><strong>${escapeHtml(profileName)}</strong><small>${escapeHtml(profile.email || "")}</small></span></button>
           ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
         </div>
       </header>
@@ -664,34 +719,54 @@ function dashboardShell(content) {
 }
 
 function dashboardHome() {
+  const stats = overviewStats();
   const latest = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions.slice(0, 5) : [];
   const latestContent = state.dbSubscriptions?.error
-    ? emptyState(escapeHtml(state.dbSubscriptions.error))
+    ? emptyState("تعذر تحميل الاشتراكات", escapeHtml(state.dbSubscriptions.error))
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
-      : latest.length ? subscriptionsTable(latest, true) : emptyState("لا توجد اشتراكات في قاعدة البيانات");
-  return dashboardShell(`${pageTitle("نظرة عامة", `<button class="btn btn-primary" data-link="/dashboard/subscriptions">عرض جميع الاشتراكات</button>`)}
-    ${statGrid(metrics.dashboard)}
-    <div class="section split">
-      <article class="card table-card"><div class="section-head"><div><h2>أحدث الاشتراكات</h2><p class="muted">آخر عمليات نشطة ومجدولة.</p></div></div>${latestContent}</article>
-      <article class="card chart-card"><h2>الإيرادات</h2>${barsChart(reports.revenue)}<button class="btn btn-secondary" data-action="export-report">تصدير التقرير</button></article>
+      : latest.length ? subscriptionsTable(latest, true) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
+  const activities = (state.dashboardOverview?.activities || []).filter((item) => !String(item.type || "").startsWith("auth."));
+  const hasBusinessData = stats.totalSubscriptions > 0 || stats.totalCustomers > 0 || stats.connectedDevices > 0;
+  const alertDisabled = stats.connectedDevices > 0 ? "" : "disabled";
+  return dashboardShell(`${pageTitle("الرئيسية", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button>`)}
+    ${!hasBusinessData ? `<section class="welcome-panel"><div><span class="welcome-kicker">RenewPilot AI</span><h2>مرحبًا بك في RenewPilot AI</h2><p>ابدأ بإضافة أول عميل أو ربط جهازك. لن تظهر هنا أي بيانات ما لم تضفها أنت.</p></div><div class="welcome-actions"><button class="btn btn-primary" data-action="add-customer">إضافة أول عميل</button><button class="btn btn-secondary" data-link="/dashboard/devices">ربط جهاز</button></div></section>` : ""}
+    ${statGrid([
+      { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
+      { title: "التجديدات القادمة", value: stats.upcomingRenewals, caption: "خلال 7 أيام", tone: "warning", icon: "reports" },
+      { title: "العملاء النشطون", value: stats.activeCustomers, caption: "عميل", tone: "success", icon: "customers" },
+      { title: "حالة واتساب", value: stats.connectedDevices > 0 ? "متصل" : "غير متصل", caption: `${stats.connectedDevices} جهاز`, tone: stats.connectedDevices > 0 ? "success" : "neutral", icon: "devices" },
+      { title: "معدل التسليم", value: `${stats.deliveryRate || 0}%`, caption: `${stats.totalMessages || 0} رسالة`, tone: "purple", icon: "reports" }
+    ])}
+    <section class="quick-actions section"><div class="section-head"><div><h2>إجراءات سريعة</h2><p class="muted">ابدأ المهمة مباشرة من هنا.</p></div></div><div class="quick-action-grid">
+      <button class="quick-action" data-action="add-subscription">${dashboardIcon("subscriptions")}<span>إضافة اشتراك جديد</span></button>
+      <button class="quick-action" data-action="add-customer">${dashboardIcon("customers")}<span>إضافة عميل</span></button>
+      <button class="quick-action" data-link="/dashboard/devices">${dashboardIcon("devices")}<span>ربط جهاز جديد</span></button>
+      <button class="quick-action" data-action="send-message" ${alertDisabled} title="${alertDisabled ? "اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات." : "إرسال تنبيه"}">${dashboardIcon("reports")}<span>إرسال تنبيه</span></button>
+      <button class="quick-action" data-link="/dashboard/security">${dashboardIcon("security")}<span>قائمة إيقاف الرسائل</span></button>
+    </div></section>
+    <div class="section dashboard-two-column">
+      <article class="card table-card"><div class="section-head"><div><h2>أحدث الاشتراكات</h2><p class="muted">بيانات حقيقية تخص مساحة عملك فقط.</p></div><button class="text-button" data-link="/dashboard/subscriptions">عرض الكل</button></div>${latestContent}</article>
+      <article class="card chart-card"><div class="section-head"><div><h2>أداء الإيرادات</h2><p class="muted">آخر 6 أشهر</p></div></div>${performanceChart(state.dashboardOverview?.monthlyPerformance || [])}</article>
     </div>
-    <div class="split">
-      <article class="card table-card"><h2>النشاط الأخير</h2>${activityList()}</article>
-      ${aiCard()}
-    </div>`);
+    <article class="card table-card section"><div class="section-head"><div><h2>أحدث النشاطات</h2><p class="muted">العمليات الفعلية داخل الحساب.</p></div><button class="text-button" data-link="/dashboard/reports">سجل النشاط</button></div>${activities.length ? activityList(activities) : emptyState("لا توجد نشاطات بعد", "ستظهر العمليات التي تنفذها داخل المنصة هنا.")}</article>`);
 }
 
 function pageTitle(title, actions = "") {
-  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">RenewPilot AI · ${t(state.theme === "dark" ? "settings.dark" : "settings.light")}</p></div><div class="toolbar">${actions}</div></div>`;
+  const descriptions = {
+    "الرئيسية": "ملخص أعمالك الحقيقي من قاعدة البيانات.",
+    "إدارة الاشتراكات": "تابع الاشتراكات والتجديدات في مكان واحد.",
+    "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
+    "الأجهزة": "اربط واتساب وتحقق من حالة الاتصال الفعلية.",
+    "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
+    "التقارير": "المؤشرات وسجل النشاط والفوترة.",
+    "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
+  };
+  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "RenewPilot AI"}</p></div><div class="toolbar">${actions}</div></div>`;
 }
 
-function activityList() {
-  return `<div class="activity-list">${["تم إرسال تنبيه تجديد إلى سارة العتيبي", "تم نسخ رابط التجديد للطلب #RP-1047", "تم تحديث حالة ضمان WR-2201", "تم حفظ إعدادات التنبيهات"].map((item, i) => `<div class="activity-item">${icon(String(i + 1), i === 2 ? "purple" : "")}<div><strong>${item}</strong><p class="muted">منذ ${i + 1} دقائق</p></div></div>`).join("")}</div>`;
-}
-
-function aiCard() {
-  return `<article class="card table-card"><h2>اقتراحات RenewPilot AI</h2><p class="muted">العميل سارة العتيبي يستجيب غالبًا بعد الظهر. استخدم رسالة مختصرة مع رابط التجديد.</p><div class="inline-actions"><button class="btn btn-primary" data-action="copy-ai-message">استخدام الرسالة</button><button class="btn btn-secondary" data-action="show-ai-tips">عرض المزيد من الاقتراحات</button></div></article>`;
+function activityList(items = []) {
+  return `<div class="activity-list">${items.map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item.title || item.type || "نشاط")}</strong><p class="muted">${escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString(state.language === "ar" ? "ar-SA" : "en-US") : "")}</p></div></div>`).join("")}</div>`;
 }
 
 function barsChart(values) {
@@ -717,33 +792,38 @@ function issuesPage() {
 }
 
 function subscriptionsPage() {
+  const stats = overviewStats();
   const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
   const rows = filterRows(source, ["orderNumber", "customerName", "planName", "status"]);
   const content = state.dbSubscriptions?.error
     ? `<div class="empty-state"><strong>تعذر تحميل الاشتراكات</strong><p class="muted">${escapeHtml(state.dbSubscriptions.error)}</p><button class="btn btn-secondary" data-action="reload-subscriptions">إعادة المحاولة</button></div>`
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
-      : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات في قاعدة البيانات");
-  return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك جديد</button><button class="btn btn-secondary" data-action="bulk-import">لصق من Excel</button><button class="btn btn-secondary" data-action="columns">أعمدة</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير</button>`)}
-    ${tableToolbar(["الكل", "نشط", "تنتهي قريبًا", "متأخر", "موقوف", "تم التجديد"])}
+      : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
+  return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير CSV</button>`)}
+    ${statGrid([
+      { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
+      { title: "التجديدات خلال 7 أيام", value: stats.upcomingRenewals, caption: "قادم", tone: "warning", icon: "reports" },
+      { title: "الاشتراكات المنتهية", value: stats.expiredSubscriptions, caption: "منتهي", tone: "danger", icon: "security" },
+      { title: "الإيراد الشهري", value: formatMoney(stats.monthlyRevenue), caption: "من الاشتراكات", tone: "success", icon: "reports" }
+    ])}
+    ${tableToolbar(["الكل", "active", "expiring_soon", "expired", "paused", "renewed"])}
     <article class="card table-card">${content}</article>`);
 }
 
 function subscriptionsTable(rows, compact = false) {
-  const head = ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة", "حالة واتساب", "الإجراءات"];
+  const head = compact ? ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة"] : ["رقم الطلب", "العميل", "الباقة / الخدمة", "تاريخ البداية", "تاريخ الانتهاء", "الحالة", "الإجراء"];
   const body = rows.map((row) => {
     const disabled = row.canSend ? "" : "disabled";
     const reason = row.whatsappStatus !== "connected" ? "يجب ربط واتساب أولًا" : Number(row.riskScore) > 70 ? "الإرسال متوقف بسبب ارتفاع المخاطر" : row.remindersPaused ? "التذكيرات موقوفة لهذا العميل" : "";
     const actions = `<div class="subscription-actions">
       <button class="btn btn-primary" data-action="mark-renewed" data-id="${row.id}">تم التجديد</button>
       <button class="btn btn-secondary" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="${escapeHtml(reason)}">إرسال تذكير</button>
-      <button class="btn btn-ghost" data-action="copy-renewal" data-link-value="${escapeHtml(row.renewalUrl || "")}" ${row.renewalUrl ? "" : "disabled"}>نسخ رابط التجديد</button>
-      <button class="btn btn-ghost" data-action="subscription-notifications" data-id="${row.id}">سجل التنبيهات</button>
-      <button class="btn btn-ghost" data-action="edit-customer-phone" data-customer-id="${row.customerId}" data-phone="${escapeHtml(row.whatsappNumber || row.phone || "")}">تعديل الرقم</button>
-      <button class="btn btn-danger" data-action="toggle-customer-reminders" data-customer-id="${row.customerId}" data-paused="${row.remindersPaused}">${row.remindersPaused ? "استئناف التذكيرات" : "إيقاف التذكيرات"}</button>
-      <button class="btn btn-secondary" data-action="customer-timeline" data-customer-id="${row.customerId}">Timeline</button>
+      <button class="btn btn-ghost icon-only" data-action="subscription-edit-db" data-id="${row.id}" title="تعديل">${dashboardIcon("settings")}</button>
+      <button class="btn btn-ghost icon-only danger-text" data-action="subscription-delete-db" data-id="${row.id}" title="حذف">×</button>
     </div>`;
-    return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td>${escapeHtml(row.planName)}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td><td>${status(row.whatsappStatus)}</td><td>${actions}</td></tr>`;
+    if (compact) return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td>${escapeHtml(row.planName)}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td></tr>`;
+    return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small></td><td>${escapeHtml(String(row.startDate).slice(0, 10))}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td><td>${actions}</td></tr>`;
   }).join("");
   return `<div class="compare"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
@@ -774,86 +854,80 @@ function filterRows(rows, keys) {
 }
 
 function customersPage() {
-  const rows = filterRows(state.customers, ["name", "email", "phone", "plan", "status"]);
-  return dashboardShell(`${pageTitle("إدارة العملاء", `<button class="btn btn-primary" data-action="add-customer">إضافة عميل</button><button class="btn btn-secondary" data-action="send-message">إرسال رسالة</button>`)}
-    ${statGrid(metrics.customers)}
-    ${tableToolbar(["الكل", "نشط", "تنتهي قريبًا", "متأخر", "تم التجديد"])}
-    <article class="card table-card">${customersTable(rows)}</article>`);
+  const stats = overviewStats();
+  const source = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
+  const rows = filterRows(source, ["name", "email", "phone", "serviceName", "status"]);
+  const recentNotifications = state.dashboardOverview?.recentNotifications || [];
+  const content = state.dbCustomers?.error ? emptyState("تعذر تحميل العملاء", escapeHtml(state.dbCustomers.error)) : state.dbCustomers === null ? `<div class="loading-state">جاري تحميل العملاء...</div>` : rows.length ? customersTable(rows) : emptyState("لا يوجد عملاء بعد", "أضف أول عميل لبدء إدارة الاشتراكات والتنبيهات.", "إضافة عميل", "add-customer");
+  const sendDisabled = stats.connectedDevices > 0 ? "" : "disabled";
+  return dashboardShell(`${pageTitle("العملاء", `<button class="btn btn-primary" data-action="add-customer">إضافة عميل</button><button class="btn btn-secondary" data-action="import-customers">استيراد CSV</button><button class="btn btn-secondary" data-action="export-customers">تصدير CSV</button>`)}
+    ${statGrid([
+      { title: "إجمالي العملاء", value: stats.totalCustomers, caption: "عميل", tone: "info", icon: "customers" },
+      { title: "النشطون اليوم", value: stats.activeToday, caption: "اليوم", tone: "success", icon: "customers" },
+      { title: "العملاء المميزون", value: 0, caption: "حسب التصنيف", tone: "purple", icon: "customers" },
+      { title: "معدل الاستجابة", value: `${stats.deliveryRate || 0}%`, caption: "من التنبيهات", tone: "warning", icon: "reports" }
+    ])}
+    ${tableToolbar(["الكل", "active", "inactive"])}
+    <article class="card table-card">${content}</article>
+    <article class="card table-card section"><div class="section-head"><div><h2>أحدث التنبيهات</h2><p class="muted">رسائل العملاء المسجلة فعليًا.</p></div><button class="btn btn-secondary" data-action="send-message" ${sendDisabled} title="${sendDisabled ? "اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات." : "إرسال تنبيه"}">إرسال تنبيه</button></div>${recentNotifications.length ? `<div class="notification-list">${recentNotifications.map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item.customerName || item.toNumber || "تنبيه")}</strong><p class="muted">${escapeHtml(item.channel)} · ${escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "")}</p></div>${status(item.status)}</div>`).join("")}</div>` : emptyState("لا توجد تنبيهات بعد", "ستظهر سجلات التنبيهات بعد أول عملية إرسال.")}</article>`);
 }
 
 function customersTable(rows) {
-  if (!rows.length) return emptyState("لا يوجد عملاء مطابقون");
-  const body = rows.map((row) => `<tr><td>${row.name}</td><td>${row.email}</td><td>${row.phone}</td><td>${row.plan}</td><td>${row.renewal}</td><td>${status(row.status)}</td><td>${row.total}</td><td>${rowActions("customer", row.email)}</td></tr>`).join("");
-  return `<div class="compare"><table><thead><tr>${["العميل", "البريد", "الجوال", "الباقة", "تاريخ التجديد", "الحالة", "القيمة الإجمالية", "الإجراء"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
-}
-
-function renewalsPage() {
-  const columns = ["اليوم", "خلال 3 أيام", "هذا الأسبوع", "متأخر"];
-  return dashboardShell(`${pageTitle("إدارة التجديدات", `<button class="btn btn-primary" data-action="export-renewals">تصدير التجديدات</button>`)}
-    ${statGrid(metrics.renewals)}
-    <section class="section board-card card"><div class="renewal-board">
-      ${columns.map((column) => `<div class="board-column"><h3>${column}</h3>${renewals.filter((r) => r.bucket === column).map((item, index) => `<div class="renewal-card"><strong>${item.customer}</strong><span class="muted">${item.service} · ${item.amount}</span><span>${item.due}</span><button class="btn btn-primary" data-action="send-renewal-link" data-customer="${item.customer}">إرسال رابط التجديد</button><button class="btn btn-secondary" data-action="follow-customer" data-customer="${item.customer}">متابعة العميل</button></div>`).join("") || `<p class="muted">لا توجد عناصر</p>`}</div>`).join("")}
-    </div></section>
-    <div class="grid grid-3"><article class="card table-card"><h3>اتجاه التجديدات</h3>${barsChart([40, 55, 62, 70, 86])}</article><article class="card table-card"><h3>توصيات الذكاء الاصطناعي</h3><p class="muted">أرسل الروابط عالية القيمة قبل الظهر وكرر المتابعة بعد 48 ساعة.</p></article><article class="card table-card"><h3>أفضل وقت للتجديد</h3><strong>10:00 صباحًا - 1:00 ظهرًا</strong></article></div>`);
-}
-
-function notificationsPage() {
-  const filtered = state.notifications.filter((item) => item.channel === state.notificationTab);
-  return dashboardShell(`${pageTitle("التنبيهات التلقائية", `<button class="btn btn-primary" data-action="add-rule">إضافة قاعدة أتمتة</button>`)}
-    ${statGrid(metrics.notifications)}
-    <div class="tabs tabs-row">${["واتساب", "البريد الإلكتروني", "SMS"].map((tab) => `<button class="tab ${state.notificationTab === tab ? "active" : ""}" data-action="notification-tab" data-tab="${tab}">${tab}</button>`).join("")}</div>
-    <div class="split">
-      <article class="card table-card"><h2>جدول الرسائل</h2>${notificationsTable(filtered)}</article>
-      <article class="card table-card"><h2>قوالب الرسائل</h2><p class="muted">مرحبًا {{name}}، اشتراكك ينتهي قريبًا. جدد الآن من الرابط الآمن.</p><div class="inline-actions"><button class="btn btn-secondary" data-action="preview-template">معاينة قالب</button><button class="btn btn-primary" data-action="edit-template">تعديل القالب</button><button class="btn btn-secondary" data-action="suggest-template">اقتراح نص بالذكاء الاصطناعي</button></div></article>
-    </div>
-    <section class="section"><article class="card table-card"><h2>قواعد الأتمتة</h2><div class="grid grid-3">${automationToggle("seven", "قبل الانتهاء بـ 7 أيام")}${automationToggle("three", "قبل الانتهاء بـ 3 أيام")}${automationToggle("same", "يوم الانتهاء")}</div></article></section>`);
-}
-
-function notificationsTable(rows) {
-  if (!rows.length) return emptyState("لا توجد رسائل في هذه القناة");
-  const body = rows.map((row) => `<tr><td>${row.channel}</td><td>${row.recipient}</td><td>${row.template}</td><td>${status(row.status)}</td><td>${row.time}</td><td><button class="btn btn-secondary" data-action="message-view" data-key="${row.recipient}">عرض</button><button class="btn btn-ghost" data-action="resend-message" data-key="${row.recipient}">إعادة إرسال</button></td></tr>`).join("");
-  return `<div class="compare"><table><thead><tr>${["القناة", "المستلم", "القالب", "الحالة", "وقت الإرسال", "الإجراء"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
-}
-
-function automationToggle(key, label) {
-  return `<label class="card feature-card"><strong>${label}</strong><p class="muted">قاعدة قابلة للتفعيل والإيقاف مباشرة.</p><input type="checkbox" data-action="automation-toggle" data-key="${key}" ${state.automation[key] ? "checked" : ""}></label>`;
-}
-
-function warrantyPage() {
-  return dashboardShell(`${pageTitle("المركز الضماني", `<button class="btn btn-primary" data-action="new-warranty">حالة جديدة</button>`)}
-    ${statGrid(metrics.warranty)}
-    <div class="split">
-      <article class="card table-card"><h2>جدول الحالات</h2>${warrantyTable()}</article>
-      <article class="card table-card"><h2>تفاصيل الحالة</h2><p class="muted">اختر حالة من الجدول لعرض الخط الزمني والملاحظات.</p><div id="warranty-detail">${caseDetail(state.warrantyCases[0])}</div></article>
-    </div>
-    <section class="section"><div class="grid grid-3"><article class="card table-card"><h3>الخط الزمني للحالة</h3>${activityList()}</article><article class="card table-card"><h3>مساعد الذكاء الاصطناعي</h3><p class="muted">الإجراء المقترح: طلب صورة إضافية ثم اعتماد الاستبدال.</p><button class="btn btn-primary" data-action="apply-warranty-suggestion">تنفيذ الإجراء المقترح</button></article><article class="card table-card"><h3>ملاحظات داخلية</h3><textarea class="textarea" id="warranty-note" placeholder="أضف ملاحظة داخلية"></textarea><button class="btn btn-secondary" data-action="add-note">إضافة ملاحظة</button></article></div></section>`);
-}
-
-function warrantyTable() {
-  const body = state.warrantyCases.map((row, index) => `<tr><td>${row.id}</td><td>${row.customer}</td><td>${row.service}</td><td>${row.issue}</td><td>${status(row.priority)}</td><td>${status(row.status)}</td><td>${row.updated}</td><td><button class="btn btn-secondary" data-action="case-details" data-index="${index}">عرض التفاصيل الكاملة</button><button class="btn btn-ghost" data-action="case-options">خيارات أخرى</button></td></tr>`).join("");
-  return `<div class="compare"><table><thead><tr>${["رقم الحالة", "العميل", "نوع الخدمة", "نوع المشكلة", "الأولوية", "الحالة", "آخر تحديث", "الإجراء"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
-}
-
-function caseDetail(row) {
-  return `<div class="grid"><p><strong>${row.id}</strong> · ${row.customer}</p><p class="muted">${row.service} - ${row.issue}</p>${status(row.status)}<div class="inline-actions"><button class="btn btn-secondary" data-action="update-case">تحديث حالة</button><button class="btn btn-ghost" data-action="case-options">عرض خيارات أخرى</button></div></div>`;
+  if (!rows.length) return emptyState("لا يوجد عملاء مطابقون", "غيّر البحث أو الفلترة.");
+  const body = rows.map((row) => `<tr><td><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.email || "")}</small></td><td>${escapeHtml(row.phone || "غير مضاف")}</td><td>${escapeHtml(row.serviceName || "لا توجد خدمة")}</td><td>${escapeHtml(row.lastRenewal ? String(row.lastRenewal).slice(0, 10) : "-")}</td><td>${status(row.status)}</td><td>${escapeHtml((row.tags || []).join("، ") || "-")}</td><td><div class="inline-actions"><button class="btn btn-secondary" data-action="customer-details-db" data-id="${row.id}">عرض</button><button class="btn btn-ghost icon-only" data-action="customer-edit-db" data-id="${row.id}" title="تعديل">${dashboardIcon("settings")}</button><button class="btn btn-ghost icon-only danger-text" data-action="customer-delete-db" data-id="${row.id}" title="حذف">×</button></div></td></tr>`).join("");
+  return `<div class="compare"><table><thead><tr>${["الاسم", "الهاتف", "الخدمة", "آخر تجديد", "الحالة", "الملاحظات", "الإجراء"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function reportsPage() {
-  return dashboardShell(`${pageTitle("التقارير والتحليلات", `<button class="btn btn-secondary" data-action="date-filter">فلترة التاريخ</button><button class="btn btn-primary" data-action="export-report">تصدير التقرير</button>`)}
-    ${statGrid(metrics.reports)}
-    <div class="grid grid-3 section">
-      <article class="card chart-card"><h2>الإيرادات الشهرية</h2>${barsChart(reports.revenue)}</article>
-      <article class="card chart-card"><h2>التجديدات حسب الباقة</h2>${donutChart()}</article>
-      <article class="card chart-card"><h2>العملاء حسب الفئة</h2>${barsChart([35, 62, 45, 72])}</article>
-    </div>
-    <div class="split">
-      <article class="card table-card"><h2>أفضل الباقات أداءً</h2>${simpleTable(["الباقة", "النسبة", "الإيرادات"], reports.plans.map((p) => [p.name, p.value, p.amount]))}<button class="btn btn-secondary" data-action="report-details">عرض التفاصيل</button></article>
-      <article class="card table-card"><h2>رؤى الذكاء الاصطناعي</h2><ul class="check-list">${reports.insights.map((item) => `<li>${item}</li>`).join("")}</ul><button class="btn btn-primary" data-action="all-insights">عرض جميع الرؤى</button></article>
+  const stats = overviewStats();
+  const activities = (state.dashboardOverview?.activities || []).filter((item) => !String(item.type || "").startsWith("auth."));
+  const profile = state.dashboardOverview?.profile || {};
+  const reportRows = (state.dashboardOverview?.monthlyPerformance || []).slice(-Number(state.reportPeriod || 6));
+  return dashboardShell(`${pageTitle("التقارير", `<select class="select report-period" data-action="report-period"><option value="6" ${state.reportPeriod === "6" ? "selected" : ""}>آخر 6 أشهر</option><option value="3" ${state.reportPeriod === "3" ? "selected" : ""}>آخر 3 أشهر</option><option value="1" ${state.reportPeriod === "1" ? "selected" : ""}>هذا الشهر</option></select><button class="btn btn-primary" data-action="export-report">تصدير التقرير</button>`)}
+    ${statGrid([
+      { title: "الإيراد الشهري", value: formatMoney(stats.monthlyRevenue), caption: "حالي", tone: "success", icon: "reports" },
+      { title: "الرسائل المرسلة", value: stats.sentMessages, caption: "رسالة", tone: "info", icon: "subscriptions" },
+      { title: "نسبة النجاح", value: `${stats.successRate || 0}%`, caption: "من إجمالي الرسائل", tone: "purple", icon: "reports" },
+      { title: "العملاء المتجددون", value: stats.renewedCustomers, caption: "عميل", tone: "warning", icon: "customers" }
+    ])}
+    <article class="card chart-card section"><div class="section-head"><div><h2>رسم الأداء</h2><p class="muted">بيانات الاشتراكات للفترة المحددة.</p></div></div>${performanceChart(reportRows)}</article>
+    <div class="section dashboard-two-column">
+      <article class="card table-card"><div class="section-head"><div><h2>سجل النشاط</h2><p class="muted">آخر العمليات داخل مساحة العمل.</p></div></div>${activities.length ? activityList(activities) : emptyState("لا توجد نشاطات بعد", "ستظهر العمليات الفعلية هنا بعد استخدام المنصة.")}</article>
+      <article class="card table-card"><div class="section-head"><div><h2>الفوترة والباقات</h2><p class="muted">الخطة الحالية والفواتير.</p></div><span class="plan-badge">${escapeHtml(profile.planName || "Free Trial")}</span></div>${emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا عند إصدار أول فاتورة.", "عرض خطط الأسعار", "/pricing")}</article>
     </div>`);
+}
+
+function securityPage() {
+  const stats = overviewStats();
+  const list = Array.isArray(state.unsubscribes) ? state.unsubscribes : [];
+  const health = state.whatsappHealth?.health || null;
+  const securityLevel = stats.safeRules > 0 ? 100 : 0;
+  const listContent = state.unsubscribes?.error
+    ? emptyState("تعذر تحميل قائمة الإيقاف", escapeHtml(state.unsubscribes.error))
+    : state.unsubscribes === null
+      ? `<div class="loading-state">جاري تحميل قائمة الإيقاف...</div>`
+      : list.length
+        ? simpleTable(["الرقم", "السبب", "المصدر", "التاريخ", "الإجراء"], list.map((item) => [escapeHtml(item.phoneNumber), escapeHtml(item.reason || "-"), escapeHtml(item.source || "يدوي"), escapeHtml(item.unsubscribedAt ? new Date(item.unsubscribedAt).toLocaleDateString("ar-SA") : "-"), `<button class="btn btn-ghost danger-text" data-action="remove-unsubscribe" data-id="${item.id}">حذف</button>`]))
+        : emptyState("لا توجد أرقام محظورة", "لم تتم إضافة أي رقم إلى قائمة إيقاف الرسائل.", "إضافة رقم", "add-unsubscribe");
+  const healthLabel = health ? ({ excellent: "ممتاز", good: "جيد", medium: "متوسط", danger: "خطر" }[health.status] || health.status) : "لم يتم الفحص بعد";
+  return dashboardShell(`${pageTitle("الحماية", `<button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="export-unsubscribes">تصدير</button>`)}
+    ${statGrid([
+      { title: "مستوى الأمان", value: `${securityLevel}%`, caption: securityLevel ? "مكتمل" : "غير مكتمل", tone: securityLevel ? "success" : "neutral", icon: "security" },
+      { title: "الأرقام المحظورة", value: stats.blockedNumbers, caption: "رقم", tone: "danger", icon: "customers" },
+      { title: "قواعد الإرسال الآمن", value: stats.safeRules, caption: "قاعدة نشطة", tone: "info", icon: "security" },
+      { title: "حالة الفحص", value: healthLabel, caption: health?.lastDisconnect ? "تم الفحص" : "", tone: health ? "success" : "neutral", icon: "reports" }
+    ])}
+    <div class="section dashboard-two-column">
+      <article class="card table-card"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام التي لن تستقبل أي رسالة.</p></div><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div>${listContent}</article>
+      <article class="card table-card"><div class="section-head"><div><h2>مركز حماية واتساب</h2><p class="muted">النتيجة محسوبة من القناة الفعلية.</p></div></div>${health ? `<div class="risk-summary"><strong>${Number(health.risk || 0)}</strong><span>/100</span></div><p class="status ${Number(health.risk || 0) > 70 ? "danger" : Number(health.risk || 0) > 35 ? "warning" : "success"}">${healthLabel}</p><p>${escapeHtml(health.advice || "")}</p>${Number(health.risk || 0) > 70 ? `<button class="btn btn-danger" data-action="review-risks">مراجعة المخاطر</button>` : ""}` : emptyState("لم يتم الفحص بعد", "اربط جهاز واتساب أولًا لاحتساب مستوى المخاطر.", "الانتقال إلى الأجهزة", "/dashboard/devices")}</article>
+    </div>
+    <article class="card table-card section"><div class="section-head"><div><h2>مركز الضمان وسياسة الإرسال</h2><p class="muted">لا توجد حالات أو سياسات مخصصة حتى تضيفها من بياناتك.</p></div><button class="btn btn-secondary" data-action="policy-details">عرض تفاصيل السياسة</button></div>${emptyState("لا توجد حالات ضمان بعد", "ستظهر الحالات المسجلة فعليًا في هذا القسم.")}</article>`);
 }
 
 function connectedDevicesCenterPage() {
   const device = { ...defaultLinkedDevice, ...state.linkedDevice };
+  const stats = overviewStats();
+  const health = state.whatsappHealth?.health || null;
   const isConnected = device.status === "connected";
   const hasRealQr = isRealQrDataUri(device.qrBase64);
   const hasQrSession = ["pending_qr", "connecting"].includes(device.status);
@@ -867,12 +941,16 @@ function connectedDevicesCenterPage() {
   const qrImage = hasRealQr
     ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
     : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود حقيقي من Evolution API.</p></div>`;
-  const activity = device.activity?.length ? device.activity : ["لا توجد أجهزة مرتبطة حتى الآن"];
-  const alerts = device.alerts?.length ? device.alerts : ["وضع الإرسال الآمن مفعل افتراضيا", "أي رسالة اختبار تدخل message_queue قبل الإرسال"];
-  const safeItems = ["20 رسالة في الساعة", "100 رسالة في اليوم", "تأخير 20 - 90 ثانية", "منع الإرسال من 9 مساء إلى 9 صباحا", "منع تكرار نفس الرسالة خلال 24 ساعة"];
+  const activity = device.activity?.length ? device.activity : [];
   const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "غير متوفر", device.phoneNumber || "غير متوفر", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
 
-  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : isConnected ? "إعادة إنشاء الباركود" : "ربط واتساب"}</button>`)}
+  return dashboardShell(`${pageTitle("الأجهزة", `<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : "إنشاء/تحديث باركود"}</button>`)}
+    ${statGrid([
+      { title: "الأجهزة المتصلة", value: stats.connectedDevices, caption: "جهاز", tone: isConnected ? "success" : "neutral", icon: "devices" },
+      { title: "بانتظار الربط", value: stats.pendingDevices, caption: "جلسة", tone: "warning", icon: "devices" },
+      { title: "جودة الاتصال", value: isConnected ? "100%" : "0%", caption: statusText, tone: isConnected ? "success" : "neutral", icon: "reports" },
+      { title: "آخر فحص", value: device.lastCheckAt || "لم يتم", caption: "فحص الاتصال", tone: "info", icon: "security" }
+    ])}
     <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
     <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
       <article class="card linked-main-card">
@@ -932,86 +1010,39 @@ function connectedDevicesCenterPage() {
       </aside>
     </section>
     <section class="linked-bottom-grid">
-      <article class="card usage-card"><span class="mini-icon">👥</span><h3>استخدام الأجهزة المرتبطة</h3><strong class="usage-count">1 / 1 جهاز مرتبط</strong><div class="usage-bar"><span style="width:${isConnected ? 100 : 8}%"></span></div><p class="${isConnected ? "success-text" : "danger-text"}">${isConnected ? "تم ربط جهاز واتساب بنجاح" : "لم يتم ربط أي جهاز بعد"}</p><button class="btn btn-ghost" data-link="/pricing">ترقية الخطة لزيادة الحد الأقصى</button></article>
+      <article class="card usage-card"><span class="mini-icon">${dashboardIcon("devices")}</span><h3>استخدام الأجهزة المرتبطة</h3><strong class="usage-count">${stats.connectedDevices} جهاز متصل</strong><div class="usage-bar"><span style="width:${isConnected ? 100 : 0}%"></span></div><p class="${isConnected ? "success-text" : "muted"}">${isConnected ? "تم ربط جهاز واتساب بنجاح" : "لم يتم ربط أي جهاز بعد"}</p></article>
       <article class="card table-card security-card"><span class="mini-icon">🛡</span><h3>ملاحظات الأمان</h3><ul class="check-list">${["الاتصال مشفر بالكامل بين منصتك وواتساب.", "لا يتم تخزين أو عرض أي رموز أو توكنات.", "عند انتهاء الجلسة، سيتم طلب إعادة الربط.", "أوقف أي جهاز غير معروف من إعدادات واتساب."].map((item) => `<li>${item}</li>`).join("")}</ul></article>
       <article class="card table-card linked-table-card"><h3>الأجهزة المرتبطة الأخيرة</h3>${isConnected ? connectedTable : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">قم بربط واتساب لعرض الأجهزة المرتبطة وسجل النشاط.</p></div>`}</article>
-      <article class="card table-card activity-card"><h3>النشاط الأخير</h3><div class="activity-list">${activity.map((item, index) => `<div class="activity-item">${icon(String(index + 1), isConnected ? "green" : "")}<div><strong>${item}</strong><p class="muted">${isConnected ? "تم التحديث الآن" : "بانتظار الربط"}</p></div></div>`).join("")}</div></article>
+      <article class="card table-card activity-card"><h3>النشاط الأخير</h3>${activity.length ? `<div class="activity-list">${activity.map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item)}</strong><p class="muted">تم التحديث الآن</p></div></div>`).join("")}</div>` : emptyState("لا توجد نشاطات بعد", "ستظهر عمليات الربط والفحص هنا.")}</article>
     </section>
-    <section class="section section-tight health-and-safety"><article class="card table-card number-health-card"><div class="section-head"><div><h3>${t("linkedDevices.health")}</h3><p class="muted">${t("linkedDevices.safeSending")}</p></div><span class="health-score">${device.safetyScore || 96}/100</span></div><div class="health-metrics"><span><small>${t("linkedDevices.messagesToday")}</small><strong>${device.messagesToday || 0}</strong></span><span><small>${t("linkedDevices.messagesHour")}</small><strong>${device.messagesHour || 0}</strong></span><span><small>${t("linkedDevices.failureRate")}</small><strong>${device.failureRate || 0}%</strong></span><span><small>${t("linkedDevices.unsubscribeCount")}</small><strong>${device.unsubscribeCount || 0}</strong></span><span><small>${t("linkedDevices.riskScore")}</small><strong>${100 - (device.safetyScore || 96)}/100</strong></span></div><div class="secure-note"><strong>${t("linkedDevices.smartAdvice")}:</strong> ${state.language === "ar" ? "صحة الرقم مستقرة. استمر ضمن حدود التدرج ولا ترفع الإرسال اليومي فجأة." : "Number health is stable. Keep gradual sending limits and avoid sudden volume increases."}</div></article><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3><div class="safety-list">${safeItems.map((item) => `<span>${item}</span>`).join("")}</div></article></section>`);
-}
-
-function whatsappSafetyPage() {
-  const warmup = [[1, 10], [2, 15], [3, 20], [4, 25], [5, 35], [7, 60], [14, 200]];
-  const payload = state.whatsappHealth;
-  if (payload === null) return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"))}<div class="loading-state">جاري تحميل بيانات الحماية...</div>`);
-  const health = payload?.health;
-  if (!health) return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"), `<button class="btn btn-primary" data-link="/dashboard/connected-devices">${t("sidebar.linkedDevices")}</button>`)}${emptyState("لا توجد قناة واتساب مرتبطة")}`);
-  const risk = Number(health.risk || 0);
-  const label = risk <= 15 ? "ممتاز" : risk <= 35 ? "جيد" : risk <= 70 ? "متوسط" : "خطر";
-  const tone = risk <= 35 ? "success" : risk <= 70 ? "warning" : "danger";
-  return dashboardShell(`${pageTitle(t("sidebar.whatsappSafety"), `<button class="btn btn-primary" data-link="/dashboard/connected-devices">${t("sidebar.linkedDevices")}</button>`)}<div class="grid grid-3"><article class="card table-card"><h2>${t("linkedDevices.health")}</h2><div class="risk-ring"><strong>${risk}</strong><span>/100</span></div><p class="status ${tone}">${label}</p>${risk > 70 ? `<p class="danger-text">تم إيقاف الإرسال التلقائي لأن درجة المخاطر أعلى من 70.</p><button class="btn btn-danger" data-link="/dashboard/issues">مراجعة المخاطر</button>` : ""}</article><article class="card table-card"><h2>حالة القناة</h2><strong>${escapeHtml(health.status)}</strong><p class="muted">${escapeHtml(health.phoneNumber || "لا يوجد رقم")}</p><p>${escapeHtml(health.messagesHour)} / ساعة · ${escapeHtml(health.messagesToday)} / يوم</p></article><article class="card table-card"><h2>${t("linkedDevices.smartAdvice")}</h2><p>${escapeHtml(health.advice)}</p></article></div><section class="section"><article class="card table-card"><h2>جدول التدرج التلقائي</h2><div class="warmup-track">${warmup.map(([day, limit]) => `<span><small>اليوم ${day}</small><strong>${limit}</strong></span>`).join("")}</div></article></section>`);
-}
-
-function unsubscribePage() {
-  const rows = [
-    ["+966 50 123 4567", "إيقاف", "واتساب", "طلب المستخدم", "اليوم 10:22"],
-    ["+966 55 987 6543", "stop", "واتساب", "إلغاء التنبيهات", "أمس 18:40"]
-  ];
-  return dashboardShell(`${pageTitle(t("sidebar.unsubscribe"), `<button class="btn btn-primary" data-action="add-unsubscribe">${state.language === "ar" ? "إضافة رقم" : "Add number"}</button>`)}<div class="grid grid-3"><article class="card stat-card"><div><span class="muted">${state.language === "ar" ? "إجمالي القائمة" : "Total opted out"}</span><strong>2</strong></div>${icon("⊘", "orange")}</article><article class="card table-card full-two"><h2>${t("sidebar.unsubscribe")}</h2>${simpleTable([state.language === "ar" ? "الرقم" : "Number", state.language === "ar" ? "الكلمة" : "Keyword", state.language === "ar" ? "المصدر" : "Source", state.language === "ar" ? "السبب" : "Reason", state.language === "ar" ? "التاريخ" : "Date"], rows)}</article></div>`);
-}
-
-function activityPage() {
-  const items = ["تم إنشاء اشتراك جديد", "تم ربط واتساب", "عمل Cron للتجديدات", "تم إرسال رسالة تجديد", "تم تغيير إعدادات الحماية"];
-  return dashboardShell(`${pageTitle(t("sidebar.activity"))}<article class="card table-card"><div class="activity-list">${items.map((item, index) => `<div class="activity-item">${icon(String(index + 1), index < 2 ? "green" : "")}<div><strong>${item}</strong><p class="muted">${state.language === "ar" ? `منذ ${index + 1} ساعة · محمد المدير` : `${index + 1} hour(s) ago · Mohammed, Admin`}</p></div></div>`).join("")}</div></article>`);
-}
-
-function billingPage() {
-  return dashboardShell(`${pageTitle(t("sidebar.billing"))}<div class="grid grid-3">${pricingPlans.map((plan) => `<article class="card pricing-card ${plan.featured ? "featured" : ""}"><h2>${plan.name}</h2><div class="price">${plan.monthly} ${state.language === "ar" ? "ر.س / شهريًا" : "SAR / month"}</div><ul class="check-list">${plan.features.map((item) => `<li>${item}</li>`).join("")}</ul><button class="btn btn-primary" data-action="select-plan" data-plan="${plan.id}">${state.language === "ar" ? "اختيار الخطة" : "Choose plan"}</button></article>`).join("")}</div>`);
-}
-
-function donutChart() {
-  return `<svg viewBox="0 0 160 160" width="100%" height="220" role="img" aria-label="رسم دائري">
-    <circle cx="80" cy="80" r="52" fill="none" stroke="#e2e8f0" stroke-width="24" />
-    <circle cx="80" cy="80" r="52" fill="none" stroke="#0797A5" stroke-width="24" stroke-dasharray="155 327" stroke-linecap="round" transform="rotate(-90 80 80)" />
-    <circle cx="80" cy="80" r="52" fill="none" stroke="#2563EB" stroke-width="24" stroke-dasharray="100 327" stroke-dashoffset="-160" stroke-linecap="round" transform="rotate(-90 80 80)" />
-    <text x="80" y="78" text-anchor="middle" font-size="18" font-weight="800" fill="#0F172A">1.8M</text>
-    <text x="80" y="98" text-anchor="middle" font-size="10" fill="#64748B">ر.س</text>
-  </svg>`;
+    <section class="section section-tight health-and-safety"><article class="card table-card number-health-card"><div class="section-head"><div><h3>${t("linkedDevices.health")}</h3><p class="muted">${t("linkedDevices.safeSending")}</p></div><span class="health-score">${health ? 100 - Number(health.risk || 0) : 0}/100</span></div>${health ? `<div class="health-metrics"><span><small>${t("linkedDevices.messagesToday")}</small><strong>${health.messagesToday || 0}</strong></span><span><small>${t("linkedDevices.messagesHour")}</small><strong>${health.messagesHour || 0}</strong></span><span><small>${t("linkedDevices.failureRate")}</small><strong>${health.failureRate || 0}%</strong></span><span><small>${t("linkedDevices.unsubscribeCount")}</small><strong>${health.unsubscribeCount || 0}</strong></span><span><small>${t("linkedDevices.riskScore")}</small><strong>${health.risk || 0}/100</strong></span></div><div class="secure-note"><strong>${t("linkedDevices.smartAdvice")}:</strong> ${escapeHtml(health.advice || "")}</div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط الجهاز وافحص الاتصال لعرض مؤشرات الصحة.")}</article><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3>${stats.safeRules > 0 ? `<p><strong>${stats.safeRules}</strong> قواعد نشطة من قاعدة البيانات.</p><button class="btn btn-secondary" data-link="/dashboard/security">إدارة القواعد</button>` : emptyState("لا توجد قواعد إرسال آمن", "أضف قواعدك من صفحة الحماية.", "فتح الحماية", "/dashboard/security")}</article></section>`);
 }
 
 function settingsPage() {
-  const sections = [
-    ["الملف الشخصي", "تحديث الاسم والبريد وبيانات التواصل.", "حفظ التغييرات"],
-    ["معلومات الشركة / المتجر", "اسم المتجر والسجل ومعلومات الفوترة.", "حفظ التغييرات"],
-    ["إشعارات التنبيهات", "تحكم بقنوات الإرسال والقوالب.", "حفظ التغييرات"],
-    ["التكاملات", "ربط واتساب والبريد والدفع.", "إدارة التكاملات"],
-    ["إعدادات التجديد", "قواعد التجديد التلقائي والرسائل.", "حفظ التغييرات"],
-    ["الأمان", "كلمة المرور والتحقق الثنائي.", "تغيير كلمة المرور"],
-    ["الفريق والصلاحيات", "أعضاء الفريق والأدوار.", "إدارة الفريق"],
-    ["الفوترة والخطة", "الفواتير والخطة الحالية.", "إدارة الفواتير"],
-    ["اللغة والمظهر", "العربية والوضع الشمسي مفعّلان.", "حفظ التغييرات"]
-  ];
-  return dashboardShell(`${pageTitle(t("settings.title"), `<button class="btn btn-primary" data-action="save-settings">${t("common.save")}</button>`)}
-    <div class="grid grid-3"><article class="card settings-card session-card">${icon("↪", "orange")}<h3>${t("settings.sessionAccount")}</h3><p><strong>${state.language === "ar" ? "محمد المدير" : "Mohammed, Admin"}</strong><br><span class="muted">owner@example.com</span></p><p><span class="status success">${t("settings.active")}</span></p><button class="btn btn-danger" data-action="logout-confirm">${t("auth.logout")}</button></article>${sections.map(([title, body, action], i) => `<article class="card settings-card">
-      ${icon(state.language === "en" ? "•" : title.slice(0, 1), i % 3 === 1 ? "purple" : i % 3 === 2 ? "green" : "")}
-      <h3>${title}</h3><p class="muted">${body}</p>
-      ${i === 2 ? settingToggle("whatsapp", "واتساب") + settingToggle("email", "البريد الإلكتروني") + settingToggle("sms", "SMS") : ""}
-      ${i === 4 ? settingToggle("renewAuto", "التجديد التلقائي") : ""}
-      ${i === 5 ? settingToggle("twoFactor", "التحقق الثنائي") : ""}
-      <button class="btn btn-secondary" data-action="${action === "حفظ التغييرات" ? "save-settings" : action === "إدارة التكاملات" ? "manage-integrations" : action === "تغيير كلمة المرور" ? "change-password" : action === "إدارة الفريق" ? "manage-team" : "manage-billing"}">${action}</button>
-    </article>`).join("")}</div>`);
+  const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
+  const notifications = remote.notificationChannels || {};
+  const security = remote.security || {};
+  return dashboardShell(`${pageTitle("الإعدادات", `<button class="btn btn-primary" data-action="save-settings">حفظ التغييرات</button>`)}
+    <div class="settings-layout">
+      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">بيانات المستخدم الحالي.</p></div></div><form data-submit="profile-settings" class="form-grid"><label class="field"><span>الاسم</span><input class="input" name="name" value="${escapeHtml(remote.name || "")}" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" disabled></label><button class="btn btn-primary">حفظ الملف الشخصي</button></form></article>
+      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>اللغة والمظهر</h2><p class="muted">تحفظ التفضيلات للحساب والمتصفح.</p></div></div><div class="setting-row"><span>اللغة</span><div class="segmented"><button class="${state.language === "ar" ? "active" : ""}" data-action="set-language" data-value="ar">AR</button><button class="${state.language === "en" ? "active" : ""}" data-action="set-language" data-value="en">EN</button></div></div><div class="setting-row"><span>المظهر</span><div class="segmented"><button class="${state.theme === "light" ? "active" : ""}" data-action="set-theme" data-value="light">شمسي</button><button class="${state.theme === "dark" ? "active" : ""}" data-action="set-theme" data-value="dark">ليلي</button></div></div></article>
+      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">كلمة المرور والمصادقة الثنائية.</p></div></div>${settingToggle("twoFactor", "المصادقة الثنائية (2FA)", Boolean(security.twoFactor))}<button class="btn btn-secondary" data-action="change-password">تغيير كلمة المرور</button><button class="btn btn-secondary" data-action="manage-sessions">إدارة الجلسات</button></article>
+      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("subscriptions")}<div><h2>الإشعارات</h2><p class="muted">اختر القنوات التي تريد تفعيلها.</p></div></div>${settingToggle("whatsapp", "واتساب", Boolean(notifications.whatsapp))}${settingToggle("email", "البريد الإلكتروني", Boolean(notifications.email))}${settingToggle("sms", "الرسائل النصية", Boolean(notifications.sms))}</article>
+      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("reports")}<div><h2>إعدادات النظام</h2><p class="muted">قواعد التشغيل الخاصة بالحساب.</p></div></div>${settingToggle("renewAuto", "التجديد التلقائي", Boolean(security.renewAuto))}<button class="btn btn-secondary" data-link="/dashboard/security">إدارة سياسة الإرسال</button></article>
+      <article class="card settings-panel session-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الجلسة الحالية</h2><p class="muted">${escapeHtml(remote.email || "")}</p></div></div><span class="status success">نشطة</span><button class="btn btn-danger" data-action="logout-confirm">تسجيل الخروج</button></article>
+    </div>`);
 }
 
-function settingToggle(key, label) {
-  return `<label class="inline-actions setting-toggle"><span>${label}</span><input type="checkbox" data-action="setting-toggle" data-key="${key}" ${state.settings[key] ? "checked" : ""}></label>`;
+function settingToggle(key, label, checked = state.settings[key]) {
+  return `<label class="setting-row setting-toggle"><span>${label}</span><input type="checkbox" data-action="setting-toggle" data-key="${key}" ${checked ? "checked" : ""}></label>`;
 }
 
 function simpleTable(headers, rows) {
   return `<div class="compare"><table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
-function emptyState(text) {
-  return `<div class="empty"><strong>${text}</strong><p>جرّب تعديل البحث أو الفلترة.</p></div>`;
+function emptyState(title, description = "ابدأ بإضافة أول عنصر لتظهر البيانات هنا.", actionLabel = "", action = "") {
+  return `<div class="empty-state"><span class="empty-state-icon">${dashboardIcon("reports")}</span><strong>${title}</strong><p>${description}</p>${actionLabel ? `<button class="btn btn-primary" ${action.startsWith("/") ? `data-link="${action}"` : `data-action="${action}"`}>${actionLabel}</button>` : ""}</div>`;
 }
 
 function openModal(title, body, foot = "") {
@@ -1062,26 +1093,31 @@ function field(label, name, type = "text", value = "", required = true) {
   return `<label class="field"><span>${label}</span><input class="input" type="${type}" name="${name}" value="${value}" ${required ? "required" : ""}></label>`;
 }
 
-function subscriptionForm(row = {}, editKey = "") {
-  return `<form data-submit="subscription" data-edit-key="${editKey}" class="form-grid">
-    ${field("رقم الطلب", "order", "text", row.order || `#RP-${Math.floor(1100 + Math.random() * 800)}`)}
-    ${field("اسم العميل", "customer", "text", row.customer || "")}
-    ${field("رقم الجوال", "phone", "tel", row.phone || "")}
-    ${field("نوع الخدمة", "service", "text", row.service || "")}
-    ${field("الباقة", "plan", "text", row.plan || "Pro")}
-    ${field("تاريخ البداية", "start", "date", row.start || "2026-07-09")}
-    ${field("تاريخ النهاية", "end", "date", row.end || "2026-08-09")}
-    ${field("رابط التجديد", "renewal", "url", row.renewal || "https://renewpilot.ai/pay/new")}
-    <label class="field"><span>حالة الاشتراك</span><select class="select" name="status">${["نشط", "تنتهي قريبًا", "متأخر", "موقوف", "تم التجديد"].map((s) => `<option ${row.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+function subscriptionForm(row = {}, editId = "") {
+  const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
+  if (!customers.length) return emptyState("أضف عميلًا أولًا", "يجب اختيار عميل حقيقي قبل إنشاء الاشتراك.", "إضافة عميل", "add-customer");
+  return `<form data-submit="subscription" data-id="${editId}" class="form-grid">
+    <label class="field"><span>العميل</span><select class="select" name="customerId" ${editId ? "disabled" : ""} required>${customers.map((customer) => `<option value="${customer.id}" ${row.customerId === customer.id ? "selected" : ""}>${escapeHtml(customer.name)}</option>`).join("")}</select></label>
+    ${field("رقم الطلب (اختياري)", "orderNumber", "text", row.orderNumber || "", false)}
+    ${field("نوع الخدمة", "serviceName", "text", row.serviceName || "")}
+    ${field("الباقة", "planName", "text", row.planName || "")}
+    ${field("تاريخ البداية", "startDate", "date", row.startDate ? String(row.startDate).slice(0, 10) : "")}
+    ${field("تاريخ النهاية", "endDate", "date", row.endDate ? String(row.endDate).slice(0, 10) : "")}
+    ${field("رابط التجديد", "renewalUrl", "url", row.renewalUrl || "", false)}
+    ${field("القيمة (ر.س)", "price", "number", row.price || "0", false)}
+    <label class="field"><span>الحالة</span><select class="select" name="status">${[["active", "نشط"], ["expiring_soon", "ينتهي قريبًا"], ["expired", "منتهي"], ["paused", "موقوف"], ["renewed", "تم التجديد"]].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+    <label class="field full-span"><span>ملاحظات</span><textarea class="textarea" name="notes">${escapeHtml(row.notes || "")}</textarea></label>
     <div class="inline-actions"><button class="btn btn-primary">حفظ</button><button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button></div>
   </form>`;
 }
 
-function customerForm(row = {}, editKey = "") {
-  return `<form data-submit="customer" data-edit-key="${editKey}" class="form-grid">
-    ${field("اسم العميل", "name", "text", row.name || "")}${field("البريد", "email", "email", row.email || "")}${field("الجوال", "phone", "tel", row.phone || "")}${field("الباقة", "plan", "text", row.plan || "Pro")}${field("تاريخ التجديد", "renewal", "date", row.renewal || "2026-08-09")}${field("القيمة الإجمالية", "total", "text", row.total || "0 ر.س")}
-    <label class="field"><span>الحالة</span><select class="select" name="status">${["نشط", "تنتهي قريبًا", "متأخر", "تم التجديد"].map((s) => `<option ${row.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
-    <label class="field"><span>احتمالية عدم التجديد</span><select class="select" name="risk">${["منخفض", "متوسط", "مرتفع"].map((s) => `<option ${row.risk === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+function customerForm(row = {}, editId = "") {
+  return `<form data-submit="customer" data-id="${editId}" class="form-grid">
+    ${field("اسم العميل", "name", "text", row.name || "")}
+    ${field("البريد الإلكتروني", "email", "email", row.email || "", false)}
+    ${field("رقم الجوال", "phone", "tel", row.phone || "", false)}
+    <label class="field"><span>الحالة</span><select class="select" name="status"><option value="active" ${row.status === "active" ? "selected" : ""}>نشط</option><option value="inactive" ${row.status === "inactive" ? "selected" : ""}>غير نشط</option></select></label>
+    <label class="field full-span"><span>ملاحظات / تصنيفات</span><input class="input" name="tags" value="${escapeHtml(Array.isArray(row.tags) ? row.tags.join("، ") : "")}" placeholder="مثال: عميل مميز، متجر"></label>
     <div class="inline-actions"><button class="btn btn-primary">حفظ</button><button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button></div>
   </form>`;
 }
@@ -1109,6 +1145,35 @@ async function copyText(text, message = "تم نسخ رابط التجديد") {
     area.remove();
   }
   toast(message);
+}
+
+async function saveAccountSettings(overrides = {}) {
+  const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
+  const notificationChannels = { ...(remote.notificationChannels || {}) };
+  const security = { ...(remote.security || {}) };
+  for (const key of ["whatsapp", "email", "sms"]) {
+    if (Object.hasOwn(state.settings, key)) notificationChannels[key] = Boolean(state.settings[key]);
+  }
+  for (const key of ["twoFactor", "renewAuto"]) {
+    if (Object.hasOwn(state.settings, key)) security[key] = Boolean(state.settings[key]);
+  }
+  try {
+    await fetchJson("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: overrides.name || remote.name || undefined,
+        language: state.language,
+        theme: state.theme,
+        notificationChannels,
+        security
+      })
+    });
+    state.accountSettings = null;
+    state.dashboardOverview = null;
+    await syncRouteData(true);
+    toast("تم حفظ التغييرات بنجاح");
+  } catch (error) { toast(error.message || "تعذر حفظ الإعدادات", "danger"); }
 }
 
 async function handleAction(target) {
@@ -1253,7 +1318,7 @@ async function handleAction(target) {
       toast(error.message || "تعذر حذف الجهاز", "danger");
     }
   }
-  if (action === "notifications") toast("لديك 3 تنبيهات تحتاج مراجعة");
+  if (action === "notifications") toast((state.dashboardOverview?.recentNotifications || []).length ? "تم فتح أحدث التنبيهات المسجلة" : "لا توجد تنبيهات جديدة", "info");
   if (action === "open-demo") openModal("احجز عرضًا توضيحيًا", demoForm());
   if (action === "billing") { state.billing = target.dataset.billing; storage.set("renewpilot.billing", state.billing); render(); }
   if (action === "select-plan") navigate(`/login?plan=${target.dataset.plan}`);
@@ -1302,87 +1367,88 @@ async function handleAction(target) {
   if (action === "import-save") {
     const text = state.importText || "";
     try {
-      const response = await fetch("/api/subscriptions/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-      if (!response.ok && location.hostname !== "127.0.0.1" && location.hostname !== "localhost") throw new Error("Import failed");
-    } catch {
-      if (location.hostname !== "127.0.0.1" && location.hostname !== "localhost") return toast(t("common.serverError"), "danger");
-    }
-    const lines = text.trim().split(/\r?\n/).slice(1);
-    lines.forEach((line) => {
-      const [order, customer, phone, service, start, end, renewal] = line.split("\t");
-      if (order && customer && /^\d{4}-\d{2}-\d{2}$/.test(end || "")) state.subscriptions.unshift({ order, customer, phone, service, plan: service, start, end, renewal, status: end < new Date().toISOString().slice(0, 10) ? "متأخر" : "نشط" });
-    });
-    storage.set("renewpilot.subscriptions", state.subscriptions);
-    closePortal();
-    toast(state.language === "ar" ? "تم حفظ الصفوف الصحيحة وعرض الأخطاء." : "Valid rows were saved and errors were reported.");
-    render();
+      const payload = await fetchJson("/api/subscriptions/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      closePortal();
+      state.dbSubscriptions = null;
+      state.dbCustomers = null;
+      state.dashboardOverview = null;
+      await syncRouteData(true);
+      toast(`${state.language === "ar" ? "تم استيراد" : "Imported"} ${payload.saved || 0}`);
+    } catch (error) { toast(error.message || t("common.serverError"), "danger"); }
   }
   if (action === "add-customer") openModal("إضافة عميل", customerForm());
+  if (action === "import-customers") openModal("استيراد العملاء", `<form data-submit="customer-import" class="grid"><label class="field"><span>ألصق CSV: الاسم، البريد، الهاتف</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="الاسم,البريد,الهاتف"></textarea></label><button class="btn btn-primary">استيراد</button></form>`);
   if (action === "columns") toast("تم تثبيت أعمدة الجدول الحالية");
   if (action === "apply-filter") toast("تم تطبيق الفلترة");
-  if (action === "export-subscriptions") exportCsv("subscriptions.csv", [["رقم الطلب", "العميل", "الباقة", "الحالة"], ...state.subscriptions.map((r) => [r.order, r.customer, r.plan, r.status])]);
-  if (action === "export-renewals") exportCsv("renewals.csv", [["العميل", "الخدمة", "المبلغ", "التاريخ"], ...renewals.map((r) => [r.customer, r.service, r.amount, r.due])]);
-  if (action === "export-report") exportCsv("report.csv", [["المؤشر", "القيمة"], ...metrics.reports.map((m) => [m.title, m.value])]);
+  if (action === "export-subscriptions") {
+    const rows = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
+    if (!rows.length) return toast("لا توجد بيانات لتصديرها", "warning");
+    exportCsv("subscriptions.csv", [["رقم الطلب", "العميل", "الخدمة", "الباقة", "البداية", "النهاية", "الحالة"], ...rows.map((r) => [r.orderNumber, r.customerName, r.serviceName, r.planName, String(r.startDate).slice(0, 10), String(r.endDate).slice(0, 10), r.status])]);
+  }
+  if (action === "export-customers") {
+    const rows = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
+    if (!rows.length) return toast("لا توجد بيانات لتصديرها", "warning");
+    exportCsv("customers.csv", [["الاسم", "البريد", "الهاتف", "الحالة", "عدد الاشتراكات"], ...rows.map((r) => [r.name, r.email || "", r.phone || "", r.status, r.subscriptionCount || 0])]);
+  }
+  if (action === "export-report") {
+    const stats = overviewStats();
+    exportCsv("renewpilot-report.csv", [["المؤشر", "القيمة"], ["الإيراد الشهري", stats.monthlyRevenue], ["الرسائل المرسلة", stats.sentMessages], ["نسبة النجاح", `${stats.successRate}%`], ["العملاء المتجددون", stats.renewedCustomers]]);
+  }
   if (action === "copy-renewal") copyText(target.dataset.linkValue);
   if (action === "renew-now") openModal("تأكيد التجديد", `<p>هل تريد فتح عملية التجديد الآن؟</p>`, `<button class="btn btn-primary" data-action="confirm-renew">تجديد الآن</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
   if (action === "confirm-renew") { closePortal(); toast("تم تجهيز رابط التجديد"); }
-  if (action === "subscription-details") {
-    const row = state.subscriptions.find((item) => item.order === target.dataset.key);
-    if (row) openDrawer("تفاصيل الاشتراك", subscriptionDetails(row));
+  if (action === "subscription-edit-db") {
+    const row = (state.dbSubscriptions || []).find((item) => item.id === target.dataset.id);
+    if (row) openModal("تعديل الاشتراك", subscriptionForm(row, row.id));
   }
-  if (action === "subscription-edit") {
-    const row = state.subscriptions.find((item) => item.order === target.dataset.key);
-    if (row) openModal("تعديل الاشتراك", subscriptionForm(row, row.order));
+  if (action === "subscription-delete-db") {
+    if (!confirm("هل تريد حذف هذا الاشتراك؟")) return;
+    try {
+      await fetchJson(`/api/subscriptions/${target.dataset.id}`, { method: "DELETE" });
+      state.dbSubscriptions = null; state.dashboardOverview = null;
+      await syncRouteData(true); toast("تم حذف الاشتراك");
+    } catch (error) { toast(error.message || "تعذر حذف الاشتراك", "danger"); }
   }
-  if (action === "subscription-delete") {
-    state.subscriptions = state.subscriptions.filter((item) => item.order !== target.dataset.key);
-    storage.set("renewpilot.subscriptions", state.subscriptions);
-    toast("تم حذف الاشتراك");
-    render();
+  if (action === "customer-details-db") {
+    const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
+    if (row) openDrawer("تفاصيل العميل", `<div class="customer-detail"><h3>${escapeHtml(row.name)}</h3><p>${escapeHtml(row.email || "لا يوجد بريد")}</p><p>${escapeHtml(row.phone || "لا يوجد رقم")}</p><div class="grid grid-2"><div class="mini-stat"><span>الاشتراكات</span><strong>${row.subscriptionCount || 0}</strong></div><div class="mini-stat"><span>القيمة</span><strong>${formatMoney(row.totalValue || 0)}</strong></div></div><button class="btn btn-secondary" data-action="customer-timeline" data-customer-id="${row.id}">عرض Timeline</button></div>`);
   }
-  if (action === "customer-details") {
-    const row = state.customers.find((item) => item.email === target.dataset.key);
-    if (row) openDrawer("تفاصيل العميل", customerDetails(row));
+  if (action === "customer-edit-db") {
+    const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
+    if (row) openModal("تعديل عميل", customerForm(row, row.id));
   }
-  if (action === "customer-edit") {
-    const row = state.customers.find((item) => item.email === target.dataset.key);
-    if (row) openModal("تعديل عميل", customerForm(row, row.email));
+  if (action === "customer-delete-db") {
+    if (!confirm("هل تريد حذف هذا العميل؟")) return;
+    try {
+      await fetchJson(`/api/customers/${target.dataset.id}`, { method: "DELETE" });
+      state.dbCustomers = null; state.dbSubscriptions = null; state.dashboardOverview = null;
+      await syncRouteData(true); toast("تم حذف العميل");
+    } catch (error) { toast(error.message || "تعذر حذف العميل", "danger"); }
   }
-  if (action === "customer-delete") {
-    state.customers = state.customers.filter((item) => item.email !== target.dataset.key);
-    storage.set("renewpilot.customers", state.customers);
-    toast("تم حذف العميل");
-    render();
+  if (action === "send-message") {
+    if (!overviewStats().connectedDevices) return toast("اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات.", "warning");
+    await navigate("/dashboard/devices");
+    toast("استخدم زر إرسال رسالة اختبار من الجهاز المتصل.", "info");
   }
-  if (action === "send-message") openModal("إرسال رسالة", `<form data-submit="message" class="grid">${field("المستلم", "to")}${field("نص الرسالة", "message")}<button class="btn btn-primary">إرسال</button></form>`);
-  if (action === "send-renewal-link") openModal("تأكيد إرسال رابط التجديد", `<p>سيتم إرسال رابط التجديد إلى ${target.dataset.customer}.</p>`, `<button class="btn btn-primary" data-action="send-alert">إرسال</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
-  if (action === "send-alert") { closePortal(); toast("تم إرسال التنبيه"); }
-  if (action === "follow-customer") openDrawer("سجل المتابعة", `<p class="muted">${target.dataset.customer}</p>${activityList()}`);
-  if (action === "notification-tab") { state.notificationTab = target.dataset.tab; render(); }
-  if (action === "edit-template") openModal("تعديل القالب", `<form data-submit="template" class="grid"><textarea class="textarea" name="template" required>مرحبًا {{name}}، اشتراكك ينتهي قريبًا. جدد الآن من الرابط الآمن. أرسل إيقاف لإلغاء الرسائل.</textarea><div id="message-quality"></div><button class="btn btn-secondary" type="button" data-action="check-message-quality">${state.language === "ar" ? "فحص جودة الرسالة" : "Check message quality"}</button><button class="btn btn-primary">${state.language === "ar" ? "حفظ القالب" : "Save template"}</button></form>`);
-  if (action === "check-message-quality") {
-    const textarea = portal.querySelector("textarea[name='template']");
-    const message = textarea?.value || "";
-    const links = (message.match(/https?:\/\//g) || []).length;
-    const problems = [links > 2 && (state.language === "ar" ? "روابط كثيرة" : "Too many links"), !/{{name}}|{{customer_name}}/.test(message) && (state.language === "ar" ? "اسم العميل غير موجود" : "Customer name is missing"), !/stop|unsubscribe|إيقاف|توقف|لا ترسل/i.test(message) && (state.language === "ar" ? "خيار الإيقاف غير موجود" : "Opt-out text is missing")].filter(Boolean);
-    const risk = problems.length * 25;
-    const quality = portal.querySelector("#message-quality");
-    if (quality) quality.innerHTML = `<div class="quality-result ${risk >= 50 ? "danger" : risk ? "warning" : "success"}"><strong>${risk >= 50 ? (state.language === "ar" ? "خطر" : "Risk") : risk ? (state.language === "ar" ? "يحتاج تحسين" : "Needs improvement") : (state.language === "ar" ? "ممتاز" : "Excellent")}</strong><span>${risk}/100</span><p>${problems.join(" · ") || (state.language === "ar" ? "الرسالة جاهزة للإرسال الآمن." : "The message is ready for safe sending.")}</p></div>`;
+  if (action === "import-unsubscribes") openModal("استيراد قائمة الإيقاف", `<form data-submit="unsubscribe-import" class="grid"><label class="field"><span>رقم في كل سطر</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="9665XXXXXXXX"></textarea></label><button class="btn btn-primary">استيراد القائمة</button></form>`);
+  if (action === "policy-details" || action === "review-risks") {
+    const health = state.whatsappHealth?.health;
+    openDrawer("سياسة الإرسال الآمن", health ? `<div class="grid"><div class="risk-summary"><strong>${Number(health.risk || 0)}</strong><span>/100</span></div><p>${escapeHtml(health.advice || "")}</p><p class="muted">عدد قواعد الإرسال النشطة: ${overviewStats().safeRules}</p></div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط جهازًا أولًا لعرض تفاصيل السياسة."));
   }
-  if (["preview-template", "suggest-template", "message-view", "add-rule", "date-filter", "report-details", "all-insights", "show-ai-tips", "manage-integrations", "manage-team", "manage-billing"].includes(action)) openModal(target.textContent.trim() || "تفاصيل", `<p class="muted">تم فتح الإجراء المطلوب بنجاح، وسيتم ربطه بالنظام الخلفي لاحقًا.</p>`, `<button class="btn btn-primary" data-action="close-modal">تم</button>`);
-  if (action === "resend-message") {
-    const message = state.notifications.find((item) => item.recipient === target.dataset.key);
-    if (message) message.status = "قيد الانتظار";
-    storage.set("renewpilot.notifications", state.notifications);
-    toast("تمت إعادة الرسالة إلى قيد الانتظار");
-    render();
-  }
-  if (action === "new-warranty") openModal("إنشاء حالة ضمان", `<form data-submit="warranty" class="form-grid">${field("رقم الحالة", "id", "text", `WR-${Math.floor(2300 + Math.random() * 90)}`)}${field("العميل", "customer")}${field("نوع الخدمة", "service")}${field("نوع المشكلة", "issue")}<button class="btn btn-primary">حفظ الحالة</button></form>`);
-  if (action === "case-details") openDrawer("تفاصيل الحالة الكاملة", caseDetail(state.warrantyCases[target.dataset.index]));
-  if (["case-options", "apply-warranty-suggestion", "add-note", "update-case"].includes(action)) toast("تم تنفيذ الإجراء على الحالة");
-  if (action === "copy-ai-message") copyText("مرحبًا، اشتراكك ينتهي قريبًا. يمكنك التجديد الآن من رابطك الآمن.");
-  if (action === "save-settings") { storage.set("renewpilot.settings", state.settings); toast("تم حفظ التغييرات بنجاح"); }
+  if (action === "set-language") { state.language = target.dataset.value === "en" ? "en" : "ar"; localStorage.setItem("renewpilot_locale", state.language); applyPreferences(); render(); }
+  if (action === "set-theme") { state.theme = target.dataset.value === "dark" ? "dark" : "light"; localStorage.setItem("renewpilot_theme", state.theme); applyPreferences(); render(); }
+  if (action === "save-settings") await saveAccountSettings();
   if (action === "change-password") openModal("تغيير كلمة المرور", `<form data-submit="password" class="grid">${field("كلمة المرور الحالية", "old", "password")}${field("كلمة المرور الجديدة", "new", "password")}<button class="btn btn-primary">حفظ</button></form>`);
+  if (action === "manage-sessions") openDrawer("إدارة الجلسات", `<div class="session-list"><div class="setting-row"><div><strong>الجلسة الحالية</strong><p class="muted">${escapeHtml(state.dashboardOverview?.profile?.email || "")}</p></div><span class="status success">نشطة</span></div><button class="btn btn-danger" data-action="logout-confirm">تسجيل الخروج من الجلسة</button></div>`);
+  if (action === "remove-unsubscribe") {
+    try { await fetchJson(`/api/unsubscribes?id=${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" }); state.unsubscribes = null; state.dashboardOverview = null; await syncRouteData(true); toast("تم حذف الرقم"); }
+    catch (error) { toast(error.message || "تعذر حذف الرقم", "danger"); }
+  }
+  if (action === "export-unsubscribes") {
+    const rows = Array.isArray(state.unsubscribes) ? state.unsubscribes : [];
+    if (!rows.length) return toast("لا توجد بيانات لتصديرها", "warning");
+    exportCsv("unsubscribe-list.csv", [["الرقم", "السبب", "التاريخ"], ...rows.map((row) => [row.phoneNumber, row.reason || "", row.unsubscribedAt || ""])]);
+  }
 }
 
 function subscriptionDetails(row) {
@@ -1486,35 +1552,35 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "subscription") {
-    const editKey = form.dataset.editKey;
-    if (editKey) {
-      state.subscriptions = state.subscriptions.map((item) => item.order === editKey ? data : item);
-    } else {
-      state.subscriptions.unshift(data);
-    }
-    storage.set("renewpilot.subscriptions", state.subscriptions);
-    closePortal();
-    toast(editKey ? "تم تحديث الاشتراك بنجاح" : "تمت إضافة الاشتراك بنجاح");
-    render();
+    const id = form.dataset.id;
+    try {
+      await fetchJson(id ? `/api/subscriptions/${id}` : "/api/subscriptions", {
+        method: id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, customerId: data.customerId || form.querySelector("[name='customerId']")?.value, price: Number(data.price || 0) })
+      });
+      closePortal();
+      state.dbSubscriptions = null; state.dashboardOverview = null;
+      await syncRouteData(true);
+      toast(id ? "تم تحديث الاشتراك بنجاح" : "تمت إضافة الاشتراك بنجاح");
+    } catch (error) { toast(error.message || "تعذر حفظ الاشتراك", "danger"); }
+    return;
   }
   if (type === "customer") {
-    const editKey = form.dataset.editKey;
-    if (editKey) {
-      state.customers = state.customers.map((item) => item.email === editKey ? data : item);
-    } else {
-      state.customers.unshift(data);
-    }
-    storage.set("renewpilot.customers", state.customers);
-    closePortal();
-    toast(editKey ? "تم تحديث العميل بنجاح" : "تمت إضافة العميل بنجاح");
-    render();
-  }
-  if (type === "warranty") {
-    state.warrantyCases.unshift({ ...data, priority: "متوسطة", status: "مفتوحة", updated: "الآن" });
-    storage.set("renewpilot.warranty", state.warrantyCases);
-    closePortal();
-    toast("تم إنشاء حالة الضمان");
-    render();
+    const id = form.dataset.id;
+    const tags = String(data.tags || "").split(/[،,]/).map((item) => item.trim()).filter(Boolean);
+    try {
+      await fetchJson(id ? `/api/customers/${id}` : "/api/customers", {
+        method: id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, tags })
+      });
+      closePortal();
+      state.dbCustomers = null; state.dbSubscriptions = null; state.dashboardOverview = null;
+      await syncRouteData(true);
+      toast(id ? "تم تحديث العميل بنجاح" : "تمت إضافة العميل بنجاح");
+    } catch (error) { toast(error.message || "تعذر حفظ العميل", "danger"); }
+    return;
   }
   if (type === "forgot") {
     if (!data.email) return toast(t("auth.emailRequired"), "danger");
@@ -1578,15 +1644,57 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "unsubscribe") {
-    try { await fetch("/api/unsubscribes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); } catch {}
-    closePortal();
-    toast(state.language === "ar" ? "تمت إضافة الرقم إلى قائمة الإيقاف." : "The number was added to the unsubscribe list.");
+    try {
+      await fetchJson("/api/unsubscribes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      closePortal(); state.unsubscribes = null; state.dashboardOverview = null; await syncRouteData(true);
+      toast(state.language === "ar" ? "تمت إضافة الرقم إلى قائمة الإيقاف." : "The number was added to the unsubscribe list.");
+    } catch (error) { toast(error.message || "تعذر إضافة الرقم", "danger"); }
+    return;
+  }
+  if (type === "unsubscribe-import") {
+    const numbers = String(data.text || "").split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    if (!numbers.length) return toast("لا توجد أرقام للاستيراد", "warning");
+    let saved = 0;
+    for (const phoneNumber of numbers) {
+      try {
+        await fetchJson("/api/unsubscribes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phoneNumber, reason: "استيراد يدوي" }) });
+        saved += 1;
+      } catch {}
+    }
+    closePortal(); state.unsubscribes = null; state.dashboardOverview = null; await syncRouteData(true);
+    toast(`تم استيراد ${saved} رقم`);
+    return;
   }
   if (type === "password") {
     const password = data.new || "";
     if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) return toast("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف ورقم ورمز خاص.", "danger");
-    closePortal();
-    toast("تم تغيير كلمة المرور بنجاح، يمكنك تسجيل الدخول الآن.");
+    try {
+      await fetchJson("/api/auth/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: data.old, newPassword: data.new }) });
+      closePortal(); toast("تم تغيير كلمة المرور بنجاح.");
+    } catch (error) { toast(error.message || "تعذر تغيير كلمة المرور", "danger"); }
+    return;
+  }
+  if (type === "profile-settings") {
+    await saveAccountSettings({ name: data.name });
+    return;
+  }
+  if (type === "customer-import") {
+    const lines = String(data.text || "").trim().split(/\r?\n/).filter(Boolean);
+    const rows = lines.slice(1).map((line) => {
+      const [name, email, phone] = line.split(",").map((value) => value?.trim());
+      return { name, email, phone };
+    }).filter((row) => row.name);
+    if (!rows.length) return toast("لا توجد صفوف صالحة للاستيراد", "warning");
+    let saved = 0;
+    for (const row of rows) {
+      try {
+        await fetchJson("/api/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(row) });
+        saved += 1;
+      } catch {}
+    }
+    closePortal(); state.dbCustomers = null; state.dashboardOverview = null; await syncRouteData(true);
+    toast(`تم استيراد ${saved} عميل`);
+    return;
   }
   if (["demo", "ticket", "chat", "message", "template", "ai-question"].includes(type)) {
     closePortal();
@@ -1596,25 +1704,19 @@ async function handleSubmit(form, event) {
 
 function render() {
   applyPreferences();
-  state.route = location.pathname;
+  const requestedRoute = location.pathname;
+  const normalizedRoute = dashboardAliases[requestedRoute] || requestedRoute;
+  if (normalizedRoute !== requestedRoute) history.replaceState({}, "", normalizedRoute + location.search);
+  state.route = normalizedRoute;
   state.query = new URLSearchParams(location.search);
   if (state.route.startsWith("/dashboard")) {
     const pages = {
       "/dashboard": dashboardHome,
       "/dashboard/subscriptions": subscriptionsPage,
       "/dashboard/customers": customersPage,
-      "/dashboard/renewals": renewalsPage,
-      "/dashboard/notifications": notificationsPage,
-      "/dashboard/warranty": warrantyPage,
+      "/dashboard/devices": connectedDevicesCenterPage,
+      "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
-      "/dashboard/connected-devices": connectedDevicesCenterPage,
-      "/dashboard/linked-devices": connectedDevicesCenterPage,
-      "/dashboard/whatsapp-safety": whatsappSafetyPage,
-      "/dashboard/unsubscribe": unsubscribePage,
-      "/dashboard/activity": activityPage,
-      "/dashboard/readiness": readinessPage,
-      "/dashboard/issues": issuesPage,
-      "/dashboard/billing": billingPage,
       "/dashboard/settings": settingsPage
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
@@ -1703,18 +1805,16 @@ document.addEventListener("change", (event) => {
     state.filter = target.value;
     render();
   }
-  if (target.dataset.action === "automation-toggle") {
-    state.automation[target.dataset.key] = target.checked;
-    storage.set("renewpilot.automation", state.automation);
-    toast(target.checked ? "تم تفعيل القاعدة" : "تم إيقاف القاعدة");
+  if (target.dataset.action === "report-period") {
+    state.reportPeriod = target.value;
+    render();
   }
   if (target.dataset.action === "setting-toggle") {
     state.settings[target.dataset.key] = target.checked;
-    storage.set("renewpilot.settings", state.settings);
-    toast("تم تحديث الإعداد");
+    void saveAccountSettings();
   }
 });
 
 window.addEventListener("popstate", render);
 render();
-if (["/dashboard/connected-devices", "/dashboard/linked-devices"].includes(state.route)) void syncLinkedDevice();
+if (state.route === "/dashboard/devices") void syncLinkedDevice();
