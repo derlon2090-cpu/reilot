@@ -21,6 +21,12 @@ export function isEvolutionInstanceMissing(error) {
   return /Evolution API 404:/i.test(String(error?.message || ""));
 }
 
+export function isEvolutionPairingUnsupported(error) {
+  const message = String(error?.message || "");
+  if (/Evolution API (404|501):/i.test(message)) return true;
+  return /pairing(?: code)? (?:is )?not supported|unsupported pairing|feature (?:is )?not available/i.test(message);
+}
+
 export function isValidPairingCode(value) {
   if (typeof value !== "string") return false;
   const clean = value.trim();

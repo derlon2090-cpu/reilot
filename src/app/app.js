@@ -1146,12 +1146,11 @@ async function handleAction(target) {
         body: JSON.stringify({ phoneNumber: phone })
       });
       if (!payload.pairingCode) throw new Error("رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingError: "", pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", pairingSupported: true, phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingError: "", pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast("تم إنشاء رمز الاقتران");
     } catch (error) {
       const message = error.message || "تعذر إنشاء رمز الاقتران، حاول استخدام الباركود.";
-      const nextStatus = state.linkedDevice.status === "connected" ? "connected" : state.linkedDevice.instanceId ? "error" : "not_connected";
-      state.linkedDevice = { ...state.linkedDevice, status: nextStatus, pairingSupported: error.status === 501 ? false : state.linkedDevice.pairingSupported, pairingError: message, pairingCode: "" };
+      state.linkedDevice = { ...state.linkedDevice, pairingSupported: error.status === 501 ? false : state.linkedDevice.pairingSupported, pairingError: message, pairingCode: "" };
       toast(message, "danger");
     } finally {
       state.linkedDevice.pairingLoading = false;

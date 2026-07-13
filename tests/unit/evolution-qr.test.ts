@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractEvolutionPairingCode, isEvolutionInstanceMissing, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { extractEvolutionPairingCode, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
@@ -24,6 +24,12 @@ describe("normalizeEvolutionQr", () => {
     expect(extractEvolutionPairingCode({ data: { pairingCode: "7K9M-2Q4P" } })).toBe("7K9M-2Q4P");
     expect(extractEvolutionPairingCode({ pairingCode: null, code: "x".repeat(3000) })).toBeNull();
     expect(isValidPairingCode("data:image/png;base64,abc")).toBe(false);
+  });
+
+  it("does not classify an HTTP 200 response without a code as unsupported", () => {
+    expect(isEvolutionPairingUnsupported(new Error("Evolution API 501: not implemented"))).toBe(true);
+    expect(isEvolutionPairingUnsupported(new Error("pairing code not supported"))).toBe(true);
+    expect(isEvolutionPairingUnsupported(new Error("HTTP 200 without a valid pairing code"))).toBe(false);
   });
 
   it("creates a unique tenant-scoped instance name for every link", () => {
