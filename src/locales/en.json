@@ -19,7 +19,7 @@
     "retry": "Retry",
     "success": "Completed successfully",
     "serverError": "The request could not be completed. Please try again.",
-    "untranslated": "RenewPilot AI content"
+    "untranslated": "Content"
   },
   "auth": {
     "loginTitle": "Sign in",

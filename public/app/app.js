@@ -88,6 +88,186 @@ const operationalEnglishPhrases = {
   "تم إيقاف الإرسال التلقائي": "Automatic sending paused"
 };
 
+Object.assign(operationalEnglishPhrases, {
+  "✦ منصة متكاملة لإدارة الاشتراكات والتجديدات": "✦ An integrated subscription and renewal platform",
+  "أدر تجديدات اشتراكاتك، تابع عملاءك،": "Manage subscription renewals and follow your customers,",
+  "وفعّل التذكيرات": "and automate reminders",
+  "بذكاء واحترافية": "intelligently and professionally",
+  "RenewPilot AI يساعدك على أتمتة عمليات التجديد، متابعة العملاء، وإرسال التذكيرات بسهولة وأمان، مع تقارير ذكية تمنحك رؤية أوضح لنمو عملك.": "RenewPilot AI automates renewals, customer follow-up, and secure reminders, with smart reports that make growth clearer.",
+  "استكشف المميزات": "Explore features",
+  "إدارة اشتراكات ذكية": "Smart subscription management",
+  "أتمتة التجديدات والتنبيهات وتقليل الانقطاعات وزيادة رضا العملاء.": "Automate renewals and reminders, reduce interruptions, and improve customer satisfaction.",
+  "تذكيرات متعددة القنوات": "Multi-channel reminders",
+  "إرسال عبر واتساب وSMS والبريد الإلكتروني في الوقت المناسب.": "Send timely reminders through WhatsApp, SMS, and email.",
+  "ربط الأجهزة بسهولة": "Easy device linking",
+  "دعم الباركود ورمز الاقتران لأكثر من جهاز وقناة.": "Connect devices and channels using QR or pairing codes.",
+  "تقارير وتحليلات متقدمة": "Advanced reports and analytics",
+  "لوحات واضحة لاتخاذ قرارات أفضل وتنمية عملك.": "Clear dashboards for better decisions and sustainable growth.",
+  "عميل نشط": "active customers",
+  "اشتراك مدار": "managed subscriptions",
+  "معدل تسليم الرسائل": "message delivery rate",
+  "سنوات من التطوير والابتكار": "years of development and innovation",
+  "كل ما تحتاجه لإدارة احترافية لنمو مستمر": "Everything you need for professional, sustainable growth",
+  "أدوات مترابطة تعمل معًا من أول تنبيه حتى اكتمال التجديد.": "Connected tools that work together from the first reminder through renewal.",
+  "كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.": "Everything you need to manage renewals, subscriptions, and customers efficiently in one intelligent platform.",
+  "ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم": "Start managing subscriptions intelligently today",
+  "جرّب RenewPilot AI مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.": "Try RenewPilot AI free and manage renewals smoothly without complexity.",
+  "إنشاء حساب مجاني": "Create a free account",
+  "احجز عرضًا تجريبيًا": "Book a demo",
+  "الباقات": "Plans",
+  "اختر الباقة المناسبة لنمو أعمالك وتواصل بذكاء واحترافية.": "Choose the right plan for your growth and communicate intelligently.",
+  "سنوي": "Yearly",
+  "وفر حتى 20%": "Save up to 20%",
+  "أسئلة شائعة": "Frequently asked questions",
+  "هل يمكنني الترقية أو التبديل بين الباقات؟": "Can I upgrade or switch plans?",
+  "هل الرسائل تشمل جميع القنوات؟": "Do message credits cover every channel?",
+  "ما سياسة إلغاء الاشتراك؟": "What is the cancellation policy?",
+  "كيف يتم احتساب الرسائل؟": "How are messages counted?",
+  "نعم، يمكنك إدارة خطتك بمرونة من صفحة الفوترة، ويُحتسب الاستخدام وفق الرسائل المعالجة فعليًا.": "Yes. You can manage your plan from Billing, and usage is based on messages actually processed.",
+  "شحن إضافي": "Additional credits",
+  "هل تحتاج إلى المزيد من الرسائل؟ اشحن رصيدك الإضافي حسب احتياجك.": "Need more messages? Add credits whenever your business needs them.",
+  "رسالة": "messages",
+  "شحن الآن": "Add credits",
+  "◎ الامتثال للمعايير العالمية": "◎ Global standards compliance",
+  "◇ أمان على مستوى المؤسسات": "◇ Enterprise-grade security",
+  "♙ دعم موثوق": "♙ Reliable support",
+  "المدونة": "Blog",
+  "أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.": "The latest insights on subscription renewals, customer retention, and intelligent automation.",
+  "ابحث في المقالات...": "Search articles...",
+  "الكل": "All",
+  "النصائح": "Guides",
+  "التجديدات": "Renewals",
+  "التقارير": "Reports",
+  "الحماية": "Security",
+  "مقال مميز": "Featured article",
+  "اقرأ المقال ←": "Read article →",
+  "أحدث المقالات": "Latest articles",
+  "اشترك في نشرتنا": "Subscribe to our newsletter",
+  "احصل على أحدث المقالات والنصائح مباشرة في بريدك.": "Get the latest articles and practical advice in your inbox.",
+  "بريدك الإلكتروني": "Your email address",
+  "اشترك الآن": "Subscribe now",
+  "لا توجد مقالات مطابقة": "No matching articles",
+  "جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.": "Try another search term or choose a different category.",
+  "مركز الدعم": "Support center",
+  "نحن هنا لمساعدتك على النجاح.": "We are here to help you succeed.",
+  "مركز المساعدة": "Help center",
+  "أدلة شاملة ومقالات لمساعدتك خطوة بخطوة.": "Clear guides and articles that help you step by step.",
+  "تصفح المقالات": "Browse articles",
+  "إجابات سريعة لأكثر الأسئلة شيوعًا.": "Quick answers to the most common questions.",
+  "عرض الأسئلة": "View questions",
+  "الدردشة": "Live chat",
+  "تحدث مباشرة مع فريق الدعم.": "Talk directly with our support team.",
+  "ابدأ المحادثة": "Start a conversation",
+  "راسلنا وسنرد عليك خلال 24 ساعة عمل.": "Email us and we will respond within one business day.",
+  "راسلنا الآن": "Email us",
+  "تعرف على التفاصيل والخطوات الأساسية.": "Learn the essentials and follow the required steps.",
+  "ابحث في مقالات المساعدة": "Search help articles",
+  "ابحث عن حلول ومقالات...": "Search solutions and articles...",
+  "ما هو RenewPilot AI وكيف يعمل؟": "What is RenewPilot AI and how does it work?",
+  "كيف يمكنني ربط حسابي في واتساب؟": "How do I connect my WhatsApp account?",
+  "هل يمكنني إلغاء اشتراكي في أي وقت؟": "Can I cancel my subscription at any time?",
+  "ما هي طرق الدفع المتاحة؟": "Which payment methods are available?",
+  "كيف أتابع أداء حملاتي وتقاريري؟": "How do I monitor campaigns and reports?",
+  "ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك إذا احتجت إلى توجيه إضافي.": "You will find the steps in the Help Center, and our support team can guide you further.",
+  "أرسل لنا طلب دعم": "Send a support request",
+  "صف مشكلتك أو استفسارك وسنقوم بالرد عليك.": "Describe your question or issue and our team will respond.",
+  "الاسم الكامل": "Full name",
+  "الموضوع": "Subject",
+  "اختر موضوع الطلب": "Choose a request topic",
+  "مشكلة تقنية": "Technical issue",
+  "الفوترة والباقات": "Billing and plans",
+  "ربط الأجهزة": "Device linking",
+  "تفاصيل الطلب": "Request details",
+  "إرسال الطلب": "Send request",
+  "▢ آمن وموثوق": "▢ Secure and reliable",
+  "◇ خبراء المنتجات": "◇ Product specialists",
+  "♬ دعم على مدار الساعة": "♬ Always-on support",
+  "◷ متوسط الرد أقل من ساعتين": "◷ Average response under two hours",
+  "العودة إلى الصفحة الرئيسية ←": "Back to home →",
+  "العودة إلى الرئيسية ←": "Back to home →",
+  "إنشاء حساب": "Create account",
+  "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية.": "Create your account and start managing subscriptions intelligently.",
+  "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك.": "Welcome back. Enter your details to access your account.",
+  "الخطة المختارة:": "Selected plan:",
+  "اسم الشركة (اختياري)": "Company name (optional)",
+  "أدخل بريدك الإلكتروني": "Enter your email address",
+  "اختر كلمة مرور قوية": "Choose a strong password",
+  "أدخل كلمة المرور": "Enter your password",
+  "أوافق على": "I agree to the",
+  "سياسة الاستخدام": "Terms of use",
+  "سياسة الخصوصية": "Privacy policy",
+  "تذكرني": "Remember me",
+  "نسيت كلمة المرور؟": "Forgot password?",
+  "لديك حساب بالفعل؟": "Already have an account?",
+  "ليس لديك حساب؟": "Don't have an account?",
+  "ابدأ رحلتك نحو إدارة اشتراكات أكثر ذكاءً": "Start your journey toward smarter subscription management",
+  "منصة متكاملة لإدارة الاشتراكات والتجديدات": "An integrated subscription and renewal platform",
+  "تتبّع اشتراكاتك، قلّل التكاليف، واتخذ قرارات أفضل لنمو عملك.": "Track subscriptions, reduce costs, and make better growth decisions.",
+  "بسّط عملياتك، تابع اشتراكاتك، واتخذ قرارات ذكية للنمو المستدام.": "Simplify operations, track subscriptions, and make informed growth decisions.",
+  "إدارة جميع اشتراكاتك في مكان واحد": "Manage every subscription in one place",
+  "تنبيهات ذكية في الوقت المناسب": "Timely intelligent reminders",
+  "آمن وموثوق": "Secure and reliable",
+  "نسيت كلمة المرور": "Forgot password",
+  "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور.": "Enter your account email and we will send a secure password reset link.",
+  "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة.": "Enter the verification code sent to your email, then choose a new password.",
+  "يمكنك الآن العودة إلى حسابك.": "You can now return to your account.",
+  "إرسال رابط الاستعادة": "Send reset link",
+  "رمز التحقق": "Verification code",
+  "كلمة المرور الجديدة": "New password",
+  "تعيين كلمة المرور": "Set password",
+  "تم تغيير كلمة المرور بنجاح.": "Your password was changed successfully.",
+  "إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.": "If the address exists, a reset link will arrive within a few minutes.",
+  "تذكرت كلمة المرور؟ تسجيل الدخول": "Remembered your password? Sign in",
+  "خطوة بسيطة لاستعادة الوصول": "A simple step to restore access",
+  "سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.": "We will send a secure link so you can return to managing subscriptions.",
+  "روابط سريعة": "Quick links",
+  "السياسات": "Policies",
+  "تواصل معنا": "Contact us",
+  "سياسة الاستبدال والاسترجاع": "Refund policy",
+  "منصة ذكية لإدارة الاشتراكات والتجديدات والتواصل مع العملاء.": "An intelligent platform for subscriptions, renewals, and customer communication.",
+  "جميع الحقوق محفوظة.": "All rights reserved.",
+  "صُممت لإدارة التجديدات بوضوح وأمان.": "Built to manage renewals clearly and securely.",
+  "أتمتة التجديدات الذكية": "Intelligent renewal automation",
+  "أتمتة المواعيد وإرسال الإشعارات لتقليل الهدر وزيادة معدل التجديد.": "Automate schedules and reminders to reduce waste and improve renewal rates.",
+  "إدارة العملاء": "Customer management",
+  "حفظ وتنظيم بيانات العملاء وسجل المعاملات والتجديدات في مكان واحد.": "Organize customer data, transactions, and renewals in one place.",
+  "ربط الأجهزة والباركود": "Device and QR linking",
+  "ربط الأجهزة وتوليد الباركود ورمز الاقتران ومراقبة الاتصال.": "Link devices, generate QR and pairing codes, and monitor connectivity.",
+  "التذكيرات عبر واتساب وSMS والبريد": "WhatsApp, SMS, and email reminders",
+  "إرسال تذكيرات متعددة القنوات بقوالب مرنة ومخصصة.": "Send multi-channel reminders with flexible, personalized templates.",
+  "التحليلات والتقارير": "Analytics and reports",
+  "تقارير تفصيلية ولوحات تحكم ذكية لمراقبة الأداء واتخاذ قرارات دقيقة.": "Use detailed reports and intelligent dashboards to make informed decisions.",
+  "القوالب الجاهزة": "Ready-to-use templates",
+  "قوالب احترافية قابلة للتخصيص للتذكيرات والفواتير والإشعارات.": "Customize professional templates for reminders, invoices, and notifications.",
+  "الحماية والإرسال الآمن": "Protection and safe sending",
+  "قواعد إرسال آمن وحماية للبيانات ومراقبة صحة حساب واتساب.": "Protect data and WhatsApp account health with safe-sending rules.",
+  "اللغتان العربية والإنجليزية": "Arabic and English",
+  "واجهة ثنائية اللغة تسهّل استخدام المنصة لفريقك وعملائك.": "A bilingual interface for your team and customers.",
+  "باقة ستارتر": "Starter plan",
+  "باقة برو": "Pro plan",
+  "باقة الأعمال": "Business plan",
+  "لبدء المشاريع والفرق الصغيرة": "For small businesses and teams",
+  "للشركات النامية": "For growing companies",
+  "للشركات الكبيرة وفرق العمل": "For large companies and teams",
+  "مستخدم واحد": "One user",
+  "مستخدمين": "users",
+  "رسالة / شهر": "messages / month",
+  "تكاملات أساسية": "Core integrations",
+  "تقارير أساسية": "Core reports",
+  "قوالب رسائل محدودة": "Limited message templates",
+  "دعم عبر البريد": "Email support",
+  "تكاملات متقدمة": "Advanced integrations",
+  "تقارير وتحليلات متقدمة": "Advanced reports and analytics",
+  "قوالب رسائل جاهزة": "Ready-to-use message templates",
+  "دعم فني أولوية": "Priority technical support",
+  "تكاملات API وWebhooks": "API and webhook integrations",
+  "تقارير مخصصة": "Custom reports",
+  "مدير حساب مخصص": "Dedicated account manager",
+  "دعم مميز على مدار الساعة": "Priority support around the clock",
+  "الأكثر شعبية": "Most popular",
+  "شهريًا": "month"
+});
+
 const storage = {
   get(key, fallback) {
     try {
@@ -152,7 +332,7 @@ function localizeElement(root) {
 
 const defaultLinkedDevice = {
   status: "not_connected",
-  linkMethod: "qr",
+  linkMethod: "pairing",
   instanceId: "",
   instanceName: "",
   deviceName: "",
@@ -206,12 +386,16 @@ state.accountSettings = null;
 state.readiness = null;
 state.operationalIssues = null;
 state.whatsappHealth = null;
+state.notificationTemplate = null;
+state.billingOverview = null;
+state.blogCategory = "الكل";
 state.remoteLoading = {};
 
 const routes = [
   ["/", "sidebar.home"],
   ["/features", "public.features"],
   ["/pricing", "public.pricing"],
+  ["/blog", "المدونة"],
   ["/support", "public.support"]
 ];
 
@@ -219,9 +403,11 @@ const dashboardRoutes = [
   ["/dashboard", "الرئيسية", "home"],
   ["/dashboard/subscriptions", "الاشتراكات", "subscriptions"],
   ["/dashboard/customers", "العملاء", "customers"],
+  ["/dashboard/renewal-template", "قالب رسالة التجديد", "template"],
   ["/dashboard/devices", "الأجهزة", "devices"],
   ["/dashboard/security", "الحماية", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
+  ["/dashboard/billing", "الفوترة والباقات", "billing"],
   ["/dashboard/settings", "الإعدادات", "settings"]
 ];
 
@@ -234,7 +420,7 @@ const dashboardAliases = {
   "/dashboard/unsubscribe": "/dashboard/security",
   "/dashboard/warranty": "/dashboard/security",
   "/dashboard/activity": "/dashboard/reports",
-  "/dashboard/billing": "/dashboard/reports",
+  "/dashboard/notifications/template": "/dashboard/renewal-template",
   "/dashboard/readiness": "/dashboard/security",
   "/dashboard/issues": "/dashboard/security"
 };
@@ -305,6 +491,8 @@ function syncRouteData(force = false) {
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
+  if (state.route === "/dashboard/renewal-template" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) void loadRemotePage("billing", "/api/billing", "billingOverview");
   if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) void loadRemotePage("settings", "/api/settings", "accountSettings");
 }
 
@@ -424,6 +612,8 @@ function dashboardIcon(name) {
     devices: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
     security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
+    template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>'
   };
@@ -449,7 +639,17 @@ function publicNavbar() {
 }
 
 function publicShell(content) {
-  return `<div class="page-shell">${publicNavbar()}${content}</div>`;
+  return `<div class="page-shell public-site">${publicNavbar()}${content}${publicFooter()}</div>`;
+}
+
+function publicFooter() {
+  const links = [["/", "الرئيسية"], ["/features", "المميزات"], ["/pricing", "الباقات"], ["/blog", "المدونة"], ["/support", "الدعم"], ["/contact", "تواصل معنا"]];
+  return `<footer class="public-footer"><div class="container public-footer-inner">
+    <div class="footer-brand">${logo()}<p>منصة ذكية لإدارة الاشتراكات والتجديدات والتواصل مع العملاء.</p></div>
+    <nav class="footer-links" aria-label="روابط سريعة">${links.map(([path, label]) => `<button data-link="${path}">${label}</button>`).join("")}</nav>
+    <nav class="footer-links" aria-label="السياسات"><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button></nav>
+    <div class="footer-social"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">in</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">▶</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">X</a><a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="WhatsApp">◉</a></div>
+  </div><div class="container footer-copy"><span>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</span><span>صُممت لإدارة التجديدات بوضوح وأمان.</span></div></footer>`;
 }
 
 function pageHero(title, lead, actions = "") {
@@ -635,6 +835,98 @@ function supportPage() {
   </main>`);
 }
 
+const publicBlogPosts = [
+  { slug: "renewal-strategies", category: "التجديدات", title: "7 استراتيجيات مثبتة لزيادة معدلات تجديد الاشتراكات والاحتفاظ بالعملاء", excerpt: "خطوات عملية تقلل الإلغاءات وتحسن تجربة العميل في كل مرحلة من دورة التجديد.", mark: "↻", date: "8 مايو 2026", minutes: "9 دقائق" },
+  { slug: "renewal-guide", category: "التجديدات", title: "دليل شامل لتجديد الاشتراكات بنجاح مستمر", excerpt: "منهج واضح لبناء رحلة تجديد سلسة ترفع الولاء على المدى الطويل.", mark: "▣", date: "6 مايو 2026", minutes: "7 دقائق" },
+  { slug: "whatsapp-messages", category: "النصائح", title: "أفضل ممارسات رسائل واتساب لتحسين الاستجابة", excerpt: "صياغات عملية وتوقيتات مناسبة تساعدك على رفع معدلات الرد والتجديد.", mark: "◉", date: "5 مايو 2026", minutes: "6 دقائق" },
+  { slug: "renewal-kpis", category: "التقارير", title: "مؤشرات الأداء الرئيسية في إدارة التجديدات", excerpt: "تعرف على أهم المؤشرات وكيفية تحليلها لاتخاذ قرارات أفضل.", mark: "▥", date: "29 أبريل 2026", minutes: "8 دقائق" },
+  { slug: "safe-whatsapp", category: "الحماية", title: "كيف تضمن رسائل آمنة ومتوافقة عبر واتساب؟", excerpt: "دليل شامل للامتثال وحماية الحساب من الحظر وتحسين جودة الإرسال.", mark: "◇", date: "25 أبريل 2026", minutes: "8 دقائق" }
+];
+
+function marketingHomePage() {
+  const highlights = [
+    ["إدارة اشتراكات ذكية", "أتمتة التجديدات والتنبيهات وتقليل الانقطاعات وزيادة رضا العملاء.", "subscriptions"],
+    ["تذكيرات متعددة القنوات", "إرسال عبر واتساب وSMS والبريد الإلكتروني في الوقت المناسب.", "template"],
+    ["ربط الأجهزة بسهولة", "دعم الباركود ورمز الاقتران لأكثر من جهاز وقناة.", "devices"],
+    ["تقارير وتحليلات متقدمة", "لوحات واضحة لاتخاذ قرارات أفضل وتنمية عملك.", "reports"]
+  ];
+  return publicShell(`<main>
+    <section class="marketing-hero"><div class="container marketing-hero-grid">
+      <div class="marketing-copy"><span class="eyebrow">✦ منصة متكاملة لإدارة الاشتراكات والتجديدات</span><h1>أدر تجديدات اشتراكاتك، تابع عملاءك،<br>وفعّل التذكيرات <span>بذكاء واحترافية</span></h1><p class="lead">RenewPilot AI يساعدك على أتمتة عمليات التجديد، متابعة العملاء، وإرسال التذكيرات بسهولة وأمان، مع تقارير ذكية تمنحك رؤية أوضح لنمو عملك.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
+      <div class="hero-product-preview">${dashboardPreview()}</div>
+    </div></section>
+    <section class="marketing-strip"><div class="container grid grid-4">${highlights.map(([title, body, mark]) => `<article class="marketing-mini">${dashboardIcon(mark)}<div><h3>${title}</h3><p>${body}</p></div></article>`).join("")}</div></section>
+    <section class="marketing-metrics"><div class="container">${[["+10,000", "عميل نشط", "customers"], ["+250,000", "اشتراك مدار", "subscriptions"], ["98.6%", "معدل تسليم الرسائل", "template"], ["+3", "سنوات من التطوير والابتكار", "security"]].map(([value, label, mark]) => `<div>${dashboardIcon(mark)}<strong>${value}</strong><span>${label}</span></div>`).join("")}</div></section>
+    <section class="section public-benefits"><div class="container"><div class="section-head centered"><div><h2>كل ما تحتاجه لإدارة احترافية لنمو مستمر</h2><p class="muted">أدوات مترابطة تعمل معًا من أول تنبيه حتى اكتمال التجديد.</p></div></div><div class="grid grid-5">${features.slice(0, 5).map(([title, body], index) => `<article>${dashboardIcon(["subscriptions", "devices", "security", "reports", "customers"][index])}<h3>${title}</h3><p>${body}</p></article>`).join("")}</div></div></section>
+  </main>`);
+}
+
+function marketingFeaturesPage() {
+  return publicShell(`<main><section class="public-heading"><div class="container"><h1>المميزات</h1><p>كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.</p></div></section>
+    <section class="section"><div class="container features-showcase"><div class="feature-preview">${dashboardPreview()}</div><div class="grid grid-3 feature-catalog">${features.map(([title, body, mark]) => `<article class="card public-feature-card">${icon(mark)}<h2>${title}</h2><p>${body}</p></article>`).join("")}</div></div></section>
+    <section class="section section-tight"><div class="container"><div class="public-cta"><div class="cta-logo"><span class="brand-mark"><span>R</span></span></div><div><h2>ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم</h2><p>جرّب RenewPilot AI مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.</p></div><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب مجاني</button><button class="btn btn-secondary" data-link="/support">احجز عرضًا تجريبيًا</button></div></div></div></section></main>`);
+}
+
+function marketingPricingPage() {
+  const topups = [["10,000", "39"], ["25,000", "89"], ["50,000", "169"], ["100,000", "299"]];
+  return publicShell(`<main><section class="public-heading pricing-heading"><div class="container"><h1>الباقات</h1><p>اختر الباقة المناسبة لنمو أعمالك وتواصل بذكاء واحترافية.</p><div class="pricing-toggle"><button class="toggle-pill ${state.billing === "monthly" ? "active" : ""}" data-action="billing" data-billing="monthly">شهري</button><button class="toggle-pill ${state.billing === "yearly" ? "active" : ""}" data-action="billing" data-billing="yearly">سنوي</button><span>وفر حتى 20%</span></div></div></section>
+    <section class="section pricing-section"><div class="container">${pricingCards()}</div></section>
+    <section class="section section-tight"><div class="container pricing-extras"><article class="card faq-card"><h2>أسئلة شائعة</h2>${["هل يمكنني الترقية أو التبديل بين الباقات؟", "هل الرسائل تشمل جميع القنوات؟", "ما سياسة إلغاء الاشتراك؟", "كيف يتم احتساب الرسائل؟"].map((q) => `<details><summary>${q}</summary><p>نعم، يمكنك إدارة خطتك بمرونة من صفحة الفوترة، ويُحتسب الاستخدام وفق الرسائل المعالجة فعليًا.</p></details>`).join("")}</article><article class="card topup-card"><div><h2>شحن إضافي</h2><p>هل تحتاج إلى المزيد من الرسائل؟ اشحن رصيدك الإضافي حسب احتياجك.</p></div><div class="topup-grid">${topups.map(([messages, price]) => `<div><span>${messages} رسالة</span><strong>${price} ر.س</strong><button class="btn btn-secondary" data-link="/register?topup=${messages.replace(",", "")}">شحن الآن</button></div>`).join("")}</div></article></div></section>
+    <section class="section section-tight"><div class="container trust-band"><span>◎ الامتثال للمعايير العالمية</span><span>◇ أمان على مستوى المؤسسات</span><span>♙ دعم موثوق</span><span>+10,000 عميل نشط</span></div></section></main>`);
+}
+
+function blogPage() {
+  const query = state.search.trim().toLowerCase();
+  const posts = publicBlogPosts.filter((post) => (state.blogCategory === "الكل" || post.category === state.blogCategory) && (!query || `${post.title} ${post.excerpt}`.toLowerCase().includes(query)));
+  const featured = posts[0];
+  return publicShell(`<main><section class="public-heading"><div class="container"><h1>المدونة</h1><p>أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.</p></div></section><section class="section section-tight"><div class="container blog-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="support-search" value="${escapeHtml(state.search)}" placeholder="ابحث في المقالات..."></div><div class="chips">${["الكل", "النصائح", "التجديدات", "التقارير", "الحماية"].map((item) => `<button class="chip ${state.blogCategory === item ? "active" : ""}" data-action="blog-category" data-category="${item}">${item}</button>`).join("")}</div></div></section>
+    <section class="section blog-section"><div class="container blog-layout"><div>${featured ? `<article class="card featured-post"><div class="blog-art">${icon(featured.mark)}</div><div><span class="badge">مقال مميز</span><h2>${featured.title}</h2><p>${featured.excerpt}</p><small>${featured.date} · ${featured.minutes}</small><button class="link-button" data-link="/blog/${featured.slug}">اقرأ المقال ←</button></div></article><div class="blog-grid">${posts.slice(1).map((post) => blogCard(post)).join("")}</div>` : emptyState("لا توجد مقالات مطابقة", "جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.")}</div><aside class="blog-aside"><article class="card"><h3>أحدث المقالات</h3>${publicBlogPosts.slice(0, 4).map((post) => `<button data-link="/blog/${post.slug}"><span>${icon(post.mark)}</span><strong>${post.title}</strong><small>${post.date}</small></button>`).join("")}</article><article class="card newsletter"><h3>اشترك في نشرتنا</h3><p>احصل على أحدث المقالات والنصائح مباشرة في بريدك.</p><form data-submit="newsletter"><input class="input" type="email" name="email" placeholder="بريدك الإلكتروني" required><button class="btn btn-primary">اشترك الآن</button></form></article></aside></div></section></main>`);
+}
+
+function blogCard(post) {
+  return `<article class="card blog-card"><div class="blog-art">${icon(post.mark)}</div><span class="badge">${post.category}</span><h3>${post.title}</h3><p>${post.excerpt}</p><small>${post.date} · ${post.minutes}</small><button class="link-button" data-link="/blog/${post.slug}">اقرأ المقال ←</button></article>`;
+}
+
+function articlePage() {
+  const post = publicBlogPosts.find((item) => `/blog/${item.slug}` === state.route);
+  if (!post) return blogPage();
+  return publicShell(`<main><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${post.title}</h1><p>${post.excerpt}</p><small>${post.date} · ${post.minutes}</small></div></section><article class="container card article-body"><h2>مقدمة</h2><p>نجاح إدارة التجديدات يبدأ من تجربة واضحة للعميل، وتوقيت مناسب للرسالة، وسجل موحد يساعد الفريق على اتخاذ القرار.</p><h2>خطوات عملية</h2><p>حدّد الشرائح المستهدفة، اضبط القناة المناسبة، راقب النتائج من التقارير، ثم حسّن الرسالة والتوقيت بناءً على البيانات الحقيقية.</p><div class="public-cta"><div><h2>طبّق هذه الخطوات في RenewPilot AI</h2><p>ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.</p></div><button class="btn btn-primary" data-link="/register">ابدأ الآن</button></div></article></main>`);
+}
+
+function marketingSupportPage() {
+  const cards = [["مركز المساعدة", "أدلة شاملة ومقالات لمساعدتك خطوة بخطوة.", "تصفح المقالات", "#help-center", "template"], ["الأسئلة الشائعة", "إجابات سريعة لأكثر الأسئلة شيوعًا.", "عرض الأسئلة", "#faq", "security"], ["الدردشة", "تحدث مباشرة مع فريق الدعم.", "ابدأ المحادثة", "open-chat", "customers"], ["تواصل عبر البريد", "راسلنا وسنرد عليك خلال 24 ساعة عمل.", "راسلنا الآن", "open-email", "template"]];
+  return publicShell(`<main><section class="public-heading support-heading"><div class="container"><h1>مركز الدعم</h1><p>نحن هنا لمساعدتك على النجاح.</p></div></section><section class="section section-tight"><div class="container grid grid-4 support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action.startsWith("#") ? `<a class="btn btn-secondary" href="/support${action}">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></section>
+    <section class="section support-body"><div class="container support-layout"><article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${knowledgeBase.slice(0, 5).map((item) => `<button data-action="knowledge" data-term="${item}">${dashboardIcon("template")}<span><strong>${item}</strong><small>تعرف على التفاصيل والخطوات الأساسية.</small></span><b>‹</b></button>`).join("")}</article><article class="card faq-panel" id="faq"><h2>ابحث في مقالات المساعدة</h2><input class="input" data-action="support-search" placeholder="ابحث عن حلول ومقالات..."><h2>الأسئلة الشائعة</h2>${["ما هو RenewPilot AI وكيف يعمل؟", "كيف يمكنني ربط حسابي في واتساب؟", "هل يمكنني إلغاء اشتراكي في أي وقت؟", "ما هي طرق الدفع المتاحة؟", "كيف أتابع أداء حملاتي وتقاريري؟"].map((q) => `<details><summary>${q}</summary><p>ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك إذا احتجت إلى توجيه إضافي.</p></details>`).join("")}</article><article class="card support-form-card"><h2>أرسل لنا طلب دعم</h2><p>صف مشكلتك أو استفسارك وسنقوم بالرد عليك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" required></label><label class="field"><span>الموضوع</span><select class="select" name="subject" required><option value="">اختر موضوع الطلب</option><option>مشكلة تقنية</option><option>الفوترة والباقات</option><option>ربط الأجهزة</option></select></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" required></textarea></label><button class="btn btn-primary">إرسال الطلب</button></form></article></div></section><section class="section section-tight"><div class="container trust-band"><span>▢ آمن وموثوق</span><span>◇ خبراء المنتجات</span><span>♬ دعم على مدار الساعة</span><span>◷ متوسط الرد أقل من ساعتين</span></div></section></main>`);
+}
+
+function policyPage() {
+  const content = {
+    "/privacy": ["سياسة الخصوصية", "نلتزم بحماية بياناتك واستخدامها فقط لتقديم خدمات RenewPilot AI وتحسينها، مع تطبيق ضوابط وصول وعزل كامل بين المستأجرين."],
+    "/terms": ["سياسة الاستخدام والشروط", "باستخدام المنصة توافق على استخدامها بصورة قانونية وآمنة، وعدم إرسال رسائل غير مرغوبة أو مشاركة بيانات الدخول مع أطراف غير مصرح لها."],
+    "/refund-policy": ["سياسة الاستبدال والاسترجاع", "تُراجع طلبات الاسترجاع وفق حالة الاشتراك والاستخدام الفعلي للخدمة، ويمكنك التواصل مع الدعم للحصول على مساعدة دقيقة."],
+    "/contact": ["تواصل معنا", "يسعد فريق RenewPilot AI بمساعدتك في الأسئلة التقنية والتجارية والفوترة."]
+  }[state.route] || ["RenewPilot AI", "معلومات المنصة."];
+  return publicShell(`<main><section class="public-heading"><div class="container"><h1>${content[0]}</h1><p>${content[1]}</p></div></section><section class="section"><div class="container card policy-card"><h2>${content[0]}</h2><p>${content[1]}</p><p>للتواصل: <a href="mailto:support@renewpilot.ai">support@renewpilot.ai</a></p><button class="btn btn-primary" data-link="/support">الانتقال إلى مركز الدعم</button></div></section></main>`);
+}
+
+function authPublicPage() {
+  const isRegister = state.route === "/register";
+  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الصفحة الرئيسية ←</button></header><section class="auth-light-shell ${isRegister ? "register" : "login"}">
+    <article class="card auth-light-panel"><h1>${isRegister ? "إنشاء حساب" : "تسجيل الدخول"}</h1><p>${isRegister ? "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية." : "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك."}</p>${state.query.get("plan") ? `<span class="badge">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form" novalidate>
+      ${isRegister ? `<label class="field"><span>الاسم الكامل</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>اسم الشركة (اختياري)</span><input class="input" name="companyName" autocomplete="organization"></label>` : ""}
+      <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label><label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="${isRegister ? "new-password" : "current-password"}" placeholder="${isRegister ? "اختر كلمة مرور قوية" : "أدخل كلمة المرور"}" required></label>
+      ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
+      <button class="btn btn-primary auth-submit">${isRegister ? "إنشاء حساب" : state.language === "en" ? "Sign in →" : "تسجيل الدخول ←"}</button><p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p></form></article>
+    <aside class="card auth-light-visual"><div class="auth-logo-large"><span class="brand-mark"><span>R</span></span><strong>RenewPilot <b>AI</b></strong></div><h2>${isRegister ? "ابدأ رحلتك نحو إدارة اشتراكات أكثر ذكاءً" : "منصة متكاملة لإدارة الاشتراكات والتجديدات"}</h2><p>${isRegister ? "تتبّع اشتراكاتك، قلّل التكاليف، واتخذ قرارات أفضل لنمو عملك." : "بسّط عملياتك، تابع اشتراكاتك، واتخذ قرارات ذكية للنمو المستدام."}</p><div class="auth-benefits">${[["إدارة جميع اشتراكاتك في مكان واحد", "subscriptions"], ["تنبيهات ذكية في الوقت المناسب", "template"], ["تقارير وتحليلات متقدمة", "reports"], ["آمن وموثوق", "security"]].map(([label, mark]) => `<div>${dashboardIcon(mark)}<span>${label}</span></div>`).join("")}</div></aside>
+  </section>${publicFooter()}</main>`;
+}
+
+function forgotPublicPage() {
+  const step = state.resetStep;
+  const content = step === 1 ? `<form data-submit="forgot" class="grid auth-form"><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" required></label><button class="btn btn-primary auth-submit">إرسال رابط الاستعادة</button></form>` : step === 2 ? `<form data-submit="reset-password" class="grid auth-form"><label class="field"><span>رمز التحقق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" type="password" name="password" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" required></label><button class="btn btn-primary auth-submit">تعيين كلمة المرور</button></form>` : `<div class="auth-success"><span class="success-mark">✓</span><p>تم تغيير كلمة المرور بنجاح.</p><button class="btn btn-primary" data-link="/login">تسجيل الدخول</button></div>`;
+  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">▢</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual"><span class="brand-mark"><span>R</span></span></div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
+}
+
 function loginPage() {
   const isRegister = state.route === "/register";
   return `<main class="auth-page ${isRegister ? "register-mode" : "login-mode"}">
@@ -686,7 +978,8 @@ function forgotPasswordPage() {
 }
 
 function dashboardShell(content) {
-  const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : ({ "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "الأجهزة": "Devices", "الحماية": "Security", "التقارير": "Reports", "الإعدادات": "Settings" }[label])}</span></button>`).join("");
+  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   const profile = state.dashboardOverview?.profile || {};
   const profileName = profile.name || (state.language === "ar" ? "المستخدم" : "User");
@@ -1018,6 +1311,74 @@ function connectedDevicesCenterPage() {
     <section class="section section-tight health-and-safety"><article class="card table-card number-health-card"><div class="section-head"><div><h3>${t("linkedDevices.health")}</h3><p class="muted">${t("linkedDevices.safeSending")}</p></div><span class="health-score">${health ? 100 - Number(health.risk || 0) : 0}/100</span></div>${health ? `<div class="health-metrics"><span><small>${t("linkedDevices.messagesToday")}</small><strong>${health.messagesToday || 0}</strong></span><span><small>${t("linkedDevices.messagesHour")}</small><strong>${health.messagesHour || 0}</strong></span><span><small>${t("linkedDevices.failureRate")}</small><strong>${health.failureRate || 0}%</strong></span><span><small>${t("linkedDevices.unsubscribeCount")}</small><strong>${health.unsubscribeCount || 0}</strong></span><span><small>${t("linkedDevices.riskScore")}</small><strong>${health.risk || 0}/100</strong></span></div><div class="secure-note"><strong>${t("linkedDevices.smartAdvice")}:</strong> ${escapeHtml(health.advice || "")}</div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط الجهاز وافحص الاتصال لعرض مؤشرات الصحة.")}</article><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3>${stats.safeRules > 0 ? `<p><strong>${stats.safeRules}</strong> قواعد نشطة من قاعدة البيانات.</p><button class="btn btn-secondary" data-link="/dashboard/security">إدارة القواعد</button>` : emptyState("لا توجد قواعد إرسال آمن", "أضف قواعدك من صفحة الحماية.", "فتح الحماية", "/dashboard/security")}</article></section>`);
 }
 
+function devicesWorkspacePage() {
+  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
+  const stats = overviewStats();
+  const isConnected = device.status === "connected";
+  const isPending = ["pending_pairing", "pending_qr", "connecting"].includes(device.status);
+  const method = device.linkMethod || "pairing";
+  const hasQr = isRealQrDataUri(device.qrBase64);
+  const hasPairing = device.status === "pending_pairing" && Boolean(device.pairingCode);
+  const lastCheck = device.lastCheckAt || (stats.lastDeviceCheck ? new Date(stats.lastDeviceCheck).toLocaleString("ar-SA") : "لم يتم الفحص بعد");
+  const quality = isConnected ? "ممتاز" : "غير متاح";
+  const deviceRows = isConnected || isPending ? [[
+    `<strong>${escapeHtml(device.deviceName || (isConnected ? "جهاز واتساب متصل" : "جلسة ربط جديدة"))}</strong><small>${escapeHtml(device.instanceName ? `Evolution · ${device.instanceName.slice(0, 12)}…` : "Evolution API")}</small>`,
+    escapeHtml(device.phoneNumber || device.phoneInput || "غير متوفر"), status(device.status), isConnected ? "ممتاز" : "بانتظار الربط", escapeHtml(lastCheck),
+    `<div class="row-actions"><button class="icon-action" data-action="check-device-connection" title="فحص الاتصال">${dashboardIcon("reports")}</button>${isConnected ? `<button class="icon-action danger-text" data-action="disconnect-device" title="فصل الجهاز">×</button>` : ""}<button class="icon-action danger-text" data-action="delete-device" title="حذف الجهاز">⋮</button></div>`
+  ]] : [];
+  const qrPanel = `<div class="device-method-panel qr-method-panel">${hasQr ? `<button class="qr-display" data-action="show-device-qr"><img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب الحقيقي"><span>اضغط لتكبير الباركود</span></button>` : `<div class="device-empty-visual">${dashboardIcon("devices")}<strong>لا يوجد باركود جاهز</strong><p>${escapeHtml(device.qrError || "أنشئ باركودًا حقيقيًا من Evolution API للبدء.")}</p></div>`}<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : "إنشاء/تحديث الباركود"}</button>${hasQr ? `<small>صالح حتى ${escapeHtml(device.qrExpiresAt || "وقت قصير")}</small>` : ""}</div>`;
+  const pairingPanel = `<div class="device-method-panel pairing-method-panel"><label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${escapeHtml(device.phoneInput || "")}" placeholder="0551234567 أو 9665XXXXXXXX" inputmode="tel"></label><small>سيتم تحويل الرقم السعودي المحلي تلقائيًا إلى الصيغة الدولية.</small><button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء الرمز..." : "إنشاء رمز الاقتران"}</button>${device.pairingError ? `<p class="status danger">${escapeHtml(device.pairingError)}</p>` : ""}${hasPairing ? `<div class="pairing-success"><span class="status success">تم الإنشاء بنجاح</span><div class="pairing-code-row"><strong>${escapeHtml(device.pairingCode)}</strong><button class="btn btn-secondary" data-action="copy-pairing">نسخ</button></div><small>صالح حتى ${escapeHtml(device.pairingExpiresAt || "وقت قصير")}</small><p>افتح واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز ← الربط برقم الهاتف، ثم أدخل الرمز.</p></div>` : `<div class="device-empty-visual compact">${dashboardIcon("template")}<strong>سيظهر رمز الاقتران الحقيقي هنا</strong><p>لن تعرض المنصة أي رمز لم يرجع مباشرة من Evolution API.</p></div>`}</div>`;
+  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-secondary" data-action="check-device-connection" ${!device.instanceId ? "disabled" : ""}>${dashboardIcon("reports")} فحص الاتصال</button>`)}
+    <p class="page-kicker">إدارة أجهزة واتساب المرتبطة بحسابك ومراقبة حالة الاتصال في الوقت الفعلي.</p>
+    ${statGrid([
+      { title: "الأجهزة المتصلة", value: stats.connectedDevices, caption: "أجهزة متصلة الآن", tone: isConnected ? "success" : "neutral", icon: "devices" },
+      { title: "بانتظار الربط", value: stats.pendingDevices, caption: "جلسات فعلية", tone: "warning", icon: "template" },
+      { title: "جودة الاتصال", value: quality, caption: isConnected ? "Evolution متصل" : "اربط جهازًا للقياس", tone: isConnected ? "success" : "neutral", icon: "reports" },
+      { title: "آخر فحص", value: lastCheck, caption: "حالة القناة الحالية", tone: "info", icon: "security" }
+    ])}
+    <section class="section devices-workspace"><article class="card devices-table-card"><div class="section-head"><div><h2>الأجهزة المرتبطة</h2><p>تظهر هنا القناة الفعلية الخاصة بمساحة عملك فقط.</p></div><button class="btn btn-secondary" data-action="check-device-connection" ${!device.instanceId ? "disabled" : ""}>فحص الاتصال</button></div>${deviceRows.length ? simpleTable(["اسم النسخة", "رقم الهاتف", "الحالة", "جودة الاتصال", "آخر مزامنة", "الإجراء"], deviceRows) : emptyState("لا توجد أجهزة مرتبطة", "ابدأ بإنشاء رمز اقتران أو باركود من اللوحة المجاورة.")}</article>
+      <aside class="card device-link-card"><div class="section-head"><div><h2>ربط جهاز جديد</h2><p>اختر طريقة الربط المناسبة لك.</p></div>${dashboardIcon("devices")}</div><span class="field-label">طريقة الربط</span><div class="segmented device-method-tabs"><button class="${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">${dashboardIcon("template")} الربط عبر رمز الاقتران</button><button class="${method === "qr" ? "active" : ""}" data-action="device-link-method" data-method="qr">${dashboardIcon("devices")} الربط عبر الباركود</button></div>${method === "pairing" ? pairingPanel : qrPanel}<div class="device-card-actions">${isConnected ? `<button class="btn btn-secondary" data-action="send-device-test">إرسال رسالة اختبار</button><button class="btn btn-danger" data-action="disconnect-device">فصل الجهاز</button>` : `<button class="btn btn-secondary" data-action="check-device-connection" ${!isPending ? "disabled" : ""}>فحص حالة الربط</button>`}</div></aside>
+    </section>`);
+}
+
+function renewalTemplatePage() {
+  const payload = state.notificationTemplate || {};
+  const template = payload.template || {};
+  const rule = payload.rule || {};
+  const body = template.body || "";
+  const channel = template.channel || "whatsapp";
+  const isWhatsappReady = overviewStats().connectedDevices > 0;
+  const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;
+  return dashboardShell(`${pageTitle("قالب رسالة التجديد")}
+    <p class="page-kicker">أنشئ وخصص رسالة التجديد التي سيتم إرسالها للعملاء قبل انتهاء اشتراكاتهم.</p>
+    <section class="template-workspace"><article class="card template-editor-card"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر محتوى الرسالة باستخدام المتغيرات الذكية.</p></div>${dashboardIcon("template")}</div><form data-submit="renewal-template" class="grid">
+      <div class="template-meta-grid"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" placeholder="مثال: تذكير قبل التجديد"></label><label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option><option value="sms" ${channel === "sms" ? "selected" : ""}>الرسائل النصية SMS</option></select></label></div>
+      <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>النص</span></div><textarea class="textarea template-editor" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{renewal_link}}"].map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
+      <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
+      <div class="template-actions"><button class="btn btn-primary">حفظ القالب</button><button type="button" class="btn btn-secondary" data-action="test-template" ${channel === "whatsapp" && !isWhatsappReady ? "disabled title=\"اربط جهازًا أولًا حتى تتمكن من إرسال رسالة تجريبية.\"" : ""}>إرسال رسالة تجريبية</button></div></form></article>
+      <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">اليوم</span><div class="message-bubble">${preview}<small>10:30 ✓✓</small></div></div><p class="preview-note">هذه معاينة تقريبية، وقد يختلف مظهر الرسالة حسب قناة الإرسال.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>${channel === "whatsapp" ? "واتساب" : channel === "email" ? "البريد الإلكتروني" : "SMS"}</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
+    </section>`);
+}
+
+function billingWorkspacePage() {
+  const data = state.billingOverview || {};
+  const current = data.current || {};
+  const plans = data.plans || [];
+  const usage = data.usage || { usedMessages: 0, messageLimit: 0 };
+  const days = current.currentPeriodEnd ? Math.max(0, Math.ceil((new Date(current.currentPeriodEnd) - Date.now()) / 86400000)) : 0;
+  const invoices = data.invoices || [];
+  return dashboardShell(`${pageTitle("الفوترة والباقات")}
+    <p class="page-kicker">إدارة خطة الاشتراك والاستخدام والفواتير بكل سهولة وشفافية.</p>${statGrid([
+      { title: "الرصيد المتاح", value: formatMoney(data.walletBalance || 0), caption: "لا يُعرض رصيد غير مسجل", tone: "info", icon: "billing" },
+      { title: "الأيام المتبقية", value: days, caption: current.currentPeriodEnd ? `حتى ${new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA")}` : "لا توجد دورة نشطة", tone: "purple", icon: "template" },
+      { title: "الخطة الحالية", value: current.planName || "تجربة مجانية", caption: current.status || "trial", tone: "success", icon: "subscriptions" },
+      { title: "استخدام الرسائل", value: `${Number(usage.usedMessages || 0).toLocaleString("ar-SA")} / ${Number(usage.messageLimit || 0).toLocaleString("ar-SA")}`, caption: "من قاعدة البيانات", tone: "info", icon: "reports" }
+    ])}
+    <section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات المتاحة فعليًا في منصة RenewPilot.</p></div></div>${plans.length ? `<div class="dashboard-plan-grid">${plans.map((plan) => `<article class="dashboard-plan ${plan.slug === current.planSlug ? "current" : ""}"><span class="status ${plan.slug === current.planSlug ? "success" : "info"}">${plan.slug === current.planSlug ? "خطتك الحالية" : "متاحة"}</span><h3>${escapeHtml(plan.name)}</h3><p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p><ul class="check-list"><li>${Number(plan.messageLimit || 0).toLocaleString("ar-SA")} رسالة</li><li>${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل</li><li>${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} جهاز واتساب</li></ul><button class="btn ${plan.slug === current.planSlug ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${plan.slug === current.planSlug ? "عرض تفاصيل الخطة" : "اختيار الباقة"}</button></article>`).join("")}</div>` : emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support")}</article>
+      <aside class="billing-side"><article class="card wallet-card"><h2>شحن المحفظة</h2><p>الدفع الإلكتروني غير مفعّل في هذه البيئة حاليًا.</p><button class="btn btn-primary" data-link="/support">طلب مساعدة في الشحن</button></article><article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>تاريخ التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>
+    <article class="card table-card section"><div class="section-head"><div><h2>آخر الفواتير</h2><p>لا تظهر إلا الفواتير المسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد ربط مزود الدفع وإصدار أول فاتورة.")}</article>`);
+}
+
 function settingsPage() {
   const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
   const notifications = remote.notificationChannels || {};
@@ -1321,7 +1682,7 @@ async function handleAction(target) {
   if (action === "notifications") toast((state.dashboardOverview?.recentNotifications || []).length ? "تم فتح أحدث التنبيهات المسجلة" : "لا توجد تنبيهات جديدة", "info");
   if (action === "open-demo") openModal("احجز عرضًا توضيحيًا", demoForm());
   if (action === "billing") { state.billing = target.dataset.billing; storage.set("renewpilot.billing", state.billing); render(); }
-  if (action === "select-plan") navigate(`/login?plan=${target.dataset.plan}`);
+  if (action === "select-plan") navigate(`/register?plan=${target.dataset.plan}`);
   if (action === "forgot-password") navigate("/forgot-password");
   if (action === "google-login") toast("سيتم ربط تسجيل الدخول عبر Google لاحقًا", "warning");
   if (action === "open-ticket") openModal("فتح تذكرة دعم", `<form data-submit="ticket" class="grid">${field("الموضوع", "subject")}${field("البريد", "email", "email")}<textarea class="textarea" name="body" required placeholder="وصف المشكلة"></textarea><button class="btn btn-primary">إرسال التذكرة</button></form>`);
@@ -1330,6 +1691,22 @@ async function handleAction(target) {
   if (action === "open-whatsapp") window.open("https://wa.me/966500000000?text=مرحبًا، أحتاج دعم RenewPilot AI", "_blank");
   if (action === "knowledge") toast(`تم فتح قسم ${target.dataset.term}`);
   if (action === "support-chip") { state.search = target.dataset.term; render(); }
+  if (action === "blog-category") { state.blogCategory = target.dataset.category; render(); }
+  if (action === "insert-template-variable") {
+    const textarea = document.querySelector("textarea[name='body']");
+    if (!textarea) return;
+    const value = target.dataset.variable || "";
+    const start = textarea.selectionStart ?? textarea.value.length;
+    textarea.value = `${textarea.value.slice(0, start)}${value}${textarea.value.slice(textarea.selectionEnd ?? start)}`;
+    textarea.focus();
+    textarea.setSelectionRange(start + value.length, start + value.length);
+  }
+  if (action === "test-template") {
+    const channel = document.querySelector("select[name='channel']")?.value || state.notificationTemplate?.template?.channel || "whatsapp";
+    if (channel !== "whatsapp") return toast("اختبار هذه القناة يتطلب تفعيل مزودها من الإعدادات أولًا.", "warning");
+    if (state.linkedDevice.status !== "connected" && overviewStats().connectedDevices < 1) return toast("اربط جهاز واتساب أولًا حتى تتمكن من إرسال رسالة تجريبية.", "warning");
+    return openModal("إرسال رسالة تجريبية", `<form data-submit="send-device-test" class="grid"><label class="field"><span>رقم المستلم التجريبي</span><input class="input" name="to" inputmode="numeric" placeholder="9665XXXXXXXX" required></label><label class="field"><span>الرسالة</span><textarea class="textarea" name="message" required>${escapeHtml(document.querySelector("textarea[name='body']")?.value || state.notificationTemplate?.template?.body || "")}</textarea></label><button class="btn btn-primary">إرسال الاختبار</button></form>`);
+  }
   if (action === "add-subscription") openModal("إضافة اشتراك جديد", subscriptionForm());
   if (action === "bulk-import") openModal(state.language === "ar" ? "استيراد اشتراكات من Excel" : "Import subscriptions from Excel", `<form data-submit="import-preview" class="grid"><label class="field"><span>${state.language === "ar" ? "الصق الجدول هنا" : "Paste the spreadsheet here"}</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="رقم الطلب\tاسم العميل\tرقم الجوال\tالخدمة\tتاريخ البداية\tتاريخ الانتهاء\tرابط التجديد"></textarea></label><button class="btn btn-primary">${state.language === "ar" ? "معاينة قبل الحفظ" : "Preview before saving"}</button></form><div id="import-preview"></div>`);
   if (action === "mark-renewed") openModal(state.language === "ar" ? "تم التجديد" : "Mark as renewed", `<form data-submit="quick-renew" data-id="${target.dataset.id}" class="grid"><label class="field"><span>${state.language === "ar" ? "مدة التجديد" : "Renewal duration"}</span><select class="select" name="duration"><option value="month">${state.language === "ar" ? "شهر" : "One month"}</option><option value="three_months">${state.language === "ar" ? "3 أشهر" : "3 months"}</option><option value="six_months">${state.language === "ar" ? "6 أشهر" : "6 months"}</option><option value="year">${state.language === "ar" ? "سنة" : "One year"}</option><option value="custom">${state.language === "ar" ? "تاريخ مخصص" : "Custom date"}</option></select></label><label class="field"><span>${state.language === "ar" ? "التاريخ المخصص" : "Custom date"}</span><input class="input" type="date" name="customDate"></label><label class="check-row"><input type="checkbox" name="sendNotification" value="true"><span>إرسال إشعار بعد التجديد (اختياري)</span></label><button class="btn btn-primary">${t("common.confirm")}</button><button type="button" class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button></form>`);
@@ -1523,6 +1900,7 @@ async function handleSubmit(form, event) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast(t("auth.invalidEmail"), "danger");
     if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
+    if (!data.acceptPolicies) return toast("يجب الموافقة على سياسة الاستخدام وسياسة الخصوصية.", "danger");
     try {
       const response = await fetch("/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       const payload = await response.json().catch(() => null);
@@ -1549,6 +1927,34 @@ async function handleSubmit(form, event) {
       return toast(t("common.serverError"), "danger");
     }
     toast(t("auth.registerSuccess"));
+    return;
+  }
+  if (type === "renewal-template") {
+    if (!data.name?.trim()) return toast("اكتب اسمًا للقالب.", "danger");
+    if (!data.body?.trim()) return toast("اكتب محتوى رسالة التجديد.", "danger");
+    try {
+      const payload = await fetchJson("/api/templates/renewal", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: data.name, channel: data.channel, body: data.body, daysOffset: Number(data.daysOffset || 7), isActive: data.isActive === "on" })
+      });
+      state.notificationTemplate = payload;
+      toast("تم حفظ قالب رسالة التجديد بنجاح");
+      render();
+    } catch (error) { toast(error.message || "تعذر حفظ القالب", "danger"); }
+    return;
+  }
+  if (type === "support-request") {
+    if (!data.name?.trim() || !data.email?.trim() || !data.subject || !data.details?.trim()) return toast("يرجى تعبئة جميع حقول طلب الدعم.", "danger");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
+    form.reset();
+    toast("تم إرسال طلب الدعم بنجاح");
+    return;
+  }
+  if (type === "newsletter") {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast("أدخل بريدًا إلكترونيًا صحيحًا.", "danger");
+    form.reset();
+    toast("تم الاشتراك في النشرة بنجاح");
     return;
   }
   if (type === "subscription") {
@@ -1714,9 +2120,11 @@ function render() {
       "/dashboard": dashboardHome,
       "/dashboard/subscriptions": subscriptionsPage,
       "/dashboard/customers": customersPage,
-      "/dashboard/devices": connectedDevicesCenterPage,
+      "/dashboard/renewal-template": renewalTemplatePage,
+      "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
+      "/dashboard/billing": billingWorkspacePage,
       "/dashboard/settings": settingsPage
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
@@ -1726,16 +2134,22 @@ function render() {
     return;
   }
   const pages = {
-    "/": homePage,
-    "/features": featuresPage,
-    "/pricing": pricingPage,
-    "/support": supportPage,
-    "/login": loginPage,
-    "/register": loginPage,
-    "/forgot-password": forgotPasswordPage,
-    "/reset-password": forgotPasswordPage
+    "/": marketingHomePage,
+    "/features": marketingFeaturesPage,
+    "/pricing": marketingPricingPage,
+    "/blog": blogPage,
+    "/support": marketingSupportPage,
+    "/login": authPublicPage,
+    "/register": authPublicPage,
+    "/forgot-password": forgotPublicPage,
+    "/reset-password": forgotPublicPage,
+    "/privacy": policyPage,
+    "/terms": policyPage,
+    "/refund-policy": policyPage,
+    "/contact": policyPage
   };
-  app.innerHTML = (pages[state.route] || homePage)();
+  const page = state.route.startsWith("/blog/") ? articlePage : pages[state.route] || marketingHomePage;
+  app.innerHTML = page();
   localizeElement(app);
 }
 
@@ -1812,6 +2226,10 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "setting-toggle") {
     state.settings[target.dataset.key] = target.checked;
     void saveAccountSettings();
+  }
+  if (target.dataset.action === "template-channel" && state.notificationTemplate) {
+    state.notificationTemplate.template = { ...(state.notificationTemplate.template || {}), channel: target.value };
+    render();
   }
 });
 

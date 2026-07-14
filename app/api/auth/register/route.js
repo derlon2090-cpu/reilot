@@ -18,6 +18,7 @@ export async function POST(req) {
     if (!isValidEmail(email)) return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
     const result = await registerAccount({
       name: body.name,
+      companyName: body.companyName,
       email,
       password: body.password,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
