@@ -600,8 +600,12 @@ function icon(text, tone = "") {
 function logo() {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="RenewPilot AI">
-    <span class="brand-mark" aria-hidden="true"><span>R</span></span><span class="brand-wordmark">RenewPilot <b>AI</b></span>
+    <img class="brand-logo" src="/assets/renewpilot-logo-horizontal.png" alt="RenewPilot AI">
   </button>`;
+}
+
+function stackedLogo() {
+  return `<img class="brand-logo-stacked" src="/assets/renewpilot-logo-stacked.png" alt="RenewPilot AI">`;
 }
 
 function dashboardIcon(name) {
@@ -622,16 +626,18 @@ function dashboardIcon(name) {
 
 function publicNavbar() {
   const links = routes.map(([path, key]) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}">${t(key)}</button>`).join("");
-  const themeIcon = state.theme === "dark" ? "☾" : "☀";
+  const themeIcon = state.theme === "dark" ? "☾" : "☼";
   return `<nav class="public-nav ${state.navOpen ? "open" : ""}">
     <div class="container nav-inner">
       ${logo()}
       <div class="nav-links">${links}</div>
       <div class="nav-actions">
-        <button class="btn btn-ghost icon-btn" data-action="theme" title="${t("settings.theme")}">${themeIcon}</button>
-        <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
-        <button class="btn btn-secondary" data-link="/login">${t("auth.loginTitle")}</button>
-        <button class="btn btn-primary" data-link="/register">${t("auth.createAccount")}</button>
+        <button class="btn btn-ghost icon-btn public-theme" data-action="theme" title="${t("settings.theme")}">${themeIcon}</button>
+        <button class="locale-link ${state.language === "ar" ? "active" : ""}" data-action="language" data-language="ar">AR</button>
+        <span class="locale-divider">|</span>
+        <button class="locale-link ${state.language === "en" ? "active" : ""}" data-action="language" data-language="en">EN</button>
+        <button class="btn btn-primary" data-link="/register">${t("auth.createAccount")} ${dashboardIcon("customers")}</button>
+        <button class="btn btn-secondary" data-link="/login">${t("auth.loginTitle")} ${dashboardIcon("customers")}</button>
       </div>
       <button class="btn btn-secondary icon-btn mobile-menu" data-action="toggle-public-nav" aria-label="القائمة">☰</button>
     </div>
@@ -643,13 +649,11 @@ function publicShell(content) {
 }
 
 function publicFooter() {
-  const links = [["/", "الرئيسية"], ["/features", "المميزات"], ["/pricing", "الباقات"], ["/blog", "المدونة"], ["/support", "الدعم"], ["/contact", "تواصل معنا"]];
   return `<footer class="public-footer"><div class="container public-footer-inner">
-    <div class="footer-brand">${logo()}<p>منصة ذكية لإدارة الاشتراكات والتجديدات والتواصل مع العملاء.</p></div>
-    <nav class="footer-links" aria-label="روابط سريعة">${links.map(([path, label]) => `<button data-link="${path}">${label}</button>`).join("")}</nav>
-    <nav class="footer-links" aria-label="السياسات"><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button></nav>
+    <div class="footer-brand-mini">${logo()}<span>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</span></div>
+    <nav class="footer-links" aria-label="روابط سريعة"><button data-link="/about">عن المنصة</button><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button><button data-link="/support">الدعم</button><button data-link="/contact">تواصل معنا</button><button data-link="/blog">المدونة</button></nav>
     <div class="footer-social"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">in</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">▶</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">X</a><a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="WhatsApp">◉</a></div>
-  </div><div class="container footer-copy"><span>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</span><span>صُممت لإدارة التجديدات بوضوح وأمان.</span></div></footer>`;
+  </div></footer>`;
 }
 
 function pageHero(title, lead, actions = "") {
@@ -692,28 +696,7 @@ function performanceChart(rows = []) {
 }
 
 function dashboardPreview() {
-  return `<article class="card preview-card">
-    <div class="preview-header">
-      <strong>معاينة لوحة التحكم</strong>
-      <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-    </div>
-    <div class="dashboard-preview">
-      <aside class="preview-side">
-        <span class="fake-line active"></span><span class="fake-line"></span><span class="fake-line"></span><span class="fake-line"></span><span class="fake-line"></span>
-      </aside>
-      <main class="preview-main">
-        <div class="preview-stats">
-          ${Array.from({ length: 4 }, () => `<div class="preview-stat art-skeleton"><span></span><strong></strong></div>`).join("")}
-        </div>
-        <div class="table-skeleton">
-          ${Array.from({ length: 6 }).map((_, index) => `<div class="sk-row">
-            <span class="fake-line ${index === 0 ? "active" : ""}"></span><span class="fake-line"></span><span class="fake-line"></span><span class="fake-line"></span>
-          </div>`).join("")}
-        </div>
-        <div class="bars">${[45, 68, 55, 82, 74, 96].map((h, i) => `<div class="bar" style="height:${h}%"><span>${["س", "ح", "ن", "ث", "ر", "خ"][i]}</span></div>`).join("")}</div>
-      </main>
-    </div>
-  </article>`;
+  return `<article class="dashboard-reference"><img src="/assets/dashboard-preview.png" alt="معاينة لوحة تحكم RenewPilot AI"></article>`;
 }
 
 function featureGrid(limit = features.length) {
@@ -863,15 +846,16 @@ function marketingHomePage() {
 
 function marketingFeaturesPage() {
   return publicShell(`<main><section class="public-heading"><div class="container"><h1>المميزات</h1><p>كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.</p></div></section>
-    <section class="section"><div class="container features-showcase"><div class="feature-preview">${dashboardPreview()}</div><div class="grid grid-3 feature-catalog">${features.map(([title, body, mark]) => `<article class="card public-feature-card">${icon(mark)}<h2>${title}</h2><p>${body}</p></article>`).join("")}</div></div></section>
-    <section class="section section-tight"><div class="container"><div class="public-cta"><div class="cta-logo"><span class="brand-mark"><span>R</span></span></div><div><h2>ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم</h2><p>جرّب RenewPilot AI مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.</p></div><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب مجاني</button><button class="btn btn-secondary" data-link="/support">احجز عرضًا تجريبيًا</button></div></div></div></section></main>`);
+    <section class="section features-section"><div class="container feature-showcase-grid"><div class="feature-visual-column"><div class="feature-preview-card">${dashboardPreview()}</div><div class="feature-lower-grid">${features.slice(6).map(([title, body], index) => `<article class="card feature-wide">${dashboardIcon(index ? "customers" : "security")}<div><h2>${title}</h2><p>${body}</p></div></article>`).join("")}</div></div><div class="public-feature-grid">${features.slice(0, 6).map(([title, body], index) => `<article class="card public-feature-card">${dashboardIcon(["subscriptions", "customers", "devices", "template", "reports", "template"][index])}<h2>${title}</h2><p>${body}</p></article>`).join("")}</div></div></section>
+    <section class="section section-tight"><div class="container"><div class="card public-cta"><div class="cta-logo"><img src="/assets/renewpilot-logo-horizontal.png" alt="RenewPilot AI"></div><div><h2>ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم</h2><p>جرّب RenewPilot AI مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.</p></div><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب مجاني</button><button class="btn btn-secondary" data-action="open-demo">احجز عرضًا تجريبيًا</button></div></div></div></section></main>`);
 }
 
 function marketingPricingPage() {
   const topups = [["10,000", "39"], ["25,000", "89"], ["50,000", "169"], ["100,000", "299"]];
   return publicShell(`<main><section class="public-heading pricing-heading"><div class="container"><h1>الباقات</h1><p>اختر الباقة المناسبة لنمو أعمالك وتواصل بذكاء واحترافية.</p><div class="pricing-toggle"><button class="toggle-pill ${state.billing === "monthly" ? "active" : ""}" data-action="billing" data-billing="monthly">شهري</button><button class="toggle-pill ${state.billing === "yearly" ? "active" : ""}" data-action="billing" data-billing="yearly">سنوي</button><span>وفر حتى 20%</span></div></div></section>
-    <section class="section pricing-section"><div class="container">${pricingCards()}</div></section>
-    <section class="section section-tight"><div class="container pricing-extras"><article class="card faq-card"><h2>أسئلة شائعة</h2>${["هل يمكنني الترقية أو التبديل بين الباقات؟", "هل الرسائل تشمل جميع القنوات؟", "ما سياسة إلغاء الاشتراك؟", "كيف يتم احتساب الرسائل؟"].map((q) => `<details><summary>${q}</summary><p>نعم، يمكنك إدارة خطتك بمرونة من صفحة الفوترة، ويُحتسب الاستخدام وفق الرسائل المعالجة فعليًا.</p></details>`).join("")}</article><article class="card topup-card"><div><h2>شحن إضافي</h2><p>هل تحتاج إلى المزيد من الرسائل؟ اشحن رصيدك الإضافي حسب احتياجك.</p></div><div class="topup-grid">${topups.map(([messages, price]) => `<div><span>${messages} رسالة</span><strong>${price} ر.س</strong><button class="btn btn-secondary" data-link="/register?topup=${messages.replace(",", "")}">شحن الآن</button></div>`).join("")}</div></article></div></section>
+    <section class="section pricing-section"><div class="container pricing-public-grid">${pricingCards()}</div></section>
+    <section class="section section-tight"><div class="container pricing-assurance"><span>◉ إلغاء في أي وقت</span><span>◇ أمان وخصوصية</span><span>✦ تحديثات مستمرة</span><span>♬ دعم موثوق</span></div></section>
+    <section class="section section-tight"><div class="container pricing-extras"><article class="card faq-card faq-compact"><h2>أسئلة شائعة</h2>${["هل يمكنني الترقية أو التبديل بين الباقات؟", "هل الرسائل تشمل جميع القنوات؟", "ما سياسة إلغاء الاشتراك؟", "كيف يتم احتساب الرسائل؟"].map((q) => `<details><summary>${q}</summary><p>نعم، يمكنك إدارة خطتك بمرونة من صفحة الفوترة، ويُحتسب الاستخدام وفق الرسائل المعالجة فعليًا.</p></details>`).join("")}</article><article class="card topup-card pricing-extra-card"><div><h2>شحن إضافي</h2><p>هل تحتاج إلى المزيد من الرسائل؟ اشحن رصيدك الإضافي حسب احتياجك.</p></div><div class="credit-grid">${topups.map(([messages, price]) => `<div class="credit-option"><span>${messages} رسالة</span><strong>${price} ر.س</strong><button class="btn btn-secondary" data-link="/register?topup=${messages.replace(",", "")}">شحن الآن</button></div>`).join("")}</div></article></div></section>
     <section class="section section-tight"><div class="container trust-band"><span>◎ الامتثال للمعايير العالمية</span><span>◇ أمان على مستوى المؤسسات</span><span>♙ دعم موثوق</span><span>+10,000 عميل نشط</span></div></section></main>`);
 }
 
@@ -895,18 +879,25 @@ function articlePage() {
 
 function marketingSupportPage() {
   const cards = [["مركز المساعدة", "أدلة شاملة ومقالات لمساعدتك خطوة بخطوة.", "تصفح المقالات", "#help-center", "template"], ["الأسئلة الشائعة", "إجابات سريعة لأكثر الأسئلة شيوعًا.", "عرض الأسئلة", "#faq", "security"], ["الدردشة", "تحدث مباشرة مع فريق الدعم.", "ابدأ المحادثة", "open-chat", "customers"], ["تواصل عبر البريد", "راسلنا وسنرد عليك خلال 24 ساعة عمل.", "راسلنا الآن", "open-email", "template"]];
-  return publicShell(`<main><section class="public-heading support-heading"><div class="container"><h1>مركز الدعم</h1><p>نحن هنا لمساعدتك على النجاح.</p></div></section><section class="section section-tight"><div class="container grid grid-4 support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action.startsWith("#") ? `<a class="btn btn-secondary" href="/support${action}">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></section>
+  return publicShell(`<main class="support-page"><section class="section support-hero"><div class="container support-intro-row"><div class="support-intro-copy"><span class="eyebrow">نحن هنا لمساعدتك</span><h1>مركز الدعم</h1><p>ابحث في مقالات المساعدة، تواصل مع فريق الدعم، أو أرسل طلبك وسنعود إليك بأقرب وقت.</p></div><div class="support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action.startsWith("#") ? `<a class="btn btn-secondary" href="/support${action}">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></div></section>
     <section class="section support-body"><div class="container support-layout"><article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${knowledgeBase.slice(0, 5).map((item) => `<button data-action="knowledge" data-term="${item}">${dashboardIcon("template")}<span><strong>${item}</strong><small>تعرف على التفاصيل والخطوات الأساسية.</small></span><b>‹</b></button>`).join("")}</article><article class="card faq-panel" id="faq"><h2>ابحث في مقالات المساعدة</h2><input class="input" data-action="support-search" placeholder="ابحث عن حلول ومقالات..."><h2>الأسئلة الشائعة</h2>${["ما هو RenewPilot AI وكيف يعمل؟", "كيف يمكنني ربط حسابي في واتساب؟", "هل يمكنني إلغاء اشتراكي في أي وقت؟", "ما هي طرق الدفع المتاحة؟", "كيف أتابع أداء حملاتي وتقاريري؟"].map((q) => `<details><summary>${q}</summary><p>ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك إذا احتجت إلى توجيه إضافي.</p></details>`).join("")}</article><article class="card support-form-card"><h2>أرسل لنا طلب دعم</h2><p>صف مشكلتك أو استفسارك وسنقوم بالرد عليك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" required></label><label class="field"><span>الموضوع</span><select class="select" name="subject" required><option value="">اختر موضوع الطلب</option><option>مشكلة تقنية</option><option>الفوترة والباقات</option><option>ربط الأجهزة</option></select></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" required></textarea></label><button class="btn btn-primary">إرسال الطلب</button></form></article></div></section><section class="section section-tight"><div class="container trust-band"><span>▢ آمن وموثوق</span><span>◇ خبراء المنتجات</span><span>♬ دعم على مدار الساعة</span><span>◷ متوسط الرد أقل من ساعتين</span></div></section></main>`);
 }
 
+function aboutPage() {
+  return publicShell(`<main class="about-page"><section class="about-hero"><div class="container about-hero-grid"><div><span class="eyebrow">عن RenewPilot AI</span><h1>منصة سعودية لإدارة الاشتراكات والتجديدات باحترافية</h1><p>نجمع بيانات العملاء والاشتراكات والتنبيهات والأجهزة والتقارير في مساحة عمل واحدة، حتى تتمكن فرق الأعمال من متابعة التجديدات واتخاذ قرارات أوضح دون عمليات يدوية مشتتة.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div><div class="about-brand-visual">${stackedLogo()}<strong>إدارة أوضح. تواصل أذكى. نمو مستمر.</strong></div></div></section>
+    <section class="section about-story"><div class="container"><div class="section-head"><div><span class="eyebrow">رؤيتنا</span><h2>نبني تجربة تجعل التجديد جزءًا من رحلة العميل</h2><p>صُممت RenewPilot AI للشركات التي تريد تقليل الاشتراكات المنتهية، تنظيم التواصل، وحماية سمعة قنواتها أثناء النمو.</p></div></div><div class="about-value-grid"><article><span>${dashboardIcon("subscriptions")}</span><h3>وضوح كامل</h3><p>سجل موحد لكل عميل واشتراك وتنبيه، مع مؤشرات تعتمد على البيانات الفعلية.</p></article><article><span>${dashboardIcon("template")}</span><h3>أتمتة مسؤولة</h3><p>تنبيهات في الوقت المناسب مع ضوابط إرسال آمن تمنع التكرار والإزعاج.</p></article><article><span>${dashboardIcon("security")}</span><h3>خصوصية وأمان</h3><p>عزل بيانات المؤسسات، صلاحيات واضحة، وعدم كشف مفاتيح الخدمات للمتصفح.</p></article><article><span>${dashboardIcon("reports")}</span><h3>قرارات قابلة للقياس</h3><p>تقارير تساعدك على فهم التسليم والتجديد والإيرادات وتحسين الأداء باستمرار.</p></article></div></div></section>
+    <section class="section about-principles"><div class="container about-principles-grid"><div><span class="eyebrow">كيف نعمل</span><h2>منتج عملي يركز على النتائج</h2><p>نطوّر المنصة حول احتياجات فرق الاشتراكات وخدمة العملاء: إعداد بسيط، واجهة عربية واضحة، تكاملات قابلة للمراقبة، وسجل نشاط يحفظ سياق كل عملية.</p></div><div class="about-points"><div><b>01</b><span><strong>بياناتك أولًا</strong><small>لا نستخدم بيانات تجريبية داخل حسابات الإنتاج.</small></span></div><div><b>02</b><span><strong>التشغيل الآمن</strong><small>لا يبدأ الإرسال قبل اكتمال المتطلبات واتصال القناة.</small></span></div><div><b>03</b><span><strong>دعم مستمر</strong><small>مركز مساعدة وقنوات تواصل واضحة عند الحاجة.</small></span></div></div></div></section><section class="section"><div class="container"><div class="public-cta"><div><h2>ابدأ إدارة تجديداتك من مكان واحد</h2><p>أنشئ مساحة عملك وابدأ بإضافة عملائك واشتراكاتك دون بيانات افتراضية.</p></div><button class="btn btn-primary" data-link="/register">ابدأ الآن</button></div></div></section></main>`);
+}
+
 function policyPage() {
-  const content = {
-    "/privacy": ["سياسة الخصوصية", "نلتزم بحماية بياناتك واستخدامها فقط لتقديم خدمات RenewPilot AI وتحسينها، مع تطبيق ضوابط وصول وعزل كامل بين المستأجرين."],
-    "/terms": ["سياسة الاستخدام والشروط", "باستخدام المنصة توافق على استخدامها بصورة قانونية وآمنة، وعدم إرسال رسائل غير مرغوبة أو مشاركة بيانات الدخول مع أطراف غير مصرح لها."],
-    "/refund-policy": ["سياسة الاستبدال والاسترجاع", "تُراجع طلبات الاسترجاع وفق حالة الاشتراك والاستخدام الفعلي للخدمة، ويمكنك التواصل مع الدعم للحصول على مساعدة دقيقة."],
-    "/contact": ["تواصل معنا", "يسعد فريق RenewPilot AI بمساعدتك في الأسئلة التقنية والتجارية والفوترة."]
-  }[state.route] || ["RenewPilot AI", "معلومات المنصة."];
-  return publicShell(`<main><section class="public-heading"><div class="container"><h1>${content[0]}</h1><p>${content[1]}</p></div></section><section class="section"><div class="container card policy-card"><h2>${content[0]}</h2><p>${content[1]}</p><p>للتواصل: <a href="mailto:support@renewpilot.ai">support@renewpilot.ai</a></p><button class="btn btn-primary" data-link="/support">الانتقال إلى مركز الدعم</button></div></section></main>`);
+  const policies = {
+    "/privacy": { title: "سياسة الخصوصية", intro: "توضح هذه السياسة كيف تجمع RenewPilot AI البيانات اللازمة لتقديم الخدمة، وكيف نحميها ونمنحك التحكم فيها.", sections: [["البيانات التي نجمعها", "نجمع بيانات الحساب ومساحة العمل والعملاء والاشتراكات وسجلات التشغيل التي تدخلها أو تنشئها أثناء استخدام المنصة. كما نسجل معلومات تقنية محدودة لازمة للأمان وتشخيص الأعطال."], ["كيف نستخدم البيانات", "نستخدم البيانات لتشغيل خصائص المنصة، إرسال التنبيهات التي يطلبها المستخدم، تحسين الاعتمادية، منع إساءة الاستخدام، وتقديم الدعم. لا نبيع بيانات العملاء ولا نستخدمها لإعلانات خارجية."], ["الحماية والعزل", "تُعزل بيانات كل مؤسسة بواسطة معرّف مساحة العمل، وتُطبق ضوابط وصول على الواجهات البرمجية وقاعدة البيانات. تُحفظ الأسرار في بيئة الخادم ولا تُرسل إلى المتصفح."], ["مقدمو الخدمات", "قد نعتمد على مزودين موثوقين للبنية التحتية والبريد والرسائل وقواعد البيانات. يقتصر وصولهم على ما يلزم لتقديم الخدمة وفق شروطهم واتفاقياتهم الأمنية."], ["الاحتفاظ والحذف", "نحتفظ بالبيانات طوال مدة الحساب أو حسب الحاجة النظامية والتشغيلية. يمكنك طلب تصحيح بياناتك أو تصديرها أو حذفها عبر مركز الدعم، مع مراعاة السجلات التي يجب الاحتفاظ بها نظاميًا."], ["حقوقك وخياراتك", "يمكنك إدارة إعدادات الإشعارات، تحديث الملف الشخصي، مراجعة الجلسات، وإيقاف الرسائل لعملاء محددين. للاستفسارات المتعلقة بالخصوصية تواصل معنا عبر قناة الدعم الرسمية."]] },
+    "/terms": { title: "سياسة الاستخدام والشروط", intro: "تنظم هذه الشروط استخدام RenewPilot AI وتحدد مسؤوليات صاحب الحساب والمستخدمين المخولين.", sections: [["قبول الشروط", "بإنشاء حساب أو استخدام المنصة فإنك توافق على هذه الشروط والسياسات المرتبطة بها، وتؤكد أن لديك الصلاحية لإدارة مساحة العمل والبيانات المضافة إليها."], ["الحساب والصلاحيات", "أنت مسؤول عن دقة بيانات الحساب، حماية كلمة المرور، ومراجعة المستخدمين المخولين. يجب إبلاغنا فورًا عن أي استخدام غير مصرح به أو نشاط مشبوه."], ["الاستخدام المقبول", "يُمنع استخدام المنصة لإرسال رسائل غير مرغوبة، انتحال الهوية، انتهاك الخصوصية، أو مخالفة أنظمة الاتصالات والتجارة الإلكترونية. يجب الحصول على الموافقات اللازمة من المستلمين."], ["القنوات والتكاملات", "تخضع خدمات واتساب والبريد والتكاملات الخارجية لتوفر مزوديها وشروطهم. يتحمل صاحب الحساب مسؤولية صحة الإعدادات والأرقام والقوالب المستخدمة."], ["الاشتراكات والفوترة", "تُعرض الأسعار والحدود قبل اختيار الخطة. قد تتغير المزايا والأسعار مستقبلًا بعد إشعار مناسب، وتستمر الفواتير المستحقة عن الفترات التي تم فيها استخدام الخدمة."], ["التعليق والإنهاء", "يجوز تعليق الحساب لحماية المنصة أو المستلمين عند وجود إساءة استخدام أو خطر أمني. يمكن لصاحب الحساب إلغاء الخدمة وفق إعدادات الخطة وسياسة الاسترجاع المعتمدة."]] },
+    "/refund-policy": { title: "سياسة الاستبدال والاسترجاع", intro: "نهدف إلى معالجة طلبات الفوترة بعدالة ووضوح وفق نوع الخطة، تاريخ العملية، والاستخدام الفعلي للخدمة.", sections: [["أهلية طلب الاسترجاع", "يمكن تقديم طلب مراجعة خلال المدة الموضحة عند الشراء إذا حدث خصم مكرر، خطأ تقني موثق، أو تعذر جوهري في تقديم الخدمة المدفوعة."], ["الحالات غير المؤهلة", "لا يشمل الاسترجاع عادةً الأرصدة أو الرسائل المستخدمة، الفترات المستهلكة، مخالفة سياسة الاستخدام، أو توقف خدمة خارجية لا تتحكم بها RenewPilot AI."], ["طريقة تقديم الطلب", "أرسل طلبًا من مركز الدعم يتضمن بريد الحساب ورقم الفاتورة ووصف المشكلة. لا ترسل بيانات بطاقتك أو كلمات المرور داخل الطلب."], ["المراجعة والمعالجة", "يراجع الفريق السجلات والفاتورة والاستخدام، ثم يرسل القرار عبر البريد المسجل. تعتمد مدة ظهور المبلغ على بوابة الدفع والبنك المصدر."], ["تغيير الخطة", "يمكن ترقية الخطة في أي وقت. أما التخفيض فيُطبق عادةً من دورة الفوترة التالية حتى لا تتأثر المزايا المدفوعة خلال الدورة الحالية."], ["الأسئلة المتعلقة بالفوترة", "لأي استفسار أو اعتراض استخدم نموذج الدعم واختر قسم الفوترة والباقات، وسيتواصل الفريق معك بالمعلومات المطلوبة دون طلب بيانات حساسة."]] },
+    "/contact": { title: "تواصل معنا", intro: "اختر القناة المناسبة وسنوجه طلبك إلى الفريق المختص بأسرع وقت ممكن.", sections: [["الدعم الفني", "لأخطاء الحساب، ربط الأجهزة، الجلسات، أو التكاملات استخدم نموذج مركز الدعم وأرفق وصفًا واضحًا ووقت حدوث المشكلة دون مشاركة أي مفتاح سري."], ["المبيعات والباقات", "للاستفسار عن الخطط وحدود الاستخدام واحتياجات المؤسسات، أرسل طلبًا بعنوان المبيعات والباقات مع حجم الفريق وعدد العملاء المتوقع."], ["الفوترة", "للفواتير أو المدفوعات اذكر رقم الفاتورة والبريد المسجل فقط. لن يطلب فريقنا كلمة المرور أو رمز التحقق أو بيانات البطاقة الكاملة."], ["الأمان والخصوصية", "للإبلاغ عن مشكلة أمنية أو طلب متعلق ببياناتك، استخدم قناة الدعم واكتب بوضوح أن الطلب متعلق بالأمان أو الخصوصية ليتم تصعيده للفريق المختص."], ["أوقات الاستجابة", "نراجع الطلبات حسب الأولوية والتأثير. تظهر الحالات الحرجة المتعلقة بتعطل الخدمة أو الأمان في مقدمة قائمة المعالجة."], ["البريد الرسمي", "يمكن مراسلتنا عبر support@renewpilot.ai، أو استخدام مركز الدعم للحصول على رقم مرجعي ومتابعة حالة الطلب."]] }
+  };
+  const content = policies[state.route] || policies["/privacy"];
+  return publicShell(`<main class="policy-page"><section class="policy-hero"><div class="container"><span class="eyebrow">معلومات قانونية وتشغيلية</span><h1>${content.title}</h1><p>${content.intro}</p><small>آخر تحديث: يوليو 2026</small></div></section><section class="section policy-section"><div class="container policy-layout"><aside class="policy-summary"><h2>في هذه الصفحة</h2>${content.sections.map(([title], index) => `<a href="#policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span>${title}</a>`).join("")}<button class="btn btn-primary" data-link="/support">تواصل مع الدعم</button></aside><article class="policy-content">${content.sections.map(([title, body], index) => `<section id="policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${title}</h2><p>${body}</p></div></section>`).join("")}<div class="policy-contact"><strong>هل تحتاج إلى توضيح إضافي؟</strong><p>راسلنا عبر support@renewpilot.ai أو افتح طلبًا من مركز الدعم.</p><button class="btn btn-secondary" data-link="/support">الانتقال إلى مركز الدعم</button></div></article></div></section></main>`);
 }
 
 function authPublicPage() {
@@ -917,14 +908,14 @@ function authPublicPage() {
       <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label><label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="${isRegister ? "new-password" : "current-password"}" placeholder="${isRegister ? "اختر كلمة مرور قوية" : "أدخل كلمة المرور"}" required></label>
       ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
       <button class="btn btn-primary auth-submit">${isRegister ? "إنشاء حساب" : state.language === "en" ? "Sign in →" : "تسجيل الدخول ←"}</button><p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p></form></article>
-    <aside class="card auth-light-visual"><div class="auth-logo-large"><span class="brand-mark"><span>R</span></span><strong>RenewPilot <b>AI</b></strong></div><h2>${isRegister ? "ابدأ رحلتك نحو إدارة اشتراكات أكثر ذكاءً" : "منصة متكاملة لإدارة الاشتراكات والتجديدات"}</h2><p>${isRegister ? "تتبّع اشتراكاتك، قلّل التكاليف، واتخذ قرارات أفضل لنمو عملك." : "بسّط عملياتك، تابع اشتراكاتك، واتخذ قرارات ذكية للنمو المستدام."}</p><div class="auth-benefits">${[["إدارة جميع اشتراكاتك في مكان واحد", "subscriptions"], ["تنبيهات ذكية في الوقت المناسب", "template"], ["تقارير وتحليلات متقدمة", "reports"], ["آمن وموثوق", "security"]].map(([label, mark]) => `<div>${dashboardIcon(mark)}<span>${label}</span></div>`).join("")}</div></aside>
+    <aside class="card auth-light-visual"><div class="auth-logo-large">${stackedLogo()}</div><h2>${isRegister ? "ابدأ رحلتك نحو إدارة اشتراكات أكثر ذكاءً" : "منصة متكاملة لإدارة الاشتراكات والتجديدات"}</h2><p>${isRegister ? "تتبّع اشتراكاتك، قلّل التكاليف، واتخذ قرارات أفضل لنمو عملك." : "بسّط عملياتك، تابع اشتراكاتك، واتخذ قرارات ذكية للنمو المستدام."}</p><div class="auth-benefits">${[["إدارة جميع اشتراكاتك في مكان واحد", "subscriptions"], ["تنبيهات ذكية في الوقت المناسب", "template"], ["تقارير وتحليلات متقدمة", "reports"], ["آمن وموثوق", "security"]].map(([label, mark]) => `<div>${dashboardIcon(mark)}<span>${label}</span></div>`).join("")}</div></aside>
   </section>${publicFooter()}</main>`;
 }
 
 function forgotPublicPage() {
   const step = state.resetStep;
   const content = step === 1 ? `<form data-submit="forgot" class="grid auth-form"><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" required></label><button class="btn btn-primary auth-submit">إرسال رابط الاستعادة</button></form>` : step === 2 ? `<form data-submit="reset-password" class="grid auth-form"><label class="field"><span>رمز التحقق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" type="password" name="password" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" required></label><button class="btn btn-primary auth-submit">تعيين كلمة المرور</button></form>` : `<div class="auth-success"><span class="success-mark">✓</span><p>تم تغيير كلمة المرور بنجاح.</p><button class="btn btn-primary" data-link="/login">تسجيل الدخول</button></div>`;
-  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">▢</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual"><span class="brand-mark"><span>R</span></span></div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
+  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">▢</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual"><img src="/assets/renewpilot-logo-horizontal.png" alt="RenewPilot AI"></div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
 }
 
 function loginPage() {
@@ -1551,7 +1542,7 @@ async function handleAction(target) {
     render();
   }
   if (action === "language") {
-    state.language = state.language === "ar" ? "en" : "ar";
+    state.language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
     localStorage.setItem("renewpilot_locale", state.language);
     applyPreferences();
     toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
@@ -2139,6 +2130,7 @@ function render() {
     "/pricing": marketingPricingPage,
     "/blog": blogPage,
     "/support": marketingSupportPage,
+    "/about": aboutPage,
     "/login": authPublicPage,
     "/register": authPublicPage,
     "/forgot-password": forgotPublicPage,
