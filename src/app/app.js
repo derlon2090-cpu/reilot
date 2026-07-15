@@ -131,6 +131,12 @@ Object.assign(operationalEnglishPhrases, {
   "◎ الامتثال للمعايير العالمية": "◎ Global standards compliance",
   "◇ أمان على مستوى المؤسسات": "◇ Enterprise-grade security",
   "♙ دعم موثوق": "♙ Reliable support",
+  "مستخدم واحد · 10,000 رسالة / شهر": "1 user · 10,000 messages / month",
+  "5 مستخدمين · 50,000 رسالة / شهر": "5 users · 50,000 messages / month",
+  "10 مستخدمين · 250,000 رسالة / شهر": "10 users · 250,000 messages / month",
+  "◉ إلغاء في أي وقت": "◉ Cancel at any time",
+  "✦ تحديثات مستمرة": "✦ Continuous updates",
+  "♬ دعم موثوق": "♬ Reliable support",
   "المدونة": "Blog",
   "أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.": "The latest insights on subscription renewals, customer retention, and intelligent automation.",
   "ابحث في المقالات...": "Search articles...",
@@ -155,6 +161,7 @@ Object.assign(operationalEnglishPhrases, {
   "تصفح المقالات": "Browse articles",
   "إجابات سريعة لأكثر الأسئلة شيوعًا.": "Quick answers to the most common questions.",
   "عرض الأسئلة": "View questions",
+  "الأسئلة الشائعة": "Frequently asked questions",
   "الدردشة": "Live chat",
   "تحدث مباشرة مع فريق الدعم.": "Talk directly with our support team.",
   "ابدأ المحادثة": "Start a conversation",
@@ -193,6 +200,8 @@ Object.assign(operationalEnglishPhrases, {
   "أدخل بريدك الإلكتروني": "Enter your email address",
   "اختر كلمة مرور قوية": "Choose a strong password",
   "أدخل كلمة المرور": "Enter your password",
+  "كلمة المرور": "Password",
+  "تأكيد كلمة المرور": "Confirm password",
   "أوافق على": "I agree to the",
   "سياسة الاستخدام": "Terms of use",
   "سياسة الخصوصية": "Privacy policy",
@@ -265,7 +274,30 @@ Object.assign(operationalEnglishPhrases, {
   "مدير حساب مخصص": "Dedicated account manager",
   "دعم مميز على مدار الساعة": "Priority support around the clock",
   "الأكثر شعبية": "Most popular",
-  "شهريًا": "month"
+  "شهريًا": "month",
+  "عن المنصة": "About the platform",
+  "نحن هنا لمساعدتك": "We are here to help",
+  "ابحث في مقالات المساعدة، تواصل مع فريق الدعم، أو أرسل طلبك وسنعود إليك بأقرب وقت.": "Search the help center, contact our support team, or send a request and we will get back to you promptly.",
+  "تواصل عبر البريد": "Email support",
+  "راسلنا وسنرد عليك خلال 24 ساعة عمل.": "Email us and we will reply within one business day.",
+  "تعرف على التفاصيل والخطوات الأساسية.": "Learn the details and essential steps.",
+  "صف مشكلتك أو استفسارك وسنقوم بالرد عليك.": "Describe your question or issue and our team will respond.",
+  "▢ آمن وموثوق": "▢ Secure and reliable",
+  "◇ خبراء المنتجات": "◇ Product specialists",
+  "♬ دعم على مدار الساعة": "♬ Always-on support",
+  "◷ متوسط الرد أقل من ساعتين": "◷ Average response under two hours",
+  "خلاصة عملية": "Practical takeaways",
+  "طبّق هذه الخطوات في RenewPilot AI": "Put these steps into practice with RenewPilot AI",
+  "ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.": "Manage renewals from one clear and secure workspace.",
+  "البدء السريع": "Quick start",
+  "إدارة الاشتراكات": "Subscription management",
+  "التكاملات والإعدادات": "Integrations and settings",
+  "الفوترة والدفع": "Billing and payments",
+  "التقارير والتحليلات": "Reports and analytics",
+  "استكشاف الأخطاء": "Troubleshooting",
+  "مشكلة تقنية": "Technical issue",
+  "ربط الأجهزة": "Device linking",
+  "تفاصيل الطلب": "Request details"
 });
 
 const storage = {
@@ -312,7 +344,9 @@ function translatedPhrase(value) {
     if (composed.includes(arabic)) composed = composed.replaceAll(arabic, english);
   }
   if (!/[\u0600-\u06FF]/.test(composed)) return source.replace(trimmed, composed);
-  return source.replace(/[\u0600-\u06FF][\u0600-\u06FF\s،؛؟ًٌٍَُِّْـ()-]*/g, t("common.untranslated"));
+  // Keep the original copy when a phrase has not been translated yet. Replacing
+  // it with a generic word made entire public sections read as "Content".
+  return source;
 }
 
 function localizeElement(root) {
@@ -818,12 +852,74 @@ function supportPage() {
   </main>`);
 }
 
+const localizedCopy = (arabic, english) => state.language === "en" ? english : arabic;
+const localizedField = (value) => typeof value === "object" ? localizedCopy(value.ar, value.en) : value;
+
 const publicBlogPosts = [
-  { slug: "renewal-strategies", category: "التجديدات", title: "7 استراتيجيات مثبتة لزيادة معدلات تجديد الاشتراكات والاحتفاظ بالعملاء", excerpt: "خطوات عملية تقلل الإلغاءات وتحسن تجربة العميل في كل مرحلة من دورة التجديد.", mark: "↻", date: "8 مايو 2026", minutes: "9 دقائق" },
-  { slug: "renewal-guide", category: "التجديدات", title: "دليل شامل لتجديد الاشتراكات بنجاح مستمر", excerpt: "منهج واضح لبناء رحلة تجديد سلسة ترفع الولاء على المدى الطويل.", mark: "▣", date: "6 مايو 2026", minutes: "7 دقائق" },
-  { slug: "whatsapp-messages", category: "النصائح", title: "أفضل ممارسات رسائل واتساب لتحسين الاستجابة", excerpt: "صياغات عملية وتوقيتات مناسبة تساعدك على رفع معدلات الرد والتجديد.", mark: "◉", date: "5 مايو 2026", minutes: "6 دقائق" },
-  { slug: "renewal-kpis", category: "التقارير", title: "مؤشرات الأداء الرئيسية في إدارة التجديدات", excerpt: "تعرف على أهم المؤشرات وكيفية تحليلها لاتخاذ قرارات أفضل.", mark: "▥", date: "29 أبريل 2026", minutes: "8 دقائق" },
-  { slug: "safe-whatsapp", category: "الحماية", title: "كيف تضمن رسائل آمنة ومتوافقة عبر واتساب؟", excerpt: "دليل شامل للامتثال وحماية الحساب من الحظر وتحسين جودة الإرسال.", mark: "◇", date: "25 أبريل 2026", minutes: "8 دقائق" }
+  {
+    slug: "renewal-strategies",
+    category: "التجديدات",
+    image: "/assets/blog/renewal-strategies.png",
+    title: { ar: "7 استراتيجيات مثبتة لزيادة معدلات تجديد الاشتراكات والاحتفاظ بالعملاء", en: "7 proven strategies to improve subscription renewals and retention" },
+    excerpt: { ar: "خطوات عملية تقلل الإلغاءات وتحسن تجربة العميل في كل مرحلة من دورة التجديد.", en: "Practical steps that reduce cancellations and improve the customer experience throughout the renewal cycle." },
+    date: { ar: "8 مايو 2026", en: "May 8, 2026" },
+    minutes: { ar: "9 دقائق قراءة", en: "9 min read" },
+    sections: [
+      { heading: { ar: "ابدأ قبل تاريخ الانتهاء", en: "Start before the expiration date" }, body: { ar: "رحلة التجديد الفعالة لا تبدأ في اليوم الأخير. قسّم التنبيهات إلى مراحل واضحة قبل 30 يومًا و14 يومًا و7 أيام، ثم عدّل التوقيت حسب نوع الخدمة وسلوك العميل.", en: "An effective renewal journey does not begin on the final day. Schedule clear touchpoints 30, 14, and 7 days before expiry, then adjust timing to the service and customer behavior." } },
+      { heading: { ar: "اجعل الرسالة واضحة وقابلة للتنفيذ", en: "Make every message clear and actionable" }, body: { ar: "اذكر الخدمة وتاريخ الانتهاء والخطوة التالية بوضوح، وأضف رابط تجديد مباشرًا وآمنًا. الرسالة القصيرة التي تجيب عن سؤال: ماذا أفعل الآن؟ تحقق استجابة أعلى.", en: "State the service, expiration date, and next step clearly, then include a direct and secure renewal link. A concise message that answers “What should I do now?” earns better responses." } },
+      { heading: { ar: "استخدم القناة المناسبة", en: "Use the right channel" }, body: { ar: "واتساب مناسب للتنبيهات السريعة، والبريد أفضل للتفاصيل والفواتير. اجمع القنوات ضمن تسلسل واحد، وتوقف فور تفاعل العميل حتى لا يتلقى رسائل مكررة.", en: "WhatsApp works well for timely reminders, while email is better for details and invoices. Coordinate channels in one sequence and stop follow-ups as soon as the customer responds." } },
+      { heading: { ar: "قِس وحسّن باستمرار", en: "Measure and improve continuously" }, body: { ar: "راقب معدل التسليم والاستجابة والتحويل ووقت التجديد. قارن النتائج بين الشرائح والرسائل، ثم حسّن النص والتوقيت بناءً على البيانات الفعلية لا الانطباعات.", en: "Track delivery, response, conversion, and time-to-renewal. Compare segments and messages, then improve copy and timing using real data rather than assumptions." } }
+    ],
+    takeaways: { ar: ["ابدأ التواصل مبكرًا دون إزعاج العميل.", "اجعل لكل رسالة هدفًا وخطوة تالية واحدة.", "أوقف التذكيرات فور اكتمال التجديد."], en: ["Start early without overwhelming the customer.", "Give every message one goal and one next step.", "Stop reminders immediately after renewal."] }
+  },
+  {
+    slug: "renewal-guide", category: "التجديدات", image: "/assets/blog/renewal-guide.png",
+    title: { ar: "دليل شامل لتجديد الاشتراكات بنجاح مستمر", en: "A complete guide to consistent subscription renewals" },
+    excerpt: { ar: "منهج واضح لبناء رحلة تجديد سلسة ترفع الولاء على المدى الطويل.", en: "A clear framework for building a smooth renewal journey that strengthens long-term loyalty." },
+    date: { ar: "6 مايو 2026", en: "May 6, 2026" }, minutes: { ar: "7 دقائق قراءة", en: "7 min read" },
+    sections: [
+      { heading: { ar: "وحّد بيانات الاشتراك", en: "Unify subscription data" }, body: { ar: "احفظ العميل والخدمة وتواريخ البداية والانتهاء وحالة الدفع في سجل واحد. البيانات المنظمة تمنع فقدان المواعيد وتمنح الفريق سياقًا كاملًا عند المتابعة.", en: "Keep the customer, service, start and end dates, and payment status in one record. Structured data prevents missed dates and gives the team complete context." } },
+      { heading: { ar: "صمّم مسارًا قابلًا للتكرار", en: "Design a repeatable workflow" }, body: { ar: "حدد من يتلقى التنبيه ومتى وبأي قناة، وما الذي يحدث عند الرد أو التجديد أو فشل الإرسال. المسار الواضح يقلل العمل اليدوي ويمنع الاجتهادات المتعارضة.", en: "Define who receives each reminder, when, through which channel, and what happens after a reply, renewal, or delivery failure. A clear workflow reduces manual work and inconsistency." } },
+      { heading: { ar: "أغلق الحلقة بعد التجديد", en: "Close the loop after renewal" }, body: { ar: "حدّث تاريخ الانتهاء والحالة وسجّل العملية ثم أوقف الرسائل المجدولة. أرسل تأكيدًا فقط عندما يختار الفريق ذلك، واحفظ كل خطوة في سجل النشاط.", en: "Update the end date and status, log the action, and stop scheduled messages. Send a confirmation only when selected by the team, and keep every step in the activity log." } }
+    ],
+    takeaways: { ar: ["مصدر بيانات واحد لكل اشتراك.", "قواعد واضحة للفشل والاستجابة.", "سجل نشاط كامل بعد التجديد."], en: ["One source of truth for every subscription.", "Clear rules for failures and responses.", "A complete activity trail after renewal."] }
+  },
+  {
+    slug: "whatsapp-messages", category: "النصائح", image: "/assets/blog/whatsapp-messages.png",
+    title: { ar: "أفضل ممارسات رسائل واتساب لتحسين الاستجابة", en: "WhatsApp messaging practices that improve response rates" },
+    excerpt: { ar: "صياغات عملية وتوقيتات مناسبة تساعدك على رفع معدلات الرد والتجديد.", en: "Practical copy and timing choices that help improve replies and renewals." },
+    date: { ar: "5 مايو 2026", en: "May 5, 2026" }, minutes: { ar: "6 دقائق قراءة", en: "6 min read" },
+    sections: [
+      { heading: { ar: "ابدأ بالسياق لا بالإعلان", en: "Lead with context, not promotion" }, body: { ar: "عرّف بالجهة والخدمة وسبب التواصل في أول سطر. تجنب الرسائل العامة، واستخدم اسم العميل والخدمة وتاريخ الانتهاء عندما تكون البيانات مؤكدة.", en: "Identify your business, the service, and the reason for contacting the customer in the first line. Avoid generic copy and personalize only with verified data." } },
+      { heading: { ar: "احترم الوقت والتفضيلات", en: "Respect timing and preferences" }, body: { ar: "أرسل خلال ساعات العمل، واحترم قائمة إيقاف الرسائل، ولا تكرر نفس التنبيه. الرسائل الأقل والأوضح تحافظ على الثقة وجودة القناة.", en: "Send during business hours, honor opt-outs, and never repeat the same trigger. Fewer, clearer messages protect customer trust and channel quality." } },
+      { heading: { ar: "راقب التسليم قبل زيادة الحجم", en: "Watch delivery before increasing volume" }, body: { ar: "ابدأ بحجم إرسال تدريجي، وراقب الفشل والحظر والاستجابة. إذا ارتفعت المخاطر أو انقطعت القناة، أوقف الإرسال التلقائي وعالج السبب أولًا.", en: "Increase sending volume gradually and monitor failures, blocks, and responses. If risk rises or the channel disconnects, pause automation and resolve the cause first." } }
+    ],
+    takeaways: { ar: ["رسالة قصيرة بسياق واضح.", "خيار إيقاف الرسائل متاح دائمًا.", "لا إرسال قبل اتصال القناة."], en: ["Short messages with clear context.", "Always provide and honor opt-out choices.", "Never send before the channel is connected."] }
+  },
+  {
+    slug: "renewal-kpis", category: "التقارير", image: "/assets/blog/renewal-kpis.png",
+    title: { ar: "مؤشرات الأداء الرئيسية في إدارة التجديدات", en: "The essential KPIs for renewal management" },
+    excerpt: { ar: "تعرف على أهم المؤشرات وكيفية تحليلها لاتخاذ قرارات أفضل.", en: "Understand the most useful metrics and how to interpret them for better decisions." },
+    date: { ar: "29 أبريل 2026", en: "April 29, 2026" }, minutes: { ar: "8 دقائق قراءة", en: "8 min read" },
+    sections: [
+      { heading: { ar: "معدل التجديد", en: "Renewal rate" }, body: { ar: "قس عدد الاشتراكات التي جُددت من إجمالي الاشتراكات المستحقة خلال الفترة نفسها. افصل النتائج حسب الخطة والخدمة وشريحة العميل حتى تظهر فرص التحسين الحقيقية.", en: "Measure renewed subscriptions against all subscriptions due in the same period. Segment by plan, service, and customer group to reveal real improvement opportunities." } },
+      { heading: { ar: "معدل التسليم والاستجابة", en: "Delivery and response rates" }, body: { ar: "معدل التسليم يوضح صحة القنوات، بينما يكشف معدل الاستجابة جودة الرسالة والتوقيت. لا تخلط بينهما عند تقييم أداء الحملة.", en: "Delivery rate reflects channel health, while response rate reveals message and timing quality. Keep them separate when evaluating campaign performance." } },
+      { heading: { ar: "الوقت حتى التجديد", en: "Time to renewal" }, body: { ar: "احسب المدة بين أول تنبيه واكتمال التجديد. انخفاضها مع ثبات رضا العملاء يعني أن المسار أصبح أوضح وأسهل.", en: "Measure the time from the first reminder to completed renewal. A shorter cycle with stable customer satisfaction indicates a clearer, easier journey." } }
+    ],
+    takeaways: { ar: ["حلّل المؤشرات حسب الشريحة.", "افصل صحة القناة عن جودة الرسالة.", "راجع الاتجاه لا الرقم المنفرد."], en: ["Analyze metrics by segment.", "Separate channel health from message quality.", "Review trends, not isolated numbers."] }
+  },
+  {
+    slug: "safe-whatsapp", category: "الحماية", image: "/assets/blog/safe-whatsapp.png",
+    title: { ar: "كيف تضمن رسائل آمنة ومتوافقة عبر واتساب؟", en: "How to keep WhatsApp messages safe and compliant" },
+    excerpt: { ar: "دليل شامل للامتثال وحماية الحساب من الحظر وتحسين جودة الإرسال.", en: "A practical guide to compliance, account protection, and healthy message delivery." },
+    date: { ar: "25 أبريل 2026", en: "April 25, 2026" }, minutes: { ar: "8 دقائق قراءة", en: "8 min read" },
+    sections: [
+      { heading: { ar: "أرسل بموافقة واضحة", en: "Send with clear consent" }, body: { ar: "احتفظ بمصدر الموافقة وسبب التواصل، ولا تستخدم رقمًا حصلت عليه لغرض مختلف. اجعل إيقاف الرسائل بسيطًا وطبّقه فورًا على جميع الحملات.", en: "Keep a record of consent and the communication purpose. Do not reuse numbers collected for another reason, and apply opt-outs immediately across all campaigns." } },
+      { heading: { ar: "فعّل ضوابط الإرسال الآمن", en: "Use safe-sending controls" }, body: { ar: "ضع حدودًا يومية وساعية، وساعات هدوء، ومنعًا للتكرار، وفحصًا لحالة القناة قبل الإرسال. سجّل سبب أي منع حتى يستطيع الفريق المراجعة.", en: "Set hourly and daily limits, quiet hours, duplicate prevention, and a channel health check before sending. Log every block reason so the team can review it." } },
+      { heading: { ar: "تعامل مع المخاطر مبكرًا", en: "Respond to risk early" }, body: { ar: "إذا ارتفعت نسبة الفشل أو انخفض التفاعل أو زادت طلبات الإيقاف، خفّض الحجم وراجع القوائم والقوالب. لا تستأنف الأتمتة حتى يعود المؤشر إلى مستوى آمن.", en: "If failures rise, engagement falls, or opt-outs increase, reduce volume and review lists and templates. Do not resume automation until risk returns to a safe level." } }
+    ],
+    takeaways: { ar: ["موافقة موثقة قبل الإرسال.", "حدود وساعات هدوء ومنع تكرار.", "إيقاف تلقائي عند ارتفاع المخاطر."], en: ["Documented consent before sending.", "Limits, quiet hours, and duplicate prevention.", "Automatic pause when risk becomes high."] }
+  }
 ];
 
 function marketingHomePage() {
@@ -861,20 +957,21 @@ function marketingPricingPage() {
 
 function blogPage() {
   const query = state.search.trim().toLowerCase();
-  const posts = publicBlogPosts.filter((post) => (state.blogCategory === "الكل" || post.category === state.blogCategory) && (!query || `${post.title} ${post.excerpt}`.toLowerCase().includes(query)));
+  const posts = publicBlogPosts.filter((post) => (state.blogCategory === "الكل" || post.category === state.blogCategory) && (!query || `${localizedField(post.title)} ${localizedField(post.excerpt)}`.toLowerCase().includes(query)));
   const featured = posts[0];
   return publicShell(`<main><section class="public-heading"><div class="container"><h1>المدونة</h1><p>أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.</p></div></section><section class="section section-tight"><div class="container blog-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="support-search" value="${escapeHtml(state.search)}" placeholder="ابحث في المقالات..."></div><div class="chips">${["الكل", "النصائح", "التجديدات", "التقارير", "الحماية"].map((item) => `<button class="chip ${state.blogCategory === item ? "active" : ""}" data-action="blog-category" data-category="${item}">${item}</button>`).join("")}</div></div></section>
-    <section class="section blog-section"><div class="container blog-layout"><div>${featured ? `<article class="card featured-post"><div class="blog-art">${icon(featured.mark)}</div><div><span class="badge">مقال مميز</span><h2>${featured.title}</h2><p>${featured.excerpt}</p><small>${featured.date} · ${featured.minutes}</small><button class="link-button" data-link="/blog/${featured.slug}">اقرأ المقال ←</button></div></article><div class="blog-grid">${posts.slice(1).map((post) => blogCard(post)).join("")}</div>` : emptyState("لا توجد مقالات مطابقة", "جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.")}</div><aside class="blog-aside"><article class="card"><h3>أحدث المقالات</h3>${publicBlogPosts.slice(0, 4).map((post) => `<button data-link="/blog/${post.slug}"><span>${icon(post.mark)}</span><strong>${post.title}</strong><small>${post.date}</small></button>`).join("")}</article><article class="card newsletter"><h3>اشترك في نشرتنا</h3><p>احصل على أحدث المقالات والنصائح مباشرة في بريدك.</p><form data-submit="newsletter"><input class="input" type="email" name="email" placeholder="بريدك الإلكتروني" required><button class="btn btn-primary">اشترك الآن</button></form></article></aside></div></section></main>`);
+    <section class="section blog-section"><div class="container blog-layout"><div>${featured ? `<article class="card featured-post"><div class="blog-art"><img src="${featured.image}" alt="${escapeHtml(localizedField(featured.title))}"></div><div><span class="badge">مقال مميز</span><h2>${localizedField(featured.title)}</h2><p>${localizedField(featured.excerpt)}</p><small>${localizedField(featured.date)} · ${localizedField(featured.minutes)}</small><button class="link-button" data-link="/blog/${featured.slug}">اقرأ المقال ←</button></div></article><div class="blog-grid">${posts.slice(1).map((post) => blogCard(post)).join("")}</div>` : emptyState("لا توجد مقالات مطابقة", "جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.")}</div><aside class="blog-aside"><article class="card"><h3>أحدث المقالات</h3>${publicBlogPosts.slice(0, 4).map((post) => `<button data-link="/blog/${post.slug}"><img src="${post.image}" alt=""><strong>${localizedField(post.title)}</strong><small>${localizedField(post.date)}</small></button>`).join("")}</article><article class="card newsletter"><h3>اشترك في نشرتنا</h3><p>احصل على أحدث المقالات والنصائح مباشرة في بريدك.</p><form data-submit="newsletter"><input class="input" type="email" name="email" placeholder="بريدك الإلكتروني" required><button class="btn btn-primary">اشترك الآن</button></form></article></aside></div></section></main>`);
 }
 
 function blogCard(post) {
-  return `<article class="card blog-card"><div class="blog-art">${icon(post.mark)}</div><span class="badge">${post.category}</span><h3>${post.title}</h3><p>${post.excerpt}</p><small>${post.date} · ${post.minutes}</small><button class="link-button" data-link="/blog/${post.slug}">اقرأ المقال ←</button></article>`;
+  return `<article class="card blog-card"><div class="blog-art"><img src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"></div><span class="badge">${post.category}</span><h3>${localizedField(post.title)}</h3><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small><button class="link-button" data-link="/blog/${post.slug}">اقرأ المقال ←</button></article>`;
 }
 
 function articlePage() {
   const post = publicBlogPosts.find((item) => `/blog/${item.slug}` === state.route);
   if (!post) return blogPage();
-  return publicShell(`<main><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${post.title}</h1><p>${post.excerpt}</p><small>${post.date} · ${post.minutes}</small></div></section><article class="container card article-body"><h2>مقدمة</h2><p>نجاح إدارة التجديدات يبدأ من تجربة واضحة للعميل، وتوقيت مناسب للرسالة، وسجل موحد يساعد الفريق على اتخاذ القرار.</p><h2>خطوات عملية</h2><p>حدّد الشرائح المستهدفة، اضبط القناة المناسبة، راقب النتائج من التقارير، ثم حسّن الرسالة والتوقيت بناءً على البيانات الحقيقية.</p><div class="public-cta"><div><h2>طبّق هذه الخطوات في RenewPilot AI</h2><p>ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.</p></div><button class="btn btn-primary" data-link="/register">ابدأ الآن</button></div></article></main>`);
+  const takeaways = localizedField(post.takeaways);
+  return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.")}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في RenewPilot AI", "Put these steps into practice with RenewPilot AI")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
 }
 
 function marketingSupportPage() {
@@ -884,9 +981,20 @@ function marketingSupportPage() {
 }
 
 function aboutPage() {
-  return publicShell(`<main class="about-page"><section class="about-hero"><div class="container about-hero-grid"><div><span class="eyebrow">عن RenewPilot AI</span><h1>منصة سعودية لإدارة الاشتراكات والتجديدات باحترافية</h1><p>نجمع بيانات العملاء والاشتراكات والتنبيهات والأجهزة والتقارير في مساحة عمل واحدة، حتى تتمكن فرق الأعمال من متابعة التجديدات واتخاذ قرارات أوضح دون عمليات يدوية مشتتة.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div><div class="about-brand-visual">${stackedLogo()}<strong>إدارة أوضح. تواصل أذكى. نمو مستمر.</strong></div></div></section>
-    <section class="section about-story"><div class="container"><div class="section-head"><div><span class="eyebrow">رؤيتنا</span><h2>نبني تجربة تجعل التجديد جزءًا من رحلة العميل</h2><p>صُممت RenewPilot AI للشركات التي تريد تقليل الاشتراكات المنتهية، تنظيم التواصل، وحماية سمعة قنواتها أثناء النمو.</p></div></div><div class="about-value-grid"><article><span>${dashboardIcon("subscriptions")}</span><h3>وضوح كامل</h3><p>سجل موحد لكل عميل واشتراك وتنبيه، مع مؤشرات تعتمد على البيانات الفعلية.</p></article><article><span>${dashboardIcon("template")}</span><h3>أتمتة مسؤولة</h3><p>تنبيهات في الوقت المناسب مع ضوابط إرسال آمن تمنع التكرار والإزعاج.</p></article><article><span>${dashboardIcon("security")}</span><h3>خصوصية وأمان</h3><p>عزل بيانات المؤسسات، صلاحيات واضحة، وعدم كشف مفاتيح الخدمات للمتصفح.</p></article><article><span>${dashboardIcon("reports")}</span><h3>قرارات قابلة للقياس</h3><p>تقارير تساعدك على فهم التسليم والتجديد والإيرادات وتحسين الأداء باستمرار.</p></article></div></div></section>
-    <section class="section about-principles"><div class="container about-principles-grid"><div><span class="eyebrow">كيف نعمل</span><h2>منتج عملي يركز على النتائج</h2><p>نطوّر المنصة حول احتياجات فرق الاشتراكات وخدمة العملاء: إعداد بسيط، واجهة عربية واضحة، تكاملات قابلة للمراقبة، وسجل نشاط يحفظ سياق كل عملية.</p></div><div class="about-points"><div><b>01</b><span><strong>بياناتك أولًا</strong><small>لا نستخدم بيانات تجريبية داخل حسابات الإنتاج.</small></span></div><div><b>02</b><span><strong>التشغيل الآمن</strong><small>لا يبدأ الإرسال قبل اكتمال المتطلبات واتصال القناة.</small></span></div><div><b>03</b><span><strong>دعم مستمر</strong><small>مركز مساعدة وقنوات تواصل واضحة عند الحاجة.</small></span></div></div></div></section><section class="section"><div class="container"><div class="public-cta"><div><h2>ابدأ إدارة تجديداتك من مكان واحد</h2><p>أنشئ مساحة عملك وابدأ بإضافة عملائك واشتراكاتك دون بيانات افتراضية.</p></div><button class="btn btn-primary" data-link="/register">ابدأ الآن</button></div></div></section></main>`);
+  const values = [
+    ["وضوح كامل", "Complete clarity", "سجل موحد لكل عميل واشتراك وتنبيه، مع مؤشرات تعتمد على البيانات الفعلية.", "One record for every customer, subscription, and reminder, with metrics based on real data.", "subscriptions"],
+    ["أتمتة مسؤولة", "Responsible automation", "تنبيهات في الوقت المناسب مع ضوابط إرسال آمن تمنع التكرار والإزعاج.", "Timely reminders with safe-sending controls that prevent repetition and unwanted messages.", "template"],
+    ["خصوصية وأمان", "Privacy and security", "عزل بيانات المؤسسات، صلاحيات واضحة، وعدم كشف مفاتيح الخدمات للمتصفح.", "Tenant-isolated data, clear permissions, and service credentials that never reach the browser.", "security"],
+    ["قرارات قابلة للقياس", "Measurable decisions", "تقارير تساعدك على فهم التسليم والتجديد والإيرادات وتحسين الأداء باستمرار.", "Reports that explain delivery, renewals, and revenue so performance can improve continuously.", "reports"]
+  ];
+  const principles = [
+    ["بياناتك أولًا", "Your data comes first", "لا نستخدم بيانات تجريبية داخل حسابات الإنتاج.", "We never create demo records inside production accounts."],
+    ["التشغيل الآمن", "Safe operation", "لا يبدأ الإرسال قبل اكتمال المتطلبات واتصال القناة.", "Sending cannot begin until requirements are complete and the channel is connected."],
+    ["دعم مستمر", "Ongoing support", "مركز مساعدة وقنوات تواصل واضحة عند الحاجة.", "A clear help center and support channels are available whenever needed."]
+  ];
+  return publicShell(`<main class="about-page"><section class="about-hero"><div class="container about-hero-grid"><div><span class="eyebrow">${localizedCopy("عن RenewPilot AI", "About RenewPilot AI")}</span><h1>${localizedCopy("منصة سعودية لإدارة الاشتراكات والتجديدات باحترافية", "A Saudi platform for professional subscription and renewal management")}</h1><p>${localizedCopy("نجمع بيانات العملاء والاشتراكات والتنبيهات والأجهزة والتقارير في مساحة عمل واحدة، حتى تتمكن فرق الأعمال من متابعة التجديدات واتخاذ قرارات أوضح دون عمليات يدوية مشتتة.", "We bring customers, subscriptions, reminders, devices, and reports into one workspace so teams can manage renewals and make clearer decisions without fragmented manual work.")}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("إنشاء حساب", "Create account")}</button><button class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}</button></div></div><div class="about-brand-visual">${stackedLogo()}<strong>${localizedCopy("إدارة أوضح. تواصل أذكى. نمو مستمر.", "Clearer management. Smarter communication. Sustainable growth.")}</strong></div></div></section>
+    <section class="section about-story"><div class="container"><div class="section-head"><div><span class="eyebrow">${localizedCopy("رؤيتنا", "Our vision")}</span><h2>${localizedCopy("نبني تجربة تجعل التجديد جزءًا من رحلة العميل", "We make renewal a natural part of the customer journey")}</h2><p>${localizedCopy("صُممت RenewPilot AI للشركات التي تريد تقليل الاشتراكات المنتهية، تنظيم التواصل، وحماية سمعة قنواتها أثناء النمو.", "RenewPilot AI is built for companies that want fewer expired subscriptions, organized communication, and healthier channels as they grow.")}</p></div></div><div class="about-value-grid">${values.map(([arTitle, enTitle, arBody, enBody, mark]) => `<article><span>${dashboardIcon(mark)}</span><h3>${localizedCopy(arTitle, enTitle)}</h3><p>${localizedCopy(arBody, enBody)}</p></article>`).join("")}</div></div></section>
+    <section class="section about-principles"><div class="container about-principles-grid"><div><span class="eyebrow">${localizedCopy("كيف نعمل", "How we work")}</span><h2>${localizedCopy("منتج عملي يركز على النتائج", "A practical product focused on outcomes")}</h2><p>${localizedCopy("نطوّر المنصة حول احتياجات فرق الاشتراكات وخدمة العملاء: إعداد بسيط، واجهة عربية واضحة، تكاملات قابلة للمراقبة، وسجل نشاط يحفظ سياق كل عملية.", "We build around the needs of subscription and customer teams: simple setup, a clear bilingual interface, observable integrations, and an activity trail for every action.")}</p></div><div class="about-points">${principles.map(([arTitle, enTitle, arBody, enBody], index) => `<div><b>${String(index + 1).padStart(2, "0")}</b><span><strong>${localizedCopy(arTitle, enTitle)}</strong><small>${localizedCopy(arBody, enBody)}</small></span></div>`).join("")}</div></div></section><section class="section"><div class="container"><div class="public-cta"><div><h2>${localizedCopy("ابدأ إدارة تجديداتك من مكان واحد", "Manage renewals from one workspace")}</h2><p>${localizedCopy("أنشئ مساحة عملك وابدأ بإضافة عملائك واشتراكاتك دون بيانات افتراضية.", "Create your workspace and add customers and subscriptions without demo data.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></div></section></main>`);
 }
 
 function policyPage() {
@@ -896,8 +1004,15 @@ function policyPage() {
     "/refund-policy": { title: "سياسة الاستبدال والاسترجاع", intro: "نهدف إلى معالجة طلبات الفوترة بعدالة ووضوح وفق نوع الخطة، تاريخ العملية، والاستخدام الفعلي للخدمة.", sections: [["أهلية طلب الاسترجاع", "يمكن تقديم طلب مراجعة خلال المدة الموضحة عند الشراء إذا حدث خصم مكرر، خطأ تقني موثق، أو تعذر جوهري في تقديم الخدمة المدفوعة."], ["الحالات غير المؤهلة", "لا يشمل الاسترجاع عادةً الأرصدة أو الرسائل المستخدمة، الفترات المستهلكة، مخالفة سياسة الاستخدام، أو توقف خدمة خارجية لا تتحكم بها RenewPilot AI."], ["طريقة تقديم الطلب", "أرسل طلبًا من مركز الدعم يتضمن بريد الحساب ورقم الفاتورة ووصف المشكلة. لا ترسل بيانات بطاقتك أو كلمات المرور داخل الطلب."], ["المراجعة والمعالجة", "يراجع الفريق السجلات والفاتورة والاستخدام، ثم يرسل القرار عبر البريد المسجل. تعتمد مدة ظهور المبلغ على بوابة الدفع والبنك المصدر."], ["تغيير الخطة", "يمكن ترقية الخطة في أي وقت. أما التخفيض فيُطبق عادةً من دورة الفوترة التالية حتى لا تتأثر المزايا المدفوعة خلال الدورة الحالية."], ["الأسئلة المتعلقة بالفوترة", "لأي استفسار أو اعتراض استخدم نموذج الدعم واختر قسم الفوترة والباقات، وسيتواصل الفريق معك بالمعلومات المطلوبة دون طلب بيانات حساسة."]] },
     "/contact": { title: "تواصل معنا", intro: "اختر القناة المناسبة وسنوجه طلبك إلى الفريق المختص بأسرع وقت ممكن.", sections: [["الدعم الفني", "لأخطاء الحساب، ربط الأجهزة، الجلسات، أو التكاملات استخدم نموذج مركز الدعم وأرفق وصفًا واضحًا ووقت حدوث المشكلة دون مشاركة أي مفتاح سري."], ["المبيعات والباقات", "للاستفسار عن الخطط وحدود الاستخدام واحتياجات المؤسسات، أرسل طلبًا بعنوان المبيعات والباقات مع حجم الفريق وعدد العملاء المتوقع."], ["الفوترة", "للفواتير أو المدفوعات اذكر رقم الفاتورة والبريد المسجل فقط. لن يطلب فريقنا كلمة المرور أو رمز التحقق أو بيانات البطاقة الكاملة."], ["الأمان والخصوصية", "للإبلاغ عن مشكلة أمنية أو طلب متعلق ببياناتك، استخدم قناة الدعم واكتب بوضوح أن الطلب متعلق بالأمان أو الخصوصية ليتم تصعيده للفريق المختص."], ["أوقات الاستجابة", "نراجع الطلبات حسب الأولوية والتأثير. تظهر الحالات الحرجة المتعلقة بتعطل الخدمة أو الأمان في مقدمة قائمة المعالجة."], ["البريد الرسمي", "يمكن مراسلتنا عبر support@renewpilot.ai، أو استخدام مركز الدعم للحصول على رقم مرجعي ومتابعة حالة الطلب."]] }
   };
-  const content = policies[state.route] || policies["/privacy"];
-  return publicShell(`<main class="policy-page"><section class="policy-hero"><div class="container"><span class="eyebrow">معلومات قانونية وتشغيلية</span><h1>${content.title}</h1><p>${content.intro}</p><small>آخر تحديث: يوليو 2026</small></div></section><section class="section policy-section"><div class="container policy-layout"><aside class="policy-summary"><h2>في هذه الصفحة</h2>${content.sections.map(([title], index) => `<a href="#policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span>${title}</a>`).join("")}<button class="btn btn-primary" data-link="/support">تواصل مع الدعم</button></aside><article class="policy-content">${content.sections.map(([title, body], index) => `<section id="policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${title}</h2><p>${body}</p></div></section>`).join("")}<div class="policy-contact"><strong>هل تحتاج إلى توضيح إضافي؟</strong><p>راسلنا عبر support@renewpilot.ai أو افتح طلبًا من مركز الدعم.</p><button class="btn btn-secondary" data-link="/support">الانتقال إلى مركز الدعم</button></div></article></div></section></main>`);
+  const englishPolicies = {
+    "/privacy": { title: "Privacy Policy", intro: "This policy explains which data RenewPilot AI needs to provide the service, how it is protected, and the controls available to you.", sections: [["Data we collect", "We collect account, workspace, customer, subscription, and operational data that you enter or create while using the platform. Limited technical information is recorded for security and troubleshooting."], ["How we use data", "We use data to operate platform features, send reminders requested by users, improve reliability, prevent abuse, and provide support. We do not sell customer data or use it for external advertising."], ["Protection and isolation", "Each organization is isolated by its tenant identifier, with access controls enforced across APIs and the database. Service credentials remain on the server and are never sent to the browser."], ["Service providers", "Trusted infrastructure, email, messaging, and database providers may process only the information necessary to deliver their services under their own security terms."], ["Retention and deletion", "Data is retained while the account is active or where operational and legal requirements apply. You can request correction, export, or deletion through the support center."], ["Your rights and choices", "You can manage notifications, update your profile, review sessions, and stop messages for selected customers. Privacy questions can be submitted through the official support channel."]] },
+    "/terms": { title: "Terms of Use", intro: "These terms govern the use of RenewPilot AI and explain the responsibilities of account owners and authorized users.", sections: [["Accepting the terms", "By creating an account or using the platform, you agree to these terms and related policies and confirm that you are authorized to manage the workspace and its data."], ["Accounts and permissions", "You are responsible for accurate account information, password protection, and reviewing authorized users. Report unauthorized access or suspicious activity immediately."], ["Acceptable use", "The platform must not be used for unsolicited messaging, impersonation, privacy violations, or conduct that breaches communications and commerce regulations. Required recipient consent must be obtained."], ["Channels and integrations", "WhatsApp, email, and third-party integrations are subject to provider availability and terms. The account owner is responsible for the numbers, templates, and settings used."], ["Subscriptions and billing", "Prices and limits are shown before a plan is selected. Features and prices may change with appropriate notice, while charges remain due for periods in which the service was used."], ["Suspension and termination", "Accounts may be suspended to protect the platform or recipients when abuse or security risk is detected. Owners may cancel according to plan settings and the applicable refund policy."]] },
+    "/refund-policy": { title: "Refund Policy", intro: "We review billing requests fairly and transparently according to the plan, transaction date, and actual service usage.", sections: [["Refund eligibility", "A review may be requested within the period shown at purchase when there is a duplicate charge, a documented technical error, or a material failure to deliver the paid service."], ["Non-eligible cases", "Refunds generally exclude used credits or messages, consumed billing periods, policy violations, and third-party outages outside RenewPilot AI's control."], ["Submitting a request", "Send a support request with the account email, invoice number, and a description of the issue. Never include card details or passwords."], ["Review and processing", "The team reviews logs, the invoice, and usage before sending a decision to the registered email. Bank and payment gateway processing times may vary."], ["Changing plans", "Plans can be upgraded at any time. Downgrades usually apply from the next billing cycle so current paid features remain available until the cycle ends."], ["Billing questions", "Select Billing and Plans in the support form for any question or dispute. The team will request only the information needed and never sensitive credentials."]] },
+    "/contact": { title: "Contact Us", intro: "Choose the right channel and we will route your request to the appropriate team as quickly as possible.", sections: [["Technical support", "For account errors, device linking, sessions, or integrations, use the support form and include a clear description and time of occurrence without sharing secrets."], ["Sales and plans", "For plans, limits, and enterprise requirements, submit a Sales and Plans request with the expected team size and customer volume."], ["Billing", "For invoices or payments, provide only the invoice number and registered email. Our team will never ask for your password, verification code, or full card details."], ["Security and privacy", "Clearly mark security or privacy requests in the support channel so they can be escalated to the appropriate specialist."], ["Response times", "Requests are reviewed by priority and impact. Critical service availability and security issues are moved to the front of the queue."], ["Official email", "You can email support@renewpilot.ai or use the support center to receive a reference number and track your request."]] }
+  };
+  const selectedPolicies = state.language === "en" ? englishPolicies : policies;
+  const content = selectedPolicies[state.route] || selectedPolicies["/privacy"];
+  return publicShell(`<main class="policy-page"><section class="policy-hero"><div class="container"><span class="eyebrow">${localizedCopy("معلومات قانونية وتشغيلية", "Legal and operational information")}</span><h1>${content.title}</h1><p>${content.intro}</p><small>${localizedCopy("آخر تحديث: يوليو 2026", "Last updated: July 2026")}</small></div></section><section class="section policy-section"><div class="container policy-layout"><aside class="policy-summary"><h2>${localizedCopy("في هذه الصفحة", "On this page")}</h2>${content.sections.map(([title], index) => `<a href="#policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span>${title}</a>`).join("")}<button class="btn btn-primary" data-link="/support">${localizedCopy("تواصل مع الدعم", "Contact support")}</button></aside><article class="policy-content">${content.sections.map(([title, body], index) => `<section id="policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${title}</h2><p>${body}</p></div></section>`).join("")}<div class="policy-contact"><strong>${localizedCopy("هل تحتاج إلى توضيح إضافي؟", "Need more information?")}</strong><p>${localizedCopy("راسلنا عبر support@renewpilot.ai أو افتح طلبًا من مركز الدعم.", "Email support@renewpilot.ai or open a request in the Support Center.")}</p><button class="btn btn-secondary" data-link="/support">${localizedCopy("الانتقال إلى مركز الدعم", "Go to Support Center")}</button></div></article></div></section></main>`);
 }
 
 function authPublicPage() {
