@@ -429,6 +429,8 @@ state.orderLinks = null;
 state.publicOrder = null;
 state.publicOrderLoading = false;
 state.publicOrderLookup = "";
+state.orderLinkPreviewSlide = 0;
+state.orderLinkCreating = false;
 state.orderLinkDraft = {
   templateId: "",
   templateName: "",
@@ -1640,6 +1642,42 @@ function orderInfoPreviewCard(subscription, draft, publicData = null) {
   </article>`;
 }
 
+function orderLookupPreviewCard(draft) {
+  const themeColor = safeOrderLinkColor(draft.themeColor);
+  const storeName = draft.storeName?.trim() || "اسم متجرك";
+  return `<article class="order-lookup-preview order-style-${escapeHtml(draft.style || "classic")}" style="--order-theme:${themeColor}">
+    <div class="order-lookup-accent"></div>
+    <div class="order-lookup-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(storeName)}</h2><p>مرحبًا بك في صفحة متابعة طلبك</p></div></div>
+    <div class="order-lookup-content">
+      <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
+      <h3>أدخل رقم الطلب</h3>
+      <p>اكتب رقم طلبك لعرض حالة الاشتراك ومدته ومعلومات الباقة.</p>
+      <label><span>رقم الطلب</span><div class="order-lookup-input"><input value="" placeholder="مثال: 54981" readonly aria-label="معاينة حقل رقم الطلب">${dashboardIcon("orderLink")}</div></label>
+      <button class="btn btn-primary" type="button" data-action="order-preview-show-result">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
+      <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
+    </div>
+    <p class="order-card-footer">${escapeHtml(draft.footerText || "RenewPilot AI")}</p>
+  </article>`;
+}
+
+function orderLinkPreviewSlides(subscription, draft) {
+  const activeSlide = Number(state.orderLinkPreviewSlide || 0) === 1 ? 1 : 0;
+  return `<div class="order-preview-carousel" data-active-slide="${activeSlide}">
+    <div class="order-preview-toolbar" aria-label="التنقل بين المعاينات">
+      <button type="button" class="order-preview-arrow" data-action="order-preview-step" data-direction="-1" ${activeSlide === 0 ? "disabled" : ""} title="المعاينة السابقة">‹</button>
+      <div class="order-preview-tabs" role="tablist">
+        <button type="button" class="${activeSlide === 0 ? "active" : ""}" data-action="order-preview-slide" data-value="0"><b>1</b><span>صفحة إدخال الطلب</span></button>
+        <button type="button" class="${activeSlide === 1 ? "active" : ""}" data-action="order-preview-slide" data-value="1"><b>2</b><span>معلومات الطلب</span></button>
+      </div>
+      <button type="button" class="order-preview-arrow" data-action="order-preview-step" data-direction="1" ${activeSlide === 1 ? "disabled" : ""} title="المعاينة التالية">›</button>
+    </div>
+    <div class="order-preview-viewport">
+      <section class="order-preview-slide ${activeSlide === 0 ? "active" : ""}" aria-hidden="${activeSlide !== 0}">${orderLookupPreviewCard(draft)}</section>
+      <section class="order-preview-slide ${activeSlide === 1 ? "active" : ""}" aria-hidden="${activeSlide !== 1}">${orderInfoPreviewCard(subscription, draft)}</section>
+    </div>
+  </div>`;
+}
+
 function orderLinksWorkspacePage() {
   hydrateOrderLinkDraft();
   const profile = state.orderLinkProfile || {};
@@ -1732,11 +1770,11 @@ function orderLinksWorkspacePage() {
             ["endDate", "تاريخ النهاية"], ["remainingDays", "المدة المتبقية"], ["status", "الحالة"],
             ["storeName", "اسم المتجر"], ["additionalNotes", "الملاحظات"], ["phoneNumber", "الهاتف المخفي"]
           ].map(([key, label]) => `<label class="setting-toggle"><span>${label}</span><input type="checkbox" data-order-visible="${key}" ${draft.visibleFields[key] ? "checked" : ""}></label>`).join("")}</div></div>
-          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : `disabled title="${draft.sourceMode === "manual" ? "اختر العميل وأكمل معلومات الطلب والتواريخ." : "اختر اشتراكًا حقيقيًا أولًا."}"`}>إنشاء الرابط</button><button class="btn btn-success" type="button" data-action="send-created-order-link" ${publicUrl ? "" : "disabled"}>إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" ${publicUrl ? "" : "disabled"}>نسخ الرابط</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" ${publicUrl ? "" : "disabled"}>معاينة الصفحة</button></div>
+          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : `disabled title="${draft.sourceMode === "manual" ? "اختر العميل وأكمل معلومات الطلب والتواريخ." : "اختر اشتراكًا حقيقيًا أولًا."}"`}>إنشاء الرابط</button><button class="btn btn-success" type="button" data-action="send-created-order-link" title="ينشئ الرابط الحقيقي تلقائيًا عند الحاجة">إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" title="ينشئ الرابط الحقيقي تلقائيًا عند الحاجة">نسخ الرابط</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" title="ينشئ الرابط الحقيقي تلقائيًا عند الحاجة">معاينة الصفحة</button></div>
           ${publicUrl ? `<div class="created-link-box"><span>الرابط الاحترافي للعميل</span><input class="input" readonly value="${escapeHtml(publicUrl)}"><button type="button" class="btn btn-secondary" data-action="copy-created-order-link">نسخ</button></div>` : ""}
         </form>
       </article>
-      <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>تتحدث المعاينة مباشرة مع اختياراتك.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderInfoPreviewCard(selected, draft)}</div><p class="preview-note">هذه معاينة تقريبية، سيتم عرض البيانات الحقيقية للعميل من قاعدة البيانات.</p></aside>
+      <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>تنقل بين صفحة إدخال رقم الطلب وصفحة معلوماته.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">هذه معاينة تقريبية، وسيعرض الرابط الحقيقي بيانات العميل الآمنة من قاعدة البيانات.</p></aside>
     </section>
     <article class="card table-card section"><div class="section-head"><div><h2>الروابط السابقة</h2><p>روابط الطلبات المسجلة فعليًا لمساحة عملك.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد روابط مرسلة بعد", "أنشئ أول رابط لعرض معلومات الطلب للعميل.")}</article>
     <article class="card table-card section"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
@@ -1935,7 +1973,7 @@ function refreshOrderLinkPreview() {
   const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
   const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   const selected = orderLinkPreviewOrder(subscriptions, customers);
-  preview.innerHTML = orderInfoPreviewCard(selected, state.orderLinkDraft);
+  preview.innerHTML = orderLinkPreviewSlides(selected, state.orderLinkDraft);
   const manualResult = document.querySelector(".manual-order-result");
   if (manualResult) {
     const draft = state.orderLinkDraft;
@@ -2012,6 +2050,120 @@ async function persistOrderLinkDraft() {
   state.orderLinks = null;
   syncRouteData(true);
   return templatePayload.item;
+}
+
+function orderLinkDraftValidationMessage(draft) {
+  if (draft.sourceMode !== "manual" && !draft.subscriptionId) return "اختر طلبًا أو اشتراكًا حقيقيًا أولًا.";
+  if (draft.sourceMode === "manual" && !draft.customerId) return "اختر العميل الذي يخصه الطلب أولًا.";
+  if (draft.sourceMode === "manual" && (!draft.manualServiceName?.trim() || !draft.manualPlanName?.trim() || !draft.manualStartDate || !draft.manualEndDate)) {
+    return "أكمل اسم الخدمة والباقة وتاريخي البداية والنهاية.";
+  }
+  if (draft.sourceMode === "manual" && !inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)) {
+    return "تاريخ النهاية يجب أن يكون بعد تاريخ البداية.";
+  }
+  return "";
+}
+
+async function createCurrentOrderLink(trigger) {
+  updateOrderLinkDraftFromForm();
+  const draft = state.orderLinkDraft;
+  const validationMessage = orderLinkDraftValidationMessage(draft);
+  if (validationMessage) {
+    toast(validationMessage, "warning");
+    return null;
+  }
+  if (state.orderLinkCreating) {
+    toast("جاري إنشاء الرابط، انتظر لحظة.", "info");
+    return null;
+  }
+  state.orderLinkCreating = true;
+  if (trigger) {
+    trigger.disabled = true;
+    trigger.setAttribute("aria-busy", "true");
+  }
+  try {
+    const template = await persistOrderLinkDraft();
+    let subscriptionId = draft.subscriptionId;
+    let orderNumber = "";
+    let customerName = "";
+    if (draft.sourceMode === "manual") {
+      const customer = (state.dbCustomers || []).find((item) => item.id === draft.customerId);
+      const subscriptionPayload = await fetchJson("/api/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: draft.customerId,
+          orderNumber: draft.manualOrderNumber?.trim() || undefined,
+          serviceName: draft.manualServiceName.trim(),
+          planName: draft.manualPlanName.trim(),
+          startDate: draft.manualStartDate,
+          endDate: draft.manualEndDate,
+          status: inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate),
+          notes: draft.manualNotes?.trim() || undefined
+        })
+      });
+      subscriptionId = subscriptionPayload.item.id;
+      orderNumber = subscriptionPayload.item.orderNumber || draft.manualOrderNumber || "";
+      customerName = customer?.name || "";
+      state.orderLinkDraft.subscriptionId = subscriptionId;
+      state.dbSubscriptions = null;
+      state.orderLinkSubscriptions = null;
+    } else {
+      const subscription = (state.orderLinkSubscriptions || []).find((item) => item.id === subscriptionId);
+      orderNumber = subscription?.orderNumber || "";
+      customerName = subscription?.customerName || "";
+    }
+    const payload = await fetchJson("/api/order-link/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscriptionId,
+        templateId: template.id,
+        expiresInDays: Number(state.orderLinkDraft.expiresInDays || 30),
+        sendMethod: "copy"
+      })
+    });
+    const created = {
+      id: payload.id,
+      publicUrl: payload.publicUrl,
+      orderNumber: payload.orderNumber || orderNumber,
+      customerName
+    };
+    state.orderLinkDraft = {
+      ...state.orderLinkDraft,
+      publicUrl: created.publicUrl,
+      linkId: created.id,
+      createdOrderNumber: created.orderNumber,
+      createdCustomerName: created.customerName
+    };
+    state.orderLinks = null;
+    syncRouteData(true);
+    toast(draft.sourceMode === "manual" ? "تم حفظ الطلب وإنشاء رابطه الحقيقي بنجاح" : "تم إنشاء رابط معلومات الطلب الحقيقي بنجاح");
+    render();
+    return created;
+  } catch (error) {
+    const messages = { slug_exists: "هذا الرابط المخصص مستخدم من متجر آخر.", reserved_slug: "هذا الرابط محجوز للنظام.", subscription_not_found: "الاشتراك المحدد غير موجود." };
+    toast(messages[error.code] || error.message || "تعذر إنشاء الرابط", "danger");
+    return null;
+  } finally {
+    state.orderLinkCreating = false;
+    if (trigger?.isConnected) {
+      trigger.disabled = false;
+      trigger.removeAttribute("aria-busy");
+    }
+  }
+}
+
+async function ensureCurrentOrderLink(trigger) {
+  if (state.orderLinkDraft.publicUrl && state.orderLinkDraft.linkId) {
+    return {
+      id: state.orderLinkDraft.linkId,
+      publicUrl: state.orderLinkDraft.publicUrl,
+      orderNumber: state.orderLinkDraft.createdOrderNumber || "",
+      customerName: state.orderLinkDraft.createdCustomerName || ""
+    };
+  }
+  return createCurrentOrderLink(trigger);
 }
 
 function openOrderLinkSendModal(item) {
@@ -2106,6 +2258,18 @@ async function handleAction(target) {
     state.orderLinkDraft.themeColor = safeOrderLinkColor(target.dataset.value);
     render();
   }
+  if (action === "order-preview-slide") {
+    state.orderLinkPreviewSlide = Number(target.dataset.value) === 1 ? 1 : 0;
+    refreshOrderLinkPreview();
+  }
+  if (action === "order-preview-step") {
+    state.orderLinkPreviewSlide = Math.max(0, Math.min(1, Number(state.orderLinkPreviewSlide || 0) + Number(target.dataset.direction || 0)));
+    refreshOrderLinkPreview();
+  }
+  if (action === "order-preview-show-result") {
+    state.orderLinkPreviewSlide = 1;
+    refreshOrderLinkPreview();
+  }
   if (action === "add-order-note") {
     updateOrderLinkDraftFromForm();
     if (state.orderLinkDraft.additionalNotes.length >= 8) return toast("يمكن إضافة 8 مقاطع نصية كحد أقصى.", "warning");
@@ -2156,77 +2320,29 @@ async function handleAction(target) {
     } catch (error) { toast(error.message || "تعذر حذف القالب", "danger"); }
   }
   if (action === "create-order-link") {
-    updateOrderLinkDraftFromForm();
-    const draft = state.orderLinkDraft;
-    if (draft.sourceMode !== "manual" && !draft.subscriptionId) return toast("اختر طلبًا أو اشتراكًا حقيقيًا أولًا.", "warning");
-    if (draft.sourceMode === "manual" && !draft.customerId) return toast("اختر العميل الذي يخصه الطلب أولًا.", "warning");
-    if (draft.sourceMode === "manual" && (!draft.manualServiceName?.trim() || !draft.manualPlanName?.trim() || !draft.manualStartDate || !draft.manualEndDate)) {
-      return toast("أكمل اسم الخدمة والباقة وتاريخي البداية والنهاية.", "warning");
-    }
-    if (draft.sourceMode === "manual" && !inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)) {
-      return toast("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.", "warning");
-    }
-    target.disabled = true;
-    try {
-      const template = await persistOrderLinkDraft();
-      let subscriptionId = draft.subscriptionId;
-      if (draft.sourceMode === "manual") {
-        const subscriptionPayload = await fetchJson("/api/subscriptions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: draft.customerId,
-            orderNumber: draft.manualOrderNumber?.trim() || undefined,
-            serviceName: draft.manualServiceName.trim(),
-            planName: draft.manualPlanName.trim(),
-            startDate: draft.manualStartDate,
-            endDate: draft.manualEndDate,
-            status: inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate),
-            notes: draft.manualNotes?.trim() || undefined
-          })
-        });
-        subscriptionId = subscriptionPayload.item.id;
-        state.orderLinkDraft.subscriptionId = subscriptionId;
-        state.dbSubscriptions = null;
-        state.orderLinkSubscriptions = null;
-      }
-      const payload = await fetchJson("/api/order-link/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscriptionId,
-          templateId: template.id,
-          expiresInDays: Number(state.orderLinkDraft.expiresInDays || 30),
-          sendMethod: "copy"
-        })
-      });
-      state.orderLinkDraft = { ...state.orderLinkDraft, publicUrl: payload.publicUrl, linkId: payload.id };
-      state.orderLinks = null;
-      syncRouteData(true);
-      toast(draft.sourceMode === "manual" ? "تم حفظ الطلب وإنشاء رابطه بنجاح" : "تم إنشاء رابط معلومات الطلب بنجاح");
-      render();
-    } catch (error) {
-      target.disabled = false;
-      const messages = { slug_exists: "هذا الرابط المخصص مستخدم من متجر آخر.", reserved_slug: "هذا الرابط محجوز للنظام.", subscription_not_found: "الاشتراك المحدد غير موجود." };
-      toast(messages[error.code] || error.message || "تعذر إنشاء الرابط", "danger");
-    }
+    await createCurrentOrderLink(target);
   }
   if (action === "copy-created-order-link") {
-    if (!state.orderLinkDraft.publicUrl) return;
-    if (state.orderLinkDraft.linkId) {
-      await fetchJson(`/api/order-link/${state.orderLinkDraft.linkId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) }).catch(() => null);
+    const created = await ensureCurrentOrderLink(target);
+    if (!created?.publicUrl) return;
+    if (created.id) {
+      await fetchJson(`/api/order-link/${created.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) }).catch(() => null);
     }
-    await copyText(state.orderLinkDraft.publicUrl, "تم نسخ الرابط بنجاح");
+    await copyText(created.publicUrl, "تم إنشاء الرابط الحقيقي ونسخه بنجاح");
   }
   if (action === "preview-created-order-link") {
-    if (state.orderLinkDraft.publicUrl) window.open(state.orderLinkDraft.publicUrl, "_blank", "noopener,noreferrer");
+    const created = await ensureCurrentOrderLink(target);
+    if (created?.publicUrl) window.open(created.publicUrl, "_blank", "noopener,noreferrer");
   }
   if (action === "send-created-order-link") {
+    const created = await ensureCurrentOrderLink(target);
+    if (!created?.publicUrl) return;
     const selected = (state.orderLinkSubscriptions || []).find((item) => item.id === state.orderLinkDraft.subscriptionId);
     openOrderLinkSendModal({
-      id: state.orderLinkDraft.linkId,
-      orderNumber: selected?.orderNumber,
-      customerName: selected?.customerName
+      id: created.id,
+      publicUrl: created.publicUrl,
+      orderNumber: created.orderNumber || selected?.orderNumber,
+      customerName: created.customerName || selected?.customerName
     });
   }
   if (action === "copy-order-link") {

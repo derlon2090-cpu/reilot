@@ -89,9 +89,16 @@ test("order information builder and public page are responsive and private", asy
   await openOrderLinksWorkspace(page);
 
   await expect(page.locator(".page-title h1")).toContainText("إرسال معلومات الطلب");
+  await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toContainText(profile.storeName);
+  await page.locator("[data-order-field='storeName']").fill("متجر التقنية المتقدم");
+  await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toContainText("متجر التقنية المتقدم");
   await page.locator("[data-order-field='subscriptionId']").selectOption("sub-1");
+  await page.locator("[data-action='order-preview-step'][data-direction='1']").click();
+  await expect(page.locator(".order-preview-slide.active .order-customer-card")).toBeVisible();
   await expect(page.locator("#order-live-preview .order-customer-card")).toContainText("محمد السعيد");
-  await expect(page.getByRole("button", { name: "إرسال للعميل" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "إرسال للعميل" })).toBeEnabled();
+  await page.locator("[data-action='order-preview-step'][data-direction='-1']").click();
+  await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toBeVisible();
   await expect(page.locator(".table-card").first()).toContainText("لا توجد روابط مرسلة بعد");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
@@ -130,6 +137,12 @@ test("manual customer order creates a custom public link and updates the live pr
   };
   let createdSubscriptionBody: Record<string, unknown> | null = null;
   let createdLinkBody: Record<string, unknown> | null = null;
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: async (value: string) => { (window as Window & { __copiedOrderLink?: string }).__copiedOrderLink = value; } }
+    });
+  });
 
   await page.route("**/api/dashboard/overview", (route) => route.fulfill({ json: { ok: true, stats: {}, profile: {} } }));
   await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [customer] } }));
@@ -173,12 +186,13 @@ test("manual customer order creates a custom public link and updates the live pr
       }
     });
   });
+  await page.route("**/api/order-link/link-manual-1/send", (route) => route.fulfill({ json: { ok: true } }));
 
   await openOrderLinksWorkspace(page);
 
-  await expect(page.locator("#order-live-preview .order-customer-card")).toBeVisible();
+  await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toBeVisible();
   await page.locator("[data-action='order-color'][data-value='#22C55E']").click();
-  await expect(page.locator("#order-live-preview .order-customer-card")).toHaveAttribute("style", /#22C55E/);
+  await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toHaveAttribute("style", /#22C55E/);
 
   await page.locator("[data-action='order-source-mode'][data-value='manual']").click();
   await page.locator("[data-order-field='customerId']").selectOption(customer.id);
@@ -196,12 +210,15 @@ test("manual customer order creates a custom public link and updates the live pr
   await page.locator("[data-order-field='manualStartDate']").fill("2026-07-16");
   await page.locator("[data-order-field='manualEndDate']").fill("2026-08-16");
 
-  await expect(page.locator("#order-live-preview .order-customer-card")).toContainText(customer.name);
+  await page.locator("[data-action='order-preview-show-result']").click();
+  await expect(page.locator(".order-preview-slide.active .order-customer-card")).toContainText(customer.name);
   await expect(page.locator(".manual-order-result")).toContainText("نشط");
   await expect(page.locator("[data-action='create-order-link']")).toBeEnabled();
-  await page.locator("[data-action='create-order-link']").click();
+  await expect(page.locator("[data-action='copy-created-order-link']").first()).toBeEnabled();
+  await page.locator("[data-action='copy-created-order-link']").first().click();
 
   await expect(page.locator(".created-link-box input")).toHaveValue(/\/o\/liong-d\?t=/);
+  await expect.poll(() => page.evaluate(() => (window as Window & { __copiedOrderLink?: string }).__copiedOrderLink || "")).toContain("/o/liong-d?t=secure-token");
   expect(createdSubscriptionBody).toMatchObject({
     customerId: customer.id,
     serviceName: "اشتراك المنصة",

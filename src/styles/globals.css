@@ -2273,6 +2273,51 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .order-link-builder,
 .order-link-preview-panel { padding: 20px; }
 .order-link-preview-panel { position: sticky; top: 98px; }
+.order-preview-carousel { display: grid; gap: 14px; }
+.order-preview-toolbar { min-height: 48px; padding: 5px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; align-items: center; gap: 8px; border: 1px solid #dce5f0; border-radius: 10px; background: #f6f9fc; }
+.order-preview-arrow { width: 36px; height: 36px; display: grid; place-items: center; color: #1769ed; border: 1px solid #d4e2f5; border-radius: 8px; background: #fff; cursor: pointer; font-size: 25px; line-height: 1; }
+.order-preview-arrow:disabled { color: #aab8ca; background: #f4f7fa; cursor: not-allowed; opacity: .65; }
+.order-preview-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.order-preview-tabs button { min-height: 36px; padding: 6px 10px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #607590; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.order-preview-tabs button b { width: 20px; height: 20px; display: grid; place-items: center; color: #1769ed; border: 1px solid #cfe0fb; border-radius: 50%; background: #fff; font-size: 10px; }
+.order-preview-tabs button.active { color: #fff; background: linear-gradient(115deg, #08a9b7, #2468e9); box-shadow: 0 5px 13px rgba(36, 104, 233, .15); }
+.order-preview-tabs button.active b { color: #1769ed; border-color: #fff; }
+.order-preview-viewport { min-height: 520px; position: relative; overflow: hidden; }
+.order-preview-slide { width: 100%; position: absolute; inset: 0; visibility: hidden; opacity: 0; transform: translateX(22px); pointer-events: none; transition: opacity .24s ease, transform .24s ease, visibility .24s; }
+.order-preview-slide.active { position: relative; visibility: visible; opacity: 1; transform: translateX(0); pointer-events: auto; }
+.order-lookup-preview { min-height: 520px; position: relative; padding: 26px; display: grid; align-content: start; overflow: hidden; color: #17345e; border: 1px solid color-mix(in srgb, var(--order-theme) 38%, #dbe5f1); border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgba(31, 64, 110, .08); }
+.order-lookup-accent { height: 130px; position: absolute; inset: 0 0 auto; opacity: .12; background: var(--order-theme); clip-path: polygon(0 0, 100% 0, 100% 58%, 73% 40%, 49% 72%, 25% 45%, 0 66%); }
+.order-lookup-brand { min-height: 104px; position: relative; display: flex; align-items: center; justify-content: center; gap: 12px; text-align: center; }
+.order-lookup-brand h2 { margin: 0; color: #102b55; font-size: 22px; }
+.order-lookup-brand p { margin: 5px 0 0; color: #72819a; font-size: 11px; }
+.order-lookup-content { width: min(390px, 100%); margin: 30px auto 0; display: grid; justify-items: stretch; gap: 13px; text-align: center; }
+.order-lookup-icon { width: 58px; height: 58px; margin: 0 auto; display: grid; place-items: center; color: var(--order-theme); border-radius: 50%; background: color-mix(in srgb, var(--order-theme) 10%, #fff); }
+.order-lookup-icon .line-icon { width: 27px; height: 27px; }
+.order-lookup-content h3 { margin: 0; color: #102b55; font-size: 19px; }
+.order-lookup-content > p { margin: -5px 0 5px; color: #70819a; font-size: 12px; line-height: 1.8; }
+.order-lookup-content label { display: grid; gap: 7px; text-align: start; color: #365173; font-size: 11px; font-weight: 700; }
+.order-lookup-input { min-height: 48px; display: flex; align-items: center; gap: 8px; border: 1px solid #dce5ef; border-radius: 8px; background: #fbfdff; }
+.order-lookup-input input { min-width: 0; flex: 1; padding: 0 13px; color: #6f829c; border: 0; outline: 0; background: transparent; direction: ltr; font: inherit; }
+.order-lookup-input .line-icon { width: 18px; margin-inline-end: 12px; color: var(--order-theme); }
+.order-lookup-content .btn { min-height: 48px; }
+.order-lookup-content > small { display: flex; align-items: center; justify-content: center; gap: 6px; color: #7a8ba2; font-size: 10px; }
+.order-lookup-content > small .line-icon { width: 15px; height: 15px; color: var(--order-theme); }
+.order-lookup-preview > .order-card-footer { margin-top: 34px; }
+.order-lookup-preview.order-style-modern .order-lookup-accent { height: 145px; opacity: .9; clip-path: none; background: linear-gradient(125deg, var(--order-theme), color-mix(in srgb, var(--order-theme) 50%, #2563eb)); }
+.order-lookup-preview.order-style-modern .order-lookup-brand h2,
+.order-lookup-preview.order-style-modern .order-lookup-brand p { color: #fff; }
+.order-lookup-preview.order-style-professional { border-radius: 5px; border-width: 2px; }
+.order-lookup-preview.order-style-minimal { border: 0; box-shadow: 0 1px 0 #dce5ef; }
+.order-lookup-preview.order-style-minimal .order-lookup-accent,
+.order-lookup-preview.order-style-minimal .order-bag { display: none; }
+.order-lookup-preview.order-style-premium { color: #e7edf8; border-color: #334155; background: #0f172a; }
+.order-lookup-preview.order-style-premium .order-lookup-brand h2,
+.order-lookup-preview.order-style-premium .order-lookup-content h3 { color: #fff; }
+.order-lookup-preview.order-style-premium .order-lookup-brand p,
+.order-lookup-preview.order-style-premium .order-lookup-content > p,
+.order-lookup-preview.order-style-premium .order-lookup-content label { color: #aebbd0; }
+.order-lookup-preview.order-style-premium .order-lookup-input { border-color: #334155; background: #162238; }
+.order-lookup-preview.order-style-colorful { background: color-mix(in srgb, var(--order-theme) 8%, #fff); }
 .order-link-form { display: grid; gap: 18px; }
 .order-source-picker { padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border: 1px solid #dce5f0; border-radius: 10px; background: #f6f9fc; }
 .order-source-picker button { min-height: 42px; color: #58708f; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font-weight: 700; }
@@ -2317,7 +2362,7 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .note-actions button:last-child { color: #dc3748; }
 .visible-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 16px; }
 .visible-fields .setting-toggle { min-height: 42px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #e5eaf0; border-radius: 8px; }
-.order-builder-actions { display: grid; grid-template-columns: 1.15fr 1fr .8fr .9fr; gap: 10px; }
+.order-builder-actions { display: grid; grid-template-columns: 1.15fr 1fr 1fr .9fr .9fr; gap: 10px; }
 .created-link-box { padding: 12px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; color: #31517c; border: 1px solid #d9e6fb; border-radius: 9px; background: #f5f9ff; }
 .created-link-box .input { direction: ltr; }
 .color-dot { width: 16px; height: 16px; display: inline-block; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #cad5e2; vertical-align: middle; }
@@ -2403,6 +2448,8 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 
 :root[data-theme="dark"] .order-link-builder,
 :root[data-theme="dark"] .order-link-preview-panel,
+:root[data-theme="dark"] .order-preview-toolbar,
+:root[data-theme="dark"] .order-preview-arrow,
 :root[data-theme="dark"] .order-style-picker > button,
 :root[data-theme="dark"] .note-actions button,
 :root[data-theme="dark"] .visible-fields .setting-toggle,
@@ -2411,6 +2458,10 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 :root[data-theme="dark"] .manual-order-panel,
 :root[data-theme="dark"] .manual-order-result,
 :root[data-theme="dark"] .order-inline-notice { color: #c7d8eb; border-color: #2a3d55; background: #0c1828; }
+:root[data-theme="dark"] .order-lookup-preview:not(.order-style-premium) { color: #dce9f7; border-color: #2a3d55; background: #101d2f; }
+:root[data-theme="dark"] .order-lookup-preview:not(.order-style-premium) .order-lookup-brand h2,
+:root[data-theme="dark"] .order-lookup-preview:not(.order-style-premium) .order-lookup-content h3 { color: #eaf2fb; }
+:root[data-theme="dark"] .order-lookup-preview:not(.order-style-premium) .order-lookup-input { border-color: #2a3d55; background: #0c1828; }
 :root[data-theme="dark"] .builder-step > h3,
 :root[data-theme="dark"] .order-card-brand h2 { color: #eaf2fb; }
 :root[data-theme="dark"] .slug-input { border-color: #2a3d55; background: #0b1728; }
