@@ -2282,6 +2282,9 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .manual-order-panel { padding: 16px; display: grid; gap: 14px; border: 1px solid #dfe8f4; border-radius: 12px; background: #fbfdff; }
 .manual-order-result { min-height: 42px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #617693; border: 1px dashed #ccd9e9; border-radius: 8px; background: #fff; }
 .manual-order-result strong { color: #0e9f55; }
+.manual-start-date-field .field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.field-edit-button { padding: 3px 10px; color: #1769e8; border: 1px solid #cfe0fb; border-radius: 6px; background: #f5f9ff; font: inherit; font-size: 12px; cursor: pointer; }
+.manual-start-date-field .input.is-locked { color: #526987; background: #f4f7fb; cursor: not-allowed; }
 .slug-input { display: flex; align-items: center; direction: ltr; border: 1px solid #dce3ec; border-radius: 8px; overflow: hidden; background: #fbfdff; }
 .slug-input > span { padding: 0 12px; color: #1769ed; font-weight: 800; }
 .slug-input .input { border: 0; border-inline-start: 1px solid #e5eaf0; border-radius: 0; direction: ltr; }

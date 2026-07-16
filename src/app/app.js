@@ -428,6 +428,7 @@ state.orderLinkSubscriptions = null;
 state.orderLinks = null;
 state.publicOrder = null;
 state.publicOrderLoading = false;
+state.publicOrderLookup = "";
 state.orderLinkDraft = {
   templateId: "",
   templateName: "",
@@ -437,7 +438,8 @@ state.orderLinkDraft = {
   manualOrderNumber: "",
   manualServiceName: "",
   manualPlanName: "",
-  manualStartDate: "",
+  manualStartDate: todayDateInputValue(),
+  manualStartDateEditable: false,
   manualEndDate: "",
   manualNotes: "",
   storeName: "",
@@ -1525,6 +1527,11 @@ function safeOrderLinkColor(value) {
   return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#2563EB";
 }
 
+function todayDateInputValue() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 function hydrateOrderLinkDraft() {
   const profile = state.orderLinkProfile;
   if (!profile || profile.error || state.orderLinkDraft.hydrated) return;
@@ -1539,6 +1546,7 @@ function hydrateOrderLinkDraft() {
     themeColor: safeOrderLinkColor(defaultTemplate?.themeColor || profile.defaultThemeColor),
     templateId: defaultTemplate?.id || "",
     templateName: defaultTemplate?.name || "",
+    manualStartDate: state.orderLinkDraft.manualStartDate || todayDateInputValue(),
     headerText: defaultTemplate?.headerText || "شكرًا لاختيارك خدماتنا",
     footerText: defaultTemplate?.footerText || "RenewPilot AI",
     additionalNotes: Array.isArray(defaultTemplate?.additionalNotes) ? [...defaultTemplate.additionalNotes] : [],
@@ -1704,7 +1712,7 @@ function orderLinksWorkspacePage() {
               <label class="field"><span>رقم الطلب (اختياري)</span><input class="input" name="manualOrderNumber" data-order-field="manualOrderNumber" value="${escapeHtml(draft.manualOrderNumber)}" placeholder="يُنشأ تلقائيًا عند تركه فارغًا"></label>
               <label class="field"><span>اسم الخدمة</span><input class="input" name="manualServiceName" data-order-field="manualServiceName" value="${escapeHtml(draft.manualServiceName)}"></label>
               <label class="field"><span>اسم الباقة</span><input class="input" name="manualPlanName" data-order-field="manualPlanName" value="${escapeHtml(draft.manualPlanName)}"></label>
-              <label class="field"><span>تاريخ البداية</span><input class="input" type="date" name="manualStartDate" data-order-field="manualStartDate" value="${escapeHtml(draft.manualStartDate)}"></label>
+              <div class="field manual-start-date-field"><span class="field-heading">تاريخ البداية <button type="button" class="field-edit-button" data-action="toggle-manual-start-date">${draft.manualStartDateEditable ? "قفل" : "تعديل"}</button></span><input class="input ${draft.manualStartDateEditable ? "" : "is-locked"}" type="date" name="manualStartDate" data-order-field="manualStartDate" value="${escapeHtml(draft.manualStartDate || todayDateInputValue())}" ${draft.manualStartDateEditable ? "" : "readonly aria-readonly=\"true\""}><small>${draft.manualStartDateEditable ? "يمكنك الآن اختيار تاريخ بداية مختلف." : "يبدأ الطلب من اليوم تلقائيًا. اضغط تعديل لتغييره."}</small></div>
               <label class="field"><span>تاريخ النهاية</span><input class="input" type="date" name="manualEndDate" data-order-field="manualEndDate" value="${escapeHtml(draft.manualEndDate)}"></label>
               <label class="field"><span>ملاحظات داخلية (اختياري)</span><input class="input" name="manualNotes" data-order-field="manualNotes" value="${escapeHtml(draft.manualNotes)}"></label>
             </div>
@@ -1737,14 +1745,14 @@ function orderLinksWorkspacePage() {
 async function loadPublicOrder({ checked = false, orderNumber } = {}) {
   const parts = location.pathname.split("/").filter(Boolean);
   const storeSlug = parts[1] || "";
-  const number = orderNumber || parts[2] || "";
+  const number = orderNumber || state.publicOrderLookup || parts[2] || "";
   const token = state.query.get("t") || "";
   const key = `${storeSlug}:${number}:${token}:${checked}`;
   if (!storeSlug || !number || !token || state.publicOrderLoading || state.publicOrderKey === key) return;
   state.publicOrderLoading = true;
   state.publicOrderKey = key;
   try {
-    const payload = await fetchJson(`/api/public/order-link/${encodeURIComponent(storeSlug)}/${encodeURIComponent(number)}?t=${encodeURIComponent(token)}${checked ? "&checked=1" : ""}`);
+    const payload = await fetchJson(`/api/public/order-link/${encodeURIComponent(storeSlug)}?orderNumber=${encodeURIComponent(number)}&t=${encodeURIComponent(token)}${checked ? "&checked=1" : ""}`);
     state.publicOrder = payload.data;
   } catch (error) {
     state.publicOrder = { error: error.message || "لم يتم العثور على الطلب أو الرابط غير صالح.", reason: error.code };
@@ -1757,9 +1765,10 @@ async function loadPublicOrder({ checked = false, orderNumber } = {}) {
 function publicOrderPage() {
   const parts = state.route.split("/").filter(Boolean);
   const storeSlug = parts[1] || "";
-  const orderNumber = parts[2] || "";
+  const legacyOrderNumber = parts[2] || "";
+  const orderNumber = state.publicOrderLookup || legacyOrderNumber;
   const data = state.publicOrder && !state.publicOrder.error ? state.publicOrder : null;
-  if (orderNumber && state.query.get("t") && !state.publicOrder && !state.publicOrderLoading) queueMicrotask(() => loadPublicOrder());
+  if (legacyOrderNumber && state.query.get("t") && !state.publicOrder && !state.publicOrderLoading) queueMicrotask(() => loadPublicOrder({ orderNumber: legacyOrderNumber }));
   const storeName = data?.store?.name || "معلومات الطلب";
   const themeColor = safeOrderLinkColor(data?.template?.themeColor);
   return `<div class="public-order-page" style="--order-theme:${themeColor}">
@@ -2077,8 +2086,21 @@ async function handleAction(target) {
     updateOrderLinkDraftFromForm();
     state.orderLinkDraft.sourceMode = target.dataset.value;
     if (target.dataset.value === "existing") state.orderLinkDraft.customerId = "";
-    if (target.dataset.value === "manual") state.orderLinkDraft.subscriptionId = "";
+    if (target.dataset.value === "manual") {
+      state.orderLinkDraft.subscriptionId = "";
+      state.orderLinkDraft.manualStartDate ||= todayDateInputValue();
+      state.orderLinkDraft.manualStartDateEditable = false;
+    }
     render();
+  }
+  if (action === "toggle-manual-start-date") {
+    updateOrderLinkDraftFromForm();
+    state.orderLinkDraft.manualStartDate ||= todayDateInputValue();
+    state.orderLinkDraft.manualStartDateEditable = !state.orderLinkDraft.manualStartDateEditable;
+    render();
+    if (state.orderLinkDraft.manualStartDateEditable) {
+      queueMicrotask(() => document.querySelector("[data-order-field='manualStartDate']")?.focus());
+    }
   }
   if (action === "order-color") {
     state.orderLinkDraft.themeColor = safeOrderLinkColor(target.dataset.value);
@@ -2564,9 +2586,7 @@ async function handleSubmit(form, event) {
   if (type === "public-order-search") {
     const number = String(data.orderNumber || "").trim().replace(/^#/, "");
     if (!number) return toast("اكتب رقم الطلب.", "warning");
-    const parts = state.route.split("/").filter(Boolean);
-    history.replaceState({}, "", `/o/${encodeURIComponent(parts[1] || "")}/${encodeURIComponent(number)}${location.search}`);
-    state.route = `/o/${parts[1] || ""}/${number}`;
+    state.publicOrderLookup = number;
     state.publicOrder = null;
     state.publicOrderKey = "";
     render();

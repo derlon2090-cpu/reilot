@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
+async function openOrderLinksWorkspace(page) {
+  await page.goto("/");
+  await expect(page.locator("[data-link='/features']").first()).toBeVisible();
+  await page.evaluate(() => {
+    history.pushState({}, "", "/dashboard/order-links");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+}
+
 const profile = {
   storeName: "متجر التقنية الذكية",
   slug: "tech-store",
@@ -25,6 +34,8 @@ const subscription = {
 
 test("order information builder and public page are responsive and private", async ({ page }) => {
   await mkdir(".codex-artifacts", { recursive: true });
+  await page.route("**/api/dashboard/overview", (route) => route.fulfill({ json: { ok: true, stats: {}, profile: {} } }));
+  await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [] } }));
   await page.route("**/api/order-link/profile", (route) => route.fulfill({ json: { ok: true, profile } }));
   await page.route("**/api/order-link/templates", (route) => route.fulfill({ json: { ok: true, items: [] } }));
   await page.route("**/api/order-link/subscriptions", (route) => route.fulfill({ json: { ok: true, items: [subscription] } }));
@@ -36,7 +47,7 @@ test("order information builder and public page are responsive and private", asy
       capabilities: { whatsappConnected: false, hasCustomerEmail: true }
     }
   }));
-  await page.route("**/api/public/order-link/tech-store/54981**", (route) => route.fulfill({
+  await page.route("**/api/public/order-link/tech-store**", (route) => route.fulfill({
     json: {
       ok: true,
       data: {
@@ -75,11 +86,7 @@ test("order information builder and public page are responsive and private", asy
     }
   }));
 
-  await page.goto("/");
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/order-links");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openOrderLinksWorkspace(page);
 
   await expect(page.locator(".page-title h1")).toContainText("إرسال معلومات الطلب");
   await page.locator("[data-order-field='subscriptionId']").selectOption("sub-1");
@@ -94,11 +101,12 @@ test("order information builder and public page are responsive and private", asy
   await page.screenshot({ path: ".codex-artifacts/order-links-mobile.png", fullPage: true });
 
   await page.setViewportSize({ width: 1500, height: 980 });
-  await page.evaluate(() => {
-    history.pushState({}, "", "/o/tech-store/54981?t=publictoken123");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await page.goto("/o/tech-store?t=publictoken123");
 
+  await expect(page.locator(".public-order-welcome")).toBeVisible();
+  await expect(page.locator(".public-order-result")).toHaveCount(0);
+  await page.locator("[data-submit='public-order-search'] [name='orderNumber']").fill("54981");
+  await page.locator("[data-submit='public-order-search'] button").click();
   await expect(page.locator(".public-order-result .order-customer-card")).toContainText("#54981");
   await expect(page.locator(".public-order-result")).toContainText("محمد السعيد");
   await expect(page.locator("body")).not.toContainText("customer-1");
@@ -161,16 +169,12 @@ test("manual customer order creates a custom public link and updates the live pr
         ok: true,
         id: "link-manual-1",
         orderNumber: "RP-MANUAL-1",
-        publicUrl: "https://reilot.vercel.app/o/liong-d/RP-MANUAL-1?t=secure-token"
+        publicUrl: "https://reilot.vercel.app/o/liong-d?t=secure-token"
       }
     });
   });
 
-  await page.goto("/");
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/order-links");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openOrderLinksWorkspace(page);
 
   await expect(page.locator("#order-live-preview .order-customer-card")).toBeVisible();
   await page.locator("[data-action='order-color'][data-value='#22C55E']").click();
@@ -180,6 +184,15 @@ test("manual customer order creates a custom public link and updates the live pr
   await page.locator("[data-order-field='customerId']").selectOption(customer.id);
   await page.locator("[data-order-field='manualServiceName']").fill("اشتراك المنصة");
   await page.locator("[data-order-field='manualPlanName']").fill("Pro Plan");
+  const startDate = page.locator("[data-order-field='manualStartDate']");
+  const today = await page.evaluate(() => {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  });
+  await expect(startDate).toHaveValue(today);
+  await expect(startDate).toHaveAttribute("readonly", "");
+  await page.locator("[data-action='toggle-manual-start-date']").click();
+  await expect(startDate).not.toHaveAttribute("readonly", "");
   await page.locator("[data-order-field='manualStartDate']").fill("2026-07-16");
   await page.locator("[data-order-field='manualEndDate']").fill("2026-08-16");
 
@@ -188,7 +201,7 @@ test("manual customer order creates a custom public link and updates the live pr
   await expect(page.locator("[data-action='create-order-link']")).toBeEnabled();
   await page.locator("[data-action='create-order-link']").click();
 
-  await expect(page.locator(".created-link-box input")).toHaveValue(/\/o\/liong-d\/RP-MANUAL-1\?t=/);
+  await expect(page.locator(".created-link-box input")).toHaveValue(/\/o\/liong-d\?t=/);
   expect(createdSubscriptionBody).toMatchObject({
     customerId: customer.id,
     serviceName: "اشتراك المنصة",

@@ -25,12 +25,17 @@ describe("order information link security", () => {
 
   it("requires a token and compares only its SHA-256 fingerprint publicly", () => {
     const publicRoute = readFileSync("app/api/public/order-link/[storeSlug]/[orderNumber]/route.js", "utf8");
+    const publicLookupRoute = readFileSync("app/api/public/order-link/[storeSlug]/route.js", "utf8");
     const server = readFileSync("src/server/order-links.js", "utf8");
 
     expect(publicRoute).toContain("sha256(token)");
     expect(publicRoute).toContain("l.public_token = $3");
     expect(publicRoute).toContain("Cache-Control");
+    expect(publicLookupRoute).toContain('searchParams.get("orderNumber")');
+    expect(publicLookupRoute).toContain("getOrderByNumber");
     expect(server).toContain("const storedToken = sha256(publicToken)");
+    expect(server).toContain("/o/${encodeURIComponent(profile.slug)}?t=");
+    expect(server).not.toContain("/${encodeURIComponent(orderNumber)}?t=");
     expect(server).not.toContain("renewpilot-order-link");
   });
 

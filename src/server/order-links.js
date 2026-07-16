@@ -130,7 +130,9 @@ export async function createOrderInfoLink({ tenantId, userId, subscriptionId, te
     const storedToken = sha256(publicToken);
     const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
     const orderNumber = subscription.rows[0].orderNumber;
-    const publicUrl = `${baseUrl}/o/${encodeURIComponent(profile.slug)}/${encodeURIComponent(orderNumber)}?t=${encodeURIComponent(publicToken)}`;
+    // Keep the order number out of the URL. The customer must enter it on the
+    // public page, where it is matched against this token-scoped link.
+    const publicUrl = `${baseUrl}/o/${encodeURIComponent(profile.slug)}?t=${encodeURIComponent(publicToken)}`;
     const days = Math.min(365, Math.max(1, Number(expiresInDays || 30)));
     const inserted = await client.query(
       `INSERT INTO order_info_links (
