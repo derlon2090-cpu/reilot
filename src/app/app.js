@@ -422,6 +422,31 @@ state.operationalIssues = null;
 state.whatsappHealth = null;
 state.notificationTemplate = null;
 state.billingOverview = null;
+state.orderLinkProfile = null;
+state.orderLinkTemplates = null;
+state.orderLinkSubscriptions = null;
+state.orderLinks = null;
+state.publicOrder = null;
+state.publicOrderLoading = false;
+state.orderLinkDraft = {
+  templateId: "",
+  templateName: "",
+  subscriptionId: "",
+  storeName: "",
+  slug: "",
+  style: "classic",
+  themeColor: "#2563EB",
+  headerText: "شكرًا لاختيارك خدماتنا",
+  footerText: "RenewPilot AI",
+  additionalNotes: [],
+  visibleFields: {
+    customerName: true, planName: true, startDate: true, endDate: true,
+    remainingDays: true, status: true, storeName: true,
+    additionalNotes: true, phoneNumber: false
+  },
+  expiresInDays: 30,
+  isDefault: true
+};
 state.blogCategory = "الكل";
 state.remoteLoading = {};
 
@@ -439,6 +464,7 @@ const dashboardRoutes = [
   ["/dashboard/customers", "العملاء", "customers"],
   ["/dashboard/renewal-template", "قالب رسالة التجديد", "template"],
   ["/dashboard/devices", "الأجهزة", "devices"],
+  ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
   ["/dashboard/security", "الحماية", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
   ["/dashboard/billing", "الفوترة والباقات", "billing"],
@@ -482,7 +508,7 @@ async function fetchJson(url, options = {}) {
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed");
     error.status = response.status;
-    error.code = payload.code;
+    error.code = payload.code || payload.reason;
     throw error;
   }
   return payload;
@@ -501,7 +527,11 @@ async function loadRemotePage(key, url, target, options) {
   state.remoteLoading[key] = true;
   try {
     const payload = await fetchJson(url, options);
-    state[target] = payload.items ?? payload.report ?? payload;
+    state[target] = target === "orderLinks"
+      ? payload
+      : target === "orderLinkProfile"
+        ? payload.profile
+        : payload.items ?? payload.report ?? payload;
     if (target === "accountSettings" && payload.settings) {
       state.settings = {
         whatsapp: Boolean(payload.settings.notificationChannels?.whatsapp),
@@ -526,6 +556,12 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/renewal-template" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (state.route === "/dashboard/order-links") {
+    if (force || state.orderLinkProfile === null) void loadRemotePage("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
+    if (force || state.orderLinkTemplates === null) void loadRemotePage("orderLinkTemplates", "/api/order-link/templates", "orderLinkTemplates");
+    if (force || state.orderLinkSubscriptions === null) void loadRemotePage("orderLinkSubscriptions", "/api/order-link/subscriptions", "orderLinkSubscriptions");
+    if (force || state.orderLinks === null) void loadRemotePage("orderLinks", "/api/order-link/list", "orderLinks");
+  }
   if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) void loadRemotePage("billing", "/api/billing", "billingOverview");
   if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) void loadRemotePage("settings", "/api/settings", "accountSettings");
 }
@@ -651,6 +687,7 @@ function dashboardIcon(name) {
     security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    orderLink: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><rect x="8" y="8" width="8" height="8" rx="2"/>',
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>'
@@ -1084,7 +1121,7 @@ function forgotPasswordPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
   const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   const profile = state.dashboardOverview?.profile || {};
@@ -1157,6 +1194,7 @@ function pageTitle(title, actions = "") {
     "إدارة الاشتراكات": "تابع الاشتراكات والتجديدات في مكان واحد.",
     "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
     "الأجهزة": "اربط واتساب وتحقق من حالة الاتصال الفعلية.",
+    "إرسال معلومات الطلب": "صمم صفحة معلومات آمنة وأنشئ رابطًا مستقلًا لكل طلب.",
     "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
     "التقارير": "المؤشرات وسجل النشاط والفوترة.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
@@ -1466,6 +1504,198 @@ function renewalTemplatePage() {
     </section>`);
 }
 
+const orderLinkStyleOptions = [
+  ["classic", "كلاسيكي"], ["modern", "حديث"], ["professional", "احترافي"],
+  ["minimal", "بسيط"], ["premium", "فاخر"], ["colorful", "ملون"]
+];
+const orderLinkColorOptions = [
+  ["#2563EB", "أزرق"], ["#06B6D4", "تركواز"], ["#8B5CF6", "بنفسجي"], ["#22C55E", "أخضر"],
+  ["#F97316", "برتقالي"], ["#EF4444", "أحمر"], ["#64748B", "رمادي"], ["#0F172A", "كحلي"]
+];
+
+function safeOrderLinkColor(value) {
+  return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#2563EB";
+}
+
+function hydrateOrderLinkDraft() {
+  const profile = state.orderLinkProfile;
+  if (!profile || profile.error || state.orderLinkDraft.hydrated) return;
+  const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
+  const defaultTemplate = templates.find((item) => item.isDefault) || templates[0];
+  state.orderLinkDraft = {
+    ...state.orderLinkDraft,
+    hydrated: true,
+    storeName: defaultTemplate?.storeName || profile.storeName || "",
+    slug: profile.slug || "",
+    style: defaultTemplate?.style || profile.defaultTemplateStyle || "classic",
+    themeColor: safeOrderLinkColor(defaultTemplate?.themeColor || profile.defaultThemeColor),
+    templateId: defaultTemplate?.id || "",
+    templateName: defaultTemplate?.name || "",
+    headerText: defaultTemplate?.headerText || "شكرًا لاختيارك خدماتنا",
+    footerText: defaultTemplate?.footerText || "RenewPilot AI",
+    additionalNotes: Array.isArray(defaultTemplate?.additionalNotes) ? [...defaultTemplate.additionalNotes] : [],
+    visibleFields: { ...state.orderLinkDraft.visibleFields, ...(defaultTemplate?.visibleFields || {}) },
+    isDefault: defaultTemplate?.isDefault ?? true
+  };
+}
+
+function clientRemaining(endDate) {
+  if (!endDate) return { days: 0, state: "expired", label: "غير متوفر" };
+  const end = new Date(`${String(endDate).slice(0, 10)}T23:59:59`);
+  const now = new Date();
+  const days = Math.ceil((end - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  if (days < 0) return { days, state: "expired", label: "انتهى الاشتراك" };
+  if (days === 0) return { days: 0, state: "today", label: "ينتهي اليوم" };
+  return { days, state: "remaining", label: `باقي ${days} يومًا` };
+}
+
+function orderInfoPreviewCard(subscription, draft, publicData = null) {
+  const order = publicData?.order || subscription;
+  const store = publicData?.store || { name: draft.storeName };
+  const template = publicData?.template || draft;
+  if (!order) return emptyState("لا توجد معاينة بعد", "اختر اشتراكًا حقيقيًا من قاعدة البيانات لعرض معلوماته في المعاينة.");
+  const remaining = publicData?.order?.remaining || clientRemaining(order.endDate);
+  const themeColor = safeOrderLinkColor(template.themeColor);
+  const visible = template.visibleFields || draft.visibleFields || {};
+  const notes = Array.isArray(template.additionalNotes) ? template.additionalNotes : [];
+  const orderNumber = order.orderNumber || "";
+  const customerName = order.customerName || "";
+  const planName = order.planName || "";
+  const startDate = order.startDate ? new Date(order.startDate).toLocaleDateString("ar-SA") : "";
+  const endDate = order.endDate ? new Date(order.endDate).toLocaleDateString("ar-SA") : "";
+  const subscriptionStatus = order.status === "active" ? "نشط" : order.status === "expired" ? "منتهي" : order.status || "غير محدد";
+  return `<article class="order-customer-card order-style-${escapeHtml(template.style || "classic")}" style="--order-theme:${themeColor}">
+    <div class="order-card-accent"></div>
+    <div class="order-card-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
+    <div class="order-number-row"><span>رقم الطلب</span><strong>#${escapeHtml(orderNumber)}</strong>${status(subscriptionStatus)}</div>
+    <div class="order-information-grid">
+      ${visible.customerName !== false ? `<div>${dashboardIcon("customers")}<span>اسم العميل</span><strong>${escapeHtml(customerName)}</strong></div>` : ""}
+      ${visible.status !== false ? `<div>${dashboardIcon("security")}<span>حالة الاشتراك</span><strong>${escapeHtml(subscriptionStatus)}</strong></div>` : ""}
+      ${visible.remainingDays !== false ? `<div class="remaining-field">${dashboardIcon("template")}<span>المدة المتبقية</span><strong>${escapeHtml(remaining.label || (remaining.state === "today" ? "ينتهي اليوم" : remaining.state === "expired" ? "انتهى الاشتراك" : `باقي ${remaining.days} يومًا`))}</strong></div>` : ""}
+      ${visible.startDate !== false ? `<div>${dashboardIcon("template")}<span>تاريخ البداية</span><strong>${escapeHtml(startDate)}</strong></div>` : ""}
+      ${visible.endDate !== false ? `<div>${dashboardIcon("template")}<span>تاريخ النهاية</span><strong>${escapeHtml(endDate)}</strong></div>` : ""}
+      ${visible.planName !== false ? `<div>${dashboardIcon("subscriptions")}<span>اسم الخطة</span><strong>${escapeHtml(planName)}</strong></div>` : ""}
+      ${visible.storeName !== false ? `<div>${dashboardIcon("home")}<span>اسم المتجر</span><strong>${escapeHtml(store.name || "")}</strong></div>` : ""}
+      ${order.maskedPhone ? `<div>${dashboardIcon("devices")}<span>رقم التواصل</span><strong dir="ltr">${escapeHtml(order.maskedPhone)}</strong></div>` : ""}
+    </div>
+    ${visible.additionalNotes !== false && notes.length ? `<div class="order-notes"><h3>${dashboardIcon("template")} ملاحظات إضافية</h3><ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul></div>` : ""}
+    ${template.footerText ? `<p class="order-card-footer">${escapeHtml(template.footerText)}</p>` : ""}
+  </article>`;
+}
+
+function orderLinksWorkspacePage() {
+  hydrateOrderLinkDraft();
+  const profile = state.orderLinkProfile || {};
+  const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
+  const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
+  const linksPayload = state.orderLinks && !Array.isArray(state.orderLinks) ? state.orderLinks : {};
+  const links = Array.isArray(linksPayload.items) ? linksPayload.items : [];
+  const stats = linksPayload.stats || { activeTemplates: 0, sentLinks: 0, openedLinks: 0, todayRequests: 0, openRate: 0 };
+  const draft = state.orderLinkDraft;
+  const selected = subscriptions.find((item) => item.id === draft.subscriptionId) || null;
+  const canCreate = Boolean(selected);
+  const publicUrl = draft.publicUrl || "";
+  const templateRows = templates.map((item) => [
+    `<strong>${escapeHtml(item.name)}</strong>`,
+    escapeHtml(orderLinkStyleOptions.find(([value]) => value === item.style)?.[1] || item.style),
+    `<span class="color-dot" style="background:${safeOrderLinkColor(item.themeColor)}"></span>`,
+    escapeHtml(item.storeName),
+    item.isDefault ? status("نشط") : "—",
+    escapeHtml(item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA") : "—"),
+    `<div class="row-actions"><button class="btn btn-ghost" data-action="load-order-template" data-id="${item.id}">تعديل</button><button class="btn btn-ghost" data-action="duplicate-order-template" data-id="${item.id}">نسخ</button><button class="btn btn-ghost danger-text" data-action="delete-order-template" data-id="${item.id}">حذف</button></div>`
+  ]);
+  const linkRows = links.map((item) => [
+    `<strong>#${escapeHtml(item.orderNumber)}</strong>`,
+    escapeHtml(item.customerName || "—"),
+    escapeHtml(item.templateName || "بدون قالب"),
+    `<span class="color-dot" style="background:${safeOrderLinkColor(item.themeColor)}"></span>`,
+    escapeHtml(item.sendMethod || "copy"),
+    status(item.status),
+    Number(item.openedCount || 0),
+    escapeHtml(item.lastOpenedAt ? new Date(item.lastOpenedAt).toLocaleString("ar-SA") : "—"),
+    escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "—"),
+    `<div class="row-actions"><button class="icon-action" data-action="copy-order-link" data-id="${item.id}" data-url="${escapeHtml(item.publicUrl)}" title="نسخ">⧉</button><button class="icon-action" data-action="preview-order-link" data-url="${escapeHtml(item.publicUrl)}" title="معاينة">◉</button><button class="icon-action" data-action="send-order-link" data-id="${item.id}" title="إرسال">↗</button><button class="icon-action" data-action="archive-order-link" data-id="${item.id}" title="أرشفة">□</button><button class="icon-action danger-text" data-action="disable-order-link" data-id="${item.id}" title="تعطيل">×</button><button class="icon-action danger-text" data-action="delete-order-link" data-id="${item.id}" title="حذف">⌫</button></div>`
+  ]);
+  return dashboardShell(`${pageTitle("إرسال معلومات الطلب")}
+    ${statGrid([
+      { title: "القوالب النشطة", value: stats.activeTemplates || 0, caption: "قالب", tone: "purple", icon: "template" },
+      { title: "الروابط المرسلة", value: stats.sentLinks || 0, caption: "رابط", tone: "info", icon: "orderLink" },
+      { title: "الروابط المفتوحة", value: stats.openedLinks || 0, caption: "رابط فريد", tone: "success", icon: "reports" },
+      { title: "طلبات اليوم", value: stats.todayRequests || 0, caption: "استعلام", tone: "warning", icon: "template" },
+      { title: "نسبة الفتح", value: `${stats.openRate || 0}%`, caption: "من الروابط", tone: "info", icon: "reports" }
+    ])}
+    <section class="order-link-workspace section">
+      <article class="card order-link-builder">
+        <div class="section-head"><div><h2>إعداد القالب والرابط</h2><p>اختر طلبًا حقيقيًا وخصص صفحة المعلومات التي يراها العميل.</p></div>${dashboardIcon("orderLink")}</div>
+        <form data-submit="order-link-template" class="order-link-form">
+          <div class="order-profile-grid">
+            <label class="field"><span>اسم القالب</span><input class="input" name="templateName" data-order-field="templateName" value="${escapeHtml(draft.templateName)}" placeholder="قالب معلومات الطلب"></label>
+            <label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-order-field="storeName" value="${escapeHtml(draft.storeName)}" required></label>
+            <label class="field"><span>رابط المتجر المخصص</span><div class="slug-input"><span>/o/</span><input class="input" name="slug" data-order-field="slug" value="${escapeHtml(draft.slug || profile.slug || "")}" pattern="[a-z0-9-]+"></div><small>حروف إنجليزية صغيرة وأرقام وشرطات فقط.</small></label>
+            <label class="field"><span>اختيار الطلب / الاشتراك</span><select class="select" name="subscriptionId" data-order-field="subscriptionId"><option value="">اختر اشتراكًا حقيقيًا</option>${subscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customerName)} · ${escapeHtml(item.planName)}</option>`).join("")}</select></label>
+          </div>
+          <div class="builder-step"><h3><b>1</b> اختر نمط القالب</h3><div class="order-style-picker">${orderLinkStyleOptions.map(([value, label]) => `<button type="button" class="${draft.style === value ? "active" : ""}" data-action="order-style" data-value="${value}"><span class="style-mini style-${value}"><i></i><i></i><i></i></span><strong>${label}</strong></button>`).join("")}</div></div>
+          <div class="builder-step"><h3><b>2</b> اختر لون القالب</h3><div class="order-color-picker">${orderLinkColorOptions.map(([value, label]) => `<button type="button" class="${safeOrderLinkColor(draft.themeColor) === value ? "active" : ""}" style="--swatch:${value}" data-action="order-color" data-value="${value}" title="${label}"><span></span><small>${label}</small></button>`).join("")}</div></div>
+          <div class="order-profile-grid">
+            <label class="field"><span>نص ترحيبي اختياري</span><input class="input" name="headerText" data-order-field="headerText" value="${escapeHtml(draft.headerText)}"></label>
+            <label class="field"><span>تذييل الصفحة</span><input class="input" name="footerText" data-order-field="footerText" value="${escapeHtml(draft.footerText)}"></label>
+            <label class="field"><span>مدة صلاحية الرابط</span><select class="select" name="expiresInDays" data-order-field="expiresInDays">${[7, 14, 30, 60, 90].map((days) => `<option value="${days}" ${Number(draft.expiresInDays) === days ? "selected" : ""}>${days} يومًا</option>`).join("")}</select></label>
+            <label class="check-row"><input type="checkbox" name="isDefault" data-order-field="isDefault" ${draft.isDefault ? "checked" : ""}><span>تعيين كقالب افتراضي</span></label>
+          </div>
+          <div class="builder-step"><div class="section-head"><div><h3><b>3</b> النصوص الإضافية</h3><p>أضف مقاطع قصيرة تظهر للعميل بالترتيب.</p></div><button type="button" class="btn btn-secondary" data-action="add-order-note">إضافة مقطع نصي +</button></div><div class="order-note-editor">${draft.additionalNotes.length ? draft.additionalNotes.map((note, index) => `<div><textarea class="textarea" data-order-note="${index}">${escapeHtml(note)}</textarea><span class="note-actions"><button type="button" data-action="move-order-note" data-index="${index}" data-direction="-1" title="أعلى">↑</button><button type="button" data-action="move-order-note" data-index="${index}" data-direction="1" title="أسفل">↓</button><button type="button" data-action="remove-order-note" data-index="${index}" title="حذف">×</button></span></div>`).join("") : `<p class="muted">لا توجد نصوص إضافية. يمكنك إضافتها عند الحاجة.</p>`}</div></div>
+          <div class="builder-step"><h3><b>4</b> الحقول الظاهرة للعميل</h3><div class="visible-fields">${[
+            ["customerName", "اسم العميل"], ["planName", "اسم الباقة"], ["startDate", "تاريخ البداية"],
+            ["endDate", "تاريخ النهاية"], ["remainingDays", "المدة المتبقية"], ["status", "الحالة"],
+            ["storeName", "اسم المتجر"], ["additionalNotes", "الملاحظات"], ["phoneNumber", "الهاتف المخفي"]
+          ].map(([key, label]) => `<label class="setting-toggle"><span>${label}</span><input type="checkbox" data-order-visible="${key}" ${draft.visibleFields[key] ? "checked" : ""}></label>`).join("")}</div></div>
+          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : "disabled title=\"أضف اشتراكًا أولًا لإنشاء رابط معلومات الطلب.\""}>إنشاء الرابط</button><button class="btn btn-success" type="button" data-action="send-created-order-link" ${publicUrl ? "" : "disabled"}>إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" ${publicUrl ? "" : "disabled"}>نسخ الرابط</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" ${publicUrl ? "" : "disabled"}>معاينة الصفحة</button></div>
+          ${publicUrl ? `<div class="created-link-box"><span>الرابط الاحترافي للعميل</span><input class="input" readonly value="${escapeHtml(publicUrl)}"><button type="button" class="btn btn-secondary" data-action="copy-created-order-link">نسخ</button></div>` : ""}
+        </form>
+      </article>
+      <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>تتحدث المعاينة مباشرة مع اختياراتك.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderInfoPreviewCard(selected, draft)}</div><p class="preview-note">هذه معاينة تقريبية، سيتم عرض البيانات الحقيقية للعميل من قاعدة البيانات.</p></aside>
+    </section>
+    <article class="card table-card section"><div class="section-head"><div><h2>الروابط السابقة</h2><p>روابط الطلبات المسجلة فعليًا لمساحة عملك.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد روابط مرسلة بعد", "أنشئ أول رابط لعرض معلومات الطلب للعميل.")}</article>
+    <article class="card table-card section"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
+}
+
+async function loadPublicOrder({ checked = false, orderNumber } = {}) {
+  const parts = location.pathname.split("/").filter(Boolean);
+  const storeSlug = parts[1] || "";
+  const number = orderNumber || parts[2] || "";
+  const token = state.query.get("t") || "";
+  const key = `${storeSlug}:${number}:${token}:${checked}`;
+  if (!storeSlug || !number || !token || state.publicOrderLoading || state.publicOrderKey === key) return;
+  state.publicOrderLoading = true;
+  state.publicOrderKey = key;
+  try {
+    const payload = await fetchJson(`/api/public/order-link/${encodeURIComponent(storeSlug)}/${encodeURIComponent(number)}?t=${encodeURIComponent(token)}${checked ? "&checked=1" : ""}`);
+    state.publicOrder = payload.data;
+  } catch (error) {
+    state.publicOrder = { error: error.message || "لم يتم العثور على الطلب أو الرابط غير صالح.", reason: error.code };
+  } finally {
+    state.publicOrderLoading = false;
+    render();
+  }
+}
+
+function publicOrderPage() {
+  const parts = state.route.split("/").filter(Boolean);
+  const storeSlug = parts[1] || "";
+  const orderNumber = parts[2] || "";
+  const data = state.publicOrder && !state.publicOrder.error ? state.publicOrder : null;
+  if (orderNumber && state.query.get("t") && !state.publicOrder && !state.publicOrderLoading) queueMicrotask(() => loadPublicOrder());
+  const storeName = data?.store?.name || "معلومات الطلب";
+  const themeColor = safeOrderLinkColor(data?.template?.themeColor);
+  return `<div class="public-order-page" style="--order-theme:${themeColor}">
+    <header class="public-order-header"><div>${logo()}<span>منصة إدارة الاشتراكات الذكية</span></div><div><span class="order-bag">${dashboardIcon("orderLink")}</span><strong>${escapeHtml(storeName)}</strong><small>أهلًا بك في صفحة تتبع طلبك</small></div></header>
+    <main class="public-order-main">
+      <section class="public-order-search-card"><h1>أدخل رقم الطلب</h1><form data-submit="public-order-search"><div class="search-wrap"><span>${dashboardIcon("template")}</span><input class="input" name="orderNumber" value="${escapeHtml(orderNumber)}" placeholder="مثال: 54981" required></div><button class="btn btn-primary">عرض معلومات الطلب ${dashboardIcon("reports")}</button></form><p>${dashboardIcon("security")} البيانات آمنة ومحدودة ويتم عرضها من المتجر فقط</p></section>
+      ${state.publicOrderLoading ? `<div class="loading-state">جاري التحقق من الرابط والطلب...</div>` : state.publicOrder?.error ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(state.publicOrder.error)}</h2><p>تحقق من رقم الطلب أو تواصل مع المتجر للحصول على رابط جديد.</p></section>` : data ? `<section class="public-order-result"><div class="public-order-style-switcher"><span>نمط العرض</span>${orderLinkStyleOptions.map(([style]) => `<button class="${data.template.style === style ? "active" : ""}" data-action="public-order-style" data-value="${style}" title="${style}"><i class="style-mini style-${style}"></i></button>`).join("")}</div>${orderInfoPreviewCard(null, state.orderLinkDraft, data)}<div class="public-order-actions">${data.store.supportPhone ? `<a class="btn btn-primary" href="https://wa.me/${String(data.store.supportPhone).replace(/\D/g, "")}" target="_blank" rel="noreferrer">تواصل مع المتجر ${dashboardIcon("template")}</a>` : ""}<button class="btn btn-secondary" data-action="copy-public-order-number" data-value="${escapeHtml(data.order.orderNumber)}">نسخ رقم الطلب ${dashboardIcon("orderLink")}</button></div></section>` : `<section class="public-order-welcome"><h2>معلومات طلبك في مكان واحد</h2><p>اكتب رقم الطلب الموجود في الرابط الآمن لعرض حالة الاشتراك ومدته.</p></section>`}
+    </main>
+    <footer class="public-order-footer"><span>سياسة الخصوصية</span><span>الشروط والأحكام</span><span>الدعم الفني</span><span>تواصل معنا</span><small>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</small></footer>
+  </div>`;
+}
+
 function billingWorkspacePage() {
   const data = state.billingOverview || {};
   const current = data.current || {};
@@ -1614,6 +1844,75 @@ async function copyText(text, message = "تم نسخ رابط التجديد") {
   toast(message);
 }
 
+function refreshOrderLinkPreview() {
+  const preview = document.querySelector("#order-live-preview");
+  if (!preview) return;
+  const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
+  const selected = subscriptions.find((item) => item.id === state.orderLinkDraft.subscriptionId) || null;
+  preview.innerHTML = orderInfoPreviewCard(selected, state.orderLinkDraft);
+}
+
+function updateOrderLinkDraftFromForm(form = document.querySelector("[data-submit='order-link-template']")) {
+  if (!form) return;
+  for (const element of form.querySelectorAll("[data-order-field]")) {
+    const key = element.dataset.orderField;
+    state.orderLinkDraft[key] = element.type === "checkbox" ? element.checked : element.value;
+  }
+  for (const element of form.querySelectorAll("[data-order-note]")) {
+    state.orderLinkDraft.additionalNotes[Number(element.dataset.orderNote)] = element.value;
+  }
+  for (const element of form.querySelectorAll("[data-order-visible]")) {
+    state.orderLinkDraft.visibleFields[element.dataset.orderVisible] = element.checked;
+  }
+  refreshOrderLinkPreview();
+}
+
+async function persistOrderLinkDraft() {
+  updateOrderLinkDraftFromForm();
+  const draft = state.orderLinkDraft;
+  if (!draft.storeName?.trim()) throw new Error("اكتب اسم المتجر.");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(draft.slug || ""))) throw new Error("اكتب slug صحيحًا بحروف إنجليزية صغيرة وأرقام وشرطات فقط.");
+  const profilePayload = await fetchJson("/api/order-link/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeName: draft.storeName,
+      slug: draft.slug,
+      defaultTemplateStyle: draft.style,
+      defaultThemeColor: draft.themeColor,
+      isActive: true
+    })
+  });
+  state.orderLinkProfile = profilePayload.profile;
+  const body = {
+    name: draft.templateName?.trim() || "قالب معلومات الطلب",
+    storeName: draft.storeName,
+    style: draft.style,
+    themeColor: draft.themeColor,
+    headerText: draft.headerText,
+    footerText: draft.footerText,
+    additionalNotes: draft.additionalNotes.filter((item) => String(item || "").trim()),
+    visibleFields: draft.visibleFields,
+    isDefault: Boolean(draft.isDefault),
+    isActive: true
+  };
+  const templatePayload = await fetchJson(draft.templateId ? `/api/order-link/templates/${draft.templateId}` : "/api/order-link/templates", {
+    method: draft.templateId ? "PATCH" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  state.orderLinkDraft = { ...state.orderLinkDraft, templateId: templatePayload.item.id, templateName: templatePayload.item.name };
+  state.orderLinkTemplates = null;
+  state.orderLinks = null;
+  syncRouteData(true);
+  return templatePayload.item;
+}
+
+function openOrderLinkSendModal(item) {
+  if (!item?.id) return;
+  openModal("إرسال رابط معلومات الطلب", `<form data-submit="order-link-send" data-id="${item.id}" class="grid"><div class="order-send-summary"><strong>${escapeHtml(item.customerName || "العميل")}</strong><span>#${escapeHtml(item.orderNumber || "")}</span></div><label class="field"><span>طريقة الإرسال</span><select class="select" name="method"><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option><option value="copy">نسخ فقط</option></select></label><button class="btn btn-primary">إرسال الرابط</button></form>`);
+}
+
 async function saveAccountSettings(overrides = {}) {
   const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
   const notificationChannels = { ...(remote.notificationChannels || {}) };
@@ -1672,6 +1971,143 @@ async function handleAction(target) {
       navigate("/login");
     };
     fetch("/api/auth/logout", { method: "POST", credentials: "include" }).finally(finishLogout);
+  }
+  if (action === "order-style") {
+    state.orderLinkDraft.style = target.dataset.value;
+    render();
+  }
+  if (action === "order-color") {
+    state.orderLinkDraft.themeColor = safeOrderLinkColor(target.dataset.value);
+    render();
+  }
+  if (action === "add-order-note") {
+    updateOrderLinkDraftFromForm();
+    if (state.orderLinkDraft.additionalNotes.length >= 8) return toast("يمكن إضافة 8 مقاطع نصية كحد أقصى.", "warning");
+    state.orderLinkDraft.additionalNotes.push("");
+    render();
+  }
+  if (action === "remove-order-note") {
+    updateOrderLinkDraftFromForm();
+    state.orderLinkDraft.additionalNotes.splice(Number(target.dataset.index), 1);
+    render();
+  }
+  if (action === "move-order-note") {
+    updateOrderLinkDraftFromForm();
+    const index = Number(target.dataset.index);
+    const next = index + Number(target.dataset.direction);
+    if (next < 0 || next >= state.orderLinkDraft.additionalNotes.length) return;
+    [state.orderLinkDraft.additionalNotes[index], state.orderLinkDraft.additionalNotes[next]] = [state.orderLinkDraft.additionalNotes[next], state.orderLinkDraft.additionalNotes[index]];
+    render();
+  }
+  if (action === "load-order-template" || action === "duplicate-order-template") {
+    const item = (state.orderLinkTemplates || []).find((template) => template.id === target.dataset.id);
+    if (!item) return;
+    state.orderLinkDraft = {
+      ...state.orderLinkDraft,
+      templateId: action === "duplicate-order-template" ? "" : item.id,
+      templateName: action === "duplicate-order-template" ? `${item.name} - نسخة` : item.name,
+      storeName: item.storeName,
+      style: item.style,
+      themeColor: safeOrderLinkColor(item.themeColor),
+      headerText: item.headerText || "",
+      footerText: item.footerText || "",
+      additionalNotes: [...(item.additionalNotes || [])],
+      visibleFields: { ...state.orderLinkDraft.visibleFields, ...(item.visibleFields || {}) },
+      isDefault: action === "duplicate-order-template" ? false : Boolean(item.isDefault),
+      publicUrl: "",
+      linkId: ""
+    };
+    render();
+    toast(action === "duplicate-order-template" ? "تم تجهيز نسخة جديدة من القالب" : "تم تحميل القالب للتعديل");
+  }
+  if (action === "delete-order-template") {
+    if (!confirm("هل تريد حذف هذا القالب؟ ستبقى الروابط السابقة فعالة دون القالب المحذوف.")) return;
+    try {
+      await fetchJson(`/api/order-link/templates/${target.dataset.id}`, { method: "DELETE" });
+      if (state.orderLinkDraft.templateId === target.dataset.id) state.orderLinkDraft.templateId = "";
+      state.orderLinkTemplates = null; state.orderLinks = null; syncRouteData(true);
+      toast("تم حذف القالب");
+    } catch (error) { toast(error.message || "تعذر حذف القالب", "danger"); }
+  }
+  if (action === "create-order-link") {
+    updateOrderLinkDraftFromForm();
+    if (!state.orderLinkDraft.subscriptionId) return toast("اختر طلبًا أو اشتراكًا حقيقيًا أولًا.", "warning");
+    target.disabled = true;
+    try {
+      const template = await persistOrderLinkDraft();
+      const payload = await fetchJson("/api/order-link/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscriptionId: state.orderLinkDraft.subscriptionId,
+          templateId: template.id,
+          expiresInDays: Number(state.orderLinkDraft.expiresInDays || 30),
+          sendMethod: "copy"
+        })
+      });
+      state.orderLinkDraft = { ...state.orderLinkDraft, publicUrl: payload.publicUrl, linkId: payload.id };
+      state.orderLinks = null;
+      syncRouteData(true);
+      toast("تم إنشاء رابط معلومات الطلب بنجاح");
+      render();
+    } catch (error) {
+      target.disabled = false;
+      const messages = { slug_exists: "هذا الرابط المخصص مستخدم من متجر آخر.", reserved_slug: "هذا الرابط محجوز للنظام.", subscription_not_found: "الاشتراك المحدد غير موجود." };
+      toast(messages[error.code] || error.message || "تعذر إنشاء الرابط", "danger");
+    }
+  }
+  if (action === "copy-created-order-link") {
+    if (!state.orderLinkDraft.publicUrl) return;
+    if (state.orderLinkDraft.linkId) {
+      await fetchJson(`/api/order-link/${state.orderLinkDraft.linkId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) }).catch(() => null);
+    }
+    await copyText(state.orderLinkDraft.publicUrl, "تم نسخ الرابط بنجاح");
+  }
+  if (action === "preview-created-order-link") {
+    if (state.orderLinkDraft.publicUrl) window.open(state.orderLinkDraft.publicUrl, "_blank", "noopener,noreferrer");
+  }
+  if (action === "send-created-order-link") {
+    const selected = (state.orderLinkSubscriptions || []).find((item) => item.id === state.orderLinkDraft.subscriptionId);
+    openOrderLinkSendModal({
+      id: state.orderLinkDraft.linkId,
+      orderNumber: selected?.orderNumber,
+      customerName: selected?.customerName
+    });
+  }
+  if (action === "copy-order-link") {
+    await fetchJson(`/api/order-link/${target.dataset.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) }).catch(() => null);
+    await copyText(target.dataset.url, "تم نسخ الرابط بنجاح");
+  }
+  if (action === "preview-order-link") window.open(target.dataset.url, "_blank", "noopener,noreferrer");
+  if (action === "send-order-link") {
+    const item = state.orderLinks?.items?.find((link) => link.id === target.dataset.id);
+    openOrderLinkSendModal(item);
+  }
+  if (action === "disable-order-link" || action === "archive-order-link") {
+    const endpoint = action === "disable-order-link" ? "disable" : "archive";
+    const verb = action === "disable-order-link" ? "تعطيل" : "أرشفة";
+    if (!confirm(`هل تريد ${verb} هذا الرابط؟`)) return;
+    try {
+      await fetchJson(`/api/order-link/${target.dataset.id}/${endpoint}`, { method: "PATCH" });
+      state.orderLinks = null; syncRouteData(true); toast(`تم ${verb} الرابط`);
+    } catch (error) { toast(error.message || `تعذر ${verb} الرابط`, "danger"); }
+  }
+  if (action === "delete-order-link") {
+    if (!confirm("هل تريد حذف هذا الرابط نهائيًا؟")) return;
+    try {
+      await fetchJson(`/api/order-link/${target.dataset.id}`, { method: "DELETE" });
+      if (state.orderLinkDraft.linkId === target.dataset.id) {
+        state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", publicUrl: "" };
+      }
+      state.orderLinks = null;
+      syncRouteData(true);
+      toast("تم حذف الرابط");
+    } catch (error) { toast(error.message || "تعذر حذف الرابط", "danger"); }
+  }
+  if (action === "copy-public-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
+  if (action === "public-order-style" && state.publicOrder?.template) {
+    state.publicOrder.template.style = target.dataset.value;
+    render();
   }
   if (action === "device-link-method") {
     state.linkedDevice = { ...state.linkedDevice, linkMethod: target.dataset.method };
@@ -1952,6 +2388,58 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "order-link-template") {
+    const button = form.querySelector("button[type='submit']");
+    if (button) button.disabled = true;
+    try {
+      await persistOrderLinkDraft();
+      toast("تم حفظ قالب معلومات الطلب بنجاح");
+    } catch (error) {
+      if (button) button.disabled = false;
+      const messages = { slug_exists: "هذا الرابط المخصص مستخدم من متجر آخر.", reserved_slug: "هذا الرابط محجوز للنظام.", invalid_slug: "صيغة الرابط المخصص غير صحيحة." };
+      toast(messages[error.code] || error.message || "تعذر حفظ القالب", "danger");
+    }
+    return;
+  }
+  if (type === "order-link-send") {
+    const button = form.querySelector("button");
+    if (button) { button.disabled = true; button.textContent = "جاري الإرسال..."; }
+    try {
+      const payload = await fetchJson(`/api/order-link/${form.dataset.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: data.method })
+      });
+      const link = state.orderLinks?.items?.find((item) => item.id === form.dataset.id);
+      if (data.method === "copy" && link?.publicUrl) await copyText(link.publicUrl, "تم نسخ الرابط بنجاح");
+      closePortal();
+      state.orderLinks = null;
+      syncRouteData(true);
+      toast(data.method === "whatsapp" ? "تم إرسال الرابط عبر واتساب" : data.method === "email" ? "تم إرسال الرابط عبر البريد" : "تم نسخ الرابط بنجاح");
+    } catch (error) {
+      if (button) { button.disabled = false; button.textContent = "إرسال الرابط"; }
+      const messages = {
+        whatsapp_not_connected: "اربط جهازًا أولًا حتى تتمكن من إرسال الرابط عبر واتساب.",
+        customer_phone_missing: "لا يوجد رقم واتساب صالح لهذا العميل.",
+        customer_email_missing: "لا يوجد بريد إلكتروني لهذا العميل.",
+        email_not_configured: "خدمة البريد غير مفعلة حاليًا."
+      };
+      toast(messages[error.code] || error.message || "تعذر إرسال الرابط", "danger");
+    }
+    return;
+  }
+  if (type === "public-order-search") {
+    const number = String(data.orderNumber || "").trim().replace(/^#/, "");
+    if (!number) return toast("اكتب رقم الطلب.", "warning");
+    const parts = state.route.split("/").filter(Boolean);
+    history.replaceState({}, "", `/o/${encodeURIComponent(parts[1] || "")}/${encodeURIComponent(number)}${location.search}`);
+    state.route = `/o/${parts[1] || ""}/${number}`;
+    state.publicOrder = null;
+    state.publicOrderKey = "";
+    render();
+    await loadPublicOrder({ checked: true, orderNumber: number });
+    return;
+  }
   if (type === "send-device-test") {
     const button = form.querySelector("button[type='submit']");
     if (button) { button.disabled = true; button.textContent = t("common.loading"); }
@@ -2228,6 +2716,7 @@ function render() {
       "/dashboard/customers": customersPage,
       "/dashboard/renewal-template": renewalTemplatePage,
       "/dashboard/devices": devicesWorkspacePage,
+      "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
       "/dashboard/billing": billingWorkspacePage,
@@ -2255,7 +2744,7 @@ function render() {
     "/refund-policy": policyPage,
     "/contact": policyPage
   };
-  const page = state.route.startsWith("/blog/") ? articlePage : pages[state.route] || marketingHomePage;
+  const page = state.route.startsWith("/blog/") ? articlePage : state.route.startsWith("/o/") ? publicOrderPage : pages[state.route] || marketingHomePage;
   app.innerHTML = page();
   localizeElement(app);
 }
@@ -2318,6 +2807,14 @@ document.addEventListener("input", (event) => {
   if (target.dataset.action === "pairing-phone-input") {
     state.linkedDevice.phoneInput = target.value;
   }
+  if (target.dataset.orderField) {
+    state.orderLinkDraft[target.dataset.orderField] = target.type === "checkbox" ? target.checked : target.value;
+    refreshOrderLinkPreview();
+  }
+  if (target.dataset.orderNote !== undefined) {
+    state.orderLinkDraft.additionalNotes[Number(target.dataset.orderNote)] = target.value;
+    refreshOrderLinkPreview();
+  }
 });
 
 document.addEventListener("change", (event) => {
@@ -2337,6 +2834,15 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "template-channel" && state.notificationTemplate) {
     state.notificationTemplate.template = { ...(state.notificationTemplate.template || {}), channel: target.value };
     render();
+  }
+  if (target.dataset.orderField) {
+    state.orderLinkDraft[target.dataset.orderField] = target.type === "checkbox" ? target.checked : target.value;
+    if (target.dataset.orderField === "subscriptionId") render();
+    else refreshOrderLinkPreview();
+  }
+  if (target.dataset.orderVisible) {
+    state.orderLinkDraft.visibleFields[target.dataset.orderVisible] = target.checked;
+    refreshOrderLinkPreview();
   }
 });
 
