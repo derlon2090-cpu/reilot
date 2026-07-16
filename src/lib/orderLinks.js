@@ -68,6 +68,16 @@ export function remainingSubscriptionDays(endDate, now = new Date()) {
   return { days, state: "remaining" };
 }
 
+export function inferSubscriptionStatus(startDate, endDate, now = new Date()) {
+  const start = new Date(`${String(startDate || "").slice(0, 10)}T00:00:00.000Z`);
+  const end = new Date(`${String(endDate || "").slice(0, 10)}T23:59:59.999Z`);
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return null;
+  if (end < today) return "expired";
+  const remainingDays = Math.ceil((end.getTime() - today.getTime()) / 86_400_000);
+  return remainingDays <= 7 ? "expiring_soon" : "active";
+}
+
 export function maskPublicPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (digits.length < 7) return "";

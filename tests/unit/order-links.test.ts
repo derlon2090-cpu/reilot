@@ -5,6 +5,7 @@ import {
   normalizeOrderLinkStyle,
   normalizeVisibleFields,
   remainingSubscriptionDays,
+  inferSubscriptionStatus,
   maskPublicPhone,
   validateOrderSlug
 } from "../../src/lib/orderLinks.js";
@@ -36,6 +37,14 @@ describe("order information links", () => {
     expect(remainingSubscriptionDays("2026-07-14", new Date("2026-07-16T10:00:00Z"))).toMatchObject({ state: "expired" });
     expect(maskPublicPhone("966551710581")).toBe("+966 55 *** 0581");
     expect(maskPublicPhone("123")).toBe("");
+  });
+
+  it("infers subscription status from real dates", () => {
+    const now = new Date("2026-07-16T10:00:00Z");
+    expect(inferSubscriptionStatus("2026-07-01", "2026-08-20", now)).toBe("active");
+    expect(inferSubscriptionStatus("2026-07-01", "2026-07-20", now)).toBe("expiring_soon");
+    expect(inferSubscriptionStatus("2026-06-01", "2026-07-14", now)).toBe("expired");
+    expect(inferSubscriptionStatus("2026-07-20", "2026-07-10", now)).toBeNull();
   });
 
   it("returns only the approved public order fields", () => {

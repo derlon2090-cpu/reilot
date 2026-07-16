@@ -110,3 +110,95 @@ test("order information builder and public page are responsive and private", asy
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await page.screenshot({ path: ".codex-artifacts/public-order-mobile.png", fullPage: true });
 });
+
+test("manual customer order creates a custom public link and updates the live preview", async ({ page }) => {
+  const customer = {
+    id: "customer-manual-1",
+    name: "محمد السعيد",
+    phone: "966551710581",
+    email: "customer@example.com",
+    status: "active",
+    subscriptionCount: 0
+  };
+  let createdSubscriptionBody: Record<string, unknown> | null = null;
+  let createdLinkBody: Record<string, unknown> | null = null;
+
+  await page.route("**/api/dashboard/overview", (route) => route.fulfill({ json: { ok: true, stats: {}, profile: {} } }));
+  await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [customer] } }));
+  await page.route("**/api/order-link/profile", async (route) => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON();
+      return route.fulfill({ status: 200, json: { ok: true, profile: { ...profile, ...body, slug: "liong-d" } } });
+    }
+    return route.fulfill({ json: { ok: true, profile: { ...profile, slug: "liong-d" } } });
+  });
+  await page.route("**/api/order-link/templates", async (route) => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { ok: true, item: { id: "template-manual-1", ...body } } });
+    }
+    return route.fulfill({ json: { ok: true, items: [] } });
+  });
+  await page.route("**/api/order-link/subscriptions", (route) => route.fulfill({ json: { ok: true, items: [] } }));
+  await page.route("**/api/order-link/list", (route) => route.fulfill({
+    json: {
+      ok: true,
+      items: [],
+      stats: { activeTemplates: 0, sentLinks: 0, openedLinks: 0, todayRequests: 0, openRate: 0 },
+      capabilities: { whatsappConnected: false, hasCustomerEmail: true }
+    }
+  }));
+  await page.route("**/api/subscriptions", async (route) => {
+    if (route.request().method() !== "POST") return route.fulfill({ json: { ok: true, items: [] } });
+    createdSubscriptionBody = route.request().postDataJSON();
+    return route.fulfill({ status: 201, json: { ok: true, item: { id: "subscription-manual-1", orderNumber: "RP-MANUAL-1" } } });
+  });
+  await page.route("**/api/order-link/create", async (route) => {
+    createdLinkBody = route.request().postDataJSON();
+    return route.fulfill({
+      status: 201,
+      json: {
+        ok: true,
+        id: "link-manual-1",
+        orderNumber: "RP-MANUAL-1",
+        publicUrl: "https://reilot.vercel.app/o/liong-d/RP-MANUAL-1?t=secure-token"
+      }
+    });
+  });
+
+  await page.goto("/");
+  await page.evaluate(() => {
+    history.pushState({}, "", "/dashboard/order-links");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+
+  await expect(page.locator("#order-live-preview .order-customer-card")).toBeVisible();
+  await page.locator("[data-action='order-color'][data-value='#22C55E']").click();
+  await expect(page.locator("#order-live-preview .order-customer-card")).toHaveAttribute("style", /#22C55E/);
+
+  await page.locator("[data-action='order-source-mode'][data-value='manual']").click();
+  await page.locator("[data-order-field='customerId']").selectOption(customer.id);
+  await page.locator("[data-order-field='manualServiceName']").fill("اشتراك المنصة");
+  await page.locator("[data-order-field='manualPlanName']").fill("Pro Plan");
+  await page.locator("[data-order-field='manualStartDate']").fill("2026-07-16");
+  await page.locator("[data-order-field='manualEndDate']").fill("2026-08-16");
+
+  await expect(page.locator("#order-live-preview .order-customer-card")).toContainText(customer.name);
+  await expect(page.locator(".manual-order-result")).toContainText("نشط");
+  await expect(page.locator("[data-action='create-order-link']")).toBeEnabled();
+  await page.locator("[data-action='create-order-link']").click();
+
+  await expect(page.locator(".created-link-box input")).toHaveValue(/\/o\/liong-d\/RP-MANUAL-1\?t=/);
+  expect(createdSubscriptionBody).toMatchObject({
+    customerId: customer.id,
+    serviceName: "اشتراك المنصة",
+    planName: "Pro Plan",
+    status: "active"
+  });
+  expect(createdLinkBody).toMatchObject({
+    subscriptionId: "subscription-manual-1",
+    templateId: "template-manual-1"
+  });
+  await mkdir(".codex-artifacts", { recursive: true });
+  await page.screenshot({ path: ".codex-artifacts/order-links-manual-created.png", fullPage: true });
+});

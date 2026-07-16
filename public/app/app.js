@@ -431,7 +431,15 @@ state.publicOrderLoading = false;
 state.orderLinkDraft = {
   templateId: "",
   templateName: "",
+  sourceMode: "existing",
   subscriptionId: "",
+  customerId: "",
+  manualOrderNumber: "",
+  manualServiceName: "",
+  manualPlanName: "",
+  manualStartDate: "",
+  manualEndDate: "",
+  manualNotes: "",
   storeName: "",
   slug: "",
   style: "classic",
@@ -552,7 +560,7 @@ async function loadRemotePage(key, url, target, options) {
 function syncRouteData(force = false) {
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
   if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
-  if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
+  if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/renewal-template" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
@@ -1549,11 +1557,52 @@ function clientRemaining(endDate) {
   return { days, state: "remaining", label: `باقي ${days} يومًا` };
 }
 
+function inferredSubscriptionStatus(startDate, endDate) {
+  if (!startDate || !endDate) return "";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(`${String(startDate).slice(0, 10)}T00:00:00`);
+  const end = new Date(`${String(endDate).slice(0, 10)}T23:59:59`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
+  if (end < today) return "expired";
+  const remaining = Math.ceil((end - today) / 86400000);
+  return remaining <= 7 ? "expiring_soon" : "active";
+}
+
+function orderLinkPreviewOrder(subscriptions = [], customers = []) {
+  const draft = state.orderLinkDraft;
+  const selected = subscriptions.find((item) => item.id === draft.subscriptionId);
+  if (selected) return selected;
+  if (draft.sourceMode === "manual") {
+    const customer = customers.find((item) => item.id === draft.customerId);
+    if (customer || draft.manualPlanName || draft.manualStartDate || draft.manualEndDate) {
+      return {
+        orderNumber: draft.manualOrderNumber || "سيُنشأ تلقائيًا",
+        customerName: customer?.name || "اسم العميل",
+        planName: draft.manualPlanName || "اسم الباقة",
+        serviceName: draft.manualServiceName || "اسم الخدمة",
+        startDate: draft.manualStartDate,
+        endDate: draft.manualEndDate,
+        status: inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate) || "غير مكتمل",
+        isDraftPreview: true
+      };
+    }
+  }
+  return {
+    orderNumber: "رقم الطلب",
+    customerName: "اسم العميل",
+    planName: "اسم الباقة",
+    serviceName: "اسم الخدمة",
+    status: "معاينة",
+    isPlaceholder: true
+  };
+}
+
 function orderInfoPreviewCard(subscription, draft, publicData = null) {
   const order = publicData?.order || subscription;
   const store = publicData?.store || { name: draft.storeName };
   const template = publicData?.template || draft;
-  if (!order) return emptyState("لا توجد معاينة بعد", "اختر اشتراكًا حقيقيًا من قاعدة البيانات لعرض معلوماته في المعاينة.");
+  if (!order) return emptyState("لا توجد معاينة بعد", "اختر اشتراكًا أو أدخل معلومات الطلب يدويًا.");
   const remaining = publicData?.order?.remaining || clientRemaining(order.endDate);
   const themeColor = safeOrderLinkColor(template.themeColor);
   const visible = template.visibleFields || draft.visibleFields || {};
@@ -1563,8 +1612,8 @@ function orderInfoPreviewCard(subscription, draft, publicData = null) {
   const planName = order.planName || "";
   const startDate = order.startDate ? new Date(order.startDate).toLocaleDateString("ar-SA") : "";
   const endDate = order.endDate ? new Date(order.endDate).toLocaleDateString("ar-SA") : "";
-  const subscriptionStatus = order.status === "active" ? "نشط" : order.status === "expired" ? "منتهي" : order.status || "غير محدد";
-  return `<article class="order-customer-card order-style-${escapeHtml(template.style || "classic")}" style="--order-theme:${themeColor}">
+  const subscriptionStatus = order.status === "active" ? "نشط" : order.status === "expiring_soon" ? "ينتهي قريبًا" : order.status === "expired" ? "منتهي" : order.status || "غير محدد";
+  return `<article class="order-customer-card order-style-${escapeHtml(template.style || "classic")} ${order.isPlaceholder ? "is-placeholder" : ""}" style="--order-theme:${themeColor}">
     <div class="order-card-accent"></div>
     <div class="order-card-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
     <div class="order-number-row"><span>رقم الطلب</span><strong>#${escapeHtml(orderNumber)}</strong>${status(subscriptionStatus)}</div>
@@ -1588,12 +1637,18 @@ function orderLinksWorkspacePage() {
   const profile = state.orderLinkProfile || {};
   const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
   const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
+  const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   const linksPayload = state.orderLinks && !Array.isArray(state.orderLinks) ? state.orderLinks : {};
   const links = Array.isArray(linksPayload.items) ? linksPayload.items : [];
   const stats = linksPayload.stats || { activeTemplates: 0, sentLinks: 0, openedLinks: 0, todayRequests: 0, openRate: 0 };
   const draft = state.orderLinkDraft;
-  const selected = subscriptions.find((item) => item.id === draft.subscriptionId) || null;
-  const canCreate = Boolean(selected);
+  const selected = orderLinkPreviewOrder(subscriptions, customers);
+  const selectedCustomerSubscriptions = draft.customerId ? subscriptions.filter((item) => item.customerId === draft.customerId) : subscriptions;
+  const manualDatesValid = Boolean(
+    draft.customerId && draft.manualServiceName?.trim() && draft.manualPlanName?.trim() &&
+    draft.manualStartDate && draft.manualEndDate && inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)
+  );
+  const canCreate = draft.sourceMode === "manual" ? manualDatesValid : Boolean(subscriptions.find((item) => item.id === draft.subscriptionId));
   const publicUrl = draft.publicUrl || "";
   const templateRows = templates.map((item) => [
     `<strong>${escapeHtml(item.name)}</strong>`,
@@ -1628,12 +1683,33 @@ function orderLinksWorkspacePage() {
       <article class="card order-link-builder">
         <div class="section-head"><div><h2>إعداد القالب والرابط</h2><p>اختر طلبًا حقيقيًا وخصص صفحة المعلومات التي يراها العميل.</p></div>${dashboardIcon("orderLink")}</div>
         <form data-submit="order-link-template" class="order-link-form">
+          <div class="order-source-picker" role="tablist" aria-label="مصدر معلومات الطلب">
+            <button type="button" class="${draft.sourceMode === "existing" ? "active" : ""}" data-action="order-source-mode" data-value="existing">اشتراك موجود</button>
+            <button type="button" class="${draft.sourceMode === "customer" ? "active" : ""}" data-action="order-source-mode" data-value="customer">اختيار حسب العميل</button>
+            <button type="button" class="${draft.sourceMode === "manual" ? "active" : ""}" data-action="order-source-mode" data-value="manual">إضافة يدوية</button>
+          </div>
           <div class="order-profile-grid">
             <label class="field"><span>اسم القالب</span><input class="input" name="templateName" data-order-field="templateName" value="${escapeHtml(draft.templateName)}" placeholder="قالب معلومات الطلب"></label>
             <label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-order-field="storeName" value="${escapeHtml(draft.storeName)}" required></label>
             <label class="field"><span>رابط المتجر المخصص</span><div class="slug-input"><span>/o/</span><input class="input" name="slug" data-order-field="slug" value="${escapeHtml(draft.slug || profile.slug || "")}" pattern="[a-z0-9-]+"></div><small>حروف إنجليزية صغيرة وأرقام وشرطات فقط.</small></label>
-            <label class="field"><span>اختيار الطلب / الاشتراك</span><select class="select" name="subscriptionId" data-order-field="subscriptionId"><option value="">اختر اشتراكًا حقيقيًا</option>${subscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customerName)} · ${escapeHtml(item.planName)}</option>`).join("")}</select></label>
+            ${draft.sourceMode === "existing" ? `<label class="field"><span>اختيار الطلب / الاشتراك</span><select class="select" name="subscriptionId" data-order-field="subscriptionId"><option value="">اختر اشتراكًا حقيقيًا</option>${subscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customerName)} · ${escapeHtml(item.planName)}</option>`).join("")}</select></label>` : ""}
+            ${draft.sourceMode !== "existing" ? `<label class="field"><span>اختيار العميل</span><select class="select" name="customerId" data-order-field="customerId"><option value="">اختر عميلًا من قاعدة البيانات</option>${customers.map((item) => `<option value="${item.id}" ${item.id === draft.customerId ? "selected" : ""}>${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ""}</option>`).join("")}</select><small>${customers.length ? "اختر العميل الذي سيظهر في صفحة الطلب." : "لا يوجد عملاء بعد. أضف العميل أولًا ثم أكمل."}</small></label>` : ""}
+            ${draft.sourceMode === "customer" ? `<label class="field"><span>اشتراكات العميل</span><select class="select" name="subscriptionId" data-order-field="subscriptionId" ${draft.customerId ? "" : "disabled"}><option value="">اختر اشتراك العميل</option>${selectedCustomerSubscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.planName)}</option>`).join("")}</select><small>${draft.customerId && !selectedCustomerSubscriptions.length ? "لا يملك هذا العميل اشتراكًا. استخدم الإضافة اليدوية لإنشاء طلبه." : ""}</small></label>` : ""}
           </div>
+          ${draft.sourceMode !== "existing" && !customers.length ? `<div class="order-inline-notice"><span>أضف العميل الحقيقي أولًا ليتم ربط الطلب به.</span><button type="button" class="btn btn-secondary" data-action="add-customer">إضافة عميل</button></div>` : ""}
+          ${draft.sourceMode === "customer" && draft.customerId && !selectedCustomerSubscriptions.length ? `<div class="order-inline-notice"><span>لا توجد اشتراكات لهذا العميل.</span><button type="button" class="btn btn-primary" data-action="order-source-mode" data-value="manual">إضافة طلب يدوي لهذا العميل</button></div>` : ""}
+          ${draft.sourceMode === "manual" ? `<div class="manual-order-panel">
+            <div class="section-head"><div><h3>معلومات الطلب اليدوي</h3><p>سيُحفظ هذا الطلب كاشتراك حقيقي ثم يُنشأ له الرابط.</p></div>${dashboardIcon("subscriptions")}</div>
+            <div class="order-profile-grid">
+              <label class="field"><span>رقم الطلب (اختياري)</span><input class="input" name="manualOrderNumber" data-order-field="manualOrderNumber" value="${escapeHtml(draft.manualOrderNumber)}" placeholder="يُنشأ تلقائيًا عند تركه فارغًا"></label>
+              <label class="field"><span>اسم الخدمة</span><input class="input" name="manualServiceName" data-order-field="manualServiceName" value="${escapeHtml(draft.manualServiceName)}"></label>
+              <label class="field"><span>اسم الباقة</span><input class="input" name="manualPlanName" data-order-field="manualPlanName" value="${escapeHtml(draft.manualPlanName)}"></label>
+              <label class="field"><span>تاريخ البداية</span><input class="input" type="date" name="manualStartDate" data-order-field="manualStartDate" value="${escapeHtml(draft.manualStartDate)}"></label>
+              <label class="field"><span>تاريخ النهاية</span><input class="input" type="date" name="manualEndDate" data-order-field="manualEndDate" value="${escapeHtml(draft.manualEndDate)}"></label>
+              <label class="field"><span>ملاحظات داخلية (اختياري)</span><input class="input" name="manualNotes" data-order-field="manualNotes" value="${escapeHtml(draft.manualNotes)}"></label>
+            </div>
+            <div class="manual-order-result">${draft.manualStartDate && draft.manualEndDate ? inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate) ? `<strong>الحالة المحسوبة: ${inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate) === "expired" ? "منتهي" : inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate) === "expiring_soon" ? "ينتهي قريبًا" : "نشط"}</strong><span>${escapeHtml(clientRemaining(draft.manualEndDate).label)}</span>` : `<strong class="danger-text">تاريخ النهاية يجب أن يكون بعد تاريخ البداية.</strong>` : `<span>أدخل تاريخي البداية والنهاية ليحسب النظام الحالة والمدة تلقائيًا.</span>`}</div>
+          </div>` : ""}
           <div class="builder-step"><h3><b>1</b> اختر نمط القالب</h3><div class="order-style-picker">${orderLinkStyleOptions.map(([value, label]) => `<button type="button" class="${draft.style === value ? "active" : ""}" data-action="order-style" data-value="${value}"><span class="style-mini style-${value}"><i></i><i></i><i></i></span><strong>${label}</strong></button>`).join("")}</div></div>
           <div class="builder-step"><h3><b>2</b> اختر لون القالب</h3><div class="order-color-picker">${orderLinkColorOptions.map(([value, label]) => `<button type="button" class="${safeOrderLinkColor(draft.themeColor) === value ? "active" : ""}" style="--swatch:${value}" data-action="order-color" data-value="${value}" title="${label}"><span></span><small>${label}</small></button>`).join("")}</div></div>
           <div class="order-profile-grid">
@@ -1648,7 +1724,7 @@ function orderLinksWorkspacePage() {
             ["endDate", "تاريخ النهاية"], ["remainingDays", "المدة المتبقية"], ["status", "الحالة"],
             ["storeName", "اسم المتجر"], ["additionalNotes", "الملاحظات"], ["phoneNumber", "الهاتف المخفي"]
           ].map(([key, label]) => `<label class="setting-toggle"><span>${label}</span><input type="checkbox" data-order-visible="${key}" ${draft.visibleFields[key] ? "checked" : ""}></label>`).join("")}</div></div>
-          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : "disabled title=\"أضف اشتراكًا أولًا لإنشاء رابط معلومات الطلب.\""}>إنشاء الرابط</button><button class="btn btn-success" type="button" data-action="send-created-order-link" ${publicUrl ? "" : "disabled"}>إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" ${publicUrl ? "" : "disabled"}>نسخ الرابط</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" ${publicUrl ? "" : "disabled"}>معاينة الصفحة</button></div>
+          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : `disabled title="${draft.sourceMode === "manual" ? "اختر العميل وأكمل معلومات الطلب والتواريخ." : "اختر اشتراكًا حقيقيًا أولًا."}"`}>إنشاء الرابط</button><button class="btn btn-success" type="button" data-action="send-created-order-link" ${publicUrl ? "" : "disabled"}>إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" ${publicUrl ? "" : "disabled"}>نسخ الرابط</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" ${publicUrl ? "" : "disabled"}>معاينة الصفحة</button></div>
           ${publicUrl ? `<div class="created-link-box"><span>الرابط الاحترافي للعميل</span><input class="input" readonly value="${escapeHtml(publicUrl)}"><button type="button" class="btn btn-secondary" data-action="copy-created-order-link">نسخ</button></div>` : ""}
         </form>
       </article>
@@ -1848,8 +1924,29 @@ function refreshOrderLinkPreview() {
   const preview = document.querySelector("#order-live-preview");
   if (!preview) return;
   const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
-  const selected = subscriptions.find((item) => item.id === state.orderLinkDraft.subscriptionId) || null;
+  const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
+  const selected = orderLinkPreviewOrder(subscriptions, customers);
   preview.innerHTML = orderInfoPreviewCard(selected, state.orderLinkDraft);
+  const manualResult = document.querySelector(".manual-order-result");
+  if (manualResult) {
+    const draft = state.orderLinkDraft;
+    const inferred = inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate);
+    manualResult.innerHTML = draft.manualStartDate && draft.manualEndDate
+      ? inferred
+        ? `<strong>الحالة المحسوبة: ${inferred === "expired" ? "منتهي" : inferred === "expiring_soon" ? "ينتهي قريبًا" : "نشط"}</strong><span>${escapeHtml(clientRemaining(draft.manualEndDate).label)}</span>`
+        : `<strong class="danger-text">تاريخ النهاية يجب أن يكون بعد تاريخ البداية.</strong>`
+      : `<span>أدخل تاريخي البداية والنهاية ليحسب النظام الحالة والمدة تلقائيًا.</span>`;
+  }
+  const createButton = document.querySelector("[data-action='create-order-link']");
+  if (createButton) {
+    const draft = state.orderLinkDraft;
+    const manualReady = Boolean(
+      draft.customerId && draft.manualServiceName?.trim() && draft.manualPlanName?.trim() &&
+      draft.manualStartDate && draft.manualEndDate && inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)
+    );
+    const existingReady = Boolean(subscriptions.find((item) => item.id === draft.subscriptionId));
+    createButton.disabled = draft.sourceMode === "manual" ? !manualReady : !existingReady;
+  }
 }
 
 function updateOrderLinkDraftFromForm(form = document.querySelector("[data-submit='order-link-template']")) {
@@ -1976,6 +2073,13 @@ async function handleAction(target) {
     state.orderLinkDraft.style = target.dataset.value;
     render();
   }
+  if (action === "order-source-mode") {
+    updateOrderLinkDraftFromForm();
+    state.orderLinkDraft.sourceMode = target.dataset.value;
+    if (target.dataset.value === "existing") state.orderLinkDraft.customerId = "";
+    if (target.dataset.value === "manual") state.orderLinkDraft.subscriptionId = "";
+    render();
+  }
   if (action === "order-color") {
     state.orderLinkDraft.themeColor = safeOrderLinkColor(target.dataset.value);
     render();
@@ -2031,15 +2135,44 @@ async function handleAction(target) {
   }
   if (action === "create-order-link") {
     updateOrderLinkDraftFromForm();
-    if (!state.orderLinkDraft.subscriptionId) return toast("اختر طلبًا أو اشتراكًا حقيقيًا أولًا.", "warning");
+    const draft = state.orderLinkDraft;
+    if (draft.sourceMode !== "manual" && !draft.subscriptionId) return toast("اختر طلبًا أو اشتراكًا حقيقيًا أولًا.", "warning");
+    if (draft.sourceMode === "manual" && !draft.customerId) return toast("اختر العميل الذي يخصه الطلب أولًا.", "warning");
+    if (draft.sourceMode === "manual" && (!draft.manualServiceName?.trim() || !draft.manualPlanName?.trim() || !draft.manualStartDate || !draft.manualEndDate)) {
+      return toast("أكمل اسم الخدمة والباقة وتاريخي البداية والنهاية.", "warning");
+    }
+    if (draft.sourceMode === "manual" && !inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)) {
+      return toast("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.", "warning");
+    }
     target.disabled = true;
     try {
       const template = await persistOrderLinkDraft();
+      let subscriptionId = draft.subscriptionId;
+      if (draft.sourceMode === "manual") {
+        const subscriptionPayload = await fetchJson("/api/subscriptions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: draft.customerId,
+            orderNumber: draft.manualOrderNumber?.trim() || undefined,
+            serviceName: draft.manualServiceName.trim(),
+            planName: draft.manualPlanName.trim(),
+            startDate: draft.manualStartDate,
+            endDate: draft.manualEndDate,
+            status: inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate),
+            notes: draft.manualNotes?.trim() || undefined
+          })
+        });
+        subscriptionId = subscriptionPayload.item.id;
+        state.orderLinkDraft.subscriptionId = subscriptionId;
+        state.dbSubscriptions = null;
+        state.orderLinkSubscriptions = null;
+      }
       const payload = await fetchJson("/api/order-link/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subscriptionId: state.orderLinkDraft.subscriptionId,
+          subscriptionId,
           templateId: template.id,
           expiresInDays: Number(state.orderLinkDraft.expiresInDays || 30),
           sendMethod: "copy"
@@ -2048,7 +2181,7 @@ async function handleAction(target) {
       state.orderLinkDraft = { ...state.orderLinkDraft, publicUrl: payload.publicUrl, linkId: payload.id };
       state.orderLinks = null;
       syncRouteData(true);
-      toast("تم إنشاء رابط معلومات الطلب بنجاح");
+      toast(draft.sourceMode === "manual" ? "تم حفظ الطلب وإنشاء رابطه بنجاح" : "تم إنشاء رابط معلومات الطلب بنجاح");
       render();
     } catch (error) {
       target.disabled = false;
@@ -2837,7 +2970,13 @@ document.addEventListener("change", (event) => {
   }
   if (target.dataset.orderField) {
     state.orderLinkDraft[target.dataset.orderField] = target.type === "checkbox" ? target.checked : target.value;
-    if (target.dataset.orderField === "subscriptionId") render();
+    if (target.dataset.orderField === "customerId") {
+      const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
+      if (!subscriptions.some((item) => item.id === state.orderLinkDraft.subscriptionId && item.customerId === target.value)) {
+        state.orderLinkDraft.subscriptionId = "";
+      }
+      render();
+    } else if (target.dataset.orderField === "subscriptionId") render();
     else refreshOrderLinkPreview();
   }
   if (target.dataset.orderVisible) {

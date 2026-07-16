@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
+import { inferSubscriptionStatus } from "../../../src/lib/orderLinks.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -47,7 +48,7 @@ export async function POST(req) {
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id, order_number AS "orderNumber"`,
       [auth.session.tenantId, body.customerId, orderNumber, body.serviceName, body.planName, body.startDate, body.endDate,
-        body.renewalUrl || null, allowedStatuses.has(body.status) ? body.status : "active", Boolean(body.autoRenew), Number(body.price || 0), body.notes || null]
+        body.renewalUrl || null, allowedStatuses.has(body.status) ? body.status : inferSubscriptionStatus(body.startDate, body.endDate) || "active", Boolean(body.autoRenew), Number(body.price || 0), body.notes || null]
     );
     await client.query(
       `INSERT INTO activity_logs (tenant_id, user_id, customer_id, type, title, metadata)

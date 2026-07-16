@@ -2274,7 +2274,14 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .order-link-preview-panel { padding: 20px; }
 .order-link-preview-panel { position: sticky; top: 98px; }
 .order-link-form { display: grid; gap: 18px; }
+.order-source-picker { padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border: 1px solid #dce5f0; border-radius: 10px; background: #f6f9fc; }
+.order-source-picker button { min-height: 42px; color: #58708f; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font-weight: 700; }
+.order-source-picker button.active { color: #fff; background: linear-gradient(115deg, #08a9b7, #2468e9); box-shadow: 0 6px 14px rgba(36, 104, 233, .17); }
 .order-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.order-inline-notice { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #526b8d; border: 1px solid #d9e6fb; border-radius: 9px; background: #f5f9ff; }
+.manual-order-panel { padding: 16px; display: grid; gap: 14px; border: 1px solid #dfe8f4; border-radius: 12px; background: #fbfdff; }
+.manual-order-result { min-height: 42px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #617693; border: 1px dashed #ccd9e9; border-radius: 8px; background: #fff; }
+.manual-order-result strong { color: #0e9f55; }
 .slug-input { display: flex; align-items: center; direction: ltr; border: 1px solid #dce3ec; border-radius: 8px; overflow: hidden; background: #fbfdff; }
 .slug-input > span { padding: 0 12px; color: #1769ed; font-weight: 800; }
 .slug-input .input { border: 0; border-inline-start: 1px solid #e5eaf0; border-radius: 0; direction: ltr; }
@@ -2314,6 +2321,9 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 5px; white-space: nowrap; }
 
 .order-customer-card { position: relative; padding: 26px; overflow: hidden; color: #17345e; border: 1px solid color-mix(in srgb, var(--order-theme) 38%, #dbe5f1); border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgba(31, 64, 110, .08); }
+.order-customer-card.is-placeholder { border-style: dashed; }
+.order-customer-card.is-placeholder .order-information-grid,
+.order-customer-card.is-placeholder .order-number-row { opacity: .78; }
 .order-card-accent { height: 96px; position: absolute; inset: 0 0 auto; opacity: .13; background: var(--order-theme); clip-path: polygon(0 0, 100% 0, 100% 55%, 78% 38%, 55% 70%, 28% 42%, 0 67%); }
 .order-card-brand { min-height: 96px; position: relative; display: flex; align-items: center; justify-content: center; gap: 13px; text-align: center; }
 .order-card-brand h2 { margin: 0; color: #102b55; font-size: 22px; }
@@ -2394,6 +2404,10 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 :root[data-theme="dark"] .note-actions button,
 :root[data-theme="dark"] .visible-fields .setting-toggle,
 :root[data-theme="dark"] .created-link-box { color: #dce9f7; border-color: #2a3d55; background: #0c1828; }
+:root[data-theme="dark"] .order-source-picker,
+:root[data-theme="dark"] .manual-order-panel,
+:root[data-theme="dark"] .manual-order-result,
+:root[data-theme="dark"] .order-inline-notice { color: #c7d8eb; border-color: #2a3d55; background: #0c1828; }
 :root[data-theme="dark"] .builder-step > h3,
 :root[data-theme="dark"] .order-card-brand h2 { color: #eaf2fb; }
 :root[data-theme="dark"] .slug-input { border-color: #2a3d55; background: #0b1728; }
@@ -2411,6 +2425,7 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 }
 @media (max-width: 760px) {
   .order-profile-grid,
+  .order-source-picker,
   .visible-fields,
   .order-builder-actions,
   .order-information-grid { grid-template-columns: 1fr; }
