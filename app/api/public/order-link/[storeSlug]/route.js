@@ -1,4 +1,7 @@
 import { GET as getOrderByNumber } from "./[orderNumber]/route.js";
+import { normalizeOrderLinkColor, normalizeOrderLinkStyle } from "../../../../../src/lib/orderLinks.js";
+import { query } from "../../../../../src/server/db.js";
+import { sha256 } from "../../../../../src/server/security.js";
 
 function noStore(body, init = {}) {
   const headers = new Headers(init.headers || {});
@@ -8,7 +11,45 @@ function noStore(body, init = {}) {
 
 export async function GET(req, { params }) {
   const { storeSlug } = await params;
-  const orderNumber = new URL(req.url).searchParams.get("orderNumber")?.trim().replace(/^#/, "") || "";
+  const url = new URL(req.url);
+  const orderNumber = url.searchParams.get("orderNumber")?.trim().replace(/^#/, "") || "";
+  const token = url.searchParams.get("t") || "";
+  if (!orderNumber && token.length >= 8) {
+    const result = await query(
+      `SELECT l.status AS "linkStatus", l.expires_at AS "expiresAt",
+              p.store_name AS "storeName", p.slug AS "storeSlug", p.logo_url AS "logoUrl",
+              COALESCE(t.style, p.default_template_style) AS "templateStyle",
+              COALESCE(t.theme_color, p.default_theme_color) AS "themeColor",
+              t.header_text AS "headerText", t.footer_text AS "footerText"
+         FROM order_info_links l
+         JOIN order_link_profiles p ON p.tenant_id = l.tenant_id AND p.is_active = true
+         LEFT JOIN order_info_templates t ON t.id = l.template_id AND t.tenant_id = l.tenant_id
+        WHERE lower(p.slug) = lower($1) AND l.public_token = $2
+        ORDER BY l.created_at DESC
+        LIMIT 1`,
+      [storeSlug, sha256(token)]
+    );
+    const row = result.rows[0];
+    if (!row) return noStore({ ok: false, reason: "invalid_link", message: "لم يتم العثور على الرابط أو أنه غير صالح." }, { status: 404 });
+    if (row.linkStatus !== "active") {
+      return noStore({ ok: false, reason: row.linkStatus, message: "هذا الرابط غير متاح حاليًا. تواصل مع المتجر للحصول على رابط جديد." }, { status: 410 });
+    }
+    if (row.expiresAt && new Date(row.expiresAt) <= new Date()) {
+      return noStore({ ok: false, reason: "expired", message: "انتهت صلاحية هذا الرابط. تواصل مع المتجر للحصول على رابط جديد." }, { status: 410 });
+    }
+    return noStore({
+      ok: true,
+      presentation: {
+        store: { name: row.storeName, slug: row.storeSlug, logoUrl: row.logoUrl || null },
+        template: {
+          style: normalizeOrderLinkStyle(row.templateStyle),
+          themeColor: normalizeOrderLinkColor(row.themeColor),
+          headerText: row.headerText || null,
+          footerText: row.footerText || null
+        }
+      }
+    });
+  }
   if (!orderNumber || orderNumber.length > 100) {
     return noStore({ ok: false, reason: "order_number_required", message: "اكتب رقم الطلب الصحيح." }, { status: 400 });
   }

@@ -2300,6 +2300,15 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .order-lookup-input input { min-width: 0; flex: 1; padding: 0 13px; color: #6f829c; border: 0; outline: 0; background: transparent; direction: ltr; font: inherit; }
 .order-lookup-input .line-icon { width: 18px; margin-inline-end: 12px; color: var(--order-theme); }
 .order-lookup-content .btn { min-height: 48px; }
+.order-themed-action,
+.order-lookup-content .order-themed-action {
+  color: #fff;
+  border-color: var(--order-theme);
+  background: var(--order-theme);
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--order-theme) 24%, transparent);
+}
+.order-themed-action:hover,
+.order-lookup-content .order-themed-action:hover { filter: brightness(.94); }
 .order-lookup-content > small { display: flex; align-items: center; justify-content: center; gap: 6px; color: #7a8ba2; font-size: 10px; }
 .order-lookup-content > small .line-icon { width: 15px; height: 15px; color: var(--order-theme); }
 .order-lookup-preview > .order-card-footer { margin-top: 34px; }
@@ -2367,6 +2376,18 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .created-link-box .input { direction: ltr; }
 .color-dot { width: 16px; height: 16px; display: inline-block; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #cad5e2; vertical-align: middle; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 5px; white-space: nowrap; }
+.order-links-table-card { min-width: 0; overflow: hidden; }
+.order-links-table-card .compare { width: calc(100% + 36px); max-width: calc(100% + 36px); overflow-x: auto; overscroll-behavior-inline: contain; }
+.order-links-table-card table { table-layout: auto; }
+.order-links-table-card--links table { min-width: 1260px; }
+.order-links-table-card--templates table { min-width: 900px; }
+.order-links-table-card th,
+.order-links-table-card td { min-width: 110px; white-space: nowrap; }
+.order-links-table-card th:first-child,
+.order-links-table-card td:first-child { min-width: 140px; }
+.order-links-table-card th:last-child,
+.order-links-table-card td:last-child { min-width: 220px; }
+.order-links-table-card .row-actions { min-width: max-content; flex-wrap: nowrap; }
 
 .order-customer-card { position: relative; padding: 26px; overflow: hidden; color: #17345e; border: 1px solid color-mix(in srgb, var(--order-theme) 38%, #dbe5f1); border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgba(31, 64, 110, .08); }
 .order-customer-card.is-placeholder { border-style: dashed; }
@@ -2424,6 +2445,9 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .public-order-header small { color: #8492a7; font-size: 11px; }
 .public-order-header strong { color: #10264d; font-size: 19px; }
 .public-order-main { width: min(1320px, calc(100% - 56px)); margin: 0 auto; padding: 24px 0 38px; }
+.public-order-entry { width: min(640px, 100%); margin: 0 auto; }
+.public-order-lookup-card { min-height: 610px; }
+.public-order-lookup-card .order-lookup-content { margin-top: 38px; }
 .public-order-search-card { padding: 25px; text-align: center; border: 1px solid #e1e8f1; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(41, 73, 116, .06); }
 .public-order-search-card h1 { margin: 0 0 14px; font-size: 20px; }
 .public-order-search-card form { width: min(800px, 100%); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; }

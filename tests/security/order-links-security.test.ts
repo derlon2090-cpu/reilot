@@ -32,6 +32,10 @@ describe("order information link security", () => {
     expect(publicRoute).toContain("l.public_token = $3");
     expect(publicRoute).toContain("Cache-Control");
     expect(publicLookupRoute).toContain('searchParams.get("orderNumber")');
+    expect(publicLookupRoute).toContain("presentation:");
+    expect(publicLookupRoute).not.toContain("customer_name");
+    expect(publicLookupRoute).not.toContain("phone_number");
+    expect(publicLookupRoute).not.toContain("subscription_id");
     expect(publicLookupRoute).toContain("getOrderByNumber");
     expect(server).toContain("const storedToken = sha256(publicToken)");
     expect(server).toContain("/o/${encodeURIComponent(profile.slug)}?t=");

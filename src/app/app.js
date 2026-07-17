@@ -429,6 +429,9 @@ state.orderLinks = null;
 state.publicOrder = null;
 state.publicOrderLoading = false;
 state.publicOrderLookup = "";
+state.publicOrderPresentation = null;
+state.publicOrderPresentationLoading = false;
+state.publicOrderPresentationKey = "";
 state.orderLinkPreviewSlide = 0;
 state.orderLinkCreating = false;
 state.orderLinkDraft = {
@@ -1653,10 +1656,29 @@ function orderLookupPreviewCard(draft) {
       <h3>أدخل رقم الطلب</h3>
       <p>اكتب رقم طلبك لعرض حالة الاشتراك ومدته ومعلومات الباقة.</p>
       <label><span>رقم الطلب</span><div class="order-lookup-input"><input value="" placeholder="مثال: 54981" readonly aria-label="معاينة حقل رقم الطلب">${dashboardIcon("orderLink")}</div></label>
-      <button class="btn btn-primary" type="button" data-action="order-preview-show-result">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
+      <button class="btn btn-primary order-themed-action" type="button" data-action="order-preview-show-result">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
       <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
     </div>
     <p class="order-card-footer">${escapeHtml(draft.footerText || "RenewPilot AI")}</p>
+  </article>`;
+}
+
+function publicOrderLookupCard(presentation, orderNumber = "") {
+  const store = presentation?.store || {};
+  const template = presentation?.template || {};
+  const themeColor = safeOrderLinkColor(template.themeColor);
+  return `<article class="order-lookup-preview public-order-lookup-card order-style-${escapeHtml(template.style || "classic")}" style="--order-theme:${themeColor}">
+    <div class="order-lookup-accent"></div>
+    <div class="order-lookup-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || "معلومات الطلب")}</h2><p>${escapeHtml(template.headerText || "مرحبًا بك في صفحة متابعة طلبك")}</p></div></div>
+    <form class="order-lookup-content" data-submit="public-order-search">
+      <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
+      <h3>أدخل رقم الطلب</h3>
+      <p>اكتب رقم طلبك لعرض حالة الاشتراك ومدته ومعلومات الباقة.</p>
+      <label><span>رقم الطلب</span><div class="order-lookup-input"><input name="orderNumber" value="${escapeHtml(orderNumber)}" placeholder="مثال: 54981" inputmode="text" autocomplete="off" required>${dashboardIcon("orderLink")}</div></label>
+      <button class="btn btn-primary order-themed-action" type="submit">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
+      <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
+    </form>
+    <p class="order-card-footer">${escapeHtml(template.footerText || "RenewPilot AI")}</p>
   </article>`;
 }
 
@@ -1776,8 +1798,28 @@ function orderLinksWorkspacePage() {
       </article>
       <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>تنقل بين صفحة إدخال رقم الطلب وصفحة معلوماته.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">هذه معاينة تقريبية، وسيعرض الرابط الحقيقي بيانات العميل الآمنة من قاعدة البيانات.</p></aside>
     </section>
-    <article class="card table-card section"><div class="section-head"><div><h2>الروابط السابقة</h2><p>روابط الطلبات المسجلة فعليًا لمساحة عملك.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد روابط مرسلة بعد", "أنشئ أول رابط لعرض معلومات الطلب للعميل.")}</article>
-    <article class="card table-card section"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
+    <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الروابط السابقة</h2><p>روابط الطلبات المسجلة فعليًا لمساحة عملك.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد روابط مرسلة بعد", "أنشئ أول رابط لعرض معلومات الطلب للعميل.")}</article>
+    <article class="card table-card section order-links-table-card order-links-table-card--templates"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
+}
+
+async function loadPublicOrderPresentation() {
+  const parts = location.pathname.split("/").filter(Boolean);
+  const storeSlug = parts[1] || "";
+  const token = state.query.get("t") || "";
+  const key = `${storeSlug}:${token}`;
+  if (!storeSlug || !token || state.publicOrderPresentationLoading || state.publicOrderPresentationKey === key) return;
+  state.publicOrderPresentation = null;
+  state.publicOrderPresentationLoading = true;
+  state.publicOrderPresentationKey = key;
+  try {
+    const payload = await fetchJson(`/api/public/order-link/${encodeURIComponent(storeSlug)}?t=${encodeURIComponent(token)}`);
+    state.publicOrderPresentation = payload.presentation;
+  } catch (error) {
+    state.publicOrderPresentation = { error: error.message || "لم يتم العثور على الرابط أو أنه غير صالح.", reason: error.code };
+  } finally {
+    state.publicOrderPresentationLoading = false;
+    render();
+  }
 }
 
 async function loadPublicOrder({ checked = false, orderNumber } = {}) {
@@ -1804,16 +1846,24 @@ function publicOrderPage() {
   const parts = state.route.split("/").filter(Boolean);
   const storeSlug = parts[1] || "";
   const legacyOrderNumber = parts[2] || "";
+  const token = state.query.get("t") || "";
   const orderNumber = state.publicOrderLookup || legacyOrderNumber;
-  const data = state.publicOrder && !state.publicOrder.error ? state.publicOrder : null;
-  if (legacyOrderNumber && state.query.get("t") && !state.publicOrder && !state.publicOrderLoading) queueMicrotask(() => loadPublicOrder({ orderNumber: legacyOrderNumber }));
-  const storeName = data?.store?.name || "معلومات الطلب";
-  const themeColor = safeOrderLinkColor(data?.template?.themeColor);
+  const presentationKey = `${storeSlug}:${token}`;
+  const orderKeyPrefix = `${storeSlug}:${orderNumber}:${token}:`;
+  const currentOrder = state.publicOrderKey?.startsWith(orderKeyPrefix) ? state.publicOrder : null;
+  const currentPresentation = state.publicOrderPresentationKey === presentationKey ? state.publicOrderPresentation : null;
+  const data = currentOrder && !currentOrder.error ? currentOrder : null;
+  const savedPresentation = currentPresentation && !currentPresentation.error ? currentPresentation : null;
+  const presentation = data || savedPresentation;
+  if (token && state.publicOrderPresentationKey !== presentationKey && !state.publicOrderPresentationLoading) queueMicrotask(() => loadPublicOrderPresentation());
+  if (legacyOrderNumber && token && !data && !state.publicOrderLoading) queueMicrotask(() => loadPublicOrder({ orderNumber: legacyOrderNumber }));
+  const storeName = presentation?.store?.name || "معلومات الطلب";
+  const themeColor = safeOrderLinkColor(presentation?.template?.themeColor);
   return `<div class="public-order-page" style="--order-theme:${themeColor}">
     <header class="public-order-header"><div>${logo()}<span>منصة إدارة الاشتراكات الذكية</span></div><div><span class="order-bag">${dashboardIcon("orderLink")}</span><strong>${escapeHtml(storeName)}</strong><small>أهلًا بك في صفحة تتبع طلبك</small></div></header>
     <main class="public-order-main">
-      <section class="public-order-search-card"><h1>أدخل رقم الطلب</h1><form data-submit="public-order-search"><div class="search-wrap"><span>${dashboardIcon("template")}</span><input class="input" name="orderNumber" value="${escapeHtml(orderNumber)}" placeholder="مثال: 54981" required></div><button class="btn btn-primary">عرض معلومات الطلب ${dashboardIcon("reports")}</button></form><p>${dashboardIcon("security")} البيانات آمنة ومحدودة ويتم عرضها من المتجر فقط</p></section>
-      ${state.publicOrderLoading ? `<div class="loading-state">جاري التحقق من الرابط والطلب...</div>` : state.publicOrder?.error ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(state.publicOrder.error)}</h2><p>تحقق من رقم الطلب أو تواصل مع المتجر للحصول على رابط جديد.</p></section>` : data ? `<section class="public-order-result"><div class="public-order-style-switcher"><span>نمط العرض</span>${orderLinkStyleOptions.map(([style]) => `<button class="${data.template.style === style ? "active" : ""}" data-action="public-order-style" data-value="${style}" title="${style}"><i class="style-mini style-${style}"></i></button>`).join("")}</div>${orderInfoPreviewCard(null, state.orderLinkDraft, data)}<div class="public-order-actions">${data.store.supportPhone ? `<a class="btn btn-primary" href="https://wa.me/${String(data.store.supportPhone).replace(/\D/g, "")}" target="_blank" rel="noreferrer">تواصل مع المتجر ${dashboardIcon("template")}</a>` : ""}<button class="btn btn-secondary" data-action="copy-public-order-number" data-value="${escapeHtml(data.order.orderNumber)}">نسخ رقم الطلب ${dashboardIcon("orderLink")}</button></div></section>` : `<section class="public-order-welcome"><h2>معلومات طلبك في مكان واحد</h2><p>اكتب رقم الطلب الموجود في الرابط الآمن لعرض حالة الاشتراك ومدته.</p></section>`}
+      ${state.publicOrderPresentationLoading && !presentation ? `<div class="loading-state">جاري تجهيز صفحة المتجر...</div>` : currentPresentation?.error && !presentation ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(currentPresentation.error)}</h2><p>تواصل مع المتجر للحصول على رابط جديد.</p></section>` : !data && presentation ? `<section class="public-order-entry">${publicOrderLookupCard(presentation, orderNumber)}</section>` : ""}
+      ${state.publicOrderLoading ? `<div class="loading-state">جاري التحقق من الرابط والطلب...</div>` : currentOrder?.error ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(currentOrder.error)}</h2><p>تحقق من رقم الطلب أو تواصل مع المتجر للحصول على رابط جديد.</p><button class="btn btn-secondary" data-action="clear-public-order-error">المحاولة مرة أخرى</button></section>` : data ? `<section class="public-order-result">${orderInfoPreviewCard(null, state.orderLinkDraft, data)}<div class="public-order-actions">${data.store.supportPhone ? `<a class="btn order-themed-action" href="https://wa.me/${String(data.store.supportPhone).replace(/\D/g, "")}" target="_blank" rel="noreferrer">تواصل مع المتجر ${dashboardIcon("template")}</a>` : ""}<button class="btn btn-secondary" data-action="copy-public-order-number" data-value="${escapeHtml(data.order.orderNumber)}">نسخ رقم الطلب ${dashboardIcon("orderLink")}</button></div></section>` : ""}
     </main>
     <footer class="public-order-footer"><span>سياسة الخصوصية</span><span>الشروط والأحكام</span><span>الدعم الفني</span><span>تواصل معنا</span><small>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</small></footer>
   </div>`;
@@ -2376,6 +2426,11 @@ async function handleAction(target) {
     } catch (error) { toast(error.message || "تعذر حذف الرابط", "danger"); }
   }
   if (action === "copy-public-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
+  if (action === "clear-public-order-error") {
+    state.publicOrder = null;
+    state.publicOrderKey = "";
+    render();
+  }
   if (action === "public-order-style" && state.publicOrder?.template) {
     state.publicOrder.template.style = target.dataset.value;
     render();
