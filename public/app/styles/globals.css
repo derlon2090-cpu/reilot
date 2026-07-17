@@ -2271,8 +2271,7 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .btn-success { color: #fff; border-color: #10a85f; background: linear-gradient(110deg, #18b66b, #08a44f); box-shadow: 0 7px 17px rgba(16, 185, 99, .18); }
 .order-link-workspace { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(390px, .88fr); gap: 18px; align-items: start; }
 .order-link-builder,
-.order-link-preview-panel { padding: 20px; }
-.order-link-preview-panel { position: sticky; top: 98px; }
+.order-link-preview-panel { min-width: 0; padding: 20px; position: relative; }
 .order-preview-carousel { display: grid; gap: 14px; }
 .order-preview-toolbar { min-height: 48px; padding: 5px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; align-items: center; gap: 8px; border: 1px solid #dce5f0; border-radius: 10px; background: #f6f9fc; }
 .order-preview-arrow { width: 36px; height: 36px; display: grid; place-items: center; color: #1769ed; border: 1px solid #d4e2f5; border-radius: 8px; background: #fff; cursor: pointer; font-size: 25px; line-height: 1; }
@@ -2496,7 +2495,7 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 :root[data-theme="dark"] .order-customer-card:not(.order-style-premium) .order-information-grid strong,
 :root[data-theme="dark"] .order-customer-card:not(.order-style-premium) .order-notes h3 { color: #eaf2fb; }
 
-@media (max-width: 1250px) {
+@media (max-width: 1450px) {
   .order-link-workspace { grid-template-columns: 1fr; }
   .order-link-preview-panel { position: static; }
   .order-style-picker { grid-template-columns: repeat(3, 1fr); }

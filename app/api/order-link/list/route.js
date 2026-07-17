@@ -6,23 +6,25 @@ export async function GET(req) {
   if (!auth.ok) return auth.response;
   const [links, stats, capabilities] = await Promise.all([
     query(
-      `SELECT l.id, l.order_number AS "orderNumber", l.public_url AS "publicUrl",
+      `SELECT l.id, l.order_number AS "orderNumber", COALESCE(tl.public_url, l.public_url) AS "publicUrl",
               l.send_method AS "sendMethod", l.status, l.opened_count AS "openedCount",
               l.last_opened_at AS "lastOpenedAt", l.sent_at AS "sentAt",
               l.expires_at AS "expiresAt", l.created_at AS "createdAt",
               c.name AS "customerName", c.email, COALESCE(c.whatsapp_number, c.phone) AS "phoneNumber",
-              t.name AS "templateName", t.style, t.theme_color AS "themeColor"
+              t.name AS "templateName", t.style, t.theme_color AS "themeColor",
+              tl.id AS "templateLinkId"
          FROM order_info_links l
          LEFT JOIN customers c ON c.id = l.customer_id AND c.tenant_id = l.tenant_id
          LEFT JOIN order_info_templates t ON t.id = l.template_id AND t.tenant_id = l.tenant_id
+         LEFT JOIN order_template_links tl ON tl.id = l.template_link_id AND tl.tenant_id = l.tenant_id
         WHERE l.tenant_id = $1 ORDER BY l.created_at DESC`,
       [auth.session.tenantId]
     ),
     query(
       `SELECT
         (SELECT count(*) FROM order_info_templates WHERE tenant_id = $1 AND is_active = true)::int AS "activeTemplates",
-        (SELECT count(*) FROM order_info_links WHERE tenant_id = $1)::int AS "sentLinks",
-        (SELECT count(*) FROM order_info_links WHERE tenant_id = $1 AND opened_count > 0)::int AS "openedLinks",
+        (SELECT count(*) FROM order_template_links WHERE tenant_id = $1 AND status = 'active')::int AS "sentLinks",
+        (SELECT count(*) FROM order_template_links WHERE tenant_id = $1 AND opened_count > 0)::int AS "openedLinks",
         (SELECT count(*) FROM order_link_events WHERE tenant_id = $1 AND event_type = 'order_checked' AND created_at::date = current_date)::int AS "todayRequests"`,
       [auth.session.tenantId]
     ),

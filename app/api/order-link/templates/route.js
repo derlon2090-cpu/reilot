@@ -1,18 +1,21 @@
 import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
-import { normalizedTemplateInput } from "../../../../src/server/order-links.js";
+import { ensureTemplatePublicLink, normalizedTemplateInput } from "../../../../src/server/order-links.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const result = await query(
-    `SELECT id, name, style, theme_color AS "themeColor", store_name AS "storeName",
-            header_text AS "headerText", footer_text AS "footerText",
-            additional_notes AS "additionalNotes", visible_fields AS "visibleFields",
-            is_default AS "isDefault", is_active AS "isActive",
-            created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM order_info_templates
-      WHERE tenant_id = $1 ORDER BY is_default DESC, updated_at DESC`,
+    `SELECT t.id, t.name, t.style, t.theme_color AS "themeColor", t.store_name AS "storeName",
+            t.header_text AS "headerText", t.footer_text AS "footerText",
+            t.additional_notes AS "additionalNotes", t.visible_fields AS "visibleFields",
+            t.is_default AS "isDefault", t.is_active AS "isActive",
+            t.created_at AS "createdAt", t.updated_at AS "updatedAt",
+            tl.id AS "templateLinkId", tl.public_url AS "publicUrl", tl.status AS "linkStatus",
+            tl.opened_count AS "openedCount", tl.last_opened_at AS "lastOpenedAt"
+       FROM order_info_templates t
+       LEFT JOIN order_template_links tl ON tl.template_id = t.id AND tl.tenant_id = t.tenant_id
+      WHERE t.tenant_id = $1 ORDER BY t.is_default DESC, t.updated_at DESC`,
     [auth.session.tenantId]
   );
   return Response.json({ ok: true, items: result.rows });
@@ -47,5 +50,16 @@ export async function POST(req) {
     );
     return inserted.rows[0];
   });
-  return Response.json({ ok: true, item }, { status: 201 });
+  const templateLink = await ensureTemplatePublicLink({ tenantId: auth.session.tenantId, templateId: item.id });
+  if (!templateLink.ok) return Response.json(templateLink, { status: 400 });
+  return Response.json({
+    ok: true,
+    item: {
+      ...item,
+      templateLinkId: templateLink.item.id,
+      publicUrl: templateLink.item.publicUrl,
+      linkStatus: templateLink.item.status,
+      openedCount: templateLink.item.openedCount || 0
+    }
+  }, { status: 201 });
 }

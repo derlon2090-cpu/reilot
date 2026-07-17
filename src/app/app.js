@@ -1209,7 +1209,7 @@ function pageTitle(title, actions = "") {
     "إدارة الاشتراكات": "تابع الاشتراكات والتجديدات في مكان واحد.",
     "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
     "الأجهزة": "اربط واتساب وتحقق من حالة الاتصال الفعلية.",
-    "إرسال معلومات الطلب": "صمم صفحة معلومات آمنة وأنشئ رابطًا مستقلًا لكل طلب.",
+    "إرسال معلومات الطلب": "صمم قالبًا واحدًا برابط ثابت وأضف إليه طلبات عملائك.",
     "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
     "التقارير": "المؤشرات وسجل النشاط والفوترة.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
@@ -1551,6 +1551,8 @@ function hydrateOrderLinkDraft() {
     themeColor: safeOrderLinkColor(defaultTemplate?.themeColor || profile.defaultThemeColor),
     templateId: defaultTemplate?.id || "",
     templateName: defaultTemplate?.name || "",
+    publicUrl: defaultTemplate?.publicUrl || "",
+    templateLinkId: defaultTemplate?.templateLinkId || "",
     manualStartDate: state.orderLinkDraft.manualStartDate || todayDateInputValue(),
     headerText: defaultTemplate?.headerText || "شكرًا لاختيارك خدماتنا",
     footerText: defaultTemplate?.footerText || "RenewPilot AI",
@@ -1717,7 +1719,7 @@ function orderLinksWorkspacePage() {
     draft.manualStartDate && draft.manualEndDate && inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)
   );
   const canCreate = draft.sourceMode === "manual" ? manualDatesValid : Boolean(subscriptions.find((item) => item.id === draft.subscriptionId));
-  const publicUrl = draft.publicUrl || "";
+  const publicUrl = draft.publicUrl || templates.find((item) => item.id === draft.templateId)?.publicUrl || "";
   const templateRows = templates.map((item) => [
     `<strong>${escapeHtml(item.name)}</strong>`,
     escapeHtml(orderLinkStyleOptions.find(([value]) => value === item.style)?.[1] || item.style),
@@ -1742,8 +1744,8 @@ function orderLinksWorkspacePage() {
   return dashboardShell(`${pageTitle("إرسال معلومات الطلب")}
     ${statGrid([
       { title: "القوالب النشطة", value: stats.activeTemplates || 0, caption: "قالب", tone: "purple", icon: "template" },
-      { title: "الروابط المرسلة", value: stats.sentLinks || 0, caption: "رابط", tone: "info", icon: "orderLink" },
-      { title: "الروابط المفتوحة", value: stats.openedLinks || 0, caption: "رابط فريد", tone: "success", icon: "reports" },
+      { title: "روابط القوالب", value: stats.sentLinks || 0, caption: "رابط ثابت", tone: "info", icon: "orderLink" },
+      { title: "القوالب المفتوحة", value: stats.openedLinks || 0, caption: "قالب", tone: "success", icon: "reports" },
       { title: "طلبات اليوم", value: stats.todayRequests || 0, caption: "استعلام", tone: "warning", icon: "template" },
       { title: "نسبة الفتح", value: `${stats.openRate || 0}%`, caption: "من الروابط", tone: "info", icon: "reports" }
     ])}
@@ -1792,13 +1794,13 @@ function orderLinksWorkspacePage() {
             ["endDate", "تاريخ النهاية"], ["remainingDays", "المدة المتبقية"], ["status", "الحالة"],
             ["storeName", "اسم المتجر"], ["additionalNotes", "الملاحظات"], ["phoneNumber", "الهاتف المخفي"]
           ].map(([key, label]) => `<label class="setting-toggle"><span>${label}</span><input type="checkbox" data-order-visible="${key}" ${draft.visibleFields[key] ? "checked" : ""}></label>`).join("")}</div></div>
-          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : `disabled title="${draft.sourceMode === "manual" ? "اختر العميل وأكمل معلومات الطلب والتواريخ." : "اختر اشتراكًا حقيقيًا أولًا."}"`}>إنشاء الرابط</button><button class="btn btn-success" type="button" data-action="send-created-order-link" title="ينشئ الرابط الحقيقي تلقائيًا عند الحاجة">إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" title="ينشئ الرابط الحقيقي تلقائيًا عند الحاجة">نسخ الرابط</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" title="ينشئ الرابط الحقيقي تلقائيًا عند الحاجة">معاينة الصفحة</button></div>
-          ${publicUrl ? `<div class="created-link-box"><span>الرابط الاحترافي للعميل</span><input class="input" readonly value="${escapeHtml(publicUrl)}"><button type="button" class="btn btn-secondary" data-action="copy-created-order-link">نسخ</button></div>` : ""}
+          <div class="order-builder-actions"><button class="btn btn-primary" type="submit">حفظ القالب والرابط</button><button class="btn btn-success" type="button" data-action="create-order-link" ${canCreate ? "" : `disabled title="${draft.sourceMode === "manual" ? "اختر العميل وأكمل معلومات الطلب والتواريخ." : "اختر اشتراكًا حقيقيًا أولًا."}"`}>إضافة الطلب للقالب</button><button class="btn btn-success" type="button" data-action="send-created-order-link" title="يحفظ الطلب المختار في القالب ثم يرسل الرابط الثابت">إرسال للعميل</button><button class="btn btn-secondary" type="button" data-action="copy-created-order-link" title="ينسخ الرابط الثابت لهذا القالب">نسخ رابط القالب</button><button class="btn btn-secondary" type="button" data-action="preview-created-order-link" title="يفتح صفحة إدخال رقم الطلب للقالب">معاينة الصفحة</button></div>
+          ${publicUrl ? `<div class="created-link-box"><span>الرابط الثابت للقالب ولكل طلباته</span><input class="input" readonly value="${escapeHtml(publicUrl)}"><button type="button" class="btn btn-secondary" data-action="copy-created-order-link">نسخ</button></div>` : ""}
         </form>
       </article>
       <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>تنقل بين صفحة إدخال رقم الطلب وصفحة معلوماته.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">هذه معاينة تقريبية، وسيعرض الرابط الحقيقي بيانات العميل الآمنة من قاعدة البيانات.</p></aside>
     </section>
-    <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الروابط السابقة</h2><p>روابط الطلبات المسجلة فعليًا لمساحة عملك.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد روابط مرسلة بعد", "أنشئ أول رابط لعرض معلومات الطلب للعميل.")}</article>
+    <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الطلبات المحفوظة في القوالب</h2><p>كل الطلبات تستخدم الرابط الثابت للقالب، ويبحث العميل بينها برقم الطلب.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد طلبات محفوظة بعد", "أضف أول طلب إلى قالبك الثابت ليتمكن العميل من البحث عنه.")}</article>
     <article class="card table-card section order-links-table-card order-links-table-card--templates"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
 }
 
@@ -2095,7 +2097,13 @@ async function persistOrderLinkDraft() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
-  state.orderLinkDraft = { ...state.orderLinkDraft, templateId: templatePayload.item.id, templateName: templatePayload.item.name };
+  state.orderLinkDraft = {
+    ...state.orderLinkDraft,
+    templateId: templatePayload.item.id,
+    templateName: templatePayload.item.name,
+    templateLinkId: templatePayload.item.templateLinkId || state.orderLinkDraft.templateLinkId || "",
+    publicUrl: templatePayload.item.publicUrl || state.orderLinkDraft.publicUrl || ""
+  };
   state.orderLinkTemplates = null;
   state.orderLinks = null;
   syncRouteData(true);
@@ -2188,7 +2196,7 @@ async function createCurrentOrderLink(trigger) {
     };
     state.orderLinks = null;
     syncRouteData(true);
-    toast(draft.sourceMode === "manual" ? "تم حفظ الطلب وإنشاء رابطه الحقيقي بنجاح" : "تم إنشاء رابط معلومات الطلب الحقيقي بنجاح");
+    toast(draft.sourceMode === "manual" ? "تم حفظ الطلب داخل القالب والرابط الثابت جاهز" : "تمت إضافة الطلب إلى رابط القالب الثابت");
     render();
     return created;
   } catch (error) {
@@ -2204,16 +2212,30 @@ async function createCurrentOrderLink(trigger) {
   }
 }
 
-async function ensureCurrentOrderLink(trigger) {
-  if (state.orderLinkDraft.publicUrl && state.orderLinkDraft.linkId) {
+async function ensureCurrentTemplateLink(trigger) {
+  if (state.orderLinkDraft.publicUrl && state.orderLinkDraft.templateId) {
     return {
-      id: state.orderLinkDraft.linkId,
-      publicUrl: state.orderLinkDraft.publicUrl,
-      orderNumber: state.orderLinkDraft.createdOrderNumber || "",
-      customerName: state.orderLinkDraft.createdCustomerName || ""
+      id: state.orderLinkDraft.templateLinkId || "",
+      publicUrl: state.orderLinkDraft.publicUrl
     };
   }
-  return createCurrentOrderLink(trigger);
+  try {
+    if (trigger) {
+      trigger.disabled = true;
+      trigger.setAttribute("aria-busy", "true");
+    }
+    const template = await persistOrderLinkDraft();
+    render();
+    return { id: template.templateLinkId || "", publicUrl: template.publicUrl || "" };
+  } catch (error) {
+    toast(error.message || "تعذر تجهيز رابط القالب", "danger");
+    return null;
+  } finally {
+    if (trigger?.isConnected) {
+      trigger.disabled = false;
+      trigger.removeAttribute("aria-busy");
+    }
+  }
 }
 
 function openOrderLinkSendModal(item) {
@@ -2354,14 +2376,15 @@ async function handleAction(target) {
       additionalNotes: [...(item.additionalNotes || [])],
       visibleFields: { ...state.orderLinkDraft.visibleFields, ...(item.visibleFields || {}) },
       isDefault: action === "duplicate-order-template" ? false : Boolean(item.isDefault),
-      publicUrl: "",
+      publicUrl: action === "duplicate-order-template" ? "" : (item.publicUrl || ""),
+      templateLinkId: action === "duplicate-order-template" ? "" : (item.templateLinkId || ""),
       linkId: ""
     };
     render();
     toast(action === "duplicate-order-template" ? "تم تجهيز نسخة جديدة من القالب" : "تم تحميل القالب للتعديل");
   }
   if (action === "delete-order-template") {
-    if (!confirm("هل تريد حذف هذا القالب؟ ستبقى الروابط السابقة فعالة دون القالب المحذوف.")) return;
+    if (!confirm("هل تريد حذف هذا القالب؟ سيتوقف رابطه العام وستُحذف الطلبات المحفوظة داخله.")) return;
     try {
       await fetchJson(`/api/order-link/templates/${target.dataset.id}`, { method: "DELETE" });
       if (state.orderLinkDraft.templateId === target.dataset.id) state.orderLinkDraft.templateId = "";
@@ -2373,19 +2396,16 @@ async function handleAction(target) {
     await createCurrentOrderLink(target);
   }
   if (action === "copy-created-order-link") {
-    const created = await ensureCurrentOrderLink(target);
-    if (!created?.publicUrl) return;
-    if (created.id) {
-      await fetchJson(`/api/order-link/${created.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) }).catch(() => null);
-    }
-    await copyText(created.publicUrl, "تم إنشاء الرابط الحقيقي ونسخه بنجاح");
+    const templateLink = await ensureCurrentTemplateLink(target);
+    if (!templateLink?.publicUrl) return;
+    await copyText(templateLink.publicUrl, "تم نسخ رابط القالب الثابت بنجاح");
   }
   if (action === "preview-created-order-link") {
-    const created = await ensureCurrentOrderLink(target);
-    if (created?.publicUrl) window.open(created.publicUrl, "_blank", "noopener,noreferrer");
+    const templateLink = await ensureCurrentTemplateLink(target);
+    if (templateLink?.publicUrl) window.open(templateLink.publicUrl, "_blank", "noopener,noreferrer");
   }
   if (action === "send-created-order-link") {
-    const created = await ensureCurrentOrderLink(target);
+    const created = await createCurrentOrderLink(target);
     if (!created?.publicUrl) return;
     const selected = (state.orderLinkSubscriptions || []).find((item) => item.id === state.orderLinkDraft.subscriptionId);
     openOrderLinkSendModal({

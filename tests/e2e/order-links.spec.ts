@@ -48,6 +48,9 @@ test("order information builder and public page are responsive and private", asy
     additionalNotes: [],
     visibleFields: {},
     isDefault: true,
+    templateLinkId: "template-link-1",
+    publicUrl: "https://reilot.vercel.app/o/tech-store?t=publictoken123",
+    linkStatus: "active",
     updatedAt: "2026-07-17T10:30:00.000Z"
   }] } }));
   await page.route("**/api/order-link/subscriptions", (route) => route.fulfill({ json: { ok: true, items: [subscription] } }));
@@ -179,7 +182,7 @@ test("order information builder and public page are responsive and private", asy
   await page.screenshot({ path: ".codex-artifacts/public-order-mobile.png", fullPage: true });
 });
 
-test("manual customer order creates a custom public link and updates the live preview", async ({ page }) => {
+test("manual customer order is added beneath one stable template link", async ({ page }) => {
   const customer = {
     id: "customer-manual-1",
     name: "محمد السعيد",
@@ -209,7 +212,13 @@ test("manual customer order creates a custom public link and updates the live pr
   await page.route("**/api/order-link/templates", async (route) => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
-      return route.fulfill({ status: 201, json: { ok: true, item: { id: "template-manual-1", ...body } } });
+      return route.fulfill({ status: 201, json: { ok: true, item: {
+        id: "template-manual-1",
+        templateLinkId: "template-link-manual-1",
+        publicUrl: "https://reilot.vercel.app/o/liong-d?t=secure-token",
+        linkStatus: "active",
+        ...body
+      } } });
     }
     return route.fulfill({ json: { ok: true, items: [] } });
   });
@@ -268,6 +277,8 @@ test("manual customer order creates a custom public link and updates the live pr
   await expect(page.locator(".manual-order-result")).toContainText("نشط");
   await expect(page.locator("[data-action='create-order-link']")).toBeEnabled();
   await expect(page.locator("[data-action='copy-created-order-link']").first()).toBeEnabled();
+  await page.locator("[data-action='create-order-link']").click();
+  await expect(page.locator(".created-link-box input")).toHaveValue(/\/o\/liong-d\?t=/);
   await page.locator("[data-action='copy-created-order-link']").first().click();
 
   await expect(page.locator(".created-link-box input")).toHaveValue(/\/o\/liong-d\?t=/);

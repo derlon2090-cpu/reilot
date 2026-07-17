@@ -14,7 +14,8 @@ export async function GET(req, { params }) {
   const token = new URL(req.url).searchParams.get("t") || "";
   if (!token || token.length < 8) return noStore({ ok: false, reason: "invalid_link", message: "لم يتم العثور على الطلب أو الرابط غير صالح." }, { status: 404 });
   const result = await query(
-    `SELECT l.id, l.tenant_id AS "tenantId", l.status AS "linkStatus", l.expires_at AS "expiresAt",
+    `SELECT l.id, l.tenant_id AS "tenantId", l.status AS "orderStatus", l.expires_at AS "orderExpiresAt",
+            tl.id AS "templateLinkId", tl.status AS "linkStatus", tl.expires_at AS "expiresAt",
             l.order_number AS "orderNumber", p.store_name AS "storeName", p.slug AS "storeSlug",
             p.logo_url AS "logoUrl", st.support_phone AS "supportPhone",
             s.plan_name AS "planName", s.service_name AS "serviceName",
@@ -25,15 +26,16 @@ export async function GET(req, { params }) {
             t.header_text AS "headerText", t.footer_text AS "footerText",
             COALESCE(t.additional_notes, '[]'::jsonb) AS "additionalNotes",
             COALESCE(t.visible_fields, '{}'::jsonb) AS "visibleFields"
-       FROM order_info_links l
-       JOIN order_link_profiles p ON p.tenant_id = l.tenant_id AND p.is_active = true
+       FROM order_template_links tl
+       JOIN order_link_profiles p ON p.tenant_id = tl.tenant_id AND p.is_active = true
+       JOIN order_info_templates t ON t.id = tl.template_id AND t.tenant_id = tl.tenant_id AND t.is_active = true
+       JOIN order_info_links l ON l.template_link_id = tl.id AND l.tenant_id = tl.tenant_id
        JOIN subscriptions s ON s.id = l.subscription_id AND s.tenant_id = l.tenant_id
        LEFT JOIN customers c ON c.id = l.customer_id AND c.tenant_id = l.tenant_id
-       LEFT JOIN order_info_templates t ON t.id = l.template_id AND t.tenant_id = l.tenant_id
        LEFT JOIN LATERAL (
          SELECT support_phone FROM stores WHERE tenant_id = l.tenant_id ORDER BY created_at LIMIT 1
        ) st ON true
-      WHERE lower(p.slug) = lower($1) AND l.order_number = $2 AND l.public_token = $3
+      WHERE lower(p.slug) = lower($1) AND l.order_number = $2 AND tl.public_token = $3
       LIMIT 1`,
     [storeSlug, orderNumber, sha256(token)]
   );
@@ -42,12 +44,22 @@ export async function GET(req, { params }) {
   if (row.linkStatus !== "active") {
     return noStore({ ok: false, reason: row.linkStatus, message: "هذا الرابط غير متاح حاليًا. تواصل مع المتجر للحصول على رابط جديد." }, { status: 410 });
   }
+  if (row.orderStatus !== "active") {
+    return noStore({ ok: false, reason: row.orderStatus, message: "هذا الطلب غير متاح حاليًا عبر رابط المتجر." }, { status: 410 });
+  }
   if (row.expiresAt && new Date(row.expiresAt) <= new Date()) {
+    await transaction(async (client) => {
+      await client.query("UPDATE order_template_links SET status = 'expired', updated_at = now() WHERE id = $1 AND status = 'active'", [row.templateLinkId]);
+      await client.query("INSERT INTO order_link_events (tenant_id, order_info_link_id, event_type) VALUES ($1, $2, 'expired')", [row.tenantId, row.id]);
+    });
+    return noStore({ ok: false, reason: "expired", message: "انتهت صلاحية هذا الرابط. تواصل مع المتجر للحصول على رابط جديد." }, { status: 410 });
+  }
+  if (row.orderExpiresAt && new Date(row.orderExpiresAt) <= new Date()) {
     await transaction(async (client) => {
       await client.query("UPDATE order_info_links SET status = 'expired', updated_at = now() WHERE id = $1 AND status = 'active'", [row.id]);
       await client.query("INSERT INTO order_link_events (tenant_id, order_info_link_id, event_type) VALUES ($1, $2, 'expired')", [row.tenantId, row.id]);
     });
-    return noStore({ ok: false, reason: "expired", message: "انتهت صلاحية هذا الرابط. تواصل مع المتجر للحصول على رابط جديد." }, { status: 410 });
+    return noStore({ ok: false, reason: "expired", message: "انتهت صلاحية معلومات هذا الطلب. تواصل مع المتجر لتحديثها." }, { status: 410 });
   }
   row.maskedPhone = maskPublicPhone(row.phoneNumber);
   const checked = new URL(req.url).searchParams.get("checked") === "1";
@@ -56,6 +68,11 @@ export async function GET(req, { params }) {
       `UPDATE order_info_links SET opened_count = opened_count + 1, last_opened_at = now(), updated_at = now()
         WHERE id = $1`,
       [row.id]
+    );
+    await client.query(
+      `UPDATE order_template_links SET opened_count = opened_count + 1, last_opened_at = now(), updated_at = now()
+        WHERE id = $1`,
+      [row.templateLinkId]
     );
     await client.query(
       `INSERT INTO order_link_events (tenant_id, order_info_link_id, event_type, ip_hash, user_agent)

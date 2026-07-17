@@ -29,7 +29,8 @@ describe("order information link security", () => {
     const server = readFileSync("src/server/order-links.js", "utf8");
 
     expect(publicRoute).toContain("sha256(token)");
-    expect(publicRoute).toContain("l.public_token = $3");
+    expect(publicRoute).toContain("tl.public_token = $3");
+    expect(publicRoute).toContain("l.template_link_id = tl.id");
     expect(publicRoute).toContain("Cache-Control");
     expect(publicLookupRoute).toContain('searchParams.get("orderNumber")');
     expect(publicLookupRoute).toContain("presentation:");
@@ -37,7 +38,9 @@ describe("order information link security", () => {
     expect(publicLookupRoute).not.toContain("phone_number");
     expect(publicLookupRoute).not.toContain("subscription_id");
     expect(publicLookupRoute).toContain("getOrderByNumber");
-    expect(server).toContain("const storedToken = sha256(publicToken)");
+    expect(server).toContain("sha256(publicToken)");
+    expect(server).toContain("ensureTemplatePublicLink");
+    expect(server).toContain("template_link_id");
     expect(server).toContain("/o/${encodeURIComponent(profile.slug)}?t=");
     expect(server).not.toContain("/${encodeURIComponent(orderNumber)}?t=");
     expect(server).not.toContain("renewpilot-order-link");

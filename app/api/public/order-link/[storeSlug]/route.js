@@ -16,16 +16,16 @@ export async function GET(req, { params }) {
   const token = url.searchParams.get("t") || "";
   if (!orderNumber && token.length >= 8) {
     const result = await query(
-      `SELECT l.status AS "linkStatus", l.expires_at AS "expiresAt",
+      `SELECT tl.status AS "linkStatus", tl.expires_at AS "expiresAt",
               p.store_name AS "storeName", p.slug AS "storeSlug", p.logo_url AS "logoUrl",
               COALESCE(t.style, p.default_template_style) AS "templateStyle",
               COALESCE(t.theme_color, p.default_theme_color) AS "themeColor",
               t.header_text AS "headerText", t.footer_text AS "footerText"
-         FROM order_info_links l
-         JOIN order_link_profiles p ON p.tenant_id = l.tenant_id AND p.is_active = true
-         LEFT JOIN order_info_templates t ON t.id = l.template_id AND t.tenant_id = l.tenant_id
-        WHERE lower(p.slug) = lower($1) AND l.public_token = $2
-        ORDER BY l.created_at DESC
+         FROM order_template_links tl
+         JOIN order_link_profiles p ON p.tenant_id = tl.tenant_id AND p.is_active = true
+         JOIN order_info_templates t ON t.id = tl.template_id AND t.tenant_id = tl.tenant_id AND t.is_active = true
+        WHERE lower(p.slug) = lower($1) AND tl.public_token = $2
+        ORDER BY tl.created_at DESC
         LIMIT 1`,
       [storeSlug, sha256(token)]
     );

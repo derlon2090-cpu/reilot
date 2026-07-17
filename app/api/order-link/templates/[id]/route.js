@@ -1,6 +1,6 @@
 import { query, transaction } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
-import { normalizedTemplateInput } from "../../../../../src/server/order-links.js";
+import { ensureTemplatePublicLink, normalizedTemplateInput } from "../../../../../src/server/order-links.js";
 
 export async function PATCH(req, { params }) {
   const auth = await requireSession(req);
@@ -29,7 +29,19 @@ export async function PATCH(req, { params }) {
     );
     return updated.rows[0] || null;
   });
-  return item ? Response.json({ ok: true, item }) : Response.json({ ok: false, reason: "not_found" }, { status: 404 });
+  if (!item) return Response.json({ ok: false, reason: "not_found" }, { status: 404 });
+  const templateLink = await ensureTemplatePublicLink({ tenantId: auth.session.tenantId, templateId: item.id });
+  if (!templateLink.ok) return Response.json(templateLink, { status: 400 });
+  return Response.json({
+    ok: true,
+    item: {
+      ...item,
+      templateLinkId: templateLink.item.id,
+      publicUrl: templateLink.item.publicUrl,
+      linkStatus: templateLink.item.status,
+      openedCount: templateLink.item.openedCount || 0
+    }
+  });
 }
 
 export async function DELETE(req, { params }) {

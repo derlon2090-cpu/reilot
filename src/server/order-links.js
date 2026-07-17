@@ -71,24 +71,79 @@ export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl,
   const name = String(storeName || "").trim().slice(0, 120);
   if (name.length < 2) return { ok: false, reason: "invalid_store_name" };
   try {
-    const saved = await query(
-      `INSERT INTO order_link_profiles (
-         tenant_id, store_name, slug, logo_url, default_template_style, default_theme_color, is_active
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (tenant_id) DO UPDATE SET
-         store_name = EXCLUDED.store_name, slug = EXCLUDED.slug, logo_url = EXCLUDED.logo_url,
-         default_template_style = EXCLUDED.default_template_style,
-         default_theme_color = EXCLUDED.default_theme_color, is_active = EXCLUDED.is_active, updated_at = now()
-       RETURNING id, tenant_id AS "tenantId", store_name AS "storeName", slug, logo_url AS "logoUrl",
-                 default_template_style AS "defaultTemplateStyle", default_theme_color AS "defaultThemeColor",
-                 is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
-      [tenantId, name, slugResult.slug, logoUrl || null, normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
-    );
-    return { ok: true, profile: profileRow(saved.rows[0]) };
+    const saved = await transaction(async (client) => {
+      const result = await client.query(
+        `INSERT INTO order_link_profiles (
+           tenant_id, store_name, slug, logo_url, default_template_style, default_theme_color, is_active
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (tenant_id) DO UPDATE SET
+           store_name = EXCLUDED.store_name, slug = EXCLUDED.slug, logo_url = EXCLUDED.logo_url,
+           default_template_style = EXCLUDED.default_template_style,
+           default_theme_color = EXCLUDED.default_theme_color, is_active = EXCLUDED.is_active, updated_at = now()
+         RETURNING id, tenant_id AS "tenantId", store_name AS "storeName", slug, logo_url AS "logoUrl",
+                   default_template_style AS "defaultTemplateStyle", default_theme_color AS "defaultThemeColor",
+                   is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
+        [tenantId, name, slugResult.slug, logoUrl || null, normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
+      );
+      const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+      await client.query(
+        `UPDATE order_template_links
+            SET public_url = $2 || '/o/' || $3 ||
+                CASE WHEN position('?' in public_url) > 0 THEN substring(public_url from position('?' in public_url)) ELSE '' END,
+                updated_at = now()
+          WHERE tenant_id = $1`,
+        [tenantId, baseUrl, slugResult.slug]
+      );
+      await client.query(
+        `UPDATE order_info_links l
+            SET public_url = tl.public_url, updated_at = now()
+           FROM order_template_links tl
+          WHERE l.template_link_id = tl.id AND tl.tenant_id = $1`,
+        [tenantId]
+      );
+      return result.rows[0];
+    });
+    return { ok: true, profile: profileRow(saved) };
   } catch (error) {
     if (error?.code === "23505") return { ok: false, reason: "slug_exists" };
     throw error;
   }
+}
+
+export async function ensureTemplatePublicLink({ tenantId, templateId, expiresInDays = null }) {
+  const profile = await ensureOrderLinkProfile(tenantId);
+  return transaction(async (client) => {
+    const template = await client.query(
+      "SELECT id FROM order_info_templates WHERE id = $1 AND tenant_id = $2 AND is_active = true LIMIT 1",
+      [templateId, tenantId]
+    );
+    if (!template.rows[0]) return { ok: false, reason: "template_not_found" };
+
+    const existing = await client.query(
+      `SELECT id, public_url AS "publicUrl", status, expires_at AS "expiresAt",
+              opened_count AS "openedCount", created_at AS "createdAt"
+         FROM order_template_links
+        WHERE template_id = $1 AND tenant_id = $2
+        LIMIT 1`,
+      [templateId, tenantId]
+    );
+    if (existing.rows[0]) return { ok: true, item: existing.rows[0] };
+
+    const publicToken = randomToken(12);
+    const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+    const publicUrl = `${baseUrl}/o/${encodeURIComponent(profile.slug)}?t=${encodeURIComponent(publicToken)}`;
+    const days = expiresInDays == null ? null : Math.min(3650, Math.max(1, Number(expiresInDays || 30)));
+    const inserted = await client.query(
+      `INSERT INTO order_template_links (
+         tenant_id, template_id, public_token, public_url, expires_at
+       ) VALUES ($1, $2, $3, $4, CASE WHEN $5::text IS NULL THEN NULL ELSE now() + ($5 || ' days')::interval END)
+       ON CONFLICT (template_id) DO UPDATE SET updated_at = order_template_links.updated_at
+       RETURNING id, public_url AS "publicUrl", status, expires_at AS "expiresAt",
+                 opened_count AS "openedCount", created_at AS "createdAt"`,
+      [tenantId, templateId, sha256(publicToken), publicUrl, days == null ? null : String(days)]
+    );
+    return { ok: true, item: inserted.rows[0] };
+  });
 }
 
 export function normalizedTemplateInput(body = {}) {
@@ -113,7 +168,9 @@ export function normalizedTemplateInput(body = {}) {
 }
 
 export async function createOrderInfoLink({ tenantId, userId, subscriptionId, templateId, expiresInDays = 30, sendMethod = "copy" }) {
-  const profile = await ensureOrderLinkProfile(tenantId);
+  if (!templateId) return { ok: false, reason: "template_required" };
+  const templateLink = await ensureTemplatePublicLink({ tenantId, templateId });
+  if (!templateLink.ok) return templateLink;
   const result = await transaction(async (client) => {
     const subscription = await client.query(
       `SELECT s.id, s.order_number AS "orderNumber", s.customer_id AS "customerId"
@@ -122,26 +179,27 @@ export async function createOrderInfoLink({ tenantId, userId, subscriptionId, te
       [subscriptionId, tenantId]
     );
     if (!subscription.rows[0]) return { ok: false, reason: "subscription_not_found" };
-    if (templateId) {
-      const template = await client.query("SELECT id FROM order_info_templates WHERE id = $1 AND tenant_id = $2 AND is_active = true", [templateId, tenantId]);
-      if (!template.rows[0]) return { ok: false, reason: "template_not_found" };
-    }
-    const publicToken = randomToken(12);
-    const storedToken = sha256(publicToken);
-    const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+    const template = await client.query("SELECT id FROM order_info_templates WHERE id = $1 AND tenant_id = $2 AND is_active = true", [templateId, tenantId]);
+    if (!template.rows[0]) return { ok: false, reason: "template_not_found" };
     const orderNumber = subscription.rows[0].orderNumber;
-    // Keep the order number out of the URL. The customer must enter it on the
-    // public page, where it is matched against this token-scoped link.
-    const publicUrl = `${baseUrl}/o/${encodeURIComponent(profile.slug)}?t=${encodeURIComponent(publicToken)}`;
     const days = Math.min(365, Math.max(1, Number(expiresInDays || 30)));
     const inserted = await client.query(
       `INSERT INTO order_info_links (
-         tenant_id, template_id, subscription_id, customer_id, order_number, public_token,
-         public_url, send_method, expires_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now() + ($9 || ' days')::interval)
+         tenant_id, template_id, template_link_id, subscription_id, customer_id, order_number,
+         public_token, public_url, send_method, expires_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval)
+       ON CONFLICT (template_link_id, subscription_id) WHERE template_link_id IS NOT NULL DO UPDATE SET
+         customer_id = EXCLUDED.customer_id,
+         order_number = EXCLUDED.order_number,
+         public_url = EXCLUDED.public_url,
+         send_method = EXCLUDED.send_method,
+         status = 'active',
+         expires_at = EXCLUDED.expires_at,
+         updated_at = now()
        RETURNING id, order_number AS "orderNumber", public_url AS "publicUrl", status,
                  expires_at AS "expiresAt", created_at AS "createdAt"`,
-      [tenantId, templateId || null, subscriptionId, subscription.rows[0].customerId, orderNumber, storedToken, publicUrl,
+      [tenantId, templateId, templateLink.item.id, subscriptionId, subscription.rows[0].customerId, orderNumber,
+        sha256(randomToken(12)), templateLink.item.publicUrl,
         ["copy", "whatsapp", "email"].includes(sendMethod) ? sendMethod : "copy", String(days)]
     );
     await client.query(
