@@ -201,3 +201,19 @@ export function evolutionLogout(instanceName) {
 export function evolutionDelete(instanceName) {
   return request(`/instance/delete/${encodeURIComponent(instanceName)}`, { method: "DELETE" });
 }
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function evolutionRecreateInstance(instanceName, options = {}) {
+  try {
+    await evolutionDelete(instanceName);
+    // The provider removes Baileys sessions asynchronously. A short pause avoids
+    // receiving a QR or pairing code from the session that was just replaced.
+    await delay(500);
+  } catch (error) {
+    if (!isEvolutionInstanceMissing(error)) throw error;
+  }
+  return evolutionCreateInstance(instanceName, options);
+}

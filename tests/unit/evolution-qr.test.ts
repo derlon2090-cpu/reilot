@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evolutionConnect, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionConnect, evolutionRecreateInstance, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
@@ -117,6 +117,33 @@ describe("normalizeEvolutionQr", () => {
       expect(payload).toMatchObject({ instanceName: "rp_test", qrcode: false, integration: "WHATSAPP-BAILEYS" });
       await evolutionCreateInstance("rp_test_qr", { qrcode: true, phoneNumber: "+966 55 171 0581" });
       expect(payload).toMatchObject({ instanceName: "rp_test_qr", qrcode: true, number: "966551710581", integration: "WHATSAPP-BAILEYS" });
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EVOLUTION_API_URL; else process.env.EVOLUTION_API_URL = previousUrl;
+    }
+  });
+
+  it("deletes a stale provider session before creating the requested link mode", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.EVOLUTION_API_KEY;
+    const previousUrl = process.env.EVOLUTION_API_URL;
+    process.env.EVOLUTION_API_KEY = "test-key";
+    process.env.EVOLUTION_API_URL = "https://evolution.test";
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url: String(url), method: init?.method || "GET", body: init?.body ? JSON.parse(String(init.body)) : null });
+      return new Response(JSON.stringify({ instance: { instanceName: "rp_test" } }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+    try {
+      await evolutionRecreateInstance("rp_test", { qrcode: false, phoneNumber: "966551710581" });
+      expect(calls).toHaveLength(2);
+      expect(calls[0]).toMatchObject({ url: "https://evolution.test/instance/delete/rp_test", method: "DELETE" });
+      expect(calls[1]).toMatchObject({
+        url: "https://evolution.test/instance/create",
+        method: "POST",
+        body: { instanceName: "rp_test", qrcode: false, number: "966551710581", integration: "WHATSAPP-BAILEYS" }
+      });
     } finally {
       globalThis.fetch = previousFetch;
       if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;

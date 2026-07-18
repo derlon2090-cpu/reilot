@@ -1,7 +1,5 @@
-import { evolutionCreateInstance, normalizeEvolutionQr } from "../../../../../src/server/evolution-client.js";
 import { query } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
-import { safeErrorMessage } from "../../../../../src/server/security.js";
 import { addWhatsAppActivity, createChannel, evolutionInstanceName, latestTenantChannel, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
 
 export async function GET(req) {
@@ -32,18 +30,15 @@ export async function POST(req) {
   }
   try {
     const instanceName = evolutionInstanceName(auth.session.tenantId);
-    const created = await evolutionCreateInstance(instanceName);
-    const qrBase64 = normalizeEvolutionQr(created?.qrcode?.base64);
     const channel = await createChannel({
       tenantId: auth.session.tenantId,
-      instanceName: created?.instance?.instanceName || instanceName,
-      providerToken: created?.hash,
-      qrBase64
+      instanceName,
+      qrBase64: null
     });
-    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.created", title: "Evolution instance created" });
-    return Response.json({ ok: true, instance: { ...channel, qrBase64 } }, { status: 201 });
+    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "whatsapp.channel_created", title: "WhatsApp linking channel created" });
+    return Response.json({ ok: true, instance: channel }, { status: 201 });
   } catch (error) {
-    console.error("evolution create failed", safeErrorMessage(error));
-    return Response.json({ ok: false, message: "Unable to create WhatsApp instance" }, { status: 502 });
+    console.error("WhatsApp channel create failed", error?.name || "unknown_error");
+    return Response.json({ ok: false, message: "تعذر إنشاء قناة الربط حاليًا." }, { status: 500 });
   }
 }

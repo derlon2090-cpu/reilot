@@ -80,11 +80,11 @@ const operationalEnglishPhrases = {
   "إعادة إنشاء الباركود": "Regenerate QR Code",
   "لا يوجد باركود حقيقي متاح": "No real QR code is available",
   "لا يوجد باركود صالح": "No valid QR code is available",
-  "أنشئ باركود حقيقي من Evolution API.": "Generate a real QR code from Evolution API.",
+  "أنشئ باركود ربط حقيقي.": "Generate a real WhatsApp linking QR code.",
   "غير متوفر": "Unavailable",
-  "لا يظهر الرمز إلا بعد طلبه من Evolution API": "The code appears only after it is returned by Evolution API",
+  "لا يظهر الرمز إلا بعد استلامه من خدمة الربط": "The code appears only after it is returned by the linking service",
   "لا يوجد رمز بعد": "No code yet",
-  "رمز الاقتران غير مدعوم حاليا في نسخة Evolution API المثبتة. استخدم الربط بالباركود.": "Pairing codes are not supported by the installed Evolution API version. Use QR linking.",
+  "رمز الاقتران غير مدعوم حاليا. استخدم الربط بالباركود.": "Pairing codes are not currently supported. Use QR linking.",
   "تم إيقاف الإرسال التلقائي": "Automatic sending paused"
 };
 
@@ -1234,7 +1234,7 @@ function readinessPage() {
   const report = state.readiness;
   if (report === null) return dashboardShell(`${pageTitle("فحص الجاهزية", `<button class="btn btn-primary" data-action="run-readiness">تشغيل اختبار شامل</button>`)}<div class="loading-state">جاري فحص حالة المنصة...</div>`);
   if (report?.error) return dashboardShell(`${pageTitle("فحص الجاهزية", `<button class="btn btn-primary" data-action="run-readiness">إعادة الفحص</button>`)}${emptyState(escapeHtml(report.error))}`);
-  const labels = { database: "قاعدة البيانات", evolution: "Evolution API", whatsapp: "اتصال واتساب", resend: "Resend", cron: "Cron", https: "HTTPS", environment: "متغيرات البيئة" };
+  const labels = { database: "قاعدة البيانات", evolution: "خدمة الربط", whatsapp: "اتصال واتساب", resend: "خدمة البريد", cron: "المهام المجدولة", https: "HTTPS", environment: "متغيرات البيئة" };
   const cards = Object.entries(report.statuses || {}).map(([key, value]) => `<article class="card readiness-card"><div class="section-head"><h3>${labels[key] || key}</h3><span class="status ${value.ok ? "success" : "danger"}">${value.ok ? "جاهز" : "غير جاهز"}</span></div><strong>${escapeHtml(value.label || "")}</strong>${value.error ? `<p class="danger-text">${escapeHtml(value.error)}</p>` : ""}${value.missing?.length ? `<p class="muted">الناقص: ${value.missing.map(escapeHtml).join("، ")}</p>` : ""}</article>`).join("");
   return dashboardShell(`${pageTitle("فحص الجاهزية", `<button class="btn btn-primary" data-action="run-readiness">تشغيل اختبار شامل</button>`)}
     <div class="readiness-result ${report.result === "ready" ? "ready" : "not-ready"}"><strong>${report.result === "ready" ? "Ready" : "Not Ready"}</strong><span>آخر فحص: ${escapeHtml(report.checkedAt || "")}</span></div>
@@ -1430,7 +1430,7 @@ function connectedDevicesCenterPage() {
   const statusTone = isConnected ? "success" : isPendingQr || isQrRendering || isQrExpired || isPendingPairing ? "warning" : "danger";
   const qrImage = hasRealQr
     ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
-    : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود حقيقي من Evolution API.</p></div>`;
+    : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود ربط حقيقي.</p></div>`;
   const activity = device.activity?.length ? device.activity : [];
   const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "غير متوفر", device.phoneNumber || "غير متوفر", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
 
@@ -1461,19 +1461,19 @@ function connectedDevicesCenterPage() {
           ${method === "qr" ? `<div class="link-box-grid">
             <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
               ${qrImage}
-              <strong>${device.qrLoading ? "جاري طلب الباركود من Evolution API..." : hasRealQr && !device.qrImageLoaded ? "جاري التحقق من صورة الباركود..." : isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "لا يوجد باركود صالح"}</strong>
+              <strong>${device.qrLoading ? "جاري طلب الباركود من خدمة الربط..." : hasRealQr && !device.qrImageLoaded ? "جاري التحقق من صورة الباركود..." : isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "لا يوجد باركود صالح"}</strong>
               <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : hasRealQr ? "يتم تحميل الصورة والتحقق منها داخل المتصفح." : device.qrError ? escapeHtml(device.qrError) : "اضغط إنشاء باركود جديد."}</small>
             </div>
             <div class="pair-code">
               <span class="muted">رمز الاقتران</span>
               <strong>${device.pairingCode || "غير متوفر"}</strong>
-              <small class="muted">لا يظهر الرمز إلا بعد طلبه من Evolution API</small>
+              <small class="muted">لا يظهر الرمز إلا بعد استلامه من خدمة الربط</small>
               <button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري التحميل..." : "إنشاء/تحديث باركود"}</button>
               <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
               <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
             </div>
           </div>` : device.pairingSupported === false ? `<div class="pairing-unsupported">
-            <p class="status warning">رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود.</p>
+            <p class="status warning">رمز الاقتران غير مدعوم حاليًا. يمكنك استخدام الربط بالباركود.</p>
             <button class="btn btn-primary" data-action="device-link-method" data-method="qr">استخدام الباركود بدلًا من ذلك</button>
           </div>` : `<div class="link-box-grid pairing-layout">
             <div class="pairing-form">
@@ -1519,18 +1519,18 @@ function devicesWorkspacePage() {
   const lastCheck = device.lastCheckAt || (stats.lastDeviceCheck ? new Date(stats.lastDeviceCheck).toLocaleString("ar-SA") : "لم يتم الفحص بعد");
   const quality = isConnected ? "ممتاز" : "غير متاح";
   const deviceRows = isConnected || isPending ? [[
-    `<strong>${escapeHtml(device.deviceName || (isConnected ? "جهاز واتساب متصل" : "جلسة ربط جديدة"))}</strong><small>${escapeHtml(device.instanceName ? `Evolution · ${device.instanceName.slice(0, 12)}…` : "Evolution API")}</small>`,
+    `<strong>${escapeHtml(device.deviceName || (isConnected ? "جهاز واتساب متصل" : "جلسة ربط جديدة"))}</strong><small>جلسة ربط آمنة</small>`,
     escapeHtml(device.phoneNumber || device.phoneInput || "غير متوفر"), status(device.status), isConnected ? "ممتاز" : "بانتظار الربط", escapeHtml(lastCheck),
     `<div class="row-actions"><button class="icon-action" data-action="check-device-connection" title="فحص الاتصال">${dashboardIcon("reports")}</button>${isConnected ? `<button class="icon-action danger-text" data-action="disconnect-device" title="فصل الجهاز">×</button>` : ""}<button class="icon-action danger-text" data-action="delete-device" title="حذف الجهاز">⋮</button></div>`
   ]] : [];
-  const qrPanel = `<div class="device-method-panel qr-method-panel">${hasQr ? `<button class="qr-display" data-action="show-device-qr"><img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب الحقيقي"><span>اضغط لتكبير الباركود</span></button>` : `<div class="device-empty-visual">${dashboardIcon("devices")}<strong>لا يوجد باركود جاهز</strong><p>${escapeHtml(device.qrError || "أنشئ باركودًا حقيقيًا من Evolution API للبدء.")}</p></div>`}<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : "إنشاء/تحديث الباركود"}</button>${hasQr ? `<small>صالح حتى ${escapeHtml(device.qrExpiresAt || "وقت قصير")}</small>` : ""}</div>`;
-  const pairingPanel = `<div class="device-method-panel pairing-method-panel"><label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${escapeHtml(device.phoneInput || "")}" placeholder="0551234567 أو 9665XXXXXXXX" inputmode="tel"></label><small>سيتم تحويل الرقم السعودي المحلي تلقائيًا إلى الصيغة الدولية.</small><button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء الرمز..." : "إنشاء رمز الاقتران"}</button>${device.pairingError ? `<p class="status danger">${escapeHtml(device.pairingError)}</p>` : ""}${hasPairing ? `<div class="pairing-success"><span class="status success">تم الإنشاء بنجاح</span><div class="pairing-code-row"><strong>${escapeHtml(device.pairingCode)}</strong><button class="btn btn-secondary" data-action="copy-pairing">نسخ</button></div><small>صالح حتى ${escapeHtml(device.pairingExpiresAt || "وقت قصير")}</small><p>افتح واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز ← الربط برقم الهاتف، ثم أدخل الرمز.</p></div>` : `<div class="device-empty-visual compact">${dashboardIcon("template")}<strong>سيظهر رمز الاقتران الحقيقي هنا</strong><p>لن تعرض المنصة أي رمز لم يرجع مباشرة من Evolution API.</p></div>`}</div>`;
+  const qrPanel = `<div class="device-method-panel qr-method-panel">${hasQr ? `<button class="qr-display" data-action="show-device-qr"><img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب الحقيقي"><span>اضغط لتكبير الباركود</span></button>` : `<div class="device-empty-visual">${dashboardIcon("devices")}<strong>لا يوجد باركود جاهز</strong><p>${escapeHtml(device.qrError || "أنشئ باركودًا جديدًا للبدء.")}</p></div>`}<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : "إنشاء/تحديث الباركود"}</button>${hasQr ? `<small>صالح حتى ${escapeHtml(device.qrExpiresAt || "وقت قصير")}</small>` : ""}</div>`;
+  const pairingPanel = `<div class="device-method-panel pairing-method-panel"><label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${escapeHtml(device.phoneInput || "")}" placeholder="0551234567 أو 9665XXXXXXXX" inputmode="tel"></label><small>سيتم تحويل الرقم السعودي المحلي تلقائيًا إلى الصيغة الدولية.</small><button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء الرمز..." : "إنشاء رمز الاقتران"}</button>${device.pairingError ? `<p class="status danger">${escapeHtml(device.pairingError)}</p>` : ""}${hasPairing ? `<div class="pairing-success"><span class="status success">تم الإنشاء بنجاح</span><div class="pairing-code-row"><strong>${escapeHtml(device.pairingCode)}</strong><button class="btn btn-secondary" data-action="copy-pairing">نسخ</button></div><small>صالح حتى ${escapeHtml(device.pairingExpiresAt || "وقت قصير")}</small><p>افتح واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز ← الربط برقم الهاتف، ثم أدخل الرمز.</p></div>` : `<div class="device-empty-visual compact">${dashboardIcon("template")}<strong>سيظهر رمز الاقتران الحقيقي هنا</strong><p>لن تعرض المنصة أي رمز غير صالح أو مُنشأ محليًا.</p></div>`}</div>`;
   return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-secondary" data-action="check-device-connection" ${!device.instanceId ? "disabled" : ""}>${dashboardIcon("reports")} فحص الاتصال</button>`)}
     <p class="page-kicker">إدارة أجهزة واتساب المرتبطة بحسابك ومراقبة حالة الاتصال في الوقت الفعلي.</p>
     ${statGrid([
       { title: "الأجهزة المتصلة", value: stats.connectedDevices, caption: "أجهزة متصلة الآن", tone: isConnected ? "success" : "neutral", icon: "devices" },
       { title: "بانتظار الربط", value: stats.pendingDevices, caption: "جلسات فعلية", tone: "warning", icon: "template" },
-      { title: "جودة الاتصال", value: quality, caption: isConnected ? "Evolution متصل" : "اربط جهازًا للقياس", tone: isConnected ? "success" : "neutral", icon: "reports" },
+      { title: "جودة الاتصال", value: quality, caption: isConnected ? "واتساب متصل" : "اربط جهازًا للقياس", tone: isConnected ? "success" : "neutral", icon: "reports" },
       { title: "آخر فحص", value: lastCheck, caption: "حالة القناة الحالية", tone: "info", icon: "security" }
     ])}
     <section class="section devices-workspace"><article class="card devices-table-card"><div class="section-head"><div><h2>الأجهزة المرتبطة</h2><p>تظهر هنا القناة الفعلية الخاصة بمساحة عملك فقط.</p></div><button class="btn btn-secondary" data-action="check-device-connection" ${!device.instanceId ? "disabled" : ""}>فحص الاتصال</button></div>${deviceRows.length ? simpleTable(["اسم النسخة", "رقم الهاتف", "الحالة", "جودة الاتصال", "آخر مزامنة", "الإجراء"], deviceRows) : emptyState("لا توجد أجهزة مرتبطة", "ابدأ بإنشاء رمز اقتران أو باركود من اللوحة المجاورة.")}</article>
@@ -2600,21 +2600,21 @@ async function handleAction(target) {
     render();
     const requestSignal = AbortSignal.timeout(20_000);
     try {
-      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." });
+      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/pairing-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber: phone }),
         signal: requestSignal,
-        timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى."
+        timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى."
       });
       if (payload.type === "connected" || payload.status === "connected") {
         state.linkedDevice = { ...state.linkedDevice, status: "connected", pairingError: "", pairingCode: "", qrActive: false, qrBase64: "" };
         toast(payload.message || "الجهاز متصل بالفعل.", "success");
         return;
       }
-      if (!payload.pairingCode) throw new Error("لم يرجع Evolution رمز اقتران لهذه المحاولة. حاول مرة أخرى أو استخدم الباركود.");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", pairingSupported: true, phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingError: "", pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز الاقتران عبر Evolution API", ...(state.linkedDevice.activity || []).slice(0, 4)] };
+      if (!payload.pairingCode) throw new Error("لم ترجع خدمة الربط رمز اقتران صالحًا لهذه المحاولة. حاول مرة أخرى أو استخدم الباركود.");
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_pairing", linkMethod: "pairing", pairingSupported: true, phoneNumber: `+${phone}`, pairingCode: payload.pairingCode, pairingError: "", pairingExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء رمز اقتران جديد", ...(state.linkedDevice.activity || []).slice(0, 4)] };
       toast("تم إنشاء رمز الاقتران");
     } catch (error) {
       const message = error.message || "تعذر إنشاء رمز الاقتران، حاول استخدام الباركود.";
@@ -2635,22 +2635,22 @@ async function handleAction(target) {
     render();
     const requestSignal = AbortSignal.timeout(20_000);
     try {
-      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." });
-      if (!instance?.id) throw new Error("تعذر إنشاء جلسة Evolution API.");
+      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
+      if (!instance?.id) throw new Error("تعذر إنشاء جلسة الربط.");
       state.linkedDevice = { ...state.linkedDevice, ...instance, instanceId: instance.id, instanceName: instance.instanceName || "", qrBase64: "" };
-      const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`, { signal: requestSignal, timeoutMessage: "استغرق Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." });
+      const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`, { signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
       if (payload.type === "connected" || payload.status === "connected") {
         state.linkedDevice = { ...state.linkedDevice, status: "connected", qrActive: false, qrImageLoaded: false, qrError: "", qrBase64: "" };
         toast(payload.message || "الجهاز متصل بالفعل.", "success");
         return;
       }
       const qrDataUri = payload.qrDataUri || payload.qrBase64;
-      if (!isRealQrDataUri(qrDataUri)) throw new Error("لم يرجع Evolution باركود صالح لهذه المحاولة.");
-      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrImageLoaded: false, qrError: "", qrBase64: qrDataUri, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة Evolution API", "تم تجهيز QR مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
-      toast("تم إنشاء باركود جديد عبر Evolution API");
+      if (!isRealQrDataUri(qrDataUri)) throw new Error("لم ترجع خدمة الربط باركودًا صالحًا لهذه المحاولة.");
+      state.linkedDevice = { ...state.linkedDevice, status: "pending_qr", linkMethod: "qr", qrActive: true, qrImageLoaded: false, qrError: "", qrBase64: qrDataUri, qrExpiresAt: new Date(Date.now() + (payload.expiresIn || 60) * 1000).toLocaleTimeString("ar-SA"), activity: ["تم إنشاء جلسة ربط جديدة", "تم تجهيز باركود مؤقت", ...(state.linkedDevice.activity || []).slice(0, 3)] };
+      toast("تم إنشاء باركود جديد");
       closePortal();
     } catch (error) {
-      const message = error.message || "تعذر إنشاء الباركود من Evolution API. يرجى المحاولة مرة أخرى.";
+      const message = error.message || "تعذر إنشاء الباركود من خدمة الربط. يرجى المحاولة مرة أخرى.";
       state.linkedDevice = { ...state.linkedDevice, status: "error", qrActive: false, qrImageLoaded: false, qrBase64: "", qrError: message };
       toast(message, "danger");
     } finally {
@@ -2661,9 +2661,9 @@ async function handleAction(target) {
   if (action === "show-device-qr") {
     const hasRealQr = isRealQrDataUri(state.linkedDevice.qrBase64);
     const realQr = hasRealQr ? `<img class="qr-real" src="${state.linkedDevice.qrBase64}" alt="باركود ربط واتساب">` : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">${escapeHtml(state.linkedDevice.qrError || "اضغط إنشاء باركود جديد.")}</p></div>`;
-    openModal("باركود ربط واتساب", `<div class="qr-box ${hasRealQr ? "active" : ""} modal-qr">${realQr}<strong>${hasRealQr ? "امسح الباركود من واتساب" : "لا يوجد باركود جاهز للمسح"}</strong><p class="muted">تتم عملية الربط من الخادم ولا يتم كشف EVOLUTION_API_KEY.</p></div>`, `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
+    openModal("باركود ربط واتساب", `<div class="qr-box ${hasRealQr ? "active" : ""} modal-qr">${realQr}<strong>${hasRealQr ? "امسح الباركود من واتساب" : "لا يوجد باركود جاهز للمسح"}</strong><p class="muted">تتم عملية الربط بأمان من الخادم ولا تظهر مفاتيح الخدمة في المتصفح.</p></div>`, `<button class="btn btn-primary" data-action="create-device-qr">إنشاء باركود جديد</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   }
-  if (action === "copy-pairing") state.linkedDevice.pairingCode ? copyText(state.linkedDevice.pairingCode, "تم نسخ رمز الاقتران") : toast("لا يوجد رمز اقتران صادر من Evolution API", "warning");
+  if (action === "copy-pairing") state.linkedDevice.pairingCode ? copyText(state.linkedDevice.pairingCode, "تم نسخ رمز الاقتران") : toast("لا يوجد رمز اقتران صالح للنسخ", "warning");
   if (action === "check-device-connection") {
     if (!["pending_qr", "pending_pairing", "connected"].includes(state.linkedDevice.status)) return toast("أنشئ جلسة ربط أولا", "warning");
     try {

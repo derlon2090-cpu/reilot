@@ -1,8 +1,8 @@
 import { normalizeEvolutionPhone } from "../../../../../../src/lib/evolution.js";
 import {
   evolutionConnectionState,
-  evolutionCreateInstance,
   evolutionPairingCode,
+  evolutionRecreateInstance,
   extractEvolutionPairingCode,
   isEvolutionAuthFailed,
   isEvolutionInstanceMissing,
@@ -23,12 +23,12 @@ function maskedInstanceName(instanceName) {
   return `${instanceName.slice(0, 12)}...${instanceName.slice(-5)}`;
 }
 
-function evolutionFailure(error) {
-  if (isEvolutionAuthFailed(error)) return { code: "EVOLUTION_AUTH_FAILED", status: 502, message: "فشل التحقق من مفتاح خدمة الربط." };
-  if (isEvolutionTimeout(error)) return { code: "EVOLUTION_TIMEOUT", status: 504, message: "استغرقت خدمة Evolution وقتًا أطول من المتوقع. حاول مرة أخرى." };
-  if (isEvolutionUnreachable(error)) return { code: "EVOLUTION_UNREACHABLE", status: 503, message: "تعذر الوصول إلى خدمة Evolution حاليًا. تحقق من تشغيل الخادم ثم حاول مرة أخرى." };
-  if (isEvolutionPairingUnsupported(error)) return { code: "PAIRING_CODE_NOT_SUPPORTED", status: 501, message: "رمز الاقتران غير مدعوم حاليًا في نسخة Evolution API المثبتة. يمكنك استخدام الربط بالباركود." };
-  return { code: "PAIRING_CODE_FAILED", status: 502, message: "تعذر إنشاء رمز الاقتران من Evolution API. حاول مرة أخرى دون تغيير الجهاز." };
+function linkFailure(error) {
+  if (isEvolutionAuthFailed(error)) return { code: "LINK_AUTH_FAILED", status: 502, message: "فشل التحقق من إعدادات خدمة الربط." };
+  if (isEvolutionTimeout(error)) return { code: "LINK_TIMEOUT", status: 504, message: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." };
+  if (isEvolutionUnreachable(error)) return { code: "LINK_UNREACHABLE", status: 503, message: "تعذر الوصول إلى خدمة الربط حاليًا. حاول مرة أخرى لاحقًا." };
+  if (isEvolutionPairingUnsupported(error)) return { code: "PAIRING_CODE_NOT_SUPPORTED", status: 501, message: "رمز الاقتران غير مدعوم حاليًا. يمكنك استخدام الربط بالباركود." };
+  return { code: "PAIRING_CODE_FAILED", status: 502, message: "تعذر إنشاء رمز الاقتران حاليًا. حاول مرة أخرى دون تغيير الجهاز." };
 }
 
 export async function POST(req, { params }) {
@@ -37,7 +37,7 @@ export async function POST(req, { params }) {
   const body = await req.json().catch(() => ({}));
   const normalized = normalizeEvolutionPhone(body.phoneNumber);
   if (!normalized.ok) {
-    return Response.json({ ok: false, code: "INVALID_PHONE", message: "الرجاء إدخال رقم واتساب صحيح." }, { status: 400 });
+    return Response.json({ ok: false, code: "INVALID_PHONE", message: "اكتب الرقم بصيغة دولية صحيحة أو بصيغة محلية سعودية." }, { status: 400 });
   }
 
   const { id } = await params;
@@ -47,27 +47,27 @@ export async function POST(req, { params }) {
   const startedAt = Date.now();
   let connectionState = null;
   let responseBody = null;
-  let recreated = false;
   try {
     try {
       const connection = await evolutionConnectionState(channel.instanceName, 5_000);
       connectionState = providerState(connection);
     } catch (error) {
       if (!isEvolutionInstanceMissing(error)) throw error;
-      responseBody = await evolutionCreateInstance(channel.instanceName, {
-        qrcode: false,
-        phoneNumber: normalized.phoneNumber
-      });
-      recreated = true;
-      connectionState = providerState(responseBody);
     }
 
     if (["open", "connected"].includes(connectionState)) {
       await updateChannel(id, auth.session.tenantId, { status: "connected", phoneNumber: normalized.phoneNumber, lastError: null });
       await resolveOperationalIssues({ tenantId: auth.session.tenantId, category: "pairing_code", sourceId: id });
-      return Response.json({ ok: true, type: "connected", status: "connected", code: "INSTANCE_ALREADY_CONNECTED", instanceName: channel.instanceName, message: "الجهاز متصل بالفعل." });
+      return Response.json({ ok: true, type: "connected", status: "connected", code: "INSTANCE_ALREADY_CONNECTED", message: "الجهاز متصل بالفعل." });
     }
 
+    // Pairing codes are valid only for the freshly created phone-number session.
+    // Replacing a non-connected QR/pairing session prevents stale, unusable codes.
+    responseBody = await evolutionRecreateInstance(channel.instanceName, {
+      qrcode: false,
+      phoneNumber: normalized.phoneNumber
+    });
+    connectionState = providerState(responseBody) || connectionState;
     let pairingCode = extractEvolutionPairingCode(responseBody);
     if (!pairingCode) {
       const result = await evolutionPairingCode(channel.instanceName, normalized.phoneNumber, 20_000);
@@ -77,26 +77,25 @@ export async function POST(req, { params }) {
     }
 
     if (!pairingCode) {
-      const message = "Evolution API returned HTTP 200 without a valid pairing code";
+      const message = "Link service returned no valid pairing code";
       await updateChannel(id, auth.session.tenantId, { status: "error", phoneNumber: normalized.phoneNumber, lastError: message });
       await recordOperationalIssue({
         tenantId: auth.session.tenantId,
         category: "pairing_code",
-        source: "evolution",
+        source: "whatsapp_link",
         sourceId: id,
         severity: "warning",
         message,
-        suggestedSolution: "Retry pairing code generation with the same instance or use QR linking.",
+        suggestedSolution: "Retry pairing with the current channel or use QR linking.",
         metadata: {
           operation: "pairing_code",
           instanceNameMasked: maskedInstanceName(channel.instanceName),
           responseKeys: Object.keys(responseBody || {}).slice(0, 20),
           connectionState,
-          recreated,
           durationMs: Date.now() - startedAt
         }
       });
-      return Response.json({ ok: false, code: "PAIRING_CODE_NOT_RETURNED", message: "لم تُرجع خدمة Evolution رمز اقتران لهذه الجلسة. حاول مرة أخرى أو استخدم الباركود." }, { status: 409 });
+      return Response.json({ ok: false, code: "PAIRING_CODE_NOT_RETURNED", message: "لم تُرجع خدمة الربط رمز اقتران صالحًا لهذه الجلسة. حاول مرة أخرى أو استخدم الباركود." }, { status: 409 });
     }
 
     const expiresIn = 60;
@@ -110,15 +109,14 @@ export async function POST(req, { params }) {
     await addWhatsAppActivity({
       tenantId: auth.session.tenantId,
       userId: auth.session.userId,
-      type: recreated ? "evolution.instance_recreated" : "evolution.pairing_generated",
-      title: recreated ? "Evolution instance recreated for pairing" : "WhatsApp pairing code generated"
+      type: "whatsapp.pairing_generated",
+      title: "WhatsApp pairing code generated for a fresh session"
     }).catch(() => null);
     return Response.json({
       ok: true,
       type: "pairing",
       status: "pending_pairing",
       instanceId: id,
-      instanceName: channel.instanceName,
       pairingCode,
       expiresIn,
       expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
@@ -126,22 +124,21 @@ export async function POST(req, { params }) {
     });
   } catch (error) {
     const errorMessage = safeErrorMessage(error);
-    const failure = evolutionFailure(error);
-    console.error("evolution pairing failed", errorMessage);
+    const failure = linkFailure(error);
+    console.error("WhatsApp pairing generation failed", errorMessage);
     await updateChannel(id, auth.session.tenantId, { status: "error", phoneNumber: normalized.phoneNumber, lastError: errorMessage });
-    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.pairing_failed", title: "WhatsApp pairing code generation failed" }).catch(() => null);
+    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "whatsapp.pairing_failed", title: "WhatsApp pairing code generation failed" }).catch(() => null);
     await recordOperationalIssue({
       tenantId: auth.session.tenantId,
       category: "pairing_code",
-      source: "evolution",
+      source: "whatsapp_link",
       sourceId: id,
       message: errorMessage,
-      suggestedSolution: failure.code === "PAIRING_CODE_NOT_SUPPORTED" ? "Use QR linking with the same instance." : "Check Evolution connectivity and server-side credentials, then retry.",
+      suggestedSolution: failure.code === "PAIRING_CODE_NOT_SUPPORTED" ? "Use QR linking for the current channel." : "Check the server-side link service configuration, then retry.",
       metadata: {
         operation: "pairing_code",
         instanceNameMasked: maskedInstanceName(channel.instanceName),
         connectionState,
-        recreated,
         durationMs: Date.now() - startedAt,
         errorCode: failure.code
       }

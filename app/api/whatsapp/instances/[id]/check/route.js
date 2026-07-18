@@ -57,14 +57,14 @@ export async function POST(req, { params }) {
   } catch (error) {
     const errorMessage = safeErrorMessage(error);
     if (isEvolutionInstanceMissing(error)) {
-      await updateChannel(id, auth.session.tenantId, { status: "disconnected", qrBase64: null, lastError: "Evolution instance not found on the configured server" });
+      await updateChannel(id, auth.session.tenantId, { status: "disconnected", qrBase64: null, lastError: "Link session not found on the configured server" });
       return Response.json({
         ok: true,
         instanceId: id,
         status: "disconnected",
         providerState: "not_found",
         code: "EVOLUTION_INSTANCE_NOT_FOUND",
-        message: "الجلسة غير موجودة على خادم Evolution الحالي. أنشئ باركودًا أو رمز اقتران لإعادة ربطها.",
+        message: "جلسة الربط غير موجودة على الخادم الحالي. أنشئ باركودًا أو رمز اقتران لإعادة ربطها.",
         checkedAt: new Date().toISOString()
       });
     }
@@ -76,12 +76,12 @@ export async function POST(req, { params }) {
     const unreachable = isEvolutionUnreachable(error);
     const code = authFailed ? "EVOLUTION_AUTH_FAILED" : timeout ? "EVOLUTION_TIMEOUT" : unreachable ? "EVOLUTION_UNREACHABLE" : "EVOLUTION_STATUS_FAILED";
     const message = authFailed
-      ? "تعذر توثيق الاتصال بخدمة Evolution. تحقق من إعداد مفتاح الخادم."
+      ? "تعذر توثيق الاتصال بخدمة الربط. تحقق من إعدادات الخادم."
       : timeout
-        ? "استغرق فحص اتصال Evolution وقتًا أطول من المتوقع."
+        ? "استغرق فحص خدمة الربط وقتًا أطول من المتوقع."
         : unreachable
-          ? "تعذر الوصول إلى خدمة Evolution حاليًا."
-          : "تعذر فحص اتصال واتساب عبر Evolution.";
+          ? "تعذر الوصول إلى خدمة الربط حاليًا."
+          : "تعذر فحص اتصال واتساب.";
     return Response.json({ ok: false, code, message }, { status: timeout ? 504 : unreachable ? 503 : 502 });
   }
 }
