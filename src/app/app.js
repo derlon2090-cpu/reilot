@@ -423,6 +423,7 @@ state.whatsappHealth = null;
 state.notificationTemplate = null;
 state.billingOverview = null;
 state.sallaIntegration = null;
+state.sallaRuleDrafts = null;
 state.orderLinkProfile = null;
 state.orderLinkTemplates = null;
 state.orderLinkSubscriptions = null;
@@ -1251,6 +1252,9 @@ function subscriptionsPage() {
   const stats = overviewStats();
   const salla = state.sallaIntegration?.integration || null;
   const sallaConfigured = Boolean(state.sallaIntegration?.configured);
+  const savedSallaRules = Array.isArray(salla?.subscriptionRules) ? salla.subscriptionRules : [];
+  const sallaRules = Array.isArray(state.sallaRuleDrafts) ? state.sallaRuleDrafts : savedSallaRules;
+  const sallaConnected = salla?.status === "connected";
   const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
   const rows = filterRows(source, ["orderNumber", "customerName", "planName", "status"]);
   const content = state.dbSubscriptions?.error
@@ -1258,13 +1262,30 @@ function subscriptionsPage() {
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
       : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
+  const sallaRuleRows = sallaRules.length ? sallaRules.map((rule, index) => `<div class="salla-rule-row" data-salla-rule-row data-rule-id="${escapeHtml(rule.id || "")}">
+      <label><span>نوع الاشتراك أو اسم المنتج</span><input class="input" data-salla-rule-field="name" data-rule-index="${index}" value="${escapeHtml(rule.name || "")}" placeholder="مثال: Grok أو Gemini" ${sallaConnected ? "" : "disabled"}></label>
+      <label><span>مدة الاشتراك بالأيام</span><input class="input" type="number" min="1" max="3650" inputmode="numeric" data-salla-rule-field="durationDays" data-rule-index="${index}" value="${Number(rule.durationDays) || 30}" ${sallaConnected ? "" : "disabled"}></label>
+      <button class="btn btn-ghost icon-only danger-text" data-action="remove-salla-rule" data-rule-index="${index}" title="حذف النوع" ${sallaConnected ? "" : "disabled"}>×</button>
+    </div>`).join("") : `<div class="salla-rules-empty"><strong>لم تضف أنواع اشتراكات بعد</strong><span>أضف اسم المنتج كما يظهر في سلة وحدد مدته، مثل Grok لمدة 30 يومًا أو Gemini لمدة سنة.</span></div>`;
   const sallaCard = `<article class="card salla-integration-card section">
-    <div class="salla-brand"><span class="salla-mark">س</span><div><h2>التخزين التلقائي من سلة</h2><p>استيراد عملاء وطلبات متجر سلة كاشتراكات حقيقية، ثم إدراجها تلقائيًا ضمن تنبيهات التجديد.</p></div></div>
-    <div class="salla-controls">
-      <span class="status ${salla?.status === "connected" ? "success" : "warning"}">${salla?.status === "connected" ? "متجر سلة متصل" : "غير متصل"}</span>
-      <label class="field compact-field"><span>مدة الاشتراك الافتراضية</span><select class="select" data-action="salla-duration" ${salla?.status === "connected" ? "" : "disabled"}>${[30, 90, 180, 365].map((days) => `<option value="${days}" ${Number(salla?.defaultDurationDays || 30) === days ? "selected" : ""}>${days} يومًا</option>`).join("")}</select></label>
-      <label class="setting-row setting-toggle salla-toggle" title="${salla?.status === "connected" ? "تخزين الطلبات والعملاء تلقائيًا" : "اربط متجر سلة أولًا"}"><span>التخزين التلقائي</span><input type="checkbox" data-action="salla-auto-sync" ${salla?.autoSync ? "checked" : ""} ${salla?.status === "connected" ? "" : "disabled"}></label>
-      ${salla?.status === "connected" ? `<button class="btn btn-secondary" data-action="disconnect-salla">فصل متجر سلة</button>` : `<button class="btn btn-primary" data-action="connect-salla" ${sallaConfigured ? "" : "disabled title=\"إعداد تكامل سلة غير مكتمل على الخادم\""}>ربط متجر سلة</button>`}
+    <header class="salla-card-head">
+      <div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="https://cdn.salla.network/salla.com/logo-wide-1.svg" alt="شعار سلة الرسمي" loading="lazy"></span><div><h2>التخزين التلقائي من سلة</h2><p>استيراد العملاء والطلبات كاشتراكات حقيقية، مع تحديد نوع ومدة كل اشتراك حسب المنتج في متجرك.</p></div></div>
+      <div class="salla-header-actions"><span class="status ${sallaConnected ? "success" : "warning"}">${sallaConnected ? "متجر سلة متصل" : "غير متصل"}</span>${sallaConnected ? `<button class="btn btn-secondary" data-action="disconnect-salla">فصل المتجر</button>` : `<button class="btn btn-primary" data-action="connect-salla" ${sallaConfigured ? "" : "disabled title=\"إعداد تكامل سلة غير مكتمل على الخادم\""}>ربط متجر سلة</button>`}</div>
+    </header>
+    <div class="salla-settings-grid">
+      <section class="salla-setting-panel">
+        <div><h3>المزامنة التلقائية</h3><p>يحفظ العميل وطلبه واشتراكه عند وصول طلب سلة، دون إنشاء بيانات تجريبية.</p></div>
+        <label class="setting-row setting-toggle salla-toggle" title="${sallaConnected ? "تخزين الطلبات والعملاء تلقائيًا" : "اربط متجر سلة أولًا"}"><span>${salla?.autoSync ? "مفعلة" : "متوقفة"}</span><input type="checkbox" data-action="salla-auto-sync" ${salla?.autoSync ? "checked" : ""} ${sallaConnected ? "" : "disabled"}></label>
+      </section>
+      <section class="salla-setting-panel">
+        <div><h3>المدة الاحتياطية</h3><p>تستخدم فقط عندما لا يطابق المنتج أي نوع محفوظ أدناه.</p></div>
+        <label class="field compact-field"><span>عدد الأيام</span><select class="select" data-action="salla-duration" ${sallaConnected ? "" : "disabled"}>${[7, 14, 30, 60, 90, 180, 365].map((days) => `<option value="${days}" ${Number(salla?.defaultDurationDays || 30) === days ? "selected" : ""}>${days} يومًا</option>`).join("")}</select></label>
+      </section>
+      <section class="salla-rules-panel">
+        <div class="salla-rules-head"><div><h3>أنواع ومدد الاشتراكات</h3><p>يطابق النظام اسم النوع مع اسم المنتج أو SKU في طلب سلة، ثم يحسب تاريخ النهاية تلقائيًا.</p></div><button class="btn btn-secondary" data-action="add-salla-rule" ${sallaConnected ? "" : "disabled title=\"اربط متجر سلة أولًا\""}>+ إضافة نوع</button></div>
+        <div class="salla-rule-list">${sallaRuleRows}</div>
+        <div class="salla-rules-actions"><span>يمكنك حفظ حتى 30 نوعًا، بمدة من يوم إلى 3650 يومًا.</span><button class="btn btn-primary" data-action="save-salla-rules" ${sallaConnected && sallaRules.length ? "" : "disabled"}>حفظ الأنواع والمدد</button></div>
+      </section>
     </div>
     <div class="salla-meta"><span>آخر مزامنة: ${salla?.lastSyncAt ? escapeHtml(new Date(salla.lastSyncAt).toLocaleString("ar-SA")) : "لم تتم المزامنة بعد"}</span><span>${salla?.storeName ? `المتجر: ${escapeHtml(salla.storeName)}` : "هذه الميزة لمتاجر سلة فقط"}</span>${salla?.lastError ? `<span class="danger-text">${escapeHtml(salla.lastError)}</span>` : ""}</div>
   </article>`;
@@ -2317,18 +2338,32 @@ async function imageFileToDataUrl(file) {
 async function saveSallaSettings(overrides = {}) {
   const current = state.sallaIntegration?.integration || {};
   try {
+    const body = {
+      autoSync: overrides.autoSync ?? Boolean(current.autoSync),
+      defaultDurationDays: overrides.defaultDurationDays ?? Number(current.defaultDurationDays || 30)
+    };
+    if (overrides.subscriptionRules !== undefined) body.subscriptionRules = overrides.subscriptionRules;
     const payload = await fetchJson("/api/integrations/salla", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        autoSync: overrides.autoSync ?? Boolean(current.autoSync),
-        defaultDurationDays: overrides.defaultDurationDays ?? Number(current.defaultDurationDays || 30)
-      })
+      body: JSON.stringify(body)
     });
     state.sallaIntegration = { ...(state.sallaIntegration || {}), integration: payload.integration };
-    toast("تم حفظ إعدادات مزامنة سلة");
+    if (overrides.subscriptionRules !== undefined) state.sallaRuleDrafts = null;
+    toast(overrides.subscriptionRules !== undefined ? "تم حفظ أنواع الاشتراكات ومددها" : "تم حفظ إعدادات مزامنة سلة");
     render();
   } catch (error) { toast(error.message || "تعذر حفظ إعدادات سلة", "danger"); }
+}
+
+function readSallaRuleDrafts() {
+  const rows = [...document.querySelectorAll("[data-salla-rule-row]")];
+  if (rows.length) return rows.map((row) => ({
+    id: row.dataset.ruleId || `rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: row.querySelector('[data-salla-rule-field="name"]')?.value?.trim() || "",
+    durationDays: Number(row.querySelector('[data-salla-rule-field="durationDays"]')?.value || 30)
+  }));
+  const saved = state.sallaIntegration?.integration?.subscriptionRules;
+  return Array.isArray(state.sallaRuleDrafts) ? state.sallaRuleDrafts.map((rule) => ({ ...rule })) : Array.isArray(saved) ? saved.map((rule) => ({ ...rule })) : [];
 }
 
 async function handleAction(target) {
@@ -2349,6 +2384,23 @@ async function handleAction(target) {
     } catch (error) { toast(error.message || "تعذر حذف الصورة", "danger"); }
   }
   if (action === "connect-salla") window.location.href = "/api/integrations/salla/connect";
+  if (action === "add-salla-rule") {
+    const drafts = readSallaRuleDrafts();
+    drafts.push({ id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: "", durationDays: 30 });
+    state.sallaRuleDrafts = drafts;
+    render();
+  }
+  if (action === "remove-salla-rule") {
+    const drafts = readSallaRuleDrafts();
+    drafts.splice(Number(target.dataset.ruleIndex), 1);
+    state.sallaRuleDrafts = drafts;
+    render();
+  }
+  if (action === "save-salla-rules") {
+    const drafts = readSallaRuleDrafts();
+    if (!drafts.length) return toast("أضف نوع اشتراك واحدًا على الأقل", "danger");
+    await saveSallaSettings({ subscriptionRules: drafts });
+  }
   if (action === "disconnect-salla") {
     if (!confirm("هل تريد فصل متجر سلة وإيقاف المزامنة التلقائية؟")) return;
     try {
@@ -3224,6 +3276,12 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.dataset.sallaRuleField) {
+    const index = Number(target.dataset.ruleIndex);
+    const drafts = readSallaRuleDrafts();
+    if (drafts[index]) drafts[index][target.dataset.sallaRuleField] = target.dataset.sallaRuleField === "durationDays" ? Number(target.value) : target.value;
+    state.sallaRuleDrafts = drafts;
+  }
   if (target.dataset.action === "dashboard-search" || target.dataset.action === "global-search" || target.dataset.action === "support-search") {
     state.search = target.value;
     if (target.dataset.action !== "global-search") render();

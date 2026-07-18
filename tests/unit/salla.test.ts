@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createSallaState, normalizeSallaOrder, verifySallaState, verifySallaWebhook } from "../../src/lib/salla.js";
+import { createSallaState, normalizeSallaOrder, normalizeSallaSubscriptionRules, resolveSallaSubscriptionRule, verifySallaState, verifySallaWebhook } from "../../src/lib/salla.js";
 
 describe("Salla integration helpers", () => {
   beforeEach(() => {
@@ -40,5 +40,31 @@ describe("Salla integration helpers", () => {
       price: 199
     });
     expect(order.endDate).toBe("2026-08-16");
+  });
+
+  it("matches saved product types to their own subscription durations", () => {
+    const payload = { data: { items: [{ name: "اشتراك Gemini Advanced", sku: "GEMINI-12M" }] } };
+    const matched = resolveSallaSubscriptionRule(payload, [
+      { id: "grok", name: "Grok", durationDays: 30 },
+      { id: "gemini", name: "Gemini", durationDays: 365 }
+    ], 14);
+    expect(matched.rule?.name).toBe("Gemini");
+    expect(matched.durationDays).toBe(365);
+  });
+
+  it("uses the fallback duration when no product rule matches", () => {
+    const matched = resolveSallaSubscriptionRule({ data: { items: [{ name: "منتج آخر" }] } }, [
+      { id: "grok", name: "Grok", durationDays: 90 }
+    ], 21);
+    expect(matched.rule).toBeNull();
+    expect(matched.durationDays).toBe(21);
+  });
+
+  it("rejects duplicate or invalid subscription rules", () => {
+    expect(() => normalizeSallaSubscriptionRules([
+      { name: "Grok", durationDays: 30 },
+      { name: "grok", durationDays: 90 }
+    ])).toThrow();
+    expect(() => normalizeSallaSubscriptionRules([{ name: "Gemini", durationDays: 0 }])).toThrow();
   });
 });

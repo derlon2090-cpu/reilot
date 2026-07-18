@@ -41,6 +41,51 @@ function dateOnly(value) {
   return safe.toISOString().slice(0, 10);
 }
 
+function normalizedText(value) {
+  return String(value || "").trim().toLocaleLowerCase("en");
+}
+
+export function normalizeSallaSubscriptionRules(input) {
+  if (input == null) return [];
+  if (!Array.isArray(input)) throw new Error("Subscription rules must be an array");
+  if (input.length > 30) throw new Error("A maximum of 30 subscription rules is allowed");
+  const names = new Set();
+  return input.map((entry, index) => {
+    const name = String(entry?.name || "").trim().replace(/\s+/g, " ");
+    const durationDays = Number(entry?.durationDays);
+    if (!name || name.length > 80) throw new Error(`Invalid subscription rule name at index ${index}`);
+    if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 3650) {
+      throw new Error(`Invalid subscription duration at index ${index}`);
+    }
+    const normalizedName = normalizedText(name);
+    if (names.has(normalizedName)) throw new Error(`Duplicate subscription rule at index ${index}`);
+    names.add(normalizedName);
+    return {
+      id: String(entry?.id || crypto.randomUUID()).slice(0, 80),
+      name,
+      durationDays
+    };
+  });
+}
+
+export function resolveSallaSubscriptionRule(payload, inputRules, fallbackDurationDays = 30) {
+  const rules = normalizeSallaSubscriptionRules(inputRules);
+  const data = payload?.data || payload || {};
+  const items = Array.isArray(data.items) ? data.items : [];
+  const searchableValues = [
+    data.service_name,
+    data.plan_name,
+    ...items.flatMap((item) => [item?.name, item?.sku, item?.product?.name, item?.product?.sku])
+  ].map(normalizedText).filter(Boolean);
+  const sortedRules = [...rules].sort((a, b) => b.name.length - a.name.length);
+  const rule = sortedRules.find((candidate) => {
+    const needle = normalizedText(candidate.name);
+    return searchableValues.some((value) => value === needle || value.includes(needle));
+  }) || null;
+  const fallback = Math.max(1, Math.min(3650, Number(fallbackDurationDays) || 30));
+  return { rule, durationDays: rule?.durationDays || fallback };
+}
+
 export function normalizeSallaOrder(payload, durationDays = 30) {
   const data = payload?.data || payload || {};
   const customer = data.customer || {};

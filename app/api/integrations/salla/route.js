@@ -1,5 +1,6 @@
 import { query } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
+import { normalizeSallaSubscriptionRules } from "../../../../src/lib/salla.js";
 
 function configured() {
   return Boolean(process.env.SALLA_CLIENT_ID && process.env.SALLA_CLIENT_SECRET && process.env.ENCRYPTION_KEY);
@@ -10,7 +11,8 @@ export async function GET(req) {
   if (!auth.ok) return auth.response;
   const result = await query(
     `SELECT id, status, store_name AS "storeName", auto_sync AS "autoSync",
-            default_duration_days AS "defaultDurationDays", last_sync_at AS "lastSyncAt",
+            default_duration_days AS "defaultDurationDays", subscription_rules AS "subscriptionRules",
+            last_sync_at AS "lastSyncAt",
             last_webhook_at AS "lastWebhookAt", last_error AS "lastError"
        FROM commerce_integrations WHERE tenant_id = $1 AND provider = 'salla' LIMIT 1`,
     [auth.session.tenantId]
@@ -23,15 +25,26 @@ export async function PATCH(req) {
   if (!auth.ok) return auth.response;
   const body = await req.json().catch(() => ({}));
   const duration = Math.max(1, Math.min(3650, Number(body.defaultDurationDays) || 30));
+  let rules = null;
+  if (body.subscriptionRules !== undefined) {
+    try {
+      rules = normalizeSallaSubscriptionRules(body.subscriptionRules);
+    } catch {
+      return Response.json({ ok: false, message: "تحقق من أسماء أنواع الاشتراكات ومددها، ولا تكرر النوع نفسه." }, { status: 400 });
+    }
+  }
   const result = await query(
     `UPDATE commerce_integrations
         SET auto_sync = CASE WHEN status = 'connected' THEN $1 ELSE false END,
-            default_duration_days = $2, updated_at = now()
-      WHERE tenant_id = $3 AND provider = 'salla'
+            default_duration_days = $2,
+            subscription_rules = COALESCE($3::jsonb, subscription_rules),
+            updated_at = now()
+      WHERE tenant_id = $4 AND provider = 'salla'
       RETURNING id, status, store_name AS "storeName", auto_sync AS "autoSync",
-                default_duration_days AS "defaultDurationDays", last_sync_at AS "lastSyncAt",
+                default_duration_days AS "defaultDurationDays", subscription_rules AS "subscriptionRules",
+                last_sync_at AS "lastSyncAt",
                 last_webhook_at AS "lastWebhookAt", last_error AS "lastError"`,
-    [body.autoSync === true, duration, auth.session.tenantId]
+    [body.autoSync === true, duration, rules === null ? null : JSON.stringify(rules), auth.session.tenantId]
   );
   if (!result.rowCount) return Response.json({ ok: false, message: "اربط متجر سلة أولًا." }, { status: 409 });
   return Response.json({ ok: true, integration: result.rows[0] });

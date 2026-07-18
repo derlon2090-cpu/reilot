@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { query, transaction } from "../../../../src/server/db.js";
-import { normalizeSallaOrder, verifySallaWebhook } from "../../../../src/lib/salla.js";
+import { normalizeSallaOrder, resolveSallaSubscriptionRule, verifySallaWebhook } from "../../../../src/lib/salla.js";
 
 export async function POST(req) {
   const rawBody = await req.text();
@@ -13,14 +13,17 @@ export async function POST(req) {
   const merchantId = String(payload.merchant || payload.merchant_id || payload.data?.merchant?.id || "").trim();
   if (!merchantId) return Response.json({ ok: true, ignored: true });
   const integrationResult = await query(
-    `SELECT id, tenant_id AS "tenantId", default_duration_days AS "defaultDurationDays"
+    `SELECT id, tenant_id AS "tenantId", default_duration_days AS "defaultDurationDays",
+            subscription_rules AS "subscriptionRules"
        FROM commerce_integrations WHERE provider = 'salla' AND merchant_id = $1
         AND status = 'connected' AND auto_sync = true LIMIT 1`,
     [merchantId]
   );
   const integration = integrationResult.rows[0];
   if (!integration) return Response.json({ ok: true, ignored: true });
-  const order = normalizeSallaOrder(payload, integration.defaultDurationDays);
+  const matched = resolveSallaSubscriptionRule(payload, integration.subscriptionRules, integration.defaultDurationDays);
+  const order = normalizeSallaOrder(payload, matched.durationDays);
+  if (matched.rule) order.planName = matched.rule.name;
   if (!order.externalOrderId || !order.orderNumber) return Response.json({ ok: false, message: "Order id is missing" }, { status: 422 });
   const payloadHash = crypto.createHash("sha256").update(rawBody).digest("hex");
   await transaction(async (client) => {
@@ -58,7 +61,7 @@ export async function POST(req) {
       [integration.tenantId, integration.id, order.externalOrderId, customerId, subscription.rows[0].id, payloadHash]
     );
     await client.query("UPDATE commerce_integrations SET last_sync_at = now(), last_webhook_at = now(), last_error = NULL, updated_at = now() WHERE id = $1", [integration.id]);
-    await client.query("INSERT INTO activity_logs (tenant_id, customer_id, type, title, metadata) VALUES ($1, $2, 'salla.order.synced', 'Salla order synchronized', $3::jsonb)", [integration.tenantId, customerId, JSON.stringify({ orderNumber: order.orderNumber, event })]);
+    await client.query("INSERT INTO activity_logs (tenant_id, customer_id, type, title, metadata) VALUES ($1, $2, 'salla.order.synced', 'Salla order synchronized', $3::jsonb)", [integration.tenantId, customerId, JSON.stringify({ orderNumber: order.orderNumber, event, subscriptionType: matched.rule?.name || null, durationDays: matched.durationDays })]);
   });
   return Response.json({ ok: true });
 }
