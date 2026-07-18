@@ -1,3 +1,5 @@
+import QRCode from "qrcode";
+
 function config() {
   const baseUrl = String(process.env.EVOLUTION_API_URL || "").replace(/\/$/, "");
   const apiKey = process.env.EVOLUTION_API_KEY;
@@ -30,12 +32,26 @@ async function request(path, init = {}) {
     throw error;
   }
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Evolution API ${response.status}: ${body?.message || "request failed"}`);
+  if (!response.ok) {
+    const providerMessage = Array.isArray(body?.message)
+      ? body.message.join(", ")
+      : body?.message || body?.error || "request failed";
+    const error = new Error(`Evolution API ${response.status}: ${providerMessage}`);
+    error.status = response.status;
+    error.providerMessage = String(providerMessage);
+    if ([401, 403].includes(response.status)) error.code = "EVOLUTION_AUTH_FAILED";
+    if (response.status === 404) error.code = "EVOLUTION_INSTANCE_NOT_FOUND";
+    throw error;
+  }
   return body;
 }
 
 export function isEvolutionInstanceMissing(error) {
-  return /Evolution API 404:/i.test(String(error?.message || ""));
+  return error?.code === "EVOLUTION_INSTANCE_NOT_FOUND" || /Evolution API 404:/i.test(String(error?.message || ""));
+}
+
+export function isEvolutionAuthFailed(error) {
+  return error?.code === "EVOLUTION_AUTH_FAILED" || /Evolution API (401|403):/i.test(String(error?.message || ""));
 }
 
 export function isEvolutionTimeout(error) {
@@ -64,7 +80,11 @@ export function extractEvolutionPairingCode(body) {
     body?.pairingCode,
     body?.pairing_code,
     body?.codePairing,
+    body?.qrcode?.pairingCode,
+    body?.qrcode?.pairing_code,
+    body?.code?.pairingCode,
     body?.data?.pairingCode,
+    body?.data?.qrcode?.pairingCode,
     body?.data?.code,
     body?.code
   ];
@@ -84,13 +104,44 @@ export function normalizeEvolutionQr(value) {
   return `data:image/${png ? "png" : "jpeg"};base64,${encoded}`;
 }
 
+export async function extractEvolutionQr(body) {
+  const imageCandidates = [
+    body?.qrcode?.base64,
+    body?.base64,
+    body?.data?.qrcode?.base64,
+    body?.data?.base64
+  ];
+  for (const candidate of imageCandidates) {
+    const normalized = normalizeEvolutionQr(candidate);
+    if (normalized) return normalized;
+  }
+
+  const textCandidates = [
+    body?.qrcode?.code,
+    body?.data?.qrcode?.code,
+    body?.data?.code,
+    body?.code
+  ];
+  const qrText = textCandidates.find((value) => typeof value === "string" && value.trim().length > 30);
+  if (!qrText) return null;
+  const generated = await QRCode.toDataURL(qrText.trim(), {
+    type: "image/png",
+    errorCorrectionLevel: "M",
+    margin: 2,
+    width: 360
+  });
+  return normalizeEvolutionQr(generated);
+}
+
 export async function evolutionHealth() {
   const startedAt = Date.now();
   const body = await request("/server/ok").catch(() => request("/"));
   return { ok: true, latencyMs: Date.now() - startedAt, version: body?.version || body?.response?.version || null };
 }
 
-export function evolutionCreateInstance(instanceName) {
+export function evolutionCreateInstance(instanceName, options = {}) {
+  const qrcode = options.qrcode === true;
+  const number = String(options.phoneNumber || "").replace(/\D/g, "");
   const webhookBase = process.env.EVOLUTION_WEBHOOK_URL;
   const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET;
   const webhook = webhookBase && webhookSecret ? {
@@ -100,7 +151,13 @@ export function evolutionCreateInstance(instanceName) {
   } : undefined;
   return request("/instance/create", {
     method: "POST",
-    body: JSON.stringify({ instanceName, qrcode: false, integration: "WHATSAPP-BAILEYS", ...(webhook ? { webhook } : {}) }),
+    body: JSON.stringify({
+      instanceName,
+      qrcode,
+      integration: "WHATSAPP-BAILEYS",
+      ...(number ? { number } : {}),
+      ...(webhook ? { webhook } : {})
+    }),
     timeoutMs: 20_000
   });
 }

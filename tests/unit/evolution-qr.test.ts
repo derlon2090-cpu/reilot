@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evolutionConnect, extractEvolutionPairingCode, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionConnect, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
@@ -22,8 +22,16 @@ describe("normalizeEvolutionQr", () => {
 
   it("extracts only short provider pairing codes and rejects QR payloads", () => {
     expect(extractEvolutionPairingCode({ data: { pairingCode: "7K9M-2Q4P" } })).toBe("7K9M-2Q4P");
+    expect(extractEvolutionPairingCode({ qrcode: { pairingCode: "82190874" } })).toBe("82190874");
+    expect(extractEvolutionPairingCode({ code: { pairingCode: "4Q7K9P2M" } })).toBe("4Q7K9P2M");
     expect(extractEvolutionPairingCode({ pairingCode: null, code: "x".repeat(3000) })).toBeNull();
     expect(isValidPairingCode("data:image/png;base64,abc")).toBe(false);
+  });
+
+  it("turns Evolution QR text into a real server-generated PNG data URI", async () => {
+    const qr = await extractEvolutionQr({ code: "2@provider-qr-payload-that-is-long-enough-for-a-real-qr-code" });
+    expect(qr).toMatch(/^data:image\/png;base64,/);
+    expect(normalizeEvolutionQr(qr)).toBe(qr);
   });
 
   it("does not classify an HTTP 200 response without a code as unsupported", () => {
@@ -72,6 +80,26 @@ describe("normalizeEvolutionQr", () => {
     }
   });
 
+  it("returns a stable auth code without exposing the API key", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.EVOLUTION_API_KEY;
+    const previousUrl = process.env.EVOLUTION_API_URL;
+    process.env.EVOLUTION_API_KEY = "super-secret-test-key";
+    process.env.EVOLUTION_API_URL = "https://evolution.test";
+    globalThis.fetch = async () => new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    try {
+      await evolutionConnect("rp_test").catch((error) => {
+        expect(error).toMatchObject({ code: "EVOLUTION_AUTH_FAILED", status: 401 });
+        expect(isEvolutionAuthFailed(error)).toBe(true);
+        expect(error.message).not.toContain("super-secret-test-key");
+      });
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EVOLUTION_API_URL; else process.env.EVOLUTION_API_URL = previousUrl;
+    }
+  });
+
   it("keeps the provider pairing-capable by creating instances without an eager QR", async () => {
     const previousFetch = globalThis.fetch;
     const previousKey = process.env.EVOLUTION_API_KEY;
@@ -87,6 +115,8 @@ describe("normalizeEvolutionQr", () => {
     try {
       await evolutionCreateInstance("rp_test");
       expect(payload).toMatchObject({ instanceName: "rp_test", qrcode: false, integration: "WHATSAPP-BAILEYS" });
+      await evolutionCreateInstance("rp_test_qr", { qrcode: true, phoneNumber: "+966 55 171 0581" });
+      expect(payload).toMatchObject({ instanceName: "rp_test_qr", qrcode: true, number: "966551710581", integration: "WHATSAPP-BAILEYS" });
     } finally {
       globalThis.fetch = previousFetch;
       if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
