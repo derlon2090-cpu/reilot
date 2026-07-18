@@ -584,7 +584,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) void loadRemotePage("settings", "/api/settings", "accountSettings");
 }
 
-async function ensureEvolutionInstance(options = {}) {
+async function ensureLinkingInstance(options = {}) {
   if (state.linkedDevice.instanceId) return state.linkedDevice;
   const payload = await fetchJson("/api/whatsapp/instances/create", { method: "POST", ...options });
   state.linkedDevice = {
@@ -2600,7 +2600,7 @@ async function handleAction(target) {
     render();
     const requestSignal = AbortSignal.timeout(20_000);
     try {
-      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
+      const instance = await ensureLinkingInstance({ signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.instanceId}/pairing-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2635,7 +2635,7 @@ async function handleAction(target) {
     render();
     const requestSignal = AbortSignal.timeout(20_000);
     try {
-      const instance = await ensureEvolutionInstance({ signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
+      const instance = await ensureLinkingInstance({ signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
       if (!instance?.id) throw new Error("تعذر إنشاء جلسة الربط.");
       state.linkedDevice = { ...state.linkedDevice, ...instance, instanceId: instance.id, instanceName: instance.instanceName || "", qrBase64: "" };
       const payload = await fetchJson(`/api/whatsapp/instances/${instance.id}/qr`, { signal: requestSignal, timeoutMessage: "استغرقت خدمة الربط وقتًا أطول من المتوقع. حاول مرة أخرى." });
