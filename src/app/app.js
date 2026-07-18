@@ -90,10 +90,8 @@ const operationalEnglishPhrases = {
 
 Object.assign(operationalEnglishPhrases, {
   "✦ منصة متكاملة لإدارة الاشتراكات والتجديدات": "✦ An integrated subscription and renewal platform",
-  "أدر تجديدات اشتراكاتك، تابع عملاءك،": "Manage subscription renewals and follow your customers,",
-  "وفعّل التذكيرات": "and automate reminders",
-  "بذكاء واحترافية": "intelligently and professionally",
-  "RenewPilot AI يساعدك على أتمتة عمليات التجديد، متابعة العملاء، وإرسال التذكيرات بسهولة وأمان، مع تقارير ذكية تمنحك رؤية أوضح لنمو عملك.": "RenewPilot AI automates renewals, customer follow-up, and secure reminders, with smart reports that make growth clearer.",
+  "أدر اشتراكاتك وتجديدات عملائك بذكاء مع Renvix": "Manage customer subscriptions and renewals intelligently with Renvix",
+  "Renvix منصة ذكية تساعدك على إدارة الاشتراكات، متابعة التجديدات، إرسال التنبيهات، وإنشاء روابط معلومات الطلب باحترافية.": "Renvix is a smart platform for subscriptions, renewals, notifications, and professional order information links.",
   "استكشف المميزات": "Explore features",
   "إدارة اشتراكات ذكية": "Smart subscription management",
   "أتمتة التجديدات والتنبيهات وتقليل الانقطاعات وزيادة رضا العملاء.": "Automate renewals and reminders, reduce interruptions, and improve customer satisfaction.",
@@ -111,7 +109,7 @@ Object.assign(operationalEnglishPhrases, {
   "أدوات مترابطة تعمل معًا من أول تنبيه حتى اكتمال التجديد.": "Connected tools that work together from the first reminder through renewal.",
   "كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.": "Everything you need to manage renewals, subscriptions, and customers efficiently in one intelligent platform.",
   "ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم": "Start managing subscriptions intelligently today",
-  "جرّب RenewPilot AI مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.": "Try RenewPilot AI free and manage renewals smoothly without complexity.",
+  "جرّب Renvix مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.": "Try Renvix free and manage renewals smoothly without complexity.",
   "إنشاء حساب مجاني": "Create a free account",
   "احجز عرضًا تجريبيًا": "Book a demo",
   "الباقات": "Plans",
@@ -170,7 +168,7 @@ Object.assign(operationalEnglishPhrases, {
   "تعرف على التفاصيل والخطوات الأساسية.": "Learn the essentials and follow the required steps.",
   "ابحث في مقالات المساعدة": "Search help articles",
   "ابحث عن حلول ومقالات...": "Search solutions and articles...",
-  "ما هو RenewPilot AI وكيف يعمل؟": "What is RenewPilot AI and how does it work?",
+  "ما هو Renvix وكيف يعمل؟": "What is Renvix and how does it work?",
   "كيف يمكنني ربط حسابي في واتساب؟": "How do I connect my WhatsApp account?",
   "هل يمكنني إلغاء اشتراكي في أي وقت؟": "Can I cancel my subscription at any time?",
   "ما هي طرق الدفع المتاحة؟": "Which payment methods are available?",
@@ -287,7 +285,7 @@ Object.assign(operationalEnglishPhrases, {
   "♬ دعم على مدار الساعة": "♬ Always-on support",
   "◷ متوسط الرد أقل من ساعتين": "◷ Average response under two hours",
   "خلاصة عملية": "Practical takeaways",
-  "طبّق هذه الخطوات في RenewPilot AI": "Put these steps into practice with RenewPilot AI",
+  "طبّق هذه الخطوات في Renvix": "Put these steps into practice with Renvix",
   "ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.": "Manage renewals from one clear and secure workspace.",
   "البدء السريع": "Quick start",
   "إدارة الاشتراكات": "Subscription management",
@@ -422,8 +420,9 @@ state.operationalIssues = null;
 state.whatsappHealth = null;
 state.notificationTemplate = null;
 state.billingOverview = null;
-state.sallaIntegration = null;
+state.appsOverview = null;
 state.sallaRuleDrafts = null;
+state.sallaSettingsOpen = false;
 state.orderLinkProfile = null;
 state.orderLinkTemplates = null;
 state.orderLinkSubscriptions = null;
@@ -454,7 +453,7 @@ state.orderLinkDraft = {
   style: "classic",
   themeColor: "#2563EB",
   headerText: "شكرًا لاختيارك خدماتنا",
-  footerText: "RenewPilot AI",
+  footerText: "Renvix",
   additionalNotes: [],
   visibleFields: {
     customerName: true, planName: true, startDate: true, endDate: true,
@@ -482,6 +481,7 @@ const dashboardRoutes = [
   ["/dashboard/renewal-template", "قالب رسالة التجديد", "template"],
   ["/dashboard/devices", "الأجهزة", "devices"],
   ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
+  ["/dashboard/apps", "تطبيقاتنا", "apps"],
   ["/dashboard/security", "الحماية", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
   ["/dashboard/billing", "الفوترة والباقات", "billing"],
@@ -569,7 +569,7 @@ async function loadRemotePage(key, url, target, options) {
 function syncRouteData(force = false) {
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
   if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
-  if (state.route === "/dashboard/subscriptions" && (force || state.sallaIntegration === null)) void loadRemotePage("sallaIntegration", "/api/integrations/salla", "sallaIntegration");
+  if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) void loadRemotePage("appsOverview", "/api/apps", "appsOverview");
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
@@ -687,13 +687,19 @@ function icon(text, tone = "") {
 
 function logo() {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
-  return `<button class="brand btn-ghost" data-link="${destination}" aria-label="RenewPilot AI">
-    <img class="brand-logo" src="/assets/renewpilot-logo-horizontal.png" alt="RenewPilot AI">
+  const appName = t("app.name") || "Renvix";
+  return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
+    <img class="brand-mark-image" src="/assets/renvix-mark.png" alt="">
+    <span class="brand-wordmark">${escapeHtml(appName)}</span>
   </button>`;
 }
 
 function stackedLogo() {
-  return `<img class="brand-logo-stacked" src="/assets/renewpilot-logo-stacked.png" alt="RenewPilot AI">`;
+  const appName = t("app.name") || "Renvix";
+  return `<div class="brand-logo-stacked" role="img" aria-label="${escapeHtml(appName)}">
+    <img class="brand-mark-image" src="/assets/renvix-mark.png" alt="">
+    <strong class="brand-wordmark">${escapeHtml(appName)}</strong>
+  </div>`;
 }
 
 function dashboardIcon(name) {
@@ -706,6 +712,7 @@ function dashboardIcon(name) {
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
     orderLink: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><rect x="8" y="8" width="8" height="8" rx="2"/>',
+    apps: '<path d="M19 13h-2.5a1.5 1.5 0 0 0-1.5 1.5V17h-3v-2.5a1.5 1.5 0 0 0-1.5-1.5H8V10h2.5A1.5 1.5 0 0 0 12 8.5V6h3v2.5a1.5 1.5 0 0 0 1.5 1.5H19z"/><path d="M8 10V7a2 2 0 1 0-4 0v3H2v4h2v3a2 2 0 1 0 4 0v-4"/><path d="M19 10h1a2 2 0 1 0 0-4h-2V3h-4v3"/>',
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>'
@@ -739,7 +746,7 @@ function publicShell(content) {
 
 function publicFooter() {
   return `<footer class="public-footer"><div class="container public-footer-inner">
-    <div class="footer-brand-mini">${logo()}<span>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</span></div>
+    <div class="footer-brand-mini">${logo()}<span>© 2026 Renvix. جميع الحقوق محفوظة.</span></div>
     <nav class="footer-links" aria-label="روابط سريعة"><button data-link="/about">عن المنصة</button><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button><button data-link="/support">الدعم</button><button data-link="/contact">تواصل معنا</button><button data-link="/blog">المدونة</button></nav>
     <div class="footer-social"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">in</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">▶</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">X</a><a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="WhatsApp">◉</a></div>
   </div></footer>`;
@@ -748,7 +755,7 @@ function publicFooter() {
 function pageHero(title, lead, actions = "") {
   return `<section class="page-hero">
     <div class="container">
-      <span class="eyebrow">RenewPilot AI</span>
+      <span class="eyebrow">Renvix</span>
       <h1>${title}</h1>
       <p class="lead">${lead}</p>
       ${actions ? `<div class="hero-actions center-actions">${actions}</div>` : ""}
@@ -785,7 +792,7 @@ function performanceChart(rows = []) {
 }
 
 function dashboardPreview() {
-  return `<article class="dashboard-reference"><img src="/assets/dashboard-preview.png" alt="معاينة لوحة تحكم RenewPilot AI"></article>`;
+  return `<article class="dashboard-reference"><img src="/assets/dashboard-preview.png" alt="معاينة لوحة تحكم Renvix"></article>`;
 }
 
 function featureGrid(limit = features.length) {
@@ -901,7 +908,7 @@ function supportPage() {
     </div></section>
     <section class="section"><div class="container split">
       <article class="card table-card"><h2>قاعدة المعرفة</h2><div class="grid grid-3">${knowledgeBase.map((item) => `<button class="chip" data-action="knowledge" data-term="${item}">${item}</button>`).join("")}</div></article>
-      <article class="card table-card"><h2>مساعد RenewPilot AI</h2><p class="muted">اكتب سؤالك وسنعرض ردًا مبدئيًا إلى حين ربط المساعد.</p><form data-submit="ai-question"><textarea class="textarea" name="question" required placeholder="اكتب سؤالك هنا"></textarea><br><button class="btn btn-primary">إرسال السؤال</button></form></article>
+      <article class="card table-card"><h2>مساعد Renvix</h2><p class="muted">اكتب سؤالك وسنعرض ردًا مبدئيًا إلى حين ربط المساعد.</p><form data-submit="ai-question"><textarea class="textarea" name="question" required placeholder="اكتب سؤالك هنا"></textarea><br><button class="btn btn-primary">إرسال السؤال</button></form></article>
     </div></section>
     <section class="section"><div class="container"><article class="card table-card"><h2>حالة التذاكر</h2>${simpleTable(["رقم التذكرة", "الموضوع", "الحالة"], [["TK-108", "ربط مزود البريد", status("قيد الانتظار")], ["TK-104", "تحديث طريقة الدفع", status("محلولة")]])}</article></div></section>
   </main>`);
@@ -986,7 +993,7 @@ function marketingHomePage() {
   ];
   return publicShell(`<main>
     <section class="marketing-hero"><div class="container marketing-hero-grid">
-      <div class="marketing-copy"><span class="eyebrow">✦ منصة متكاملة لإدارة الاشتراكات والتجديدات</span><h1>أدر تجديدات اشتراكاتك، تابع عملاءك،<br>وفعّل التذكيرات <span>بذكاء واحترافية</span></h1><p class="lead">RenewPilot AI يساعدك على أتمتة عمليات التجديد، متابعة العملاء، وإرسال التذكيرات بسهولة وأمان، مع تقارير ذكية تمنحك رؤية أوضح لنمو عملك.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
+      <div class="marketing-copy"><span class="eyebrow">✦ منصة متكاملة لإدارة الاشتراكات والتجديدات</span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات عملائك بذكاء مع", "Manage customer subscriptions and renewals intelligently with")} <span>Renvix</span></h1><p class="lead">Renvix منصة ذكية تساعدك على إدارة الاشتراكات، متابعة التجديدات، إرسال التنبيهات، وإنشاء روابط معلومات الطلب باحترافية.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
       <div class="hero-product-preview">${dashboardPreview()}</div>
     </div></section>
     <section class="marketing-strip"><div class="container grid grid-4">${highlights.map(([title, body, mark]) => `<article class="marketing-mini">${dashboardIcon(mark)}<div><h3>${title}</h3><p>${body}</p></div></article>`).join("")}</div></section>
@@ -998,7 +1005,7 @@ function marketingHomePage() {
 function marketingFeaturesPage() {
   return publicShell(`<main><section class="public-heading"><div class="container"><h1>المميزات</h1><p>كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.</p></div></section>
     <section class="section features-section"><div class="container feature-showcase-grid"><div class="feature-visual-column"><div class="feature-preview-card">${dashboardPreview()}</div><div class="feature-lower-grid">${features.slice(6).map(([title, body], index) => `<article class="card feature-wide">${dashboardIcon(index ? "customers" : "security")}<div><h2>${title}</h2><p>${body}</p></div></article>`).join("")}</div></div><div class="public-feature-grid">${features.slice(0, 6).map(([title, body], index) => `<article class="card public-feature-card">${dashboardIcon(["subscriptions", "customers", "devices", "template", "reports", "template"][index])}<h2>${title}</h2><p>${body}</p></article>`).join("")}</div></div></section>
-    <section class="section section-tight"><div class="container"><div class="card public-cta"><div class="cta-logo"><img src="/assets/renewpilot-logo-horizontal.png" alt="RenewPilot AI"></div><div><h2>ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم</h2><p>جرّب RenewPilot AI مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.</p></div><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب مجاني</button><button class="btn btn-secondary" data-action="open-demo">احجز عرضًا تجريبيًا</button></div></div></div></section></main>`);
+    <section class="section section-tight"><div class="container"><div class="card public-cta"><div class="cta-logo">${logo()}</div><div><h2>ابدأ إدارة اشتراكاتك بطريقة ذكية اليوم</h2><p>جرّب Renvix مجانًا واستمتع بإدارة سلسة وفعالة دون تعقيد.</p></div><div class="hero-actions"><button class="btn btn-primary" data-link="/register">إنشاء حساب مجاني</button><button class="btn btn-secondary" data-action="open-demo">احجز عرضًا تجريبيًا</button></div></div></div></section></main>`);
 }
 
 function marketingPricingPage() {
@@ -1026,13 +1033,13 @@ function articlePage() {
   const post = publicBlogPosts.find((item) => `/blog/${item.slug}` === state.route);
   if (!post) return blogPage();
   const takeaways = localizedField(post.takeaways);
-  return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.")}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في RenewPilot AI", "Put these steps into practice with RenewPilot AI")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
+  return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.")}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في Renvix", "Put these steps into practice with Renvix")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
 }
 
 function marketingSupportPage() {
   const cards = [["مركز المساعدة", "أدلة شاملة ومقالات لمساعدتك خطوة بخطوة.", "تصفح المقالات", "#help-center", "template"], ["الأسئلة الشائعة", "إجابات سريعة لأكثر الأسئلة شيوعًا.", "عرض الأسئلة", "#faq", "security"], ["الدردشة", "تحدث مباشرة مع فريق الدعم.", "ابدأ المحادثة", "open-chat", "customers"], ["تواصل عبر البريد", "راسلنا وسنرد عليك خلال 24 ساعة عمل.", "راسلنا الآن", "open-email", "template"]];
   return publicShell(`<main class="support-page"><section class="section support-hero"><div class="container support-intro-row"><div class="support-intro-copy"><span class="eyebrow">نحن هنا لمساعدتك</span><h1>مركز الدعم</h1><p>ابحث في مقالات المساعدة، تواصل مع فريق الدعم، أو أرسل طلبك وسنعود إليك بأقرب وقت.</p></div><div class="support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action.startsWith("#") ? `<a class="btn btn-secondary" href="/support${action}">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></div></section>
-    <section class="section support-body"><div class="container support-layout"><article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${knowledgeBase.slice(0, 5).map((item) => `<button data-action="knowledge" data-term="${item}">${dashboardIcon("template")}<span><strong>${item}</strong><small>تعرف على التفاصيل والخطوات الأساسية.</small></span><b>‹</b></button>`).join("")}</article><article class="card faq-panel" id="faq"><h2>ابحث في مقالات المساعدة</h2><input class="input" data-action="support-search" placeholder="ابحث عن حلول ومقالات..."><h2>الأسئلة الشائعة</h2>${["ما هو RenewPilot AI وكيف يعمل؟", "كيف يمكنني ربط حسابي في واتساب؟", "هل يمكنني إلغاء اشتراكي في أي وقت؟", "ما هي طرق الدفع المتاحة؟", "كيف أتابع أداء حملاتي وتقاريري؟"].map((q) => `<details><summary>${q}</summary><p>ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك إذا احتجت إلى توجيه إضافي.</p></details>`).join("")}</article><article class="card support-form-card"><h2>أرسل لنا طلب دعم</h2><p>صف مشكلتك أو استفسارك وسنقوم بالرد عليك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" required></label><label class="field"><span>الموضوع</span><select class="select" name="subject" required><option value="">اختر موضوع الطلب</option><option>مشكلة تقنية</option><option>الفوترة والباقات</option><option>ربط الأجهزة</option></select></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" required></textarea></label><button class="btn btn-primary">إرسال الطلب</button></form></article></div></section><section class="section section-tight"><div class="container trust-band"><span>▢ آمن وموثوق</span><span>◇ خبراء المنتجات</span><span>♬ دعم على مدار الساعة</span><span>◷ متوسط الرد أقل من ساعتين</span></div></section></main>`);
+    <section class="section support-body"><div class="container support-layout"><article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${knowledgeBase.slice(0, 5).map((item) => `<button data-action="knowledge" data-term="${item}">${dashboardIcon("template")}<span><strong>${item}</strong><small>تعرف على التفاصيل والخطوات الأساسية.</small></span><b>‹</b></button>`).join("")}</article><article class="card faq-panel" id="faq"><h2>ابحث في مقالات المساعدة</h2><input class="input" data-action="support-search" placeholder="ابحث عن حلول ومقالات..."><h2>الأسئلة الشائعة</h2>${["ما هو Renvix وكيف يعمل؟", "كيف يمكنني ربط حسابي في واتساب؟", "هل يمكنني إلغاء اشتراكي في أي وقت؟", "ما هي طرق الدفع المتاحة؟", "كيف أتابع أداء حملاتي وتقاريري؟"].map((q) => `<details><summary>${q}</summary><p>ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك إذا احتجت إلى توجيه إضافي.</p></details>`).join("")}</article><article class="card support-form-card"><h2>أرسل لنا طلب دعم</h2><p>صف مشكلتك أو استفسارك وسنقوم بالرد عليك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" required></label><label class="field"><span>الموضوع</span><select class="select" name="subject" required><option value="">اختر موضوع الطلب</option><option>مشكلة تقنية</option><option>الفوترة والباقات</option><option>ربط الأجهزة</option></select></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" required></textarea></label><button class="btn btn-primary">إرسال الطلب</button></form></article></div></section><section class="section section-tight"><div class="container trust-band"><span>▢ آمن وموثوق</span><span>◇ خبراء المنتجات</span><span>♬ دعم على مدار الساعة</span><span>◷ متوسط الرد أقل من ساعتين</span></div></section></main>`);
 }
 
 function aboutPage() {
@@ -1047,22 +1054,22 @@ function aboutPage() {
     ["التشغيل الآمن", "Safe operation", "لا يبدأ الإرسال قبل اكتمال المتطلبات واتصال القناة.", "Sending cannot begin until requirements are complete and the channel is connected."],
     ["دعم مستمر", "Ongoing support", "مركز مساعدة وقنوات تواصل واضحة عند الحاجة.", "A clear help center and support channels are available whenever needed."]
   ];
-  return publicShell(`<main class="about-page"><section class="about-hero"><div class="container about-hero-grid"><div><span class="eyebrow">${localizedCopy("عن RenewPilot AI", "About RenewPilot AI")}</span><h1>${localizedCopy("منصة سعودية لإدارة الاشتراكات والتجديدات باحترافية", "A Saudi platform for professional subscription and renewal management")}</h1><p>${localizedCopy("نجمع بيانات العملاء والاشتراكات والتنبيهات والأجهزة والتقارير في مساحة عمل واحدة، حتى تتمكن فرق الأعمال من متابعة التجديدات واتخاذ قرارات أوضح دون عمليات يدوية مشتتة.", "We bring customers, subscriptions, reminders, devices, and reports into one workspace so teams can manage renewals and make clearer decisions without fragmented manual work.")}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("إنشاء حساب", "Create account")}</button><button class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}</button></div></div><div class="about-brand-visual">${stackedLogo()}<strong>${localizedCopy("إدارة أوضح. تواصل أذكى. نمو مستمر.", "Clearer management. Smarter communication. Sustainable growth.")}</strong></div></div></section>
-    <section class="section about-story"><div class="container"><div class="section-head"><div><span class="eyebrow">${localizedCopy("رؤيتنا", "Our vision")}</span><h2>${localizedCopy("نبني تجربة تجعل التجديد جزءًا من رحلة العميل", "We make renewal a natural part of the customer journey")}</h2><p>${localizedCopy("صُممت RenewPilot AI للشركات التي تريد تقليل الاشتراكات المنتهية، تنظيم التواصل، وحماية سمعة قنواتها أثناء النمو.", "RenewPilot AI is built for companies that want fewer expired subscriptions, organized communication, and healthier channels as they grow.")}</p></div></div><div class="about-value-grid">${values.map(([arTitle, enTitle, arBody, enBody, mark]) => `<article><span>${dashboardIcon(mark)}</span><h3>${localizedCopy(arTitle, enTitle)}</h3><p>${localizedCopy(arBody, enBody)}</p></article>`).join("")}</div></div></section>
+  return publicShell(`<main class="about-page"><section class="about-hero"><div class="container about-hero-grid"><div><span class="eyebrow">${localizedCopy("عن Renvix", "About Renvix")}</span><h1>${localizedCopy("منصة سعودية لإدارة الاشتراكات والتجديدات باحترافية", "A Saudi platform for professional subscription and renewal management")}</h1><p>${localizedCopy("نجمع بيانات العملاء والاشتراكات والتنبيهات والأجهزة والتقارير في مساحة عمل واحدة، حتى تتمكن فرق الأعمال من متابعة التجديدات واتخاذ قرارات أوضح دون عمليات يدوية مشتتة.", "We bring customers, subscriptions, reminders, devices, and reports into one workspace so teams can manage renewals and make clearer decisions without fragmented manual work.")}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("إنشاء حساب", "Create account")}</button><button class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}</button></div></div><div class="about-brand-visual">${stackedLogo()}<strong>${localizedCopy("إدارة أوضح. تواصل أذكى. نمو مستمر.", "Clearer management. Smarter communication. Sustainable growth.")}</strong></div></div></section>
+    <section class="section about-story"><div class="container"><div class="section-head"><div><span class="eyebrow">${localizedCopy("رؤيتنا", "Our vision")}</span><h2>${localizedCopy("نبني تجربة تجعل التجديد جزءًا من رحلة العميل", "We make renewal a natural part of the customer journey")}</h2><p>${localizedCopy("صُممت Renvix للشركات التي تريد تقليل الاشتراكات المنتهية، تنظيم التواصل، وحماية سمعة قنواتها أثناء النمو.", "Renvix is built for companies that want fewer expired subscriptions, organized communication, and healthier channels as they grow.")}</p></div></div><div class="about-value-grid">${values.map(([arTitle, enTitle, arBody, enBody, mark]) => `<article><span>${dashboardIcon(mark)}</span><h3>${localizedCopy(arTitle, enTitle)}</h3><p>${localizedCopy(arBody, enBody)}</p></article>`).join("")}</div></div></section>
     <section class="section about-principles"><div class="container about-principles-grid"><div><span class="eyebrow">${localizedCopy("كيف نعمل", "How we work")}</span><h2>${localizedCopy("منتج عملي يركز على النتائج", "A practical product focused on outcomes")}</h2><p>${localizedCopy("نطوّر المنصة حول احتياجات فرق الاشتراكات وخدمة العملاء: إعداد بسيط، واجهة عربية واضحة، تكاملات قابلة للمراقبة، وسجل نشاط يحفظ سياق كل عملية.", "We build around the needs of subscription and customer teams: simple setup, a clear bilingual interface, observable integrations, and an activity trail for every action.")}</p></div><div class="about-points">${principles.map(([arTitle, enTitle, arBody, enBody], index) => `<div><b>${String(index + 1).padStart(2, "0")}</b><span><strong>${localizedCopy(arTitle, enTitle)}</strong><small>${localizedCopy(arBody, enBody)}</small></span></div>`).join("")}</div></div></section><section class="section"><div class="container"><div class="public-cta"><div><h2>${localizedCopy("ابدأ إدارة تجديداتك من مكان واحد", "Manage renewals from one workspace")}</h2><p>${localizedCopy("أنشئ مساحة عملك وابدأ بإضافة عملائك واشتراكاتك دون بيانات افتراضية.", "Create your workspace and add customers and subscriptions without demo data.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></div></section></main>`);
 }
 
 function policyPage() {
   const policies = {
-    "/privacy": { title: "سياسة الخصوصية", intro: "توضح هذه السياسة كيف تجمع RenewPilot AI البيانات اللازمة لتقديم الخدمة، وكيف نحميها ونمنحك التحكم فيها.", sections: [["البيانات التي نجمعها", "نجمع بيانات الحساب ومساحة العمل والعملاء والاشتراكات وسجلات التشغيل التي تدخلها أو تنشئها أثناء استخدام المنصة. كما نسجل معلومات تقنية محدودة لازمة للأمان وتشخيص الأعطال."], ["كيف نستخدم البيانات", "نستخدم البيانات لتشغيل خصائص المنصة، إرسال التنبيهات التي يطلبها المستخدم، تحسين الاعتمادية، منع إساءة الاستخدام، وتقديم الدعم. لا نبيع بيانات العملاء ولا نستخدمها لإعلانات خارجية."], ["الحماية والعزل", "تُعزل بيانات كل مؤسسة بواسطة معرّف مساحة العمل، وتُطبق ضوابط وصول على الواجهات البرمجية وقاعدة البيانات. تُحفظ الأسرار في بيئة الخادم ولا تُرسل إلى المتصفح."], ["مقدمو الخدمات", "قد نعتمد على مزودين موثوقين للبنية التحتية والبريد والرسائل وقواعد البيانات. يقتصر وصولهم على ما يلزم لتقديم الخدمة وفق شروطهم واتفاقياتهم الأمنية."], ["الاحتفاظ والحذف", "نحتفظ بالبيانات طوال مدة الحساب أو حسب الحاجة النظامية والتشغيلية. يمكنك طلب تصحيح بياناتك أو تصديرها أو حذفها عبر مركز الدعم، مع مراعاة السجلات التي يجب الاحتفاظ بها نظاميًا."], ["حقوقك وخياراتك", "يمكنك إدارة إعدادات الإشعارات، تحديث الملف الشخصي، مراجعة الجلسات، وإيقاف الرسائل لعملاء محددين. للاستفسارات المتعلقة بالخصوصية تواصل معنا عبر قناة الدعم الرسمية."]] },
-    "/terms": { title: "سياسة الاستخدام والشروط", intro: "تنظم هذه الشروط استخدام RenewPilot AI وتحدد مسؤوليات صاحب الحساب والمستخدمين المخولين.", sections: [["قبول الشروط", "بإنشاء حساب أو استخدام المنصة فإنك توافق على هذه الشروط والسياسات المرتبطة بها، وتؤكد أن لديك الصلاحية لإدارة مساحة العمل والبيانات المضافة إليها."], ["الحساب والصلاحيات", "أنت مسؤول عن دقة بيانات الحساب، حماية كلمة المرور، ومراجعة المستخدمين المخولين. يجب إبلاغنا فورًا عن أي استخدام غير مصرح به أو نشاط مشبوه."], ["الاستخدام المقبول", "يُمنع استخدام المنصة لإرسال رسائل غير مرغوبة، انتحال الهوية، انتهاك الخصوصية، أو مخالفة أنظمة الاتصالات والتجارة الإلكترونية. يجب الحصول على الموافقات اللازمة من المستلمين."], ["القنوات والتكاملات", "تخضع خدمات واتساب والبريد والتكاملات الخارجية لتوفر مزوديها وشروطهم. يتحمل صاحب الحساب مسؤولية صحة الإعدادات والأرقام والقوالب المستخدمة."], ["الاشتراكات والفوترة", "تُعرض الأسعار والحدود قبل اختيار الخطة. قد تتغير المزايا والأسعار مستقبلًا بعد إشعار مناسب، وتستمر الفواتير المستحقة عن الفترات التي تم فيها استخدام الخدمة."], ["التعليق والإنهاء", "يجوز تعليق الحساب لحماية المنصة أو المستلمين عند وجود إساءة استخدام أو خطر أمني. يمكن لصاحب الحساب إلغاء الخدمة وفق إعدادات الخطة وسياسة الاسترجاع المعتمدة."]] },
-    "/refund-policy": { title: "سياسة الاستبدال والاسترجاع", intro: "نهدف إلى معالجة طلبات الفوترة بعدالة ووضوح وفق نوع الخطة، تاريخ العملية، والاستخدام الفعلي للخدمة.", sections: [["أهلية طلب الاسترجاع", "يمكن تقديم طلب مراجعة خلال المدة الموضحة عند الشراء إذا حدث خصم مكرر، خطأ تقني موثق، أو تعذر جوهري في تقديم الخدمة المدفوعة."], ["الحالات غير المؤهلة", "لا يشمل الاسترجاع عادةً الأرصدة أو الرسائل المستخدمة، الفترات المستهلكة، مخالفة سياسة الاستخدام، أو توقف خدمة خارجية لا تتحكم بها RenewPilot AI."], ["طريقة تقديم الطلب", "أرسل طلبًا من مركز الدعم يتضمن بريد الحساب ورقم الفاتورة ووصف المشكلة. لا ترسل بيانات بطاقتك أو كلمات المرور داخل الطلب."], ["المراجعة والمعالجة", "يراجع الفريق السجلات والفاتورة والاستخدام، ثم يرسل القرار عبر البريد المسجل. تعتمد مدة ظهور المبلغ على بوابة الدفع والبنك المصدر."], ["تغيير الخطة", "يمكن ترقية الخطة في أي وقت. أما التخفيض فيُطبق عادةً من دورة الفوترة التالية حتى لا تتأثر المزايا المدفوعة خلال الدورة الحالية."], ["الأسئلة المتعلقة بالفوترة", "لأي استفسار أو اعتراض استخدم نموذج الدعم واختر قسم الفوترة والباقات، وسيتواصل الفريق معك بالمعلومات المطلوبة دون طلب بيانات حساسة."]] },
+    "/privacy": { title: "سياسة الخصوصية", intro: "توضح هذه السياسة كيف تجمع Renvix البيانات اللازمة لتقديم الخدمة، وكيف نحميها ونمنحك التحكم فيها.", sections: [["البيانات التي نجمعها", "نجمع بيانات الحساب ومساحة العمل والعملاء والاشتراكات وسجلات التشغيل التي تدخلها أو تنشئها أثناء استخدام المنصة. كما نسجل معلومات تقنية محدودة لازمة للأمان وتشخيص الأعطال."], ["كيف نستخدم البيانات", "نستخدم البيانات لتشغيل خصائص المنصة، إرسال التنبيهات التي يطلبها المستخدم، تحسين الاعتمادية، منع إساءة الاستخدام، وتقديم الدعم. لا نبيع بيانات العملاء ولا نستخدمها لإعلانات خارجية."], ["الحماية والعزل", "تُعزل بيانات كل مؤسسة بواسطة معرّف مساحة العمل، وتُطبق ضوابط وصول على الواجهات البرمجية وقاعدة البيانات. تُحفظ الأسرار في بيئة الخادم ولا تُرسل إلى المتصفح."], ["مقدمو الخدمات", "قد نعتمد على مزودين موثوقين للبنية التحتية والبريد والرسائل وقواعد البيانات. يقتصر وصولهم على ما يلزم لتقديم الخدمة وفق شروطهم واتفاقياتهم الأمنية."], ["الاحتفاظ والحذف", "نحتفظ بالبيانات طوال مدة الحساب أو حسب الحاجة النظامية والتشغيلية. يمكنك طلب تصحيح بياناتك أو تصديرها أو حذفها عبر مركز الدعم، مع مراعاة السجلات التي يجب الاحتفاظ بها نظاميًا."], ["حقوقك وخياراتك", "يمكنك إدارة إعدادات الإشعارات، تحديث الملف الشخصي، مراجعة الجلسات، وإيقاف الرسائل لعملاء محددين. للاستفسارات المتعلقة بالخصوصية تواصل معنا عبر قناة الدعم الرسمية."]] },
+    "/terms": { title: "سياسة الاستخدام والشروط", intro: "تنظم هذه الشروط استخدام Renvix وتحدد مسؤوليات صاحب الحساب والمستخدمين المخولين.", sections: [["قبول الشروط", "بإنشاء حساب أو استخدام المنصة فإنك توافق على هذه الشروط والسياسات المرتبطة بها، وتؤكد أن لديك الصلاحية لإدارة مساحة العمل والبيانات المضافة إليها."], ["الحساب والصلاحيات", "أنت مسؤول عن دقة بيانات الحساب، حماية كلمة المرور، ومراجعة المستخدمين المخولين. يجب إبلاغنا فورًا عن أي استخدام غير مصرح به أو نشاط مشبوه."], ["الاستخدام المقبول", "يُمنع استخدام المنصة لإرسال رسائل غير مرغوبة، انتحال الهوية، انتهاك الخصوصية، أو مخالفة أنظمة الاتصالات والتجارة الإلكترونية. يجب الحصول على الموافقات اللازمة من المستلمين."], ["القنوات والتكاملات", "تخضع خدمات واتساب والبريد والتكاملات الخارجية لتوفر مزوديها وشروطهم. يتحمل صاحب الحساب مسؤولية صحة الإعدادات والأرقام والقوالب المستخدمة."], ["الاشتراكات والفوترة", "تُعرض الأسعار والحدود قبل اختيار الخطة. قد تتغير المزايا والأسعار مستقبلًا بعد إشعار مناسب، وتستمر الفواتير المستحقة عن الفترات التي تم فيها استخدام الخدمة."], ["التعليق والإنهاء", "يجوز تعليق الحساب لحماية المنصة أو المستلمين عند وجود إساءة استخدام أو خطر أمني. يمكن لصاحب الحساب إلغاء الخدمة وفق إعدادات الخطة وسياسة الاسترجاع المعتمدة."]] },
+    "/refund-policy": { title: "سياسة الاستبدال والاسترجاع", intro: "نهدف إلى معالجة طلبات الفوترة بعدالة ووضوح وفق نوع الخطة، تاريخ العملية، والاستخدام الفعلي للخدمة.", sections: [["أهلية طلب الاسترجاع", "يمكن تقديم طلب مراجعة خلال المدة الموضحة عند الشراء إذا حدث خصم مكرر، خطأ تقني موثق، أو تعذر جوهري في تقديم الخدمة المدفوعة."], ["الحالات غير المؤهلة", "لا يشمل الاسترجاع عادةً الأرصدة أو الرسائل المستخدمة، الفترات المستهلكة، مخالفة سياسة الاستخدام، أو توقف خدمة خارجية لا تتحكم بها Renvix."], ["طريقة تقديم الطلب", "أرسل طلبًا من مركز الدعم يتضمن بريد الحساب ورقم الفاتورة ووصف المشكلة. لا ترسل بيانات بطاقتك أو كلمات المرور داخل الطلب."], ["المراجعة والمعالجة", "يراجع الفريق السجلات والفاتورة والاستخدام، ثم يرسل القرار عبر البريد المسجل. تعتمد مدة ظهور المبلغ على بوابة الدفع والبنك المصدر."], ["تغيير الخطة", "يمكن ترقية الخطة في أي وقت. أما التخفيض فيُطبق عادةً من دورة الفوترة التالية حتى لا تتأثر المزايا المدفوعة خلال الدورة الحالية."], ["الأسئلة المتعلقة بالفوترة", "لأي استفسار أو اعتراض استخدم نموذج الدعم واختر قسم الفوترة والباقات، وسيتواصل الفريق معك بالمعلومات المطلوبة دون طلب بيانات حساسة."]] },
     "/contact": { title: "تواصل معنا", intro: "اختر القناة المناسبة وسنوجه طلبك إلى الفريق المختص بأسرع وقت ممكن.", sections: [["الدعم الفني", "لأخطاء الحساب، ربط الأجهزة، الجلسات، أو التكاملات استخدم نموذج مركز الدعم وأرفق وصفًا واضحًا ووقت حدوث المشكلة دون مشاركة أي مفتاح سري."], ["المبيعات والباقات", "للاستفسار عن الخطط وحدود الاستخدام واحتياجات المؤسسات، أرسل طلبًا بعنوان المبيعات والباقات مع حجم الفريق وعدد العملاء المتوقع."], ["الفوترة", "للفواتير أو المدفوعات اذكر رقم الفاتورة والبريد المسجل فقط. لن يطلب فريقنا كلمة المرور أو رمز التحقق أو بيانات البطاقة الكاملة."], ["الأمان والخصوصية", "للإبلاغ عن مشكلة أمنية أو طلب متعلق ببياناتك، استخدم قناة الدعم واكتب بوضوح أن الطلب متعلق بالأمان أو الخصوصية ليتم تصعيده للفريق المختص."], ["أوقات الاستجابة", "نراجع الطلبات حسب الأولوية والتأثير. تظهر الحالات الحرجة المتعلقة بتعطل الخدمة أو الأمان في مقدمة قائمة المعالجة."], ["البريد الرسمي", "يمكن مراسلتنا عبر support@renewpilot.ai، أو استخدام مركز الدعم للحصول على رقم مرجعي ومتابعة حالة الطلب."]] }
   };
   const englishPolicies = {
-    "/privacy": { title: "Privacy Policy", intro: "This policy explains which data RenewPilot AI needs to provide the service, how it is protected, and the controls available to you.", sections: [["Data we collect", "We collect account, workspace, customer, subscription, and operational data that you enter or create while using the platform. Limited technical information is recorded for security and troubleshooting."], ["How we use data", "We use data to operate platform features, send reminders requested by users, improve reliability, prevent abuse, and provide support. We do not sell customer data or use it for external advertising."], ["Protection and isolation", "Each organization is isolated by its tenant identifier, with access controls enforced across APIs and the database. Service credentials remain on the server and are never sent to the browser."], ["Service providers", "Trusted infrastructure, email, messaging, and database providers may process only the information necessary to deliver their services under their own security terms."], ["Retention and deletion", "Data is retained while the account is active or where operational and legal requirements apply. You can request correction, export, or deletion through the support center."], ["Your rights and choices", "You can manage notifications, update your profile, review sessions, and stop messages for selected customers. Privacy questions can be submitted through the official support channel."]] },
-    "/terms": { title: "Terms of Use", intro: "These terms govern the use of RenewPilot AI and explain the responsibilities of account owners and authorized users.", sections: [["Accepting the terms", "By creating an account or using the platform, you agree to these terms and related policies and confirm that you are authorized to manage the workspace and its data."], ["Accounts and permissions", "You are responsible for accurate account information, password protection, and reviewing authorized users. Report unauthorized access or suspicious activity immediately."], ["Acceptable use", "The platform must not be used for unsolicited messaging, impersonation, privacy violations, or conduct that breaches communications and commerce regulations. Required recipient consent must be obtained."], ["Channels and integrations", "WhatsApp, email, and third-party integrations are subject to provider availability and terms. The account owner is responsible for the numbers, templates, and settings used."], ["Subscriptions and billing", "Prices and limits are shown before a plan is selected. Features and prices may change with appropriate notice, while charges remain due for periods in which the service was used."], ["Suspension and termination", "Accounts may be suspended to protect the platform or recipients when abuse or security risk is detected. Owners may cancel according to plan settings and the applicable refund policy."]] },
-    "/refund-policy": { title: "Refund Policy", intro: "We review billing requests fairly and transparently according to the plan, transaction date, and actual service usage.", sections: [["Refund eligibility", "A review may be requested within the period shown at purchase when there is a duplicate charge, a documented technical error, or a material failure to deliver the paid service."], ["Non-eligible cases", "Refunds generally exclude used credits or messages, consumed billing periods, policy violations, and third-party outages outside RenewPilot AI's control."], ["Submitting a request", "Send a support request with the account email, invoice number, and a description of the issue. Never include card details or passwords."], ["Review and processing", "The team reviews logs, the invoice, and usage before sending a decision to the registered email. Bank and payment gateway processing times may vary."], ["Changing plans", "Plans can be upgraded at any time. Downgrades usually apply from the next billing cycle so current paid features remain available until the cycle ends."], ["Billing questions", "Select Billing and Plans in the support form for any question or dispute. The team will request only the information needed and never sensitive credentials."]] },
+    "/privacy": { title: "Privacy Policy", intro: "This policy explains which data Renvix needs to provide the service, how it is protected, and the controls available to you.", sections: [["Data we collect", "We collect account, workspace, customer, subscription, and operational data that you enter or create while using the platform. Limited technical information is recorded for security and troubleshooting."], ["How we use data", "We use data to operate platform features, send reminders requested by users, improve reliability, prevent abuse, and provide support. We do not sell customer data or use it for external advertising."], ["Protection and isolation", "Each organization is isolated by its tenant identifier, with access controls enforced across APIs and the database. Service credentials remain on the server and are never sent to the browser."], ["Service providers", "Trusted infrastructure, email, messaging, and database providers may process only the information necessary to deliver their services under their own security terms."], ["Retention and deletion", "Data is retained while the account is active or where operational and legal requirements apply. You can request correction, export, or deletion through the support center."], ["Your rights and choices", "You can manage notifications, update your profile, review sessions, and stop messages for selected customers. Privacy questions can be submitted through the official support channel."]] },
+    "/terms": { title: "Terms of Use", intro: "These terms govern the use of Renvix and explain the responsibilities of account owners and authorized users.", sections: [["Accepting the terms", "By creating an account or using the platform, you agree to these terms and related policies and confirm that you are authorized to manage the workspace and its data."], ["Accounts and permissions", "You are responsible for accurate account information, password protection, and reviewing authorized users. Report unauthorized access or suspicious activity immediately."], ["Acceptable use", "The platform must not be used for unsolicited messaging, impersonation, privacy violations, or conduct that breaches communications and commerce regulations. Required recipient consent must be obtained."], ["Channels and integrations", "WhatsApp, email, and third-party integrations are subject to provider availability and terms. The account owner is responsible for the numbers, templates, and settings used."], ["Subscriptions and billing", "Prices and limits are shown before a plan is selected. Features and prices may change with appropriate notice, while charges remain due for periods in which the service was used."], ["Suspension and termination", "Accounts may be suspended to protect the platform or recipients when abuse or security risk is detected. Owners may cancel according to plan settings and the applicable refund policy."]] },
+    "/refund-policy": { title: "Refund Policy", intro: "We review billing requests fairly and transparently according to the plan, transaction date, and actual service usage.", sections: [["Refund eligibility", "A review may be requested within the period shown at purchase when there is a duplicate charge, a documented technical error, or a material failure to deliver the paid service."], ["Non-eligible cases", "Refunds generally exclude used credits or messages, consumed billing periods, policy violations, and third-party outages outside Renvix's control."], ["Submitting a request", "Send a support request with the account email, invoice number, and a description of the issue. Never include card details or passwords."], ["Review and processing", "The team reviews logs, the invoice, and usage before sending a decision to the registered email. Bank and payment gateway processing times may vary."], ["Changing plans", "Plans can be upgraded at any time. Downgrades usually apply from the next billing cycle so current paid features remain available until the cycle ends."], ["Billing questions", "Select Billing and Plans in the support form for any question or dispute. The team will request only the information needed and never sensitive credentials."]] },
     "/contact": { title: "Contact Us", intro: "Choose the right channel and we will route your request to the appropriate team as quickly as possible.", sections: [["Technical support", "For account errors, device linking, sessions, or integrations, use the support form and include a clear description and time of occurrence without sharing secrets."], ["Sales and plans", "For plans, limits, and enterprise requirements, submit a Sales and Plans request with the expected team size and customer volume."], ["Billing", "For invoices or payments, provide only the invoice number and registered email. Our team will never ask for your password, verification code, or full card details."], ["Security and privacy", "Clearly mark security or privacy requests in the support channel so they can be escalated to the appropriate specialist."], ["Response times", "Requests are reviewed by priority and impact. Critical service availability and security issues are moved to the front of the queue."], ["Official email", "You can email support@renewpilot.ai or use the support center to receive a reference number and track your request."]] }
   };
   const selectedPolicies = state.language === "en" ? englishPolicies : policies;
@@ -1085,7 +1092,7 @@ function authPublicPage() {
 function forgotPublicPage() {
   const step = state.resetStep;
   const content = step === 1 ? `<form data-submit="forgot" class="grid auth-form"><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" required></label><button class="btn btn-primary auth-submit">إرسال رابط الاستعادة</button></form>` : step === 2 ? `<form data-submit="reset-password" class="grid auth-form"><label class="field"><span>رمز التحقق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" type="password" name="password" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" required></label><button class="btn btn-primary auth-submit">تعيين كلمة المرور</button></form>` : `<div class="auth-success"><span class="success-mark">✓</span><p>تم تغيير كلمة المرور بنجاح.</p><button class="btn btn-primary" data-link="/login">تسجيل الدخول</button></div>`;
-  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">▢</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual"><img src="/assets/renewpilot-logo-horizontal.png" alt="RenewPilot AI"></div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
+  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">▢</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual">${stackedLogo()}</div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
 }
 
 function loginPage() {
@@ -1098,7 +1105,7 @@ function loginPage() {
     </div>
     <section class="auth-shell">
       <article class="card auth-panel">
-        <span class="eyebrow">RenewPilot AI</span>
+        <span class="eyebrow">Renvix</span>
         <h1>${t(isRegister ? "auth.registerTitle" : "auth.loginTitle")}</h1>
         <p class="lead">${t(isRegister ? "auth.registerSubtitle" : "auth.loginSubtitle")}</p>
         ${state.query.get("plan") ? `<p class="badge">الخطة المختارة: ${state.query.get("plan")}</p>` : ""}
@@ -1112,7 +1119,7 @@ function loginPage() {
         </form>
       </article>
       <aside class="auth-visual">
-        <div class="auth-hero-logo"><span class="brand-mark">R</span><strong>RenewPilot <b>AI</b></strong></div>
+        <div class="auth-hero-logo">${stackedLogo()}</div>
         <p>${state.language === "ar" ? "الطريقة الذكية لإدارة التجديدات بثقة وأمان." : "The intelligent way to manage renewals. Track. Automate. Renew with confidence."}</p>
         <div class="auth-dashboard-art">
           <div class="art-top"><strong>${t("dashboard.title")}</strong><span></span></div>
@@ -1135,11 +1142,11 @@ function forgotPasswordPage() {
     : step === 2
       ? `<form data-submit="reset-password" class="grid auth-form" novalidate><label class="field"><span>${t("auth.code")}</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6"></label><label class="field"><span>${t("auth.newPassword")}</span><input class="input" type="password" name="password" autocomplete="new-password"></label><label class="field"><span>${t("auth.confirmPassword")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password"></label><button class="btn btn-primary auth-submit">${t("auth.resetPassword")}</button></form>`
       : `<div class="auth-success"><span class="success-mark">✓</span><p>${t("auth.passwordChanged")}</p><button class="btn btn-primary" data-link="/login">${t("auth.loginTitle")}</button></div>`;
-  return `<main class="auth-page reset-mode"><div class="auth-brand">${logo()}</div><div class="auth-top-actions"><button class="btn btn-ghost icon-btn" data-action="theme">${state.theme === "dark" ? "☾" : "☀"}</button><button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button></div><section class="auth-shell single-auth"><article class="card auth-panel"><span class="eyebrow">RenewPilot AI</span><h1>${t("auth.forgotTitle")}</h1><p class="lead">${step === 1 ? t("auth.forgotSubtitle") : step === 2 ? t("auth.codeSent") : t("auth.passwordChanged")}</p>${content}<button class="btn btn-ghost" data-link="/login">${t("auth.loginLink")}</button></article></section></main>`;
+  return `<main class="auth-page reset-mode"><div class="auth-brand">${logo()}</div><div class="auth-top-actions"><button class="btn btn-ghost icon-btn" data-action="theme">${state.theme === "dark" ? "☾" : "☀"}</button><button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button></div><section class="auth-shell single-auth"><article class="card auth-panel"><span class="eyebrow">Renvix</span><h1>${t("auth.forgotTitle")}</h1><p class="lead">${step === 1 ? t("auth.forgotSubtitle") : step === 2 ? t("auth.codeSent") : t("auth.passwordChanged")}</p>${content}<button class="btn btn-ghost" data-link="/login">${t("auth.loginLink")}</button></article></section></main>`;
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
   const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   const profile = state.dashboardOverview?.profile || {};
@@ -1186,7 +1193,7 @@ function dashboardHome() {
   const hasBusinessData = stats.totalSubscriptions > 0 || stats.totalCustomers > 0 || stats.connectedDevices > 0;
   const alertDisabled = stats.connectedDevices > 0 ? "" : "disabled";
   return dashboardShell(`${pageTitle("الرئيسية", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button>`)}
-    ${!hasBusinessData ? `<section class="welcome-panel"><div><span class="welcome-kicker">RenewPilot AI</span><h2>مرحبًا بك في RenewPilot AI</h2><p>ابدأ بإضافة أول عميل أو ربط جهازك. لن تظهر هنا أي بيانات ما لم تضفها أنت.</p></div><div class="welcome-actions"><button class="btn btn-primary" data-action="add-customer">إضافة أول عميل</button><button class="btn btn-secondary" data-link="/dashboard/devices">ربط جهاز</button></div></section>` : ""}
+    ${!hasBusinessData ? `<section class="welcome-panel"><div><span class="welcome-kicker">Renvix</span><h2>مرحبًا بك في Renvix</h2><p>ابدأ بإضافة أول عميل أو ربط جهازك. لن تظهر هنا أي بيانات ما لم تضفها أنت.</p></div><div class="welcome-actions"><button class="btn btn-primary" data-action="add-customer">إضافة أول عميل</button><button class="btn btn-secondary" data-link="/dashboard/devices">ربط جهاز</button></div></section>` : ""}
     ${statGrid([
       { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
       { title: "التجديدات القادمة", value: stats.upcomingRenewals, caption: "خلال 7 أيام", tone: "warning", icon: "reports" },
@@ -1215,11 +1222,12 @@ function pageTitle(title, actions = "") {
     "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
     "الأجهزة": "اربط واتساب وتحقق من حالة الاتصال الفعلية.",
     "إرسال معلومات الطلب": "صمم قالبًا واحدًا برابط ثابت وأضف إليه طلبات عملائك.",
+    "تطبيقاتنا": "اربط متجرك بالتطبيقات الخارجية وشغّل المزامنة والأتمتة بأمان.",
     "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
     "التقارير": "المؤشرات وسجل النشاط والفوترة.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
   };
-  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "RenewPilot AI"}</p></div><div class="toolbar">${actions}</div></div>`;
+  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "Renvix"}</p></div><div class="toolbar">${actions}</div></div>`;
 }
 
 function activityList(items = []) {
@@ -1248,13 +1256,62 @@ function issuesPage() {
   return dashboardShell(`${pageTitle("سجل المشاكل", `<button class="btn btn-secondary" data-action="reload-issues">تحديث السجل</button>`)}${content}`);
 }
 
+function appsPage() {
+  const data = state.appsOverview;
+  if (data === null) return dashboardShell(`${pageTitle("تطبيقاتنا")}<div class="loading-state">جاري تحميل التطبيقات...</div>`);
+  if (data?.error) return dashboardShell(`${pageTitle("تطبيقاتنا")} ${emptyState("تعذر تحميل التطبيقات", escapeHtml(data.error), "إعادة المحاولة", "reload-apps")}`);
+  const connection = data?.connection || null;
+  const connected = connection?.status === "connected";
+  const stats = data?.stats || {};
+  const templates = Array.isArray(data?.templates) ? data.templates : [];
+  const logs = Array.isArray(data?.logs) ? data.logs : [];
+  const settings = connection || {};
+  const rules = Array.isArray(state.sallaRuleDrafts)
+    ? state.sallaRuleDrafts
+    : Array.isArray(settings.subscriptionRules) ? settings.subscriptionRules : [];
+  const selectedTemplate = templates.find((item) => item.id === settings.defaultTemplateId) || templates[0] || null;
+  const previewColor = settings.defaultThemeColor || selectedTemplate?.themeColor || "#22C55E";
+  const previewStyle = settings.defaultTemplateStyle || selectedTemplate?.style || "classic";
+  const statusLabel = connected ? "مرتبط" : connection?.status === "expired" ? "انتهت الصلاحية" : connection?.status === "error" ? "خطأ في الربط" : "غير مرتبط";
+  const callbackResult = state.query.get("salla");
+  if (callbackResult && !state.sallaCallbackHandled) {
+    state.sallaCallbackHandled = true;
+    queueMicrotask(() => {
+      toast(callbackResult === "connected" ? "تم ربط متجر سلة بنجاح" : callbackResult === "invalid_state" ? "انتهت جلسة الربط، حاول مرة أخرى." : "تعذر ربط متجر سلة.", callbackResult === "connected" ? "success" : "danger");
+      history.replaceState({}, "", "/dashboard/apps");
+    });
+  }
+  const toggles = [
+    ["autoSyncCustomers", "تخزين العملاء تلقائيًا", "يتم إنشاء العميل أو تحديثه عند وصول طلب جديد من سلة."],
+    ["autoSyncOrders", "تخزين الطلبات تلقائيًا", "تحفظ الطلبات القادمة في Renvix وتربطها بالعملاء."],
+    ["autoCreateSubscriptions", "إنشاء اشتراكات تلقائيًا", "يحول منتجات الاشتراك إلى اشتراكات وفق المدة المحددة."],
+    ["autoCreateOrderLinks", "إنشاء رابط معلومات الطلب", "ينشئ رابط المتجر الثابت ويضيف إليه الطلب تلقائيًا."],
+    ["syncOrderStatus", "مزامنة حالة الطلب", "يحدث حالة الطلب عند تغيرها في سلة."],
+    ["notifyCustomerAfterLinkCreated", "إرسال الرابط للعميل", "يضيف الرسالة للطابور فقط عند وجود جهاز واتساب متصل."],
+    ["syncPaidOrdersOnly", "الطلبات المدفوعة فقط", "يتجاهل الطلبات غير المدفوعة أثناء المزامنة."],
+    ["syncCompletedOrdersOnly", "الطلبات المكتملة فقط", "يقصر الإنشاء على الطلبات المكتملة."],
+  ];
+  const settingsPanel = connected && state.sallaSettingsOpen ? `<section class="card salla-settings-workspace">
+    <div class="section-head"><div><h2>إعدادات ربط سلة</h2><p class="muted">اضبط المزامنة وقالب معلومات الطلب.</p></div><button class="btn btn-ghost icon-btn" data-action="close-salla-settings">×</button></div>
+    <div class="apps-settings-layout"><div class="salla-settings-form">
+      <div class="form-grid"><label class="field"><span>اسم المتجر داخل القالب</span><input class="input" data-salla-setting="storeDisplayName" value="${escapeHtml(settings.storeDisplayName || settings.storeName || "")}"></label><label class="field"><span>Slug رابط المتجر</span><input class="input" dir="ltr" data-salla-setting="orderLinkSlug" value="${escapeHtml(settings.orderLinkSlug || "")}" placeholder="smart-store"></label>
+      <label class="field"><span>قالب معلومات الطلب</span><select class="select" data-salla-setting="defaultTemplateId">${templates.map((item) => `<option value="${item.id}" ${item.id === settings.defaultTemplateId ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></label><label class="field"><span>نمط القالب</span><select class="select" data-salla-setting="defaultTemplateStyle">${[["classic","كلاسيكي"],["modern","حديث"],["professional","احترافي"],["minimal","بسيط"],["premium","فاخر"],["colorful","ملون"]].map(([value,label]) => `<option value="${value}" ${previewStyle === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div>
+      <div class="salla-color-row"><strong>لون القالب</strong>${["#2563EB","#06B6D4","#8B5CF6","#22C55E","#F97316","#EF4444","#64748B","#0F172A"].map((color) => `<label class="color-choice" style="--choice:${color}"><input type="radio" name="sallaThemeColor" value="${color}" data-salla-setting="defaultThemeColor" ${previewColor === color ? "checked" : ""}><span></span></label>`).join("")}</div>
+      <div class="apps-toggle-list">${toggles.map(([key,title,description]) => `<label class="salla-setting-panel"><span><h3>${title}</h3><p>${description}</p></span><input type="checkbox" data-salla-setting="${key}" ${settings[key] ? "checked" : ""}></label>`).join("")}</div>
+      <div class="salla-duration-line"><label class="field"><span>المدة الافتراضية عند عدم التطابق</span><input class="input" type="number" min="1" max="3650" data-salla-setting="defaultSubscriptionDurationDays" value="${Number(settings.defaultSubscriptionDurationDays || 30)}"></label><label class="field"><span>طريقة الإرسال</span><select class="select" data-salla-setting="sendMethod"><option value="manual">يدوي</option><option value="whatsapp" ${settings.sendMethod === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${settings.sendMethod === "email" ? "selected" : ""}>بريد إلكتروني</option><option value="copy_only" ${settings.sendMethod === "copy_only" ? "selected" : ""}>نسخ فقط</option></select></label></div>
+      <div class="salla-rules-panel"><div class="salla-rules-head"><div><h3>أنواع الاشتراكات ومددها</h3><p>أضف مثل Grok أو Gemini والمدة؛ وسيتعرف Renvix عليها من اسم المنتج.</p></div><button class="btn btn-secondary" data-action="add-salla-rule">+‏ إضافة نوع</button></div><div class="salla-rule-list">${rules.length ? rules.map((rule,index) => `<div class="salla-rule-row" data-salla-rule-row data-rule-id="${escapeHtml(rule.id || "")}"><label><span>نوع الاشتراك</span><input class="input" data-salla-rule-field="name" data-rule-index="${index}" value="${escapeHtml(rule.name)}" placeholder="Grok"></label><label><span>المدة بالأيام</span><input class="input" type="number" min="1" max="3650" data-salla-rule-field="durationDays" data-rule-index="${index}" value="${Number(rule.durationDays || 30)}"></label><button class="btn btn-ghost icon-only danger-text" data-action="remove-salla-rule" data-rule-index="${index}">×</button></div>`).join("") : `<div class="salla-rules-empty"><strong>لا توجد أنواع محددة</strong><span>ستستخدم المدة الافتراضية.</span></div>`}</div></div>
+      <div class="salla-rules-actions"><button class="btn btn-primary" data-action="save-salla-settings">حفظ الإعدادات</button><button class="btn btn-secondary" data-action="close-salla-settings">إلغاء</button></div>
+    </div><aside class="salla-live-preview" style="--salla-preview:${previewColor}"><span class="preview-label">معاينة مباشرة</span><img src="/assets/salla-logo.svg" alt="سلة"><h3>${escapeHtml(settings.storeDisplayName || settings.storeName || "متجرك")}</h3><div class="preview-order"><span>طلب حقيقي بعد المزامنة</span><strong>رقم الطلب</strong><small>القالب: ${escapeHtml(selectedTemplate?.name || "قالب سلة الافتراضي")}</small></div><p>المعاينة للشكل فقط؛ البيانات الفعلية تأتي من سلة.</p></aside></div>
+  </section>` : "";
+  return dashboardShell(`${pageTitle("تطبيقاتنا")}
+    ${statGrid([{ title: "التطبيقات المتاحة", value: stats.availableApps || 0, caption: "تطبيق", icon: "apps" }, { title: "التطبيقات المرتبطة", value: stats.connectedApps || 0, caption: "اتصال", tone: "success", icon: "apps" }, { title: "آخر مزامنة", value: stats.lastSyncAt ? new Date(stats.lastSyncAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "لا يوجد", caption: "تحديث البيانات", tone: "warning", icon: "reports" }, { title: "طلبات تمت مزامنتها", value: stats.syncedOrders || 0, caption: "طلب حقيقي", tone: "purple", icon: "subscriptions" }])}
+    <section class="card salla-app-card section"><div class="salla-card-head"><div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="/assets/salla-logo.svg" alt="سلة"></span><div><h2>سلة</h2><p>منصة التجارة الإلكترونية السعودية</p></div></div><span class="status ${connected ? "success" : connection?.status === "error" || connection?.status === "expired" ? "danger" : "neutral"}">${statusLabel}</span></div><p class="salla-app-description">اربط متجر سلة عبر OAuth لمزامنة الطلبات والعملاء والاشتراكات دون نسخ التوكنات إلى المتصفح.</p>${connected ? `<div class="salla-connected-meta"><div><span>المتجر</span><strong>${escapeHtml(connection.storeName || "-")}</strong></div><div><span>آخر مزامنة</span><strong>${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة"}</strong></div></div><div class="salla-header-actions"><button class="btn btn-primary" data-action="open-salla-settings">إعدادات الربط</button><button class="btn btn-secondary" data-action="sync-salla-now">مزامنة الآن</button><button class="btn btn-secondary" data-action="show-salla-logs">عرض السجلات</button><button class="btn btn-ghost danger-text" data-action="disconnect-salla">فصل الربط</button></div>` : `<div class="salla-header-actions"><button class="btn btn-primary" data-action="connect-salla" ${data.configured ? "" : "disabled"} title="${data.configured ? "ربط سلة" : "إعدادات OAuth لسلة غير مكتملة على الخادم"}">ربط سلة</button></div>${!data.configured ? `<p class="inline-notice warning">تكامل سلة بانتظار إضافة بيانات OAuth الآمنة في الخادم.</p>` : ""}`}</section>
+    ${settingsPanel}
+    <section class="card table-card section" id="salla-sync-logs"><div class="section-head"><div><h2>سجل المزامنة</h2><p class="muted">النتائج الفعلية المسجلة لهذا المتجر.</p></div></div>${logs.length ? simpleTable(["الوقت", "التطبيق", "الحدث", "الحالة", "الرسالة"], logs.map((item) => [new Date(item.createdAt).toLocaleString("ar-SA"), "سلة", escapeHtml(item.eventType || "-"), status(item.status), escapeHtml(item.message || "-")])) : emptyState("لا توجد سجلات مزامنة", "ستظهر هنا الأحداث بعد ربط متجر سلة.")}</section>`);
+}
+
 function subscriptionsPage() {
   const stats = overviewStats();
-  const salla = state.sallaIntegration?.integration || null;
-  const sallaConfigured = Boolean(state.sallaIntegration?.configured);
-  const savedSallaRules = Array.isArray(salla?.subscriptionRules) ? salla.subscriptionRules : [];
-  const sallaRules = Array.isArray(state.sallaRuleDrafts) ? state.sallaRuleDrafts : savedSallaRules;
-  const sallaConnected = salla?.status === "connected";
   const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
   const rows = filterRows(source, ["orderNumber", "customerName", "planName", "status"]);
   const content = state.dbSubscriptions?.error
@@ -1262,35 +1319,7 @@ function subscriptionsPage() {
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
       : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
-  const sallaRuleRows = sallaRules.length ? sallaRules.map((rule, index) => `<div class="salla-rule-row" data-salla-rule-row data-rule-id="${escapeHtml(rule.id || "")}">
-      <label><span>نوع الاشتراك أو اسم المنتج</span><input class="input" data-salla-rule-field="name" data-rule-index="${index}" value="${escapeHtml(rule.name || "")}" placeholder="مثال: Grok أو Gemini" ${sallaConnected ? "" : "disabled"}></label>
-      <label><span>مدة الاشتراك بالأيام</span><input class="input" type="number" min="1" max="3650" inputmode="numeric" data-salla-rule-field="durationDays" data-rule-index="${index}" value="${Number(rule.durationDays) || 30}" ${sallaConnected ? "" : "disabled"}></label>
-      <button class="btn btn-ghost icon-only danger-text" data-action="remove-salla-rule" data-rule-index="${index}" title="حذف النوع" ${sallaConnected ? "" : "disabled"}>×</button>
-    </div>`).join("") : `<div class="salla-rules-empty"><strong>لم تضف أنواع اشتراكات بعد</strong><span>أضف اسم المنتج كما يظهر في سلة وحدد مدته، مثل Grok لمدة 30 يومًا أو Gemini لمدة سنة.</span></div>`;
-  const sallaCard = `<article class="card salla-integration-card section">
-    <header class="salla-card-head">
-      <div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="https://cdn.salla.network/salla.com/logo-wide-1.svg" alt="شعار سلة الرسمي" loading="lazy"></span><div><h2>التخزين التلقائي من سلة</h2><p>استيراد العملاء والطلبات كاشتراكات حقيقية، مع تحديد نوع ومدة كل اشتراك حسب المنتج في متجرك.</p></div></div>
-      <div class="salla-header-actions"><span class="status ${sallaConnected ? "success" : "warning"}">${sallaConnected ? "متجر سلة متصل" : "غير متصل"}</span>${sallaConnected ? `<button class="btn btn-secondary" data-action="disconnect-salla">فصل المتجر</button>` : `<button class="btn btn-primary" data-action="connect-salla" ${sallaConfigured ? "" : "disabled title=\"إعداد تكامل سلة غير مكتمل على الخادم\""}>ربط متجر سلة</button>`}</div>
-    </header>
-    <div class="salla-settings-grid">
-      <section class="salla-setting-panel">
-        <div><h3>المزامنة التلقائية</h3><p>يحفظ العميل وطلبه واشتراكه عند وصول طلب سلة، دون إنشاء بيانات تجريبية.</p></div>
-        <label class="setting-row setting-toggle salla-toggle" title="${sallaConnected ? "تخزين الطلبات والعملاء تلقائيًا" : "اربط متجر سلة أولًا"}"><span>${salla?.autoSync ? "مفعلة" : "متوقفة"}</span><input type="checkbox" data-action="salla-auto-sync" ${salla?.autoSync ? "checked" : ""} ${sallaConnected ? "" : "disabled"}></label>
-      </section>
-      <section class="salla-setting-panel">
-        <div><h3>المدة الاحتياطية</h3><p>تستخدم فقط عندما لا يطابق المنتج أي نوع محفوظ أدناه.</p></div>
-        <label class="field compact-field"><span>عدد الأيام</span><select class="select" data-action="salla-duration" ${sallaConnected ? "" : "disabled"}>${[7, 14, 30, 60, 90, 180, 365].map((days) => `<option value="${days}" ${Number(salla?.defaultDurationDays || 30) === days ? "selected" : ""}>${days} يومًا</option>`).join("")}</select></label>
-      </section>
-      <section class="salla-rules-panel">
-        <div class="salla-rules-head"><div><h3>أنواع ومدد الاشتراكات</h3><p>يطابق النظام اسم النوع مع اسم المنتج أو SKU في طلب سلة، ثم يحسب تاريخ النهاية تلقائيًا.</p></div><button class="btn btn-secondary" data-action="add-salla-rule" ${sallaConnected ? "" : "disabled title=\"اربط متجر سلة أولًا\""}>+ إضافة نوع</button></div>
-        <div class="salla-rule-list">${sallaRuleRows}</div>
-        <div class="salla-rules-actions"><span>يمكنك حفظ حتى 30 نوعًا، بمدة من يوم إلى 3650 يومًا.</span><button class="btn btn-primary" data-action="save-salla-rules" ${sallaConnected && sallaRules.length ? "" : "disabled"}>حفظ الأنواع والمدد</button></div>
-      </section>
-    </div>
-    <div class="salla-meta"><span>آخر مزامنة: ${salla?.lastSyncAt ? escapeHtml(new Date(salla.lastSyncAt).toLocaleString("ar-SA")) : "لم تتم المزامنة بعد"}</span><span>${salla?.storeName ? `المتجر: ${escapeHtml(salla.storeName)}` : "هذه الميزة لمتاجر سلة فقط"}</span>${salla?.lastError ? `<span class="danger-text">${escapeHtml(salla.lastError)}</span>` : ""}</div>
-  </article>`;
   return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير CSV</button>`)}
-    ${sallaCard}
     ${statGrid([
       { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
       { title: "التجديدات خلال 7 أيام", value: stats.upcomingRenewals, caption: "قادم", tone: "warning", icon: "reports" },
@@ -1593,7 +1622,7 @@ function hydrateOrderLinkDraft() {
     templateLinkId: defaultTemplate?.templateLinkId || "",
     manualStartDate: state.orderLinkDraft.manualStartDate || todayDateInputValue(),
     headerText: defaultTemplate?.headerText || "شكرًا لاختيارك خدماتنا",
-    footerText: defaultTemplate?.footerText || "RenewPilot AI",
+    footerText: defaultTemplate?.footerText || "Renvix",
     additionalNotes: Array.isArray(defaultTemplate?.additionalNotes) ? [...defaultTemplate.additionalNotes] : [],
     visibleFields: { ...state.orderLinkDraft.visibleFields, ...(defaultTemplate?.visibleFields || {}) },
     isDefault: defaultTemplate?.isDefault ?? true
@@ -1699,7 +1728,7 @@ function orderLookupPreviewCard(draft) {
       <button class="btn btn-primary order-themed-action" type="button" data-action="order-preview-show-result">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
       <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
     </div>
-    <p class="order-card-footer">${escapeHtml(draft.footerText || "RenewPilot AI")}</p>
+    <p class="order-card-footer">${escapeHtml(draft.footerText || "Renvix")}</p>
   </article>`;
 }
 
@@ -1718,7 +1747,7 @@ function publicOrderLookupCard(presentation, orderNumber = "") {
       <button class="btn btn-primary order-themed-action" type="submit">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
       <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
     </form>
-    <p class="order-card-footer">${escapeHtml(template.footerText || "RenewPilot AI")}</p>
+    <p class="order-card-footer">${escapeHtml(template.footerText || "Renvix")}</p>
   </article>`;
 }
 
@@ -1905,7 +1934,7 @@ function publicOrderPage() {
       ${state.publicOrderPresentationLoading && !presentation ? `<div class="loading-state">جاري تجهيز صفحة المتجر...</div>` : currentPresentation?.error && !presentation ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(currentPresentation.error)}</h2><p>تواصل مع المتجر للحصول على رابط جديد.</p></section>` : !data && presentation ? `<section class="public-order-entry">${publicOrderLookupCard(presentation, orderNumber)}</section>` : ""}
       ${state.publicOrderLoading ? `<div class="loading-state">جاري التحقق من الرابط والطلب...</div>` : currentOrder?.error ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(currentOrder.error)}</h2><p>تحقق من رقم الطلب أو تواصل مع المتجر للحصول على رابط جديد.</p><button class="btn btn-secondary" data-action="clear-public-order-error">المحاولة مرة أخرى</button></section>` : data ? `<section class="public-order-result">${orderInfoPreviewCard(null, state.orderLinkDraft, data)}<div class="public-order-actions">${data.store.supportPhone ? `<a class="btn order-themed-action" href="https://wa.me/${String(data.store.supportPhone).replace(/\D/g, "")}" target="_blank" rel="noreferrer">تواصل مع المتجر ${dashboardIcon("template")}</a>` : ""}<button class="btn btn-secondary" data-action="copy-public-order-number" data-value="${escapeHtml(data.order.orderNumber)}">نسخ رقم الطلب ${dashboardIcon("orderLink")}</button></div></section>` : ""}
     </main>
-    <footer class="public-order-footer"><span>سياسة الخصوصية</span><span>الشروط والأحكام</span><span>الدعم الفني</span><span>تواصل معنا</span><small>© 2026 RenewPilot AI. جميع الحقوق محفوظة.</small></footer>
+    <footer class="public-order-footer"><span>سياسة الخصوصية</span><span>الشروط والأحكام</span><span>الدعم الفني</span><span>تواصل معنا</span><small>© 2026 Renvix. جميع الحقوق محفوظة.</small></footer>
   </div>`;
 }
 
@@ -1924,7 +1953,7 @@ function billingWorkspacePage() {
       { title: "الخطة الحالية", value: current.planName || "تجربة مجانية", caption: current.status || "trial", tone: "success", icon: "subscriptions" },
       { title: "استخدام الرسائل", value: `${Number(usage.usedMessages || 0).toLocaleString("ar-SA")} / ${Number(usage.messageLimit || 0).toLocaleString("ar-SA")}`, caption: "من قاعدة البيانات", tone: "info", icon: "reports" }
     ])}
-    <section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات المتاحة فعليًا في منصة RenewPilot.</p></div></div>${plans.length ? `<div class="dashboard-plan-grid">${plans.map((plan) => `<article class="dashboard-plan ${plan.slug === current.planSlug ? "current" : ""}"><span class="status ${plan.slug === current.planSlug ? "success" : "info"}">${plan.slug === current.planSlug ? "خطتك الحالية" : "متاحة"}</span><h3>${escapeHtml(plan.name)}</h3><p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p><ul class="check-list"><li>${Number(plan.messageLimit || 0).toLocaleString("ar-SA")} رسالة</li><li>${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل</li><li>${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} جهاز واتساب</li><li>${Number(plan.storageLimitMb || 100).toLocaleString("ar-SA")} MB تخزين</li></ul><button class="btn ${plan.slug === current.planSlug ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${plan.slug === current.planSlug ? "عرض تفاصيل الخطة" : "اختيار الباقة"}</button></article>`).join("")}</div>` : emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support")}</article>
+    <section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات المتاحة فعليًا في منصة Renvix.</p></div></div>${plans.length ? `<div class="dashboard-plan-grid">${plans.map((plan) => `<article class="dashboard-plan ${plan.slug === current.planSlug ? "current" : ""}"><span class="status ${plan.slug === current.planSlug ? "success" : "info"}">${plan.slug === current.planSlug ? "خطتك الحالية" : "متاحة"}</span><h3>${escapeHtml(plan.name)}</h3><p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p><ul class="check-list"><li>${Number(plan.messageLimit || 0).toLocaleString("ar-SA")} رسالة</li><li>${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل</li><li>${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} جهاز واتساب</li><li>${Number(plan.storageLimitMb || 100).toLocaleString("ar-SA")} MB تخزين</li></ul><button class="btn ${plan.slug === current.planSlug ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${plan.slug === current.planSlug ? "عرض تفاصيل الخطة" : "اختيار الباقة"}</button></article>`).join("")}</div>` : emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support")}</article>
       <aside class="billing-side"><article class="card wallet-card"><h2>شحن المحفظة</h2><p>الدفع الإلكتروني غير مفعّل في هذه البيئة حاليًا.</p><button class="btn btn-primary" data-link="/support">طلب مساعدة في الشحن</button></article><article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>تاريخ التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>
     <article class="card table-card section"><div class="section-head"><div><h2>آخر الفواتير</h2><p>لا تظهر إلا الفواتير المسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد ربط مزود الدفع وإصدار أول فاتورة.")}</article>`);
 }
@@ -2335,24 +2364,39 @@ async function imageFileToDataUrl(file) {
   return data;
 }
 
-async function saveSallaSettings(overrides = {}) {
-  const current = state.sallaIntegration?.integration || {};
+async function saveSallaSettings() {
   try {
-    const body = {
-      autoSync: overrides.autoSync ?? Boolean(current.autoSync),
-      defaultDurationDays: overrides.defaultDurationDays ?? Number(current.defaultDurationDays || 30)
-    };
-    if (overrides.subscriptionRules !== undefined) body.subscriptionRules = overrides.subscriptionRules;
-    const payload = await fetchJson("/api/integrations/salla", {
-      method: "PATCH",
+    const body = readSallaSettings();
+    const payload = await fetchJson("/api/apps/salla/settings", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
-    state.sallaIntegration = { ...(state.sallaIntegration || {}), integration: payload.integration };
-    if (overrides.subscriptionRules !== undefined) state.sallaRuleDrafts = null;
-    toast(overrides.subscriptionRules !== undefined ? "تم حفظ أنواع الاشتراكات ومددها" : "تم حفظ إعدادات مزامنة سلة");
+    state.appsOverview = payload;
+    state.sallaRuleDrafts = null;
+    toast("تم حفظ إعدادات سلة");
     render();
   } catch (error) { toast(error.message || "تعذر حفظ إعدادات سلة", "danger"); }
+}
+
+function readSallaSettings() {
+  const current = state.appsOverview?.connection || {};
+  const value = (key) => document.querySelector(`[data-salla-setting="${key}"]`);
+  const checked = (key) => Boolean(value(key)?.checked);
+  return {
+    storeDisplayName: value("storeDisplayName")?.value?.trim() || current.storeDisplayName || current.storeName || "",
+    orderLinkSlug: value("orderLinkSlug")?.value?.trim() || "",
+    defaultTemplateId: value("defaultTemplateId")?.value || current.defaultTemplateId || "",
+    defaultTemplateStyle: value("defaultTemplateStyle")?.value || "classic",
+    defaultThemeColor: document.querySelector('[data-salla-setting="defaultThemeColor"]:checked')?.value || "#22C55E",
+    defaultSubscriptionDurationDays: Number(value("defaultSubscriptionDurationDays")?.value || 30),
+    sendMethod: value("sendMethod")?.value || "manual",
+    autoSyncCustomers: checked("autoSyncCustomers"), autoSyncOrders: checked("autoSyncOrders"),
+    autoCreateSubscriptions: checked("autoCreateSubscriptions"), autoCreateOrderLinks: checked("autoCreateOrderLinks"),
+    syncOrderStatus: checked("syncOrderStatus"), notifyCustomerAfterLinkCreated: checked("notifyCustomerAfterLinkCreated"),
+    syncPaidOrdersOnly: checked("syncPaidOrdersOnly"), syncCompletedOrdersOnly: checked("syncCompletedOrdersOnly"),
+    subscriptionRules: readSallaRuleDrafts()
+  };
 }
 
 function readSallaRuleDrafts() {
@@ -2362,7 +2406,7 @@ function readSallaRuleDrafts() {
     name: row.querySelector('[data-salla-rule-field="name"]')?.value?.trim() || "",
     durationDays: Number(row.querySelector('[data-salla-rule-field="durationDays"]')?.value || 30)
   }));
-  const saved = state.sallaIntegration?.integration?.subscriptionRules;
+  const saved = state.appsOverview?.connection?.subscriptionRules;
   return Array.isArray(state.sallaRuleDrafts) ? state.sallaRuleDrafts.map((rule) => ({ ...rule })) : Array.isArray(saved) ? saved.map((rule) => ({ ...rule })) : [];
 }
 
@@ -2383,7 +2427,10 @@ async function handleAction(target) {
       toast("تم حذف صورة الحساب");
     } catch (error) { toast(error.message || "تعذر حذف الصورة", "danger"); }
   }
-  if (action === "connect-salla") window.location.href = "/api/integrations/salla/connect";
+  if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
+  if (action === "connect-salla") window.location.href = "/api/apps/salla/connect";
+  if (action === "open-salla-settings") { state.sallaSettingsOpen = true; state.sallaRuleDrafts = null; render(); }
+  if (action === "close-salla-settings") { state.sallaSettingsOpen = false; state.sallaRuleDrafts = null; render(); }
   if (action === "add-salla-rule") {
     const drafts = readSallaRuleDrafts();
     drafts.push({ id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: "", durationDays: 30 });
@@ -2396,16 +2443,22 @@ async function handleAction(target) {
     state.sallaRuleDrafts = drafts;
     render();
   }
-  if (action === "save-salla-rules") {
-    const drafts = readSallaRuleDrafts();
-    if (!drafts.length) return toast("أضف نوع اشتراك واحدًا على الأقل", "danger");
-    await saveSallaSettings({ subscriptionRules: drafts });
+  if (action === "save-salla-settings") await saveSallaSettings();
+  if (action === "show-salla-logs") document.querySelector("#salla-sync-logs")?.scrollIntoView({ behavior: "smooth" });
+  if (action === "sync-salla-now") {
+    target.disabled = true;
+    try {
+      const payload = await fetchJson("/api/apps/salla/sync-now", { method: "POST" });
+      state.appsOverview = null; await syncRouteData(true);
+      toast(`تمت المزامنة بنجاح (${Number(payload.synced || 0)} طلب)`);
+    } catch (error) { toast(error.message || "تعذرت المزامنة", "danger"); }
+    finally { target.disabled = false; }
   }
   if (action === "disconnect-salla") {
     if (!confirm("هل تريد فصل متجر سلة وإيقاف المزامنة التلقائية؟")) return;
     try {
-      await fetchJson("/api/integrations/salla", { method: "DELETE" });
-      state.sallaIntegration = null;
+      await fetchJson("/api/apps/salla/disconnect", { method: "POST" });
+      state.appsOverview = null;
       await syncRouteData(true);
       toast("تم فصل متجر سلة");
     } catch (error) { toast(error.message || "تعذر فصل متجر سلة", "danger"); }
@@ -2677,7 +2730,7 @@ async function handleAction(target) {
   }
   if (action === "send-device-test") {
     if (state.linkedDevice.status !== "connected") return toast("لا يمكن الإرسال قبل ربط الجهاز", "danger");
-    return openModal("إرسال رسالة اختبار", `<form data-submit="send-device-test" class="grid"><label class="field"><span>رقم المستلم التجريبي</span><input class="input" name="to" inputmode="numeric" placeholder="9665XXXXXXXX" required></label><label class="field"><span>الرسالة</span><textarea class="textarea" name="message" required>مرحبًا {{name}}، هذه رسالة اختبار من RenewPilot AI. أرسل إيقاف لإلغاء الرسائل.</textarea></label><button class="btn btn-primary" type="submit">إرسال الاختبار</button></form>`);
+    return openModal("إرسال رسالة اختبار", `<form data-submit="send-device-test" class="grid"><label class="field"><span>رقم المستلم التجريبي</span><input class="input" name="to" inputmode="numeric" placeholder="9665XXXXXXXX" required></label><label class="field"><span>الرسالة</span><textarea class="textarea" name="message" required>مرحبًا {{name}}، هذه رسالة اختبار من Renvix. أرسل إيقاف لإلغاء الرسائل.</textarea></label><button class="btn btn-primary" type="submit">إرسال الاختبار</button></form>`);
   }
   if (action === "disconnect-device") {
     try {
@@ -2707,8 +2760,8 @@ async function handleAction(target) {
   if (action === "google-login") toast("سيتم ربط تسجيل الدخول عبر Google لاحقًا", "warning");
   if (action === "open-ticket") openModal("فتح تذكرة دعم", `<form data-submit="ticket" class="grid">${field("الموضوع", "subject")}${field("البريد", "email", "email")}<textarea class="textarea" name="body" required placeholder="وصف المشكلة"></textarea><button class="btn btn-primary">إرسال التذكرة</button></form>`);
   if (action === "open-chat") openDrawer("الدردشة المباشرة", `<div class="activity-list"><div class="activity-item">${icon("د")}<div><strong>فريق الدعم</strong><p class="muted">مرحبًا، كيف يمكننا مساعدتك؟</p></div></div></div><form data-submit="chat"><input class="input" name="message" required placeholder="اكتب رسالتك"><br><br><button class="btn btn-primary">إرسال</button></form>`);
-  if (action === "open-email") location.href = "mailto:support@renewpilot.ai?subject=طلب دعم RenewPilot AI";
-  if (action === "open-whatsapp") window.open("https://wa.me/966500000000?text=مرحبًا، أحتاج دعم RenewPilot AI", "_blank");
+  if (action === "open-email") location.href = "mailto:support@renewpilot.ai?subject=طلب دعم Renvix";
+  if (action === "open-whatsapp") window.open("https://wa.me/966500000000?text=مرحبًا، أحتاج دعم Renvix", "_blank");
   if (action === "knowledge") toast(`تم فتح قسم ${target.dataset.term}`);
   if (action === "support-chip") { state.search = target.dataset.term; render(); }
   if (action === "blog-category") { state.blogCategory = target.dataset.category; render(); }
@@ -3193,6 +3246,7 @@ function render() {
       "/dashboard/renewal-template": renewalTemplatePage,
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
+      "/dashboard/apps": appsPage,
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
       "/dashboard/billing": billingWorkspacePage,
@@ -3312,8 +3366,13 @@ document.addEventListener("change", (event) => {
       } catch (error) { toast(error.message || "تعذر رفع الصورة", "danger"); }
     })();
   }
-  if (target.dataset.action === "salla-auto-sync") void saveSallaSettings({ autoSync: target.checked });
-  if (target.dataset.action === "salla-duration") void saveSallaSettings({ defaultDurationDays: Number(target.value) });
+  if (target.dataset.sallaSetting && state.sallaSettingsOpen) {
+    const current = state.appsOverview?.connection || {};
+    if (target.type === "checkbox") current[target.dataset.sallaSetting] = target.checked;
+    else current[target.dataset.sallaSetting] = target.value;
+    state.appsOverview.connection = current;
+    render();
+  }
   if (target.dataset.action === "dashboard-filter") {
     state.filter = target.value;
     render();

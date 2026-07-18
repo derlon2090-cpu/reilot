@@ -360,7 +360,7 @@ tbody tr:hover { background: #fbfeff; }
 .empty-icon { width: 74px; height: 54px; border-radius: 18px; display: grid; place-items: center; background: #eef7ff; color: var(--primary-dark); font-size: 28px; }
 .modal-qr { border: 0; cursor: default; }
 
-/* Visual pass aligned with the approved RenewPilot AI screens. */
+/* Visual pass aligned with the approved Renvix screens. */
 .public-nav { box-shadow: 0 1px 0 rgba(15, 23, 42, .04); }
 .public-nav .brand { font-size: 28px; color: #06163a; }
 .public-nav .brand-mark,
@@ -1671,10 +1671,15 @@ tbody tr:hover { background: #fbfeff; }
   align-items: center;
   background: transparent !important;
   box-shadow: none !important;
+  gap: 11px;
 }
-.brand-logo { width: 214px; height: auto; display: block; object-fit: contain; }
-.brand-logo-stacked { width: min(290px, 82%); height: auto; display: block; object-fit: contain; }
-.sidebar .brand-logo { width: 188px; }
+.brand-mark-image { width: 54px; height: 54px; display: block; object-fit: contain; flex: 0 0 auto; }
+.brand-wordmark { color: #09285d; font-size: 25px; line-height: 1; font-weight: 800; letter-spacing: 0; white-space: nowrap; }
+.brand-logo-stacked { width: min(290px, 82%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.brand-logo-stacked .brand-mark-image { width: 172px; height: 172px; }
+.brand-logo-stacked .brand-wordmark { font-size: 44px; }
+.sidebar .brand-mark-image { width: 42px; height: 42px; }
+.sidebar .brand-wordmark { font-size: 22px; }
 .public-site,
 .auth-light-page { color: #10244a; background: #fff; }
 .public-site .container,
@@ -1803,7 +1808,8 @@ tbody tr:hover { background: #fbfeff; }
 .public-footer { min-height: 82px; margin-top: auto; }
 .public-footer-inner { min-height: 82px; direction: rtl; }
 .footer-brand-mini { display: flex; align-items: center; gap: 12px; color: #7c899c; font-size: 10px; }
-.footer-brand-mini .brand-logo { width: 54px; }
+.footer-brand-mini .brand-mark-image { width: 32px; height: 32px; }
+.footer-brand-mini .brand-wordmark { font-size: 16px; }
 .footer-brand-mini .brand { pointer-events: none; }
 .footer-links { gap: 25px; }
 .footer-links button { font-size: 11px; }
@@ -1811,7 +1817,8 @@ tbody tr:hover { background: #fbfeff; }
 .footer-social a { width: 36px; height: 36px; }
 
 .auth-light-header { min-height: 89px; padding: 0 5.2vw; direction: rtl; }
-.auth-light-header .brand-logo { width: 215px; }
+.auth-light-header .brand-mark-image { width: 54px; height: 54px; }
+.auth-light-header .brand-wordmark { font-size: 25px; }
 .auth-light-shell,
 .reset-light-shell { width: min(1180px, calc(100% - 50px)); min-height: 650px; margin: 45px auto 36px; gap: 36px; direction: rtl; }
 .auth-light-shell > *,
@@ -1843,7 +1850,8 @@ tbody tr:hover { background: #fbfeff; }
 
 @media (max-width: 1220px) {
   .public-site .nav-inner { grid-template-columns: 210px 1fr 420px; gap: 12px; }
-  .brand-logo { width: 188px; }
+  .brand-mark-image { width: 46px; height: 46px; }
+  .brand-wordmark { font-size: 22px; }
   .public-site .nav-links { gap: 19px; }
   .marketing-hero-grid { grid-template-columns: 1fr 1fr; gap: 34px; }
   .marketing-copy h1 { font-size: 38px; }
@@ -1882,7 +1890,8 @@ tbody tr:hover { background: #fbfeff; }
 @media (max-width: 640px) {
   .public-site .container,
   .public-footer .container { width: min(100% - 28px, 1512px); }
-  .brand-logo { width: 174px; }
+  .brand-mark-image { width: 42px; height: 42px; }
+  .brand-wordmark { font-size: 20px; }
   .marketing-copy h1 { font-size: 31px; }
   .marketing-copy .hero-actions { flex-direction: column; }
   .marketing-copy .hero-actions .btn { width: 100%; }
@@ -1905,7 +1914,8 @@ tbody tr:hover { background: #fbfeff; }
   .blog-aside { grid-template-columns: 1fr; }
   .public-footer-inner { padding: 18px 0; flex-direction: column; }
   .footer-brand-mini { flex-direction: column; }
-  .auth-light-header .brand-logo { width: 170px; }
+  .auth-light-header .brand-mark-image { width: 42px; height: 42px; }
+  .auth-light-header .brand-wordmark { font-size: 20px; }
   .auth-light-shell,
   .reset-light-shell { width: min(100% - 24px, 1180px); margin: 24px auto; }
   .auth-light-panel,
@@ -2330,8 +2340,37 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .salla-rules-empty strong { color: #294568; }
 .salla-rules-actions { margin-top: 13px; padding-top: 13px; color: #71809a; border-top: 1px solid #edf1f6; font-size: 12px; }
 .salla-meta { grid-column: 1 / -1; padding-top: 12px; display: flex; flex-wrap: wrap; gap: 12px 26px; color: #71809a; border-top: 1px solid #edf1f6; font-size: 13px; }
-:root[data-theme="dark"] .brand-logo,
-:root[data-theme="dark"] .brand-logo-stacked { filter: brightness(0) invert(1); }
+.salla-app-card { margin-top: 18px; padding: 24px; display: grid; gap: 18px; }
+.salla-app-description { margin: 0; color: #637692; line-height: 1.9; }
+.salla-connected-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.salla-connected-meta > div { padding: 14px 16px; display: grid; gap: 5px; border: 1px solid #e2e9f1; border-radius: 10px; background: #f9fbfd; }
+.salla-connected-meta span { color: #71809a; font-size: 12px; }
+.salla-connected-meta strong { color: #102b55; }
+.salla-settings-workspace { margin-top: 18px; padding: 22px; }
+.apps-settings-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .75fr); gap: 18px; align-items: start; }
+.salla-settings-form { display: grid; gap: 16px; }
+.salla-color-row { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
+.salla-color-row > strong { margin-inline-end: 8px; color: #294568; }
+.color-choice { width: 38px; height: 38px; position: relative; display: grid; place-items: center; border: 1px solid #dce5ef; border-radius: 8px; background: #fff; cursor: pointer; }
+.color-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.color-choice span { width: 24px; height: 24px; border-radius: 6px; background: var(--choice); }
+.color-choice:has(input:checked) { border: 2px solid var(--choice); box-shadow: 0 0 0 3px color-mix(in srgb, var(--choice) 14%, transparent); }
+.apps-toggle-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.apps-toggle-list .salla-setting-panel { min-height: 98px; }
+.apps-toggle-list input[type="checkbox"] { width: 42px; height: 23px; accent-color: #0fb7aa; }
+.salla-duration-line { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.salla-live-preview { min-height: 420px; position: sticky; top: 96px; padding: 24px; overflow: hidden; display: grid; place-items: center; align-content: center; gap: 14px; color: #102b55; border: 1px solid color-mix(in srgb, var(--salla-preview) 34%, #dce5ef); border-radius: 14px; background: linear-gradient(155deg, color-mix(in srgb, var(--salla-preview) 10%, #fff), #fff 58%); text-align: center; }
+.salla-live-preview::before { content: ""; position: absolute; inset: 0 0 auto; height: 8px; background: var(--salla-preview); }
+.salla-live-preview .preview-label { position: absolute; inset: 18px 18px auto auto; color: #71809a; font-size: 11px; }
+.salla-live-preview > img { width: 78px; height: 78px; object-fit: contain; }
+.salla-live-preview h3 { margin: 2px 0 0; font-size: 21px; }
+.salla-live-preview > p { margin: 0; color: #71809a; font-size: 12px; line-height: 1.8; }
+.preview-order { width: 100%; padding: 18px; display: grid; gap: 8px; border: 1px solid #e1e8f1; border-radius: 10px; background: #fff; }
+.preview-order strong { color: var(--salla-preview); font-size: 25px; }
+.preview-order small { color: #71809a; }
+.inline-notice.warning { margin: 0; padding: 12px 14px; color: #9a6300; border: 1px solid #f4d28a; border-radius: 9px; background: #fff9e9; }
+:root[data-theme="dark"] .brand-wordmark { color: #f4f9ff; }
+:root[data-theme="dark"] .brand-mark-image { filter: none; }
 :root[data-theme="dark"] .order-number-copy { color: #dce9f7; border-color: #2a3d55; background: #0f1d30; }
 :root[data-theme="dark"] .storage-summary strong { color: #eff7ff; }
 :root[data-theme="dark"] .storage-progress { background: #17283d; }
@@ -2347,6 +2386,32 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 :root[data-theme="dark"] .salla-brand p,
 :root[data-theme="dark"] .salla-meta,
 :root[data-theme="dark"] .avatar-editor small { color: #9eb0c7; }
+:root[data-theme="dark"] .salla-app-card,
+:root[data-theme="dark"] .salla-settings-workspace,
+:root[data-theme="dark"] .salla-live-preview,
+:root[data-theme="dark"] .preview-order,
+:root[data-theme="dark"] .salla-connected-meta > div,
+:root[data-theme="dark"] .color-choice { color: #dce9f7; border-color: #29415d; background: #0f1d30; }
+:root[data-theme="dark"] .salla-live-preview { background: linear-gradient(155deg, color-mix(in srgb, var(--salla-preview) 13%, #0f1d30), #0f1d30 58%); }
+:root[data-theme="dark"] .salla-live-preview h3,
+:root[data-theme="dark"] .salla-connected-meta strong,
+:root[data-theme="dark"] .salla-color-row > strong { color: #eff7ff; }
+:root[data-theme="dark"] .inline-notice.warning { color: #ffd985; border-color: #6f5520; background: #2a210e; }
+
+@media (max-width: 1100px) {
+  .apps-settings-layout { grid-template-columns: 1fr; }
+  .salla-live-preview { position: static; min-height: 330px; }
+}
+@media (max-width: 760px) {
+  .salla-card-head,
+  .salla-brand { align-items: flex-start; }
+  .salla-card-head { flex-direction: column; }
+  .salla-connected-meta,
+  .apps-toggle-list,
+  .salla-duration-line { grid-template-columns: 1fr; }
+  .salla-header-actions .btn { width: 100%; }
+  .salla-rule-row { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 900px) {
   .salla-card-head { align-items: flex-start; flex-direction: column; }
@@ -2565,7 +2630,8 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .public-order-header { min-height: 92px; padding: 0 max(4vw, 32px); display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #e5eaf0; background: #fff; }
 .public-order-header > div { display: flex; align-items: center; gap: 12px; }
 .public-order-header > div:first-child { flex-direction: column; align-items: flex-start; gap: 2px; }
-.public-order-header .brand-logo { width: 190px; }
+.public-order-header .brand-mark-image { width: 50px; height: 50px; }
+.public-order-header .brand-wordmark { font-size: 23px; }
 .public-order-header span,
 .public-order-header small { color: #8492a7; font-size: 11px; }
 .public-order-header strong { color: #10264d; font-size: 19px; }

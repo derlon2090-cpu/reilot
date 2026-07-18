@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "prebuild": "node build.mjs",
+    "prebuild": "node build.mjs && node scripts/migrate-on-production-build.mjs",
     "build": "next build",
     "predev": "node build.mjs",
     "dev": "next dev",

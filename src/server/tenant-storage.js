@@ -14,7 +14,12 @@ const TABLE_GROUPS = {
   activity_logs: "الرسائل والسجلات",
   whatsapp_channels: "الأجهزة",
   commerce_integrations: "التكاملات",
-  commerce_order_mappings: "التكاملات"
+  commerce_order_mappings: "التكاملات",
+  app_connections: "التكاملات",
+  salla_connection_settings: "التكاملات",
+  app_sync_logs: "التكاملات",
+  external_orders: "التكاملات",
+  oauth_states: "بيانات النظام"
 };
 
 function safeTableName(value) {
@@ -66,4 +71,3 @@ export async function getTenantStorage(tenantId) {
       .sort((a, b) => b.bytes - a.bytes)
   };
 }
-

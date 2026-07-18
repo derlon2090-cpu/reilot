@@ -26,10 +26,10 @@ test("English mode translates every required page and persists direction", async
     await page.goto(route);
     await expect(page.locator("#app > *")).toBeVisible();
     const audit = await page.locator("body").innerText();
-    expect(audit, `${route} contains untranslated fallback`).not.toContain("RenewPilot AI content");
+    expect(audit, `${route} contains untranslated fallback`).not.toContain("Renvix content");
     expect(audit, `${route} contains Arabic UI text`).not.toMatch(/[\u0600-\u06ff]/);
     const attributes = await page.locator("[placeholder], [title], [aria-label]").evaluateAll((elements) => elements.flatMap((element) => ["placeholder", "title", "aria-label"].map((name) => element.getAttribute(name) || "")));
-    expect(attributes.join("\n"), `${route} contains untranslated attributes`).not.toContain("RenewPilot AI content");
+    expect(attributes.join("\n"), `${route} contains untranslated attributes`).not.toContain("Renvix content");
     expect(attributes.join("\n"), `${route} contains Arabic attributes`).not.toMatch(/[\u0600-\u06ff]/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
@@ -54,7 +54,7 @@ test("validation, dialog text, and toasts follow the selected language", async (
   await page.goto("/dashboard/subscriptions");
   await page.locator("[data-action='add-subscription']").click();
   const dialogText = await page.locator(".modal").innerText();
-  expect(dialogText).not.toContain("RenewPilot AI content");
+  expect(dialogText).not.toContain("Renvix content");
   expect(dialogText).not.toMatch(/[\u0600-\u06ff]/);
 });
 

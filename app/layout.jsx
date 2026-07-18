@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "RenewPilot AI",
-  description: "منصة ذكية لإدارة الاشتراكات والتجديدات والتنبيهات بأمان."
+  title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
+  description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات."
 };
 
 export default function RootLayout({ children }) {

@@ -1,4 +1,7 @@
 {
+  "app": {
+    "name": "Renvix"
+  },
   "common": {
     "save": "حفظ",
     "cancel": "إلغاء",
@@ -19,11 +22,11 @@
     "retry": "إعادة المحاولة",
     "success": "تمت العملية بنجاح",
     "serverError": "تعذر إكمال العملية، حاول مرة أخرى.",
-    "untranslated": "محتوى RenewPilot AI"
+    "untranslated": "محتوى Renvix"
   },
   "auth": {
     "loginTitle": "تسجيل الدخول",
-    "loginSubtitle": "مرحبًا بعودتك إلى RenewPilot AI",
+    "loginSubtitle": "مرحبًا بعودتك إلى Renvix",
     "registerTitle": "إنشاء حساب جديد",
     "registerSubtitle": "أنشئ مساحة عملك وابدأ إدارة التجديدات بأمان.",
     "name": "الاسم الكامل",
@@ -85,7 +88,7 @@
     "overview": "نظرة عامة",
     "subtitle": "تابع الاشتراكات والتنبيهات وأداء التجديدات من مكان واحد.",
     "search": "بحث سريع...",
-    "assistant": "مساعد RenewPilot AI",
+    "assistant": "مساعد Renvix",
     "assistantText": "اقتراحات فورية مبنية على بيانات التجديد والإرسال الآمن.",
     "profile": "الملف الشخصي",
     "settings": "الإعدادات"

@@ -44,7 +44,7 @@ test("order information builder and public page are responsive and private", asy
     themeColor: "#22C55E",
     storeName: profile.storeName,
     headerText: "مرحبًا بك في صفحة متابعة طلبك",
-    footerText: "RenewPilot AI",
+    footerText: "Renvix",
     additionalNotes: [],
     visibleFields: {},
     isDefault: true,
@@ -86,7 +86,7 @@ test("order information builder and public page are responsive and private", asy
               style: "classic",
               themeColor: "#22C55E",
               headerText: "مرحبًا بك في صفحة متابعة طلبك",
-              footerText: "RenewPilot AI"
+              footerText: "Renvix"
             }
           }
         }
@@ -113,7 +113,7 @@ test("order information builder and public page are responsive and private", asy
           style: "classic",
           themeColor: "#22C55E",
           headerText: "شكرًا لاختيارك خدماتنا",
-          footerText: "RenewPilot AI",
+          footerText: "Renvix",
           additionalNotes: ["احتفظ بهذا الرابط للرجوع إليه لاحقًا.", "يمكنك التواصل معنا في أي وقت."],
           visibleFields: {
             customerName: true,

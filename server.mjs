@@ -53,5 +53,5 @@ createServer(async (req, res) => {
     res.end(body);
   }
 }).listen(port, () => {
-  console.log(`RenewPilot AI is running at http://localhost:${port}`);
+  console.log(`Renvix is running at http://localhost:${port}`);
 });

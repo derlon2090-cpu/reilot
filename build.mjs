@@ -22,4 +22,4 @@ await mkdir(dist, { recursive: true });
 await cp(path.join(root, "index.html"), path.join(dist, "index.html"));
 await cp(path.join(root, "public"), dist, { recursive: true });
 
-console.log("Built RenewPilot AI static files in dist");
+console.log("Built Renvix static files in dist");

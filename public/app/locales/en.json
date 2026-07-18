@@ -1,4 +1,7 @@
 {
+  "app": {
+    "name": "Renvix"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -23,7 +26,7 @@
   },
   "auth": {
     "loginTitle": "Sign in",
-    "loginSubtitle": "Welcome back to RenewPilot AI",
+    "loginSubtitle": "Welcome back to Renvix",
     "registerTitle": "Create your account",
     "registerSubtitle": "Create your workspace and start managing renewals safely.",
     "name": "Full name",
@@ -85,7 +88,7 @@
     "overview": "Overview",
     "subtitle": "Track subscriptions, reminders, and renewal performance from one place.",
     "search": "Quick search...",
-    "assistant": "RenewPilot AI Assistant",
+    "assistant": "Renvix Assistant",
     "assistantText": "Actionable guidance based on renewal and safe-sending data.",
     "profile": "Profile",
     "settings": "Settings"
@@ -167,7 +170,7 @@
     "تواصل عبر البريد": "Email support",
     "تواصل عبر واتساب": "WhatsApp support",
     "قاعدة المعرفة": "Knowledge base",
-    "مساعد RenewPilot AI": "RenewPilot AI Assistant",
+    "مساعد Renvix": "Renvix Assistant",
     "إرسال السؤال": "Send question",
     "حالة التذاكر": "Ticket status",
     "قيد الانتظار": "Pending",
@@ -178,7 +181,7 @@
     "الإيرادات": "Revenue",
     "تصدير التقرير": "Export report",
     "النشاط الأخير": "Recent activity",
-    "اقتراحات RenewPilot AI": "RenewPilot AI suggestions",
+    "اقتراحات Renvix": "Renvix suggestions",
     "استخدام الرسالة": "Use message",
     "عرض المزيد من الاقتراحات": "View more suggestions",
     "إدارة الاشتراكات": "Subscription management",
