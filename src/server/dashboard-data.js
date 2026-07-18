@@ -118,7 +118,7 @@ export async function getDashboardOverview(tenantId, userId) {
   const [stats, profile, activities, monthly, notifications] = await Promise.all([
     loadBaseStats(tenantId),
     query(
-      `SELECT u.name, u.email, COALESCE(p.name, 'Free Trial') AS "planName",
+      `SELECT u.name, u.email, u.image, COALESCE(p.name, 'Free Trial') AS "planName",
               COALESCE(ps.status, 'trial') AS "planStatus", s.language, s.theme,
               COALESCE(s.notification_channels, '{}'::jsonb) AS "notificationChannels",
               COALESCE(s.security, '{}'::jsonb) AS security

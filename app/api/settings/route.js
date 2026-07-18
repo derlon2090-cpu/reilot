@@ -1,18 +1,19 @@
 import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
+import { getTenantStorage } from "../../../src/server/tenant-storage.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
-  const result = await query(
-    `SELECT u.name, u.email, s.language, s.theme,
+  const [result, storage] = await Promise.all([query(
+    `SELECT u.name, u.email, u.image, s.language, s.theme,
             COALESCE(s.notification_channels, '{}'::jsonb) AS "notificationChannels",
             COALESCE(s.security, '{}'::jsonb) AS security
        FROM users u LEFT JOIN settings s ON s.tenant_id = u.tenant_id
       WHERE u.id = $1 AND u.tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
-  );
-  return Response.json({ ok: true, settings: result.rows[0] || null });
+  ), getTenantStorage(auth.session.tenantId)]);
+  return Response.json({ ok: true, settings: result.rows[0] || null, storage });
 }
 
 export async function PATCH(req) {

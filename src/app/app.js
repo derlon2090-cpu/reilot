@@ -422,6 +422,7 @@ state.operationalIssues = null;
 state.whatsappHealth = null;
 state.notificationTemplate = null;
 state.billingOverview = null;
+state.sallaIntegration = null;
 state.orderLinkProfile = null;
 state.orderLinkTemplates = null;
 state.orderLinkSubscriptions = null;
@@ -567,6 +568,7 @@ async function loadRemotePage(key, url, target, options) {
 function syncRouteData(force = false) {
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
   if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
+  if (state.route === "/dashboard/subscriptions" && (force || state.sallaIntegration === null)) void loadRemotePage("sallaIntegration", "/api/integrations/salla", "sallaIntegration");
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
@@ -1143,11 +1145,13 @@ function dashboardShell(content) {
   const profileName = profile.name || (state.language === "ar" ? "المستخدم" : "User");
   const profileInitial = profileName.trim().slice(0, 1) || "R";
   const planName = profile.planName || (state.language === "ar" ? "تجربة مجانية" : "Free Trial");
+  const profileAvatar = profile.image
+    ? `<img class="avatar avatar-image" src="${escapeHtml(profile.image)}" alt="${escapeHtml(profileName)}">`
+    : `<span class="avatar">${escapeHtml(profileInitial)}</span>`;
   return `<div class="dashboard-shell">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       <div class="sidebar-brand">${logo()}</div>
       <nav class="side-links">${links}</nav>
-      <div class="sidebar-foot"><span class="sidebar-foot-icon">AI</span><div><strong>RenewPilot AI</strong><small>${state.language === "ar" ? "إدارة التجديدات بوضوح" : "Renewals, clearly managed"}</small></div></div>
     </aside>
     <main class="dashboard-main">
       <header class="topbar">
@@ -1160,7 +1164,7 @@ function dashboardShell(content) {
           <button class="btn btn-ghost icon-btn" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
           <button class="btn btn-ghost icon-btn" data-action="notifications" title="${state.language === "ar" ? "التنبيهات" : "Notifications"}">${dashboardIcon("notifications")}</button>
           <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
-          <button class="profile-trigger" data-action="profile-menu"><span class="avatar">${escapeHtml(profileInitial)}</span><span><strong>${escapeHtml(profileName)}</strong><small>${escapeHtml(profile.email || "")}</small></span></button>
+          <button class="profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong><small>${escapeHtml(profile.email || "")}</small></span></button>
           ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
         </div>
       </header>
@@ -1245,6 +1249,8 @@ function issuesPage() {
 
 function subscriptionsPage() {
   const stats = overviewStats();
+  const salla = state.sallaIntegration?.integration || null;
+  const sallaConfigured = Boolean(state.sallaIntegration?.configured);
   const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
   const rows = filterRows(source, ["orderNumber", "customerName", "planName", "status"]);
   const content = state.dbSubscriptions?.error
@@ -1252,7 +1258,18 @@ function subscriptionsPage() {
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
       : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
+  const sallaCard = `<article class="card salla-integration-card section">
+    <div class="salla-brand"><span class="salla-mark">س</span><div><h2>التخزين التلقائي من سلة</h2><p>استيراد عملاء وطلبات متجر سلة كاشتراكات حقيقية، ثم إدراجها تلقائيًا ضمن تنبيهات التجديد.</p></div></div>
+    <div class="salla-controls">
+      <span class="status ${salla?.status === "connected" ? "success" : "warning"}">${salla?.status === "connected" ? "متجر سلة متصل" : "غير متصل"}</span>
+      <label class="field compact-field"><span>مدة الاشتراك الافتراضية</span><select class="select" data-action="salla-duration" ${salla?.status === "connected" ? "" : "disabled"}>${[30, 90, 180, 365].map((days) => `<option value="${days}" ${Number(salla?.defaultDurationDays || 30) === days ? "selected" : ""}>${days} يومًا</option>`).join("")}</select></label>
+      <label class="setting-row setting-toggle salla-toggle" title="${salla?.status === "connected" ? "تخزين الطلبات والعملاء تلقائيًا" : "اربط متجر سلة أولًا"}"><span>التخزين التلقائي</span><input type="checkbox" data-action="salla-auto-sync" ${salla?.autoSync ? "checked" : ""} ${salla?.status === "connected" ? "" : "disabled"}></label>
+      ${salla?.status === "connected" ? `<button class="btn btn-secondary" data-action="disconnect-salla">فصل متجر سلة</button>` : `<button class="btn btn-primary" data-action="connect-salla" ${sallaConfigured ? "" : "disabled title=\"إعداد تكامل سلة غير مكتمل على الخادم\""}>ربط متجر سلة</button>`}
+    </div>
+    <div class="salla-meta"><span>آخر مزامنة: ${salla?.lastSyncAt ? escapeHtml(new Date(salla.lastSyncAt).toLocaleString("ar-SA")) : "لم تتم المزامنة بعد"}</span><span>${salla?.storeName ? `المتجر: ${escapeHtml(salla.storeName)}` : "هذه الميزة لمتاجر سلة فقط"}</span>${salla?.lastError ? `<span class="danger-text">${escapeHtml(salla.lastError)}</span>` : ""}</div>
+  </article>`;
   return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير CSV</button>`)}
+    ${sallaCard}
     ${statGrid([
       { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
       { title: "التجديدات خلال 7 أيام", value: stats.upcomingRenewals, caption: "قادم", tone: "warning", icon: "reports" },
@@ -1730,7 +1747,7 @@ function orderLinksWorkspacePage() {
     `<div class="row-actions"><button class="btn btn-ghost" data-action="load-order-template" data-id="${item.id}">تعديل</button><button class="btn btn-ghost" data-action="duplicate-order-template" data-id="${item.id}">نسخ</button><button class="btn btn-ghost danger-text" data-action="delete-order-template" data-id="${item.id}">حذف</button></div>`
   ]);
   const linkRows = links.map((item) => [
-    `<strong>#${escapeHtml(item.orderNumber)}</strong>`,
+    `<button class="order-number-copy" data-action="copy-order-number" data-value="${escapeHtml(item.orderNumber)}" title="نسخ رقم الطلب"><strong>#${escapeHtml(item.orderNumber)}</strong>${dashboardIcon("orderLink")}</button>`,
     escapeHtml(item.customerName || "—"),
     escapeHtml(item.templateName || "بدون قالب"),
     `<span class="color-dot" style="background:${safeOrderLinkColor(item.themeColor)}"></span>`,
@@ -1876,27 +1893,33 @@ function billingWorkspacePage() {
   const current = data.current || {};
   const plans = data.plans || [];
   const usage = data.usage || { usedMessages: 0, messageLimit: 0 };
+  const storage = data.storage || { usedMb: 0, limitMb: 100, percent: 0 };
   const days = current.currentPeriodEnd ? Math.max(0, Math.ceil((new Date(current.currentPeriodEnd) - Date.now()) / 86400000)) : 0;
   const invoices = data.invoices || [];
   return dashboardShell(`${pageTitle("الفوترة والباقات")}
     <p class="page-kicker">إدارة خطة الاشتراك والاستخدام والفواتير بكل سهولة وشفافية.</p>${statGrid([
-      { title: "الرصيد المتاح", value: formatMoney(data.walletBalance || 0), caption: "لا يُعرض رصيد غير مسجل", tone: "info", icon: "billing" },
+      { title: "مساحة التخزين", value: `${storage.usedMb} / ${storage.limitMb} MB`, caption: `${storage.percent}% مستخدم`, tone: "info", icon: "billing" },
       { title: "الأيام المتبقية", value: days, caption: current.currentPeriodEnd ? `حتى ${new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA")}` : "لا توجد دورة نشطة", tone: "purple", icon: "template" },
       { title: "الخطة الحالية", value: current.planName || "تجربة مجانية", caption: current.status || "trial", tone: "success", icon: "subscriptions" },
       { title: "استخدام الرسائل", value: `${Number(usage.usedMessages || 0).toLocaleString("ar-SA")} / ${Number(usage.messageLimit || 0).toLocaleString("ar-SA")}`, caption: "من قاعدة البيانات", tone: "info", icon: "reports" }
     ])}
-    <section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات المتاحة فعليًا في منصة RenewPilot.</p></div></div>${plans.length ? `<div class="dashboard-plan-grid">${plans.map((plan) => `<article class="dashboard-plan ${plan.slug === current.planSlug ? "current" : ""}"><span class="status ${plan.slug === current.planSlug ? "success" : "info"}">${plan.slug === current.planSlug ? "خطتك الحالية" : "متاحة"}</span><h3>${escapeHtml(plan.name)}</h3><p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p><ul class="check-list"><li>${Number(plan.messageLimit || 0).toLocaleString("ar-SA")} رسالة</li><li>${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل</li><li>${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} جهاز واتساب</li></ul><button class="btn ${plan.slug === current.planSlug ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${plan.slug === current.planSlug ? "عرض تفاصيل الخطة" : "اختيار الباقة"}</button></article>`).join("")}</div>` : emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support")}</article>
+    <section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات المتاحة فعليًا في منصة RenewPilot.</p></div></div>${plans.length ? `<div class="dashboard-plan-grid">${plans.map((plan) => `<article class="dashboard-plan ${plan.slug === current.planSlug ? "current" : ""}"><span class="status ${plan.slug === current.planSlug ? "success" : "info"}">${plan.slug === current.planSlug ? "خطتك الحالية" : "متاحة"}</span><h3>${escapeHtml(plan.name)}</h3><p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p><ul class="check-list"><li>${Number(plan.messageLimit || 0).toLocaleString("ar-SA")} رسالة</li><li>${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل</li><li>${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} جهاز واتساب</li><li>${Number(plan.storageLimitMb || 100).toLocaleString("ar-SA")} MB تخزين</li></ul><button class="btn ${plan.slug === current.planSlug ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${plan.slug === current.planSlug ? "عرض تفاصيل الخطة" : "اختيار الباقة"}</button></article>`).join("")}</div>` : emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support")}</article>
       <aside class="billing-side"><article class="card wallet-card"><h2>شحن المحفظة</h2><p>الدفع الإلكتروني غير مفعّل في هذه البيئة حاليًا.</p><button class="btn btn-primary" data-link="/support">طلب مساعدة في الشحن</button></article><article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>تاريخ التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>
     <article class="card table-card section"><div class="section-head"><div><h2>آخر الفواتير</h2><p>لا تظهر إلا الفواتير المسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد ربط مزود الدفع وإصدار أول فاتورة.")}</article>`);
 }
 
 function settingsPage() {
   const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
+  const storage = state.accountSettings?.storage || { usedMb: 0, limitMb: 100, percent: 0, breakdown: [] };
   const notifications = remote.notificationChannels || {};
   const security = remote.security || {};
+  const avatar = remote.image
+    ? `<img class="settings-avatar-image" src="${escapeHtml(remote.image)}" alt="صورة الحساب">`
+    : `<span class="settings-avatar-fallback">${escapeHtml((remote.name || "م").trim().charAt(0) || "م")}</span>`;
   return dashboardShell(`${pageTitle("الإعدادات", `<button class="btn btn-primary" data-action="save-settings">حفظ التغييرات</button>`)}
     <div class="settings-layout">
-      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">بيانات المستخدم الحالي.</p></div></div><form data-submit="profile-settings" class="form-grid"><label class="field"><span>الاسم</span><input class="input" name="name" value="${escapeHtml(remote.name || "")}" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" disabled></label><button class="btn btn-primary">حفظ الملف الشخصي</button></form></article>
+      <article class="card settings-panel account-photo-panel"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">بيانات المستخدم وصورة الحساب.</p></div></div><div class="avatar-editor">${avatar}<div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">إضافة أو تغيير الصورة</button>${remote.image ? `<button class="btn btn-ghost danger-text" data-action="remove-avatar">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 512 كيلوبايت بعد التحسين.</small></div></div><form data-submit="profile-settings" class="form-grid"><label class="field"><span>الاسم</span><input class="input" name="name" value="${escapeHtml(remote.name || "")}" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" disabled></label><button class="btn btn-primary">حفظ الملف الشخصي</button></form></article>
+      <article class="card settings-panel storage-panel"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>من ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Math.min(100, Number(storage.percent || 0))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small><div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">عرض حدود الباقات</button></article>
       <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>اللغة والمظهر</h2><p class="muted">تحفظ التفضيلات للحساب والمتصفح.</p></div></div><div class="setting-row"><span>اللغة</span><div class="segmented"><button class="${state.language === "ar" ? "active" : ""}" data-action="set-language" data-value="ar">AR</button><button class="${state.language === "en" ? "active" : ""}" data-action="set-language" data-value="en">EN</button></div></div><div class="setting-row"><span>المظهر</span><div class="segmented"><button class="${state.theme === "light" ? "active" : ""}" data-action="set-theme" data-value="light">شمسي</button><button class="${state.theme === "dark" ? "active" : ""}" data-action="set-theme" data-value="dark">ليلي</button></div></div></article>
       <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">كلمة المرور والمصادقة الثنائية.</p></div></div>${settingToggle("twoFactor", "المصادقة الثنائية (2FA)", Boolean(security.twoFactor))}<button class="btn btn-secondary" data-action="change-password">تغيير كلمة المرور</button><button class="btn btn-secondary" data-action="manage-sessions">إدارة الجلسات</button></article>
       <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("subscriptions")}<div><h2>الإشعارات</h2><p class="muted">اختر القنوات التي تريد تفعيلها.</p></div></div>${settingToggle("whatsapp", "واتساب", Boolean(notifications.whatsapp))}${settingToggle("email", "البريد الإلكتروني", Boolean(notifications.email))}${settingToggle("sms", "الرسائل النصية", Boolean(notifications.sms))}</article>
@@ -2272,12 +2295,69 @@ async function saveAccountSettings(overrides = {}) {
   } catch (error) { toast(error.message || "تعذر حفظ الإعدادات", "danger"); }
 }
 
+async function imageFileToDataUrl(file) {
+  if (!file?.type?.match(/^image\/(png|jpeg|webp)$/)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
+  const source = await createImageBitmap(file);
+  const scale = Math.min(1, 512 / Math.max(source.width, source.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  source.close?.();
+  let quality = .84;
+  let data = canvas.toDataURL("image/webp", quality);
+  while (data.length > 680000 && quality > .45) {
+    quality -= .1;
+    data = canvas.toDataURL("image/webp", quality);
+  }
+  if (data.length > 700000) throw new Error("الصورة كبيرة جدًا، اختر صورة أصغر.");
+  return data;
+}
+
+async function saveSallaSettings(overrides = {}) {
+  const current = state.sallaIntegration?.integration || {};
+  try {
+    const payload = await fetchJson("/api/integrations/salla", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        autoSync: overrides.autoSync ?? Boolean(current.autoSync),
+        defaultDurationDays: overrides.defaultDurationDays ?? Number(current.defaultDurationDays || 30)
+      })
+    });
+    state.sallaIntegration = { ...(state.sallaIntegration || {}), integration: payload.integration };
+    toast("تم حفظ إعدادات مزامنة سلة");
+    render();
+  } catch (error) { toast(error.message || "تعذر حفظ إعدادات سلة", "danger"); }
+}
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
   if (action === "close-modal") closePortal();
+  if (action === "copy-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
+  if (action === "choose-avatar") document.querySelector('[data-action="avatar-file"]')?.click();
+  if (action === "remove-avatar") {
+    if (!confirm("هل تريد حذف صورة الحساب؟")) return;
+    try {
+      await fetchJson("/api/settings/avatar", { method: "DELETE" });
+      state.accountSettings = null; state.dashboardOverview = null;
+      await syncRouteData(true);
+      toast("تم حذف صورة الحساب");
+    } catch (error) { toast(error.message || "تعذر حذف الصورة", "danger"); }
+  }
+  if (action === "connect-salla") window.location.href = "/api/integrations/salla/connect";
+  if (action === "disconnect-salla") {
+    if (!confirm("هل تريد فصل متجر سلة وإيقاف المزامنة التلقائية؟")) return;
+    try {
+      await fetchJson("/api/integrations/salla", { method: "DELETE" });
+      state.sallaIntegration = null;
+      await syncRouteData(true);
+      toast("تم فصل متجر سلة");
+    } catch (error) { toast(error.message || "تعذر فصل متجر سلة", "danger"); }
+  }
   if (action === "theme") {
     state.theme = state.theme === "dark" ? "light" : "dark";
     localStorage.setItem("renewpilot_theme", state.theme);
@@ -3163,6 +3243,19 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "avatar-file" && target.files?.[0]) {
+    void (async () => {
+      try {
+        const image = await imageFileToDataUrl(target.files[0]);
+        await fetchJson("/api/settings/avatar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }) });
+        state.accountSettings = null; state.dashboardOverview = null;
+        await syncRouteData(true);
+        toast("تم تحديث صورة الحساب");
+      } catch (error) { toast(error.message || "تعذر رفع الصورة", "danger"); }
+    })();
+  }
+  if (target.dataset.action === "salla-auto-sync") void saveSallaSettings({ autoSync: target.checked });
+  if (target.dataset.action === "salla-duration") void saveSallaSettings({ defaultDurationDays: Number(target.value) });
   if (target.dataset.action === "dashboard-filter") {
     state.filter = target.value;
     render();
