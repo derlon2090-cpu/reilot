@@ -1,8 +1,10 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { decryptSecret, encryptSecret } from "../lib/encryption.js";
+import { normalizeOptionalEmail, validateOptionalEmail } from "../lib/customerValidation.js";
 import { normalizeSallaOrder, normalizeSallaSubscriptionRules, resolveSallaSubscriptionRule } from "../lib/salla.js";
 import { createOrderInfoLink, ensureOrderLinkProfile, saveOrderLinkProfile } from "./order-links.js";
+import { enqueueMessage } from "./message-queue.js";
 
 const DEFAULT_VISIBLE_FIELDS = {
   customerName: true, planName: true, startDate: true, endDate: true,
@@ -116,6 +118,8 @@ export async function getSallaDashboard(tenantId) {
                   scs.sync_completed_orders_only AS "syncCompletedOrdersOnly",
                   scs.default_subscription_duration_days AS "defaultSubscriptionDurationDays",
                   scs.subscription_rules AS "subscriptionRules", scs.sync_order_status AS "syncOrderStatus",
+                  scs.link_creation_mode AS "linkCreationMode",
+                  scs.auto_detect_product_duration AS "autoDetectProductDuration",
                   scs.notify_customer_after_link_created AS "notifyCustomerAfterLinkCreated",
                   scs.send_method AS "sendMethod"
              FROM app_connections ac
@@ -170,7 +174,8 @@ export async function saveSallaSettings(tenantId, body) {
        sync_paid_orders_only = $12, sync_completed_orders_only = $13,
        default_subscription_duration_days = $14, subscription_rules = $15::jsonb,
        sync_order_status = $16, notify_customer_after_link_created = $17,
-       send_method = $18, updated_at = now()`,
+       send_method = $18, link_creation_mode = $19,
+       auto_detect_product_duration = $20, updated_at = now()`,
     [tenantId, connection.rows[0].id, templateId,
       body.autoSyncCustomers !== false, body.autoSyncOrders !== false,
       body.autoCreateSubscriptions !== false, body.autoCreateOrderLinks !== false,
@@ -178,7 +183,9 @@ export async function saveSallaSettings(tenantId, body) {
       profileResult.profile.slug,
       body.syncPaidOrdersOnly !== false, Boolean(body.syncCompletedOrdersOnly), duration,
       JSON.stringify(rules), body.syncOrderStatus !== false,
-      Boolean(body.notifyCustomerAfterLinkCreated), sendMethod]
+      Boolean(body.notifyCustomerAfterLinkCreated), sendMethod,
+      body.linkCreationMode === "manual" ? "manual" : "automatic",
+      body.autoDetectProductDuration !== false]
   );
   await query(`UPDATE order_info_templates SET style = $3, theme_color = $4,
                 store_name = COALESCE(NULLIF($5, ''), store_name), updated_at = now()
@@ -205,6 +212,21 @@ function eventCustomerId(payload) {
 async function logSync(client, { tenantId, connectionId, event, externalId, status, message }) {
   await client.query(`INSERT INTO app_sync_logs (tenant_id, connection_id, provider, event_type, external_id, status, message)
     VALUES ($1, $2, 'salla', $3, $4, $5, $6)`, [tenantId, connectionId, event, externalId || null, status, message]);
+}
+
+function findProductMapping(items, mappings) {
+  for (const item of items) {
+    const productId = String(item.externalProductId || "").trim();
+    const sku = String(item.sku || "").trim().toLowerCase();
+    const name = String(item.name || "").trim().toLowerCase();
+    const match = mappings.find((mapping) =>
+      (productId && mapping.external_product_id === productId)
+      || (sku && String(mapping.product_sku || "").trim().toLowerCase() === sku)
+      || (name && String(mapping.product_name || "").trim().toLowerCase() === name)
+    );
+    if (match) return match;
+  }
+  return null;
 }
 
 export async function processSallaEvent(payload) {
@@ -242,7 +264,20 @@ export async function processSallaEvent(payload) {
     return { ok: true, skipped: true };
   }
 
-  const durationMatch = resolveSallaSubscriptionRule(payload, connection.subscription_rules || [], connection.default_subscription_duration_days || 30);
+  const initialOrder = normalizeSallaOrder(payload, connection.default_subscription_duration_days || 30);
+  const mappings = await query(
+    `SELECT external_product_id, product_name, product_sku, plan_name, duration_days
+       FROM salla_product_mappings
+      WHERE tenant_id = $1 AND connection_id = $2 AND is_active = true`,
+    [connection.tenantId, connection.id]
+  );
+  const productMapping = findProductMapping(initialOrder.items, mappings.rows);
+  const detected = connection.auto_detect_product_duration === false
+    ? { rule: null, durationDays: Number(connection.default_subscription_duration_days || 30), source: "fallback", confidence: 0.35 }
+    : resolveSallaSubscriptionRule(payload, connection.subscription_rules || [], connection.default_subscription_duration_days || 30);
+  const durationMatch = productMapping
+    ? { rule: { name: productMapping.plan_name }, durationDays: Number(productMapping.duration_days), source: "product_mapping", confidence: 1 }
+    : detected;
   const order = normalizeSallaOrder(payload, durationMatch.durationDays);
   const raw = payload.data || payload;
   const rawStatus = String(raw.status?.slug || raw.status || "").toLowerCase();
@@ -269,15 +304,36 @@ export async function processSallaEvent(payload) {
         ? String(customerData.name || `${customerData.first_name || ""} ${customerData.last_name || ""}`).trim()
         : order.customerName;
       const phone = String(customerData.mobile || customerData.phone || order.phone || "").replace(/\D/g, "") || null;
-      const email = customerData.email || order.email || null;
-      let customer = await client.query(
-        `SELECT id FROM customers WHERE tenant_id = $1 AND
-          (($2::text <> '' AND external_provider = 'salla' AND external_customer_id = $2) OR
-           ($3::text IS NOT NULL AND COALESCE(whatsapp_number, phone) = $3) OR
-           ($4::text IS NOT NULL AND lower(email) = lower($4))) LIMIT 1`,
-        [connection.tenantId, externalCustomerId, phone, email]
-      );
+      const emailInput = validateOptionalEmail(customerData.email || order.email);
+      if (!emailInput.ok) throw new Error(emailInput.message);
+      const email = normalizeOptionalEmail(emailInput.value);
+      let customer = { rows: [] };
+      if (externalCustomerId) {
+        customer = await client.query(
+          `SELECT id FROM customers
+            WHERE tenant_id = $1 AND external_provider = 'salla' AND external_customer_id = $2
+            LIMIT 1`,
+          [connection.tenantId, externalCustomerId]
+        );
+      }
+      if (!customer.rows[0] && phone) {
+        customer = await client.query(
+          `SELECT id FROM customers
+            WHERE tenant_id = $1 AND COALESCE(whatsapp_number, phone) = $2
+            LIMIT 1`,
+          [connection.tenantId, phone]
+        );
+      }
+      if (!customer.rows[0] && email) {
+        customer = await client.query(
+          `SELECT id FROM customers
+            WHERE tenant_id = $1 AND email IS NOT NULL AND lower(email) = lower($2)
+            LIMIT 1`,
+          [connection.tenantId, email]
+        );
+      }
       if (!customer.rows[0]) {
+        if (!name && !phone) throw new Error("تعذر إنشاء العميل: يلزم الاسم أو رقم الجوال.");
         customer = await client.query(
           `INSERT INTO customers (tenant_id, name, email, phone, whatsapp_number, status, external_provider, external_customer_id)
            VALUES ($1, $2, $3, $4, $4, 'active', 'salla', NULLIF($5, '')) RETURNING id`,
@@ -299,14 +355,22 @@ export async function processSallaEvent(payload) {
       const paymentStatus = String(raw.payment_method || raw.payment_status || "");
       await client.query(
         `INSERT INTO external_orders (tenant_id, connection_id, provider, external_order_id, order_number,
-          customer_id, status, payment_status, total_amount, currency, raw_payload, ordered_at)
-         VALUES ($1, $2, 'salla', $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+          customer_id, status, payment_status, total_amount, currency, raw_payload, ordered_at,
+          customer_email, items, detected_plan_name, detected_duration_days, detection_confidence)
+         VALUES ($1, $2, 'salla', $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11,
+          $12, $13::jsonb, $14, $15, $16)
          ON CONFLICT (tenant_id, provider, external_order_id) DO UPDATE SET
           order_number = EXCLUDED.order_number, customer_id = EXCLUDED.customer_id, status = EXCLUDED.status,
           payment_status = EXCLUDED.payment_status, total_amount = EXCLUDED.total_amount,
-          currency = EXCLUDED.currency, raw_payload = EXCLUDED.raw_payload, updated_at = now()`,
+          currency = EXCLUDED.currency, raw_payload = EXCLUDED.raw_payload,
+          customer_email = EXCLUDED.customer_email, items = EXCLUDED.items,
+          detected_plan_name = EXCLUDED.detected_plan_name,
+          detected_duration_days = EXCLUDED.detected_duration_days,
+          detection_confidence = EXCLUDED.detection_confidence, updated_at = now()`,
         [connection.tenantId, connection.id, order.externalOrderId, order.orderNumber, customerId, orderStatus,
-          paymentStatus, order.price, raw.currency || "SAR", JSON.stringify(raw), raw.created_at || payload.created_at || new Date()]
+          paymentStatus, order.price, raw.currency || "SAR", JSON.stringify(raw), raw.created_at || payload.created_at || new Date(),
+          email, JSON.stringify(order.items), durationMatch.rule?.name || order.planName,
+          durationMatch.durationDays, durationMatch.confidence]
       );
       let subscriptionId = null;
       if (connection.auto_create_subscriptions && connection.map_order_to_subscription) {
@@ -337,7 +401,9 @@ export async function processSallaEvent(payload) {
     }
   });
 
-  if (!syncResult?.subscriptionId || !connection.auto_create_order_links) return syncResult;
+  if (!syncResult?.subscriptionId || !connection.auto_create_order_links || connection.link_creation_mode === "manual") {
+    return syncResult;
+  }
   const templateId = connection.default_template_id
     || await ensureSallaTemplate(connection.tenantId, connection.provider_store_name || "متجر سلة");
   const link = await createOrderInfoLink({
@@ -345,7 +411,9 @@ export async function processSallaEvent(payload) {
     userId: null,
     subscriptionId: syncResult.subscriptionId,
     templateId,
-    sendMethod: "copy"
+    sendMethod: "copy",
+    source: "salla",
+    externalOrderId: syncResult.order.externalOrderId
   });
   if (!link.ok) {
     await query(`INSERT INTO app_sync_logs
@@ -365,27 +433,35 @@ export async function processSallaEvent(payload) {
       [connection.tenantId]
     );
     if (channel.rows[0]) {
-      let template = await query(
-        "SELECT id FROM notification_templates WHERE tenant_id = $1 AND name = 'رابط معلومات طلب سلة' LIMIT 1",
-        [connection.tenantId]
+      const customer = await query(
+        `SELECT name, COALESCE(whatsapp_number, phone) AS phone
+           FROM customers WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [syncResult.customerId, connection.tenantId]
       );
-      if (!template.rows[0]) {
-        template = await query(
-          `INSERT INTO notification_templates (tenant_id, name, channel, trigger_type, body, variables)
-           VALUES ($1, 'رابط معلومات طلب سلة', 'whatsapp', 'before_expiry', $2, '["customer_name","renewal_link"]'::jsonb)
-           RETURNING id`,
-          [connection.tenantId, "مرحبًا {{customer_name}}،\nيمكنك عرض معلومات طلبك من خلال الرابط التالي:\n{{renewal_link}}\n\nشكرًا لك."]
+      const messageBody = `مرحبًا ${customer.rows[0]?.name || "عميلنا"}،\nيمكنك عرض معلومات طلبك ومدة اشتراكك من خلال الرابط التالي:\n${link.item.publicUrl}\n\nشكرًا لك،\n${connection.store_display_name || connection.provider_store_name || "المتجر"}`;
+      const queued = await enqueueMessage({
+        tenantId: connection.tenantId,
+        customerId: syncResult.customerId,
+        subscriptionId: syncResult.subscriptionId,
+        whatsappChannelId: channel.rows[0].id,
+        channelType: "whatsapp",
+        messageType: "order_info_link",
+        destination: customer.rows[0]?.phone,
+        messageBody,
+        referenceType: "salla_order",
+        referenceId: syncResult.order.externalOrderId,
+        triggerKey: `salla-order-link:${connection.tenantId}:${syncResult.order.externalOrderId}`,
+        sourceMode: "automatic",
+        enforceConnected: true
+      });
+      if (!queued.ok) {
+        await query(`INSERT INTO app_sync_logs
+          (tenant_id, connection_id, provider, event_type, external_id, status, message)
+          VALUES ($1, $2, 'salla', $3, $4, 'skipped', $5)`,
+          [connection.tenantId, connection.id, event, syncResult.order.externalOrderId,
+            `تم إنشاء الرابط ولم تُصف الرسالة: ${queued.reason}`]
         );
       }
-      const triggerKey = `salla-order-link:${connection.tenantId}:${syncResult.order.externalOrderId}`;
-      await query(
-        `INSERT INTO message_queue
-          (tenant_id, subscription_id, customer_id, whatsapp_channel_id, template_id, scheduled_for, status, trigger_key)
-         SELECT $1, $2, $3, $4, $5, now(), 'pending', $6
-          WHERE NOT EXISTS (SELECT 1 FROM message_queue WHERE tenant_id = $1 AND trigger_key = $6)`,
-        [connection.tenantId, syncResult.subscriptionId, syncResult.customerId, channel.rows[0].id,
-          template.rows[0].id, triggerKey]
-      );
     } else {
       await query(`INSERT INTO app_sync_logs
         (tenant_id, connection_id, provider, event_type, external_id, status, message)

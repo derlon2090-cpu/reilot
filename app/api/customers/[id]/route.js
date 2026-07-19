@@ -1,4 +1,5 @@
 import { normalizeEvolutionPhone } from "../../../../src/lib/evolution.js";
+import { hasCustomerIdentity, validateOptionalEmail } from "../../../../src/lib/customerValidation.js";
 import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
 
@@ -7,16 +8,23 @@ export async function PATCH(req, { params }) {
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
+  const hasEmail = Object.prototype.hasOwnProperty.call(body, "email");
+  const emailResult = validateOptionalEmail(body.email);
+  if (hasEmail && !emailResult.ok) return Response.json({ ok: false, reason: emailResult.reason, message: emailResult.message }, { status: 400 });
   const normalized = body.phoneNumber || body.phone ? normalizeEvolutionPhone(body.phoneNumber || body.phone) : { ok: true, phoneNumber: null };
   if (!normalized.ok) return Response.json({ ok: false, reason: "invalid_phone" }, { status: 400 });
+  if ((Object.prototype.hasOwnProperty.call(body, "name") || Object.prototype.hasOwnProperty.call(body, "phone"))
+      && !hasCustomerIdentity({ name: body.name, phone: normalized.phoneNumber })) {
+    return Response.json({ ok: false, reason: "missing_customer_identity", message: "أدخل اسم العميل أو رقم الجوال." }, { status: 400 });
+  }
   const result = await query(
     `UPDATE customers SET
-       name = COALESCE($1, name), email = COALESCE($2, email),
-       phone = COALESCE($3, phone), whatsapp_number = COALESCE($3, whatsapp_number),
-       status = COALESCE($4, status), tags = COALESCE($5::jsonb, tags), updated_at = now()
-      WHERE id = $6 AND tenant_id = $7
+       name = COALESCE(NULLIF($1, ''), name), email = CASE WHEN $2 THEN $3 ELSE email END,
+       phone = COALESCE($4, phone), whatsapp_number = COALESCE($4, whatsapp_number),
+       status = COALESCE($5, status), tags = COALESCE($6::jsonb, tags), updated_at = now()
+      WHERE id = $7 AND tenant_id = $8
       RETURNING id, name, email, phone, whatsapp_number AS "whatsappNumber", status, tags`,
-    [body.name || null, body.email || null, normalized.phoneNumber, body.status || null, body.tags ? JSON.stringify(body.tags) : null, id, auth.session.tenantId]
+    [body.name ?? null, hasEmail, emailResult.email, normalized.phoneNumber, body.status || null, body.tags ? JSON.stringify(body.tags) : null, id, auth.session.tenantId]
   );
   if (!result.rows[0]) return Response.json({ ok: false }, { status: 404 });
   await query("INSERT INTO activity_logs (tenant_id, user_id, customer_id, type, title) VALUES ($1, $2, $3, 'customer.updated', 'Customer updated')", [auth.session.tenantId, auth.session.userId, id]);

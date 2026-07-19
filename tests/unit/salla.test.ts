@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createSallaState, normalizeSallaOrder, normalizeSallaSubscriptionRules, resolveSallaSubscriptionRule, verifySallaState, verifySallaWebhook } from "../../src/lib/salla.js";
+import { createSallaState, inferSubscriptionDurationDays, normalizeSallaOrder, normalizeSallaSubscriptionRules, resolveSallaSubscriptionRule, verifySallaState, verifySallaWebhook } from "../../src/lib/salla.js";
 
 describe("Salla integration helpers", () => {
   beforeEach(() => {
@@ -40,6 +40,28 @@ describe("Salla integration helpers", () => {
       price: 199
     });
     expect(order.endDate).toBe("2026-08-16");
+    expect(order.items).toHaveLength(1);
+  });
+
+  it("keeps a Salla customer without email valid", () => {
+    const order = normalizeSallaOrder({
+      data: {
+        id: 124,
+        reference_id: "ORD-124",
+        customer: { name: "No Email", mobile: "+966 55 111 2244" },
+        items: [{ id: 10, name: "3 months Gemini", quantity: 2 }]
+      }
+    });
+    expect(order.email).toBeNull();
+    expect(order.items).toEqual([expect.objectContaining({ externalProductId: "10", quantity: 2 })]);
+  });
+
+  it("infers subscription duration from product text", () => {
+    expect(inferSubscriptionDurationDays("Gemini 3 months", 30)).toBe(90);
+    expect(inferSubscriptionDurationDays("اشتراك سنوي", 30)).toBe(365);
+    expect(inferSubscriptionDurationDays("اشتراك نصف سنوي", 30)).toBe(180);
+    expect(inferSubscriptionDurationDays("Semi-annual Grok", 30)).toBe(180);
+    expect(inferSubscriptionDurationDays("منتج عادي", 45)).toBe(45);
   });
 
   it("matches saved product types to their own subscription durations", () => {

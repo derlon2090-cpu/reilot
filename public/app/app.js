@@ -2058,8 +2058,8 @@ function subscriptionForm(row = {}, editId = "") {
 
 function customerForm(row = {}, editId = "") {
   return `<form data-submit="customer" data-id="${editId}" class="form-grid">
-    ${field("اسم العميل", "name", "text", row.name || "")}
-    ${field("البريد الإلكتروني", "email", "email", row.email || "", false)}
+    ${field("اسم العميل", "name", "text", row.name || "", false)}
+    ${field("البريد الإلكتروني (اختياري)", "email", "email", row.email || "", false)}
     ${field("رقم الجوال", "phone", "tel", row.phone || "", false)}
     <label class="field"><span>الحالة</span><select class="select" name="status"><option value="active" ${row.status === "active" ? "selected" : ""}>نشط</option><option value="inactive" ${row.status === "inactive" ? "selected" : ""}>غير نشط</option></select></label>
     <label class="field full-span"><span>ملاحظات / تصنيفات</span><input class="input" name="tags" value="${escapeHtml(Array.isArray(row.tags) ? row.tags.join("، ") : "")}" placeholder="مثال: عميل مميز، متجر"></label>
@@ -2952,7 +2952,7 @@ async function handleSubmit(form, event) {
       const messages = {
         whatsapp_not_connected: "اربط جهازًا أولًا حتى تتمكن من إرسال الرابط عبر واتساب.",
         customer_phone_missing: "لا يوجد رقم واتساب صالح لهذا العميل.",
-        customer_email_missing: "لا يوجد بريد إلكتروني لهذا العميل.",
+        customer_email_missing: "لا يوجد بريد إلكتروني لهذا العميل. أضف بريدًا أو اختر الإرسال عبر واتساب/نسخ الرابط.",
         email_not_configured: "خدمة البريد غير مفعلة حاليًا."
       };
       toast(messages[error.code] || error.message || "تعذر إرسال الرابط", "danger");
@@ -3097,6 +3097,10 @@ async function handleSubmit(form, event) {
   }
   if (type === "customer") {
     const id = form.dataset.id;
+    if (!String(data.name || "").trim() && !String(data.phone || "").trim()) return toast("أدخل اسم العميل أو رقم الجوال.", "danger");
+    if (String(data.email || "").trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email).trim())) {
+      return toast("يرجى إدخال بريد إلكتروني صحيح أو ترك الحقل فارغًا.", "danger");
+    }
     const tags = String(data.tags || "").split(/[،,]/).map((item) => item.trim()).filter(Boolean);
     try {
       await fetchJson(id ? `/api/customers/${id}` : "/api/customers", {

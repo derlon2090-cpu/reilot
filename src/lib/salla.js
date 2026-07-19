@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizeOptionalEmail } from "./customerValidation.js";
 
 function stateSecret() {
   const value = process.env.SALLA_OAUTH_STATE_SECRET || process.env.BETTER_AUTH_SECRET;
@@ -45,6 +46,29 @@ function normalizedText(value) {
   return String(value || "").trim().toLocaleLowerCase("en");
 }
 
+export function inferSubscriptionDurationDays(values, fallbackDurationDays = 30) {
+  const text = (Array.isArray(values) ? values : [values])
+    .map(normalizedText)
+    .filter(Boolean)
+    .join(" ");
+  const fallback = Math.max(1, Math.min(3650, Number(fallbackDurationDays) || 30));
+  const patterns = [
+    { regex: /(\d+)\s*(?:day|days|يوم|يوما|أيام)/i, multiplier: 1 },
+    { regex: /(\d+)\s*(?:week|weeks|أسبوع|اسبوع|أسابيع|اسابيع)/i, multiplier: 7 },
+    { regex: /(\d+)\s*(?:month|months|شهر|شهور|أشهر)/i, multiplier: 30 },
+    { regex: /(\d+)\s*(?:year|years|سنة|سنوات|عام|أعوام)/i, multiplier: 365 }
+  ];
+  for (const { regex, multiplier } of patterns) {
+    const match = text.match(regex);
+    if (match) return Math.max(1, Math.min(3650, Number(match[1]) * multiplier));
+  }
+  if (/نصف\s*سنوي|semi[- ]?annual/i.test(text)) return 180;
+  if (/ربع\s*سنوي|quarterly/i.test(text)) return 90;
+  if (/سنوي|annual|yearly/i.test(text)) return 365;
+  if (/شهري|monthly/i.test(text)) return 30;
+  return fallback;
+}
+
 export function normalizeSallaSubscriptionRules(input) {
   if (input == null) return [];
   if (!Array.isArray(input)) throw new Error("Subscription rules must be an array");
@@ -83,7 +107,13 @@ export function resolveSallaSubscriptionRule(payload, inputRules, fallbackDurati
     return searchableValues.some((value) => value === needle || value.includes(needle));
   }) || null;
   const fallback = Math.max(1, Math.min(3650, Number(fallbackDurationDays) || 30));
-  return { rule, durationDays: rule?.durationDays || fallback };
+  const inferredDurationDays = inferSubscriptionDurationDays(searchableValues, fallback);
+  return {
+    rule,
+    durationDays: rule?.durationDays || inferredDurationDays,
+    source: rule ? "saved_rule" : inferredDurationDays !== fallback ? "product_text" : "fallback",
+    confidence: rule ? 1 : inferredDurationDays !== fallback ? 0.75 : 0.35
+  };
 }
 
 export function normalizeSallaOrder(payload, durationDays = 30) {
@@ -104,12 +134,19 @@ export function normalizeSallaOrder(payload, durationDays = 30) {
     externalOrderId,
     orderNumber,
     customerName,
-    email: customer.email || null,
+    email: normalizeOptionalEmail(customer.email),
     phone: phone || null,
     serviceName: String(firstItem.name || data.service_name || "طلب سلة").slice(0, 240),
     planName: String(firstItem.sku || firstItem.name || data.plan_name || "اشتراك سلة").slice(0, 240),
     startDate,
     endDate: end.toISOString().slice(0, 10),
-    price: Number(data.amounts?.total?.amount || data.total?.amount || data.total || 0) || 0
+    price: Number(data.amounts?.total?.amount || data.total?.amount || data.total || 0) || 0,
+    items: items.map((item) => ({
+      externalProductId: String(item?.product?.id || item?.product_id || item?.id || "").trim() || null,
+      name: String(item?.name || item?.product?.name || "").trim(),
+      sku: String(item?.sku || item?.product?.sku || "").trim() || null,
+      quantity: Math.max(1, Number(item?.quantity || 1) || 1),
+      price: Number(item?.amounts?.total?.amount || item?.price?.amount || item?.price || 0) || 0
+    }))
   };
 }

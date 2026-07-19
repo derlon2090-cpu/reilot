@@ -85,3 +85,18 @@ ${storeName}`;
   if (result.error) throw new Error(result.error.message || "Failed to send order information email");
   return result.data;
 }
+
+export async function sendQueuedEmail({ to, subject, text }) {
+  const { apiKey, from } = config();
+  const resend = new Resend(apiKey);
+  const safeText = escapeEmailHtml(text).replace(/\n/g, "<br>");
+  const result = await resend.emails.send({
+    from,
+    to,
+    subject: subject || "إشعار من Renvix",
+    text,
+    html: `<div dir="rtl" style="font-family:Arial,sans-serif;background:#f8fafc;padding:32px"><div style="max-width:580px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;color:#0f172a;line-height:1.9">${safeText}</div></div>`
+  });
+  if (result.error) throw new Error(result.error.message || "Failed to send queued email");
+  return result.data;
+}

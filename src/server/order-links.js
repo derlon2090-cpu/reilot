@@ -167,7 +167,16 @@ export function normalizedTemplateInput(body = {}) {
   };
 }
 
-export async function createOrderInfoLink({ tenantId, userId, subscriptionId, templateId, expiresInDays = 30, sendMethod = "copy" }) {
+export async function createOrderInfoLink({
+  tenantId,
+  userId,
+  subscriptionId,
+  templateId,
+  expiresInDays = 30,
+  sendMethod = "copy",
+  source = "manual",
+  externalOrderId = null
+}) {
   if (!templateId) return { ok: false, reason: "template_required" };
   const templateLink = await ensureTemplatePublicLink({ tenantId, templateId });
   if (!templateLink.ok) return templateLink;
@@ -186,13 +195,15 @@ export async function createOrderInfoLink({ tenantId, userId, subscriptionId, te
     const inserted = await client.query(
       `INSERT INTO order_info_links (
          tenant_id, template_id, template_link_id, subscription_id, customer_id, order_number,
-         public_token, public_url, send_method, expires_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval)
+         public_token, public_url, send_method, expires_at, source, external_order_id
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval, $11, $12)
        ON CONFLICT (template_link_id, subscription_id) WHERE template_link_id IS NOT NULL DO UPDATE SET
          customer_id = EXCLUDED.customer_id,
          order_number = EXCLUDED.order_number,
          public_url = EXCLUDED.public_url,
          send_method = EXCLUDED.send_method,
+         source = EXCLUDED.source,
+         external_order_id = COALESCE(EXCLUDED.external_order_id, order_info_links.external_order_id),
          status = 'active',
          expires_at = EXCLUDED.expires_at,
          updated_at = now()
@@ -200,7 +211,8 @@ export async function createOrderInfoLink({ tenantId, userId, subscriptionId, te
                  expires_at AS "expiresAt", created_at AS "createdAt"`,
       [tenantId, templateId, templateLink.item.id, subscriptionId, subscription.rows[0].customerId, orderNumber,
         sha256(randomToken(12)), templateLink.item.publicUrl,
-        ["copy", "whatsapp", "email"].includes(sendMethod) ? sendMethod : "copy", String(days)]
+        ["copy", "whatsapp", "email"].includes(sendMethod) ? sendMethod : "copy", String(days),
+        source === "salla" ? "salla" : "manual", externalOrderId || null]
     );
     await client.query(
       "INSERT INTO order_link_events (tenant_id, order_info_link_id, event_type) VALUES ($1, $2, 'created')",

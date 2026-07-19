@@ -1,4 +1,5 @@
 import { transaction, query } from "../../../src/server/db.js";
+import { hasCustomerIdentity, validateOptionalEmail } from "../../../src/lib/customerValidation.js";
 import { normalizeEvolutionPhone } from "../../../src/lib/evolution.js";
 import { requireSession } from "../../../src/server/session.js";
 
@@ -27,20 +28,25 @@ export async function POST(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const body = await req.json().catch(() => ({}));
-  const name = String(body.name || "").trim();
-  if (name.length < 2) return Response.json({ ok: false, reason: "invalid_name" }, { status: 400 });
+  let name = String(body.name || "").trim();
+  const emailResult = validateOptionalEmail(body.email);
+  if (!emailResult.ok) return Response.json({ ok: false, reason: emailResult.reason, message: emailResult.message }, { status: 400 });
   let phone = null;
   if (body.phone) {
     const normalized = normalizeEvolutionPhone(body.phone);
     if (!normalized.ok) return Response.json({ ok: false, reason: "invalid_phone" }, { status: 400 });
     phone = normalized.phoneNumber;
   }
+  if (!hasCustomerIdentity({ name, phone })) {
+    return Response.json({ ok: false, reason: "missing_customer_identity", message: "أدخل اسم العميل أو رقم الجوال." }, { status: 400 });
+  }
+  name ||= phone;
   const item = await transaction(async (client) => {
     const inserted = await client.query(
       `INSERT INTO customers (tenant_id, name, email, phone, whatsapp_number, status, tags)
        VALUES ($1, $2, $3, $4, $4, $5, $6::jsonb)
        RETURNING id, name, email, phone, whatsapp_number AS "whatsappNumber", status, tags, created_at AS "createdAt"`,
-      [auth.session.tenantId, name, body.email || null, phone, body.status === "inactive" ? "inactive" : "active", JSON.stringify(body.tags || [])]
+      [auth.session.tenantId, name, emailResult.email, phone, body.status === "inactive" ? "inactive" : "active", JSON.stringify(body.tags || [])]
     );
     await client.query(
       `INSERT INTO activity_logs (tenant_id, user_id, customer_id, type, title)

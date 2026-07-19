@@ -57,11 +57,13 @@ describe("order information link security", () => {
 
   it("applies Safe Mode before sending a public order link through WhatsApp", () => {
     const sendRoute = readFileSync("app/api/order-link/[id]/send/route.js", "utf8");
+    const queueService = readFileSync("src/server/message-queue.js", "utf8");
 
-    expect(sendRoute).toContain("canSendSafely");
-    expect(sendRoute).toContain("unsubscribe_list");
-    expect(sendRoute).toContain("duplicate_message_window_hours");
-    expect(sendRoute).toContain("recordOperationalIssue");
-    expect(sendRoute).toContain("daily_sent = daily_sent + 1");
+    expect(sendRoute).toContain("queueOrderInformationLink");
+    expect(queueService).toContain("enqueueMessage");
+    expect(queueService).toContain("riskDisposition");
+    expect(queueService).toContain("sending_paused_until");
+    expect(queueService).toContain("whatsapp_not_connected");
+    expect(queueService).toContain("duplicate_message");
   });
 });
