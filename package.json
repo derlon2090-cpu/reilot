@@ -6,6 +6,7 @@
     "dev": "next dev",
     "start": "next start",
     "db:migrate": "node scripts/migrate.mjs",
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
     "cron:run": "node scripts/run-cron.mjs",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",

@@ -405,6 +405,9 @@ const state = {
   reportPeriod: "6",
   filter: "الكل",
   search: "",
+  notificationDropdownOpen: false,
+  notificationFilter: "all",
+  subscriptionWindow: "7",
   settings: { whatsapp: false, email: false, sms: false, twoFactor: false, renewAuto: false },
   linkedDevice: { ...defaultLinkedDevice }
 };
@@ -412,6 +415,7 @@ const state = {
 state.dbSubscriptions = null;
 state.dbCustomers = null;
 state.dashboardOverview = null;
+state.notifications = null;
 state.activities = null;
 state.unsubscribes = null;
 state.accountSettings = null;
@@ -490,7 +494,6 @@ const dashboardRoutes = [
 
 const dashboardAliases = {
   "/dashboard/renewals": "/dashboard/subscriptions",
-  "/dashboard/notifications": "/dashboard/customers",
   "/dashboard/connected-devices": "/dashboard/devices",
   "/dashboard/linked-devices": "/dashboard/devices",
   "/dashboard/whatsapp-safety": "/dashboard/security",
@@ -544,7 +547,7 @@ async function loadRemotePage(key, url, target, options) {
   state.remoteLoading[key] = true;
   try {
     const payload = await fetchJson(url, options);
-    state[target] = target === "orderLinks"
+    state[target] = target === "orderLinks" || target === "notifications"
       ? payload
       : target === "orderLinkProfile"
         ? payload.profile
@@ -568,6 +571,10 @@ async function loadRemotePage(key, url, target, options) {
 
 function syncRouteData(force = false) {
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
+  if (state.route.startsWith("/dashboard") && (force || state.notifications === null)) {
+    const notificationLimit = state.route === "/dashboard/notifications" ? 50 : 8;
+    void loadRemotePage("notifications", `/api/notifications?limit=${notificationLimit}`, "notifications");
+  }
   if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) void loadRemotePage("appsOverview", "/api/apps", "appsOverview");
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
@@ -641,6 +648,7 @@ async function navigate(to) {
   state.navOpen = false;
   state.sidebarOpen = false;
   state.profileOpen = false;
+  state.notificationDropdownOpen = false;
   state.search = "";
   state.filter = "الكل";
   render();
@@ -715,9 +723,29 @@ function dashboardIcon(name) {
     apps: '<path d="M19 13h-2.5a1.5 1.5 0 0 0-1.5 1.5V17h-3v-2.5a1.5 1.5 0 0 0-1.5-1.5H8V10h2.5A1.5 1.5 0 0 0 12 8.5V6h3v2.5a1.5 1.5 0 0 0 1.5 1.5H19z"/><path d="M8 10V7a2 2 0 1 0-4 0v3H2v4h2v3a2 2 0 1 0 4 0v-4"/><path d="M19 10h1a2 2 0 1 0 0-4h-2V3h-4v3"/>',
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
-    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>'
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
+    eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
+    "eye-off": '<path d="m3 3 18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.1 3.8M6.2 6.2C3.6 8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 3.2-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    close: '<path d="m6 6 12 12M18 6 6 18"/>'
   };
   return `<svg class="line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.home}</svg>`;
+}
+
+function ensurePasswordToggles() {
+  for (const input of app.querySelectorAll('input[type="password"]')) {
+    if (input.parentElement?.classList.contains("password-input-wrap")) continue;
+    const wrapper = document.createElement("span");
+    wrapper.className = "password-input-wrap";
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "password-toggle";
+    button.dataset.action = "toggle-password";
+    button.setAttribute("aria-label", "إظهار كلمة المرور");
+    button.innerHTML = dashboardIcon("eye");
+    wrapper.appendChild(button);
+  }
 }
 
 function publicNavbar() {
@@ -1145,6 +1173,84 @@ function forgotPasswordPage() {
   return `<main class="auth-page reset-mode"><div class="auth-brand">${logo()}</div><div class="auth-top-actions"><button class="btn btn-ghost icon-btn" data-action="theme">${state.theme === "dark" ? "☾" : "☀"}</button><button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button></div><section class="auth-shell single-auth"><article class="card auth-panel"><span class="eyebrow">Renvix</span><h1>${t("auth.forgotTitle")}</h1><p class="lead">${step === 1 ? t("auth.forgotSubtitle") : step === 2 ? t("auth.codeSent") : t("auth.passwordChanged")}</p>${content}<button class="btn btn-ghost" data-link="/login">${t("auth.loginLink")}</button></article></section></main>`;
 }
 
+function notificationLabel(type) {
+  const labels = {
+    subscription_due: "استحقاق اشتراك",
+    subscription_expired: "اشتراك منتهٍ",
+    message_scheduled: "تمت جدولة رسالة",
+    message_sent: "تم إرسال الرسالة",
+    message_delivered: "تم تسليم الرسالة",
+    message_failed: "فشل إرسال الرسالة",
+    security: "تنبيه أمني"
+  };
+  return labels[type] || "إشعار";
+}
+
+function notificationRelativeTime(value) {
+  if (!value) return "";
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return "";
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (minutes < 1) return "الآن";
+  if (minutes < 60) return `منذ ${minutes} دقيقة`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `منذ ${hours} ساعة`;
+  const days = Math.floor(hours / 24);
+  return `منذ ${days} يوم`;
+}
+
+function notificationItems() {
+  return Array.isArray(state.notifications?.items) ? state.notifications.items : [];
+}
+
+function notificationDropdownMarkup() {
+  const items = notificationItems().slice(0, 4);
+  const unread = Number(state.notifications?.summary?.unread || 0);
+  return `<div class="notification-dropdown">
+    <div class="notification-dropdown-head"><strong>الإشعارات</strong><span class="badge">${unread}</span></div>
+    <div class="notification-dropdown-list">${items.length ? items.map((item) => `<button class="notification-item ${item.isRead ? "" : "unread"}" data-action="notification-open" data-id="${escapeHtml(item.id)}" data-url="${escapeHtml(item.actionUrl || "")}">
+      <span class="notification-item-icon">${dashboardIcon(item.type?.includes("message") ? "template" : item.type?.includes("security") ? "security" : "subscriptions")}</span>
+      <span><strong>${escapeHtml(item.title || notificationLabel(item.type))}</strong><small>${escapeHtml(item.message || "")}</small><em>${notificationRelativeTime(item.createdAt)}</em></span>
+    </button>`).join("") : `<div class="notification-empty"><strong>لا توجد إشعارات جديدة</strong><span>ستظهر هنا تنبيهات الاشتراكات وحالة الرسائل.</span></div>`}</div>
+    <div class="notification-dropdown-actions"><button class="btn btn-ghost" data-action="notification-mark-all" ${unread ? "" : "disabled"}>تحديد الكل كمقروء</button><button class="btn btn-secondary" data-link="/dashboard/notifications">عرض كل الإشعارات</button></div>
+  </div>`;
+}
+
+function notificationsPage() {
+  const payload = state.notifications;
+  const items = notificationItems();
+  const filtered = items.filter((item) => {
+    if (state.notificationFilter === "unread" && item.isRead) return false;
+    if (state.notificationFilter === "subscriptions" && item.type?.includes("subscription") !== true) return false;
+    if (state.notificationFilter === "messages" && item.type?.includes("message") !== true) return false;
+    const query = state.search.trim().toLowerCase();
+    return !query || `${item.title || ""} ${item.message || ""}`.toLowerCase().includes(query);
+  });
+  const body = payload?.error
+    ? emptyState("تعذر تحميل الإشعارات", payload.error, "إعادة المحاولة", "reload-notifications")
+    : payload === null
+      ? `<div class="loading-state">جارٍ تحميل الإشعارات...</div>`
+      : filtered.length
+        ? `<div class="notification-list-page">${filtered.map((item) => `<article class="notification-row ${item.isRead ? "" : "unread"}">
+          <span class="notification-item-icon">${dashboardIcon(item.type?.includes("message") ? "template" : item.type?.includes("security") ? "security" : "subscriptions")}</span>
+          <div class="notification-row-content"><div class="notification-row-title"><strong>${escapeHtml(item.title || notificationLabel(item.type))}</strong>${status(item.isRead ? "read" : "pending")}</div><p>${escapeHtml(item.message || "")}</p><small>${notificationRelativeTime(item.createdAt)}${item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString("ar-SA")}` : ""}</small></div>
+          <div class="inline-actions">${item.actionUrl ? `<button class="btn btn-secondary" data-action="notification-open" data-id="${escapeHtml(item.id)}" data-url="${escapeHtml(item.actionUrl)}">فتح</button>` : ""}<button class="btn btn-ghost icon-only danger-text" data-action="notification-delete" data-id="${escapeHtml(item.id)}" title="حذف">${dashboardIcon("close")}</button></div>
+        </article>`).join("")}</div>`
+        : emptyState("لا توجد إشعارات", "ستظهر هنا إشعارات الاشتراكات والرسائل عند حدوثها.");
+  return dashboardShell(`${pageTitle("الإشعارات", `<button class="btn btn-secondary" data-action="notification-mark-all" ${Number(payload?.summary?.unread || 0) ? "" : "disabled"}>تحديد الكل كمقروء</button>`)}
+    <section class="notification-summary-grid">${statGrid([
+      { title: "غير مقروءة", value: Number(payload?.summary?.unread || 0), caption: "تحتاج مراجعة", tone: "warning", icon: "notifications" },
+      { title: "اليوم", value: Number(payload?.summary?.today || 0), caption: "إشعار اليوم", tone: "info", icon: "reports" },
+      { title: "هذا الأسبوع", value: Number(payload?.summary?.week || 0), caption: "آخر 7 أيام", tone: "success", icon: "subscriptions" },
+      { title: "الإجمالي", value: Number(payload?.summary?.total || 0), caption: "كل الإشعارات", tone: "purple", icon: "template" }
+    ])}</section>
+    <section class="card notification-page-card">
+      <div class="toolbar notification-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="notification-search" placeholder="ابحث في الإشعارات..." value="${escapeHtml(state.search)}"></div>
+      <select class="select" data-action="notification-filter"><option value="all" ${state.notificationFilter === "all" ? "selected" : ""}>الكل</option><option value="unread" ${state.notificationFilter === "unread" ? "selected" : ""}>غير مقروءة</option><option value="subscriptions" ${state.notificationFilter === "subscriptions" ? "selected" : ""}>الاشتراكات</option><option value="messages" ${state.notificationFilter === "messages" ? "selected" : ""}>الرسائل</option></select></div>
+      ${body}
+    </section>`);
+}
+
 function dashboardShell(content) {
   const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
   const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
@@ -1156,6 +1262,7 @@ function dashboardShell(content) {
   const profileAvatar = profile.image
     ? `<img class="avatar avatar-image" src="${escapeHtml(profile.image)}" alt="${escapeHtml(profileName)}">`
     : `<span class="avatar">${escapeHtml(profileInitial)}</span>`;
+  const unreadNotifications = Number(state.notifications?.summary?.unread || 0);
   return `<div class="dashboard-shell">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       <div class="sidebar-brand">${logo()}</div>
@@ -1170,7 +1277,10 @@ function dashboardShell(content) {
         <div class="topbar-tools">
           <span class="plan-badge">${escapeHtml(planName)}</span>
           <button class="btn btn-ghost icon-btn" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
-          <button class="btn btn-ghost icon-btn" data-action="notifications" title="${state.language === "ar" ? "التنبيهات" : "Notifications"}">${dashboardIcon("notifications")}</button>
+          <div class="notification-trigger-wrap">
+            <button class="btn btn-ghost icon-btn notification-trigger" data-action="notifications" title="${state.language === "ar" ? "الإشعارات" : "Notifications"}">${dashboardIcon("notifications")}${unreadNotifications ? `<span class="notification-badge">${unreadNotifications > 99 ? "99+" : unreadNotifications}</span>` : ""}</button>
+            ${state.notificationDropdownOpen ? notificationDropdownMarkup() : ""}
+          </div>
           <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
           <button class="profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong><small>${escapeHtml(profile.email || "")}</small></span></button>
           ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
@@ -1310,10 +1420,54 @@ function appsPage() {
     <section class="card table-card section" id="salla-sync-logs"><div class="section-head"><div><h2>سجل المزامنة</h2><p class="muted">النتائج الفعلية المسجلة لهذا المتجر.</p></div></div>${logs.length ? simpleTable(["الوقت", "التطبيق", "الحدث", "الحالة", "الرسالة"], logs.map((item) => [new Date(item.createdAt).toLocaleString("ar-SA"), "سلة", escapeHtml(item.eventType || "-"), status(item.status), escapeHtml(item.message || "-")])) : emptyState("لا توجد سجلات مزامنة", "ستظهر هنا الأحداث بعد ربط متجر سلة.")}</section>`);
 }
 
+function subscriptionRemainingDays(row) {
+  if (!row?.endDate) return null;
+  const end = new Date(`${String(row.endDate).slice(0, 10)}T23:59:59`);
+  if (!Number.isFinite(end.getTime())) return null;
+  return Math.ceil((end.getTime() - Date.now()) / 86400000);
+}
+
+function subscriptionFilterRows(rows) {
+  const query = state.search.trim().toLowerCase();
+  const selected = state.filter === "الكل" ? "all" : state.filter;
+  const windowDays = Number(state.subscriptionWindow || 7);
+  return rows.filter((row) => {
+    const haystack = ["orderNumber", "customerName", "planName", "serviceName", "status"]
+      .map((key) => String(row[key] || "").toLowerCase())
+      .join(" ");
+    if (query && !haystack.includes(query)) return false;
+    const remaining = subscriptionRemainingDays(row);
+    const expired = remaining !== null ? remaining < 0 : row.status === "expired";
+    const active = !expired && !["paused", "cancelled"].includes(String(row.status || "").toLowerCase());
+    const expiring = active && remaining !== null && remaining >= 0 && remaining <= windowDays;
+    const attention = !row.canSend || row.remindersPaused || Number(row.riskScore || 0) > 70 || (remaining !== null && remaining <= 3);
+    return selected === "all"
+      || (selected === "active" && active)
+      || (selected === "expiring" && expiring)
+      || (selected === "expired" && expired)
+      || (selected === "attention" && attention);
+  });
+}
+
+function subscriptionToolbar() {
+  const selected = state.filter === "الكل" ? "all" : state.filter;
+  return `<div class="toolbar mb-toolbar subscription-toolbar">
+    <div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="dashboard-search" placeholder="بحث في الاشتراكات..." value="${escapeHtml(state.search)}"></div>
+    <select class="select" data-action="dashboard-filter">
+      <option value="all" ${selected === "all" ? "selected" : ""}>الكل</option>
+      <option value="active" ${selected === "active" ? "selected" : ""}>نشطة</option>
+      <option value="expiring" ${selected === "expiring" ? "selected" : ""}>تنتهي قريبًا</option>
+      <option value="expired" ${selected === "expired" ? "selected" : ""}>منتهية</option>
+      <option value="attention" ${selected === "attention" ? "selected" : ""}>تحتاج متابعة</option>
+    </select>
+    <label class="field compact-field"><span>نافذة التجديد</span><select class="select" data-action="subscription-window"><option value="3" ${state.subscriptionWindow === "3" ? "selected" : ""}>3 أيام</option><option value="7" ${state.subscriptionWindow === "7" ? "selected" : ""}>7 أيام</option><option value="14" ${state.subscriptionWindow === "14" ? "selected" : ""}>14 يومًا</option></select></label>
+  </div>`;
+}
+
 function subscriptionsPage() {
   const stats = overviewStats();
   const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
-  const rows = filterRows(source, ["orderNumber", "customerName", "planName", "status"]);
+  const rows = subscriptionFilterRows(source);
   const content = state.dbSubscriptions?.error
     ? `<div class="empty-state"><strong>تعذر تحميل الاشتراكات</strong><p class="muted">${escapeHtml(state.dbSubscriptions.error)}</p><button class="btn btn-secondary" data-action="reload-subscriptions">إعادة المحاولة</button></div>`
     : state.dbSubscriptions === null
@@ -1326,7 +1480,7 @@ function subscriptionsPage() {
       { title: "الاشتراكات المنتهية", value: stats.expiredSubscriptions, caption: "منتهي", tone: "danger", icon: "security" },
       { title: "الإيراد الشهري", value: formatMoney(stats.monthlyRevenue), caption: "من الاشتراكات", tone: "success", icon: "reports" }
     ])}
-    ${tableToolbar(["الكل", "active", "expiring_soon", "expired", "paused", "renewed"])}
+    ${subscriptionToolbar()}
     <article class="card table-card">${content}</article>`);
 }
 
@@ -2413,6 +2567,77 @@ function readSallaRuleDrafts() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "toggle-password") {
+    const input = target.closest(".password-input-wrap")?.querySelector("input");
+    if (input) {
+      const visible = input.type === "password";
+      input.type = visible ? "text" : "password";
+      target.innerHTML = dashboardIcon(visible ? "eye-off" : "eye");
+      target.setAttribute("aria-label", visible ? "إخفاء كلمة المرور" : "إظهار كلمة المرور");
+    }
+    return;
+  }
+  if (action === "notifications") {
+    state.notificationDropdownOpen = !state.notificationDropdownOpen;
+    render();
+    return;
+  }
+  if (action === "notification-mark-all") {
+    try {
+      await fetchJson("/api/notifications/mark-all-read", { method: "POST" });
+      state.notifications = null;
+      await syncRouteData(true);
+    } catch (error) {
+      toast(error.message || "تعذر تحديث الإشعارات", "danger");
+    }
+    return;
+  }
+  if (action === "notification-open") {
+    try {
+      if (target.dataset.id) {
+        await fetchJson("/api/notifications/mark-read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: target.dataset.id })
+        });
+      }
+    } catch (error) {
+      toast(error.message || "تعذر تحديث الإشعار", "danger");
+    }
+    state.notifications = null;
+    if (target.dataset.url) navigate(target.dataset.url);
+    else await syncRouteData(true);
+    return;
+  }
+  if (action === "notification-delete") {
+    try {
+      await fetchJson("/api/notifications/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: target.dataset.id })
+      });
+      state.notifications = null;
+      await syncRouteData(true);
+    } catch (error) {
+      toast(error.message || "تعذر حذف الإشعار", "danger");
+    }
+    return;
+  }
+  if (action === "reload-notifications") {
+    state.notifications = null;
+    await syncRouteData(true);
+    return;
+  }
+  if (action === "notification-filter") {
+    state.notificationFilter = target.value;
+    render();
+    return;
+  }
+  if (action === "subscription-window") {
+    state.subscriptionWindow = target.value;
+    render();
+    return;
+  }
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
   if (action === "close-modal") closePortal();
@@ -3251,6 +3476,7 @@ function render() {
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,
+      "/dashboard/notifications": notificationsPage,
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
       "/dashboard/billing": billingWorkspacePage,
@@ -3258,6 +3484,7 @@ function render() {
     };
     app.innerHTML = (pages[state.route] || dashboardHome)();
     localizeElement(app);
+    ensurePasswordToggles();
     bindQrImageState();
     syncRouteData();
     return;
@@ -3281,6 +3508,7 @@ function render() {
   const page = state.route.startsWith("/blog/") ? articlePage : state.route.startsWith("/o/") ? publicOrderPage : pages[state.route] || marketingHomePage;
   app.innerHTML = page();
   localizeElement(app);
+  ensurePasswordToggles();
 }
 
 function bindQrImageState() {
@@ -3340,7 +3568,7 @@ document.addEventListener("input", (event) => {
     if (drafts[index]) drafts[index][target.dataset.sallaRuleField] = target.dataset.sallaRuleField === "durationDays" ? Number(target.value) : target.value;
     state.sallaRuleDrafts = drafts;
   }
-  if (target.dataset.action === "dashboard-search" || target.dataset.action === "global-search" || target.dataset.action === "support-search") {
+  if (target.dataset.action === "dashboard-search" || target.dataset.action === "global-search" || target.dataset.action === "support-search" || target.dataset.action === "notification-search") {
     state.search = target.value;
     if (target.dataset.action !== "global-search") render();
   }
@@ -3379,6 +3607,14 @@ document.addEventListener("change", (event) => {
   }
   if (target.dataset.action === "dashboard-filter") {
     state.filter = target.value;
+    render();
+  }
+  if (target.dataset.action === "notification-filter") {
+    state.notificationFilter = target.value;
+    render();
+  }
+  if (target.dataset.action === "subscription-window") {
+    state.subscriptionWindow = target.value;
     render();
   }
   if (target.dataset.action === "report-period") {

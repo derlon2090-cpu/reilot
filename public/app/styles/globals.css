@@ -2708,3 +2708,308 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
   .public-order-actions .btn { min-width: 0; width: 100%; }
   .order-customer-card { padding: 16px; }
 }
+
+.password-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.password-input-wrap .input {
+  padding-inline-end: 3.15rem;
+}
+
+.password-toggle {
+  position: absolute;
+  inset-inline-end: .65rem;
+  top: 50%;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  background: #eef6ff;
+  color: #1268df;
+  outline: none;
+}
+
+.password-toggle .line-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.notification-trigger-wrap {
+  position: relative;
+}
+
+.notification-trigger {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  inset-inline-end: -2px;
+  top: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surface, #fff);
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.notification-dropdown {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + .6rem);
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid #e4eaf2;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(29, 61, 103, .16);
+}
+
+.notification-dropdown-head,
+.notification-dropdown-actions {
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notification-dropdown-head {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.notification-dropdown-list {
+  max-height: 330px;
+  overflow: auto;
+}
+
+.notification-item {
+  width: 100%;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  text-align: start;
+  border: 0;
+  border-bottom: 1px solid #f0f3f7;
+  background: #fff;
+  color: #162b4d;
+  cursor: pointer;
+}
+
+.notification-item:hover,
+.notification-item.unread {
+  background: #f5f9ff;
+}
+
+.notification-item-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #edf5ff;
+  color: #1769df;
+}
+
+.notification-item > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.notification-item strong,
+.notification-item small,
+.notification-item em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-item small,
+.notification-item em {
+  color: #71819a;
+  font-size: 11px;
+}
+
+.notification-item em {
+  font-style: normal;
+  font-size: 10px;
+}
+
+.notification-empty {
+  padding: 28px 18px;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  color: #71819a;
+  font-size: 12px;
+}
+
+.notification-list-page {
+  display: grid;
+  gap: 10px;
+}
+
+.notification-row {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e7edf5;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.notification-row.unread {
+  border-color: #bfdbfe;
+  background: #f7fbff;
+}
+
+.notification-row-content {
+  min-width: 0;
+}
+
+.notification-row-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notification-row-content p {
+  margin: 5px 0;
+  color: #536782;
+}
+
+.notification-row-content small {
+  color: #8290a5;
+  font-size: 11px;
+}
+
+.compact-field {
+  min-width: 140px;
+}
+
+.compact-field > span {
+  font-size: 11px;
+}
+
+:root[data-theme="dark"] .password-toggle:hover,
+:root[data-theme="dark"] .password-toggle:focus-visible {
+  background: #18304c;
+  color: #7dd3fc;
+}
+
+:root[data-theme="dark"] .notification-dropdown,
+:root[data-theme="dark"] .notification-item,
+:root[data-theme="dark"] .notification-row,
+:root[data-theme="dark"] .notification-page-card {
+  border-color: #253b55;
+  background: #0d1a2b;
+  color: #e7eef8;
+}
+
+:root[data-theme="dark"] .notification-dropdown-head,
+:root[data-theme="dark"] .notification-dropdown-actions,
+:root[data-theme="dark"] .notification-item {
+  border-color: #253b55;
+}
+
+:root[data-theme="dark"] .notification-item:hover,
+:root[data-theme="dark"] .notification-item.unread,
+:root[data-theme="dark"] .notification-row.unread {
+  background: #12243a;
+}
+
+:root[data-theme="dark"] .notification-row-content p,
+:root[data-theme="dark"] .notification-item small,
+:root[data-theme="dark"] .notification-item em,
+:root[data-theme="dark"] .notification-row-content small,
+:root[data-theme="dark"] .notification-empty {
+  color: #9db0c7;
+}
+
+:root[data-theme="dark"] .dashboard-main .compare {
+  border-color: #263c56;
+  background: #0c1828;
+}
+
+:root[data-theme="dark"] .dashboard-main .compare table,
+:root[data-theme="dark"] .dashboard-main .compare th,
+:root[data-theme="dark"] .dashboard-main .compare td {
+  color: #dce8f5;
+  border-color: #263c56;
+  background: transparent;
+}
+
+:root[data-theme="dark"] .dashboard-main .compare th {
+  background: #112238;
+  color: #bcd0e7;
+}
+
+:root[data-theme="dark"] .dashboard-main .compare td small,
+:root[data-theme="dark"] .dashboard-main .compare td .muted,
+:root[data-theme="dark"] .dashboard-main .field > span {
+  color: #9db0c7;
+}
+
+:root[data-theme="dark"] .dashboard-main .input,
+:root[data-theme="dark"] .dashboard-main .select,
+:root[data-theme="dark"] .dashboard-main textarea {
+  border-color: #2b435e;
+  background: #0b1727;
+  color: #e7eef8;
+}
+
+:root[data-theme="dark"] .dashboard-main .input::placeholder,
+:root[data-theme="dark"] .dashboard-main textarea::placeholder {
+  color: #7186a0;
+}
+
+:root[data-theme="dark"] .subscription-toolbar .compact-field > span {
+  color: #a9bdd4;
+}
+
+@media (max-width: 760px) {
+  .notification-dropdown {
+    inset-inline-end: -70px;
+  }
+
+  .notification-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .notification-row > .inline-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .subscription-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

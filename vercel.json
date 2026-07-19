@@ -16,6 +16,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/subscription-notifications",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/cron/whatsapp-health-check",
       "schedule": "0 7 * * *"
     },

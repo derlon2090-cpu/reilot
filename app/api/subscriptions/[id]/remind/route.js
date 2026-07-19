@@ -2,6 +2,7 @@ import { query } from "../../../../../src/server/db.js";
 import { enqueueMessage } from "../../../../../src/server/message-queue.js";
 import { recordOperationalIssue } from "../../../../../src/server/operations.js";
 import { requireSession } from "../../../../../src/server/session.js";
+import { createInAppNotification } from "../../../../../src/server/in-app-notifications.js";
 
 function reminderText(item) {
   return `مرحبًا ${item.customerName || "عميلنا"}،\nنذكّرك بأن اشتراكك في ${item.serviceName || "الخدمة"} سينتهي في ${String(item.endDate || "").slice(0, 10)}.\nيمكنك التجديد من خلال الرابط التالي:\n${item.renewalUrl || "تواصل معنا لإتمام التجديد."}`;
@@ -91,5 +92,17 @@ export async function POST(req, { params }) {
     [auth.session.tenantId, auth.session.userId, item.customerId,
       JSON.stringify({ subscriptionId: id, queueId: queued.queueId, scheduledFor: queued.scheduledFor })]
   );
+  await createInAppNotification({
+    tenantId: auth.session.tenantId,
+    userId: auth.session.userId,
+    type: "message_scheduled",
+    title: "تمت جدولة تذكير التجديد",
+    message: `تمت إضافة تذكير ${item.customerName || "العميل"} إلى قائمة الإرسال الآمن.`,
+    entityType: "subscription",
+    entityId: id,
+    actionUrl: `/dashboard/subscriptions?subscriptionId=${id}`,
+    metadata: { queueId: queued.queueId, scheduledFor: queued.scheduledFor },
+    dedupeKey: `manual-reminder:${id}:${new Date().toISOString().slice(0, 10)}`
+  }).catch(() => null);
   return Response.json({ ok: true, queueId: queued.queueId, scheduledFor: queued.scheduledFor }, { status: 202 });
 }
