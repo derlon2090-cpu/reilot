@@ -632,7 +632,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
-  if (["/dashboard/templates", "/dashboard/order-links"].includes(state.route) && (force || state.orderLinkTemplates === null)) void loadRemotePage("orderLinkTemplates", "/api/order-link/templates", "orderLinkTemplates");
+  if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) void loadRemotePage("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
   if (state.route === "/dashboard/order-links") {
     if (force || state.orderLinkProfile === null) void loadRemotePage("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
     if (force || state.orderLinkSubscriptions === null) void loadRemotePage("orderLinkSubscriptions", "/api/order-link/subscriptions", "orderLinkSubscriptions");
@@ -2122,11 +2122,11 @@ function refreshEmailTemplatePreview() {
 
 function templateCatalogItems() {
   const renewalTemplates = Array.isArray(state.notificationTemplate?.templates) ? state.notificationTemplate.templates : [];
-  const orderTemplates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
-  return [
-    ...renewalTemplates.map((item) => ({
+  return renewalTemplates
+    .filter((item) => ["renewal_whatsapp", "renewal_email"].includes(item.templateKey || `renewal_${item.channel}`))
+    .map((item) => ({
       id: item.id,
-      key: `renewal_${item.channel}`,
+      key: item.templateKey || `renewal_${item.channel}`,
       kind: "renewal",
       channel: item.channel,
       name: item.name || (item.channel === "email" ? "قالب البريد الإلكتروني للتجديد" : "قالب رسالة التجديد - واتساب"),
@@ -2134,19 +2134,7 @@ function templateCatalogItems() {
       isActive: item.isActive !== false,
       updatedAt: item.updatedAt,
       templateVersion: item.templateVersion || 1
-    })),
-    ...orderTemplates.map((item) => ({
-      id: item.id,
-      key: `order_${item.id}`,
-      kind: "order",
-      channel: "salla",
-      name: item.name || "قالب معلومات الطلب - سلة",
-      description: "صفحة معلومات طلب مرتبطة بسلة تعرض بيانات الطلب والاشتراك وفق الحقول المحفوظة.",
-      isActive: item.isActive !== false,
-      updatedAt: item.updatedAt,
-      openedCount: Number(item.openedCount || 0)
-    }))
-  ];
+    }));
 }
 
 function templateChannelLabel(channel) {
@@ -2166,7 +2154,7 @@ function templatesPage() {
   if (["renewal_whatsapp", "renewal_email"].includes(editorKey)) {
     return renewalTemplateEditorPage(editorKey.endsWith("email") ? "email" : "whatsapp");
   }
-  const loading = state.notificationTemplate === null || state.orderLinkTemplates === null;
+  const loading = state.notificationTemplate === null;
   const items = templateCatalogItems();
   const channel = state.templateCatalogChannel || "all";
   const search = String(state.templateCatalogSearch || "").trim().toLocaleLowerCase("ar");
@@ -2174,7 +2162,7 @@ function templatesPage() {
   const total = items.length;
   const active = items.filter((item) => item.isActive).length;
   const inactive = total - active;
-  const channelTabs = [["all", "الكل"], ["whatsapp", "واتساب"], ["email", "بريد إلكتروني"], ["salla", "سلة"]];
+  const channelTabs = [["all", "الكل"], ["whatsapp", "واتساب"], ["email", "بريد إلكتروني"]];
   const rows = filtered.map((item) => {
     const editTarget = item.kind === "renewal" ? `/dashboard/templates?edit=${encodeURIComponent(item.key)}` : `/dashboard/order-links?templateId=${encodeURIComponent(item.id)}`;
     const updated = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "لم يُحدّث بعد";
@@ -2188,7 +2176,8 @@ function templatesPage() {
     ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>`
     : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${items.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب محفوظة حتى الآن"}</strong><p>${items.length ? "غيّر البحث أو القناة لعرض القوالب." : "يمكنك إعداد قالب التجديد لواتساب أو البريد، أو إنشاء قالب معلومات طلب من القسم المخصص."}</p>${items.length ? "" : `<div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_whatsapp">إعداد قالب واتساب</button><button class="btn btn-secondary" data-link="/dashboard/templates?edit=renewal_email">إعداد قالب البريد</button><button class="btn btn-secondary" data-link="/dashboard/order-links">قالب معلومات الطلب</button></div>`}</div>`;
   return dashboardShell(`<div class="template-breadcrumb"><span>الرئيسية</span><b>/</b><strong>القوالب</strong></div>
-    ${pageTitle("القوالب")}
+    ${pageTitle("قوالب التجديد")}
+    <p class="page-kicker">إدارة رسائل تذكير العملاء عبر واتساب والبريد الإلكتروني.</p>
     <section class="template-summary-grid">
       <article class="card"><span class="template-summary-icon">${dashboardIcon("template")}</span><div><small>إجمالي القوالب</small><strong>${total}</strong></div></article>
       <article class="card"><span class="template-summary-icon success">${dashboardIcon("security")}</span><div><small>قوالب نشطة</small><strong>${active}</strong></div></article>
@@ -2338,6 +2327,24 @@ function orderLinkPreviewOrder(subscriptions = [], customers = []) {
 }
 
 function orderInfoPreviewCard(subscription, draft, publicData = null) {
+  if (Array.isArray(publicData?.items)) {
+    return `<section class="order-portal-items">${publicData.items.map((item) => {
+      const remaining = item.remaining || {};
+      const remainingText = remaining.status === "pending" ? "لم يبدأ الاشتراك"
+        : remaining.status === "expired" ? "انتهى الاشتراك"
+          : `${Number(remaining.remainingDays || 0)} يوم و${Number(remaining.remainingHours || 0)} ساعة و${Number(remaining.remainingMinutes || 0)} دقيقة`;
+      const itemData = { ...publicData, items: undefined, order: {
+        ...publicData.order, serviceName: item.serviceName, planName: item.planName, status: item.status,
+        startDate: item.startsAt, endDate: item.expiresAt, remaining
+      }, renewalOptions: item.renewalOptions || [] };
+      return `<article class="subscription-live-time">
+        <div><span>الخدمة</span><strong>${escapeHtml(item.serviceName || item.planName || "الاشتراك")}</strong></div>
+        <div><span>المدة الأصلية</span><strong>${escapeHtml(item.durationLabel || "مدة الاشتراك غير مهيأة")}</strong></div>
+        <div><span>المدة المتبقية</span><strong data-subscription-countdown data-expires-at="${escapeHtml(item.expiresAt)}" data-server-now="${escapeHtml(publicData.serverNow)}">${escapeHtml(remainingText)}</strong></div>
+        <div class="subscription-time-progress"><i><b style="width:${Math.min(100, Math.max(0, Number(remaining.progressPercentage || 0)))}%"></b></i><small>اكتمل ${Math.min(100, Math.max(0, Number(remaining.progressPercentage || 0)))}% من المدة</small></div>
+      </article>${orderInfoPreviewCard(null, draft, itemData)}`;
+    }).join("")}</section>`;
+  }
   const order = publicData?.order || subscription;
   const store = publicData?.store || { name: draft.storeName };
   const template = publicData?.template || draft;
@@ -2452,7 +2459,7 @@ function orderLinksWorkspacePage() {
     escapeHtml(item.storeName),
     item.isDefault ? status("نشط") : "—",
     escapeHtml(item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA") : "—"),
-    `<div class="row-actions"><button class="btn btn-ghost" data-action="load-order-template" data-id="${item.id}">تعديل</button><button class="btn btn-ghost" data-action="duplicate-order-template" data-id="${item.id}">نسخ</button><button class="btn btn-ghost danger-text" data-action="delete-order-template" data-id="${item.id}">حذف</button></div>`
+    `<div class="row-actions"><button class="btn btn-ghost" data-action="load-order-template" data-id="${item.id}">تعديل القالب الثابت</button></div>`
   ]);
   const linkRows = links.map((item) => [
     `<button class="order-number-copy" data-action="copy-order-number" data-value="${escapeHtml(item.orderNumber)}" title="نسخ رقم الطلب"><strong>#${escapeHtml(item.orderNumber)}</strong>${dashboardIcon("orderLink")}</button>`,
@@ -2464,19 +2471,19 @@ function orderLinksWorkspacePage() {
     Number(item.openedCount || 0),
     escapeHtml(item.lastOpenedAt ? new Date(item.lastOpenedAt).toLocaleString("ar-SA") : "—"),
     escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "—"),
-    `<div class="row-actions"><button class="icon-action" data-action="copy-order-link" data-id="${item.id}" data-url="${escapeHtml(item.publicUrl)}" title="نسخ">⧉</button><button class="icon-action" data-action="preview-order-link" data-url="${escapeHtml(item.publicUrl)}" title="معاينة">◉</button><button class="icon-action" data-action="send-order-link" data-id="${item.id}" title="إرسال">↗</button><button class="icon-action" data-action="archive-order-link" data-id="${item.id}" title="أرشفة">□</button><button class="icon-action danger-text" data-action="disable-order-link" data-id="${item.id}" title="تعطيل">×</button><button class="icon-action danger-text" data-action="delete-order-link" data-id="${item.id}" title="حذف">⌫</button></div>`
+    `<div class="row-actions"><button class="icon-action" data-action="copy-order-link" data-id="${item.id}" title="نسخ">⧉</button><button class="icon-action" data-action="preview-order-link" data-id="${item.id}" title="معاينة">◉</button><button class="icon-action" data-action="send-order-link" data-id="${item.id}" title="إرسال">↗</button><button class="icon-action" data-action="regenerate-order-link" data-id="${item.id}" title="إنشاء رابط سري جديد">↻</button><button class="icon-action" data-action="archive-order-link" data-id="${item.id}" title="أرشفة">□</button><button class="icon-action danger-text" data-action="disable-order-link" data-id="${item.id}" title="تعطيل">×</button><button class="icon-action danger-text" data-action="delete-order-link" data-id="${item.id}" title="حذف">⌫</button></div>`
   ]);
   return dashboardShell(`${pageTitle("إرسال معلومات الطلب")}
     ${statGrid([
-      { title: "القوالب النشطة", value: stats.activeTemplates || 0, caption: "قالب", tone: "purple", icon: "template" },
-      { title: "روابط القوالب", value: stats.sentLinks || 0, caption: "رابط ثابت", tone: "info", icon: "orderLink" },
-      { title: "القوالب المفتوحة", value: stats.openedLinks || 0, caption: "قالب", tone: "success", icon: "reports" },
+      { title: "قالب معلومات الطلب", value: stats.activeTemplates || 0, caption: "قالب ثابت", tone: "purple", icon: "template" },
+      { title: "روابط الطلبات", value: stats.sentLinks || 0, caption: "رابط خاص", tone: "info", icon: "orderLink" },
+      { title: "الروابط المفتوحة", value: stats.openedLinks || 0, caption: "رابط", tone: "success", icon: "reports" },
       { title: "طلبات اليوم", value: stats.todayRequests || 0, caption: "استعلام", tone: "warning", icon: "template" },
       { title: "نسبة الفتح", value: `${stats.openRate || 0}%`, caption: "من الروابط", tone: "info", icon: "reports" }
     ])}
     <section class="order-link-workspace section">
       <article class="card order-link-builder">
-        <div class="section-head"><div><h2>إعداد القالب والرابط</h2><p>اختر طلبًا حقيقيًا وخصص صفحة المعلومات التي يراها العميل.</p></div>${dashboardIcon("orderLink")}</div>
+        <div class="section-head"><div><h2>قالب معلومات الطلب — سلة</h2><p>خصص نص الرسالة ومظهر صفحة الطلب المستخدمة لجميع طلبات متجرك.</p></div>${dashboardIcon("orderLink")}</div>
         <form data-submit="order-link-template" class="order-link-form">
           <div class="order-source-picker" role="tablist" aria-label="مصدر معلومات الطلب">
             <button type="button" class="${draft.sourceMode === "existing" ? "active" : ""}" data-action="order-source-mode" data-value="existing">اشتراك موجود</button>
@@ -2539,6 +2546,13 @@ async function loadPublicOrderPresentation() {
   state.publicOrderPresentationLoading = true;
   state.publicOrderPresentationKey = key;
   try {
+    if (storeSlug.startsWith("ord_")) {
+      const payload = await fetchJson(`/api/public/order-portal/${encodeURIComponent(storeSlug)}?t=${encodeURIComponent(token)}`);
+      state.publicOrder = payload.data;
+      state.publicOrderKey = `${storeSlug}::${token}:false`;
+      state.publicOrderPresentation = payload.data;
+      return;
+    }
     const payload = await fetchJson(`/api/public/order-link/${encodeURIComponent(storeSlug)}?t=${encodeURIComponent(token)}`);
     state.publicOrderPresentation = payload.presentation;
   } catch (error) {
@@ -2547,6 +2561,25 @@ async function loadPublicOrderPresentation() {
     state.publicOrderPresentationLoading = false;
     render();
   }
+}
+
+let subscriptionCountdownTimer = null;
+function bindSubscriptionCountdowns() {
+  if (subscriptionCountdownTimer) clearInterval(subscriptionCountdownTimer);
+  const loadedAt = Date.now();
+  const update = () => document.querySelectorAll("[data-subscription-countdown]").forEach((node) => {
+    const expiry = new Date(node.dataset.expiresAt || "").getTime();
+    const serverNow = new Date(node.dataset.serverNow || "").getTime();
+    if (!Number.isFinite(expiry) || !Number.isFinite(serverNow)) return;
+    const remaining = Math.max(0, expiry - (serverNow + Date.now() - loadedAt));
+    if (remaining <= 0) { node.textContent = "انتهى الاشتراك"; return; }
+    const days = Math.floor(remaining / 86400000);
+    const hours = Math.floor((remaining % 86400000) / 3600000);
+    const minutes = Math.floor((remaining % 3600000) / 60000);
+    node.textContent = `${days} يوم و${hours} ساعة و${minutes} دقيقة`;
+  });
+  update();
+  subscriptionCountdownTimer = setInterval(update, 60000);
 }
 
 async function loadPublicOrder({ checked = false, orderNumber } = {}) {
@@ -2586,6 +2619,7 @@ function publicOrderPage() {
   if (legacyOrderNumber && token && !data && !state.publicOrderLoading) queueMicrotask(() => loadPublicOrder({ orderNumber: legacyOrderNumber }));
   const storeName = presentation?.store?.name || "معلومات الطلب";
   const themeColor = safeOrderLinkColor(presentation?.template?.themeColor);
+  if (data?.items) queueMicrotask(bindSubscriptionCountdowns);
   return `<div class="public-order-page" style="--order-theme:${themeColor}">
     <header class="public-order-header"><div>${logo()}<span>منصة إدارة الاشتراكات الذكية</span></div><div><span class="order-bag">${dashboardIcon("orderLink")}</span><strong>${escapeHtml(storeName)}</strong><small>أهلًا بك في صفحة تتبع طلبك</small></div></header>
     <main class="public-order-main">
@@ -2911,8 +2945,8 @@ async function persistOrderLinkDraft() {
     isDefault: Boolean(draft.isDefault),
     isActive: true
   };
-  const templatePayload = await fetchJson(draft.templateId ? `/api/order-link/templates/${draft.templateId}` : "/api/order-link/templates", {
-    method: draft.templateId ? "PATCH" : "POST",
+  const templatePayload = await fetchJson("/api/order-information/template", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
@@ -2920,8 +2954,8 @@ async function persistOrderLinkDraft() {
     ...state.orderLinkDraft,
     templateId: templatePayload.item.id,
     templateName: templatePayload.item.name,
-    templateLinkId: templatePayload.item.templateLinkId || state.orderLinkDraft.templateLinkId || "",
-    publicUrl: templatePayload.item.publicUrl || state.orderLinkDraft.publicUrl || ""
+    templateLinkId: "",
+    publicUrl: state.orderLinkDraft.publicUrl || ""
   };
   state.orderLinkTemplates = null;
   state.orderLinks = null;
@@ -3032,28 +3066,17 @@ async function createCurrentOrderLink(trigger) {
 }
 
 async function ensureCurrentTemplateLink(trigger) {
-  if (state.orderLinkDraft.publicUrl && state.orderLinkDraft.templateId) {
+  if (state.orderLinkDraft.publicUrl && state.orderLinkDraft.linkId) {
     return {
-      id: state.orderLinkDraft.templateLinkId || "",
+      id: state.orderLinkDraft.linkId,
       publicUrl: state.orderLinkDraft.publicUrl
     };
   }
   try {
-    if (trigger) {
-      trigger.disabled = true;
-      trigger.setAttribute("aria-busy", "true");
-    }
-    const template = await persistOrderLinkDraft();
-    render();
-    return { id: template.templateLinkId || "", publicUrl: template.publicUrl || "" };
+    return await createCurrentOrderLink(trigger);
   } catch (error) {
     toast(error.message || "تعذر تجهيز رابط القالب", "danger");
     return null;
-  } finally {
-    if (trigger?.isConnected) {
-      trigger.disabled = false;
-      trigger.removeAttribute("aria-busy");
-    }
   }
 }
 
@@ -3561,13 +3584,31 @@ async function handleAction(target) {
     });
   }
   if (action === "copy-order-link") {
-    await fetchJson(`/api/order-link/${target.dataset.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) }).catch(() => null);
-    await copyText(target.dataset.url, "تم نسخ الرابط بنجاح");
+    const payload = await fetchJson(`/api/order-link/${target.dataset.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) });
+    await copyText(payload.publicUrl, "تم نسخ رابط الطلب بنجاح");
   }
-  if (action === "preview-order-link") window.open(target.dataset.url, "_blank", "noopener,noreferrer");
+  if (action === "preview-order-link") {
+    const orderId = target.dataset.id || target.closest(".row-actions")?.querySelector("[data-id]")?.dataset.id;
+    if (orderId) {
+      const payload = await fetchJson(`/api/orders/${orderId}/portal-link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      window.open(payload.url, "_blank", "noopener,noreferrer");
+    }
+  }
   if (action === "send-order-link") {
     const item = state.orderLinks?.items?.find((link) => link.id === target.dataset.id);
     openOrderLinkSendModal(item);
+  }
+  if (action === "regenerate-order-link") {
+    return openModal("إنشاء رابط سري جديد", "<p>سيُلغى الرابط الحالي فورًا ولن يتمكن العميل من فتحه بعد التأكيد.</p>", `<button class="btn btn-danger" data-action="confirm-regenerate-order-link" data-id="${escapeHtml(target.dataset.id)}">تأكيد إنشاء رابط جديد</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-regenerate-order-link") {
+    try {
+      const payload = await fetchJson(`/api/orders/${target.dataset.id}/portal-link/regenerate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      closePortal();
+      state.orderLinks = null;
+      syncRouteData(true);
+      await copyText(payload.url, "تم إنشاء ونسخ الرابط السري الجديد");
+    } catch (error) { toast(error.message || "تعذر إنشاء رابط جديد", "danger"); }
   }
   if (action === "disable-order-link" || action === "archive-order-link") {
     const endpoint = action === "disable-order-link" ? "disable" : "archive";
@@ -4014,7 +4055,7 @@ async function handleSubmit(form, event) {
     if (button) button.disabled = true;
     try {
       await persistOrderLinkDraft();
-      toast("تم حفظ قالب معلومات الطلب بنجاح");
+      toast("تم حفظ التعديلات");
     } catch (error) {
       if (button) button.disabled = false;
       const messages = { slug_exists: "هذا الرابط المخصص مستخدم من متجر آخر.", reserved_slug: "هذا الرابط محجوز للنظام.", invalid_slug: "صيغة الرابط المخصص غير صحيحة." };
@@ -4215,7 +4256,7 @@ async function handleSubmit(form, event) {
       const templates = (Array.isArray(current.templates) ? current.templates : []).filter((item) => item.channel !== payload.template.channel);
       const rules = (Array.isArray(current.rules) ? current.rules : []).filter((item) => item.channel !== payload.rule.channel);
       state.notificationTemplate = { ...current, template: payload.template, rule: payload.rule, templates: [...templates, payload.template], rules: [...rules, payload.rule] };
-      toast("تم حفظ قالب رسالة التجديد بنجاح");
+      toast("تم حفظ التعديلات");
       render();
     } catch (error) { toast(error.message || "تعذر حفظ القالب", "danger"); }
     return;
@@ -4698,7 +4739,10 @@ document.addEventListener("change", (event) => {
         state.orderLinkDraft.subscriptionId = "";
       }
       render();
-    } else if (target.dataset.orderField === "subscriptionId") render();
+    } else if (target.dataset.orderField === "subscriptionId") {
+      state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", publicUrl: "", createdOrderNumber: "", createdCustomerName: "" };
+      render();
+    }
     else refreshOrderLinkPreview();
   }
   if (target.dataset.orderVisible) {

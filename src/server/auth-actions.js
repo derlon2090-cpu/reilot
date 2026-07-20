@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from "./password.js";
 import { createSession } from "./session.js";
 import { isStrongPassword, normalizeEmail, sha256 } from "./security.js";
 import { classifyPasswordStrength } from "./security-score.js";
+import { ensureDefaultTemplates } from "./default-templates.js";
 
 function slugify(value) {
   const base = String(value || "store").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -39,6 +40,7 @@ export async function registerAccount({ name, companyName, email, password, ipAd
     await client.query("INSERT INTO stores (tenant_id, name) VALUES ($1, $2)", [tenantId, workspaceName]);
     await client.query("INSERT INTO settings (tenant_id, language, theme) VALUES ($1, 'ar', 'light')", [tenantId]);
     await client.query("INSERT INTO whatsapp_safety_settings (tenant_id) VALUES ($1)", [tenantId]);
+    await ensureDefaultTemplates(client, tenantId, workspaceName);
     const plan = await client.query("SELECT id FROM platform_plans WHERE slug IN ('free', 'trial', 'starter') ORDER BY CASE slug WHEN 'free' THEN 0 WHEN 'trial' THEN 1 ELSE 2 END LIMIT 1");
     if (plan.rows[0]) {
       await client.query(

@@ -1,6 +1,6 @@
 import { query, transaction } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
-import { ensureTemplatePublicLink, normalizedTemplateInput } from "../../../../../src/server/order-links.js";
+import { normalizedTemplateInput } from "../../../../../src/server/order-links.js";
 
 export async function PATCH(req, { params }) {
   const auth = await requireSession(req);
@@ -30,27 +30,17 @@ export async function PATCH(req, { params }) {
     return updated.rows[0] || null;
   });
   if (!item) return Response.json({ ok: false, reason: "not_found" }, { status: 404 });
-  const templateLink = await ensureTemplatePublicLink({ tenantId: auth.session.tenantId, templateId: item.id });
-  if (!templateLink.ok) return Response.json(templateLink, { status: 400 });
-  return Response.json({
-    ok: true,
-    item: {
-      ...item,
-      templateLinkId: templateLink.item.id,
-      publicUrl: templateLink.item.publicUrl,
-      linkStatus: templateLink.item.status,
-      openedCount: templateLink.item.openedCount || 0
-    }
-  });
+  return Response.json({ ok: true, item });
 }
 
 export async function DELETE(req, { params }) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const result = await query(
-    "DELETE FROM order_info_templates WHERE id = $1 AND tenant_id = $2 RETURNING id",
-    [id, auth.session.tenantId]
-  );
-  return result.rows[0] ? Response.json({ ok: true }) : Response.json({ ok: false, reason: "not_found" }, { status: 404 });
+  const result = await query("SELECT template_key AS \"templateKey\" FROM order_info_templates WHERE id=$1 AND tenant_id=$2", [id, auth.session.tenantId]);
+  if (!result.rows[0]) return Response.json({ ok: false, reason: "not_found" }, { status: 404 });
+  if (result.rows[0].templateKey === "order_information_salla") {
+    return Response.json({ ok: false, reason: "system_template_cannot_be_deleted" }, { status: 405 });
+  }
+  return Response.json({ ok: false, reason: "system_template_cannot_be_deleted" }, { status: 405 });
 }

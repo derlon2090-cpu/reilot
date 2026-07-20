@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260720-renewal-v8" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260721-order-portal-v9" />
       </head>
       <body>{children}</body>
     </html>

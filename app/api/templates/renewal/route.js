@@ -2,6 +2,7 @@ import { sendRenewalReminderEmail } from "../../../../src/server/email/resend.se
 import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../src/server/security.js";
+import { ensureDefaultTemplates } from "../../../../src/server/default-templates.js";
 import {
   PLAN_MESSAGE_LIMIT_REACHED,
   consumeReservedQuotaWithClient,
@@ -60,21 +61,22 @@ function structuredContent(text) {
 }
 
 function templateSelect() {
-  return `SELECT id, name, channel, title, body, variables,
+  return `SELECT id, template_key AS "templateKey", template_group AS "templateGroup", name, channel, title, body, variables,
                  store_name AS "storeName", theme_color AS "themeColor",
                  content_json AS "contentJson", button_label AS "buttonLabel",
                  footer_text AS "footerText", template_version AS "templateVersion",
                  is_system_default AS "isSystemDefault", is_active AS "isActive",
                  updated_at AS "updatedAt"
             FROM notification_templates
-           WHERE tenant_id = $1 AND trigger_type = 'before_expiry'
-             AND channel IN ('whatsapp', 'email')
+           WHERE tenant_id = $1 AND template_group = 'renewal'
+             AND template_key IN ('renewal_whatsapp','renewal_email')
            ORDER BY channel, updated_at DESC`;
 }
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
+  await transaction((client) => ensureDefaultTemplates(client, auth.session.tenantId));
   const [templatesResult, rulesResult] = await Promise.all([
     query(templateSelect(), [auth.session.tenantId]),
     query(
@@ -88,7 +90,7 @@ export async function GET(req) {
       [auth.session.tenantId]
     )
   ]);
-  const templates = templatesResult.rows.filter((item, index, rows) => rows.findIndex((row) => row.channel === item.channel) === index);
+  const templates = templatesResult.rows.filter((item, index, rows) => rows.findIndex((row) => row.templateKey === item.templateKey) === index);
   const rules = rulesResult.rows.filter((item, index, rows) => rows.findIndex((row) => row.channel === item.channel) === index);
   const template = templates.find((item) => item.channel === "whatsapp") || templates[0] || null;
   const rule = rules.find((item) => item.templateId === template?.id) || null;
@@ -134,11 +136,13 @@ export async function PUT(req) {
   }
 
   const saved = await transaction(async (client) => {
+    await ensureDefaultTemplates(client, auth.session.tenantId);
+    const templateKey = channel === "email" ? "renewal_email" : "renewal_whatsapp";
     const existing = await client.query(
       `SELECT id, template_version FROM notification_templates
-        WHERE tenant_id = $1 AND trigger_type = 'before_expiry' AND channel = $2
+        WHERE tenant_id = $1 AND template_key = $2 AND template_group = 'renewal'
         ORDER BY updated_at DESC LIMIT 1`,
-      [auth.session.tenantId, channel]
+      [auth.session.tenantId, templateKey]
     );
     const template = existing.rows[0]
       ? await client.query(
@@ -158,16 +162,16 @@ export async function PUT(req) {
         )
       : await client.query(
           `INSERT INTO notification_templates
-             (tenant_id, name, channel, trigger_type, title, body, variables, store_name,
+             (tenant_id, template_key, template_group, name, channel, trigger_type, title, body, variables, store_name,
               theme_color, content_json, button_label, footer_text, template_version,
               is_system_default, updated_by, is_active)
-           VALUES ($1,$2,$3,'before_expiry',$4,$5,$6::jsonb,$7,$8,$9::jsonb,$10,$11,1,false,$12,$13)
+           VALUES ($1,$2,'renewal',$3,$4,'before_expiry',$5,$6,$7::jsonb,$8,$9,$10::jsonb,$11,$12,1,true,$13,$14)
            RETURNING id, name, channel, title, body, variables, store_name AS "storeName",
                      theme_color AS "themeColor", content_json AS "contentJson",
                      button_label AS "buttonLabel", footer_text AS "footerText",
                      template_version AS "templateVersion", is_system_default AS "isSystemDefault",
                      is_active AS "isActive", updated_at AS "updatedAt"`,
-          [auth.session.tenantId, name, channel, title, messageBody, JSON.stringify(variables), storeName, themeColor, JSON.stringify(contentJson), buttonLabel, footerText, auth.session.userId, isActive]
+          [auth.session.tenantId, templateKey, name, channel, title, messageBody, JSON.stringify(variables), storeName, themeColor, JSON.stringify(contentJson), buttonLabel, footerText, auth.session.userId, isActive]
         );
     const templateId = template.rows[0].id;
     await client.query(

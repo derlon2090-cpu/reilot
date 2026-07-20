@@ -2,6 +2,7 @@ import { query } from "../../../../../src/server/db.js";
 import { queueOrderInformationLink } from "../../../../../src/server/message-queue.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { PLAN_MESSAGE_LIMIT_REACHED } from "../../../../../src/lib/billing/message-quota.js";
+import { getOrCreateOrderPortalLink } from "../../../../../src/server/order-portal-links.js";
 
 export async function POST(req, { params }) {
   const auth = await requireSession(req);
@@ -11,7 +12,7 @@ export async function POST(req, { params }) {
   const body = await req.json().catch(() => ({}));
   const method = ["copy", "whatsapp", "email"].includes(body.method) ? body.method : "copy";
   const result = await query(
-    `SELECT l.id, l.public_url AS "publicUrl", l.order_number AS "orderNumber", l.status,
+    `SELECT l.id, l.order_number AS "orderNumber", l.status,
             l.customer_id AS "customerId", l.subscription_id AS "subscriptionId",
             c.name AS "customerName", c.email,
             COALESCE(c.whatsapp_number, c.phone) AS "phoneNumber",
@@ -28,6 +29,9 @@ export async function POST(req, { params }) {
   if (link.status !== "active") {
     return Response.json({ ok: false, reason: "link_not_active" }, { status: 409 });
   }
+  const portal = await getOrCreateOrderPortalLink({ tenantId: auth.session.tenantId, orderId: id });
+  if (!portal.ok) return Response.json(portal, { status: 404 });
+  link.publicUrl = portal.url;
 
   if (method === "copy") {
     await query(

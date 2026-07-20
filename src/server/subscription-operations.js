@@ -240,9 +240,10 @@ export async function processSallaSubscriptionOrder({ tenantId, connectionId, pa
           if (!renewal.rows[0]) { result.duplicates += 1; continue; }
           const updated = await client.query(
             `UPDATE customer_subscriptions SET expires_at = $2, status = 'active',
-               last_renewed_at = now(), amount = $3, currency = $4, notification_status = 'ready', updated_at = now()
+               last_renewed_at = now(), renewed_at = now(), duration_value=$5,duration_unit=$6,
+               amount = $3, currency = $4, notification_status = 'ready', updated_at = now()
              WHERE id = $1 RETURNING *`,
-            [previous.id, newExpiry, item.amount, order.currency]
+            [previous.id, newExpiry, item.amount, order.currency,durationValue,mapping.duration_unit]
           );
           await scheduleSubscriptionReminders(client, updated.rows[0], mapping, { enabled: sendNotifications });
           await client.query("UPDATE renewal_tracking_links SET renewed_at = now() WHERE subscription_id = $1 AND renewed_at IS NULL", [previous.id]);
@@ -255,13 +256,14 @@ export async function processSallaSubscriptionOrder({ tenantId, connectionId, pa
             `INSERT INTO customer_subscriptions
                (tenant_id, customer_id, plan_id, salla_order_id, salla_order_item_id,
                 salla_product_id, salla_variant_id, order_number, service_name, status,
-                starts_at, expires_at, renewal_mode, reminder_mode, preferred_channel,
+                starts_at, expires_at, duration_value,duration_unit,activated_at,activation_source,
+                renewal_mode, reminder_mode, preferred_channel,
                 fallback_channel, notification_status, source, amount, currency)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'manual_purchase','automatic',$13,$14,$15,'salla',$16,$17)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$11,$15,'manual_purchase','automatic',$16,$17,$18,'salla',$19,$20)
              ON CONFLICT (tenant_id, salla_order_item_id) DO NOTHING RETURNING *`,
             [tenantId, customer.id, mapping.internal_plan_id, order.orderId, sourceItemId,
               item.productId || mapping.salla_product_id, item.variantId, order.orderNumber, item.name || mapping.plan_name,
-              customer.customer_match_status === "needs_review" ? "needs_review" : "active", startsAt, expiresAt,
+              customer.customer_match_status === "needs_review" ? "needs_review" : "active", startsAt, expiresAt,durationValue,mapping.duration_unit,mapping.start_trigger,
               order.customer.phone ? "whatsapp" : "email", order.customer.phone && order.customer.email ? "email" : null,
               notificationStatus, item.amount, order.currency]
           );

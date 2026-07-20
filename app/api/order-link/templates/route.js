@@ -1,6 +1,6 @@
 import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
-import { ensureTemplatePublicLink, normalizedTemplateInput } from "../../../../src/server/order-links.js";
+import { normalizedTemplateInput } from "../../../../src/server/order-links.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -10,12 +10,10 @@ export async function GET(req) {
             t.header_text AS "headerText", t.footer_text AS "footerText",
             t.additional_notes AS "additionalNotes", t.visible_fields AS "visibleFields",
             t.is_default AS "isDefault", t.is_active AS "isActive",
-            t.created_at AS "createdAt", t.updated_at AS "updatedAt",
-            tl.id AS "templateLinkId", tl.public_url AS "publicUrl", tl.status AS "linkStatus",
-            tl.opened_count AS "openedCount", tl.last_opened_at AS "lastOpenedAt"
+            t.created_at AS "createdAt", t.updated_at AS "updatedAt"
        FROM order_info_templates t
-       LEFT JOIN order_template_links tl ON tl.template_id = t.id AND tl.tenant_id = t.tenant_id
-      WHERE t.tenant_id = $1 ORDER BY t.is_default DESC, t.updated_at DESC`,
+      WHERE t.tenant_id = $1 AND t.template_key='order_information_salla'
+        AND t.template_group='order_information' ORDER BY t.updated_at DESC LIMIT 1`,
     [auth.session.tenantId]
   );
   return Response.json({ ok: true, items: result.rows });
@@ -30,11 +28,16 @@ export async function POST(req) {
     if (input.value.isDefault) {
       await client.query("UPDATE order_info_templates SET is_default = false, updated_at = now() WHERE tenant_id = $1", [auth.session.tenantId]);
     }
+    const existing = await client.query("SELECT id FROM order_info_templates WHERE tenant_id=$1 LIMIT 1",[auth.session.tenantId]);
     const inserted = await client.query(
       `INSERT INTO order_info_templates (
          tenant_id, name, style, theme_color, store_name, header_text, footer_text,
          additional_notes, visible_fields, is_default, is_active
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11)
+       ON CONFLICT (tenant_id) DO UPDATE SET name=EXCLUDED.name,style=EXCLUDED.style,
+         theme_color=EXCLUDED.theme_color,store_name=EXCLUDED.store_name,header_text=EXCLUDED.header_text,
+         footer_text=EXCLUDED.footer_text,additional_notes=EXCLUDED.additional_notes,
+         visible_fields=EXCLUDED.visible_fields,is_default=EXCLUDED.is_default,is_active=EXCLUDED.is_active,updated_at=now()
        RETURNING id, name, style, theme_color AS "themeColor", store_name AS "storeName",
                  header_text AS "headerText", footer_text AS "footerText",
                  additional_notes AS "additionalNotes", visible_fields AS "visibleFields",
@@ -45,21 +48,10 @@ export async function POST(req) {
         JSON.stringify(input.value.visibleFields), input.value.isDefault, input.value.isActive]
     );
     await client.query(
-      "INSERT INTO activity_logs (tenant_id, user_id, type, title, metadata) VALUES ($1, $2, 'order_template.created', 'Order information template created', $3::jsonb)",
+      "INSERT INTO activity_logs (tenant_id, user_id, type, title, metadata) VALUES ($1, $2, 'order_template.saved', 'Order information template saved', $3::jsonb)",
       [auth.session.tenantId, auth.session.userId, JSON.stringify({ templateId: inserted.rows[0].id })]
     );
-    return inserted.rows[0];
+    return {...inserted.rows[0],created:!existing.rows[0]};
   });
-  const templateLink = await ensureTemplatePublicLink({ tenantId: auth.session.tenantId, templateId: item.id });
-  if (!templateLink.ok) return Response.json(templateLink, { status: 400 });
-  return Response.json({
-    ok: true,
-    item: {
-      ...item,
-      templateLinkId: templateLink.item.id,
-      publicUrl: templateLink.item.publicUrl,
-      linkStatus: templateLink.item.status,
-      openedCount: templateLink.item.openedCount || 0
-    }
-  }, { status: 201 });
+  return Response.json({ok:true,item},{status:item.created?201:200});
 }

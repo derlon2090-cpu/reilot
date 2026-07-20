@@ -49,17 +49,18 @@ export async function consumeOauthState(state) {
 export async function ensureSallaTemplate(tenantId, storeName = "متجر سلة") {
   const existing = await query(
     `SELECT id FROM order_info_templates
-      WHERE tenant_id = $1 AND is_active = true
-      ORDER BY is_default DESC, created_at ASC LIMIT 1`, [tenantId]
+      WHERE tenant_id = $1 AND template_key='order_information_salla'
+        AND template_group='order_information' LIMIT 1`, [tenantId]
   );
   if (existing.rows[0]) return existing.rows[0].id;
   await ensureOrderLinkProfile(tenantId);
   const result = await query(
     `INSERT INTO order_info_templates
-      (tenant_id, name, style, theme_color, store_name, header_text, footer_text,
+      (tenant_id, template_key, template_group, name, style, theme_color, store_name, header_text, footer_text,
        additional_notes, visible_fields, is_default, is_active)
-     VALUES ($1, 'قالب سلة الافتراضي', 'classic', '#22C55E', $2,
+     VALUES ($1, 'order_information_salla', 'order_information', 'قالب معلومات الطلب — سلة', 'classic', '#22C55E', $2,
        'شكرًا لاختيارك خدماتنا', 'مدعوم من Renvix', $3::jsonb, $4::jsonb, true, true)
+     ON CONFLICT (tenant_id) DO UPDATE SET updated_at=order_info_templates.updated_at
      RETURNING id`,
     [tenantId, storeName, JSON.stringify([
       "احتفظ بهذا الرابط للرجوع إلى معلومات طلبك لاحقًا.",

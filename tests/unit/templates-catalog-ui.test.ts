@@ -9,10 +9,11 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain('"/dashboard/renewal-template": "/dashboard/templates"');
   });
 
-  it("builds catalog counts from persisted renewal and order templates", () => {
+  it("builds catalog counts from persisted renewal templates only", () => {
     expect(appSource).toContain("function templateCatalogItems()");
     expect(appSource).toContain("state.notificationTemplate?.templates");
-    expect(appSource).toContain("state.orderLinkTemplates");
+    expect(appSource).toContain('["renewal_whatsapp", "renewal_email"]');
+    expect(appSource).not.toContain('...orderTemplates.map');
     expect(appSource).not.toContain("const sampleEmailValue");
   });
 
@@ -20,6 +21,6 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain('["all", "الكل"]');
     expect(appSource).toContain('["whatsapp", "واتساب"]');
     expect(appSource).toContain('["email", "بريد إلكتروني"]');
-    expect(appSource).toContain('["salla", "سلة"]');
+    expect(appSource).toContain('pageTitle("قوالب التجديد")');
   });
 });
