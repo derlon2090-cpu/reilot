@@ -264,6 +264,14 @@ export function publicOrderPayload(row) {
       footerText: row.footerText || null,
       additionalNotes: visible.additionalNotes ? normalizeAdditionalNotes(row.additionalNotes) : [],
       visibleFields: visible
-    }
+    },
+    renewalOptions: Array.isArray(row.renewalOptions) ? row.renewalOptions.map((item) => ({
+      id: item.id,
+      label: item.label,
+      note: item.note || null,
+      durationValue: Number(item.durationValue),
+      durationUnit: item.durationUnit,
+      url: item.url
+    })) : []
   };
 }

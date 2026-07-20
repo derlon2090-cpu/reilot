@@ -1,5 +1,6 @@
 import { query, transaction } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
+import { safeRenewalUrl } from "../../../../../src/lib/renewal-links.js";
 
 const units = new Set(["day","month","year"]);
 const triggers = new Set(["payment_completed","order_completed","manual_activation","specific_order_status"]);
@@ -9,13 +10,20 @@ export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const [products,mappings,plans,unmapped] = await Promise.all([
-    query(`SELECT id,salla_product_id AS "productId",salla_variant_id AS "variantId",sku,name,price,currency,status
+    query(`SELECT id,salla_product_id AS "productId",salla_variant_id AS "variantId",sku,name,price,currency,status,
+      thumbnail_url AS "thumbnailUrl",customer_url AS "customerUrl",synced_at AS "syncedAt",is_available AS "isAvailable"
       FROM salla_products WHERE tenant_id=$1 ORDER BY name,sku`,[auth.session.tenantId]),
     query(`SELECT ppm.id,ppm.salla_product_id AS "productId",ppm.salla_variant_id AS "variantId",
       ppm.salla_product_sku AS sku,ppm.internal_plan_id AS "planId",sp.name AS "planName",
       ppm.duration_value AS "durationValue",ppm.duration_unit AS "durationUnit",ppm.start_trigger AS "startTrigger",
-      ppm.quantity_behavior AS "quantityBehavior",ppm.is_active AS "isActive"
+      ppm.quantity_behavior AS "quantityBehavior",ppm.renewal_link_mode AS "renewalLinkMode",ppm.is_active AS "isActive",
+      catalog.name AS "productName",catalog.thumbnail_url AS "thumbnailUrl",catalog.status AS "productStatus",
+      (SELECT COUNT(*)::int FROM product_renewal_options pro WHERE pro.tenant_id=ppm.tenant_id
+        AND pro.product_mapping_id=ppm.id AND pro.is_active=true) AS "renewalOptionsCount"
       FROM product_plan_mappings ppm JOIN subscription_plans sp ON sp.id=ppm.internal_plan_id
+      LEFT JOIN salla_products catalog ON catalog.tenant_id=ppm.tenant_id
+        AND catalog.salla_product_id=ppm.salla_product_id
+        AND COALESCE(catalog.salla_variant_id,'')=COALESCE(ppm.salla_variant_id,'')
       WHERE ppm.tenant_id=$1 ORDER BY ppm.updated_at DESC`,[auth.session.tenantId]),
     query("SELECT id,name,duration_value AS \"durationValue\",duration_unit AS \"durationUnit\",salla_product_url AS \"renewalUrl\" FROM subscription_plans WHERE tenant_id=$1 AND is_active=true ORDER BY name",[auth.session.tenantId]),
     query(`SELECT id,order_number AS "orderNumber",product_name AS "productName",salla_product_id AS "productId",
@@ -30,10 +38,11 @@ export async function POST(req) {
   if (!auth.ok) return auth.response;
   const body = await req.json().catch(()=>({}));
   const durationValue=Number(body.durationValue);
+  const renewalLinkMode = body.renewalLinkMode === "automatic" ? "automatic" : "manual";
   let renewalUrl=null;
   if(String(body.renewalUrl||"").trim()){
-    try{const parsed=new URL(String(body.renewalUrl).trim());if(parsed.protocol!=="https:")throw new Error();renewalUrl=parsed.toString();}
-    catch{return Response.json({ok:false,reason:"invalid_renewal_url"},{status:400});}
+    renewalUrl=safeRenewalUrl(body.renewalUrl);
+    if(!renewalUrl)return Response.json({ok:false,reason:"invalid_renewal_url"},{status:400});
   }
   if(!body.productId||(!body.planId&&!String(body.newPlanName||"").trim())||!Number.isInteger(durationValue)||durationValue<1||!units.has(body.durationUnit)||!triggers.has(body.startTrigger)||!quantityBehaviors.has(body.quantityBehavior))
     return Response.json({ok:false,reason:"invalid_mapping"},{status:400});
@@ -52,14 +61,15 @@ export async function POST(req) {
     const connection=await client.query("SELECT id FROM app_connections WHERE tenant_id=$1 AND provider='salla' LIMIT 1",[auth.session.tenantId]);
     const saved=await client.query(`INSERT INTO product_plan_mappings
       (tenant_id,connection_id,salla_product_id,salla_product_sku,salla_variant_id,internal_plan_id,
-       duration_value,duration_unit,start_trigger,specific_order_status,quantity_behavior,is_subscription_product,is_active)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,true)
+       duration_value,duration_unit,start_trigger,specific_order_status,quantity_behavior,renewal_link_mode,is_subscription_product,is_active)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,true)
       ON CONFLICT (tenant_id,salla_product_id,COALESCE(salla_variant_id,'')) DO UPDATE SET
        salla_product_sku=EXCLUDED.salla_product_sku,internal_plan_id=EXCLUDED.internal_plan_id,
        duration_value=EXCLUDED.duration_value,duration_unit=EXCLUDED.duration_unit,start_trigger=EXCLUDED.start_trigger,
-       specific_order_status=EXCLUDED.specific_order_status,quantity_behavior=EXCLUDED.quantity_behavior,is_active=true,updated_at=now()
+       specific_order_status=EXCLUDED.specific_order_status,quantity_behavior=EXCLUDED.quantity_behavior,
+       renewal_link_mode=EXCLUDED.renewal_link_mode,is_active=true,updated_at=now()
       RETURNING id`,[auth.session.tenantId,connection.rows[0]?.id||null,String(body.productId),body.sku||null,body.variantId?String(body.variantId):null,
-       plan.rows[0].id,durationValue,body.durationUnit,body.startTrigger,body.specificOrderStatus||null,body.quantityBehavior]);
+       plan.rows[0].id,durationValue,body.durationUnit,body.startTrigger,body.specificOrderStatus||null,body.quantityBehavior,renewalLinkMode]);
     await client.query("UPDATE unmapped_order_items SET status='mapped',updated_at=now() WHERE tenant_id=$1 AND salla_product_id=$2 AND COALESCE(salla_variant_id,'')=COALESCE($3,'')",[auth.session.tenantId,String(body.productId),body.variantId?String(body.variantId):null]);
     return saved.rows[0];
   });

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { enqueueMessage } from "./message-queue.js";
 import { renderRenewalTemplate, validateRenewalTemplate } from "../lib/subscription-lifecycle.js";
+import { createRenewalRedirect } from "./product-renewal-options.js";
 
 function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://renvix.app").replace(/\/$/, "");
@@ -30,6 +31,31 @@ async function createTrackingUrl(tenantId, subscriptionId, destinationUrl) {
     [tenantId, subscriptionId, hash, token.slice(0, 10), destination.toString()]
   );
   return `${appUrl()}/r/${token}`;
+}
+
+async function renewalUrlForChannel(tenantId, subscriptionId, channel, createLink) {
+  const result = await query(`SELECT pro.id
+    FROM customer_subscriptions cs
+    JOIN LATERAL (
+      SELECT ppm.id FROM product_plan_mappings ppm
+      WHERE ppm.tenant_id=cs.tenant_id AND ppm.is_active=true
+        AND ((cs.salla_variant_id IS NOT NULL AND ppm.salla_variant_id=cs.salla_variant_id)
+          OR (ppm.salla_variant_id IS NULL AND ppm.salla_product_id=cs.salla_product_id))
+      ORDER BY CASE WHEN cs.salla_variant_id IS NOT NULL AND ppm.salla_variant_id=cs.salla_variant_id THEN 1 ELSE 2 END
+      LIMIT 1
+    ) ppm ON true
+    JOIN product_renewal_options pro ON pro.tenant_id=cs.tenant_id AND pro.product_mapping_id=ppm.id
+      AND pro.is_active=true
+      AND (($3='whatsapp' AND pro.show_in_whatsapp=true) OR ($3='email' AND pro.show_in_email=true))
+      AND ((pro.link_mode='manual' AND pro.manual_url IS NOT NULL)
+        OR (pro.link_mode='automatic' AND pro.resolved_url IS NOT NULL))
+    WHERE cs.id=$2 AND cs.tenant_id=$1
+    ORDER BY pro.sort_order,pro.created_at LIMIT 1`, [tenantId, subscriptionId, channel]);
+  const optionId = result.rows[0]?.id;
+  if (!optionId) return null;
+  if (!createLink) return `${appUrl()}/r/[رابط آمن عند الجدولة]`;
+  const link = await createRenewalRedirect({ tenantId, subscriptionId, optionId, expiresInDays: 45 });
+  return link.ok ? link.url : null;
 }
 
 async function deliveryContext(tenantId, subscriptionId, requestedChannel = null, { createLink = false } = {}) {
@@ -69,9 +95,10 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
   const bodyValidation = validateRenewalTemplate(template.rows[0].body);
   const subjectValidation = validateRenewalTemplate(template.rows[0].subject || "");
   if (!bodyValidation.ok || !subjectValidation.ok) return { ok: false, reason: "invalid_renewal_template", channel };
-  const renewalUrl = createLink
+  const configuredRenewalUrl = await renewalUrlForChannel(tenantId, subscriptionId, channel, createLink);
+  const renewalUrl = configuredRenewalUrl || (createLink
     ? await createTrackingUrl(tenantId, subscriptionId, row.salla_product_url)
-    : row.salla_product_url ? `${appUrl()}/r/[رابط آمن عند الجدولة]` : null;
+    : row.salla_product_url ? `${appUrl()}/r/[رابط آمن عند الجدولة]` : null);
   const daysRemaining = Math.ceil((new Date(row.expires_at).getTime() - Date.now()) / 86400000);
   const variables = {
     customer_name: row.customer_name,

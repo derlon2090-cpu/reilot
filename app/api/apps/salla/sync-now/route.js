@@ -5,6 +5,8 @@ import {
   processSallaEvent,
   registerSallaOperationalWebhooks,
 } from "../../../../../src/server/salla-app.js";
+import { extractSallaCustomerUrl, safeRenewalUrl } from "../../../../../src/lib/renewal-links.js";
+import { syncAutomaticRenewalOptions } from "../../../../../src/server/product-renewal-options.js";
 
 export async function POST(req) {
   const auth = await requireSession(req);
@@ -38,15 +40,21 @@ export async function POST(req) {
         const variants = Array.isArray(product.variants) && product.variants.length ? product.variants : [null];
         for (const variant of variants) await query(
           `INSERT INTO salla_products
-             (tenant_id,connection_id,salla_product_id,salla_variant_id,sku,name,price,currency,status,raw_payload,synced_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,now())
+             (tenant_id,connection_id,salla_product_id,salla_variant_id,sku,name,price,currency,status,raw_payload,
+              thumbnail_url,customer_url,source_updated_at,is_available,synced_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14,now())
            ON CONFLICT (tenant_id,salla_product_id,COALESCE(salla_variant_id,'')) DO UPDATE SET
              sku=EXCLUDED.sku,name=EXCLUDED.name,price=EXCLUDED.price,currency=EXCLUDED.currency,
-             status=EXCLUDED.status,raw_payload=EXCLUDED.raw_payload,synced_at=now()`,
+             status=EXCLUDED.status,raw_payload=EXCLUDED.raw_payload,thumbnail_url=EXCLUDED.thumbnail_url,
+             customer_url=EXCLUDED.customer_url,source_updated_at=EXCLUDED.source_updated_at,
+             is_available=EXCLUDED.is_available,synced_at=now()`,
           [auth.session.tenantId, connection.id, String(product.id), variant?.id ? String(variant.id) : null,
             variant?.sku || product.sku || null, variant?.name ? `${product.name} — ${variant.name}` : product.name,
             Number(variant?.price?.amount ?? product.price?.amount ?? product.price ?? 0) || null,
-            variant?.price?.currency || product.price?.currency || "SAR", String(product.status || ""), JSON.stringify({ product, variant })]
+            variant?.price?.currency || product.price?.currency || "SAR", String(product.status || ""), JSON.stringify({ product, variant }),
+            safeRenewalUrl(variant?.image?.url || product?.thumbnail || product?.main_image || product?.images?.[0]?.url),
+            extractSallaCustomerUrl(product, variant), product.updated_at || product.updatedAt || null,
+            !["hidden", "deleted", "unavailable"].includes(String(product.status?.slug || product.status || "").toLowerCase())]
         );
       }
       const current = Number(payload.pagination?.current_page || payload.meta?.current_page || productPage);
@@ -54,6 +62,7 @@ export async function POST(req) {
       moreProducts = products.length === 30 && current < total;
       productPage += 1;
     }
+    const renewalLinks = await syncAutomaticRenewalOptions(auth.session.tenantId);
     if (connection.auto_sync_customers !== false) {
       const response = await fetch(`${base}/customers?per_page=50`, { headers: { authorization: `Bearer ${token}`, accept: "application/json" } });
       const payload = await response.json().catch(() => ({}));
@@ -100,7 +109,7 @@ export async function POST(req) {
       await query("UPDATE salla_sync_cursors SET import_status='completed',updated_at=now() WHERE tenant_id=$1", [auth.session.tenantId]);
     }
     await query("UPDATE app_connections SET last_sync_at = now(), last_error = NULL, updated_at = now() WHERE id = $1", [connection.id]);
-    return Response.json({ ok: true, synced });
+    return Response.json({ ok: true, synced, renewalLinks });
   } catch (error) {
     await query("UPDATE app_connections SET last_error = $2, updated_at = now() WHERE id = $1", [connection.id, String(error.message).slice(0, 300)]);
     return Response.json({ ok: false, message: "تعذرت المزامنة، تحقق من صلاحيات الربط." }, { status: 502 });

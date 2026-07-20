@@ -2,6 +2,7 @@ import { maskPublicPhone } from "../../../../../../src/lib/orderLinks.js";
 import { query, transaction } from "../../../../../../src/server/db.js";
 import { hashOrderLinkIp, publicOrderPayload } from "../../../../../../src/server/order-links.js";
 import { sha256 } from "../../../../../../src/server/security.js";
+import { createRenewalRedirect } from "../../../../../../src/server/product-renewal-options.js";
 
 function noStore(body, init = {}) {
   const headers = new Headers(init.headers || {});
@@ -18,7 +19,7 @@ export async function GET(req, { params }) {
             tl.id AS "templateLinkId", tl.status AS "linkStatus", tl.expires_at AS "expiresAt",
             l.order_number AS "orderNumber", p.store_name AS "storeName", p.slug AS "storeSlug",
             p.logo_url AS "logoUrl", st.support_phone AS "supportPhone",
-            s.plan_name AS "planName", s.service_name AS "serviceName",
+            s.id AS "legacySubscriptionId", s.plan_name AS "planName", s.service_name AS "serviceName",
             s.start_date AS "startDate", s.end_date AS "endDate", s.status AS "subscriptionStatus",
             c.name AS "customerName", COALESCE(c.whatsapp_number, c.phone) AS "phoneNumber",
             t.name AS "templateName", COALESCE(t.style, p.default_template_style) AS "templateStyle",
@@ -62,6 +63,28 @@ export async function GET(req, { params }) {
     return noStore({ ok: false, reason: "expired", message: "انتهت صلاحية معلومات هذا الطلب. تواصل مع المتجر لتحديثها." }, { status: 410 });
   }
   row.maskedPhone = maskPublicPhone(row.phoneNumber);
+  const renewalResult = await query(`SELECT cs.id AS "subscriptionId",pro.id,pro.label,
+    pro.customer_note AS note,pro.duration_value AS "durationValue",pro.duration_unit AS "durationUnit"
+    FROM customer_subscriptions cs
+    JOIN LATERAL (
+      SELECT ppm.id FROM product_plan_mappings ppm
+      WHERE ppm.tenant_id=cs.tenant_id AND ppm.is_active=true
+        AND ((cs.salla_variant_id IS NOT NULL AND ppm.salla_variant_id=cs.salla_variant_id)
+          OR (ppm.salla_variant_id IS NULL AND ppm.salla_product_id=cs.salla_product_id))
+      ORDER BY CASE WHEN cs.salla_variant_id IS NOT NULL AND ppm.salla_variant_id=cs.salla_variant_id THEN 1 ELSE 2 END
+      LIMIT 1
+    ) ppm ON true
+    JOIN product_renewal_options pro ON pro.tenant_id=cs.tenant_id AND pro.product_mapping_id=ppm.id
+      AND pro.is_active=true AND pro.show_in_portal=true
+      AND ((pro.link_mode='manual' AND pro.manual_url IS NOT NULL)
+        OR (pro.link_mode='automatic' AND pro.resolved_url IS NOT NULL))
+    WHERE cs.tenant_id=$1 AND cs.legacy_subscription_id=$2
+    ORDER BY pro.sort_order,pro.created_at`, [row.tenantId, row.legacySubscriptionId]);
+  row.renewalOptions = [];
+  for (const item of renewalResult.rows) {
+    const link = await createRenewalRedirect({ tenantId: row.tenantId, subscriptionId: item.subscriptionId, optionId: item.id });
+    if (link.ok) row.renewalOptions.push({ ...item, url: link.url });
+  }
   const checked = new URL(req.url).searchParams.get("checked") === "1";
   await transaction(async (client) => {
     await client.query(

@@ -439,6 +439,9 @@ state.notificationTemplate = null;
 state.billingOverview = null;
 state.messageUsage = null;
 state.appsOverview = null;
+state.sallaProductMappings = null;
+state.sallaRenewalOptions = null;
+state.renewalOptionMode = "automatic";
 state.sallaRuleDrafts = null;
 state.sallaSettingsOpen = false;
 state.orderLinkProfile = null;
@@ -617,6 +620,13 @@ function syncRouteData(force = false) {
     void loadRemotePage("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
   }
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) void loadRemotePage("appsOverview", "/api/apps", "appsOverview");
+  if (state.route.startsWith("/dashboard/integrations/salla/products") && (force || state.sallaProductMappings === null)) {
+    void loadRemotePage("sallaProductMappings", "/api/apps/salla/product-mappings", "sallaProductMappings");
+  }
+  const renewalMappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1];
+  if (renewalMappingId && (force || state.sallaRenewalOptions === null)) {
+    void loadRemotePage("sallaRenewalOptions", `/api/apps/salla/product-mappings/${encodeURIComponent(renewalMappingId)}/renewal-options`, "sallaRenewalOptions");
+  }
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
@@ -686,6 +696,7 @@ async function navigate(to) {
   history.pushState({}, "", url.pathname + url.search);
   state.route = url.pathname;
   state.query = url.searchParams;
+  if (url.pathname.startsWith("/dashboard/integrations/salla/products/")) state.sallaRenewalOptions = null;
   if (url.pathname === "/dashboard/order-links" && url.searchParams.has("templateId")) {
     state.orderLinkDraft = { ...state.orderLinkDraft, hydrated: false };
   }
@@ -1460,6 +1471,72 @@ function issuesPage() {
   const issues = state.operationalIssues;
   const content = issues === null ? `<div class="loading-state">جاري تحميل سجل المشاكل...</div>` : issues?.error ? emptyState(escapeHtml(issues.error)) : !issues.length ? emptyState("لا توجد مشاكل تشغيلية مسجلة") : `<div class="issue-list">${issues.map((issue) => `<article class="card issue-row"><div class="section-head"><div><span class="status ${issue.severity === "critical" || issue.severity === "error" ? "danger" : "warning"}">${escapeHtml(issue.category)}</span><h3>${escapeHtml(issue.message)}</h3></div><span class="status ${issue.status === "resolved" ? "success" : "danger"}">${issue.status === "resolved" ? "تم الحل" : "مفتوحة"}</span></div><p><strong>المصدر:</strong> ${escapeHtml(issue.source)}</p><p class="muted"><strong>الحل المقترح:</strong> ${escapeHtml(issue.suggestedSolution)}</p><small>${escapeHtml(issue.createdAt)}</small></article>`).join("")}</div>`;
   return dashboardShell(`${pageTitle("سجل المشاكل", `<button class="btn btn-secondary" data-action="reload-issues">تحديث السجل</button>`)}${content}`);
+}
+
+function renewalDurationLabel(value, unit) {
+  const labels = { day: value === 1 ? "يوم" : "أيام", month: value === 1 ? "شهر" : "أشهر", year: value === 1 ? "سنة" : "سنوات" };
+  return `${Number(value)} ${labels[unit] || unit}`;
+}
+
+function sallaProductsPage() {
+  const payload = state.sallaProductMappings;
+  if (payload === null) return dashboardShell(`${pageTitle("ربط منتجات سلة")}<div class="loading-state">جاري تحميل كتالوج سلة والربط الحالي...</div>`);
+  if (payload?.error) return dashboardShell(`${pageTitle("ربط منتجات سلة")} ${emptyState("تعذر تحميل المنتجات", escapeHtml(payload.error), "إعادة المحاولة", "reload-salla-products")}`);
+  const mappings = Array.isArray(payload?.mappings) ? payload.mappings : [];
+  const rows = mappings.map((item) => `<tr>
+    <td><div class="renewal-product-cell">${item.thumbnailUrl ? `<img src="${escapeHtml(item.thumbnailUrl)}" alt="">` : `<span>${dashboardIcon("apps")}</span>`}<div><strong>${escapeHtml(item.productName || item.productId)}</strong><small>${item.variantId ? `Variant: ${escapeHtml(item.variantId)}` : `Product: ${escapeHtml(item.productId)}`}${item.sku ? ` · SKU: ${escapeHtml(item.sku)}` : ""}</small></div></div></td>
+    <td><strong>${escapeHtml(item.planName)}</strong><small>${renewalDurationLabel(item.durationValue, item.durationUnit)}</small></td>
+    <td><span class="status ${item.renewalLinkMode === "automatic" ? "success" : "neutral"}">${item.renewalLinkMode === "automatic" ? "تلقائي من سلة" : "يدوي"}</span></td>
+    <td><strong>${Number(item.renewalOptionsCount || 0)}</strong><small>خيار تجديد</small></td>
+    <td><span class="status ${item.isActive ? "success" : "danger"}">${item.isActive ? "نشط" : "متوقف"}</span></td>
+    <td><button class="btn btn-secondary" data-link="/dashboard/integrations/salla/products/${escapeHtml(item.id)}">إدارة خيارات التجديد</button></td>
+  </tr>`).join("");
+  return dashboardShell(`${pageTitle("ربط منتجات سلة", `<button class="btn btn-secondary" data-action="sync-salla-renewal-links">مزامنة روابط التجديد</button><button class="btn btn-primary" data-action="open-salla-product-mappings-legacy">+ ربط منتج بباقة</button>`)}
+    ${Number(payload.unmapped?.length || 0) ? `<p class="inline-notice warning">يوجد ${Number(payload.unmapped.length)} عنصر طلب يحتاج إلى ربط باقة. لن يخمّن Renvix الباقة أو المدة.</p>` : ""}
+    <section class="card table-card renewal-products-card"><div class="section-head"><div><h2>المنتجات المرتبطة</h2><p class="muted">الكتالوج محفوظ محليًا ويُحدّث عبر مزامنة سلة.</p></div><span class="status neutral">${mappings.length} منتج</span></div>
+      ${rows ? `<div class="table-scroll"><table class="data-table renewal-products-table"><thead><tr><th>منتج سلة</th><th>الباقة</th><th>الوضع الافتراضي</th><th>الخيارات</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("لا توجد منتجات مرتبطة بعد", "زامن كتالوج سلة ثم اربط المنتجات الاشتراكية بالباقات دون الاعتماد على الاسم.", "ربط أول منتج", "open-salla-product-mappings-legacy")}
+    </section>`);
+}
+
+function sallaProductRenewalPage() {
+  const mappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1];
+  const payload = state.sallaProductMappings;
+  const mapping = payload?.mappings?.find((item) => item.id === mappingId);
+  const options = Array.isArray(state.sallaRenewalOptions) ? state.sallaRenewalOptions : [];
+  if (!payload || state.sallaRenewalOptions === null) return dashboardShell(`${pageTitle("خيارات التجديد")}<div class="loading-state">جاري تحميل المنتج وخيارات التجديد...</div>`);
+  if (!mapping) return dashboardShell(`${pageTitle("خيارات التجديد")} ${emptyState("تعذر العثور على ربط المنتج", "قد يكون الربط متوقفًا أو تابعًا لمتجر آخر.", "العودة للمنتجات", "back-salla-products")}`);
+  const optionCards = options.map((item) => `<article class="card renewal-option-card ${item.isActive ? "" : "is-disabled"}">
+    <div class="section-head"><div><span class="status ${item.linkMode === "automatic" ? "success" : "neutral"}">${item.linkMode === "automatic" ? "تلقائي من سلة" : "رابط يدوي"}</span><h3>${escapeHtml(item.label)}</h3></div><span class="status ${item.syncStatus === "synced" ? "success" : "warning"}">${item.syncStatus === "synced" ? "متزامن" : "يحتاج مراجعة"}</span></div>
+    <p>${escapeHtml(item.customerNote || "لا توجد ملاحظة للعميل")}</p>
+    <div class="renewal-option-meta"><span>${renewalDurationLabel(item.durationValue, item.durationUnit)}</span><span>${item.showInPortal ? "يظهر في صفحة الطلب" : "مخفي من صفحة الطلب"}</span><span>${item.showInWhatsapp ? "واتساب" : "ليس في واتساب"}</span><span>${item.showInEmail ? "البريد" : "ليس في البريد"}</span></div>
+    ${item.linkMode === "automatic" ? `<small>Product ${escapeHtml(item.targetSallaProductId || "-")}${item.targetSallaVariantId ? ` · Variant ${escapeHtml(item.targetSallaVariantId)}` : ""}</small>` : `<small dir="ltr">${escapeHtml(item.manualUrl || "")}</small>`}
+    <div class="inline-actions"><button class="btn btn-secondary" data-action="edit-renewal-option" data-id="${escapeHtml(item.id)}">تعديل</button>${item.isActive ? `<button class="btn btn-ghost danger-text" data-action="disable-renewal-option" data-id="${escapeHtml(item.id)}">إيقاف</button>` : ""}</div>
+  </article>`).join("");
+  return dashboardShell(`${pageTitle("خيارات تجديد المنتج", `<button class="btn btn-secondary" data-action="back-salla-products">العودة للمنتجات</button><button class="btn btn-primary" data-action="add-renewal-option">+ إضافة رابط تجديد</button>`)}
+    <section class="card renewal-source-product"><div class="renewal-product-cell">${mapping.thumbnailUrl ? `<img src="${escapeHtml(mapping.thumbnailUrl)}" alt="">` : `<span>${dashboardIcon("apps")}</span>`}<div><small>المنتج الأصلي في الطلب</small><h2>${escapeHtml(mapping.productName || mapping.productId)}</h2><p>Product ${escapeHtml(mapping.productId)}${mapping.variantId ? ` · Variant ${escapeHtml(mapping.variantId)}` : ""}${mapping.sku ? ` · SKU ${escapeHtml(mapping.sku)}` : ""}</p></div></div><div><small>الباقة المرتبطة</small><strong>${escapeHtml(mapping.planName)}</strong><p>${renewalDurationLabel(mapping.durationValue, mapping.durationUnit)}</p></div></section>
+    <section class="section"><div class="section-head"><div><h2>روابط التجديد المتاحة للعميل</h2><p class="muted">كل خيار مرتبط بهذا المنتج فقط، ولا تتم المطابقة باسم المنتج.</p></div><button class="btn btn-secondary" data-action="sync-salla-renewal-links">تحديث من سلة</button></div>
+      <div class="renewal-options-grid">${optionCards || emptyState("لا توجد خيارات تجديد", "أضف خيارًا تلقائيًا من كتالوج سلة أو رابط HTTPS يدويًا.", "إضافة رابط تجديد", "add-renewal-option")}</div>
+    </section>`);
+}
+
+function renewalOptionForm(mappingId, item = null) {
+  const products = Array.isArray(state.sallaProductMappings?.products) ? state.sallaProductMappings.products : [];
+  const mode = item?.linkMode || state.renewalOptionMode || "automatic";
+  const selectedKey = `${item?.targetSallaProductId || ""}|${item?.targetSallaVariantId || ""}|${item?.targetSallaSku || ""}`;
+  const productOptions = products.map((product) => {
+    const key = `${product.productId}|${product.variantId || ""}|${product.sku || ""}`;
+    return `<option value="${escapeHtml(key)}" ${key === selectedKey ? "selected" : ""}>${escapeHtml(product.name || product.productId)}${product.sku ? ` · ${escapeHtml(product.sku)}` : ""}</option>`;
+  }).join("");
+  return `<form data-submit="renewal-option" data-mapping-id="${escapeHtml(mappingId)}" data-option-id="${escapeHtml(item?.id || "")}" class="grid renewal-option-form">
+    <label class="field"><span>طريقة تحديد الرابط</span><select class="select" name="linkMode" data-action="renewal-option-mode"><option value="automatic" ${mode === "automatic" ? "selected" : ""}>تلقائي من كتالوج سلة</option><option value="manual" ${mode === "manual" ? "selected" : ""}>رابط يدوي آمن</option></select></label>
+    <label class="field"><span>اسم الخيار للعميل</span><input class="input" name="label" maxlength="80" required value="${escapeHtml(item?.label || "")}" placeholder="مثال: تجديد سنة"></label>
+    <div data-renewal-auto ${mode === "automatic" ? "" : "hidden"}><label class="field"><span>منتج التجديد من سلة</span><select class="select" name="catalogProduct"><option value="">اختر منتجًا أو متغيرًا مؤكدًا</option>${productOptions}</select><small>الأولوية: Variant ثم Product ثم SKU. لن يستخدم الاسم للمطابقة.</small></label></div>
+    <div data-renewal-manual ${mode === "manual" ? "" : "hidden"}><label class="field"><span>رابط التجديد اليدوي</span><input class="input" dir="ltr" type="url" name="manualUrl" value="${escapeHtml(item?.manualUrl || "")}" placeholder="https://store.salla.sa/product"></label><small>يسمح بروابط HTTPS العامة فقط؛ الروابط المحلية والخاصة محظورة.</small></div>
+    <div class="form-grid two"><label class="field"><span>المدة</span><input class="input" type="number" min="1" max="1000" name="durationValue" value="${Number(item?.durationValue || 1)}" required></label><label class="field"><span>الوحدة</span><select class="select" name="durationUnit"><option value="day" ${item?.durationUnit === "day" ? "selected" : ""}>يوم</option><option value="month" ${(!item || item.durationUnit === "month") ? "selected" : ""}>شهر</option><option value="year" ${item?.durationUnit === "year" ? "selected" : ""}>سنة</option></select></label></div>
+    <label class="field"><span>ملاحظة تظهر للعميل (اختياري)</span><textarea class="input" name="customerNote" maxlength="240" placeholder="وصف مختصر لهذا الخيار">${escapeHtml(item?.customerNote || "")}</textarea></label>
+    <div class="renewal-visibility"><label><input type="checkbox" name="showInPortal" ${item?.showInPortal !== false ? "checked" : ""}> صفحة معلومات الطلب</label><label><input type="checkbox" name="showInWhatsapp" ${item?.showInWhatsapp ? "checked" : ""}> واتساب</label><label><input type="checkbox" name="showInEmail" ${item?.showInEmail ? "checked" : ""}> البريد الإلكتروني</label><label><input type="checkbox" name="isActive" ${item?.isActive !== false ? "checked" : ""}> نشط</label></div>
+    <button class="btn btn-primary" type="submit">${item ? "حفظ التعديلات" : "إضافة خيار التجديد"}</button>
+  </form>`;
 }
 
 function appsPage() {
@@ -2244,12 +2321,12 @@ function orderLinkPreviewOrder(subscriptions = [], customers = []) {
   if (selected) return selected;
   if (draft.sourceMode === "manual") {
     const customer = customers.find((item) => item.id === draft.customerId);
-    if (customer || draft.manualPlanName || draft.manualStartDate || draft.manualEndDate) {
+    if (customer && draft.manualServiceName?.trim() && draft.manualPlanName?.trim() && draft.manualStartDate && draft.manualEndDate) {
       return {
-        orderNumber: draft.manualOrderNumber || "سيُنشأ تلقائيًا",
-        customerName: customer?.name || "اسم العميل",
-        planName: draft.manualPlanName || "اسم الباقة",
-        serviceName: draft.manualServiceName || "اسم الخدمة",
+        orderNumber: draft.manualOrderNumber || "سيُنشأ عند الحفظ",
+        customerName: customer.name,
+        planName: draft.manualPlanName,
+        serviceName: draft.manualServiceName,
         startDate: draft.manualStartDate,
         endDate: draft.manualEndDate,
         status: inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate) || "غير مكتمل",
@@ -2257,14 +2334,7 @@ function orderLinkPreviewOrder(subscriptions = [], customers = []) {
       };
     }
   }
-  return {
-    orderNumber: "رقم الطلب",
-    customerName: "اسم العميل",
-    planName: "اسم الباقة",
-    serviceName: "اسم الخدمة",
-    status: "معاينة",
-    isPlaceholder: true
-  };
+  return null;
 }
 
 function orderInfoPreviewCard(subscription, draft, publicData = null) {
@@ -2297,6 +2367,7 @@ function orderInfoPreviewCard(subscription, draft, publicData = null) {
       ${order.maskedPhone ? `<div>${dashboardIcon("devices")}<span>رقم التواصل</span><strong dir="ltr">${escapeHtml(order.maskedPhone)}</strong></div>` : ""}
     </div>
     ${visible.additionalNotes !== false && notes.length ? `<div class="order-notes"><h3>${dashboardIcon("template")} ملاحظات إضافية</h3><ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul></div>` : ""}
+    ${Array.isArray(publicData?.renewalOptions) && publicData.renewalOptions.length ? `<section class="public-renewal-options"><div><h3>خيارات تجديد ${escapeHtml(order.serviceName || planName || "الاشتراك")}</h3><p>اختر المدة المناسبة لهذا المنتج.</p></div><div class="public-renewal-grid">${publicData.renewalOptions.map((item) => `<a href="${escapeHtml(item.url)}" class="public-renewal-card"><span>${dashboardIcon("subscriptions")}</span><div><strong>${escapeHtml(item.label)}</strong><small>${renewalDurationLabel(item.durationValue, item.durationUnit)}${item.note ? ` · ${escapeHtml(item.note)}` : ""}</small></div><b>تجديد الآن ←</b></a>`).join("")}</div></section>` : ""}
     ${template.footerText ? `<p class="order-card-footer">${escapeHtml(template.footerText)}</p>` : ""}
   </article>`;
 }
@@ -2452,7 +2523,7 @@ function orderLinksWorkspacePage() {
           ${publicUrl ? `<div class="created-link-box"><span>الرابط الثابت للقالب ولكل طلباته</span><input class="input" readonly value="${escapeHtml(publicUrl)}"><button type="button" class="btn btn-secondary" data-action="copy-created-order-link">نسخ</button></div>` : ""}
         </form>
       </article>
-      <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>تنقل بين صفحة إدخال رقم الطلب وصفحة معلوماته.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">هذه معاينة تقريبية، وسيعرض الرابط الحقيقي بيانات العميل الآمنة من قاعدة البيانات.</p></aside>
+      <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>نفس مكوّن الصفحة الفعلية، ببيانات الاشتراك المختار فقط.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">لا ينشئ Renvix بيانات تجريبية. اختر اشتراكًا حقيقيًا أو أكمل الطلب اليدوي لعرض المعاينة.</p></aside>
     </section>
     <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الطلبات المحفوظة في القوالب</h2><p>كل الطلبات تستخدم الرابط الثابت للقالب، ويبحث العميل بينها برقم الطلب.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد طلبات محفوظة بعد", "أضف أول طلب إلى قالبك الثابت ليتمكن العميل من البحث عنه.")}</article>
     <article class="card table-card section order-links-table-card order-links-table-card--templates"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
@@ -3116,6 +3187,54 @@ function readSallaRuleDrafts() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "open-salla-product-mappings") {
+    closePortal();
+    return navigate("/dashboard/integrations/salla/products");
+  }
+  if (action === "reload-salla-products") {
+    state.sallaProductMappings = null;
+    syncRouteData(true);
+    return render();
+  }
+  if (action === "back-salla-products") return navigate("/dashboard/integrations/salla/products");
+  if (action === "add-renewal-option") {
+    const mappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1];
+    if (!mappingId) return;
+    state.renewalOptionMode = "automatic";
+    openDrawer("إضافة رابط تجديد", renewalOptionForm(mappingId));
+    return;
+  }
+  if (action === "edit-renewal-option") {
+    const mappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1];
+    const item = Array.isArray(state.sallaRenewalOptions) ? state.sallaRenewalOptions.find((entry) => entry.id === target.dataset.id) : null;
+    if (!mappingId || !item) return;
+    state.renewalOptionMode = item.linkMode;
+    openDrawer("تعديل رابط التجديد", renewalOptionForm(mappingId, item));
+    return;
+  }
+  if (action === "disable-renewal-option") {
+    const mappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1];
+    if (!mappingId) return;
+    try {
+      await fetchJson(`/api/apps/salla/product-mappings/${encodeURIComponent(mappingId)}/renewal-options?optionId=${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" });
+      state.sallaRenewalOptions = null;
+      await syncRouteData(true);
+      toast("تم إيقاف خيار التجديد. الروابط التابعة له لن تحول العميل.");
+    } catch (error) { toast(error.message || "تعذر إيقاف خيار التجديد", "danger"); }
+    return;
+  }
+  if (action === "sync-salla-renewal-links") {
+    const mappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1] || "all";
+    target.disabled = true;
+    try {
+      const result = await fetchJson(`/api/apps/salla/product-mappings/${encodeURIComponent(mappingId)}/sync-renewal-links`, { method: "POST" });
+      state.sallaProductMappings = null; state.sallaRenewalOptions = null;
+      await syncRouteData(true);
+      toast(`تم تحديث ${Number(result.synced || 0)} رابط من كتالوج سلة${result.unavailable ? `، و${Number(result.unavailable)} يحتاج مراجعة` : ""}.`);
+    } catch (error) { toast(error.message || "تعذرت مزامنة روابط التجديد", "danger"); }
+    finally { target.disabled = false; }
+    return;
+  }
   if (action === "toggle-password") {
     const input = target.closest(".password-input-wrap")?.querySelector("input");
     if (input) {
@@ -3205,9 +3324,10 @@ async function handleAction(target) {
   if (action === "integration-coming-soon") toast(`تكامل ${target.dataset.integration || "هذا التطبيق"} قيد التجهيز وسيُتاح قريبًا.`, "info");
   if (action === "integration-guide") openModal("دليل ربط التطبيقات", `<div class="integration-guide"><p>اختر التطبيق المطلوب ثم اضغط زر الربط. عند اختيار سلة ستنتقل إلى صفحة التفويض الآمنة، وبعد الموافقة تعود تلقائيًا إلى Renvix وتبدأ المزامنة.</p><ol><li>تأكد أن حساب المتجر يملك صلاحية إدارة التطبيقات.</li><li>اضغط «ربط سلة» وأكمل الموافقة داخل سلة.</li><li>ارجع إلى هذه الصفحة واضبط خيارات المزامنة.</li></ol></div>`, `<button class="btn btn-primary" data-action="connect-salla">ربط سلة</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   if (action === "open-salla-settings") { state.sallaSettingsOpen = true; state.sallaRuleDrafts = null; render(); }
-  if (action === "open-salla-product-mappings") {
+  if (action === "open-salla-product-mappings-legacy") {
+    let payload;
     try {
-      const payload = await fetchJson("/api/apps/salla/product-mappings");
+      payload = await fetchJson("/api/apps/salla/product-mappings");
       const productOptions = (payload.products || []).map((item) => `<option value="${escapeHtml(`${item.productId}|${item.variantId || ""}|${item.sku || ""}`)}">${escapeHtml(item.name || item.sku || item.productId)}${item.variantId ? ` — ${escapeHtml(item.variantId)}` : ""}</option>`).join("");
       const planOptions = (payload.plans || []).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${Number(item.durationValue)} ${item.durationUnit})</option>`).join("");
       const mappingRows = (payload.mappings || []).map((item) => `<div class="activity-item"><div><strong>${escapeHtml(item.planName)}</strong><p class="muted">Product ${escapeHtml(item.productId)}${item.variantId ? ` · Variant ${escapeHtml(item.variantId)}` : ""} · ${Number(item.durationValue)} ${escapeHtml(item.durationUnit)}</p></div><span class="status ${item.isActive ? "success" : "neutral"}">${item.isActive ? "نشط" : "متوقف"}</span></div>`).join("");
@@ -3217,7 +3337,7 @@ async function handleAction(target) {
     const triggerField = document.querySelector("form[data-submit='salla-product-mapping'] select[name='startTrigger']")?.closest("label");
     triggerField?.insertAdjacentHTML("afterend", '<label class="field"><span>معرّف حالة الطلب المحددة (عند اختيارها)</span><input class="input" name="specificOrderStatus" dir="ltr" placeholder="completed"></label>');
     document.querySelectorAll("#portal .activity-list > .activity-item").forEach((row, index) => {
-      const mapping = payload.mappings?.[index];
+      const mapping = payload?.mappings?.[index];
       if (mapping?.isActive) row.insertAdjacentHTML("beforeend", `<button class="btn btn-ghost danger-text" data-action="deactivate-salla-mapping" data-id="${escapeHtml(mapping.id)}">إيقاف الربط</button>`);
     });
     return;
@@ -3821,6 +3941,43 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "renewal-option") {
+    const [targetSallaProductId, targetSallaVariantId, targetSallaSku] = String(data.catalogProduct || "").split("|");
+    const optionId = form.dataset.optionId || "";
+    const body = {
+      id: optionId || undefined,
+      label: data.label,
+      customerNote: data.customerNote || null,
+      linkMode: data.linkMode === "manual" ? "manual" : "automatic",
+      manualUrl: data.manualUrl || null,
+      targetSallaProductId: targetSallaProductId || null,
+      targetSallaVariantId: targetSallaVariantId || null,
+      targetSallaSku: targetSallaSku || null,
+      durationValue: Number(data.durationValue || 1),
+      durationUnit: data.durationUnit,
+      showInPortal: form.elements.showInPortal.checked,
+      showInWhatsapp: form.elements.showInWhatsapp.checked,
+      showInEmail: form.elements.showInEmail.checked,
+      isActive: form.elements.isActive.checked,
+      sortOrder: 0
+    };
+    if (body.linkMode === "automatic" && !body.targetSallaProductId && !body.targetSallaVariantId) return toast("اختر منتج التجديد من كتالوج سلة.", "danger");
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري حفظ رابط التجديد...");
+    try {
+      await fetchJson(`/api/apps/salla/product-mappings/${encodeURIComponent(form.dataset.mappingId)}/renewal-options`, {
+        method: optionId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+      closePortal(); state.sallaRenewalOptions = null; state.sallaProductMappings = null;
+      await syncRouteData(true);
+      toast(optionId ? "تم تحديث خيار التجديد." : "تمت إضافة خيار التجديد وربطه بالمنتج.");
+    } catch (error) {
+      setSubmitBusy(button, false, optionId ? "حفظ التعديلات" : "إضافة خيار التجديد");
+      const reason = error.code === "salla_product_not_found" ? "منتج سلة المحدد غير موجود في الكتالوج المتزامن." : error.message;
+      toast(reason || "تعذر حفظ خيار التجديد", "danger");
+    }
+    return;
+  }
   if (type === "salla-product-mapping") {
     const [productId, variantId, sku] = String(data.product || "").split("|");
     if (!productId || (!data.planId && !String(data.newPlanName || "").trim())) return toast("اختر باقة حالية أو اكتب اسم باقة جديدة.", "danger");
@@ -3829,6 +3986,8 @@ async function handleSubmit(form, event) {
     try {
       await fetchJson("/api/apps/salla/product-mappings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, productId, variantId: variantId || null, sku: sku || null, durationValue: Number(data.durationValue || 1) }) });
       closePortal();
+      state.sallaProductMappings = null;
+      if (state.route.startsWith("/dashboard/integrations/salla/products")) await syncRouteData(true);
       toast("تم ربط منتج سلة بالباقة بنجاح.");
     } catch (error) {
       setSubmitBusy(button, false, "حفظ الربط");
@@ -4312,7 +4471,12 @@ function render() {
       "/dashboard/billing": billingWorkspacePage,
       "/dashboard/settings": settingsPage
     };
-    app.innerHTML = (pages[state.route] || dashboardHome)();
+    const dashboardPage = state.route === "/dashboard/integrations/salla/products"
+      ? sallaProductsPage
+      : /^\/dashboard\/integrations\/salla\/products\/[^/]+$/.test(state.route)
+        ? sallaProductRenewalPage
+        : pages[state.route] || dashboardHome;
+    app.innerHTML = dashboardPage();
     localizeElement(app);
     ensurePasswordToggles();
     bindQrImageState();
@@ -4439,6 +4603,18 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "renewal-option-mode") {
+    const form = target.closest("form");
+    const automatic = target.value === "automatic";
+    form?.querySelector("[data-renewal-auto]")?.toggleAttribute("hidden", !automatic);
+    form?.querySelector("[data-renewal-manual]")?.toggleAttribute("hidden", automatic);
+    const catalog = form?.elements.catalogProduct;
+    const manual = form?.elements.manualUrl;
+    if (catalog) catalog.required = automatic;
+    if (manual) manual.required = !automatic;
+    state.renewalOptionMode = automatic ? "automatic" : "manual";
+    return;
+  }
   if (target.dataset.action === "avatar-file" && target.files?.[0]) {
     void (async () => {
       try {
