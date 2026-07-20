@@ -3,6 +3,7 @@ import { hashPassword, verifyPassword } from "../../../../../src/server/password
 import { notifyPasswordChanged } from "../../../../../src/server/password-reset.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { changePasswordSchema, validationResponse } from "../../../../../src/server/settings-profile.js";
+import { classifyPasswordStrength } from "../../../../../src/server/security-score.js";
 
 export async function POST(request) {
   const auth = await requireSession(request);
@@ -20,6 +21,10 @@ export async function POST(request) {
     await client.query(
       "UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential'",
       [await hashPassword(parsed.data.newPassword), auth.session.userId]
+    );
+    await client.query(
+      "UPDATE users SET password_strength = $1, password_changed_at = now(), updated_at = now() WHERE id = $2",
+      [classifyPasswordStrength(parsed.data.newPassword, user.rows[0]?.email), auth.session.userId]
     );
     await client.query("DELETE FROM sessions WHERE user_id = $1 AND id <> $2", [auth.session.userId, auth.session.id]);
     await client.query(

@@ -3,6 +3,7 @@ import { query, transaction } from "./db.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { createSession } from "./session.js";
 import { isStrongPassword, normalizeEmail, sha256 } from "./security.js";
+import { classifyPasswordStrength } from "./security-score.js";
 
 function slugify(value) {
   const base = String(value || "store").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -24,9 +25,9 @@ export async function registerAccount({ name, companyName, email, password, ipAd
     );
     const tenantId = tenant.rows[0].id;
     const user = await client.query(
-      `INSERT INTO users (tenant_id, name, email, role)
-       VALUES ($1, $2, $3, 'owner') RETURNING id, name, email`,
-      [tenantId, String(name).trim(), normalized]
+      `INSERT INTO users (tenant_id, name, email, role, password_strength, password_changed_at)
+       VALUES ($1, $2, $3, 'owner', $4, now()) RETURNING id, name, email`,
+      [tenantId, String(name).trim(), normalized, classifyPasswordStrength(password, normalized)]
     );
     const userId = user.rows[0].id;
     await client.query(

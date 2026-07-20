@@ -31,7 +31,7 @@ export async function POST(request) {
   const result = await query(
     `SELECT u.id AS "userId", u.name, u.email, a.password,
             au.id AS "adminId", au.role AS "adminRole", au.status,
-            au.mfa_enabled AS "mfaEnabled"
+            au.mfa_enabled AS "mfaEnabled", au.expires_at AS "expiresAt"
        FROM users u
        JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
        LEFT JOIN admin_users au ON au.user_id = u.id
@@ -41,7 +41,8 @@ export async function POST(request) {
   const admin = result.rows[0];
   const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.password) : false;
   const allowedRole = ["super_admin", "admin", "support_admin", "billing_admin", "security_admin", "viewer"].includes(admin?.adminRole);
-  const valid = passwordValid && admin?.adminId && admin.status === "active" && allowedRole;
+  const expired = Boolean(admin?.expiresAt && new Date(admin.expiresAt).getTime() <= Date.now());
+  const valid = passwordValid && admin?.adminId && admin.status === "active" && !expired && allowedRole;
 
   await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
@@ -55,10 +56,13 @@ export async function POST(request) {
       action: "admin.login.failed",
       resource: "admin_portal",
       status: "failed",
-      metadata: { reason: passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials", actorEmail: email }
+      metadata: { reason: expired ? "expired" : passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials", actorEmail: email }
     });
     if (passwordValid && admin?.status === "disabled") {
       return Response.json({ ok: false, reason: "admin_disabled", message: "تم تعطيل حساب الأدمن. تواصل مع المسؤول الأعلى." }, { status: 403 });
+    }
+    if (passwordValid && expired) {
+      return Response.json({ ok: false, reason: "admin_expired", message: "انتهت صلاحية حساب الأدمن المؤقت." }, { status: 403 });
     }
     return Response.json({ ok: false, reason: "invalid_credentials", message: "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول إلى لوحة الأدمن." }, { status: 401 });
   }

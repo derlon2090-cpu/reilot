@@ -97,7 +97,7 @@ export async function getDeviceStats(tenantId) {
 export async function getSecurityStats(tenantId) {
   const stats = await loadBaseStats(tenantId);
   return {
-    securityLevel: stats.safeRules > 0 ? 100 : 0,
+    securityLevel: null,
     blockedNumbers: stats.blockedNumbers,
     safeRules: stats.safeRules,
     lastCheck: stats.lastDeviceCheck

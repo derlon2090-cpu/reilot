@@ -8,6 +8,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "admin:promote": "node scripts/promote-admin.mjs",
     "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "admin:create-temporary": "node scripts/create-temporary-admin.mjs",
     "cron:run": "node scripts/run-cron.mjs",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",

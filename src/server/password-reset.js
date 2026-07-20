@@ -3,6 +3,7 @@ import { query, transaction } from "./db.js";
 import { hashPassword } from "./password.js";
 import { isStrongPassword, normalizeEmail, safeErrorMessage, sha256 } from "./security.js";
 import { sendPasswordChangedEmail, sendPasswordResetCodeEmail } from "./email/resend.service.js";
+import { classifyPasswordStrength } from "./security-score.js";
 
 export function generateResetCode() {
   return crypto.randomInt(100000, 1000000).toString();
@@ -36,7 +37,7 @@ export async function requestPasswordReset({ email, locale = "ar", mailer = send
   const normalized = normalizeEmail(email);
   const userResult = await query("SELECT id, tenant_id AS \"tenantId\", email FROM users WHERE lower(email) = $1 LIMIT 1", [normalized]);
   const user = userResult.rows[0];
-  if (!user) return { ok: false, status: 404, message: locale === "en" ? "This email is not registered." : "البريد الإلكتروني غير مسجل لدينا." };
+  if (!user) return { ok: true, status: 200, message: locale === "en" ? "If the email is registered, a reset code will arrive shortly." : "إذا كان البريد مسجلًا لدينا، فسيصلك رمز إعادة تعيين كلمة المرور." };
 
   const recent = await query(
     "SELECT count(*)::int AS count FROM password_reset_codes WHERE email = $1 AND created_at > now() - interval '15 minutes'",
@@ -108,6 +109,10 @@ export async function resetPassword({ email, code, password }) {
       [verified.record.userId]
     );
     await client.query("UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2", [passwordHash, verified.record.userId]);
+    await client.query(
+      "UPDATE users SET password_strength = $1, password_changed_at = now(), updated_at = now() WHERE id = $2",
+      [classifyPasswordStrength(password, userResult.rows[0]?.email), verified.record.userId]
+    );
     await client.query("UPDATE password_reset_codes SET used_at = now() WHERE id = $1", [verified.record.id]);
     await client.query("DELETE FROM sessions WHERE user_id = $1", [verified.record.userId]);
     return userResult.rows[0] || null;

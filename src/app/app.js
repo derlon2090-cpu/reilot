@@ -422,6 +422,7 @@ state.accountSettings = null;
 state.readiness = null;
 state.operationalIssues = null;
 state.whatsappHealth = null;
+state.securityScore = null;
 state.notificationTemplate = null;
 state.billingOverview = null;
 state.messageUsage = null;
@@ -586,6 +587,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) void loadRemotePage("appsOverview", "/api/apps", "appsOverview");
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
+  if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/renewal-template" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
   if (state.route === "/dashboard/order-links") {
@@ -1027,7 +1029,7 @@ function marketingHomePage() {
   ];
   return publicShell(`<main>
     <section class="marketing-hero"><div class="container marketing-hero-grid">
-      <div class="marketing-copy"><span class="eyebrow">✦ منصة متكاملة لإدارة الاشتراكات والتجديدات</span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات عملائك بذكاء مع", "Manage customer subscriptions and renewals intelligently with")} <span>Renvix</span></h1><p class="lead">Renvix منصة ذكية تساعدك على إدارة الاشتراكات، متابعة التجديدات، إرسال التنبيهات، وإنشاء روابط معلومات الطلب باحترافية.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
+      <div class="marketing-copy"><span class="hero-trust-pill"><img src="/assets/renvix-mark.png" alt=""><span>${localizedCopy("اشتراكات منظمة، تجديدات في وقتها", "Organized subscriptions, renewals on time")}</span><i aria-hidden="true"></i></span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات عملائك بذكاء مع", "Manage customer subscriptions and renewals intelligently with")} <span>Renvix</span></h1><p class="lead">Renvix منصة ذكية تساعدك على إدارة الاشتراكات، متابعة التجديدات، إرسال التنبيهات، وإنشاء روابط معلومات الطلب باحترافية.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
       <div class="hero-product-preview">${dashboardPreview()}</div>
     </div></section>
     <section class="marketing-strip"><div class="container grid grid-4">${highlights.map(([title, body, mark]) => `<article class="marketing-mini">${dashboardIcon(mark)}<div><h3>${title}</h3><p>${body}</p></div></article>`).join("")}</div></section>
@@ -1280,13 +1282,13 @@ function dashboardShell(content) {
           <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${state.search}"></div>
         </div>
         <div class="topbar-tools topbar-account-tools">
-          <button class="profile-trigger compact-profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong></span><span class="profile-caret">⌄</span></button>
-          <button class="btn btn-ghost icon-btn theme-topbar-button" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
-          <button class="btn btn-secondary language-topbar-button" data-action="language" title="${state.language === "ar" ? "اللغة" : "Language"}">${dashboardIcon("language")}<span>${state.language === "ar" ? "AR" : "EN"}</span></button>
           <div class="notification-trigger-wrap">
             <button class="btn btn-ghost icon-btn notification-trigger" data-action="notifications" title="${state.language === "ar" ? "الإشعارات" : "Notifications"}">${dashboardIcon("notifications")}${unreadNotifications ? `<span class="notification-badge">${unreadNotifications > 99 ? "99+" : unreadNotifications}</span>` : ""}</button>
             ${state.notificationDropdownOpen ? notificationDropdownMarkup() : ""}
           </div>
+          <button class="btn btn-secondary language-topbar-button" data-action="language" title="${state.language === "ar" ? "اللغة" : "Language"}">${dashboardIcon("language")}<span>${state.language === "ar" ? "AR" : "EN"}</span></button>
+          <button class="btn btn-ghost icon-btn theme-topbar-button" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
+          <button class="profile-trigger compact-profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong></span><span class="profile-caret">⌄</span></button>
           ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
         </div>
       </header>
@@ -1666,11 +1668,32 @@ function reportsPage() {
     </div>`);
 }
 
+function securityScoreTone(score, configured = true) {
+  if (!configured || score === null || score === undefined) return "unconfigured";
+  if (score < 30) return "danger";
+  if (score < 50) return "weak";
+  if (score < 70) return "warning";
+  if (score < 85) return "good";
+  if (score < 95) return "strong";
+  return "excellent";
+}
+
+function securityFactorsMarkup(factors = []) {
+  return factors.map((item) => {
+    const symbol = item.state === "passed" ? "✓" : item.state === "critical" ? "×" : "!";
+    return `<li class="security-factor ${escapeHtml(item.state || "review")}"><span>${symbol}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div><b>${Number(item.points || 0)}/${Number(item.maxPoints || 0)}</b></li>`;
+  }).join("");
+}
+
+function securityRecommendationsMarkup(recommendations = []) {
+  if (!recommendations.length) return `<div class="security-all-clear">لا توجد توصيات عاجلة الآن. استمر في مراجعة الحماية دوريًا.</div>`;
+  return recommendations.slice(0, 6).map((item) => `<article class="security-recommendation ${escapeHtml(item.priority)}"><span>${item.priority === "critical" ? "حرجة" : item.priority === "high" ? "عالية" : "متوسطة"}</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.description)}</p><small>التأثير المتوقع: حتى +${Number(item.scoreImpact || 0)} نقطة</small></div><button class="btn btn-secondary" data-link="${escapeHtml(item.actionUrl || "/dashboard/security")}">تنفيذ</button></article>`).join("");
+}
+
 function securityPage() {
   const stats = overviewStats();
   const list = Array.isArray(state.unsubscribes) ? state.unsubscribes : [];
-  const health = state.whatsappHealth?.health || null;
-  const securityLevel = stats.safeRules > 0 ? 100 : 0;
+  const score = state.securityScore?.overall ? state.securityScore : null;
   const listContent = state.unsubscribes?.error
     ? emptyState("تعذر تحميل قائمة الإيقاف", escapeHtml(state.unsubscribes.error))
     : state.unsubscribes === null
@@ -1678,19 +1701,27 @@ function securityPage() {
       : list.length
         ? simpleTable(["الرقم", "السبب", "المصدر", "التاريخ", "الإجراء"], list.map((item) => [escapeHtml(item.phoneNumber), escapeHtml(item.reason || "-"), escapeHtml(item.source || "يدوي"), escapeHtml(item.unsubscribedAt ? new Date(item.unsubscribedAt).toLocaleDateString("ar-SA") : "-"), `<button class="btn btn-ghost danger-text" data-action="remove-unsubscribe" data-id="${item.id}">حذف</button>`]))
         : emptyState("لا توجد أرقام محظورة", "لم تتم إضافة أي رقم إلى قائمة إيقاف الرسائل.", "إضافة رقم", "add-unsubscribe");
-  const healthLabel = health ? ({ excellent: "ممتاز", good: "جيد", medium: "متوسط", danger: "خطر" }[health.status] || health.status) : "لم يتم الفحص بعد";
+  const loading = state.securityScore === null;
+  const error = state.securityScore?.error;
+  const calculated = score?.calculatedAt ? new Date(score.calculatedAt) : null;
+  const stale = calculated && Date.now() - calculated.getTime() > 86400000;
+  const checkedLabel = calculated ? calculated.toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "لم يتم الفحص";
+  const overall = score?.overall || { score: 0, label: "لم يتم الفحص" };
+  const account = score?.account || { score: 0, label: "لم يتم الفحص", factors: [] };
+  const whatsapp = score?.whatsapp || { score: null, label: "غير مهيأة", status: "not_configured", factors: [] };
+  const scoreContent = loading
+    ? `<div class="loading-state">جاري حساب مستوى الحماية من البيانات الفعلية...</div>`
+    : error
+      ? emptyState("تعذر حساب مستوى الحماية", "لم يتم استبدال النتيجة بقيمة افتراضية. حاول إعادة الفحص.", "إعادة الفحص", "recalculate-security")
+      : `<section class="security-score-grid">
+          <article class="card security-score-card overall ${securityScoreTone(overall.score)}"><div class="security-score-heading">${dashboardIcon("security")}<div><h2>مستوى الحماية العام</h2><p>محسوب من أمان الحساب وقنوات الإرسال والإعدادات الفعلية.</p></div></div><div class="security-score-value"><strong>${Number(overall.score)}%</strong><span>${escapeHtml(overall.label)}</span></div><small>آخر فحص: ${escapeHtml(checkedLabel)}${stale ? " · التقييم يحتاج تحديثًا" : ""}</small></article>
+          <article class="card security-score-card ${securityScoreTone(account.score)}"><div class="security-score-heading">${dashboardIcon("customers")}<div><h2>أمان الحساب</h2><p>البريد وكلمة المرور وMFA والجلسات.</p></div></div><div class="security-score-value"><strong>${Number(account.score)}%</strong><span>${escapeHtml(account.label)}</span></div><ul class="security-factor-list">${securityFactorsMarkup(account.factors)}</ul></article>
+          <article class="card security-score-card ${securityScoreTone(whatsapp.score, whatsapp.status !== "not_configured")}"><div class="security-score-heading">${dashboardIcon("devices")}<div><h2>حماية واتساب</h2><p>الاتصال والمخاطر وحدود الإرسال وجودة القوالب.</p></div></div>${whatsapp.status === "not_configured" ? `<div class="security-unconfigured"><strong>غير مهيأة</strong><p>اربط رقم واتساب لبدء التقييم ومراقبة صحة الإرسال.</p><button class="btn btn-primary" data-link="/dashboard/devices">ربط رقم واتساب</button></div>` : `<div class="security-score-value"><strong>${Number(whatsapp.score)}%</strong><span>${escapeHtml(whatsapp.label)}</span></div><ul class="security-factor-list">${securityFactorsMarkup(whatsapp.factors)}</ul>`}</article>
+        </section>
+        <section class="card security-recommendations-card"><div class="section-head"><div><h2>التوصيات الذكية</h2><p class="muted">مرتبة حسب مستوى الخطر والتأثير المتوقع على الحماية.</p></div><div class="inline-actions"><button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button><button class="btn btn-primary" data-action="preview-safe-settings">تطبيق الإعدادات الآمنة الموصى بها</button></div></div><div class="security-recommendations">${securityRecommendationsMarkup(score.recommendations)}</div></section>`;
   return dashboardShell(`${pageTitle("الحماية", `<button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="export-unsubscribes">تصدير</button>`)}
-    ${statGrid([
-      { title: "مستوى الأمان", value: `${securityLevel}%`, caption: securityLevel ? "مكتمل" : "غير مكتمل", tone: securityLevel ? "success" : "neutral", icon: "security" },
-      { title: "الأرقام المحظورة", value: stats.blockedNumbers, caption: "رقم", tone: "danger", icon: "customers" },
-      { title: "قواعد الإرسال الآمن", value: stats.safeRules, caption: "قاعدة نشطة", tone: "info", icon: "security" },
-      { title: "حالة الفحص", value: healthLabel, caption: health?.lastDisconnect ? "تم الفحص" : "", tone: health ? "success" : "neutral", icon: "reports" }
-    ])}
-    <div class="section dashboard-two-column">
-      <article class="card table-card"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام التي لن تستقبل أي رسالة.</p></div><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div>${listContent}</article>
-      <article class="card table-card"><div class="section-head"><div><h2>مركز حماية واتساب</h2><p class="muted">النتيجة محسوبة من القناة الفعلية.</p></div></div>${health ? `<div class="risk-summary"><strong>${Number(health.risk || 0)}</strong><span>/100</span></div><p class="status ${Number(health.risk || 0) > 70 ? "danger" : Number(health.risk || 0) > 35 ? "warning" : "success"}">${healthLabel}</p><p>${escapeHtml(health.advice || "")}</p>${Number(health.risk || 0) > 70 ? `<button class="btn btn-danger" data-action="review-risks">مراجعة المخاطر</button>` : ""}` : emptyState("لم يتم الفحص بعد", "اربط جهاز واتساب أولًا لاحتساب مستوى المخاطر.", "الانتقال إلى الأجهزة", "/dashboard/devices")}</article>
-    </div>
-    <article class="card table-card section"><div class="section-head"><div><h2>مركز الضمان وسياسة الإرسال</h2><p class="muted">لا توجد حالات أو سياسات مخصصة حتى تضيفها من بياناتك.</p></div><button class="btn btn-secondary" data-action="policy-details">عرض تفاصيل السياسة</button></div>${emptyState("لا توجد حالات ضمان بعد", "ستظهر الحالات المسجلة فعليًا في هذا القسم.")}</article>`);
+    ${scoreContent}
+    <article class="card table-card section"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام التي لن تستقبل أي رسالة ويجري فحصها قبل الإرسال.</p></div><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div>${listContent}</article>`);
 }
 
 function connectedDevicesCenterPage() {
@@ -2358,18 +2389,80 @@ function closePortal() {
   portal.innerHTML = "";
 }
 
-function toast(message, type = "success") {
+function toastIcon(type) {
+  const paths = {
+    success: '<path d="m7 12 3 3 7-7"/><circle cx="12" cy="12" r="9"/>',
+    error: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/>',
+    warning: '<path d="M10.3 3.6 2.4 17.2A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.8L13.7 3.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+    loading: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>'
+  };
+  return `<svg class="toast-icon-svg ${type === "loading" ? "spinning" : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[type] || paths.info}</svg>`;
+}
+
+function toast(message, type = "success", options = {}) {
+  const normalizedType = type === "danger" ? "error" : ["success", "error", "warning", "info", "loading"].includes(type) ? type : "info";
+  const title = String(message || "").trim() || "تم تنفيذ العملية";
+  const id = String(options.id || `${normalizedType}:${title}`);
   let stack = document.querySelector(".toast-stack");
   if (!stack) {
     stack = document.createElement("div");
     stack.className = "toast-stack";
+    stack.setAttribute("aria-label", "تنبيهات النظام");
     document.body.appendChild(stack);
   }
+  const existing = [...stack.children].find((node) => node.dataset.toastId === id);
+  if (existing) existing.remove();
+  while (stack.children.length >= 3) stack.firstElementChild?.remove();
   const item = document.createElement("div");
-  item.className = `toast ${type}`;
-  item.textContent = message;
+  item.className = `toast ${normalizedType}`;
+  item.dataset.toastId = id;
+  item.setAttribute("role", ["error", "warning"].includes(normalizedType) ? "alert" : "status");
+  item.setAttribute("aria-live", ["error", "warning"].includes(normalizedType) ? "assertive" : "polite");
+  item.innerHTML = `<span class="toast-icon">${toastIcon(normalizedType)}</span><span class="toast-copy"><strong>${escapeHtml(title)}</strong>${options.description ? `<small>${escapeHtml(options.description)}</small>` : ""}</span><button class="toast-close" type="button" aria-label="إغلاق التنبيه">×</button><i class="toast-progress"></i>`;
+  item.querySelector(".toast-close")?.addEventListener("click", () => item.remove());
   stack.appendChild(item);
-  setTimeout(() => item.remove(), 3200);
+  const duration = options.duration ?? (normalizedType === "success" ? 3800 : normalizedType === "info" ? 4300 : normalizedType === "warning" ? 5200 : normalizedType === "error" ? 6000 : Infinity);
+  if (Number.isFinite(duration)) {
+    item.style.setProperty("--toast-duration", `${duration}ms`);
+    setTimeout(() => { item.classList.add("leaving"); setTimeout(() => item.remove(), 180); }, duration);
+  } else {
+    item.classList.add("persistent");
+  }
+  return id;
+}
+
+const appToast = {
+  success: (title, options) => toast(title, "success", options),
+  error: (title, options) => toast(title, "error", options),
+  warning: (title, options) => toast(title, "warning", options),
+  info: (title, options) => toast(title, "info", options),
+  loading: (title, options) => toast(title, "loading", { ...options, duration: Infinity }),
+  dismiss(id) {
+    const item = [...document.querySelectorAll(".toast")].find((node) => !id || node.dataset.toastId === String(id));
+    item?.remove();
+  }
+};
+
+function clearFormErrors(form) {
+  form?.querySelectorAll(".field-error").forEach((node) => node.remove());
+  form?.querySelectorAll("[aria-invalid='true']").forEach((node) => node.removeAttribute("aria-invalid"));
+}
+
+function setFormError(form, name, message) {
+  const input = form?.elements?.namedItem(name);
+  if (!input || !message) return;
+  input.setAttribute("aria-invalid", "true");
+  const error = document.createElement("small");
+  error.className = "field-error";
+  error.textContent = message;
+  input.closest(".field")?.appendChild(error);
+}
+
+function setSubmitBusy(button, busy, label) {
+  if (!button) return;
+  button.disabled = busy;
+  button.innerHTML = busy ? `<span class="button-spinner" aria-hidden="true"></span><span>${escapeHtml(label)}</span>` : escapeHtml(label);
 }
 
 function demoForm() {
@@ -2859,13 +2952,16 @@ async function handleAction(target) {
   if (action === "copy-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
   if (action === "choose-avatar") document.querySelector('[data-action="avatar-file"]')?.click();
   if (action === "remove-avatar") {
-    if (!confirm("هل تريد حذف صورة الحساب؟")) return;
+    return openModal("حذف صورة الحساب", "<p>ستعود أيقونة الحساب إلى الحرف الأول من اسمك.</p>", '<button class="btn btn-danger" data-action="confirm-remove-avatar">حذف الصورة</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
+  }
+  if (action === "confirm-remove-avatar") {
     try {
       await fetchJson("/api/settings/profile/avatar", { method: "DELETE" });
+      closePortal();
       state.accountSettings = null; state.dashboardOverview = null;
       await syncRouteData(true);
-      toast("تم حذف صورة الحساب");
-    } catch (error) { toast(error.message || "تعذر حذف الصورة", "danger"); }
+      appToast.success("تم حذف صورة الحساب", { description: "تمت استعادة أيقونة الحرف الأول.", id: "avatar-removed" });
+    } catch { appToast.error("تعذر حذف الصورة", { description: "حاول مرة أخرى بعد قليل.", id: "avatar-remove-error" }); }
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
   if (action === "connect-salla") window.location.href = "/api/apps/salla/connect";
@@ -2897,13 +2993,16 @@ async function handleAction(target) {
     finally { target.disabled = false; }
   }
   if (action === "disconnect-salla") {
-    if (!confirm("هل تريد فصل متجر سلة وإيقاف المزامنة التلقائية؟")) return;
+    return openModal("فصل متجر سلة", "<p>سيتم إيقاف المزامنة التلقائية حتى تعيد ربط المتجر.</p>", '<button class="btn btn-danger" data-action="confirm-disconnect-salla">فصل المتجر</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
+  }
+  if (action === "confirm-disconnect-salla") {
     try {
       await fetchJson("/api/apps/salla/disconnect", { method: "POST" });
+      closePortal();
       state.appsOverview = null;
       await syncRouteData(true);
-      toast("تم فصل متجر سلة");
-    } catch (error) { toast(error.message || "تعذر فصل متجر سلة", "danger"); }
+      appToast.info("تم فصل متجر سلة", { description: "توقفت المزامنة التلقائية ويمكنك إعادة الربط لاحقًا.", id: "salla-disconnected" });
+    } catch { appToast.error("تعذر فصل متجر سلة", { description: "حاول مرة أخرى بعد قليل.", id: "salla-disconnect-error" }); }
   }
   if (action === "theme") {
     state.theme = state.theme === "dark" ? "light" : "dark";
@@ -2926,10 +3025,42 @@ async function handleAction(target) {
   if (action === "logout") {
     const finishLogout = () => {
       closePortal();
-      toast(t("auth.logoutSuccess"));
+      appToast.info("تم تسجيل الخروج", { description: "تم إنهاء جلستك بأمان.", id: "logout-success" });
       navigate("/login");
     };
     fetch("/api/auth/logout", { method: "POST", credentials: "include" }).finally(finishLogout);
+  }
+  if (action === "recalculate-security") {
+    target.disabled = true;
+    const toastId = appToast.loading("جارٍ إعادة فحص الحماية", { description: "نراجع بيانات الحساب والقنوات الفعلية.", id: "security-recalculate" });
+    try {
+      const payload = await fetchJson("/api/security/recalculate", { method: "POST" });
+      state.securityScore = payload;
+      appToast.dismiss(toastId);
+      appToast.success("تم تحديث تقييم الحماية", { description: "حُسبت النتيجة من أحدث البيانات المتاحة.", id: "security-updated" });
+      render();
+    } catch {
+      appToast.dismiss(toastId);
+      appToast.error("تعذر تحديث تقييم الحماية", { description: "تم الاحتفاظ بآخر نتيجة موثوقة. حاول مرة أخرى لاحقًا.", id: "security-update-error" });
+      target.disabled = false;
+    }
+  }
+  if (action === "preview-safe-settings") {
+    openModal("تطبيق الإعدادات الآمنة الموصى بها", `<div class="safe-settings-preview"><p>سيتم تطبيق التغييرات غير الحساسة التالية فقط:</p><ul><li>فاصل تلقائي لا يقل عن 300 ثانية.</li><li>Jitter بين 20 و90 ثانية.</li><li>تفعيل Warm-up والإيقاف التلقائي عند الخطر.</li><li>التأكد من وجود حدود يومية وساعية.</li><li>فحص قائمة الإيقاف قبل الإرسال.</li></ul><div class="secure-note">لن يتم تفعيل MFA أو ربط/فصل جهاز أو تغيير كلمة المرور أو حذف جلسة.</div></div>`, '<button class="btn btn-primary" data-action="apply-safe-settings">تأكيد التطبيق</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
+  }
+  if (action === "apply-safe-settings") {
+    target.disabled = true;
+    try {
+      await fetchJson("/api/security/apply-recommended", { method: "POST" });
+      closePortal();
+      const payload = await fetchJson("/api/security/recalculate", { method: "POST" });
+      state.securityScore = payload;
+      appToast.success("تم تطبيق الإعدادات الآمنة", { description: "حُدّث الفاصل والحدود والتدرج والإيقاف التلقائي.", id: "safe-settings-applied" });
+      render();
+    } catch {
+      target.disabled = false;
+      appToast.error("تعذر حفظ إعدادات الحماية", { description: "لم تُطبّق تغييرات حساسة. حاول مرة أخرى.", id: "safe-settings-error" });
+    }
   }
   if (action === "order-style") {
     state.orderLinkDraft.style = target.dataset.value;
@@ -3013,9 +3144,12 @@ async function handleAction(target) {
     toast(action === "duplicate-order-template" ? "تم تجهيز نسخة جديدة من القالب" : "تم تحميل القالب للتعديل");
   }
   if (action === "delete-order-template") {
-    if (!confirm("هل تريد حذف هذا القالب؟ سيتوقف رابطه العام وستُحذف الطلبات المحفوظة داخله.")) return;
+    return openModal("حذف قالب معلومات الطلب", "<p>سيتوقف الرابط العام وستُحذف الطلبات المحفوظة داخل القالب.</p>", `<button class="btn btn-danger" data-action="confirm-delete-order-template" data-id="${escapeHtml(target.dataset.id)}">حذف القالب</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-delete-order-template") {
     try {
       await fetchJson(`/api/order-link/templates/${target.dataset.id}`, { method: "DELETE" });
+      closePortal();
       if (state.orderLinkDraft.templateId === target.dataset.id) state.orderLinkDraft.templateId = "";
       state.orderLinkTemplates = null; state.orderLinks = null; syncRouteData(true);
       toast("تم حذف القالب");
@@ -3056,16 +3190,24 @@ async function handleAction(target) {
   if (action === "disable-order-link" || action === "archive-order-link") {
     const endpoint = action === "disable-order-link" ? "disable" : "archive";
     const verb = action === "disable-order-link" ? "تعطيل" : "أرشفة";
-    if (!confirm(`هل تريد ${verb} هذا الرابط؟`)) return;
+    return openModal(`${verb} الرابط`, `<p>هل تريد ${verb} هذا الرابط؟</p>`, `<button class="btn btn-danger" data-action="confirm-order-link-state" data-endpoint="${endpoint}" data-verb="${verb}" data-id="${escapeHtml(target.dataset.id)}">تأكيد ${verb}</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-order-link-state") {
+    const endpoint = target.dataset.endpoint;
+    const verb = target.dataset.verb;
     try {
       await fetchJson(`/api/order-link/${target.dataset.id}/${endpoint}`, { method: "PATCH" });
+      closePortal();
       state.orderLinks = null; syncRouteData(true); toast(`تم ${verb} الرابط`);
     } catch (error) { toast(error.message || `تعذر ${verb} الرابط`, "danger"); }
   }
   if (action === "delete-order-link") {
-    if (!confirm("هل تريد حذف هذا الرابط نهائيًا؟")) return;
+    return openModal("حذف الرابط نهائيًا", "<p>لن يعود الرابط متاحًا بعد الحذف.</p>", `<button class="btn btn-danger" data-action="confirm-delete-order-link" data-id="${escapeHtml(target.dataset.id)}">حذف نهائي</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-delete-order-link") {
     try {
       await fetchJson(`/api/order-link/${target.dataset.id}`, { method: "DELETE" });
+      closePortal();
       if (state.orderLinkDraft.linkId === target.dataset.id) {
         state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", publicUrl: "" };
       }
@@ -3331,9 +3473,12 @@ async function handleAction(target) {
     if (row) openModal("تعديل الاشتراك", subscriptionForm(row, row.id));
   }
   if (action === "subscription-delete-db") {
-    if (!confirm("هل تريد حذف هذا الاشتراك؟")) return;
+    return openModal("حذف الاشتراك", "<p>سيتم حذف سجل الاشتراك المرتبط نهائيًا.</p>", `<button class="btn btn-danger" data-action="confirm-subscription-delete" data-id="${escapeHtml(target.dataset.id)}">حذف الاشتراك</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-subscription-delete") {
     try {
       await fetchJson(`/api/subscriptions/${target.dataset.id}`, { method: "DELETE" });
+      closePortal();
       state.dbSubscriptions = null; state.dashboardOverview = null;
       await syncRouteData(true); toast("تم حذف الاشتراك");
     } catch (error) { toast(error.message || "تعذر حذف الاشتراك", "danger"); }
@@ -3347,9 +3492,12 @@ async function handleAction(target) {
     if (row) openModal("تعديل عميل", customerForm(row, row.id));
   }
   if (action === "customer-delete-db") {
-    if (!confirm("هل تريد حذف هذا العميل؟")) return;
+    return openModal("حذف العميل", "<p>سيتم حذف العميل والبيانات التابعة له حسب سياسة الاحتفاظ.</p>", `<button class="btn btn-danger" data-action="confirm-customer-delete" data-id="${escapeHtml(target.dataset.id)}">حذف العميل</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-customer-delete") {
     try {
       await fetchJson(`/api/customers/${target.dataset.id}`, { method: "DELETE" });
+      closePortal();
       state.dbCustomers = null; state.dbSubscriptions = null; state.dashboardOverview = null;
       await syncRouteData(true); toast("تم حذف العميل");
     } catch (error) { toast(error.message || "تعذر حذف العميل", "danger"); }
@@ -3510,22 +3658,49 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "login") {
-    if (!data.email) return toast(t("auth.emailRequired"), "danger");
-    if (!data.password) return toast(t("auth.passwordRequired"), "danger");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast(t("auth.invalidEmail"), "danger");
+    clearFormErrors(form);
+    if (!data.email && !data.password) {
+      setFormError(form, "email", "يرجى إدخال البريد الإلكتروني.");
+      setFormError(form, "password", "يرجى إدخال كلمة المرور.");
+      return appToast.warning("أكمل البيانات المطلوبة", { description: "أدخل البريد الإلكتروني وكلمة المرور.", id: "login-validation" });
+    }
+    if (!data.email) {
+      setFormError(form, "email", "يرجى إدخال البريد الإلكتروني.");
+      return appToast.warning("يرجى إدخال البريد الإلكتروني", { description: "أدخل البريد المرتبط بحسابك.", id: "login-email-required" });
+    }
+    if (!data.password) {
+      setFormError(form, "password", "يرجى إدخال كلمة المرور.");
+      return appToast.warning("يرجى إدخال كلمة المرور", { description: "أدخل كلمة مرور حسابك لإكمال تسجيل الدخول.", id: "login-password-required" });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      setFormError(form, "email", "البريد الإلكتروني غير صحيح.");
+      return appToast.error("البريد الإلكتروني غير صحيح", { description: "تحقق من صيغة البريد ثم حاول مرة أخرى.", id: "login-email-invalid" });
+    }
     const button = form.querySelector("button[type='submit'], button:not([type])");
-    if (button) { button.disabled = true; button.textContent = t("common.loading"); }
+    setSubmitBusy(button, true, "جارٍ تسجيل الدخول...");
     let loginAccepted = false;
+    let failureReason = "";
+    let networkFailed = false;
     try {
       const response = await fetch("/api/auth/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       const payload = await response.json().catch(() => null);
       loginAccepted = response.ok && payload?.ok === true && Boolean(payload.user?.id);
+      failureReason = payload?.reason || "";
     } catch {
-      loginAccepted = false;
+      networkFailed = true;
     }
-    if (!loginAccepted) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast(t("auth.invalidCredentials"), "danger"); }
-    if (!await enterDashboardAfterSessionVerification()) { if (button) { button.disabled = false; button.textContent = t("auth.login"); } return toast("تعذر إنشاء الجلسة.", "danger"); }
-    toast(t("auth.loginSuccess"));
+    if (!loginAccepted) {
+      setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
+      if (networkFailed) return appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "login-network" });
+      if (failureReason === "rate_limited") return appToast.warning("محاولات تسجيل دخول كثيرة", { description: "انتظر قليلًا قبل المحاولة مرة أخرى.", id: "login-rate-limit" });
+      return appToast.error("تعذر تسجيل الدخول", { description: "البريد الإلكتروني أو كلمة المرور غير صحيحة.", id: "login-error" });
+    }
+    if (!await browserSessionIsValid()) {
+      setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
+      return appToast.error("تعذر إكمال تسجيل الدخول", { description: "حدث خطأ غير متوقع. حاول مرة أخرى بعد قليل.", id: "login-session-error" });
+    }
+    appToast.success("تم تسجيل الدخول بنجاح", { description: "مرحبًا بك في Renvix، جاري تحويلك إلى لوحة التحكم.", id: "login-success", duration: 1800 });
+    setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 650);
     return;
   }
   if (type === "register") {
@@ -3639,33 +3814,60 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "forgot") {
-    if (!data.email) return toast(t("auth.emailRequired"), "danger");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast(t("auth.invalidEmail"), "danger");
+    clearFormErrors(form);
+    if (!data.email) {
+      setFormError(form, "email", "يرجى إدخال البريد الإلكتروني.");
+      return appToast.warning("يرجى إدخال البريد الإلكتروني", { description: "سنرسل رمز إعادة التعيين إلى بريد حسابك.", id: "forgot-email-required" });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      setFormError(form, "email", "البريد الإلكتروني غير صحيح.");
+      return appToast.error("البريد الإلكتروني غير صحيح", { description: "أدخل بريدًا إلكترونيًا بصيغة صحيحة.", id: "forgot-email-invalid" });
+    }
     const button = form.querySelector("button");
-    if (button) { button.disabled = true; button.textContent = t("common.loading"); }
+    setSubmitBusy(button, true, "جارٍ إرسال الطلب...");
     try {
       const response = await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: data.email, locale: state.language }) });
-      const body = await response.json();
-      if (!response.ok) { if (button) button.disabled = false; return toast(body.message || t("common.serverError"), "danger"); }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSubmitBusy(button, false, "إرسال رابط الاستعادة");
+        if (response.status === 429) return appToast.warning("انتظر قبل إعادة الإرسال", { description: "يمكنك طلب رمز جديد بعد قليل.", id: "forgot-rate-limit" });
+        return appToast.error("تعذر إرسال الطلب", { description: "حدث خطأ غير متوقع. حاول مرة أخرى بعد قليل.", id: "forgot-error" });
+      }
       state.resetEmail = data.email;
       state.resetStep = 2;
-      toast(body.message || t("auth.codeSent"));
+      appToast.success("تم استلام طلبك", { description: "إذا كان البريد مسجلًا لدينا، فسيصلك رمز إعادة تعيين كلمة المرور.", id: "forgot-success" });
       render();
     } catch {
-      if (button) button.disabled = false;
-      toast(t("common.serverError"), "danger");
+      setSubmitBusy(button, false, "إرسال رابط الاستعادة");
+      appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "forgot-network" });
     }
   }
   if (type === "reset-password") {
-    if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
-    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
+    clearFormErrors(form);
+    if (!/^\d{6}$/.test(String(data.code || ""))) {
+      setFormError(form, "code", "أدخل رمز التحقق كاملًا.");
+      return appToast.warning("أدخل رمز التحقق كاملًا", { description: "يتكون رمز التحقق من 6 أرقام.", id: "reset-code-required" });
+    }
+    if (data.password !== data.confirmPassword) {
+      setFormError(form, "confirmPassword", "كلمتا المرور غير متطابقتين.");
+      return appToast.error("كلمتا المرور غير متطابقتين", { description: "أعد كتابة كلمة المرور الجديدة بشكل مطابق.", id: "reset-password-mismatch" });
+    }
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{10,}$/.test(data.password || "")) {
+      setFormError(form, "password", "استخدم 10 أحرف على الأقل مع أرقام وحروف.");
+      return appToast.warning("كلمة المرور غير قوية", { description: "استخدم 10 أحرف على الأقل مع أرقام وحروف.", id: "reset-password-weak" });
+    }
     try {
       const response = await fetch("/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.resetEmail, code: data.code, password: data.password }) });
-      if (!response.ok) return toast(state.language === "ar" ? "الكود غير صحيح أو منتهي." : "The code is invalid or expired.", "danger");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (payload.reason === "expired") return appToast.warning("انتهت صلاحية الرمز", { description: "اطلب رمزًا جديدًا لإكمال إعادة تعيين كلمة المرور.", id: "reset-code-expired" });
+        if (payload.reason === "invalid") return appToast.error("رمز التحقق غير صحيح", { description: "تحقق من الرمز المرسل إلى بريدك وحاول مرة أخرى.", id: "reset-code-invalid" });
+        return appToast.error("تعذر تغيير كلمة المرور", { description: "جلسة إعادة التعيين غير صالحة. ابدأ العملية من جديد.", id: "reset-error" });
+      }
       state.resetStep = 3;
-      toast(t("auth.passwordChanged"));
+      appToast.success("تم تغيير كلمة المرور بنجاح", { description: "يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة.", id: "reset-success" });
       render();
-    } catch { toast(t("common.serverError"), "danger"); }
+    } catch { appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "reset-network" }); }
   }
   if (type === "import-preview") {
     state.importText = data.text;
@@ -3722,18 +3924,29 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "password") {
-    if (String(data.newPassword || "").length < 10 || !/[A-Za-z]/.test(data.newPassword || "") || !/\d/.test(data.newPassword || "")) return toast("كلمة المرور يجب ألا تقل عن 10 أحرف وتحتوي على حروف وأرقام.", "danger");
-    if (data.newPassword !== data.confirmPassword) return toast("كلمتا المرور غير متطابقتين.", "danger");
+    clearFormErrors(form);
+    if (String(data.newPassword || "").length < 10 || !/[A-Za-z]/.test(data.newPassword || "") || !/\d/.test(data.newPassword || "")) {
+      setFormError(form, "newPassword", "استخدم 10 أحرف على الأقل مع أرقام وحروف.");
+      return appToast.warning("كلمة المرور غير قوية", { description: "استخدم 10 أحرف على الأقل مع أرقام وحروف.", id: "password-weak" });
+    }
+    if (data.newPassword !== data.confirmPassword) {
+      setFormError(form, "confirmPassword", "كلمتا المرور غير متطابقتين.");
+      return appToast.error("كلمتا المرور غير متطابقتين", { description: "أعد كتابة كلمة المرور الجديدة بشكل مطابق.", id: "password-mismatch" });
+    }
+    if (data.newPassword === data.currentPassword) return appToast.warning("اختر كلمة مرور مختلفة", { description: "يجب ألا تطابق كلمة المرور الجديدة كلمة المرور السابقة.", id: "password-same" });
     const button = form.querySelector("button[type='submit'], button:not([type])");
     if (button) { button.disabled = true; button.textContent = "جارٍ التحديث..."; }
     try {
       await fetchJson("/api/settings/security/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      form.reset(); toast("تم تحديث كلمة المرور بنجاح.");
+      form.reset();
+      state.securityScore = null;
+      appToast.success("تم تغيير كلمة المرور بنجاح", { description: "تم إنهاء الجلسات الأخرى وتحديث بيانات الحماية.", id: "password-changed" });
       if (button) { button.disabled = false; button.textContent = "تحديث كلمة المرور"; }
     } catch (error) {
       if (button) { button.disabled = false; button.textContent = "تحديث كلمة المرور"; }
       const firstError = Object.values(error.payload?.errors || {}).flat()[0];
-      toast(firstError || error.message || "تعذر تغيير كلمة المرور", "danger");
+      if (error.code === "invalid_current_password") appToast.error("تعذر تغيير كلمة المرور", { description: "كلمة المرور الحالية غير صحيحة.", id: "password-current-invalid" });
+      else appToast.error("تعذر تغيير كلمة المرور", { description: firstError || "راجع البيانات المدخلة ثم حاول مرة أخرى.", id: "password-change-error" });
     }
     return;
   }
@@ -3745,8 +3958,9 @@ async function handleSubmit(form, event) {
     try {
       const payload = await fetchJson("/api/settings/security/mfa/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: data.code }) });
       openModal("رموز الاسترداد", `<div class="grid"><p>احفظ هذه الرموز في مكان آمن. لن تظهر مرة أخرى.</p><div class="recovery-code-grid">${payload.recoveryCodes.map((code) => `<code>${escapeHtml(code)}</code>`).join("")}</div><button class="btn btn-primary" data-action="close-modal">حفظت الرموز</button></div>`);
-      state.accountSettings = null; await syncRouteData(true); toast("تم تفعيل المصادقة الثنائية بنجاح");
-    } catch (error) { toast(error.message || "رمز التحقق غير صحيح", "danger"); }
+      state.accountSettings = null; state.securityScore = null; await syncRouteData(true);
+      appToast.success("تم التحقق من هويتك", { description: "تم تفعيل المصادقة الثنائية ورفع حماية حسابك.", id: "mfa-enabled" });
+    } catch { appToast.error("رمز المصادقة غير صحيح", { description: "تحقق من الرمز الحالي في تطبيق المصادقة.", id: "mfa-invalid" }); }
     return;
   }
   if (type === "mfa-disable") {

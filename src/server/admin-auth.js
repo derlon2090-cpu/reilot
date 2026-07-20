@@ -64,12 +64,13 @@ export async function getAdminContext(req) {
   if (!session) return null;
 
   const result = await query(
-    `SELECT au.id AS "adminId", au.role AS "adminRole", au.status,
-            au.mfa_enabled AS "mfaEnabled", u.id AS "userId",
+      `SELECT au.id AS "adminId", au.role AS "adminRole", au.status,
+            au.mfa_enabled AS "mfaEnabled", au.expires_at AS "expiresAt", u.id AS "userId",
             u.name, u.email
        FROM admin_users au
        JOIN users u ON u.id = au.user_id
       WHERE au.user_id = $1 AND au.status = 'active'
+        AND (au.expires_at IS NULL OR au.expires_at > now())
       LIMIT 1`,
     [session.userId]
   );
