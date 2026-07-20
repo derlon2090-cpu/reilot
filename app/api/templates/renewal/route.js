@@ -19,7 +19,7 @@ const colorPattern = /^#[0-9a-f]{6}$/i;
 const defaultEmailTemplate = {
   name: "تذكير بتجديد الاشتراك",
   channel: "email",
-  storeName: "متجر النجاح",
+  storeName: "",
   title: "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
   themeColor: "#0EA5A8",
   body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
@@ -252,15 +252,20 @@ export async function POST(req) {
   }
 
   try {
+    const testTemplate = {
+      ...template,
+      title: `[اختبار Renvix] ${template.title}`,
+      body: `هذه رسالة اختبار من Renvix ولا تخص اشتراكًا فعليًا.\n\n${template.body}`
+    };
     const sent = await sendRenewalReminderEmail({
       to,
-      customerName: "عميلنا",
-      serviceName: "الباقة الاحترافية",
-      endDate: new Intl.DateTimeFormat("ar-SA").format(new Date(Date.now() + 7 * 86400000)),
-      remainingDays: 7,
-      renewalLink: "https://renvix.app/renew/test",
-      orderNumber: "RVX-1024",
-      template
+      customerName: "مستلم الاختبار",
+      serviceName: "رسالة اختبار",
+      endDate: "—",
+      remainingDays: 0,
+      renewalLink: "https://renvix.app",
+      orderNumber: "TEST",
+      template: testTemplate
     });
     await transaction(async (client) => {
       await client.query(
@@ -271,7 +276,7 @@ export async function POST(req) {
       await client.query(
         `INSERT INTO email_logs (tenant_id, to_email, subject, body, provider_message_id, status, sent_at)
          VALUES ($1,$2,$3,$4,$5,'sent',now())`,
-        [auth.session.tenantId, to, template.title, template.body, sent?.id || null]
+        [auth.session.tenantId, to, testTemplate.title, testTemplate.body, sent?.id || null]
       );
       await consumeReservedQuotaWithClient(client, {
         periodId: reservation.periodId,

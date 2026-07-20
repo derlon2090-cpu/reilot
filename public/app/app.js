@@ -417,6 +417,8 @@ const state = {
   subscriptionDateTo: "",
   subscriptionPage: 1,
   subscriptionSection: "list",
+  templateCatalogChannel: "all",
+  templateCatalogSearch: "",
   settings: { whatsapp: false, email: false, sms: false, twoFactor: false, renewAuto: false },
   linkedDevice: { ...defaultLinkedDevice }
 };
@@ -494,9 +496,9 @@ const dashboardRoutes = [
   ["/dashboard", "الرئيسية", "home"],
   ["/dashboard/subscriptions", "الاشتراكات", "subscriptions"],
   ["/dashboard/customers", "العملاء", "customers"],
-  ["/dashboard/renewal-template", "قالب رسالة التجديد", "template"],
-  ["/dashboard/devices", "الأجهزة", "devices"],
   ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
+  ["/dashboard/templates", "القوالب", "template"],
+  ["/dashboard/devices", "الأجهزة", "devices"],
   ["/dashboard/apps", "تطبيقاتنا", "apps"],
   ["/dashboard/security", "الحماية والأمان", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
@@ -512,7 +514,8 @@ const dashboardAliases = {
   "/dashboard/unsubscribe": "/dashboard/security",
   "/dashboard/warranty": "/dashboard/security",
   "/dashboard/activity": "/dashboard/reports",
-  "/dashboard/notifications/template": "/dashboard/renewal-template",
+  "/dashboard/renewal-template": "/dashboard/templates",
+  "/dashboard/notifications/template": "/dashboard/templates",
   "/dashboard/readiness": "/dashboard/security",
   "/dashboard/issues": "/dashboard/security"
 };
@@ -618,10 +621,10 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
-  if (state.route === "/dashboard/renewal-template" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (["/dashboard/templates", "/dashboard/order-links"].includes(state.route) && (force || state.orderLinkTemplates === null)) void loadRemotePage("orderLinkTemplates", "/api/order-link/templates", "orderLinkTemplates");
   if (state.route === "/dashboard/order-links") {
     if (force || state.orderLinkProfile === null) void loadRemotePage("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
-    if (force || state.orderLinkTemplates === null) void loadRemotePage("orderLinkTemplates", "/api/order-link/templates", "orderLinkTemplates");
     if (force || state.orderLinkSubscriptions === null) void loadRemotePage("orderLinkSubscriptions", "/api/order-link/subscriptions", "orderLinkSubscriptions");
     if (force || state.orderLinks === null) void loadRemotePage("orderLinks", "/api/order-link/list", "orderLinks");
   }
@@ -683,6 +686,9 @@ async function navigate(to) {
   history.pushState({}, "", url.pathname + url.search);
   state.route = url.pathname;
   state.query = url.searchParams;
+  if (url.pathname === "/dashboard/order-links" && url.searchParams.has("templateId")) {
+    state.orderLinkDraft = { ...state.orderLinkDraft, hydrated: false };
+  }
   state.navOpen = false;
   state.sidebarOpen = false;
   state.profileOpen = false;
@@ -762,6 +768,7 @@ function dashboardIcon(name) {
     language: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+    support: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M18 19h-2v-7h4v5a2 2 0 0 1-2 2ZM6 19H4a2 2 0 0 1-2-2v-5h4v7Z"/><path d="M16 19c0 1.1-.9 2-2 2h-2"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
     "eye-off": '<path d="m3 3 18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.1 3.8M6.2 6.2C3.6 8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 3.2-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
@@ -1291,8 +1298,17 @@ function notificationsPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
-  const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
+  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "القوالب": "Templates", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const routeGroups = [
+    { label: "", paths: ["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"] },
+    { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates"] },
+    { label: state.language === "ar" ? "القنوات والربط" : "Channels & integrations", paths: ["/dashboard/devices", "/dashboard/apps"] },
+    { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/settings"] }
+  ];
+  const links = routeGroups.map((group) => {
+    const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
+    return `<div class="side-group">${group.label ? `<span class="side-group-title">${group.label}</span>` : ""}${items}</div>`;
+  }).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   const profile = state.dashboardOverview?.profile || {};
   const profileName = profile.name || (state.language === "ar" ? "المستخدم" : "User");
@@ -1305,6 +1321,7 @@ function dashboardShell(content) {
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       <div class="sidebar-brand">${logo()}</div>
       <nav class="side-links">${links}</nav>
+      <button class="sidebar-support-link" data-link="/support">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
     </aside>
     <main class="dashboard-main">
       <header class="topbar">
@@ -1409,6 +1426,7 @@ function pageTitle(title, actions = "") {
     "إدارة الاشتراكات": "تابع الاشتراكات والتجديدات في مكان واحد.",
     "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
     "الأجهزة": "اربط واتساب وتحقق من حالة الاتصال الفعلية.",
+    "القوالب": "إدارة قوالب الرسائل والروابط الجاهزة حسب القناة.",
     "إرسال معلومات الطلب": "صمم قالبًا واحدًا برابط ثابت وأضف إليه طلبات عملائك.",
     "تطبيقاتنا": "اربط متجرك بالتطبيقات الخارجية وشغّل المزامنة والأتمتة بأمان.",
     "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
@@ -1609,7 +1627,7 @@ function subscriptionsPage() {
   const sendLog = meta.sendLog || [];
   const listSection = `<section class="subscription-workspace"><article class="card table-card subscription-list-card"><div class="section-head"><div><h2>قائمة الاشتراكات <span>(${Number(meta.total || 0).toLocaleString("ar-SA")})</span></h2><p class="muted">الطلبات المدفوعة المرتبطة بباقات Renvix فقط.</p></div></div>${content}<div class="subscription-pagination"><span>صفحة ${Number(meta.page||1)} من ${Math.max(1,Math.ceil(Number(meta.total||0)/Number(meta.limit||20)))}</span><div><button class="btn btn-secondary" data-action="subscription-page" data-page="${Math.max(1,Number(meta.page||1)-1)}" ${Number(meta.page||1)<=1?"disabled":""}>السابق</button><button class="btn btn-secondary" data-action="subscription-page" data-page="${Number(meta.page||1)+1}" ${Number(meta.page||1)*Number(meta.limit||20)>=Number(meta.total||0)?"disabled":""}>التالي</button></div></div></article><aside class="subscription-side-column"><article class="card subscription-reminder-summary"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">الإعدادات محفوظة لكل اشتراك وقناته الاحتياطية.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div><div class="reminder-summary-points"><div><strong>يدوي</strong><span>معاينة وتأكيد قبل الجدولة</span></div><div><strong>تلقائي</strong><span>يعمل من Worker دون فتح الصفحة</span></div><div><strong>الخصم</strong><span>بعد قبول المزود للرسالة فقط</span></div></div><button class="btn btn-primary" data-action="subscription-section" data-section="settings">إدارة إعدادات التذكير</button></article><article class="card subscription-upcoming"><div class="section-head"><h2>التجديدات القادمة</h2><button data-action="clear-subscription-filters">عرض الكل</button></div>${upcoming.length?upcoming.map((item)=>`<button class="upcoming-renewal-row" data-action="subscription-edit-db" data-id="${item.id}"><span><strong>${escapeHtml(item.customerName)}</strong><small>${escapeHtml(item.planName)}</small></span><b>${new Date(item.endDate).toLocaleDateString("ar-SA",{day:"numeric",month:"short"})}</b></button>`).join(""):`<div class="security-empty-row">لا توجد تجديدات قادمة.</div>`}</article></aside></section>`;
   const settingsSection = `<article class="card section subscription-preferences-list"><div class="section-head"><div><h2>إعدادات التذكير</h2><p class="muted">عدّل القناة الأساسية والاحتياطية ووضع الإرسال لكل اشتراك.</p></div></div>${rows.length?rows.map((row)=>`<div><span><strong>${escapeHtml(row.customerName)}</strong><small>${escapeHtml(row.planName)}</small></span><span>${row.reminderChannel==="email"?"البريد":"واتساب"}${row.fallbackChannel?` ← احتياطي: ${row.fallbackChannel==="email"?"البريد":"واتساب"}`:""}</span><span>${row.reminderMode==="automatic"?"تلقائي":"يدوي"}</span><button class="btn btn-secondary" data-action="subscription-edit-db" data-id="${row.id}">تعديل</button></div>`).join(""):emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعداداته.")}</article>`;
-  const templatesSection = `<article class="card section subscription-template-bridge"><div>${dashboardIcon("template")}<h2>قوالب رسائل التجديد</h2><p>قالب واتساب وقالب البريد مستقلان، ولا تُرسل رسالة إذا كان قالب القناة غير مهيأ أو يحتوي متغيرًا غير معتمد.</p><button class="btn btn-primary" data-link="/dashboard/renewal-template">فتح قوالب التجديد</button></div></article>`;
+  const templatesSection = `<article class="card section subscription-template-bridge"><div>${dashboardIcon("template")}<h2>قوالب رسائل التجديد</h2><p>قالب واتساب وقالب البريد مستقلان، ولا تُرسل رسالة إذا كان قالب القناة غير مهيأ أو يحتوي متغيرًا غير معتمد.</p><button class="btn btn-primary" data-link="/dashboard/templates">فتح القوالب</button></div></article>`;
   const logSection = `<article class="card table-card section"><div class="section-head"><div><h2>سجل الإرسال</h2><p class="muted">يبقى السجل محفوظًا حتى بعد اختفاء شارة «تم الإرسال» بعد 72 ساعة.</p></div></div>${sendLog.length?simpleTable(["العميل","الخدمة","القناة","الحالة","وقت النجاح","السبب"],sendLog.map((item)=>[escapeHtml(item.customerName||"-"),escapeHtml(item.serviceName||"-"),item.channel==="email"?"البريد":"واتساب",status(item.status),item.sentAt?new Date(item.sentAt).toLocaleString("ar-SA"):"-",escapeHtml(item.errorMessage||"-")])):emptyState("لا توجد رسائل مسجلة","ستظهر هنا نتائج الإرسال الفعلية.")}</article>`;
   const activeSection = state.subscriptionSection==="settings"?settingsSection:state.subscriptionSection==="templates"?templatesSection:state.subscriptionSection==="log"?logSection:listSection;
   return dashboardShell(`${pageTitle("الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">+ اشتراك جديد</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير</button>`)}
@@ -1972,7 +1990,7 @@ function devicesWorkspacePage() {
 const localDefaultEmailTemplate = {
   name: "تذكير بتجديد الاشتراك",
   channel: "email",
-  storeName: "متجر النجاح",
+  storeName: "",
   title: "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
   themeColor: "#0EA5A8",
   body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
@@ -1984,26 +2002,17 @@ function safeEmailTheme(value) {
   return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#0EA5A8";
 }
 
-function sampleEmailValue(value) {
-  const samples = {
-    اسم_العميل: "أحمد محمد",
-    اسم_الخدمة: "الباقة الاحترافية",
-    تاريخ_الانتهاء: new Intl.DateTimeFormat("ar-SA").format(new Date(Date.now() + 7 * 86400000)),
-    الأيام_المتبقية: "7",
-    رابط_التجديد: "https://renvix.app/renew/test",
-    رقم_الطلب: "RVX-1024",
-    اسم_المتجر: "متجر النجاح"
-  };
-  return String(value || "").replace(/{{\s*([^{}]+?)\s*}}/g, (match, name) => samples[name] ?? match);
+function templatePreviewValue(value) {
+  return String(value || "");
 }
 
 function emailTemplatePreview(template) {
   const theme = safeEmailTheme(template.themeColor);
-  const storeName = sampleEmailValue(template.storeName || localDefaultEmailTemplate.storeName);
-  const subject = sampleEmailValue(template.title || localDefaultEmailTemplate.title);
-  const content = sampleEmailValue(template.body || localDefaultEmailTemplate.body);
-  const buttonLabel = sampleEmailValue(template.buttonLabel || localDefaultEmailTemplate.buttonLabel);
-  const footerText = sampleEmailValue(template.footerText || localDefaultEmailTemplate.footerText);
+  const storeName = templatePreviewValue(template.storeName || "{{اسم_المتجر}}");
+  const subject = templatePreviewValue(template.title || localDefaultEmailTemplate.title);
+  const content = templatePreviewValue(template.body || localDefaultEmailTemplate.body);
+  const buttonLabel = templatePreviewValue(template.buttonLabel || localDefaultEmailTemplate.buttonLabel);
+  const footerText = templatePreviewValue(template.footerText || localDefaultEmailTemplate.footerText);
   const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
   return `<div class="email-envelope" style="--email-theme:${theme}">
     <div class="email-preview-brand"><span class="email-store-icon">⌑</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
@@ -2034,11 +2043,92 @@ function refreshEmailTemplatePreview() {
   if (preview) preview.innerHTML = emailTemplatePreview(readEmailTemplateForm());
 }
 
-function renewalTemplatePage() {
+function templateCatalogItems() {
+  const renewalTemplates = Array.isArray(state.notificationTemplate?.templates) ? state.notificationTemplate.templates : [];
+  const orderTemplates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
+  return [
+    ...renewalTemplates.map((item) => ({
+      id: item.id,
+      key: `renewal_${item.channel}`,
+      kind: "renewal",
+      channel: item.channel,
+      name: item.name || (item.channel === "email" ? "قالب البريد الإلكتروني للتجديد" : "قالب رسالة التجديد - واتساب"),
+      description: item.channel === "email" ? "يُستخدم لإرسال رسائل التجديد والتنبيهات عبر البريد الإلكتروني." : "يُستخدم لإرسال تذكير التجديد للعملاء عبر واتساب قبل انتهاء الاشتراك.",
+      isActive: item.isActive !== false,
+      updatedAt: item.updatedAt,
+      templateVersion: item.templateVersion || 1
+    })),
+    ...orderTemplates.map((item) => ({
+      id: item.id,
+      key: `order_${item.id}`,
+      kind: "order",
+      channel: "salla",
+      name: item.name || "قالب معلومات الطلب - سلة",
+      description: "صفحة معلومات طلب مرتبطة بسلة تعرض بيانات الطلب والاشتراك وفق الحقول المحفوظة.",
+      isActive: item.isActive !== false,
+      updatedAt: item.updatedAt,
+      openedCount: Number(item.openedCount || 0)
+    }))
+  ];
+}
+
+function templateChannelLabel(channel) {
+  if (channel === "whatsapp") return "واتساب";
+  if (channel === "email") return "البريد الإلكتروني";
+  if (channel === "salla") return "سلة";
+  return "القناة";
+}
+
+function templateCatalogIcon(item) {
+  if (item.channel === "salla") return `<span class="template-brand-icon salla"><img src="/assets/salla-logo.svg" alt="سلة"></span>`;
+  return `<span class="template-brand-icon ${item.channel}">${dashboardIcon(item.channel === "whatsapp" ? "devices" : "template")}</span>`;
+}
+
+function templatesPage() {
+  const editorKey = state.query.get("edit") || "";
+  if (["renewal_whatsapp", "renewal_email"].includes(editorKey)) {
+    return renewalTemplateEditorPage(editorKey.endsWith("email") ? "email" : "whatsapp");
+  }
+  const loading = state.notificationTemplate === null || state.orderLinkTemplates === null;
+  const items = templateCatalogItems();
+  const channel = state.templateCatalogChannel || "all";
+  const search = String(state.templateCatalogSearch || "").trim().toLocaleLowerCase("ar");
+  const filtered = items.filter((item) => (channel === "all" || item.channel === channel) && (!search || `${item.name} ${item.description}`.toLocaleLowerCase("ar").includes(search)));
+  const total = items.length;
+  const active = items.filter((item) => item.isActive).length;
+  const inactive = total - active;
+  const channelTabs = [["all", "الكل"], ["whatsapp", "واتساب"], ["email", "بريد إلكتروني"], ["salla", "سلة"]];
+  const rows = filtered.map((item) => {
+    const editTarget = item.kind === "renewal" ? `/dashboard/templates?edit=${encodeURIComponent(item.key)}` : `/dashboard/order-links?templateId=${encodeURIComponent(item.id)}`;
+    const updated = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "لم يُحدّث بعد";
+    return `<article class="template-catalog-row">
+      ${templateCatalogIcon(item)}
+      <div class="template-catalog-copy"><div class="template-row-heading"><h2>${escapeHtml(item.name)}</h2><span class="channel-pill ${item.channel}">${templateChannelLabel(item.channel)}</span></div><p>${escapeHtml(item.description)}</p><div class="template-row-meta"><span>${status(item.isActive ? "active" : "paused")}</span><span>آخر تحديث: ${escapeHtml(updated)}</span>${item.kind === "order" ? `<span>${item.openedCount} فتح فعلي</span>` : `<span>الإصدار ${Number(item.templateVersion || 1)}</span>`}</div></div>
+      <div class="template-row-actions"><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("settings")} تحرير</button></div>
+    </article>`;
+  }).join("");
+  const body = loading
+    ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>`
+    : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${items.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب محفوظة حتى الآن"}</strong><p>${items.length ? "غيّر البحث أو القناة لعرض القوالب." : "يمكنك إعداد قالب التجديد لواتساب أو البريد، أو إنشاء قالب معلومات طلب من القسم المخصص."}</p>${items.length ? "" : `<div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_whatsapp">إعداد قالب واتساب</button><button class="btn btn-secondary" data-link="/dashboard/templates?edit=renewal_email">إعداد قالب البريد</button><button class="btn btn-secondary" data-link="/dashboard/order-links">قالب معلومات الطلب</button></div>`}</div>`;
+  return dashboardShell(`<div class="template-breadcrumb"><span>الرئيسية</span><b>/</b><strong>القوالب</strong></div>
+    ${pageTitle("القوالب")}
+    <section class="template-summary-grid">
+      <article class="card"><span class="template-summary-icon">${dashboardIcon("template")}</span><div><small>إجمالي القوالب</small><strong>${total}</strong></div></article>
+      <article class="card"><span class="template-summary-icon success">${dashboardIcon("security")}</span><div><small>قوالب نشطة</small><strong>${active}</strong></div></article>
+      <article class="card"><span class="template-summary-icon warning">${dashboardIcon("reports")}</span><div><small>مسودات أو متوقفة</small><strong>${inactive}</strong></div></article>
+    </section>
+    <section class="card template-catalog-card">
+      <div class="template-catalog-toolbar"><label class="template-search-wrap">${dashboardIcon("reports")}<input class="input" data-action="template-catalog-search" value="${escapeHtml(state.templateCatalogSearch || "")}" placeholder="ابحث عن قالب..."></label><select class="select template-channel-select" data-action="template-catalog-channel"><option value="all" ${channel === "all" ? "selected" : ""}>كل القنوات</option>${channelTabs.slice(1).map(([value,label]) => `<option value="${value}" ${channel === value ? "selected" : ""}>${label}</option>`).join("")}</select><div class="template-channel-tabs">${channelTabs.map(([value,label]) => `<button class="${channel === value ? "active" : ""}" data-action="template-catalog-channel" data-channel="${value}">${label}</button>`).join("")}</div></div>
+      <div class="template-catalog-list">${body}</div>
+      ${!loading && filtered.length ? `<div class="template-catalog-footer"><span>عرض ${filtered.length} من ${total}</span><span>جميع الأرقام من القوالب المحفوظة في مساحة العمل.</span></div>` : ""}
+    </section>`);
+}
+
+function renewalTemplateEditorPage(forcedChannel = "") {
   const payload = state.notificationTemplate || {};
   const templates = Array.isArray(payload.templates) ? payload.templates : (payload.template ? [payload.template] : []);
   const rules = Array.isArray(payload.rules) ? payload.rules : (payload.rule ? [payload.rule] : []);
-  const channel = state.templateChannel || payload.template?.channel || "whatsapp";
+  const channel = forcedChannel || state.templateChannel || payload.template?.channel || "whatsapp";
   const defaults = { ...localDefaultEmailTemplate, ...(payload.defaultEmailTemplate || {}) };
   const storedTemplate = templates.find((item) => item.channel === channel);
   const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
@@ -2049,20 +2139,20 @@ function renewalTemplatePage() {
 
   if (channel === "whatsapp") {
     const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;
-    return dashboardShell(`${pageTitle("قالب رسالة التجديد")}
+    return dashboardShell(`${pageTitle("قالب رسالة التجديد - واتساب", `<button class="btn btn-secondary" data-link="/dashboard/templates">‹ العودة إلى القوالب</button>`)}
       <p class="page-kicker">أنشئ وخصص رسالة التجديد التي سيتم إرسالها للعملاء قبل انتهاء اشتراكاتهم.</p>
       <section class="template-workspace"><article class="card template-editor-card"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر محتوى الرسالة باستخدام المتغيرات الذكية.</p></div>${dashboardIcon("template")}</div><form data-submit="renewal-template" class="grid">
         <div class="template-meta-grid"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" placeholder="مثال: تذكير قبل التجديد"></label>${channelSelect}</div>
         <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>النص</span></div><textarea class="textarea template-editor" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{renewal_link}}"].map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
         <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
         <div class="template-actions"><button class="btn btn-primary">حفظ القالب</button><button type="button" class="btn btn-secondary" data-action="test-template" ${!isWhatsappReady ? "disabled title=\"اربط جهازًا أولًا حتى تتمكن من إرسال رسالة تجريبية.\"" : ""}>إرسال رسالة تجريبية</button></div></form></article>
-        <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">اليوم</span><div class="message-bubble">${preview}<small>10:30 ✓✓</small></div></div><p class="preview-note">هذه معاينة تقريبية، وقد يختلف مظهر الرسالة حسب قناة الإرسال.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>واتساب</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
+        <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">معاينة القالب</span><div class="message-bubble">${preview}<small>معاينة فقط ✓✓</small></div></div><p class="preview-note">المعاينة تعرض المتغيرات كما هي، ولا تستخدم بيانات عميل أو طلب مختلقة.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>واتساب</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
       </section>`);
   }
 
   const colors = ["#0EA5A8", "#2563EB", "#7C3AED", "#22C55E", "#F97316", "#64748B"];
   const variables = ["{{اسم_العميل}}", "{{اسم_الخدمة}}", "{{تاريخ_الانتهاء}}", "{{الأيام_المتبقية}}", "{{رابط_التجديد}}", "{{رقم_الطلب}}", "{{اسم_المتجر}}"];
-  return dashboardShell(`${pageTitle("قالب رسالة التجديد")}
+  return dashboardShell(`${pageTitle("قالب البريد الإلكتروني للتجديد", `<button class="btn btn-secondary" data-link="/dashboard/templates">‹ العودة إلى القوالب</button>`)}
     <p class="page-kicker">خصص رسالة البريد التي ستصل للعميل قبل انتهاء اشتراكه، من داخل صفحة القالب الحالية.</p>
     <section class="email-template-layout">
       <article class="card template-editor-card email-template-editor"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر بريد آمن مع متغيرات معتمدة ومعاينة مطابقة للقالب المرسل.</p></div>${dashboardIcon("template")}</div>
@@ -2104,7 +2194,8 @@ function hydrateOrderLinkDraft() {
   const profile = state.orderLinkProfile;
   if (!profile || profile.error || state.orderLinkDraft.hydrated) return;
   const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
-  const defaultTemplate = templates.find((item) => item.isDefault) || templates[0];
+  const requestedTemplateId = state.query.get("templateId") || "";
+  const defaultTemplate = templates.find((item) => item.id === requestedTemplateId) || templates.find((item) => item.isDefault) || templates[0];
   state.orderLinkDraft = {
     ...state.orderLinkDraft,
     hydrated: true,
@@ -3093,6 +3184,7 @@ async function handleAction(target) {
   }
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
+  if (action === "template-catalog-channel" && target.tagName !== "SELECT") { state.templateCatalogChannel = target.dataset.channel || "all"; render(); }
   if (action === "close-modal") closePortal();
   if (action === "copy-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
   if (action === "choose-avatar") document.querySelector('[data-action="avatar-file"]')?.click();
@@ -4210,7 +4302,7 @@ function render() {
       "/dashboard": dashboardHome,
       "/dashboard/subscriptions": subscriptionsPage,
       "/dashboard/customers": customersPage,
-      "/dashboard/renewal-template": renewalTemplatePage,
+      "/dashboard/templates": templatesPage,
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,
@@ -4309,6 +4401,16 @@ document.addEventListener("input", (event) => {
     if (button) button.disabled = !(nameChanged || storeChanged || phoneChanged);
   }
   if (target.dataset.emailField !== undefined) refreshEmailTemplatePreview();
+  if (target.dataset.action === "template-catalog-search") {
+    state.templateCatalogSearch = target.value;
+    render();
+    requestAnimationFrame(() => {
+      const input = document.querySelector('[data-action="template-catalog-search"]');
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+    return;
+  }
   if (target.dataset.sallaRuleField) {
     const index = Number(target.dataset.ruleIndex);
     const drafts = readSallaRuleDrafts();
@@ -4397,6 +4499,11 @@ document.addEventListener("change", (event) => {
   }
   if (target.dataset.action === "template-channel") {
     state.templateChannel = target.value === "email" ? "email" : "whatsapp";
+    if (state.route === "/dashboard/templates") void navigate(`/dashboard/templates?edit=renewal_${state.templateChannel}`);
+    else render();
+  }
+  if (target.dataset.action === "template-catalog-channel") {
+    state.templateCatalogChannel = target.value || target.dataset.channel || "all";
     render();
   }
   if (target.dataset.action === "template-custom-theme") {
