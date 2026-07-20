@@ -24,7 +24,16 @@ export async function sendOrderInformationEmail({ to, customerName, storeName, o
   });
 }
 
-export async function sendQueuedEmail({ to, subject, text }) {
+export async function sendQueuedEmail({ to, subject, text, templateSnapshot = null }) {
+  if (templateSnapshot?.type === "renewal_email_v1") {
+    return sendEmail({
+      to,
+      ...renewalReminderEmail({
+        ...(templateSnapshot.data || {}),
+        template: templateSnapshot.template || {}
+      })
+    });
+  }
   const safeText = escapeEmailHtml(text).replace(/\n/g, "<br>");
   return sendEmail({
     to,

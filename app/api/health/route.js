@@ -6,8 +6,8 @@ export async function GET() {
   const checks = {
     database: { ok: false },
     resend: {
-      configured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
-      fromConfigured: Boolean(process.env.RESEND_FROM_EMAIL)
+      configured: Boolean(process.env.RESEND_API_KEY),
+      fromConfigured: true
     },
     evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false }
   };

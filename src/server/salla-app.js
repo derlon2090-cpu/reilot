@@ -5,6 +5,9 @@ import { normalizeOptionalEmail, validateOptionalEmail } from "../lib/customerVa
 import { normalizeSallaOrder, normalizeSallaSubscriptionRules, resolveSallaSubscriptionRule } from "../lib/salla.js";
 import { createOrderInfoLink, ensureOrderLinkProfile, saveOrderLinkProfile } from "./order-links.js";
 import { enqueueMessage } from "./message-queue.js";
+import { createInAppNotification } from "./in-app-notifications.js";
+import { recordOperationalIssue } from "./operations.js";
+import { PLAN_MESSAGE_LIMIT_REACHED } from "../lib/billing/message-quota.js";
 
 const DEFAULT_VISIBLE_FIELDS = {
   customerName: true, planName: true, startDate: true, endDate: true,
@@ -461,6 +464,29 @@ export async function processSallaEvent(payload) {
           [connection.tenantId, connection.id, event, syncResult.order.externalOrderId,
             `تم إنشاء الرابط ولم تُصف الرسالة: ${queued.reason}`]
         );
+        if (queued.reason === PLAN_MESSAGE_LIMIT_REACHED) {
+          const issueMessage = "تم إنشاء الطلب والرابط، لكن لم يتم إرسال الرسالة بسبب اكتمال حد رسائل الباقة.";
+          await recordOperationalIssue({
+            tenantId: connection.tenantId,
+            category: "message_quota",
+            source: "salla_order_sync",
+            sourceId: syncResult.order.externalOrderId,
+            severity: "warning",
+            message: issueMessage,
+            suggestedSolution: "قم بترقية الباقة أو انتظر بداية دورة الرسائل القادمة.",
+            metadata: { orderId: syncResult.order.externalOrderId, subscriptionId: syncResult.subscriptionId }
+          }).catch(() => null);
+          await createInAppNotification({
+            tenantId: connection.tenantId,
+            type: "message_usage_limit_reached",
+            title: "تم إنشاء الطلب دون إرسال الرسالة",
+            message: issueMessage,
+            priority: "high",
+            actionUrl: "/dashboard/billing",
+            metadata: { orderId: syncResult.order.externalOrderId },
+            dedupeKey: `salla-quota:${connection.tenantId}:${syncResult.order.externalOrderId}`
+          }).catch(() => null);
+        }
       }
     } else {
       await query(`INSERT INTO app_sync_logs

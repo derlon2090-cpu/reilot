@@ -10,7 +10,7 @@
   margin: 0;
   background: #f8fafc;
   color: #0f2654;
-  font-family: Arial, "Segoe UI", sans-serif;
+  font-family: "IBM Plex Sans Arabic", "Segoe UI", Arial, sans-serif;
 }
 
 .loginPage button,
@@ -23,26 +23,37 @@
 .brand {
   display: flex;
   align-items: center;
+  direction: ltr;
   gap: 10px;
   color: #0b2d6b;
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 800;
 }
 
-.brandMark,
 .introMark,
 .loginIcon {
   display: grid;
   place-items: center;
-  color: white;
-  background: linear-gradient(135deg, #06b6d4, #2563eb);
-  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.22);
 }
 
 .brandMark {
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
+  width: 44px;
+  height: 44px;
+  display: block;
+  object-fit: contain;
+}
+
+.brandLogo {
+  width: 168px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.brandWordmark {
+  font-family: "Poppins", "Arial Rounded MT Bold", Arial, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.9px;
 }
 
 .loginPage {
@@ -78,11 +89,12 @@
 .introMark {
   width: 150px;
   height: 150px;
-  border-radius: 42px;
-  font-size: 74px;
-  font-weight: 900;
   margin-bottom: 28px;
+  border-radius: 42px;
+  background: #edf5ff;
 }
+
+.introMark img { width: 124px; height: 124px; object-fit: contain; }
 
 .loginIntro h1 {
   margin: 0 0 14px;
@@ -132,9 +144,10 @@
   width: 62px;
   height: 62px;
   border-radius: 18px;
-  font-size: 28px;
-  font-weight: 900;
+  background: #edf5ff;
 }
+
+.loginIcon img { width: 54px; height: 54px; object-fit: contain; }
 
 .loginCard h2 {
   margin: 22px 0 8px;
@@ -269,10 +282,7 @@
   text-align: right;
   color: #38517d;
   background: transparent;
-}
-
-.sidebar nav button:disabled {
-  opacity: 0.62;
+  cursor: pointer;
 }
 
 .sidebar nav .activeNav {
@@ -438,6 +448,34 @@
   background: white;
 }
 
+.permissionCard {
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+}
+
+.permissionGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permissionGrid span {
+  min-height: 46px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  color: #176b58;
+  border: 1px solid #d7eee8;
+  border-radius: 9px;
+  background: #f2fbf8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .emptyState {
   min-height: 190px;
   display: grid;
@@ -515,14 +553,26 @@
     border-bottom: 1px solid #e2e8f0;
   }
 
-  .sidebar nav,
-  .sidebarNote {
-    display: none;
+  .sidebar nav {
+    margin-top: 14px;
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
+
+  .sidebar nav button {
+    min-width: max-content;
+    padding: 0 14px;
+  }
+
+  .sidebarNote { display: none; }
 
   .content {
     padding: 22px 16px;
   }
+
+  .permissionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -534,4 +584,6 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .permissionGrid { grid-template-columns: 1fr; }
 }

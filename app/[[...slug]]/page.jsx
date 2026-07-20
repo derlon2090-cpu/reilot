@@ -32,7 +32,7 @@ export default async function SpaPage({ params }) {
     <>
       <div id="app" />
       <div id="portal" />
-      <Script src="/app/app.js?v=20260718-link-session-v4" type="module" strategy="afterInteractive" />
+      <Script src="/app/app.js?v=20260720-apps-brand-v1" type="module" strategy="afterInteractive" />
     </>
   );
 }

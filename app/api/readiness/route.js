@@ -39,7 +39,7 @@ async function buildReport(req, testEmail) {
   const channel = channelResult.rows[0] || null;
   statuses.whatsapp = { ok: channel?.status === "connected", label: channel?.status || "not_connected", channel };
 
-  const resendConfigured = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY);
   statuses.resend = { ok: resendConfigured, label: resendConfigured ? "Configured" : "Not configured", tested: false };
   if (resendConfigured && testEmail) {
     try {

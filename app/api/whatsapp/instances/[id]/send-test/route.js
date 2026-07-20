@@ -6,6 +6,12 @@ import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { addWhatsAppActivity, ownedChannel } from "../../../../../../src/server/whatsapp-repository.js";
 import { query, transaction } from "../../../../../../src/server/db.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
+import {
+  PLAN_MESSAGE_LIMIT_REACHED,
+  consumeReservedQuotaWithClient,
+  releaseReservedQuota,
+  reserveMessageQuota
+} from "../../../../../../src/lib/billing/message-quota.js";
 
 export async function POST(req, { params }) {
   const auth = await requireSession(req);
@@ -25,6 +31,21 @@ export async function POST(req, { params }) {
     return Response.json({ ok: false, message: "Sending is blocked because the WhatsApp risk score is above 70" }, { status: 423 });
   }
 
+  let reservation;
+  try {
+    reservation = await reserveMessageQuota({
+      tenantId: auth.session.tenantId,
+      channelType: "whatsapp",
+      quantity: 1,
+      isBillable: true
+    });
+  } catch (error) {
+    if (error?.code === PLAN_MESSAGE_LIMIT_REACHED) {
+      return Response.json({ ok: false, code: PLAN_MESSAGE_LIMIT_REACHED, reason: PLAN_MESSAGE_LIMIT_REACHED, usage: error.usage, message: error.message }, { status: 409 });
+    }
+    throw error;
+  }
+
   let notificationLogId;
   try {
     const processingLog = await query(
@@ -34,6 +55,7 @@ export async function POST(req, { params }) {
     );
     notificationLogId = processingLog.rows[0]?.id;
   } catch (error) {
+    await releaseReservedQuota({ periodId: reservation.periodId }).catch(() => null);
     console.error("unable to create WhatsApp sending log", safeErrorMessage(error));
     return Response.json({ ok: false, code: "SEND_LOG_FAILED", message: "تعذر بدء إرسال رسالة الاختبار بأمان. حاول مرة أخرى." }, { status: 503 });
   }
@@ -45,6 +67,7 @@ export async function POST(req, { params }) {
     const errorMessage = safeErrorMessage(error);
     const timeout = isEvolutionTimeout(error);
     console.error("evolution test message failed", errorMessage);
+    await releaseReservedQuota({ periodId: reservation.periodId }).catch(() => null);
     if (timeout) {
       await query("UPDATE notification_logs SET error_message = $2 WHERE id = $1", [notificationLogId, "Provider response timed out; delivery verification is pending"]).catch(() => null);
       await recordOperationalIssue({ tenantId: auth.session.tenantId, category: "whatsapp_send", source: "send_test", sourceId: id, severity: "warning", message: errorMessage, suggestedSolution: "Verify delivery status before retrying to avoid a duplicate message.", metadata: { notificationLogId, status: "pending_verification" } }).catch(() => null);
@@ -63,12 +86,11 @@ export async function POST(req, { params }) {
         `UPDATE notification_logs SET provider_message_id = $2, status = 'sent', sent_at = now(), error_message = NULL WHERE id = $1`,
         [notificationLogId, providerMessageId]
       );
-      await client.query(
-        `INSERT INTO message_usage (tenant_id, month, year, used_messages, message_limit)
-         VALUES ($1, extract(month from current_date)::int, extract(year from current_date)::int, 1, 0)
-         ON CONFLICT (tenant_id, month, year) DO UPDATE SET used_messages = message_usage.used_messages + 1, updated_at = now()`,
-        [auth.session.tenantId]
-      );
+      await consumeReservedQuotaWithClient(client, {
+        periodId: reservation.periodId,
+        channelType: "whatsapp",
+        quantity: 1
+      });
     });
     await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "send_test_message", title: "WhatsApp test message sent", metadata: { providerMessageId: sent?.key?.id || sent?.id || null } });
     await resolveOperationalIssues({ tenantId: auth.session.tenantId, category: "whatsapp_send", sourceId: id });

@@ -1,5 +1,12 @@
 import { canSendSafely, warmupDailyLimit, whatsappHealthScore } from "../lib/messageSafety.js";
 import { nextSendingWindow, riskDisposition } from "../lib/deliveryScheduling.js";
+import {
+  PLAN_MESSAGE_LIMIT_REACHED,
+  consumeReservedQuotaWithClient,
+  getCurrentMessageUsage,
+  releaseReservedQuotaWithClient,
+  reserveMessageQuotaWithClient
+} from "../lib/billing/message-quota.js";
 import { query, transaction } from "./db.js";
 import { sendQueuedEmail } from "./email/resend.service.js";
 import { evolutionConnectionState, evolutionSendText } from "./evolution-client.js";
@@ -9,19 +16,26 @@ import { safeErrorMessage } from "./security.js";
 function renderTemplate(body, row) {
   return String(body || "مرحبًا {{customer_name}}، حان موعد تجديد اشتراكك.")
     .replace(/{{customer_name}}|{{name}}/g, row.customer_name || "عميلنا")
+    .replace(/{{اسم_العميل}}/g, row.customer_name || "عميلنا")
     .replace(/{{service_name}}/g, row.service_name || "الاشتراك")
+    .replace(/{{اسم_الخدمة}}/g, row.service_name || "الاشتراك")
     .replace(/{{plan_name}}/g, row.plan_name || "")
     .replace(/{{end_date}}/g, row.end_date ? String(row.end_date).slice(0, 10) : "")
-    .replace(/{{renewal_link}}/g, row.renewal_url || "");
+    .replace(/{{تاريخ_الانتهاء}}/g, row.end_date ? String(row.end_date).slice(0, 10) : "")
+    .replace(/{{الأيام_المتبقية}}/g, row.days_offset ?? "")
+    .replace(/{{renewal_link}}|{{رابط_التجديد}}/g, row.renewal_url || "")
+    .replace(/{{رقم_الطلب}}/g, row.order_number || "")
+    .replace(/{{اسم_المتجر}}/g, row.store_name || "Renvix");
 }
 
 export async function runRenewalReminders() {
   const candidates = await query(
-    `SELECT s.id AS subscription_id, s.tenant_id, s.customer_id, s.service_name, s.plan_name,
+    `SELECT s.id AS subscription_id, s.tenant_id, s.customer_id, s.order_number, s.service_name, s.plan_name,
             s.end_date, s.renewal_url, c.name AS customer_name, c.email,
             COALESCE(c.whatsapp_number, c.phone) AS phone,
             ar.id AS rule_id, ar.days_offset, lower(ar.channel) AS channel_type,
-            ar.template_id, nt.title, nt.body,
+            ar.template_id, nt.title, nt.body, nt.store_name, nt.theme_color,
+            nt.button_label, nt.footer_text, nt.template_version,
             wc.id AS whatsapp_channel_id
        FROM subscriptions s
        JOIN automation_rules ar ON ar.tenant_id = s.tenant_id AND ar.is_active = true
@@ -39,8 +53,33 @@ export async function runRenewalReminders() {
   let queued = 0;
   let skipped = 0;
   for (const row of candidates.rows) {
-    const channelType = ["whatsapp", "email", "sms"].includes(row.channel_type) ? row.channel_type : "whatsapp";
+    if (!['whatsapp', 'email'].includes(row.channel_type)) {
+      skipped++;
+      continue;
+    }
+    const channelType = row.channel_type;
     const messageBody = renderTemplate(row.body, row);
+    const subject = channelType === "email" ? renderTemplate(row.title || "تذكير بتجديد {{اسم_الخدمة}}", row) : null;
+    const templateSnapshot = channelType === "email" ? {
+      type: "renewal_email_v1",
+      version: Number(row.template_version || 1),
+      template: {
+        storeName: row.store_name || "Renvix",
+        title: row.title || "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
+        themeColor: row.theme_color || "#0EA5A8",
+        body: row.body,
+        buttonLabel: row.button_label || "جدد اشتراكك الآن",
+        footerText: row.footer_text || "شكرًا لثقتك بنا"
+      },
+      data: {
+        customerName: row.customer_name,
+        serviceName: row.service_name,
+        endDate: row.end_date ? String(row.end_date).slice(0, 10) : "",
+        remainingDays: row.days_offset,
+        renewalLink: row.renewal_url,
+        orderNumber: row.order_number
+      }
+    } : null;
     const result = await enqueueMessage({
       tenantId: row.tenant_id,
       subscriptionId: row.subscription_id,
@@ -51,8 +90,9 @@ export async function runRenewalReminders() {
       messageType: "renewal_reminder",
       destination: channelType === "email" ? row.email : row.phone,
       emailTo: channelType === "email" ? row.email : null,
-      subject: channelType === "email" ? (row.title || `تذكير بتجديد ${row.service_name}`) : null,
+      subject,
       messageBody,
+      templateSnapshot,
       referenceType: "subscription",
       referenceId: row.subscription_id,
       triggerKey: `${row.tenant_id}:${row.subscription_id}:renewal:${row.days_offset}:${channelType}`,
@@ -179,13 +219,7 @@ async function markSent(item, providerMessageId) {
         [item.whatsapp_channel_id]
       );
     }
-    await client.query(
-      `INSERT INTO message_usage (tenant_id, month, year, used_messages, message_limit)
-       VALUES ($1, extract(month from current_date)::int, extract(year from current_date)::int, 1, 0)
-       ON CONFLICT (tenant_id, month, year)
-       DO UPDATE SET used_messages = message_usage.used_messages + 1, updated_at = now()`,
-      [item.tenant_id]
-    );
+    await consumeReservedQuotaWithClient(client, { queueId: item.id });
     await client.query(
       `INSERT INTO activity_logs (tenant_id, customer_id, type, title, metadata)
        VALUES ($1,$2,'message.sent','Message sent from secure queue',$3::jsonb)`,
@@ -197,21 +231,24 @@ async function markSent(item, providerMessageId) {
 async function markFailed(item, error) {
   const lastError = safeErrorMessage(error);
   const nextStatus = Number(item.attempts || 0) + 1 >= Number(item.max_attempts || 3) ? "failed" : "pending";
-  await query(
-    `UPDATE message_queue
-        SET status = $2, attempts = attempts + 1, last_error = $3, safety_status = 'failed',
-            scheduled_for = now() + (power(2, attempts + 1)::text || ' minutes')::interval, updated_at = now()
-      WHERE id = $1`,
-    [item.id, nextStatus, lastError]
-  );
-  if (item.channel_type === "whatsapp" && item.whatsapp_channel_id) {
-    await query(
-      `UPDATE whatsapp_channels SET consecutive_failures = consecutive_failures + 1,
-              last_failed_send_at = now(), last_send_at = now(), last_error = $2, updated_at = now()
+  await transaction(async (client) => {
+    await client.query(
+      `UPDATE message_queue
+          SET status = $2, attempts = attempts + 1, last_error = $3, safety_status = 'failed',
+              scheduled_for = now() + (power(2, attempts + 1)::text || ' minutes')::interval, updated_at = now()
         WHERE id = $1`,
-      [item.whatsapp_channel_id, lastError]
+      [item.id, nextStatus, lastError]
     );
-  }
+    if (nextStatus === "failed") await releaseReservedQuotaWithClient(client, { queueId: item.id });
+    if (item.channel_type === "whatsapp" && item.whatsapp_channel_id) {
+      await client.query(
+        `UPDATE whatsapp_channels SET consecutive_failures = consecutive_failures + 1,
+                last_failed_send_at = now(), last_send_at = now(), last_error = $2, updated_at = now()
+          WHERE id = $1`,
+        [item.whatsapp_channel_id, lastError]
+      );
+    }
+  });
 }
 
 export async function runMessageRetry() {
@@ -224,10 +261,43 @@ export async function runMessageRetry() {
         ORDER BY mq.priority, mq.scheduled_for
         FOR UPDATE OF mq SKIP LOCKED LIMIT 20`
     );
-    for (const item of locked.rows) {
+    const ready = [];
+    const ordered = [...locked.rows].sort((a, b) => String(a.tenant_id).localeCompare(String(b.tenant_id)));
+    for (const item of ordered) {
+      if (item.is_billable === false && item.quota_status !== "not_billable") {
+        await client.query("UPDATE message_queue SET quota_status = 'not_billable', updated_at = now() WHERE id = $1", [item.id]);
+      } else if (item.is_billable !== false && item.quota_status === "not_reserved") {
+        try {
+          const quota = await reserveMessageQuotaWithClient(client, {
+            tenantId: item.tenant_id,
+            channelType: item.channel_type,
+            quantity: 1,
+            isBillable: true
+          });
+          await client.query(
+            `UPDATE message_queue
+                SET quota_status = 'reserved', quota_period_id = $2,
+                    quota_period_start = $3, quota_period_end = $4,
+                    quota_reserved_at = now(), updated_at = now()
+              WHERE id = $1`,
+            [item.id, quota.periodId, quota.periodStart, quota.periodEnd]
+          );
+        } catch (error) {
+          if (error?.code !== PLAN_MESSAGE_LIMIT_REACHED) throw error;
+          await client.query(
+            `UPDATE message_queue
+                SET status = 'skipped', safety_status = 'blocked', safety_reason = $2,
+                    last_error = $2, updated_at = now()
+              WHERE id = $1`,
+            [item.id, PLAN_MESSAGE_LIMIT_REACHED]
+          );
+          continue;
+        }
+      }
       await client.query("UPDATE message_queue SET status = 'processing', updated_at = now() WHERE id = $1", [item.id]);
+      ready.push(item);
     }
-    return locked.rows;
+    return ready;
   });
 
   let sent = 0;
@@ -257,7 +327,12 @@ export async function runMessageRetry() {
       if (item.channel_type === "whatsapp") {
         provider = await evolutionSendText(item.instance_name, item.destination, item.message_body);
       } else if (item.channel_type === "email") {
-        provider = await sendQueuedEmail({ to: item.email_to, subject: item.subject, text: item.message_body });
+        provider = await sendQueuedEmail({
+          to: item.email_to,
+          subject: item.subject,
+          text: item.message_body,
+          templateSnapshot: item.template_snapshot
+        });
       } else {
         throw new Error("SMS provider is not configured");
       }
@@ -335,16 +410,14 @@ export async function runWhatsAppHealthCheck() {
 }
 
 export async function runUsageReset() {
-  const result = await query(
-    `INSERT INTO message_usage (tenant_id, month, year, used_messages, message_limit)
-     SELECT t.id, extract(month from current_date)::int, extract(year from current_date)::int, 0, COALESCE(pp.message_limit, 50)
-       FROM tenants t
-       LEFT JOIN platform_subscriptions ps ON ps.tenant_id = t.id AND ps.status IN ('trial', 'active')
-       LEFT JOIN platform_plans pp ON pp.id = ps.plan_id
-     ON CONFLICT (tenant_id, month, year) DO NOTHING RETURNING id`
-  );
+  const tenants = await query("SELECT id FROM tenants WHERE status <> 'disabled' ORDER BY created_at");
+  let ensured = 0;
+  for (const tenant of tenants.rows) {
+    await getCurrentMessageUsage(tenant.id);
+    ensured++;
+  }
   await query("UPDATE whatsapp_channels SET daily_sent = 0, hourly_sent = 0 WHERE daily_sent <> 0 OR hourly_sent <> 0");
-  return { created: result.rowCount };
+  return { ensured };
 }
 
 export async function runCleanup() {

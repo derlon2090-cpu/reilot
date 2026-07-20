@@ -424,6 +424,7 @@ state.operationalIssues = null;
 state.whatsappHealth = null;
 state.notificationTemplate = null;
 state.billingOverview = null;
+state.messageUsage = null;
 state.appsOverview = null;
 state.sallaRuleDrafts = null;
 state.sallaSettingsOpen = false;
@@ -529,6 +530,8 @@ async function fetchJson(url, options = {}) {
     const error = new Error(payload.message || payload.error || "Request failed");
     error.status = response.status;
     error.code = payload.code || payload.reason;
+    error.payload = payload;
+    error.usage = payload.usage || null;
     throw error;
   }
   return payload;
@@ -571,6 +574,7 @@ async function loadRemotePage(key, url, target, options) {
 
 function syncRouteData(force = false) {
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
+  if (state.route.startsWith("/dashboard") && (force || state.messageUsage === null)) void loadRemotePage("messageUsage", "/api/billing/message-usage", "messageUsage");
   if (state.route.startsWith("/dashboard") && (force || state.notifications === null)) {
     const notificationLimit = state.route === "/dashboard/notifications" ? 50 : 8;
     void loadRemotePage("notifications", `/api/notifications?limit=${notificationLimit}`, "notifications");
@@ -697,16 +701,14 @@ function logo() {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-mark-image" src="/assets/renvix-mark.png" alt="">
-    <span class="brand-wordmark">${escapeHtml(appName)}</span>
+    <img class="brand-logo-image" src="/assets/renewpilot-logo-horizontal.png" alt="${escapeHtml(appName)}">
   </button>`;
 }
 
 function stackedLogo() {
   const appName = t("app.name") || "Renvix";
   return `<div class="brand-logo-stacked" role="img" aria-label="${escapeHtml(appName)}">
-    <img class="brand-mark-image" src="/assets/renvix-mark.png" alt="">
-    <strong class="brand-wordmark">${escapeHtml(appName)}</strong>
+    <img class="brand-logo-image" src="/assets/renewpilot-logo-horizontal.png" alt="${escapeHtml(appName)}">
   </div>`;
 }
 
@@ -1291,6 +1293,46 @@ function dashboardShell(content) {
   </div>`;
 }
 
+function messageUsageTone(usage = {}) {
+  if (usage.isLimitReached || Number(usage.percentage) >= 100) return "reached";
+  if (Number(usage.percentage) >= 90) return "critical";
+  if (Number(usage.percentage) >= 70) return "near";
+  return "normal";
+}
+
+function messageUsageCard(usage, compact = false) {
+  if (usage === null) return `<article class="card message-usage-card loading"><div class="loading-state">جاري تحميل استخدام الرسائل...</div></article>`;
+  if (usage?.error) return `<article class="card message-usage-card error">${emptyState("تعذر تحميل استخدام الرسائل", escapeHtml(usage.error))}</article>`;
+  const unlimited = usage.unlimited === true || Number(usage.limit) === -1;
+  const used = Number(usage.used || 0);
+  const reserved = Number(usage.reserved || 0);
+  const consumed = used + reserved;
+  const limit = Number(usage.limit || 0);
+  const remaining = unlimited ? -1 : Math.max(0, Number(usage.remaining || 0));
+  const percentage = unlimited ? 0 : Math.min(100, Math.max(0, Number(usage.percentage || 0)));
+  const tone = messageUsageTone(usage);
+  const statusText = tone === "reached" ? "تم استهلاك حد الرسائل" : tone === "critical" ? "أوشكت الرسائل على النفاد" : tone === "near" ? "اقتربت من حد الرسائل" : "استخدام طبيعي";
+  return `<article class="card message-usage-card ${tone} ${compact ? "compact" : ""}">
+    <div class="message-usage-head"><span class="message-usage-icon">${dashboardIcon("reports")}</span><div><h2>استخدام الرسائل</h2><p>${escapeHtml(usage.planName || "الباقة الحالية")} · هذه الدورة</p></div><span class="status ${tone === "reached" ? "danger" : tone === "normal" ? "info" : "warning"}">${statusText}</span></div>
+    <div class="message-usage-numbers"><strong>${consumed.toLocaleString("ar-SA")} / ${unlimited ? "غير محدود" : limit.toLocaleString("ar-SA")}</strong><span>${unlimited ? "إرسال غير محدود" : `متبقي ${remaining.toLocaleString("ar-SA")} رسالة`}</span></div>
+    <div class="message-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}"><i style="width:${unlimited ? 100 : percentage}%"></i></div>
+    <div class="message-usage-meta"><span>مرسلة: ${used.toLocaleString("ar-SA")}</span><span>محجوزة: ${reserved.toLocaleString("ar-SA")}</span>${unlimited ? "" : `<span>${percentage.toLocaleString("ar-SA")}%</span>`}${!compact && usage.periodEnd ? `<span>إعادة التعيين: ${new Date(usage.periodEnd).toLocaleDateString("ar-SA")}</span>` : ""}</div>
+    ${tone === "reached" ? `<div class="message-limit-alert"><div><strong>استهلكت جميع رسائل باقتك لهذه الدورة.</strong><p>قم بترقية الباقة للاستمرار في الإرسال.</p></div><button class="btn btn-danger" data-link="/dashboard/billing">عرض الباقات</button></div>` : ""}
+  </article>`;
+}
+
+function showMessageQuotaLimit(usage = null) {
+  const limit = Number(usage?.limit || state.messageUsage?.limit || 0);
+  const limitText = limit === -1 ? "غير محدود" : `${limit.toLocaleString("ar-SA")} رسالة`;
+  openModal("وصلت إلى حد الرسائل", `<div class="quota-limit-modal">${dashboardIcon("reports")}<p>وصلت إلى الحد الشهري لرسائل باقتك.</p><p>باقتك الحالية تسمح بـ <strong>${limitText}</strong> في كل دورة. قم بترقية الباقة أو انتظر بداية الدورة القادمة.</p><button class="btn btn-danger" data-link="/dashboard/billing">الانتقال إلى الفوترة والباقات</button></div>`);
+}
+
+function invalidateMessageUsage() {
+  state.messageUsage = null;
+  state.billingOverview = null;
+  syncRouteData(true);
+}
+
 function dashboardHome() {
   const stats = overviewStats();
   const latest = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions.slice(0, 5) : [];
@@ -1311,6 +1353,7 @@ function dashboardHome() {
       { title: "حالة واتساب", value: stats.connectedDevices > 0 ? "متصل" : "غير متصل", caption: `${stats.connectedDevices} جهاز`, tone: stats.connectedDevices > 0 ? "success" : "neutral", icon: "devices" },
       { title: "معدل التسليم", value: `${stats.deliveryRate || 0}%`, caption: `${stats.totalMessages || 0} رسالة`, tone: "purple", icon: "reports" }
     ])}
+    <section class="section">${messageUsageCard(state.messageUsage, true)}</section>
     <section class="quick-actions section"><div class="section-head"><div><h2>إجراءات سريعة</h2><p class="muted">ابدأ المهمة مباشرة من هنا.</p></div></div><div class="quick-action-grid">
       <button class="quick-action" data-action="add-subscription">${dashboardIcon("subscriptions")}<span>إضافة اشتراك جديد</span></button>
       <button class="quick-action" data-action="add-customer">${dashboardIcon("customers")}<span>إضافة عميل</span></button>
@@ -1413,6 +1456,57 @@ function appsPage() {
       <div class="salla-rules-actions"><button class="btn btn-primary" data-action="save-salla-settings">حفظ الإعدادات</button><button class="btn btn-secondary" data-action="close-salla-settings">إلغاء</button></div>
     </div><aside class="salla-live-preview" style="--salla-preview:${previewColor}"><span class="preview-label">معاينة مباشرة</span><img src="/assets/salla-logo.svg" alt="سلة"><h3>${escapeHtml(settings.storeDisplayName || settings.storeName || "متجرك")}</h3><div class="preview-order"><span>طلب حقيقي بعد المزامنة</span><strong>رقم الطلب</strong><small>القالب: ${escapeHtml(selectedTemplate?.name || "قالب سلة الافتراضي")}</small></div><p>المعاينة للشكل فقط؛ البيانات الفعلية تأتي من سلة.</p></aside></div>
   </section>` : "";
+  if (!connected) {
+    const statCards = [
+      { title: "التطبيقات المتاحة", value: stats.availableApps || 0, caption: "يمكن ربطها بحسابك", tone: "success", icon: "apps" },
+      { title: "التطبيقات المرتبطة", value: stats.connectedApps || 0, caption: "لا يوجد تطبيق مرتبط", tone: "purple", icon: "customers" },
+      { title: "آخر مزامنة", value: "—", caption: "لا توجد مزامنة حتى الآن", tone: "warning", icon: "reports" },
+      { title: "الرسائل المرسلة", value: 0, caption: "لم يتم إرسال أي رسالة", tone: "info", icon: "notifications" }
+    ];
+    const benefits = [
+      ["subscriptions", "مزامنة الطلبات", "زامن الطلبات الجديدة والمحدثة تلقائيًا"],
+      ["customers", "إنشاء العملاء تلقائيًا", "أنشئ ملف العميل في النظام تلقائيًا"],
+      ["apps", "ربط المنتج بالباقة", "اربط المنتجات بخطط الاشتراك والتجديد"],
+      ["template", "إرسال رابط معلومات الطلب", "أرسل رابطًا آمنًا يحتوي على معلومات العميل والطلب"]
+    ];
+    return dashboardShell(`${pageTitle("تطبيقاتنا")}
+      <section class="apps-overview-stats" aria-label="ملخص التطبيقات">${statCards.map((item) => `<article class="apps-overview-stat ${item.tone}"><span class="apps-stat-icon">${dashboardIcon(item.icon)}</span><div><strong>${item.title}</strong><b>${item.value}</b><small>${item.caption}</small></div></article>`).join("")}</section>
+      <section class="apps-catalog" aria-label="التطبيقات المتاحة للربط">
+        <article class="integration-card integration-card--featured">
+          <div class="integration-card-head"><span class="integration-logo integration-logo--salla"><img src="/assets/salla-logo.svg" alt="شعار سلة"></span><span class="recommended-badge">الأكثر تكاملًا</span></div>
+          <h2>سلة</h2><p class="integration-subtitle">منصة التجارة الإلكترونية السعودية</p>
+          <p class="integration-description">اربط متجرك على سلة لمزامنة الطلبات والعملاء والاشتراكات تلقائيًا.</p>
+          <span class="integration-status disconnected"><i></i> غير مربوط</span>
+          <ul class="integration-features"><li>مزامنة الطلبات تلقائيًا</li><li>إنشاء العملاء تلقائيًا</li><li>ربط المنتج بالباقة</li><li>إرسال رابط معلومات الطلب</li></ul>
+          <button class="btn btn-primary integration-action" data-action="connect-salla" ${data.configured ? "" : "disabled"}>ربط سلة</button>
+          ${!data.configured ? `<small class="integration-config-note">الربط بانتظار تهيئة بيانات سلة الآمنة على الخادم.</small>` : ""}
+        </article>
+        <article class="integration-card">
+          <div class="integration-card-head"><span class="integration-logo integration-logo--zid" aria-hidden="true">زد</span></div>
+          <h2>زد</h2><p class="integration-subtitle">منصة التجارة الإلكترونية زد</p>
+          <p class="integration-description">اربط متجرك على زد لمزامنة الطلبات والعملاء والاشتراكات.</p>
+          <span class="integration-status disconnected"><i></i> غير مربوط</span>
+          <ul class="integration-features"><li>مزامنة الطلبات تلقائيًا</li><li>إنشاء العملاء تلقائيًا</li><li>ربط المنتج بالباقة</li><li>إرسال رابط معلومات الطلب</li></ul>
+          <button class="btn btn-secondary integration-action" data-action="integration-coming-soon" data-integration="زد">ربط الآن</button>
+        </article>
+        <article class="integration-card">
+          <div class="integration-card-head"><span class="integration-logo integration-logo--api" aria-hidden="true">&lt;/&gt;</span></div>
+          <h2 dir="ltr">API / Webhook</h2><p class="integration-subtitle">تطبيق مخصص</p>
+          <p class="integration-description">اربط نظامك الخاص عبر API أو Webhook لتحكم كامل في التكامل.</p>
+          <span class="integration-status disconnected"><i></i> غير مربوط</span>
+          <ul class="integration-features"><li>تكامل مخصص عبر API</li><li>إمكانية Webhooks</li><li>إرسال واستقبال البيانات</li><li>توثيق شامل ومرن</li></ul>
+          <button class="btn btn-secondary integration-action" data-action="integration-coming-soon" data-integration="API / Webhook">إعداد الربط</button>
+        </article>
+        <article class="integration-empty-card">
+          <div class="integration-empty-art" aria-hidden="true"><span>◇</span><i></i><i></i><i></i></div>
+          <h2>لم تربط أي تطبيق بعد</h2>
+          <p>اربط تطبيقاتك لبدء أتمتة الطلبات وإدارة اشتراكات عملائك بكفاءة أعلى.</p>
+          <div><button class="btn btn-secondary" data-action="integration-guide">عرض دليل الربط</button><button class="btn btn-primary" data-action="connect-salla">ربط سلة</button></div>
+          <small>تحتاج مساعدة في الربط؟ <button data-link="/support">تواصل مع الدعم</button></small>
+        </article>
+      </section>
+      <section class="apps-benefits card"><div class="apps-benefits-title"><span>☆</span><div><h2>مزايا ربط التطبيقات</h2><p>اربط تطبيقاتك واستمتع بأتمتة كاملة لعملياتك وتقليل الجهد اليدوي.</p></div></div><div class="apps-benefits-grid">${benefits.map(([icon,title,description]) => `<article><span>${dashboardIcon(icon)}</span><div><strong>${title}</strong><small>${description}</small></div></article>`).join("")}</div></section>`);
+  }
   return dashboardShell(`${pageTitle("تطبيقاتنا")}
     ${statGrid([{ title: "التطبيقات المتاحة", value: stats.availableApps || 0, caption: "تطبيق", icon: "apps" }, { title: "التطبيقات المرتبطة", value: stats.connectedApps || 0, caption: "اتصال", tone: "success", icon: "apps" }, { title: "آخر مزامنة", value: stats.lastSyncAt ? new Date(stats.lastSyncAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "لا يوجد", caption: "تحديث البيانات", tone: "warning", icon: "reports" }, { title: "طلبات تمت مزامنتها", value: stats.syncedOrders || 0, caption: "طلب حقيقي", tone: "purple", icon: "subscriptions" }])}
     <section class="card salla-app-card section"><div class="salla-card-head"><div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="/assets/salla-logo.svg" alt="سلة"></span><div><h2>سلة</h2><p>منصة التجارة الإلكترونية السعودية</p></div></div><span class="status ${connected ? "success" : connection?.status === "error" || connection?.status === "expired" ? "danger" : "neutral"}">${statusLabel}</span></div><p class="salla-app-description">اربط متجر سلة عبر OAuth لمزامنة الطلبات والعملاء والاشتراكات دون نسخ التوكنات إلى المتصفح.</p>${connected ? `<div class="salla-connected-meta"><div><span>المتجر</span><strong>${escapeHtml(connection.storeName || "-")}</strong></div><div><span>آخر مزامنة</span><strong>${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة"}</strong></div></div><div class="salla-header-actions"><button class="btn btn-primary" data-action="open-salla-settings">إعدادات الربط</button><button class="btn btn-secondary" data-action="sync-salla-now">مزامنة الآن</button><button class="btn btn-secondary" data-action="show-salla-logs">عرض السجلات</button><button class="btn btn-ghost danger-text" data-action="disconnect-salla">فصل الربط</button></div>` : `<div class="salla-header-actions"><button class="btn btn-primary" data-action="connect-salla" ${data.configured ? "" : "disabled"} title="${data.configured ? "ربط سلة" : "إعدادات OAuth لسلة غير مكتملة على الخادم"}">ربط سلة</button></div>${!data.configured ? `<p class="inline-notice warning">تكامل سلة بانتظار إضافة بيانات OAuth الآمنة في الخادم.</p>` : ""}`}</section>
@@ -1721,22 +1815,116 @@ function devicesWorkspacePage() {
     </section>`);
 }
 
+const localDefaultEmailTemplate = {
+  name: "تذكير بتجديد الاشتراك",
+  channel: "email",
+  storeName: "متجر النجاح",
+  title: "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
+  themeColor: "#0EA5A8",
+  body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
+  buttonLabel: "جدد اشتراكك الآن",
+  footerText: "شكرًا لثقتك بنا"
+};
+
+function safeEmailTheme(value) {
+  return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#0EA5A8";
+}
+
+function sampleEmailValue(value) {
+  const samples = {
+    اسم_العميل: "أحمد محمد",
+    اسم_الخدمة: "الباقة الاحترافية",
+    تاريخ_الانتهاء: new Intl.DateTimeFormat("ar-SA").format(new Date(Date.now() + 7 * 86400000)),
+    الأيام_المتبقية: "7",
+    رابط_التجديد: "https://renvix.app/renew/test",
+    رقم_الطلب: "RVX-1024",
+    اسم_المتجر: "متجر النجاح"
+  };
+  return String(value || "").replace(/{{\s*([^{}]+?)\s*}}/g, (match, name) => samples[name] ?? match);
+}
+
+function emailTemplatePreview(template) {
+  const theme = safeEmailTheme(template.themeColor);
+  const storeName = sampleEmailValue(template.storeName || localDefaultEmailTemplate.storeName);
+  const subject = sampleEmailValue(template.title || localDefaultEmailTemplate.title);
+  const content = sampleEmailValue(template.body || localDefaultEmailTemplate.body);
+  const buttonLabel = sampleEmailValue(template.buttonLabel || localDefaultEmailTemplate.buttonLabel);
+  const footerText = sampleEmailValue(template.footerText || localDefaultEmailTemplate.footerText);
+  const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
+  return `<div class="email-envelope" style="--email-theme:${theme}">
+    <div class="email-preview-brand"><span class="email-store-icon">⌑</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
+    <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">♢ بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♡</p></div>
+    <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
+  </div>`;
+}
+
+function readEmailTemplateForm(form = document.querySelector("form[data-submit='renewal-template']")) {
+  if (!form) return { ...localDefaultEmailTemplate };
+  const data = Object.fromEntries(new FormData(form));
+  return {
+    name: data.name || "",
+    channel: "email",
+    storeName: data.storeName || "",
+    title: data.title || "",
+    themeColor: safeEmailTheme(data.themeColor),
+    body: data.body || "",
+    buttonLabel: data.buttonLabel || "",
+    footerText: data.footerText || "",
+    daysOffset: Number(data.daysOffset || 7),
+    isActive: data.isActive === "on"
+  };
+}
+
+function refreshEmailTemplatePreview() {
+  const preview = document.querySelector("[data-email-preview]");
+  if (preview) preview.innerHTML = emailTemplatePreview(readEmailTemplateForm());
+}
+
 function renewalTemplatePage() {
   const payload = state.notificationTemplate || {};
-  const template = payload.template || {};
-  const rule = payload.rule || {};
+  const templates = Array.isArray(payload.templates) ? payload.templates : (payload.template ? [payload.template] : []);
+  const rules = Array.isArray(payload.rules) ? payload.rules : (payload.rule ? [payload.rule] : []);
+  const channel = state.templateChannel || payload.template?.channel || "whatsapp";
+  const defaults = { ...localDefaultEmailTemplate, ...(payload.defaultEmailTemplate || {}) };
+  const storedTemplate = templates.find((item) => item.channel === channel);
+  const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
+  const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
   const body = template.body || "";
-  const channel = template.channel || "whatsapp";
   const isWhatsappReady = overviewStats().connectedDevices > 0;
-  const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;
+  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option><option value="sms" disabled>الرسائل النصية SMS — قريبًا</option></select></label>`;
+
+  if (channel === "whatsapp") {
+    const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;
+    return dashboardShell(`${pageTitle("قالب رسالة التجديد")}
+      <p class="page-kicker">أنشئ وخصص رسالة التجديد التي سيتم إرسالها للعملاء قبل انتهاء اشتراكاتهم.</p>
+      <section class="template-workspace"><article class="card template-editor-card"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر محتوى الرسالة باستخدام المتغيرات الذكية.</p></div>${dashboardIcon("template")}</div><form data-submit="renewal-template" class="grid">
+        <div class="template-meta-grid"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" placeholder="مثال: تذكير قبل التجديد"></label>${channelSelect}</div>
+        <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>النص</span></div><textarea class="textarea template-editor" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{renewal_link}}"].map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
+        <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
+        <div class="template-actions"><button class="btn btn-primary">حفظ القالب</button><button type="button" class="btn btn-secondary" data-action="test-template" ${!isWhatsappReady ? "disabled title=\"اربط جهازًا أولًا حتى تتمكن من إرسال رسالة تجريبية.\"" : ""}>إرسال رسالة تجريبية</button></div></form></article>
+        <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">اليوم</span><div class="message-bubble">${preview}<small>10:30 ✓✓</small></div></div><p class="preview-note">هذه معاينة تقريبية، وقد يختلف مظهر الرسالة حسب قناة الإرسال.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>واتساب</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
+      </section>`);
+  }
+
+  const colors = ["#0EA5A8", "#2563EB", "#7C3AED", "#22C55E", "#F97316", "#64748B"];
+  const variables = ["{{اسم_العميل}}", "{{اسم_الخدمة}}", "{{تاريخ_الانتهاء}}", "{{الأيام_المتبقية}}", "{{رابط_التجديد}}", "{{رقم_الطلب}}", "{{اسم_المتجر}}"];
   return dashboardShell(`${pageTitle("قالب رسالة التجديد")}
-    <p class="page-kicker">أنشئ وخصص رسالة التجديد التي سيتم إرسالها للعملاء قبل انتهاء اشتراكاتهم.</p>
-    <section class="template-workspace"><article class="card template-editor-card"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر محتوى الرسالة باستخدام المتغيرات الذكية.</p></div>${dashboardIcon("template")}</div><form data-submit="renewal-template" class="grid">
-      <div class="template-meta-grid"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" placeholder="مثال: تذكير قبل التجديد"></label><label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option><option value="sms" ${channel === "sms" ? "selected" : ""}>الرسائل النصية SMS</option></select></label></div>
-      <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>النص</span></div><textarea class="textarea template-editor" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{renewal_link}}"].map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
-      <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
-      <div class="template-actions"><button class="btn btn-primary">حفظ القالب</button><button type="button" class="btn btn-secondary" data-action="test-template" ${channel === "whatsapp" && !isWhatsappReady ? "disabled title=\"اربط جهازًا أولًا حتى تتمكن من إرسال رسالة تجريبية.\"" : ""}>إرسال رسالة تجريبية</button></div></form></article>
-      <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">اليوم</span><div class="message-bubble">${preview}<small>10:30 ✓✓</small></div></div><p class="preview-note">هذه معاينة تقريبية، وقد يختلف مظهر الرسالة حسب قناة الإرسال.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>${channel === "whatsapp" ? "واتساب" : channel === "email" ? "البريد الإلكتروني" : "SMS"}</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
+    <p class="page-kicker">خصص رسالة البريد التي ستصل للعميل قبل انتهاء اشتراكه، من داخل صفحة القالب الحالية.</p>
+    <section class="email-template-layout">
+      <article class="card template-editor-card email-template-editor"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر بريد آمن مع متغيرات معتمدة ومعاينة مطابقة للقالب المرسل.</p></div>${dashboardIcon("template")}</div>
+        <form data-submit="renewal-template" class="grid">
+          <div class="email-template-meta"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName)}" required></label>${channelSelect}</div>
+          <label class="field"><span>عنوان البريد</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title)}" required></label>
+          <div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div>
+          <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص آمن</span></div>
+          <textarea class="textarea template-editor email-content-editor" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body)}</textarea>
+          <div class="variables-row email-variables"><span>المتغيرات المتاحة</span>${variables.map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
+          <div class="template-meta-grid"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel)}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText)}" required></label></div>
+          <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
+          <div class="email-template-actions"><button class="btn btn-primary">حفظ القالب ✓</button><button type="button" class="btn btn-secondary" data-action="test-template">إرسال رسالة تجريبية</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة</button><button type="button" class="btn btn-ghost" data-action="restore-email-template">استعادة الافتراضي</button></div>
+        </form>
+      </article>
+      <aside class="template-side email-preview-side"><article class="card template-preview-card"><div class="section-head"><div><h2>معاينة القالب</h2><p>هذه معاينة تقريبية لما سيصل إلى البريد الإلكتروني.</p></div>${dashboardIcon("reports")}</div><div class="email-header-preview"><span>من: <b>Renvix &lt;noreply@notify.renvix.app&gt;</b></span><span>الرد إلى: <b>support@renvix.app</b></span></div><div data-email-preview>${emailTemplatePreview(template)}</div></article><article class="card email-safety-card"><strong>إرسال آمن وموثوق</strong><p>يُثبّت عنوان المرسل والرد من الخادم، ويُمنع HTML والسكربتات والروابط غير الآمنة.</p></article></aside>
     </section>`);
 }
 
@@ -2096,7 +2284,7 @@ function billingWorkspacePage() {
   const data = state.billingOverview || {};
   const current = data.current || {};
   const plans = data.plans || [];
-  const usage = data.usage || { usedMessages: 0, messageLimit: 0 };
+  const usage = state.messageUsage && !state.messageUsage.error ? state.messageUsage : data.usage || null;
   const storage = data.storage || { usedMb: 0, limitMb: 100, percent: 0 };
   const days = current.currentPeriodEnd ? Math.max(0, Math.ceil((new Date(current.currentPeriodEnd) - Date.now()) / 86400000)) : 0;
   const invoices = data.invoices || [];
@@ -2105,8 +2293,9 @@ function billingWorkspacePage() {
       { title: "مساحة التخزين", value: `${storage.usedMb} / ${storage.limitMb} MB`, caption: `${storage.percent}% مستخدم`, tone: "info", icon: "billing" },
       { title: "الأيام المتبقية", value: days, caption: current.currentPeriodEnd ? `حتى ${new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA")}` : "لا توجد دورة نشطة", tone: "purple", icon: "template" },
       { title: "الخطة الحالية", value: current.planName || "تجربة مجانية", caption: current.status || "trial", tone: "success", icon: "subscriptions" },
-      { title: "استخدام الرسائل", value: `${Number(usage.usedMessages || 0).toLocaleString("ar-SA")} / ${Number(usage.messageLimit || 0).toLocaleString("ar-SA")}`, caption: "من قاعدة البيانات", tone: "info", icon: "reports" }
+      { title: "استخدام الرسائل", value: usage ? `${Number(usage.used || 0) + Number(usage.reserved || 0)} / ${Number(usage.limit || 0) === -1 ? "∞" : Number(usage.limit || 0).toLocaleString("ar-SA")}` : "—", caption: usage ? `متبقي ${Number(usage.remaining || 0) === -1 ? "غير محدود" : Number(usage.remaining || 0).toLocaleString("ar-SA")}` : "جاري التحميل", tone: messageUsageTone(usage || {}) === "reached" ? "danger" : messageUsageTone(usage || {}) === "normal" ? "info" : "warning", icon: "reports" }
     ])}
+    <section class="section billing-message-usage">${messageUsageCard(usage)}</section>
     <section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات المتاحة فعليًا في منصة Renvix.</p></div></div>${plans.length ? `<div class="dashboard-plan-grid">${plans.map((plan) => `<article class="dashboard-plan ${plan.slug === current.planSlug ? "current" : ""}"><span class="status ${plan.slug === current.planSlug ? "success" : "info"}">${plan.slug === current.planSlug ? "خطتك الحالية" : "متاحة"}</span><h3>${escapeHtml(plan.name)}</h3><p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p><ul class="check-list"><li>${Number(plan.messageLimit || 0).toLocaleString("ar-SA")} رسالة</li><li>${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل</li><li>${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} جهاز واتساب</li><li>${Number(plan.storageLimitMb || 100).toLocaleString("ar-SA")} MB تخزين</li></ul><button class="btn ${plan.slug === current.planSlug ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${plan.slug === current.planSlug ? "عرض تفاصيل الخطة" : "اختيار الباقة"}</button></article>`).join("")}</div>` : emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support")}</article>
       <aside class="billing-side"><article class="card wallet-card"><h2>شحن المحفظة</h2><p>الدفع الإلكتروني غير مفعّل في هذه البيئة حاليًا.</p><button class="btn btn-primary" data-link="/support">طلب مساعدة في الشحن</button></article><article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>تاريخ التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>
     <article class="card table-card section"><div class="section-head"><div><h2>آخر الفواتير</h2><p>لا تظهر إلا الفواتير المسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد ربط مزود الدفع وإصدار أول فاتورة.")}</article>`);
@@ -2654,6 +2843,8 @@ async function handleAction(target) {
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
   if (action === "connect-salla") window.location.href = "/api/apps/salla/connect";
+  if (action === "integration-coming-soon") toast(`تكامل ${target.dataset.integration || "هذا التطبيق"} قيد التجهيز وسيُتاح قريبًا.`, "info");
+  if (action === "integration-guide") openModal("دليل ربط التطبيقات", `<div class="integration-guide"><p>اختر التطبيق المطلوب ثم اضغط زر الربط. عند اختيار سلة ستنتقل إلى صفحة التفويض الآمنة، وبعد الموافقة تعود تلقائيًا إلى Renvix وتبدأ المزامنة.</p><ol><li>تأكد أن حساب المتجر يملك صلاحية إدارة التطبيقات.</li><li>اضغط «ربط سلة» وأكمل الموافقة داخل سلة.</li><li>ارجع إلى هذه الصفحة واضبط خيارات المزامنة.</li></ol></div>`, `<button class="btn btn-primary" data-action="connect-salla">ربط سلة</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   if (action === "open-salla-settings") { state.sallaSettingsOpen = true; state.sallaRuleDrafts = null; render(); }
   if (action === "close-salla-settings") { state.sallaSettingsOpen = false; state.sallaRuleDrafts = null; render(); }
   if (action === "add-salla-rule") {
@@ -2998,10 +3189,41 @@ async function handleAction(target) {
     textarea.value = `${textarea.value.slice(0, start)}${value}${textarea.value.slice(textarea.selectionEnd ?? start)}`;
     textarea.focus();
     textarea.setSelectionRange(start + value.length, start + value.length);
+    refreshEmailTemplatePreview();
+  }
+  if (action === "template-theme") {
+    const form = target.closest("form");
+    const color = safeEmailTheme(target.dataset.color);
+    const hidden = form?.querySelector("input[name='themeColor']");
+    const custom = form?.querySelector("input[type='color']");
+    if (hidden) hidden.value = color;
+    if (custom) custom.value = color;
+    form?.querySelectorAll(".email-color").forEach((button) => button.classList.toggle("active", button.dataset.color === color));
+    refreshEmailTemplatePreview();
+  }
+  if (action === "preview-email-template") {
+    refreshEmailTemplatePreview();
+    document.querySelector("[data-email-preview]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  if (action === "restore-email-template") {
+    const form = target.closest("form");
+    const defaults = { ...localDefaultEmailTemplate, ...(state.notificationTemplate?.defaultEmailTemplate || {}) };
+    for (const [name, value] of Object.entries(defaults)) {
+      const input = form?.elements?.namedItem(name);
+      if (input && name !== "channel") input.value = value;
+    }
+    form?.querySelectorAll(".email-color").forEach((button) => button.classList.toggle("active", button.dataset.color === safeEmailTheme(defaults.themeColor)));
+    const custom = form?.querySelector("input[type='color']");
+    if (custom) custom.value = safeEmailTheme(defaults.themeColor);
+    refreshEmailTemplatePreview();
+    toast("تمت استعادة القالب الافتراضي. احفظ لتثبيت التغييرات.", "info");
   }
   if (action === "test-template") {
-    const channel = document.querySelector("select[name='channel']")?.value || state.notificationTemplate?.template?.channel || "whatsapp";
-    if (channel !== "whatsapp") return toast("اختبار هذه القناة يتطلب تفعيل مزودها من الإعدادات أولًا.", "warning");
+    const channel = document.querySelector("select[name='channel']")?.value || state.templateChannel || state.notificationTemplate?.template?.channel || "whatsapp";
+    if (channel === "email") {
+      state.emailTemplateTestDraft = readEmailTemplateForm();
+      return openModal("إرسال رسالة بريد تجريبية", `<form data-submit="email-template-test" class="grid"><p class="muted">سيصل الاختبار من Renvix &lt;noreply@notify.renvix.app&gt;، وبحد أقصى 5 اختبارات كل 10 دقائق.</p><label class="field"><span>البريد المستلم</span><input class="input" name="to" type="email" autocomplete="email" placeholder="name@example.com" required></label><button class="btn btn-primary">إرسال الاختبار</button></form>`);
+    }
     if (state.linkedDevice.status !== "connected" && overviewStats().connectedDevices < 1) return toast("اربط جهاز واتساب أولًا حتى تتمكن من إرسال رسالة تجريبية.", "warning");
     return openModal("إرسال رسالة تجريبية", `<form data-submit="send-device-test" class="grid"><label class="field"><span>رقم المستلم التجريبي</span><input class="input" name="to" inputmode="numeric" placeholder="9665XXXXXXXX" required></label><label class="field"><span>الرسالة</span><textarea class="textarea" name="message" required>${escapeHtml(document.querySelector("textarea[name='body']")?.value || state.notificationTemplate?.template?.body || "")}</textarea></label><button class="btn btn-primary">إرسال الاختبار</button></form>`);
   }
@@ -3014,8 +3236,12 @@ async function handleAction(target) {
   if (action === "send-subscription-reminder") {
     try {
       await fetchJson(`/api/subscriptions/${target.dataset.id}/remind`, { method: "POST" });
+      invalidateMessageUsage();
       toast("تمت إضافة التذكير إلى قائمة الإرسال");
-    } catch (error) { toast(error.message || "تعذر إرسال التذكير", "danger"); }
+    } catch (error) {
+      if (error.code === "PLAN_MESSAGE_LIMIT_REACHED") showMessageQuotaLimit(error.usage);
+      else toast(error.message || "تعذر إرسال التذكير", "danger");
+    }
   }
   if (action === "subscription-notifications") {
     try {
@@ -3171,9 +3397,11 @@ async function handleSubmit(form, event) {
       closePortal();
       state.orderLinks = null;
       syncRouteData(true);
+      if (data.method !== "copy") invalidateMessageUsage();
       toast(data.method === "whatsapp" ? "تم إرسال الرابط عبر واتساب" : data.method === "email" ? "تم إرسال الرابط عبر البريد" : "تم نسخ الرابط بنجاح");
     } catch (error) {
       if (button) { button.disabled = false; button.textContent = "إرسال الرابط"; }
+      if (error.code === "PLAN_MESSAGE_LIMIT_REACHED") return showMessageQuotaLimit(error.usage);
       const messages = {
         whatsapp_not_connected: "اربط جهازًا أولًا حتى تتمكن من إرسال الرابط عبر واتساب.",
         customer_phone_missing: "لا يوجد رقم واتساب صالح لهذا العميل.",
@@ -3216,11 +3444,32 @@ async function handleSubmit(form, event) {
       state.linkedDevice.lastSendAt = "الآن";
       state.linkedDevice.activity = ["تم إرسال رسالة اختبار بنجاح", ...(state.linkedDevice.activity || []).slice(0, 4)];
       closePortal();
+      invalidateMessageUsage();
       toast(payload.message || "تم إرسال رسالة الاختبار بنجاح.");
       render();
     } catch (error) {
       if (button) { button.disabled = false; button.textContent = "إرسال الاختبار"; }
+      if (error.code === "PLAN_MESSAGE_LIMIT_REACHED") return showMessageQuotaLimit(error.usage);
       toast(error.message || "تعذر إرسال رسالة الاختبار. تحقق من اتصال واتساب.", error.code === "EVOLUTION_TIMEOUT" ? "warning" : "danger");
+    }
+    return;
+  }
+  if (type === "email-template-test") {
+    const button = form.querySelector("button[type='submit']");
+    if (button) { button.disabled = true; button.textContent = "جاري الإرسال..."; }
+    try {
+      await fetchJson("/api/templates/renewal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...(state.emailTemplateTestDraft || {}), to: data.to })
+      });
+      closePortal();
+      invalidateMessageUsage();
+      toast("تم إرسال رسالة البريد التجريبية بنجاح.");
+    } catch (error) {
+      if (button) { button.disabled = false; button.textContent = "إرسال الاختبار"; }
+      if (error.code === "PLAN_MESSAGE_LIMIT_REACHED") return showMessageQuotaLimit(error.usage);
+      toast(error.message || "تعذر إرسال الرسالة التجريبية.", "danger");
     }
     return;
   }
@@ -3280,13 +3529,26 @@ async function handleSubmit(form, event) {
   if (type === "renewal-template") {
     if (!data.name?.trim()) return toast("اكتب اسمًا للقالب.", "danger");
     if (!data.body?.trim()) return toast("اكتب محتوى رسالة التجديد.", "danger");
+    if (data.channel === "email" && (!data.storeName?.trim() || !data.title?.trim() || !data.buttonLabel?.trim() || !data.footerText?.trim())) {
+      return toast("أكمل جميع حقول قالب البريد الإلكتروني.", "danger");
+    }
     try {
+      const requestBody = data.channel === "email" ? readEmailTemplateForm(form) : {
+        name: data.name,
+        channel: data.channel,
+        body: data.body,
+        daysOffset: Number(data.daysOffset || 7),
+        isActive: data.isActive === "on"
+      };
       const payload = await fetchJson("/api/templates/renewal", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: data.name, channel: data.channel, body: data.body, daysOffset: Number(data.daysOffset || 7), isActive: data.isActive === "on" })
+        body: JSON.stringify(requestBody)
       });
-      state.notificationTemplate = payload;
+      const current = state.notificationTemplate || {};
+      const templates = (Array.isArray(current.templates) ? current.templates : []).filter((item) => item.channel !== payload.template.channel);
+      const rules = (Array.isArray(current.rules) ? current.rules : []).filter((item) => item.channel !== payload.rule.channel);
+      state.notificationTemplate = { ...current, template: payload.template, rule: payload.rule, templates: [...templates, payload.template], rules: [...rules, payload.rule] };
       toast("تم حفظ قالب رسالة التجديد بنجاح");
       render();
     } catch (error) { toast(error.message || "تعذر حفظ القالب", "danger"); }
@@ -3562,6 +3824,7 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.dataset.emailField !== undefined) refreshEmailTemplatePreview();
   if (target.dataset.sallaRuleField) {
     const index = Number(target.dataset.ruleIndex);
     const drafts = readSallaRuleDrafts();
@@ -3625,9 +3888,17 @@ document.addEventListener("change", (event) => {
     state.settings[target.dataset.key] = target.checked;
     void saveAccountSettings();
   }
-  if (target.dataset.action === "template-channel" && state.notificationTemplate) {
-    state.notificationTemplate.template = { ...(state.notificationTemplate.template || {}), channel: target.value };
+  if (target.dataset.action === "template-channel") {
+    state.templateChannel = target.value === "email" ? "email" : "whatsapp";
     render();
+  }
+  if (target.dataset.action === "template-custom-theme") {
+    const form = target.closest("form");
+    const color = safeEmailTheme(target.value);
+    const hidden = form?.querySelector("input[name='themeColor']");
+    if (hidden) hidden.value = color;
+    form?.querySelectorAll(".email-color").forEach((button) => button.classList.toggle("active", button.dataset.color === color));
+    refreshEmailTemplatePreview();
   }
   if (target.dataset.orderField) {
     state.orderLinkDraft[target.dataset.orderField] = target.type === "checkbox" ? target.checked : target.value;

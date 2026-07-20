@@ -1,6 +1,7 @@
 import { query } from "../../../../../src/server/db.js";
 import { queueOrderInformationLink } from "../../../../../src/server/message-queue.js";
 import { requireSession } from "../../../../../src/server/session.js";
+import { PLAN_MESSAGE_LIMIT_REACHED } from "../../../../../src/lib/billing/message-quota.js";
 
 export async function POST(req, { params }) {
   const auth = await requireSession(req);
@@ -56,6 +57,7 @@ export async function POST(req, { params }) {
   });
   if (!queued.ok) {
     const messages = {
+      [PLAN_MESSAGE_LIMIT_REACHED]: "وصلت إلى الحد الشهري لرسائل باقتك. قم بترقية الباقة أو انتظر بداية الدورة القادمة.",
       customer_email_missing: "لا يوجد بريد إلكتروني لهذا العميل. أضف بريدًا أو اختر الإرسال عبر واتساب/نسخ الرابط.",
       customer_phone_missing: "لا يوجد رقم جوال صالح لهذا العميل.",
       whatsapp_not_connected: "اربط جهاز واتساب أولًا حتى تتمكن من إرسال الرابط.",

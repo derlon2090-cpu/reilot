@@ -2,7 +2,7 @@ import { runCron } from "../../_lib/cron";
 
 export async function GET(req) {
   return runCron(req, "usage-reset", {
-    action: "Create the new monthly message_usage rows from each tenant platform plan.",
+    action: "Ensure each tenant has a subscription-period message quota record and reset notification.",
     keepsHistory: true
   });
 }

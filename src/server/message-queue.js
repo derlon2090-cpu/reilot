@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { normalizeEvolutionPhone } from "../lib/evolution.js";
 import { normalizeOptionalEmail, validateOptionalEmail } from "../lib/customerValidation.js";
 import { calculateSmartDelaySeconds, riskDisposition, scheduleDelivery } from "../lib/deliveryScheduling.js";
+import { PLAN_MESSAGE_LIMIT_REACHED, reserveMessageQuotaWithClient } from "../lib/billing/message-quota.js";
 import { query, transaction } from "./db.js";
 
 function digest(parts) {
@@ -35,13 +36,15 @@ export async function enqueueMessage({
   emailTo = null,
   subject = null,
   messageBody,
+  templateSnapshot = null,
   referenceType = null,
   referenceId = null,
   triggerKey = null,
   priority = 5,
   sourceMode = "automatic",
   maxAttempts = 3,
-  enforceConnected = false
+  enforceConnected = false,
+  isBillable = true
 }) {
   if (!tenantId || !["whatsapp", "email", "sms"].includes(channelType)) {
     return { ok: false, reason: "invalid_queue_request" };
@@ -62,7 +65,8 @@ export async function enqueueMessage({
     normalizedDestination = phone.phoneNumber;
   }
 
-  return transaction(async (client) => {
+  try {
+    return await transaction(async (client) => {
     const context = await client.query(
       `SELECT ss.*, wc.status AS channel_status, wc.risk_score, wc.health_score, wc.connected_at,
               wc.sending_paused_until, wc.auto_sending_enabled
@@ -103,21 +107,36 @@ export async function enqueueMessage({
       [tenantId, dedupeHash]
     );
     if (duplicate.rows[0]) return { ok: false, reason: "duplicate_message", queueId: duplicate.rows[0].id };
+    const quota = await reserveMessageQuotaWithClient(client, {
+      tenantId,
+      channelType,
+      quantity: 1,
+      isBillable
+    });
     const inserted = await client.query(
       `INSERT INTO message_queue (
          tenant_id, subscription_id, customer_id, whatsapp_channel_id, template_id,
          scheduled_for, priority, status, max_attempts, trigger_key,
-         channel_type, message_type, destination, email_to, subject, message_body,
-         reference_type, reference_id, dedupe_hash, safety_status, delay_seconds, delay_reason
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'pending',$19,$20)
+         channel_type, message_type, destination, email_to, subject, message_body, template_snapshot,
+         reference_type, reference_id, dedupe_hash, safety_status, delay_seconds, delay_reason,
+         is_billable, quota_status, quota_period_id, quota_period_start, quota_period_end, quota_reserved_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17,$18,$19,'pending',$20,$21,
+                 $22,$23,$24,$25,$26,CASE WHEN $23 = 'reserved' THEN now() ELSE NULL END)
        RETURNING id, scheduled_for AS "scheduledFor"`,
       [tenantId, subscriptionId, customerId, whatsappChannelId, templateId, scheduledFor, priority,
         maxAttempts, triggerKey, channelType, messageType, normalizedDestination, normalizedEmail,
-        subject, String(messageBody).trim(), referenceType, referenceId, dedupeHash,
-        delay.delaySeconds, delay.delayReason]
+        subject, String(messageBody).trim(), templateSnapshot ? JSON.stringify(templateSnapshot) : null, referenceType, referenceId, dedupeHash,
+        delay.delaySeconds, delay.delayReason, Boolean(isBillable), quota.quotaStatus,
+        quota.periodId || null, quota.periodStart || null, quota.periodEnd || null]
     );
-    return { ok: true, queueId: inserted.rows[0].id, scheduledFor: inserted.rows[0].scheduledFor, ...delay };
-  });
+    return { ok: true, queueId: inserted.rows[0].id, scheduledFor: inserted.rows[0].scheduledFor, usage: quota.usage || null, ...delay };
+    });
+  } catch (error) {
+    if (error?.code === PLAN_MESSAGE_LIMIT_REACHED) {
+      return { ok: false, reason: PLAN_MESSAGE_LIMIT_REACHED, code: PLAN_MESSAGE_LIMIT_REACHED, usage: error.usage };
+    }
+    throw error;
+  }
 }
 
 export async function queueOrderInformationLink({ tenantId, userId, link, method, whatsappChannelId = null }) {

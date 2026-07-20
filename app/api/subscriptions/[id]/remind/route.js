@@ -3,6 +3,7 @@ import { enqueueMessage } from "../../../../../src/server/message-queue.js";
 import { recordOperationalIssue } from "../../../../../src/server/operations.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { createInAppNotification } from "../../../../../src/server/in-app-notifications.js";
+import { PLAN_MESSAGE_LIMIT_REACHED } from "../../../../../src/lib/billing/message-quota.js";
 
 function reminderText(item) {
   return `مرحبًا ${item.customerName || "عميلنا"}،\nنذكّرك بأن اشتراكك في ${item.serviceName || "الخدمة"} سينتهي في ${String(item.endDate || "").slice(0, 10)}.\nيمكنك التجديد من خلال الرابط التالي:\n${item.renewalUrl || "تواصل معنا لإتمام التجديد."}`;
@@ -77,14 +78,22 @@ export async function POST(req, { params }) {
   if (!queued.ok) {
     await recordOperationalIssue({
       tenantId: auth.session.tenantId,
-      category: "safe_mode",
+      category: queued.reason === PLAN_MESSAGE_LIMIT_REACHED ? "message_quota" : "safe_mode",
       source: "manual_reminder",
       sourceId: id,
       severity: queued.reason === "critical_risk" ? "critical" : "warning",
       message: queued.reason,
-      suggestedSolution: "Review WhatsApp connection, safety score, and sending schedule."
+      suggestedSolution: queued.reason === PLAN_MESSAGE_LIMIT_REACHED
+        ? "قم بترقية الباقة أو انتظر بداية دورة الرسائل القادمة."
+        : "Review WhatsApp connection, safety score, and sending schedule."
     }).catch(() => null);
-    return Response.json({ ok: false, reason: queued.reason }, { status: queued.reason === "critical_risk" ? 423 : 409 });
+    return Response.json({
+      ok: false,
+      code: queued.code || queued.reason,
+      reason: queued.reason,
+      usage: queued.usage,
+      message: queued.reason === PLAN_MESSAGE_LIMIT_REACHED ? "وصلت إلى الحد الشهري لرسائل باقتك." : undefined
+    }, { status: queued.reason === "critical_risk" ? 423 : 409 });
   }
   await query(
     `INSERT INTO activity_logs (tenant_id, user_id, customer_id, type, title, metadata)

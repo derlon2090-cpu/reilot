@@ -13,13 +13,17 @@ export function baseEmail({
   preview,
   children,
   locale = "ar",
-  footerText
+  footerText,
+  brandName = "Renvix",
+  themeColor = "#0EA5A8"
 }) {
   const english = locale === "en";
   const direction = english ? "ltr" : "rtl";
   const align = english ? "left" : "right";
   const safeTitle = escapeEmailHtml(title);
   const safePreview = escapeEmailHtml(preview || title);
+  const safeBrand = escapeEmailHtml(brandName || "Renvix");
+  const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#0EA5A8";
   const safeFooter = escapeEmailHtml(
     footerText || (english ? "Renvix - subscriptions made clearer." : "Renvix - إدارة أوضح للاشتراكات والتجديدات.")
   );
@@ -38,11 +42,11 @@ export function baseEmail({
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e3eaf3;border-radius:18px;overflow:hidden;box-shadow:0 12px 34px rgba(15,37,80,.07)">
             <tr>
-              <td style="height:6px;background:linear-gradient(90deg,#08b8c7,#2563eb)"></td>
+              <td style="height:6px;background:${safeTheme}"></td>
             </tr>
             <tr>
               <td style="padding:28px 32px 18px;text-align:${align}">
-                <div style="display:inline-block;color:#087f97;font-size:22px;font-weight:800">Renvix</div>
+                <div style="display:inline-block;color:${safeTheme};font-size:22px;font-weight:800">${safeBrand}</div>
                 <h1 style="margin:22px 0 8px;color:#0f2550;font-size:26px;line-height:1.45">${safeTitle}</h1>
               </td>
             </tr>
@@ -60,6 +64,7 @@ export function baseEmail({
 </html>`;
 }
 
-export function emailButton({ href, label }) {
-  return `<a href="${escapeEmailHtml(href)}" style="display:inline-block;padding:13px 24px;border-radius:9px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700">${escapeEmailHtml(label)}</a>`;
+export function emailButton({ href, label, themeColor = "#0EA5A8" }) {
+  const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#0EA5A8";
+  return `<a href="${escapeEmailHtml(href)}" style="display:inline-block;padding:13px 24px;border-radius:9px;background:${safeTheme};color:#ffffff;text-decoration:none;font-weight:700">${escapeEmailHtml(label)}</a>`;
 }
