@@ -1282,14 +1282,14 @@ function dashboardShell(content) {
           <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${state.search}"></div>
         </div>
         <div class="topbar-tools topbar-account-tools">
+          <button class="profile-trigger compact-profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong></span><span class="profile-caret">⌄</span></button>
+          ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
+          <button class="btn btn-secondary language-topbar-button" data-action="language" title="${state.language === "ar" ? "اللغة" : "Language"}">${dashboardIcon("language")}<span>${state.language === "ar" ? "AR" : "EN"}</span></button>
+          <button class="btn btn-ghost icon-btn theme-topbar-button" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
           <div class="notification-trigger-wrap">
             <button class="btn btn-ghost icon-btn notification-trigger" data-action="notifications" title="${state.language === "ar" ? "الإشعارات" : "Notifications"}">${dashboardIcon("notifications")}${unreadNotifications ? `<span class="notification-badge">${unreadNotifications > 99 ? "99+" : unreadNotifications}</span>` : ""}</button>
             ${state.notificationDropdownOpen ? notificationDropdownMarkup() : ""}
           </div>
-          <button class="btn btn-secondary language-topbar-button" data-action="language" title="${state.language === "ar" ? "اللغة" : "Language"}">${dashboardIcon("language")}<span>${state.language === "ar" ? "AR" : "EN"}</span></button>
-          <button class="btn btn-ghost icon-btn theme-topbar-button" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
-          <button class="profile-trigger compact-profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong></span><span class="profile-caret">⌄</span></button>
-          ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
         </div>
       </header>
       <div class="content">${content}</div>
@@ -1586,7 +1586,16 @@ function subscriptionsTable(rows, compact = false) {
   const head = compact ? ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة"] : ["رقم الطلب", "العميل", "الباقة / الخدمة", "تاريخ البداية", "تاريخ الانتهاء", "الحالة", "الإجراء"];
   const body = rows.map((row) => {
     const disabled = row.canSend ? "" : "disabled";
-    const reason = row.whatsappStatus !== "connected" ? "يجب ربط واتساب أولًا" : Number(row.riskScore) > 70 ? "الإرسال متوقف بسبب ارتفاع المخاطر" : row.remindersPaused ? "التذكيرات موقوفة لهذا العميل" : "";
+    const reason = row.remindersPaused
+      ? "التذكيرات موقوفة لهذا العميل"
+      : row.reminderChannel === "email" && !row.email
+        ? "أضف بريد العميل أولًا"
+        : row.reminderChannel !== "email" && row.whatsappStatus !== "connected"
+          ? "يجب ربط واتساب أولًا"
+          : row.reminderChannel !== "email" && Number(row.riskScore) > 70
+            ? "الإرسال متوقف بسبب ارتفاع المخاطر"
+            : "";
+    const deliveryLabel = `${row.reminderChannel === "email" ? "البريد الإلكتروني" : "واتساب"} · ${row.reminderMode === "automatic" ? `تلقائي قبل ${Number(row.reminderDaysBefore || 0)} يوم` : "يدوي"}`;
     const actions = `<div class="subscription-actions">
       <button class="btn btn-primary" data-action="mark-renewed" data-id="${row.id}">تم التجديد</button>
       <button class="btn btn-secondary" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="${escapeHtml(reason)}">إرسال تذكير</button>
@@ -1594,7 +1603,7 @@ function subscriptionsTable(rows, compact = false) {
       <button class="btn btn-ghost icon-only danger-text" data-action="subscription-delete-db" data-id="${row.id}" title="حذف">×</button>
     </div>`;
     if (compact) return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td>${escapeHtml(row.planName)}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td></tr>`;
-    return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small></td><td>${escapeHtml(String(row.startDate).slice(0, 10))}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td><td>${actions}</td></tr>`;
+    return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small><span class="delivery-preference-pill ${row.reminderMode === "automatic" ? "automatic" : "manual"}">${escapeHtml(deliveryLabel)}</span></td><td>${escapeHtml(String(row.startDate).slice(0, 10))}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td><td>${actions}</td></tr>`;
   }).join("");
   return `<div class="compare"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
@@ -2480,6 +2489,9 @@ function field(label, name, type = "text", value = "", required = true) {
 function subscriptionForm(row = {}, editId = "") {
   const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   if (!customers.length) return emptyState("أضف عميلًا أولًا", "يجب اختيار عميل حقيقي قبل إنشاء الاشتراك.", "إضافة عميل", "add-customer");
+  const reminderChannel = row.reminderChannel === "email" ? "email" : "whatsapp";
+  const reminderMode = row.reminderMode === "automatic" ? "automatic" : "manual";
+  const reminderDaysBefore = Number.isInteger(Number(row.reminderDaysBefore)) ? Number(row.reminderDaysBefore) : 7;
   return `<form data-submit="subscription" data-id="${editId}" class="form-grid">
     <label class="field"><span>العميل</span><select class="select" name="customerId" ${editId ? "disabled" : ""} required>${customers.map((customer) => `<option value="${customer.id}" ${row.customerId === customer.id ? "selected" : ""}>${escapeHtml(customer.name)}</option>`).join("")}</select></label>
     ${field("رقم الطلب (اختياري)", "orderNumber", "text", row.orderNumber || "", false)}
@@ -2490,6 +2502,25 @@ function subscriptionForm(row = {}, editId = "") {
     ${field("رابط التجديد", "renewalUrl", "url", row.renewalUrl || "", false)}
     ${field("القيمة (ر.س)", "price", "number", row.price || "0", false)}
     <label class="field"><span>الحالة</span><select class="select" name="status">${[["active", "نشط"], ["expiring_soon", "ينتهي قريبًا"], ["expired", "منتهي"], ["paused", "موقوف"], ["renewed", "تم التجديد"]].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+    <section class="subscription-delivery-settings full-span" aria-labelledby="subscription-delivery-title">
+      <div class="subscription-delivery-heading">
+        <div><strong id="subscription-delivery-title">إعدادات إرسال تذكير التجديد</strong><small>حدد القناة وطريقة التشغيل والموعد المناسب لهذا الاشتراك.</small></div>
+        <span class="delivery-secure-badge">إرسال آمن</span>
+      </div>
+      <div class="subscription-delivery-grid">
+        <label class="field"><span>قناة الإرسال</span><select class="select" name="reminderChannel">
+          <option value="whatsapp" ${reminderChannel === "whatsapp" ? "selected" : ""}>واتساب</option>
+          <option value="email" ${reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option>
+        </select><small>تُستخدم القناة نفسها عند الإرسال اليدوي أو التلقائي.</small></label>
+        <fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch">
+          <label><input type="radio" name="reminderMode" value="manual" ${reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label>
+          <label><input type="radio" name="reminderMode" value="automatic" ${reminderMode === "automatic" ? "checked" : ""}><span>تلقائي</span></label>
+        </div><small>اليدوي ينتظر ضغط زر «إرسال تذكير»، والتلقائي يجدوله في الموعد.</small></fieldset>
+        <label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">
+          ${[[0, "يوم انتهاء الاشتراك"], [1, "قبل يوم واحد"], [2, "قبل يومين"], [3, "قبل 3 أيام"], [4, "قبل 4 أيام"], [5, "قبل 5 أيام"], [7, "قبل 7 أيام"], [14, "قبل 14 يومًا"], [30, "قبل 30 يومًا"]].map(([value, label]) => `<option value="${value}" ${reminderDaysBefore === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select><small>يعمل الموعد عند اختيار الإرسال التلقائي.</small></label>
+      </div>
+    </section>
     <label class="field full-span"><span>ملاحظات</span><textarea class="textarea" name="notes">${escapeHtml(row.notes || "")}</textarea></label>
     <div class="inline-actions"><button class="btn btn-primary">حفظ</button><button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button></div>
   </form>`;
@@ -3784,7 +3815,7 @@ async function handleSubmit(form, event) {
       await fetchJson(id ? `/api/subscriptions/${id}` : "/api/subscriptions", {
         method: id ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, customerId: data.customerId || form.querySelector("[name='customerId']")?.value, price: Number(data.price || 0) })
+        body: JSON.stringify({ ...data, customerId: data.customerId || form.querySelector("[name='customerId']")?.value, price: Number(data.price || 0), reminderDaysBefore: Number(data.reminderDaysBefore || 0) })
       });
       closePortal();
       state.dbSubscriptions = null; state.dashboardOverview = null;

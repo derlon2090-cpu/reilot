@@ -294,7 +294,7 @@ tbody tr:hover { background: #fbfeff; }
 .modal-foot { display: flex; justify-content: flex-start; gap: 10px; border-top: 1px solid var(--border); }
 .drawer-overlay { place-items: stretch end; padding: 0; }
 .drawer { width: min(460px, 92vw); height: 100vh; overflow: auto; background: #fff; box-shadow: -20px 0 50px rgba(15,23,42,.2); animation: slideIn .18s ease; }
-.toast-stack { position: fixed; inset-inline: 16px; bottom: 28px; z-index: 10000; display: grid; justify-items: center; gap: 10px; pointer-events: none; }
+.toast-stack { position: fixed; left: 24px; right: auto; bottom: 28px; z-index: 10000; display: grid; justify-items: start; gap: 10px; pointer-events: none; }
 .toast {
   --toast-accent: #2563eb;
   --toast-bg: #eff6ff;
@@ -929,7 +929,8 @@ tbody tr:hover { background: #fbfeff; }
 }
 
 @media (max-width: 640px) {
-  .toast-stack { inset-inline: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .toast-stack { left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); justify-items: stretch; }
+  .subscription-delivery-grid { grid-template-columns: 1fr; }
   .toast { width: 100%; min-height: 70px; padding-block: 12px; }
   .security-recommendation { grid-template-columns: 50px minmax(0,1fr); }
   .security-recommendation .btn { grid-column: 1 / -1; width: 100%; }
@@ -1099,12 +1100,32 @@ tbody tr:hover { background: #fbfeff; }
 .avatar { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; }
 .profile-menu { inset-block-start: calc(100% - 10px); border-radius: 8px; }
 .topbar-account-tools { position: relative; direction: ltr; }
+.topbar-account-tools > .profile-menu { left: 0; right: auto; }
 .compact-profile-trigger { min-height: 42px; padding: 2px 4px; border-radius: 9px; direction: rtl; }
 .compact-profile-trigger:hover { background: #f4f8fd; }
 .profile-caret { color: #71809a; font-size: 15px; }
 .theme-topbar-button { color: #f59e0b !important; border: 1px solid #e4eaf2 !important; background: #fff !important; font-size: 20px; }
 .language-topbar-button { min-width: 58px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; color: #355278; background: #fff; }
 .language-topbar-button .line-icon { width: 16px; height: 16px; }
+.subscription-delivery-settings { padding: 18px; border: 1px solid #dce8f5; border-radius: 12px; background: linear-gradient(145deg, #f8fbff, #f5fcfc); }
+.subscription-delivery-heading { margin-bottom: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.subscription-delivery-heading strong, .subscription-delivery-heading small { display: block; }
+.subscription-delivery-heading strong { color: #102b55; font-size: 15px; }
+.subscription-delivery-heading small, .subscription-delivery-grid .field > small, .delivery-mode-field > small { margin-top: 5px; color: #70829d; font-size: 11px; line-height: 1.6; }
+.delivery-secure-badge { padding: 5px 9px; border-radius: 999px; color: #087b79; background: #e4f8f5; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.subscription-delivery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.delivery-mode-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.delivery-mode-field legend { margin-bottom: 7px; color: var(--text); font-size: 13px; font-weight: 700; }
+.delivery-mode-switch { padding: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; border: 1px solid #dce3ec; border-radius: 9px; background: #fff; }
+.delivery-mode-switch label { cursor: pointer; }
+.delivery-mode-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.delivery-mode-switch span { min-height: 38px; display: grid; place-items: center; border-radius: 7px; color: #63758f; font-size: 13px; font-weight: 800; transition: .18s ease; }
+.delivery-mode-switch input:checked + span { color: #fff; background: linear-gradient(110deg, #10a9b9, #2860ec); box-shadow: 0 5px 12px rgba(37, 99, 235, .18); }
+.delivery-preference-pill { width: fit-content; margin-top: 6px; padding: 3px 7px; display: block; border-radius: 999px; color: #66758c; background: #f1f5f9; font-size: 10px; font-weight: 700; }
+.delivery-preference-pill.automatic { color: #087b79; background: #e6f8f5; }
+[data-theme="dark"] .subscription-delivery-settings { border-color: #253d5d; background: linear-gradient(145deg, #102139, #0d2630); }
+[data-theme="dark"] .subscription-delivery-heading strong { color: #e6efff; }
+[data-theme="dark"] .delivery-mode-switch { border-color: #304967; background: #0d1d32; }
 
 .content { width: 100%; max-width: 1680px; margin: 0 auto; padding: 26px 28px 44px; }
 .dashboard-main .page-title { margin-bottom: 20px; align-items: flex-end; }
@@ -3373,6 +3394,7 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 }
 
 @media (max-width: 760px) {
+  .subscription-delivery-grid { grid-template-columns: 1fr; }
   .notification-dropdown {
     inset-inline-end: -70px;
   }

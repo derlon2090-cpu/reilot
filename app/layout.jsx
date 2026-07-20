@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260720-security-toast-v3" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260720-subscription-delivery-v4" />
       </head>
       <body>{children}</body>
     </html>

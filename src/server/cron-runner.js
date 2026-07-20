@@ -33,22 +33,27 @@ export async function runRenewalReminders() {
     `SELECT s.id AS subscription_id, s.tenant_id, s.customer_id, s.order_number, s.service_name, s.plan_name,
             s.end_date, s.renewal_url, c.name AS customer_name, c.email,
             COALESCE(c.whatsapp_number, c.phone) AS phone,
-            ar.id AS rule_id, ar.days_offset, lower(ar.channel) AS channel_type,
-            ar.template_id, nt.title, nt.body, nt.store_name, nt.theme_color,
+            s.reminder_days_before AS days_offset, lower(s.reminder_channel) AS channel_type,
+            nt.id AS template_id, nt.title, nt.body, nt.store_name, nt.theme_color,
             nt.button_label, nt.footer_text, nt.template_version,
             wc.id AS whatsapp_channel_id
        FROM subscriptions s
-       JOIN automation_rules ar ON ar.tenant_id = s.tenant_id AND ar.is_active = true
        JOIN customers c ON c.id = s.customer_id AND c.tenant_id = s.tenant_id
-       LEFT JOIN notification_templates nt ON nt.id = ar.template_id
+       LEFT JOIN LATERAL (
+         SELECT id, title, body, store_name, theme_color, button_label, footer_text, template_version
+           FROM notification_templates
+          WHERE tenant_id = s.tenant_id AND channel = s.reminder_channel AND is_active = true
+          ORDER BY updated_at DESC, created_at DESC LIMIT 1
+       ) nt ON true
        LEFT JOIN LATERAL (
          SELECT id FROM whatsapp_channels
           WHERE tenant_id = s.tenant_id AND status = 'connected'
           ORDER BY connected_at DESC NULLS LAST, created_at DESC LIMIT 1
        ) wc ON true
-      WHERE s.status IN ('active', 'expiring_soon', 'expired')
+      WHERE s.status IN ('active', 'expiring_soon')
+        AND s.reminder_mode = 'automatic'
         AND c.reminders_paused = false
-        AND (s.end_date - current_date) = ar.days_offset`
+        AND (s.end_date - current_date) = s.reminder_days_before`
   );
   let queued = 0;
   let skipped = 0;

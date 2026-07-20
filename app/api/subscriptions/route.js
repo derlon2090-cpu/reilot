@@ -3,16 +3,33 @@ import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 import { inferSubscriptionStatus } from "../../../src/lib/orderLinks.js";
 
+const allowedChannels = new Set(["whatsapp", "email"]);
+const allowedReminderModes = new Set(["manual", "automatic"]);
+
+function deliveryPreferences(body = {}) {
+  const days = Number(body.reminderDaysBefore);
+  return {
+    channel: allowedChannels.has(body.reminderChannel) ? body.reminderChannel : "whatsapp",
+    mode: allowedReminderModes.has(body.reminderMode) ? body.reminderMode : "manual",
+    daysBefore: Number.isInteger(days) && days >= 0 && days <= 90 ? days : 7
+  };
+}
+
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const result = await query(
     `SELECT s.id, s.order_number AS "orderNumber", s.service_name AS "serviceName", s.plan_name AS "planName",
             s.start_date AS "startDate", s.end_date AS "endDate", s.renewal_url AS "renewalUrl", s.status, s.price,
-            c.id AS "customerId", c.name AS "customerName", c.phone, c.whatsapp_number AS "whatsappNumber",
+            s.reminder_channel AS "reminderChannel", s.reminder_mode AS "reminderMode",
+            s.reminder_days_before AS "reminderDaysBefore",
+            c.id AS "customerId", c.name AS "customerName", c.email, c.phone, c.whatsapp_number AS "whatsappNumber",
             c.reminders_paused AS "remindersPaused",
             COALESCE(wc.status, 'not_connected') AS "whatsappStatus", COALESCE(wc.risk_score, 0) AS "riskScore",
-            (COALESCE(wc.status, 'not_connected') = 'connected' AND COALESCE(wc.risk_score, 0) <= 70 AND c.reminders_paused = false) AS "canSend"
+            (c.reminders_paused = false AND CASE
+              WHEN s.reminder_channel = 'email' THEN NULLIF(trim(c.email), '') IS NOT NULL
+              ELSE COALESCE(wc.status, 'not_connected') = 'connected' AND COALESCE(wc.risk_score, 0) <= 70
+            END) AS "canSend"
        FROM subscriptions s
        JOIN customers c ON c.id = s.customer_id AND c.tenant_id = s.tenant_id
        LEFT JOIN LATERAL (
@@ -37,6 +54,7 @@ export async function POST(req) {
   if (new Date(body.endDate) < new Date(body.startDate)) {
     return Response.json({ ok: false, reason: "invalid_dates" }, { status: 400 });
   }
+  const preferences = deliveryPreferences(body);
   const item = await transaction(async (client) => {
     const customer = await client.query("SELECT id FROM customers WHERE id = $1 AND tenant_id = $2", [body.customerId, auth.session.tenantId]);
     if (!customer.rows[0]) return null;
@@ -44,11 +62,15 @@ export async function POST(req) {
     const inserted = await client.query(
       `INSERT INTO subscriptions (
          tenant_id, customer_id, order_number, service_name, plan_name, start_date, end_date,
-         renewal_url, status, auto_renew, price, notes
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, order_number AS "orderNumber"`,
+         renewal_url, status, auto_renew, price, notes,
+         reminder_channel, reminder_mode, reminder_days_before
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       RETURNING id, order_number AS "orderNumber",
+                 reminder_channel AS "reminderChannel", reminder_mode AS "reminderMode",
+                 reminder_days_before AS "reminderDaysBefore"`,
       [auth.session.tenantId, body.customerId, orderNumber, body.serviceName, body.planName, body.startDate, body.endDate,
-        body.renewalUrl || null, allowedStatuses.has(body.status) ? body.status : inferSubscriptionStatus(body.startDate, body.endDate) || "active", Boolean(body.autoRenew), Number(body.price || 0), body.notes || null]
+        body.renewalUrl || null, allowedStatuses.has(body.status) ? body.status : inferSubscriptionStatus(body.startDate, body.endDate) || "active", Boolean(body.autoRenew), Number(body.price || 0), body.notes || null,
+        preferences.channel, preferences.mode, preferences.daysBefore]
     );
     await client.query(
       `INSERT INTO activity_logs (tenant_id, user_id, customer_id, type, title, metadata)
