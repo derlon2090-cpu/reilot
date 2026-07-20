@@ -1,9 +1,18 @@
-import { transaction } from "../../../../src/server/db.js";
+import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
 
 export async function POST(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) return Response.json({ ok: false, reason: "invalid_origin" }, { status: 403 });
+  const recent = await query(
+    `SELECT count(*)::int AS total FROM activity_logs
+      WHERE tenant_id = $1 AND user_id = $2 AND type = 'security.safe_settings_applied'
+        AND created_at > now() - interval '1 minute'`,
+    [auth.session.tenantId, auth.session.userId]
+  );
+  if (Number(recent.rows[0]?.total || 0) >= 3) return Response.json({ ok: false, reason: "rate_limited" }, { status: 429 });
   await transaction(async (client) => {
     await client.query(
       `INSERT INTO whatsapp_safety_settings
@@ -29,6 +38,12 @@ export async function POST(request) {
     await client.query(
       `INSERT INTO activity_logs (tenant_id, user_id, type, title)
        VALUES ($1, $2, 'security.safe_settings_applied', 'Recommended safe sending settings applied')`,
+      [auth.session.tenantId, auth.session.userId]
+    );
+    await client.query(
+      `INSERT INTO security_events
+         (tenant_id, user_id, category, event_type, severity, risk_weight, half_life_hours)
+       VALUES ($1, $2, 'sending', 'SAFE_POLICY_APPLIED', 'info', 0, 24)`,
       [auth.session.tenantId, auth.session.userId]
     );
   });

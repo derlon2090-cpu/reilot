@@ -80,13 +80,32 @@ export async function loginAccount({ email, password, ipAddress, userAgent }) {
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [normalized, sha256(normalized), ipAddress || null, userAgent || null, valid, valid ? null : "invalid_credentials"]
   );
-  if (!valid) return { ok: false, status: 401, reason: "invalid_credentials" };
+  if (!valid) {
+    if (user?.tenantId) {
+      const failedCount = Number(attempts.rows[0]?.count || 0) + 1;
+      await query(
+        `INSERT INTO security_events
+           (tenant_id, user_id, category, event_type, severity, risk_weight, half_life_hours, ip_hash, user_agent_summary, metadata)
+         VALUES ($1, $2, 'account', $3, $4, $5, 6, $6, $7, $8::jsonb)`,
+        [user.tenantId, user.id, failedCount >= 3 ? "REPEATED_FAILED_LOGIN" : "FAILED_LOGIN",
+          failedCount >= 10 ? "critical" : "warning", failedCount >= 3 ? 12 : 3,
+          ipAddress ? sha256(String(ipAddress)) : null, String(userAgent || "").slice(0, 180), JSON.stringify({ failedCount15m: failedCount })]
+      ).catch(() => null);
+    }
+    return { ok: false, status: 401, reason: "invalid_credentials" };
+  }
 
   return transaction(async (client) => {
     const session = await createSession(client, { userId: user.id, ipAddress, userAgent });
     await client.query(
       "INSERT INTO activity_logs (tenant_id, user_id, type, title) VALUES ($1, $2, 'auth.login', 'User signed in')",
       [user.tenantId, user.id]
+    );
+    await client.query(
+      `INSERT INTO security_events
+         (tenant_id, user_id, category, event_type, severity, risk_weight, half_life_hours, ip_hash, user_agent_summary)
+       VALUES ($1, $2, 'account', 'LOGIN_SUCCEEDED', 'info', 0, 6, $3, $4)`,
+      [user.tenantId, user.id, ipAddress ? sha256(String(ipAddress)) : null, String(userAgent || "").slice(0, 180)]
     );
     const { password: _password, ...safeUser } = user;
     return { ok: true, status: 200, user: safeUser, session };

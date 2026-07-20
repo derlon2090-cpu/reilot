@@ -488,7 +488,7 @@ const dashboardRoutes = [
   ["/dashboard/devices", "الأجهزة", "devices"],
   ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
   ["/dashboard/apps", "تطبيقاتنا", "apps"],
-  ["/dashboard/security", "الحماية", "security"],
+  ["/dashboard/security", "الحماية والأمان", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
   ["/dashboard/billing", "الفوترة والباقات", "billing"],
   ["/dashboard/settings", "الإعدادات", "settings"]
@@ -1260,7 +1260,7 @@ function notificationsPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية": "Security", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قالب رسالة التجديد": "Renewal Template", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
   const links = dashboardRoutes.map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
   const profile = state.dashboardOverview?.profile || {};
@@ -1699,8 +1699,45 @@ function securityRecommendationsMarkup(recommendations = []) {
   return recommendations.slice(0, 6).map((item) => `<article class="security-recommendation ${escapeHtml(item.priority)}"><span>${item.priority === "critical" ? "حرجة" : item.priority === "high" ? "عالية" : "متوسطة"}</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.description)}</p><small>التأثير المتوقع: حتى +${Number(item.scoreImpact || 0)} نقطة</small></div><button class="btn btn-secondary" data-link="${escapeHtml(item.actionUrl || "/dashboard/security")}">تنفيذ</button></article>`).join("");
 }
 
+function securityMetricValue(metric = {}, risk = false) {
+  if (metric.score === null || metric.score === undefined || metric.status === "not_configured" || metric.status === "insufficient_data" || metric.status === "unavailable") {
+    return `<strong class="security-metric-state">${escapeHtml(metric.label || "تعذر التحقق")}</strong><small>${metric.status === "not_configured" ? "لم يتم إعداد المصدر" : metric.status === "insufficient_data" ? "يلزم توفر بيانات فعلية أكثر" : "لا تتوفر نتيجة موثوقة الآن"}</small>`;
+  }
+  return `<strong>${Number(metric.score)}%</strong><span class="security-mini-status ${risk ? `risk-${securityRiskTone(metric.score)}` : securityScoreTone(metric.score)}">${escapeHtml(metric.label || "")}</span>`;
+}
+
+function securityRiskTone(score) {
+  if (score === null || score === undefined) return "unavailable";
+  if (score < 20) return "low";
+  if (score < 40) return "limited";
+  if (score < 60) return "medium";
+  if (score < 80) return "high";
+  return "critical";
+}
+
+function securityMetricCard(title, metric, icon, description, risk = false) {
+  const tone = risk ? `risk-${securityRiskTone(metric?.score)}` : securityScoreTone(metric?.score, metric?.status !== "not_configured");
+  return `<article class="card security-mini-card ${tone}"><div class="security-mini-head">${dashboardIcon(icon)}<span>${escapeHtml(title)}</span></div><div class="security-mini-value">${securityMetricValue(metric, risk)}</div><p>${escapeHtml(description)}</p>${metric?.coverage !== undefined && !risk ? `<small>تغطية البيانات ${Number(metric.coverage)}%</small>` : ""}</article>`;
+}
+
+function securityTime(value) {
+  if (!value) return "غير متوفر";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "غير متوفر";
+  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+  if (minutes < 1) return "الآن";
+  if (minutes < 60) return `منذ ${minutes} دقيقة`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `منذ ${hours} ساعة`;
+  return date.toLocaleDateString("ar-SA");
+}
+
+function securityEventsTable(events = []) {
+  if (!events.length) return `<div class="security-empty-row">لا توجد أحداث أمنية مسجلة.</div>`;
+  return `<div class="compare security-events-table"><table><thead><tr><th>نوع الحدث</th><th>المستوى</th><th>الوقت</th><th>الحالة</th><th>التفاصيل</th></tr></thead><tbody>${events.map((item) => `<tr><td><strong>${escapeHtml(item.type)}</strong></td><td><span class="security-severity ${escapeHtml(item.severity || "low")}">${item.severity === "critical" ? "حرج" : item.severity === "error" ? "عالٍ" : item.severity === "warning" ? "متوسط" : "منخفض"}</span></td><td>${escapeHtml(securityTime(item.occurredAt))}</td><td><span class="security-event-status">${escapeHtml(item.status || "مسجل")}</span></td><td>${escapeHtml(item.detail || "-")}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
 function securityPage() {
-  const stats = overviewStats();
   const list = Array.isArray(state.unsubscribes) ? state.unsubscribes : [];
   const score = state.securityScore?.overall ? state.securityScore : null;
   const listContent = state.unsubscribes?.error
@@ -1712,25 +1749,45 @@ function securityPage() {
         : emptyState("لا توجد أرقام محظورة", "لم تتم إضافة أي رقم إلى قائمة إيقاف الرسائل.", "إضافة رقم", "add-unsubscribe");
   const loading = state.securityScore === null;
   const error = state.securityScore?.error;
-  const calculated = score?.calculatedAt ? new Date(score.calculatedAt) : null;
-  const stale = calculated && Date.now() - calculated.getTime() > 86400000;
-  const checkedLabel = calculated ? calculated.toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "لم يتم الفحص";
-  const overall = score?.overall || { score: 0, label: "لم يتم الفحص" };
-  const account = score?.account || { score: 0, label: "لم يتم الفحص", factors: [] };
-  const whatsapp = score?.whatsapp || { score: null, label: "غير مهيأة", status: "not_configured", factors: [] };
+  const checkedLabel = score?.calculatedAt ? securityTime(score.calculatedAt) : "لم يتم الفحص";
+  const overall = score?.overall || { score: null, label: "لم يتم الفحص", coverage: 0, status: "unavailable" };
+  const platform = score?.platform || { score: null, label: "لم يتم الفحص", coverage: 0 };
+  const accounts = score?.accounts || score?.account || { score: null, label: "لم يتم الفحص", coverage: 0 };
+  const sessions = score?.sessions || { score: null, label: "لم يتم الفحص", activeSessions: 0, items: [] };
+  const whatsapp = score?.whatsapp || { score: null, healthScore: null, riskScore: null, label: "غير مهيأ", status: "not_configured", coverage: 0 };
+  const sending = score?.sending || { score: null, label: "لم يتم الفحص", policies: [] };
+  const currentRisk = score?.risk || { score: null, label: "غير متاح", issues: 0 };
   const scoreContent = loading
     ? `<div class="loading-state">جاري حساب مستوى الحماية من البيانات الفعلية...</div>`
     : error
       ? emptyState("تعذر حساب مستوى الحماية", "لم يتم استبدال النتيجة بقيمة افتراضية. حاول إعادة الفحص.", "إعادة الفحص", "recalculate-security")
-      : `<section class="security-score-grid">
-          <article class="card security-score-card overall ${securityScoreTone(overall.score)}"><div class="security-score-heading">${dashboardIcon("security")}<div><h2>مستوى الحماية العام</h2><p>محسوب من أمان الحساب وقنوات الإرسال والإعدادات الفعلية.</p></div></div><div class="security-score-value"><strong>${Number(overall.score)}%</strong><span>${escapeHtml(overall.label)}</span></div><small>آخر فحص: ${escapeHtml(checkedLabel)}${stale ? " · التقييم يحتاج تحديثًا" : ""}</small></article>
-          <article class="card security-score-card ${securityScoreTone(account.score)}"><div class="security-score-heading">${dashboardIcon("customers")}<div><h2>أمان الحساب</h2><p>البريد وكلمة المرور وMFA والجلسات.</p></div></div><div class="security-score-value"><strong>${Number(account.score)}%</strong><span>${escapeHtml(account.label)}</span></div><ul class="security-factor-list">${securityFactorsMarkup(account.factors)}</ul></article>
-          <article class="card security-score-card ${securityScoreTone(whatsapp.score, whatsapp.status !== "not_configured")}"><div class="security-score-heading">${dashboardIcon("devices")}<div><h2>حماية واتساب</h2><p>الاتصال والمخاطر وحدود الإرسال وجودة القوالب.</p></div></div>${whatsapp.status === "not_configured" ? `<div class="security-unconfigured"><strong>غير مهيأة</strong><p>اربط رقم واتساب لبدء التقييم ومراقبة صحة الإرسال.</p><button class="btn btn-primary" data-link="/dashboard/devices">ربط رقم واتساب</button></div>` : `<div class="security-score-value"><strong>${Number(whatsapp.score)}%</strong><span>${escapeHtml(whatsapp.label)}</span></div><ul class="security-factor-list">${securityFactorsMarkup(whatsapp.factors)}</ul>`}</article>
+      : `<section class="security-center-overview">
+          <article class="card security-overall-card ${securityScoreTone(overall.score)}">
+            <div class="security-overall-ring ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div>${overall.score === null ? `<strong>—</strong>` : `<strong>${Number(overall.score)}%</strong>`}<span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
+            <div><h2>مؤشر الحماية العام</h2><p>تم حساب النتيجة من حماية المنصة والحساب والجلسات وقنوات الإرسال.</p><span class="security-live-dot">نتيجة حقيقية</span><small>آخر فحص: ${escapeHtml(checkedLabel)} · التغطية ${Number(overall.coverage || 0)}%</small></div>
+          </article>
+          <div class="security-metrics-grid">
+            ${securityMetricCard("حماية المنصة", platform, "security", "المسارات والأسرار وقاعدة البيانات")}
+            ${securityMetricCard("حماية الحساب", accounts, "customers", "كلمة المرور والدخول والاسترداد")}
+            ${securityMetricCard("أمان الجلسات", sessions, "devices", "الجلسات الفعلية وخصائص Cookie")}
+            ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "devices", "الاتصال والرسائل والـQueue")}
+            ${securityMetricCard("أمان الإرسال", sending, "template", "الفاصل والحدود والإيقاف الوقائي")}
+            ${securityMetricCard("الخطر الحالي", currentRisk, "reports", `${Number(currentRisk.issues || 0)} أحداث تحتاج المراجعة`, true)}
+          </div>
         </section>
-        <section class="card security-recommendations-card"><div class="section-head"><div><h2>التوصيات الذكية</h2><p class="muted">مرتبة حسب مستوى الخطر والتأثير المتوقع على الحماية.</p></div><div class="inline-actions"><button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button><button class="btn btn-primary" data-action="preview-safe-settings">تطبيق الإعدادات الآمنة الموصى بها</button></div></div><div class="security-recommendations">${securityRecommendationsMarkup(score.recommendations)}</div></section>`;
-  return dashboardShell(`${pageTitle("الحماية", `<button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="export-unsubscribes">تصدير</button>`)}
+        <section class="security-center-middle">
+          <article class="card security-policy-card"><div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>تساعد على تقليل الضغط والمخاطر، ولا تضمن عدم تقييد القناة من مقدم الخدمة.</p></div></div><div class="security-policy-body"><div class="security-shield-art">${dashboardIcon("security")}<span>حماية تلقائية</span></div><div class="security-policy-list">${(sending.policies || []).length ? sending.policies.map((item) => `<div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "نشط" : "يحتاج ضبط"}</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></div>`).join("") : `<div class="security-empty-row">لم يتم إعداد سياسة الإرسال بعد.</div>`}</div></div><button class="security-safe-action" data-action="preview-safe-settings">تطبيق الإعدادات الآمنة الموصى بها</button></article>
+          <div class="security-activity-column">
+            <article class="card security-compact-panel"><div class="security-panel-title">${dashboardIcon("devices")}<h2>الجلسات النشطة</h2></div><div class="security-panel-summary"><strong>${Number(sessions.activeSessions || 0)}</strong><span>جلسة حالية فعلية</span></div>${(sessions.items || []).length ? sessions.items.slice(0, 2).map((item) => `<div class="security-activity-line"><span>✓</span><div><strong>${escapeHtml(item.device)}</strong><small>${escapeHtml(item.location)} · ${escapeHtml(securityTime(item.lastActivityAt))}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}<button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button></article>
+            <article class="card security-compact-panel"><div class="security-panel-title">${dashboardIcon("customers")}<h2>محاولات الدخول</h2></div><div class="security-panel-summary"><strong>${Number(score.login?.failed24h || 0)}</strong><span>محاولة فاشلة خلال 24 ساعة</span></div>${(score.login?.recent || []).length ? score.login.recent.slice(0, 2).map((item) => `<div class="security-activity-line ${item.success ? "success" : "warning"}"><span>${item.success ? "✓" : "!"}</span><div><strong>${item.success ? "تسجيل دخول ناجح" : "محاولة غير ناجحة"}</strong><small>${escapeHtml(item.device)} · ${escapeHtml(securityTime(item.occurredAt))}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد محاولات دخول مسجلة.</div>`}</article>
+          </div>
+          <article class="card security-alerts-card"><div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>نتائج فعلية تحتاج انتباهك.</p></div></div>${(score.criticalIssues || []).length ? score.criticalIssues.map((item) => `<div class="security-alert-line ${escapeHtml(item.severity || "warning")}"><span>!</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description || "راجع تفاصيل الحدث.")}</small></div></div>`).join("") : `<div class="security-empty-row success">لا توجد تنبيهات حماية مفتوحة.</div>`}${(score.recommendations || []).slice(0, 2).map((item) => `<div class="security-alert-line recommendation"><span>i</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></div></div>`).join("")}</article>
+        </section>
+        <article class="card security-events-card"><div class="section-head"><div class="security-panel-title">${dashboardIcon("reports")}<div><h2>سجل الأحداث الأمنية</h2><p>محاولات الدخول ومشكلات التشغيل وسجل الحساب الفعلي.</p></div></div><span class="security-last-check">آخر فحص ${escapeHtml(checkedLabel)}</span></div>${securityEventsTable(score.events || [])}</article>`;
+  return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button>`)}
+    <p class="security-page-subtitle">إدارة سياسات الحماية ومراقبة سلامة الحساب وقنوات الإرسال من مصادر فعلية.</p>
     ${scoreContent}
-    <article class="card table-card section"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام التي لن تستقبل أي رسالة ويجري فحصها قبل الإرسال.</p></div><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div>${listContent}</article>`);
+    <article class="card table-card section security-optout-card"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام الفعلية التي يمنع النظام الإرسال إليها قبل إدراج أي رسالة.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div></div>${listContent}</article>`);
 }
 
 function connectedDevicesCenterPage() {
