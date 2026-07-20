@@ -13,11 +13,11 @@
   "crons": [
     {
       "path": "/api/cron/salla-webhook-worker",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/renewal-reminders",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/subscription-notifications",
@@ -29,7 +29,7 @@
     },
     {
       "path": "/api/cron/message-retry",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/usage-reset",
