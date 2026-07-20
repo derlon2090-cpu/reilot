@@ -8,6 +8,7 @@ import { enqueueMessage } from "./message-queue.js";
 import { createInAppNotification } from "./in-app-notifications.js";
 import { recordOperationalIssue } from "./operations.js";
 import { PLAN_MESSAGE_LIMIT_REACHED } from "../lib/billing/message-quota.js";
+import { processSallaSubscriptionOrder, webhookExternalId } from "./subscription-operations.js";
 
 const DEFAULT_VISIBLE_FIELDS = {
   customerName: true, planName: true, startDate: true, endDate: true,
@@ -106,6 +107,30 @@ export async function upsertSallaConnection({ tenantId, accessToken, refreshToke
     );
     return result.rows[0].id;
   });
+}
+
+export async function registerSallaOperationalWebhooks(accessToken, origin) {
+  const base = (process.env.SALLA_API_BASE_URL || "https://api.salla.dev/admin/v2").replace(/\/$/, "");
+  const headers = { authorization: `Bearer ${accessToken}`, accept: "application/json", "content-type": "application/json" };
+  const listResponse = await fetch(`${base}/webhooks/events`, { headers });
+  const listPayload = await listResponse.json().catch(() => ({}));
+  if (!listResponse.ok) throw new Error(`Salla webhook events request failed (${listResponse.status})`);
+  const eventRows = Array.isArray(listPayload.data) ? listPayload.data : Array.isArray(listPayload.data?.data) ? listPayload.data.data : [];
+  const available = new Set(eventRows.map((item) => String(item.event || item.name || item)).filter(Boolean));
+  const desired = [
+    "order.created", "order.updated", "order.payment.updated", "order.status.updated",
+    "order.cancelled", "order.refunded", "order.deleted", "order.products.updated",
+    "customer.created", "customer.updated"
+  ].filter((event) => available.size === 0 || available.has(event));
+  const callbackUrl = `${String(origin).replace(/\/$/, "")}/api/webhooks/salla`;
+  for (const event of desired) {
+    const response = await fetch(`${base}/webhooks/subscribe`, {
+      method: "POST", headers,
+      body: JSON.stringify({ name: `Renvix ${event}`, event, url: callbackUrl, version: 2 })
+    });
+    if (!response.ok) throw new Error(`Salla webhook registration failed for ${event} (${response.status})`);
+  }
+  return { registered: desired.length, events: desired };
 }
 
 export async function getSallaDashboard(tenantId) {
@@ -232,13 +257,13 @@ function findProductMapping(items, mappings) {
   return null;
 }
 
-export async function processSallaEvent(payload) {
+export async function processSallaEvent(payload, { sendNotifications = true } = {}) {
   const event = String(payload.event || payload.type || "");
   const storeId = eventStoreId(payload);
   if (!storeId) return { ok: true, skipped: true };
   const connectionResult = await query(
     `SELECT ac.id, ac.tenant_id AS "tenantId", ac.status,
-            ac.provider_store_name,
+            ac.provider_store_name, ac.access_token_encrypted, ac.refresh_token_encrypted, ac.token_expires_at,
             scs.* FROM app_connections ac
        LEFT JOIN salla_connection_settings scs ON scs.connection_id = ac.id AND scs.tenant_id = ac.tenant_id
       WHERE ac.provider = 'salla' AND ac.provider_store_id = $1 LIMIT 1`, [storeId]
@@ -250,7 +275,7 @@ export async function processSallaEvent(payload) {
     return { ok: true };
   }
   const isCustomer = event === "customer.created" || event === "customer.updated";
-  const isOrder = ["order.created", "order.updated", "order.status.updated", "order.cancelled", "order.refunded", "order.deleted"].includes(event);
+  const isOrder = ["order.created", "order.updated", "order.payment.updated", "order.status.updated", "order.cancelled", "order.refunded", "order.deleted", "order.products.updated"].includes(event);
   if (!isCustomer && !isOrder) return { ok: true, skipped: true };
   if (isCustomer && !connection.auto_sync_customers) {
     await query(`INSERT INTO app_sync_logs
@@ -265,6 +290,31 @@ export async function processSallaEvent(payload) {
       VALUES ($1, $2, 'salla', $3, $4, 'skipped', 'مزامنة الطلبات التلقائية غير مفعلة')`,
       [connection.tenantId, connection.id, event, String((payload.data || payload).id || "") || null]);
     return { ok: true, skipped: true };
+  }
+
+  if (isOrder) {
+    let orderPayload = payload;
+    const rawOrder = payload?.data || payload || {};
+    const orderId = String(rawOrder.id || rawOrder.order_id || rawOrder.reference_id || "").trim();
+    if (orderId && (!Array.isArray(rawOrder.items) || rawOrder.items.length === 0)) {
+      try {
+        const token = await getSallaAccessToken(connection);
+        const base = (process.env.SALLA_API_BASE_URL || "https://api.salla.dev/admin/v2").replace(/\/$/, "");
+        const response = await fetch(`${base}/orders/${encodeURIComponent(orderId)}`, {
+          headers: { authorization: `Bearer ${token}`, accept: "application/json" }
+        });
+        const details = await response.json().catch(() => ({}));
+        if (response.ok && details?.data) orderPayload = { ...payload, data: details.data };
+      } catch {
+        // The verified webhook payload remains the source when Order Details is temporarily unavailable.
+      }
+    }
+    return processSallaSubscriptionOrder({
+      tenantId: connection.tenantId,
+      connectionId: connection.id,
+      payload: orderPayload,
+      sendNotifications
+    });
   }
 
   const initialOrder = normalizeSallaOrder(payload, connection.default_subscription_duration_days || 30);
@@ -496,6 +546,54 @@ export async function processSallaEvent(payload) {
     }
   }
   return { ...syncResult, linkCreated: true };
+}
+
+export async function queueSallaWebhookEvent(payload) {
+  const storeId = eventStoreId(payload);
+  const eventType = String(payload?.event || payload?.type || "unknown");
+  if (!storeId) return { ok: true, ignored: true, reason: "store_missing" };
+  const connection = await query(
+    "SELECT id,tenant_id FROM app_connections WHERE provider='salla' AND provider_store_id=$1 AND status='connected' LIMIT 1",
+    [storeId]
+  );
+  if (!connection.rows[0]) return { ok: true, ignored: true, reason: "connection_missing" };
+  const externalEventId = `${storeId}:${eventType}:${webhookExternalId(payload)}`;
+  const inserted = await query(
+    `INSERT INTO webhook_events
+       (provider,external_event_id,tenant_id,connection_id,event_type,payload)
+     VALUES ('salla',$1,$2,$3,$4,$5::jsonb)
+     ON CONFLICT (provider,external_event_id) DO NOTHING RETURNING id`,
+    [externalEventId, connection.rows[0].tenant_id, connection.rows[0].id, eventType, JSON.stringify(payload)]
+  );
+  return { ok: true, accepted: true, duplicate: !inserted.rows[0], eventId: inserted.rows[0]?.id || null };
+}
+
+export async function runSallaWebhookWorker() {
+  const claimed = await transaction(async (client) => {
+    const rows = await client.query(
+      `SELECT id,payload FROM webhook_events
+        WHERE provider='salla' AND processing_status IN ('received','failed') AND attempts < 5
+        ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 20`
+    );
+    if (rows.rows.length) await client.query(
+      "UPDATE webhook_events SET processing_status='processing',attempts=attempts+1,updated_at=now() WHERE id = ANY($1::uuid[])",
+      [rows.rows.map((row) => row.id)]
+    );
+    return rows.rows;
+  });
+  let completed = 0;
+  let failed = 0;
+  for (const item of claimed) {
+    try {
+      await processSallaEvent(item.payload, { sendNotifications: true });
+      await query("UPDATE webhook_events SET processing_status='completed',processed_at=now(),error_message=NULL,updated_at=now() WHERE id=$1", [item.id]);
+      completed += 1;
+    } catch (error) {
+      await query("UPDATE webhook_events SET processing_status='failed',error_message=$2,updated_at=now() WHERE id=$1", [item.id, String(error?.message || "processing_failed").slice(0, 500)]);
+      failed += 1;
+    }
+  }
+  return { claimed: claimed.length, completed, failed };
 }
 
 export async function getSallaAccessToken(connection) {

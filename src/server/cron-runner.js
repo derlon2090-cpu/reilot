@@ -12,100 +12,10 @@ import { sendQueuedEmail } from "./email/resend.service.js";
 import { evolutionConnectionState, evolutionSendText } from "./evolution-client.js";
 import { enqueueMessage } from "./message-queue.js";
 import { safeErrorMessage } from "./security.js";
-
-function renderTemplate(body, row) {
-  return String(body || "مرحبًا {{customer_name}}، حان موعد تجديد اشتراكك.")
-    .replace(/{{customer_name}}|{{name}}/g, row.customer_name || "عميلنا")
-    .replace(/{{اسم_العميل}}/g, row.customer_name || "عميلنا")
-    .replace(/{{service_name}}/g, row.service_name || "الاشتراك")
-    .replace(/{{اسم_الخدمة}}/g, row.service_name || "الاشتراك")
-    .replace(/{{plan_name}}/g, row.plan_name || "")
-    .replace(/{{end_date}}/g, row.end_date ? String(row.end_date).slice(0, 10) : "")
-    .replace(/{{تاريخ_الانتهاء}}/g, row.end_date ? String(row.end_date).slice(0, 10) : "")
-    .replace(/{{الأيام_المتبقية}}/g, row.days_offset ?? "")
-    .replace(/{{renewal_link}}|{{رابط_التجديد}}/g, row.renewal_url || "")
-    .replace(/{{رقم_الطلب}}/g, row.order_number || "")
-    .replace(/{{اسم_المتجر}}/g, row.store_name || "Renvix");
-}
+import { runDueSubscriptionReminders } from "./renewal-reminders.js";
 
 export async function runRenewalReminders() {
-  const candidates = await query(
-    `SELECT s.id AS subscription_id, s.tenant_id, s.customer_id, s.order_number, s.service_name, s.plan_name,
-            s.end_date, s.renewal_url, c.name AS customer_name, c.email,
-            COALESCE(c.whatsapp_number, c.phone) AS phone,
-            s.reminder_days_before AS days_offset, lower(s.reminder_channel) AS channel_type,
-            nt.id AS template_id, nt.title, nt.body, nt.store_name, nt.theme_color,
-            nt.button_label, nt.footer_text, nt.template_version,
-            wc.id AS whatsapp_channel_id
-       FROM subscriptions s
-       JOIN customers c ON c.id = s.customer_id AND c.tenant_id = s.tenant_id
-       LEFT JOIN LATERAL (
-         SELECT id, title, body, store_name, theme_color, button_label, footer_text, template_version
-           FROM notification_templates
-          WHERE tenant_id = s.tenant_id AND channel = s.reminder_channel AND is_active = true
-          ORDER BY updated_at DESC, created_at DESC LIMIT 1
-       ) nt ON true
-       LEFT JOIN LATERAL (
-         SELECT id FROM whatsapp_channels
-          WHERE tenant_id = s.tenant_id AND status = 'connected'
-          ORDER BY connected_at DESC NULLS LAST, created_at DESC LIMIT 1
-       ) wc ON true
-      WHERE s.status IN ('active', 'expiring_soon')
-        AND s.reminder_mode = 'automatic'
-        AND c.reminders_paused = false
-        AND (s.end_date - current_date) = s.reminder_days_before`
-  );
-  let queued = 0;
-  let skipped = 0;
-  for (const row of candidates.rows) {
-    if (!['whatsapp', 'email'].includes(row.channel_type)) {
-      skipped++;
-      continue;
-    }
-    const channelType = row.channel_type;
-    const messageBody = renderTemplate(row.body, row);
-    const subject = channelType === "email" ? renderTemplate(row.title || "تذكير بتجديد {{اسم_الخدمة}}", row) : null;
-    const templateSnapshot = channelType === "email" ? {
-      type: "renewal_email_v1",
-      version: Number(row.template_version || 1),
-      template: {
-        storeName: row.store_name || "Renvix",
-        title: row.title || "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
-        themeColor: row.theme_color || "#0EA5A8",
-        body: row.body,
-        buttonLabel: row.button_label || "جدد اشتراكك الآن",
-        footerText: row.footer_text || "شكرًا لثقتك بنا"
-      },
-      data: {
-        customerName: row.customer_name,
-        serviceName: row.service_name,
-        endDate: row.end_date ? String(row.end_date).slice(0, 10) : "",
-        remainingDays: row.days_offset,
-        renewalLink: row.renewal_url,
-        orderNumber: row.order_number
-      }
-    } : null;
-    const result = await enqueueMessage({
-      tenantId: row.tenant_id,
-      subscriptionId: row.subscription_id,
-      customerId: row.customer_id,
-      whatsappChannelId: channelType === "whatsapp" ? row.whatsapp_channel_id : null,
-      templateId: row.template_id,
-      channelType,
-      messageType: "renewal_reminder",
-      destination: channelType === "email" ? row.email : row.phone,
-      emailTo: channelType === "email" ? row.email : null,
-      subject,
-      messageBody,
-      templateSnapshot,
-      referenceType: "subscription",
-      referenceId: row.subscription_id,
-      triggerKey: `${row.tenant_id}:${row.subscription_id}:renewal:${row.days_offset}:${channelType}`,
-      sourceMode: "automatic"
-    });
-    result.ok ? queued++ : skipped++;
-  }
-  return { candidates: candidates.rowCount, queued, skipped };
+  return runDueSubscriptionReminders();
 }
 
 async function whatsappSafety(client, item) {
@@ -192,20 +102,23 @@ async function pauseRiskyChannel(item) {
 
 async function markSent(item, providerMessageId) {
   await transaction(async (client) => {
-    await client.query(
+    const updated = await client.query(
       `UPDATE message_queue SET status = 'sent', safety_status = 'passed', attempts = attempts + 1,
-              provider_message_id = $2, sent_at = now(), last_error = NULL, updated_at = now()
-        WHERE id = $1`,
+              provider_message_id = $2, sent_at = COALESCE(sent_at,now()), last_error = NULL,
+              billing_status = CASE WHEN is_billable THEN 'charged' ELSE 'not_billable' END, updated_at = now()
+        WHERE id = $1 AND status <> 'sent' RETURNING id`,
       [item.id, providerMessageId]
     );
+    if (!updated.rows[0]) return;
     await client.query(
       `INSERT INTO notification_logs
          (tenant_id, customer_id, subscription_id, whatsapp_channel_id, channel, to_number,
-          message_type, message_body, provider_message_id, status, trigger_key, sent_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'sent',$10,now())`,
+          message_type, message_body, provider_message_id, status, trigger_key, sent_at,
+          customer_subscription_id, reminder_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'sent',$10,now(),$11,$12)`,
       [item.tenant_id, item.customer_id, item.subscription_id, item.whatsapp_channel_id,
         item.channel_type, item.destination, item.message_type, item.message_body,
-        providerMessageId, item.trigger_key]
+        providerMessageId, item.trigger_key, item.customer_subscription_id, item.reminder_id]
     );
     if (item.channel_type === "email") {
       await client.query(
@@ -224,7 +137,24 @@ async function markSent(item, providerMessageId) {
         [item.whatsapp_channel_id]
       );
     }
-    await consumeReservedQuotaWithClient(client, { queueId: item.id });
+    if (item.is_billable !== false) {
+      const charged = await client.query(
+        `INSERT INTO balance_transactions (tenant_id,message_id,type,amount,reason,idempotency_key)
+         VALUES ($1,$2,'debit',1,'successful_message_send',$3)
+         ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`,
+        [item.tenant_id, item.id, `message:${item.id}:send-charge`]
+      );
+      if (charged.rows[0]) await consumeReservedQuotaWithClient(client, { queueId: item.id });
+    }
+    if (item.customer_subscription_id) await client.query(
+      `UPDATE customer_subscriptions SET last_reminder_sent_at=now(),last_reminder_channel=$2,
+       last_reminder_message_id=$3,notification_status='sent',updated_at=now() WHERE id=$1`,
+      [item.customer_subscription_id, item.channel_type, item.id]
+    );
+    if (item.reminder_id) await client.query(
+      "UPDATE subscription_reminders SET status='sent',sent_at=now(),failure_reason=NULL,updated_at=now() WHERE id=$1",
+      [item.reminder_id]
+    );
     await client.query(
       `INSERT INTO activity_logs (tenant_id, customer_id, type, title, metadata)
        VALUES ($1,$2,'message.sent','Message sent from secure queue',$3::jsonb)`,
@@ -240,11 +170,16 @@ async function markFailed(item, error) {
     await client.query(
       `UPDATE message_queue
           SET status = $2, attempts = attempts + 1, last_error = $3, safety_status = 'failed',
+              failed_at = CASE WHEN $2='failed' THEN now() ELSE failed_at END, failure_code=$3,
               scheduled_for = now() + (power(2, attempts + 1)::text || ' minutes')::interval, updated_at = now()
         WHERE id = $1`,
       [item.id, nextStatus, lastError]
     );
     if (nextStatus === "failed") await releaseReservedQuotaWithClient(client, { queueId: item.id });
+    if (nextStatus === "failed" && item.reminder_id) await client.query(
+      "UPDATE subscription_reminders SET status='failed',failed_at=now(),failure_reason=$2,updated_at=now() WHERE id=$1",
+      [item.reminder_id, lastError]
+    );
     if (item.channel_type === "whatsapp" && item.whatsapp_channel_id) {
       await client.query(
         `UPDATE whatsapp_channels SET consecutive_failures = consecutive_failures + 1,
@@ -254,6 +189,52 @@ async function markFailed(item, error) {
       );
     }
   });
+  return nextStatus;
+}
+
+async function reminderStillCurrent(item) {
+  if (item.message_type !== "renewal_reminder" || !item.customer_subscription_id) return { ok: true };
+  const result = await query(
+    `SELECT cs.status,cs.expires_at,sr.status AS reminder_status
+       FROM customer_subscriptions cs LEFT JOIN subscription_reminders sr ON sr.id=$2
+      WHERE cs.id=$1 LIMIT 1`,
+    [item.customer_subscription_id, item.reminder_id]
+  );
+  const row = result.rows[0];
+  if (!row || row.status !== "active") return { ok: false, reason: "subscription_not_active" };
+  if (item.original_expires_at && new Date(row.expires_at).getTime() !== new Date(item.original_expires_at).getTime()) return { ok: false, reason: "subscription_was_renewed" };
+  if (item.reminder_id && ["cancelled", "skipped", "sent"].includes(row.reminder_status)) return { ok: false, reason: "reminder_not_sendable" };
+  return { ok: true };
+}
+
+async function skipStaleReminder(item, reason) {
+  await transaction(async (client) => {
+    await client.query("UPDATE message_queue SET status='skipped',safety_status='blocked',safety_reason=$2,last_error=$2,updated_at=now() WHERE id=$1", [item.id, reason]);
+    await releaseReservedQuotaWithClient(client, { queueId: item.id });
+    if (item.reminder_id) await client.query("UPDATE subscription_reminders SET status='skipped',failure_reason=$2,updated_at=now() WHERE id=$1", [item.reminder_id, reason]);
+  });
+}
+
+async function enqueueFallback(item) {
+  if (!item.fallback_channel || !item.fallback_destination || !item.fallback_message_body) return false;
+  const result = await enqueueMessage({
+    tenantId: item.tenant_id,
+    customerId: item.customer_id,
+    customerSubscriptionId: item.customer_subscription_id,
+    reminderId: item.reminder_id,
+    channelType: item.fallback_channel,
+    messageType: item.message_type,
+    destination: item.fallback_destination,
+    emailTo: item.fallback_channel === "email" ? item.fallback_destination : null,
+    subject: item.fallback_subject,
+    messageBody: item.fallback_message_body,
+    referenceType: item.reference_type,
+    referenceId: item.reference_id,
+    triggerKey: `fallback:${item.id}`,
+    sourceMode: "automatic",
+    originalExpiresAt: item.original_expires_at
+  });
+  return result.ok;
 }
 
 export async function runMessageRetry() {
@@ -309,6 +290,12 @@ export async function runMessageRetry() {
   let failed = 0;
   let skipped = 0;
   for (const item of items) {
+    const current = await reminderStillCurrent(item);
+    if (!current.ok) {
+      await skipStaleReminder(item, current.reason);
+      skipped++;
+      continue;
+    }
     if (item.channel_type === "whatsapp") {
       if (await pauseRiskyChannel(item)) {
         skipped++;
@@ -345,7 +332,8 @@ export async function runMessageRetry() {
       await markSent(item, providerMessageId);
       sent++;
     } catch (error) {
-      await markFailed(item, error);
+      const finalStatus = await markFailed(item, error);
+      if (finalStatus === "failed") await enqueueFallback(item);
       failed++;
     }
   }

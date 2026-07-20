@@ -28,6 +28,8 @@ export async function enqueueMessage({
   tenantId,
   customerId = null,
   subscriptionId = null,
+  customerSubscriptionId = null,
+  reminderId = null,
   whatsappChannelId = null,
   templateId = null,
   channelType,
@@ -44,7 +46,12 @@ export async function enqueueMessage({
   sourceMode = "automatic",
   maxAttempts = 3,
   enforceConnected = false,
-  isBillable = true
+  isBillable = true,
+  originalExpiresAt = null,
+  fallbackChannel = null,
+  fallbackDestination = null,
+  fallbackSubject = null,
+  fallbackMessageBody = null
 }) {
   if (!tenantId || !["whatsapp", "email", "sms"].includes(channelType)) {
     return { ok: false, reason: "invalid_queue_request" };
@@ -119,15 +126,20 @@ export async function enqueueMessage({
          scheduled_for, priority, status, max_attempts, trigger_key,
          channel_type, message_type, destination, email_to, subject, message_body, template_snapshot,
          reference_type, reference_id, dedupe_hash, safety_status, delay_seconds, delay_reason,
-         is_billable, quota_status, quota_period_id, quota_period_start, quota_period_end, quota_reserved_at
+         is_billable, quota_status, quota_period_id, quota_period_start, quota_period_end, quota_reserved_at,
+         customer_subscription_id, reminder_id, original_expires_at, fallback_channel,
+         fallback_destination, fallback_subject, fallback_message_body
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17,$18,$19,'pending',$20,$21,
-                 $22,$23,$24,$25,$26,CASE WHEN $23 = 'reserved' THEN now() ELSE NULL END)
+                 $22,$23,$24,$25,$26,CASE WHEN $23 = 'reserved' THEN now() ELSE NULL END,
+                 $27,$28,$29,$30,$31,$32,$33)
        RETURNING id, scheduled_for AS "scheduledFor"`,
       [tenantId, subscriptionId, customerId, whatsappChannelId, templateId, scheduledFor, priority,
         maxAttempts, triggerKey, channelType, messageType, normalizedDestination, normalizedEmail,
         subject, String(messageBody).trim(), templateSnapshot ? JSON.stringify(templateSnapshot) : null, referenceType, referenceId, dedupeHash,
         delay.delaySeconds, delay.delayReason, Boolean(isBillable), quota.quotaStatus,
-        quota.periodId || null, quota.periodStart || null, quota.periodEnd || null]
+        quota.periodId || null, quota.periodStart || null, quota.periodEnd || null,
+        customerSubscriptionId, reminderId, originalExpiresAt, fallbackChannel, fallbackDestination,
+        fallbackSubject, fallbackMessageBody]
     );
     return { ok: true, queueId: inserted.rows[0].id, scheduledFor: inserted.rows[0].scheduledFor, usage: quota.usage || null, ...delay };
     });

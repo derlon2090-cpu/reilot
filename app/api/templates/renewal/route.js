@@ -10,8 +10,9 @@ import {
 } from "../../../../src/lib/billing/message-quota.js";
 
 const allowedChannels = new Set(["whatsapp", "email"]);
-const whatsappVariables = ["customer_name", "service_name", "end_date", "renewal_link"];
+const whatsappVariables = ["customer_name", "plan_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number", "subscription_id", "service_name", "end_date", "renewal_link"];
 const emailVariables = ["اسم_العميل", "اسم_الخدمة", "تاريخ_الانتهاء", "الأيام_المتبقية", "رابط_التجديد", "رقم_الطلب", "اسم_المتجر"];
+const allTemplateVariables = [...new Set([...whatsappVariables, ...emailVariables])];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const colorPattern = /^#[0-9a-f]{6}$/i;
 
@@ -38,6 +39,17 @@ function sanitizePlainText(value, maxLength) {
 function hasOnlyAllowedVariables(text, allowed) {
   const found = [...String(text || "").matchAll(/{{\s*([^{}]+?)\s*}}/g)].map((match) => match[1]);
   return found.every((variable) => allowed.includes(variable));
+}
+
+function canonicalTemplateVariables(value) {
+  return String(value || "")
+    .replace(/{{\s*(?:اسم_العميل|name)\s*}}/g, "{{customer_name}}")
+    .replace(/{{\s*(?:اسم_الخدمة|service_name)\s*}}/g, "{{plan_name}}")
+    .replace(/{{\s*(?:تاريخ_الانتهاء|end_date)\s*}}/g, "{{expiry_date}}")
+    .replace(/{{\s*الأيام_المتبقية\s*}}/g, "{{days_remaining}}")
+    .replace(/{{\s*(?:رابط_التجديد|renewal_link)\s*}}/g, "{{renewal_url}}")
+    .replace(/{{\s*رقم_الطلب\s*}}/g, "{{order_number}}")
+    .replace(/{{\s*اسم_المتجر\s*}}/g, "{{store_name}}");
 }
 
 function structuredContent(text) {
@@ -114,7 +126,7 @@ export async function PUT(req) {
     if (!title || !storeName || !buttonLabel || !footerText) {
       return Response.json({ ok: false, message: "أكمل جميع حقول قالب البريد الإلكتروني" }, { status: 400 });
     }
-    if (![title, messageBody, buttonLabel, footerText].every((value) => hasOnlyAllowedVariables(value, emailVariables))) {
+    if (![title, messageBody, buttonLabel, footerText].every((value) => hasOnlyAllowedVariables(value, allTemplateVariables))) {
       return Response.json({ ok: false, message: "يحتوي القالب على متغير غير معتمد" }, { status: 400 });
     }
   } else if (!hasOnlyAllowedVariables(messageBody, whatsappVariables)) {
@@ -158,6 +170,17 @@ export async function PUT(req) {
           [auth.session.tenantId, name, channel, title, messageBody, JSON.stringify(variables), storeName, themeColor, JSON.stringify(contentJson), buttonLabel, footerText, auth.session.userId, isActive]
         );
     const templateId = template.rows[0].id;
+    await client.query(
+      `INSERT INTO renewal_message_templates
+         (tenant_id,source_template_id,channel,name,subject,body,is_default,is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,true,$7)
+       ON CONFLICT (tenant_id,channel) WHERE is_default=true DO UPDATE SET
+         source_template_id=EXCLUDED.source_template_id,name=EXCLUDED.name,subject=EXCLUDED.subject,
+         body=EXCLUDED.body,is_active=EXCLUDED.is_active,updated_at=now()`,
+      [auth.session.tenantId, templateId, channel, name,
+        channel === "email" ? canonicalTemplateVariables(title) : null,
+        canonicalTemplateVariables(messageBody), isActive]
+    );
     const existingRule = await client.query("SELECT id FROM automation_rules WHERE tenant_id = $1 AND template_id = $2 LIMIT 1", [auth.session.tenantId, templateId]);
     const rule = existingRule.rows[0]
       ? await client.query(

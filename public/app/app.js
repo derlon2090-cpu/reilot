@@ -408,11 +408,21 @@ const state = {
   notificationDropdownOpen: false,
   notificationFilter: "all",
   subscriptionWindow: "7",
+  subscriptionStatus: "",
+  subscriptionPlanId: "",
+  subscriptionChannel: "",
+  subscriptionSource: "",
+  subscriptionReminderStatus: "",
+  subscriptionDateFrom: "",
+  subscriptionDateTo: "",
+  subscriptionPage: 1,
+  subscriptionSection: "list",
   settings: { whatsapp: false, email: false, sms: false, twoFactor: false, renewAuto: false },
   linkedDevice: { ...defaultLinkedDevice }
 };
 
 state.dbSubscriptions = null;
+state.subscriptionMeta = null;
 state.dbCustomers = null;
 state.dashboardOverview = null;
 state.notifications = null;
@@ -554,7 +564,10 @@ async function loadRemotePage(key, url, target, options) {
   state.remoteLoading[key] = true;
   try {
     const payload = await fetchJson(url, options);
-    state[target] = target === "orderLinks" || target === "notifications"
+    if (target === "dbSubscriptions") {
+      state.dbSubscriptions = payload.items || [];
+      state.subscriptionMeta = payload;
+    } else state[target] = target === "orderLinks" || target === "notifications"
       ? payload
       : target === "orderLinkProfile"
         ? payload.profile
@@ -583,7 +596,23 @@ function syncRouteData(force = false) {
     const notificationLimit = state.route === "/dashboard/notifications" ? 50 : 8;
     void loadRemotePage("notifications", `/api/notifications?limit=${notificationLimit}`, "notifications");
   }
-  if (["/dashboard", "/dashboard/subscriptions"].includes(state.route) && (force || state.dbSubscriptions === null)) void loadRemotePage("subscriptions", "/api/subscriptions", "dbSubscriptions");
+  if (["/dashboard", "/dashboard/subscriptions", "/dashboard/reports"].includes(state.route) && (force || state.dbSubscriptions === null)) {
+    const params = new URLSearchParams();
+    params.set("limit", state.route === "/dashboard" ? "5" : "20");
+    if (state.route === "/dashboard/subscriptions") {
+      if (state.search.trim()) params.set("search", state.search.trim());
+      if (state.subscriptionStatus) params.set("status", state.subscriptionStatus);
+      if (state.subscriptionPlanId) params.set("planId", state.subscriptionPlanId);
+      if (state.subscriptionChannel) params.set("channel", state.subscriptionChannel);
+      if (state.subscriptionSource) params.set("source", state.subscriptionSource);
+      if (state.subscriptionWindow) params.set("renewalWindow", state.subscriptionWindow);
+      if (state.subscriptionReminderStatus) params.set("reminderStatus", state.subscriptionReminderStatus);
+      if (state.subscriptionDateFrom) params.set("dateFrom", state.subscriptionDateFrom);
+      if (state.subscriptionDateTo) params.set("dateTo", state.subscriptionDateTo);
+      params.set("page", String(state.subscriptionPage || 1));
+    }
+    void loadRemotePage("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
+  }
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) void loadRemotePage("appsOverview", "/api/apps", "appsOverview");
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
@@ -692,7 +721,9 @@ function status(value) {
     renewed: "تم التجديد", paused: "موقوف", cancelled: "ملغي", connected: "متصل",
     disconnected: "غير متصل", not_connected: "غير متصل", pending_qr: "بانتظار الباركود",
     pending_pairing: "بانتظار الاقتران", connecting: "جارٍ الاتصال", sent: "تم الإرسال",
-    delivered: "تم التسليم", read: "تمت القراءة", failed: "فشل"
+    delivered: "تم التسليم", read: "تمت القراءة", failed: "فشل",
+    pending_activation: "بانتظار التفعيل", needs_review: "يحتاج مراجعة", scheduled: "مجدول",
+    queued: "في قائمة الإرسال", processing: "قيد الإرسال", skipped: "تم التخطي"
   } : {};
   const label = labels[value] || value || (state.language === "ar" ? "غير محدد" : "Unknown");
   return `<span class="status ${toneClass(value)}">${escapeHtml(label)}</span>`;
@@ -1513,7 +1544,7 @@ function appsPage() {
   }
   return dashboardShell(`${pageTitle("تطبيقاتنا")}
     ${statGrid([{ title: "التطبيقات المتاحة", value: stats.availableApps || 0, caption: "تطبيق", icon: "apps" }, { title: "التطبيقات المرتبطة", value: stats.connectedApps || 0, caption: "اتصال", tone: "success", icon: "apps" }, { title: "آخر مزامنة", value: stats.lastSyncAt ? new Date(stats.lastSyncAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "لا يوجد", caption: "تحديث البيانات", tone: "warning", icon: "reports" }, { title: "طلبات تمت مزامنتها", value: stats.syncedOrders || 0, caption: "طلب حقيقي", tone: "purple", icon: "subscriptions" }])}
-    <section class="card salla-app-card section"><div class="salla-card-head"><div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="/assets/salla-logo.svg" alt="سلة"></span><div><h2>سلة</h2><p>منصة التجارة الإلكترونية السعودية</p></div></div><span class="status ${connected ? "success" : connection?.status === "error" || connection?.status === "expired" ? "danger" : "neutral"}">${statusLabel}</span></div><p class="salla-app-description">اربط متجر سلة عبر OAuth لمزامنة الطلبات والعملاء والاشتراكات دون نسخ التوكنات إلى المتصفح.</p>${connected ? `<div class="salla-connected-meta"><div><span>المتجر</span><strong>${escapeHtml(connection.storeName || "-")}</strong></div><div><span>آخر مزامنة</span><strong>${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة"}</strong></div></div><div class="salla-header-actions"><button class="btn btn-primary" data-action="open-salla-settings">إعدادات الربط</button><button class="btn btn-secondary" data-action="sync-salla-now">مزامنة الآن</button><button class="btn btn-secondary" data-action="show-salla-logs">عرض السجلات</button><button class="btn btn-ghost danger-text" data-action="disconnect-salla">فصل الربط</button></div>` : `<div class="salla-header-actions"><button class="btn btn-primary" data-action="connect-salla" ${data.configured ? "" : "disabled"} title="${data.configured ? "ربط سلة" : "إعدادات OAuth لسلة غير مكتملة على الخادم"}">ربط سلة</button></div>${!data.configured ? `<p class="inline-notice warning">تكامل سلة بانتظار إضافة بيانات OAuth الآمنة في الخادم.</p>` : ""}`}</section>
+    <section class="card salla-app-card section"><div class="salla-card-head"><div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="/assets/salla-logo.svg" alt="سلة"></span><div><h2>سلة</h2><p>منصة التجارة الإلكترونية السعودية</p></div></div><span class="status ${connected ? "success" : connection?.status === "error" || connection?.status === "expired" ? "danger" : "neutral"}">${statusLabel}</span></div><p class="salla-app-description">اربط متجر سلة عبر OAuth لمزامنة الطلبات والعملاء والاشتراكات دون نسخ التوكنات إلى المتصفح.</p>${connected ? `<div class="salla-connected-meta"><div><span>المتجر</span><strong>${escapeHtml(connection.storeName || "-")}</strong></div><div><span>آخر مزامنة</span><strong>${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة"}</strong></div></div><div class="salla-header-actions"><button class="btn btn-primary" data-action="open-salla-settings">إعدادات الربط</button><button class="btn btn-secondary" data-action="open-salla-product-mappings">ربط المنتجات بالباقات</button><button class="btn btn-secondary" data-action="sync-salla-now">مزامنة الآن</button><button class="btn btn-secondary" data-action="show-salla-logs">عرض السجلات</button><button class="btn btn-ghost danger-text" data-action="disconnect-salla">فصل الربط</button></div>` : `<div class="salla-header-actions"><button class="btn btn-primary" data-action="connect-salla" ${data.configured ? "" : "disabled"} title="${data.configured ? "ربط سلة" : "إعدادات OAuth لسلة غير مكتملة على الخادم"}">ربط سلة</button></div>${!data.configured ? `<p class="inline-notice warning">تكامل سلة بانتظار إضافة بيانات OAuth الآمنة في الخادم.</p>` : ""}`}</section>
     ${settingsPanel}
     <section class="card table-card section" id="salla-sync-logs"><div class="section-head"><div><h2>سجل المزامنة</h2><p class="muted">النتائج الفعلية المسجلة لهذا المتجر.</p></div></div>${logs.length ? simpleTable(["الوقت", "التطبيق", "الحدث", "الحالة", "الرسالة"], logs.map((item) => [new Date(item.createdAt).toLocaleString("ar-SA"), "سلة", escapeHtml(item.eventType || "-"), status(item.status), escapeHtml(item.message || "-")])) : emptyState("لا توجد سجلات مزامنة", "ستظهر هنا الأحداث بعد ربط متجر سلة.")}</section>`);
 }
@@ -1548,62 +1579,77 @@ function subscriptionFilterRows(rows) {
 }
 
 function subscriptionToolbar() {
-  const selected = state.filter === "الكل" ? "all" : state.filter;
-  return `<div class="toolbar mb-toolbar subscription-toolbar">
-    <div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="dashboard-search" placeholder="بحث في الاشتراكات..." value="${escapeHtml(state.search)}"></div>
-    <select class="select" data-action="dashboard-filter">
-      <option value="all" ${selected === "all" ? "selected" : ""}>الكل</option>
-      <option value="active" ${selected === "active" ? "selected" : ""}>نشطة</option>
-      <option value="expiring" ${selected === "expiring" ? "selected" : ""}>تنتهي قريبًا</option>
-      <option value="expired" ${selected === "expired" ? "selected" : ""}>منتهية</option>
-      <option value="attention" ${selected === "attention" ? "selected" : ""}>تحتاج متابعة</option>
-    </select>
-    <label class="field compact-field"><span>نافذة التجديد</span><select class="select" data-action="subscription-window"><option value="3" ${state.subscriptionWindow === "3" ? "selected" : ""}>3 أيام</option><option value="7" ${state.subscriptionWindow === "7" ? "selected" : ""}>7 أيام</option><option value="14" ${state.subscriptionWindow === "14" ? "selected" : ""}>14 يومًا</option></select></label>
+  const plans = state.subscriptionMeta?.plans || [];
+  return `<div class="card subscription-server-filters">
+    <label class="subscription-search"><span>بحث</span><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="dashboard-search" placeholder="ابحث بالعميل أو رقم الطلب أو الاشتراك..." value="${escapeHtml(state.search)}"></div></label>
+    <label><span>الحالة</span><select class="select" data-action="subscription-status-filter"><option value="">الكل</option>${[["active","نشط"],["expired","منتهي"],["paused","موقوف"],["needs_review","يحتاج مراجعة"]].map(([value,label])=>`<option value="${value}" ${state.subscriptionStatus===value?"selected":""}>${label}</option>`).join("")}</select></label>
+    <label><span>الباقة</span><select class="select" data-action="subscription-plan-filter"><option value="">الكل</option>${plans.map((plan)=>`<option value="${plan.id}" ${state.subscriptionPlanId===plan.id?"selected":""}>${escapeHtml(plan.name)}</option>`).join("")}</select></label>
+    <label><span>قناة الإرسال</span><select class="select" data-action="subscription-channel-filter"><option value="">الكل</option><option value="whatsapp" ${state.subscriptionChannel==="whatsapp"?"selected":""}>واتساب</option><option value="email" ${state.subscriptionChannel==="email"?"selected":""}>البريد</option></select></label>
+    <label><span>موعد التجديد</span><select class="select" data-action="subscription-window"><option value="" ${!state.subscriptionWindow?"selected":""}>الكل</option><option value="3" ${state.subscriptionWindow==="3"?"selected":""}>خلال 3 أيام</option><option value="7" ${state.subscriptionWindow==="7"?"selected":""}>خلال 7 أيام</option><option value="14" ${state.subscriptionWindow==="14"?"selected":""}>خلال 14 يومًا</option><option value="30" ${state.subscriptionWindow==="30"?"selected":""}>خلال 30 يومًا</option></select></label>
+    <label><span>المصدر</span><select class="select" data-action="subscription-source-filter"><option value="">الكل</option><option value="salla" ${state.subscriptionSource==="salla"?"selected":""}>سلة</option><option value="manual" ${state.subscriptionSource==="manual"?"selected":""}>يدوي</option><option value="import" ${state.subscriptionSource==="import"?"selected":""}>استيراد</option></select></label>
+    <label><span>حالة التذكير</span><select class="select" data-action="subscription-reminder-status-filter"><option value="">الكل</option>${[["scheduled","مجدول"],["queued","في قائمة الإرسال"],["sent","تم الإرسال"],["failed","فشل"],["skipped","تم التخطي"]].map(([value,label])=>`<option value="${value}" ${state.subscriptionReminderStatus===value?"selected":""}>${label}</option>`).join("")}</select></label>
+    <label><span>انتهاء الاشتراك من</span><input class="input" type="date" data-action="subscription-date-from" value="${escapeHtml(state.subscriptionDateFrom)}"></label>
+    <label><span>إلى</span><input class="input" type="date" data-action="subscription-date-to" value="${escapeHtml(state.subscriptionDateTo)}"></label>
+    <button class="btn btn-secondary subscription-clear-filters" data-action="clear-subscription-filters">مسح الفلاتر</button>
   </div>`;
 }
 
 function subscriptionsPage() {
-  const stats = overviewStats();
+  const meta = state.subscriptionMeta || {};
+  const stats = meta.summary || {};
   const source = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions : [];
-  const rows = subscriptionFilterRows(source);
+  const rows = source;
   const content = state.dbSubscriptions?.error
     ? `<div class="empty-state"><strong>تعذر تحميل الاشتراكات</strong><p class="muted">${escapeHtml(state.dbSubscriptions.error)}</p><button class="btn btn-secondary" data-action="reload-subscriptions">إعادة المحاولة</button></div>`
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
-      : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
-  return dashboardShell(`${pageTitle("إدارة الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير CSV</button>`)}
+      : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات حتى الآن", meta.sallaConnected ? "لن يُنشأ اشتراك إلا من طلب مدفوع لمنتج مربوط بباقة، أو بإضافة اشتراك يدوي." : "اربط متجر سلة لاستيراد الطلبات والمنتجات، أو أضف اشتراكًا يدويًا.", meta.sallaConnected ? "إضافة اشتراك" : "ربط متجر سلة", meta.sallaConnected ? "add-subscription" : "connect-salla");
+  const tabs = [["list","قائمة الاشتراكات"],["settings","إعدادات التذكير"],["templates","قوالب الرسائل"],["log","سجل الإرسال"]];
+  const upcoming = meta.upcoming || [];
+  const sendLog = meta.sendLog || [];
+  const listSection = `<section class="subscription-workspace"><article class="card table-card subscription-list-card"><div class="section-head"><div><h2>قائمة الاشتراكات <span>(${Number(meta.total || 0).toLocaleString("ar-SA")})</span></h2><p class="muted">الطلبات المدفوعة المرتبطة بباقات Renvix فقط.</p></div></div>${content}<div class="subscription-pagination"><span>صفحة ${Number(meta.page||1)} من ${Math.max(1,Math.ceil(Number(meta.total||0)/Number(meta.limit||20)))}</span><div><button class="btn btn-secondary" data-action="subscription-page" data-page="${Math.max(1,Number(meta.page||1)-1)}" ${Number(meta.page||1)<=1?"disabled":""}>السابق</button><button class="btn btn-secondary" data-action="subscription-page" data-page="${Number(meta.page||1)+1}" ${Number(meta.page||1)*Number(meta.limit||20)>=Number(meta.total||0)?"disabled":""}>التالي</button></div></div></article><aside class="subscription-side-column"><article class="card subscription-reminder-summary"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">الإعدادات محفوظة لكل اشتراك وقناته الاحتياطية.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div><div class="reminder-summary-points"><div><strong>يدوي</strong><span>معاينة وتأكيد قبل الجدولة</span></div><div><strong>تلقائي</strong><span>يعمل من Worker دون فتح الصفحة</span></div><div><strong>الخصم</strong><span>بعد قبول المزود للرسالة فقط</span></div></div><button class="btn btn-primary" data-action="subscription-section" data-section="settings">إدارة إعدادات التذكير</button></article><article class="card subscription-upcoming"><div class="section-head"><h2>التجديدات القادمة</h2><button data-action="clear-subscription-filters">عرض الكل</button></div>${upcoming.length?upcoming.map((item)=>`<button class="upcoming-renewal-row" data-action="subscription-edit-db" data-id="${item.id}"><span><strong>${escapeHtml(item.customerName)}</strong><small>${escapeHtml(item.planName)}</small></span><b>${new Date(item.endDate).toLocaleDateString("ar-SA",{day:"numeric",month:"short"})}</b></button>`).join(""):`<div class="security-empty-row">لا توجد تجديدات قادمة.</div>`}</article></aside></section>`;
+  const settingsSection = `<article class="card section subscription-preferences-list"><div class="section-head"><div><h2>إعدادات التذكير</h2><p class="muted">عدّل القناة الأساسية والاحتياطية ووضع الإرسال لكل اشتراك.</p></div></div>${rows.length?rows.map((row)=>`<div><span><strong>${escapeHtml(row.customerName)}</strong><small>${escapeHtml(row.planName)}</small></span><span>${row.reminderChannel==="email"?"البريد":"واتساب"}${row.fallbackChannel?` ← احتياطي: ${row.fallbackChannel==="email"?"البريد":"واتساب"}`:""}</span><span>${row.reminderMode==="automatic"?"تلقائي":"يدوي"}</span><button class="btn btn-secondary" data-action="subscription-edit-db" data-id="${row.id}">تعديل</button></div>`).join(""):emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعداداته.")}</article>`;
+  const templatesSection = `<article class="card section subscription-template-bridge"><div>${dashboardIcon("template")}<h2>قوالب رسائل التجديد</h2><p>قالب واتساب وقالب البريد مستقلان، ولا تُرسل رسالة إذا كان قالب القناة غير مهيأ أو يحتوي متغيرًا غير معتمد.</p><button class="btn btn-primary" data-link="/dashboard/renewal-template">فتح قوالب التجديد</button></div></article>`;
+  const logSection = `<article class="card table-card section"><div class="section-head"><div><h2>سجل الإرسال</h2><p class="muted">يبقى السجل محفوظًا حتى بعد اختفاء شارة «تم الإرسال» بعد 72 ساعة.</p></div></div>${sendLog.length?simpleTable(["العميل","الخدمة","القناة","الحالة","وقت النجاح","السبب"],sendLog.map((item)=>[escapeHtml(item.customerName||"-"),escapeHtml(item.serviceName||"-"),item.channel==="email"?"البريد":"واتساب",status(item.status),item.sentAt?new Date(item.sentAt).toLocaleString("ar-SA"):"-",escapeHtml(item.errorMessage||"-")])):emptyState("لا توجد رسائل مسجلة","ستظهر هنا نتائج الإرسال الفعلية.")}</article>`;
+  const activeSection = state.subscriptionSection==="settings"?settingsSection:state.subscriptionSection==="templates"?templatesSection:state.subscriptionSection==="log"?logSection:listSection;
+  return dashboardShell(`${pageTitle("الاشتراكات", `<button class="btn btn-primary" data-action="add-subscription">+ اشتراك جديد</button><button class="btn btn-secondary" data-action="export-subscriptions">تصدير</button>`)}
+    <p class="subscriptions-page-subtitle">إدارة عملائك ومواعيد تجديدها في مكان واحد.</p>
     ${statGrid([
-      { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
-      { title: "التجديدات خلال 7 أيام", value: stats.upcomingRenewals, caption: "قادم", tone: "warning", icon: "reports" },
-      { title: "الاشتراكات المنتهية", value: stats.expiredSubscriptions, caption: "منتهي", tone: "danger", icon: "security" },
-      { title: "الإيراد الشهري", value: formatMoney(stats.monthlyRevenue), caption: "من الاشتراكات", tone: "success", icon: "reports" }
+      { title: "إجمالي الاشتراكات", value: Number(stats.total||0), caption: "سجل فعلي", tone: "info", icon: "subscriptions" },
+      { title: "الاشتراكات النشطة", value: Number(stats.active||0), caption: "نشط", tone: "success", icon: "security" },
+      { title: "تجديد قريب (7 أيام)", value: Number(stats.upcoming7||0), caption: "موعد", tone: "warning", icon: "reports" },
+      { title: "قيمة الاشتراكات النشطة", value: formatMoney(Number(stats.activeValue||0)), caption: "ر.س", tone: "purple", icon: "billing" }
     ])}
+    ${Number(meta.unmappedCount||0)>0?`<button class="inline-notice warning subscription-unmapped-notice" data-link="/dashboard/apps">${Number(meta.unmappedCount)} عناصر طلب من سلة تحتاج إلى ربط باقة ومدة — لم يُنشأ لها اشتراك تلقائيًا.</button>`:""}
+    <nav class="subscription-section-tabs">${tabs.map(([key,label])=>`<button class="${state.subscriptionSection===key?"active":""}" data-action="subscription-section" data-section="${key}">${label}</button>`).join("")}</nav>
     ${subscriptionToolbar()}
-    <article class="card table-card">${content}</article>`);
+    ${activeSection}`);
 }
 
 function subscriptionsTable(rows, compact = false) {
-  const head = compact ? ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة"] : ["رقم الطلب", "العميل", "الباقة / الخدمة", "تاريخ البداية", "تاريخ الانتهاء", "الحالة", "الإجراء"];
+  const head = compact ? ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة"] : ["العميل", "الباقة", "قيمة الاشتراك", "البداية", "التجديد القادم", "الحالة", "الإجراءات"];
   const body = rows.map((row) => {
-    const disabled = row.canSend ? "" : "disabled";
-    const reason = row.remindersPaused
-      ? "التذكيرات موقوفة لهذا العميل"
-      : row.reminderChannel === "email" && !row.email
-        ? "أضف بريد العميل أولًا"
-        : row.reminderChannel !== "email" && row.whatsappStatus !== "connected"
-          ? "يجب ربط واتساب أولًا"
-          : row.reminderChannel !== "email" && Number(row.riskScore) > 70
-            ? "الإرسال متوقف بسبب ارتفاع المخاطر"
-            : "";
-    const deliveryLabel = `${row.reminderChannel === "email" ? "البريد الإلكتروني" : "واتساب"} · ${row.reminderMode === "automatic" ? `تلقائي قبل ${Number(row.reminderDaysBefore || 0)} يوم` : "يدوي"}`;
+    const noContact = !row.emailEligible && !row.whatsappEligible;
+    const disabled = noContact ? "disabled" : "";
+    const reason = noContact ? "لا يمكن الإرسال لعدم توفر رقم أو بريد صالح" : "";
+    const deliveryLabel = `${row.reminderChannel === "email" ? "البريد الإلكتروني" : "واتساب"} · ${row.reminderMode === "automatic" ? "تلقائي" : "يدوي"}`;
+    const reminderAction = row.lastMessageStatus === "failed"
+      ? `<button class="btn btn-secondary" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="سيتم خصم الرصيد فقط إذا نجح الإرسال">إعادة الإرسال</button>`
+      : `<button class="btn btn-ghost icon-only" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="${escapeHtml(reason||"معاينة التذكير")}">${dashboardIcon("template")}</button>`;
     const actions = `<div class="subscription-actions">
-      <button class="btn btn-primary" data-action="mark-renewed" data-id="${row.id}">تم التجديد</button>
-      <button class="btn btn-secondary" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="${escapeHtml(reason)}">إرسال تذكير</button>
+      <button class="btn btn-ghost icon-only" data-action="subscription-notifications" data-id="${row.id}" title="عرض السجل">${dashboardIcon("reports")}</button>
+      ${reminderAction}
+      <button class="btn btn-secondary" data-action="mark-renewed" data-id="${row.id}">تجديد</button>
       <button class="btn btn-ghost icon-only" data-action="subscription-edit-db" data-id="${row.id}" title="تعديل">${dashboardIcon("settings")}</button>
-      <button class="btn btn-ghost icon-only danger-text" data-action="subscription-delete-db" data-id="${row.id}" title="حذف">×</button>
     </div>`;
     if (compact) return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td>${escapeHtml(row.planName)}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td></tr>`;
-    return `<tr><td>${escapeHtml(row.orderNumber)}</td><td>${escapeHtml(row.customerName)}</td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small><span class="delivery-preference-pill ${row.reminderMode === "automatic" ? "automatic" : "manual"}">${escapeHtml(deliveryLabel)}</span></td><td>${escapeHtml(String(row.startDate).slice(0, 10))}</td><td>${escapeHtml(String(row.endDate).slice(0, 10))}</td><td>${status(row.status)}</td><td>${actions}</td></tr>`;
+    const sentBadge = row.showSentBadge
+      ? `<span class="subscription-sent-badge">تم الإرسال <small>${row.lastReminderChannel==="email"?"بالبريد":"عبر واتساب"}</small></span>`
+      : row.lastReminderSentAt
+        ? `<span class="subscription-sent-history" title="آخر تذكير أُرسل ${new Date(row.lastReminderSentAt).toLocaleString("ar-SA")} ${row.lastReminderChannel==="email"?"عبر البريد":"عبر واتساب"}">✓</span>`
+        : row.lastMessageStatus==="failed" ? `<span class="subscription-failed-badge" title="${escapeHtml(row.lastMessageError||"")}">فشل الإرسال</span>` : row.lastMessageStatus==="pending" ? `<span class="subscription-queued-badge">مجدول</span>` : "";
+    const displayStatus = row.status==="active" && subscriptionRemainingDays(row)!==null && subscriptionRemainingDays(row)<=7 && subscriptionRemainingDays(row)>=0 ? "expiring_soon" : row.status;
+    return `<tr><td><strong>${escapeHtml(row.customerName)}</strong><small>${escapeHtml(row.orderNumber)}</small></td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small><span class="delivery-preference-pill ${row.reminderMode === "automatic" ? "automatic" : "manual"}">${escapeHtml(deliveryLabel)}</span></td><td>${formatMoney(Number(row.price||0))}<small>${escapeHtml(row.currency||"SAR")}</small></td><td>${escapeHtml(String(row.startDate).slice(0,10))}<small>بداية الاشتراك</small></td><td><strong>${escapeHtml(String(row.endDate).slice(0,10))}</strong><small>${subscriptionRemainingDays(row)>=0?`بعد ${subscriptionRemainingDays(row)} يوم`:"منتهي"}</small></td><td>${status(displayStatus)}${sentBadge}</td><td>${actions}</td></tr>`;
   }).join("");
   return `<div class="compare"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
@@ -1663,6 +1709,7 @@ function reportsPage() {
   const activities = (state.dashboardOverview?.activities || []).filter((item) => !String(item.type || "").startsWith("auth."));
   const profile = state.dashboardOverview?.profile || {};
   const reportRows = (state.dashboardOverview?.monthlyPerformance || []).slice(-Number(state.reportPeriod || 6));
+  const reminder = state.subscriptionMeta?.reminderPerformance || {};
   return dashboardShell(`${pageTitle("التقارير", `<select class="select report-period" data-action="report-period"><option value="6" ${state.reportPeriod === "6" ? "selected" : ""}>آخر 6 أشهر</option><option value="3" ${state.reportPeriod === "3" ? "selected" : ""}>آخر 3 أشهر</option><option value="1" ${state.reportPeriod === "1" ? "selected" : ""}>هذا الشهر</option></select><button class="btn btn-primary" data-action="export-report">تصدير التقرير</button>`)}
     ${statGrid([
       { title: "الإيراد الشهري", value: formatMoney(stats.monthlyRevenue), caption: "حالي", tone: "success", icon: "reports" },
@@ -1671,6 +1718,14 @@ function reportsPage() {
       { title: "العملاء المتجددون", value: stats.renewedCustomers, caption: "عميل", tone: "warning", icon: "customers" }
     ])}
     <article class="card chart-card section"><div class="section-head"><div><h2>رسم الأداء</h2><p class="muted">بيانات الاشتراكات للفترة المحددة.</p></div></div>${performanceChart(reportRows)}</article>
+    <article class="card section"><div class="section-head"><div><h2>أداء تذكيرات التجديد</h2><p class="muted">يُحسب التحويل فقط من روابط التجديد الخاصة القابلة للتتبع.</p></div></div>${statGrid([
+      {title:"الرسائل المجدولة",value:Number(reminder.scheduled||0),caption:"قيد الانتظار",tone:"info",icon:"template"},
+      {title:"الرسائل الناجحة",value:Number(reminder.successful||0),caption:"قبِلها المزود",tone:"success",icon:"subscriptions"},
+      {title:"الرسائل الفاشلة",value:Number(reminder.failed||0),caption:"مع سبب محفوظ",tone:"danger",icon:"security"},
+      {title:"التجديدات المتتبعة",value:Number(reminder.renewed||0),caption:reminder.bestChannel?`أفضل قناة: ${reminder.bestChannel==="email"?"البريد":"واتساب"}`:"لا توجد بيانات",tone:"purple",icon:"reports"},
+      {title:"فتح رابط التجديد",value:Number(reminder.opened||0),caption:`نقرات الزر ${Number(reminder.clicked||0)}`,tone:"warning",icon:"reports"},
+      {title:"التحويل إلى تجديد",value:reminder.conversionRate===null||reminder.conversionRate===undefined?"غير متاح":`${Number(reminder.conversionRate)}%`,caption:"من الروابط المتتبعة فقط",tone:"success",icon:"reports"}
+    ])}</article>
     <div class="section dashboard-two-column">
       <article class="card table-card"><div class="section-head"><div><h2>سجل النشاط</h2><p class="muted">آخر العمليات داخل مساحة العمل.</p></div></div>${activities.length ? activityList(activities) : emptyState("لا توجد نشاطات بعد", "ستظهر العمليات الفعلية هنا بعد استخدام المنصة.")}</article>
       <article class="card table-card"><div class="section-head"><div><h2>الفوترة والباقات</h2><p class="muted">الخطة الحالية والفواتير.</p></div><span class="plan-badge">${escapeHtml(profile.planName || "Free Trial")}</span></div>${emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا عند إصدار أول فاتورة.", "عرض خطط الأسعار", "/pricing")}</article>
@@ -2547,6 +2602,7 @@ function subscriptionForm(row = {}, editId = "") {
   const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   if (!customers.length) return emptyState("أضف عميلًا أولًا", "يجب اختيار عميل حقيقي قبل إنشاء الاشتراك.", "إضافة عميل", "add-customer");
   const reminderChannel = row.reminderChannel === "email" ? "email" : "whatsapp";
+  const fallbackChannel = row.fallbackChannel === "email" || row.fallbackChannel === "whatsapp" ? row.fallbackChannel : "";
   const reminderMode = row.reminderMode === "automatic" ? "automatic" : "manual";
   const reminderDaysBefore = Number.isInteger(Number(row.reminderDaysBefore)) ? Number(row.reminderDaysBefore) : 7;
   return `<form data-submit="subscription" data-id="${editId}" class="form-grid">
@@ -2569,6 +2625,7 @@ function subscriptionForm(row = {}, editId = "") {
           <option value="whatsapp" ${reminderChannel === "whatsapp" ? "selected" : ""}>واتساب</option>
           <option value="email" ${reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option>
         </select><small>تُستخدم القناة نفسها عند الإرسال اليدوي أو التلقائي.</small></label>
+        <label class="field"><span>القناة الاحتياطية</span><select class="select" name="fallbackChannel"><option value="">بدون قناة احتياطية</option><option value="whatsapp" ${fallbackChannel==="whatsapp"?"selected":""}>واتساب</option><option value="email" ${fallbackChannel==="email"?"selected":""}>البريد الإلكتروني</option></select><small>تُستخدم بعد استنفاد المحاولات المسموحة فقط، وليس بعد أول فشل مؤقت.</small></label>
         <fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch">
           <label><input type="radio" name="reminderMode" value="manual" ${reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label>
           <label><input type="radio" name="reminderMode" value="automatic" ${reminderMode === "automatic" ? "checked" : ""}><span>تلقائي</span></label>
@@ -3056,6 +3113,31 @@ async function handleAction(target) {
   if (action === "integration-coming-soon") toast(`تكامل ${target.dataset.integration || "هذا التطبيق"} قيد التجهيز وسيُتاح قريبًا.`, "info");
   if (action === "integration-guide") openModal("دليل ربط التطبيقات", `<div class="integration-guide"><p>اختر التطبيق المطلوب ثم اضغط زر الربط. عند اختيار سلة ستنتقل إلى صفحة التفويض الآمنة، وبعد الموافقة تعود تلقائيًا إلى Renvix وتبدأ المزامنة.</p><ol><li>تأكد أن حساب المتجر يملك صلاحية إدارة التطبيقات.</li><li>اضغط «ربط سلة» وأكمل الموافقة داخل سلة.</li><li>ارجع إلى هذه الصفحة واضبط خيارات المزامنة.</li></ol></div>`, `<button class="btn btn-primary" data-action="connect-salla">ربط سلة</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   if (action === "open-salla-settings") { state.sallaSettingsOpen = true; state.sallaRuleDrafts = null; render(); }
+  if (action === "open-salla-product-mappings") {
+    try {
+      const payload = await fetchJson("/api/apps/salla/product-mappings");
+      const productOptions = (payload.products || []).map((item) => `<option value="${escapeHtml(`${item.productId}|${item.variantId || ""}|${item.sku || ""}`)}">${escapeHtml(item.name || item.sku || item.productId)}${item.variantId ? ` — ${escapeHtml(item.variantId)}` : ""}</option>`).join("");
+      const planOptions = (payload.plans || []).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${Number(item.durationValue)} ${item.durationUnit})</option>`).join("");
+      const mappingRows = (payload.mappings || []).map((item) => `<div class="activity-item"><div><strong>${escapeHtml(item.planName)}</strong><p class="muted">Product ${escapeHtml(item.productId)}${item.variantId ? ` · Variant ${escapeHtml(item.variantId)}` : ""} · ${Number(item.durationValue)} ${escapeHtml(item.durationUnit)}</p></div><span class="status ${item.isActive ? "success" : "neutral"}">${item.isActive ? "نشط" : "متوقف"}</span></div>`).join("");
+      const unmappedNotice = Number(payload.unmapped?.length || 0) ? `<p class="inline-notice warning">يوجد ${Number(payload.unmapped.length)} عنصر طلب يحتاج إلى ربط باقة. لن ينشئ النظام اشتراكات لها قبل تحديد الربط.</p>` : "";
+      openDrawer("ربط منتجات سلة بالباقات", `${unmappedNotice}<form data-submit="salla-product-mapping" class="grid"><label class="field"><span>منتج سلة / المتغير</span><select class="select" name="product" required><option value="">اختر المنتج</option>${productOptions}</select></label><label class="field"><span>الباقة الحالية</span><select class="select" name="planId"><option value="">إنشاء باقة جديدة</option>${planOptions}</select></label><label class="field"><span>اسم باقة جديدة (اختياري)</span><input class="input" name="newPlanName" placeholder="مثال: Canva Yearly"></label><label class="field"><span>رابط منتج التجديد في سلة</span><input class="input" type="url" name="renewalUrl" dir="ltr" placeholder="https://store.salla.sa/product"></label><div class="form-grid two"><label class="field"><span>المدة</span><input class="input" name="durationValue" type="number" min="1" value="1" required></label><label class="field"><span>وحدة المدة</span><select class="select" name="durationUnit"><option value="month">شهر</option><option value="year">سنة</option><option value="day">يوم</option></select></label></div><label class="field"><span>بدء الاشتراك</span><select class="select" name="startTrigger"><option value="payment_completed">بعد اكتمال الدفع</option><option value="order_completed">بعد اكتمال الطلب</option><option value="manual_activation">تفعيل يدوي</option><option value="specific_order_status">حالة طلب محددة</option></select></label><label class="field"><span>سلوك الكمية</span><select class="select" name="quantityBehavior"><option value="multiply_duration">مضاعفة مدة الاشتراك</option><option value="create_multiple_subscriptions">إنشاء اشتراكات مستقلة</option></select></label><button class="btn btn-primary" type="submit">حفظ الربط</button></form><section class="section"><h3>الروابط الحالية</h3><div class="activity-list">${mappingRows || emptyState("لا توجد روابط بعد", "زامن المنتجات ثم اربط كل منتج اشتراكي بباقة.")}</div></section>`);
+    } catch (error) { toast(error.message || "تعذر تحميل ربط المنتجات.", "danger"); }
+    const triggerField = document.querySelector("form[data-submit='salla-product-mapping'] select[name='startTrigger']")?.closest("label");
+    triggerField?.insertAdjacentHTML("afterend", '<label class="field"><span>معرّف حالة الطلب المحددة (عند اختيارها)</span><input class="input" name="specificOrderStatus" dir="ltr" placeholder="completed"></label>');
+    document.querySelectorAll("#portal .activity-list > .activity-item").forEach((row, index) => {
+      const mapping = payload.mappings?.[index];
+      if (mapping?.isActive) row.insertAdjacentHTML("beforeend", `<button class="btn btn-ghost danger-text" data-action="deactivate-salla-mapping" data-id="${escapeHtml(mapping.id)}">إيقاف الربط</button>`);
+    });
+    return;
+  }
+  if (action === "deactivate-salla-mapping") {
+    try {
+      await fetchJson(`/api/apps/salla/product-mappings?id=${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" });
+      closePortal();
+      toast("تم إيقاف ربط المنتج. الطلبات الجديدة لن تنشئ اشتراكًا منه حتى إعادة ربطه.");
+    } catch (error) { toast(error.message || "تعذر إيقاف الربط.", "danger"); }
+    return;
+  }
   if (action === "close-salla-settings") { state.sallaSettingsOpen = false; state.sallaRuleDrafts = null; render(); }
   if (action === "add-salla-rule") {
     const drafts = readSallaRuleDrafts();
@@ -3491,14 +3573,19 @@ async function handleAction(target) {
   if (action === "run-readiness") { state.readiness = null; syncRouteData(true); render(); }
   if (action === "reload-issues") { state.operationalIssues = null; syncRouteData(true); render(); }
   if (action === "reload-subscriptions") { state.dbSubscriptions = null; syncRouteData(true); render(); }
+  if (action === "subscription-section") { state.subscriptionSection = target.dataset.section || "list"; render(); }
+  if (action === "subscription-page") { state.subscriptionPage = Math.max(1, Number(target.dataset.page||1)); state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (action === "clear-subscription-filters") {
+    state.search=""; state.subscriptionStatus=""; state.subscriptionPlanId=""; state.subscriptionChannel=""; state.subscriptionSource=""; state.subscriptionWindow=""; state.subscriptionReminderStatus=""; state.subscriptionDateFrom=""; state.subscriptionDateTo=""; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render();
+  }
   if (action === "send-subscription-reminder") {
     try {
-      await fetchJson(`/api/subscriptions/${target.dataset.id}/remind`, { method: "POST" });
-      invalidateMessageUsage();
-      toast("تمت إضافة التذكير إلى قائمة الإرسال");
+      const payload = await fetchJson(`/api/subscriptions/${target.dataset.id}/remind`);
+      const preview = payload.preview;
+      openModal("معاينة تذكير التجديد", `<form data-submit="confirm-subscription-reminder" data-id="${target.dataset.id}" class="grid"><div class="reminder-confirm-summary"><span>القناة</span><strong>${preview.channel==="email"?"البريد الإلكتروني":"واتساب"}</strong><span>المستلم</span><strong>${escapeHtml(preview.recipient)}</strong><span>القالب</span><strong>${escapeHtml(preview.templateName||"-")}</strong></div>${preview.subject?`<label class="field"><span>العنوان</span><input class="input" value="${escapeHtml(preview.subject)}" readonly></label>`:""}<label class="field"><span>محتوى الرسالة</span><textarea class="textarea" rows="9" readonly>${escapeHtml(preview.body)}</textarea></label><p class="inline-notice info">سيتم خصم رصيد رسالة واحدة فقط إذا نجح مزود الإرسال.</p><button class="btn btn-primary">تأكيد وجدولة الرسالة</button><button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button></form>`);
     } catch (error) {
       if (error.code === "PLAN_MESSAGE_LIMIT_REACHED") showMessageQuotaLimit(error.usage);
-      else toast(error.message || "تعذر إرسال التذكير", "danger");
+      else toast(error.message || "تعذر تجهيز معاينة التذكير", "danger");
     }
   }
   if (action === "subscription-notifications") {
@@ -3642,6 +3729,35 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "salla-product-mapping") {
+    const [productId, variantId, sku] = String(data.product || "").split("|");
+    if (!productId || (!data.planId && !String(data.newPlanName || "").trim())) return toast("اختر باقة حالية أو اكتب اسم باقة جديدة.", "danger");
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري حفظ الربط...");
+    try {
+      await fetchJson("/api/apps/salla/product-mappings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, productId, variantId: variantId || null, sku: sku || null, durationValue: Number(data.durationValue || 1) }) });
+      closePortal();
+      toast("تم ربط منتج سلة بالباقة بنجاح.");
+    } catch (error) {
+      setSubmitBusy(button, false, "حفظ الربط");
+      toast(error.message || "تعذر حفظ ربط المنتج.", "danger");
+    }
+    return;
+  }
+  if (type === "confirm-subscription-reminder") {
+    const button = form.querySelector("button[type='submit'],button:not([type])");
+    setSubmitBusy(button, true, "جاري الجدولة...");
+    try {
+      await fetchJson(`/api/subscriptions/${form.dataset.id}/remind`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({confirmed:true}) });
+      closePortal(); invalidateMessageUsage(); state.dbSubscriptions=null; await syncRouteData(true);
+      toast("تمت جدولة الرسالة، وسيُخصم الرصيد فقط بعد نجاح الإرسال.");
+    } catch (error) {
+      setSubmitBusy(button, false, "تأكيد وجدولة الرسالة");
+      if (error.code === "PLAN_MESSAGE_LIMIT_REACHED") return showMessageQuotaLimit(error.usage);
+      toast(error.message || "تعذرت جدولة التذكير", "danger");
+    }
+    return;
+  }
   if (type === "order-link-template") {
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
@@ -4201,7 +4317,10 @@ document.addEventListener("input", (event) => {
   }
   if (target.dataset.action === "dashboard-search" || target.dataset.action === "global-search" || target.dataset.action === "support-search" || target.dataset.action === "notification-search") {
     state.search = target.value;
-    if (target.dataset.action !== "global-search") render();
+    if (state.route === "/dashboard/subscriptions" && target.dataset.action === "dashboard-search") {
+      clearTimeout(state.subscriptionSearchTimer);
+      state.subscriptionSearchTimer = setTimeout(() => { state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }, 350);
+    } else if (target.dataset.action !== "global-search") render();
   }
   if (target.dataset.action === "pairing-phone-input") {
     state.linkedDevice.phoneInput = target.value;
@@ -4250,8 +4369,15 @@ document.addEventListener("change", (event) => {
   }
   if (target.dataset.action === "subscription-window") {
     state.subscriptionWindow = target.value;
-    render();
+    state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render();
   }
+  if (target.dataset.action === "subscription-status-filter") { state.subscriptionStatus=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (target.dataset.action === "subscription-plan-filter") { state.subscriptionPlanId=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (target.dataset.action === "subscription-channel-filter") { state.subscriptionChannel=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (target.dataset.action === "subscription-source-filter") { state.subscriptionSource=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (target.dataset.action === "subscription-reminder-status-filter") { state.subscriptionReminderStatus=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (target.dataset.action === "subscription-date-from") { state.subscriptionDateFrom=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
+  if (target.dataset.action === "subscription-date-to") { state.subscriptionDateTo=target.value; state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }
   if (target.dataset.action === "preference-select") {
     const value = target.value;
     const key = target.dataset.preference;

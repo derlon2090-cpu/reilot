@@ -1,5 +1,5 @@
 import { query } from "../../../../../src/server/db.js";
-import { consumeOauthState, sallaRedirectUri, upsertSallaConnection } from "../../../../../src/server/salla-app.js";
+import { consumeOauthState, registerSallaOperationalWebhooks, sallaRedirectUri, upsertSallaConnection } from "../../../../../src/server/salla-app.js";
 
 function redirect(req, result) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
@@ -31,6 +31,12 @@ export async function GET(req) {
     const merchant = info.data?.merchant || info.data?.store || info.data || {};
     await upsertSallaConnection({ tenantId: state.tenantId, accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token, expiresIn: tokens.expires_in, scopes: tokens.scope, merchant });
+    try {
+      await registerSallaOperationalWebhooks(tokens.access_token, origin);
+    } catch (webhookError) {
+      await query(`INSERT INTO app_sync_logs (tenant_id, provider, event_type, status, message)
+        VALUES ($1,'salla','webhook.registration','warning',$2)`, [state.tenantId, String(webhookError.message).slice(0,300)]).catch(() => {});
+    }
     await query("INSERT INTO activity_logs (tenant_id, type, title) VALUES ($1, 'salla.connected', 'تم ربط متجر سلة')", [state.tenantId]);
     return redirect(req, "connected");
   } catch (error) {

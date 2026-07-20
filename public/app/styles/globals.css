@@ -1234,6 +1234,59 @@ tbody tr:hover { background: #fbfeff; }
 .delivery-mode-switch input:checked + span { color: #fff; background: linear-gradient(110deg, #10a9b9, #2860ec); box-shadow: 0 5px 12px rgba(37, 99, 235, .18); }
 .delivery-preference-pill { width: fit-content; margin-top: 6px; padding: 3px 7px; display: block; border-radius: 999px; color: #66758c; background: #f1f5f9; font-size: 10px; font-weight: 700; }
 .delivery-preference-pill.automatic { color: #087b79; background: #e6f8f5; }
+
+/* Operational subscriptions center */
+.salla-duration-line,.salla-rules-panel { display:none!important; }
+.subscriptions-page-subtitle { margin: -14px 0 18px; color: var(--muted); }
+.subscription-section-tabs { display:flex; gap:8px; margin:14px 0; padding:5px; width:max-content; max-width:100%; overflow:auto; border:1px solid var(--border); background:var(--surface); border-radius:14px; }
+.subscription-section-tabs button { border:0; background:transparent; color:var(--muted); padding:9px 15px; border-radius:10px; font:inherit; font-weight:700; white-space:nowrap; cursor:pointer; }
+.subscription-section-tabs button.active { color:#1765ed; background:#edf5ff; box-shadow:0 2px 8px rgba(37,99,235,.08); }
+.subscription-server-filters { display:grid; grid-template-columns:minmax(240px,1.7fr) repeat(4,minmax(120px,1fr)); gap:10px; align-items:end; margin-bottom:14px; padding:14px; }
+.subscription-server-filters label { display:grid; gap:6px; min-width:0; color:var(--muted); font-size:11px; font-weight:700; }
+.subscription-server-filters .select,.subscription-server-filters .input { min-height:42px; }
+.subscription-clear-filters { min-height:42px; }
+.subscription-workspace { display:grid; grid-template-columns:minmax(0,2.2fr) minmax(260px,.8fr); gap:14px; align-items:start; direction:ltr; }
+.subscription-workspace > * { direction:rtl; }
+.subscription-list-card { min-width:0; overflow:hidden; }
+.subscription-list-card .compare { overflow:auto; }
+.subscription-list-card table { min-width:920px; }
+.subscription-list-card td strong,.subscription-list-card td small { display:block; }
+.subscription-list-card td small { margin-top:3px; color:var(--muted); font-size:10px; }
+.subscription-list-card .section-head h2 span { color:var(--muted); font-size:12px; }
+.subscription-side-column { display:grid; gap:14px; }
+.subscription-reminder-summary,.subscription-upcoming { padding:16px; }
+.subscription-reminder-summary .section-head { align-items:flex-start; }
+.reminder-summary-points { display:grid; gap:2px; margin:12px 0; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.reminder-summary-points > div { display:grid; grid-template-columns:72px 1fr; gap:8px; padding:10px; background:color-mix(in srgb,var(--surface) 94%,#eaf3ff); }
+.reminder-summary-points span { color:var(--muted); font-size:11px; }
+.subscription-reminder-summary > .btn { width:100%; }
+.subscription-upcoming .section-head button { border:0; background:transparent; color:#1765ed; cursor:pointer; }
+.upcoming-renewal-row { width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border:0; border-bottom:1px solid var(--border); background:transparent; color:inherit; text-align:right; cursor:pointer; }
+.upcoming-renewal-row span,.upcoming-renewal-row strong,.upcoming-renewal-row small { display:block; }
+.upcoming-renewal-row small { color:var(--muted); }
+.upcoming-renewal-row b { padding:5px 8px; border-radius:9px; background:#fff1df; color:#df7c12; font-size:11px; white-space:nowrap; }
+.subscription-pagination { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-top:1px solid var(--border); color:var(--muted); font-size:12px; }
+.subscription-pagination > div { display:flex; gap:6px; }
+.subscription-sent-badge,.subscription-failed-badge,.subscription-queued-badge { display:block; width:max-content; margin-top:6px; padding:4px 7px; border-radius:999px; font-size:9px; font-weight:800; }
+.subscription-sent-badge { color:#087b5a; background:#e3f8ef; }
+.subscription-sent-badge small { display:inline!important; color:inherit!important; margin:0!important; }
+.subscription-sent-history { width:20px; height:20px; margin-top:6px; display:grid; place-items:center; border-radius:50%; color:#16866a; background:#e8f7f2; font-size:10px; cursor:help; }
+.subscription-failed-badge { color:#c03a3a; background:#ffeaea; }
+.subscription-queued-badge { color:#9b6500; background:#fff4d9; }
+.subscription-unmapped-notice { width:100%; border:1px solid #f6cf72; cursor:pointer; text-align:right; }
+.subscription-preferences-list { display:grid; gap:0; }
+.subscription-preferences-list > div:not(.section-head) { display:grid; grid-template-columns:minmax(180px,1.5fr) 1fr .6fr auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
+.subscription-preferences-list span strong,.subscription-preferences-list span small { display:block; }
+.subscription-preferences-list small { color:var(--muted); }
+.subscription-template-bridge { min-height:360px; display:grid; place-items:center; text-align:center; }
+.subscription-template-bridge > div { max-width:620px; }
+.subscription-template-bridge svg { width:48px; height:48px; color:#2770ef; }
+.reminder-confirm-summary { display:grid; grid-template-columns:110px 1fr; gap:8px 12px; padding:14px; border:1px solid var(--border); border-radius:12px; }
+.reminder-confirm-summary span { color:var(--muted); }
+:root[data-theme="dark"] .subscription-section-tabs button.active { background:#142b50; color:#7fb3ff; }
+:root[data-theme="dark"] .upcoming-renewal-row b { background:#3b2c13; color:#ffc366; }
+@media (max-width:1180px) { .subscription-server-filters { grid-template-columns:repeat(3,1fr); } .subscription-search { grid-column:span 2; } .subscription-workspace { grid-template-columns:1fr; } .subscription-side-column { grid-template-columns:1fr 1fr; } }
+@media (max-width:720px) { .subscription-server-filters { grid-template-columns:1fr 1fr; } .subscription-search { grid-column:1/-1; } .subscription-side-column { grid-template-columns:1fr; } .subscription-preferences-list > div:not(.section-head) { grid-template-columns:1fr; } }
 [data-theme="dark"] .subscription-delivery-settings { border-color: #253d5d; background: linear-gradient(145deg, #102139, #0d2630); }
 [data-theme="dark"] .subscription-delivery-heading strong { color: #e6efff; }
 [data-theme="dark"] .delivery-mode-switch { border-color: #304967; background: #0d1d32; }
