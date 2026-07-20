@@ -3,13 +3,17 @@ import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-aut
 
 test.skip(!hasLiveCredentials, "requires a real authenticated test account");
 
-test("settings toggles are persisted to local storage", async ({ page }) => {
+test("settings cards keep the required RTL order and interface preferences persist", async ({ page }) => {
   await loginWithLiveCredentials(page);
   await page.goto("/dashboard/settings");
-  const whatsappToggle = page.locator("input[data-action='setting-toggle'][data-key='whatsapp']");
-  await expect(whatsappToggle).toBeVisible();
-  await whatsappToggle.setChecked(false);
-  await page.locator("[data-action='save-settings']").first().click();
+  const cards = page.locator(".settings-layout > article");
+  await expect(cards).toHaveCount(5);
+  await expect(cards.nth(0)).toContainText("إعدادات الحساب");
+  await expect(cards.nth(1)).toContainText("الأمان");
+  await expect(cards.nth(2)).toContainText("الواجهة واللغة");
+  await expect(cards.nth(3)).toContainText("الإشعارات");
+  const language = page.locator("select[data-preference='language']");
+  await language.selectOption("en");
   await page.reload();
-  await expect(whatsappToggle).not.toBeChecked();
+  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
 });

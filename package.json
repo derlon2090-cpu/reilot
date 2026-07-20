@@ -6,6 +6,7 @@
     "dev": "next dev",
     "start": "next start",
     "db:migrate": "node scripts/migrate.mjs",
+    "admin:promote": "node scripts/promote-admin.mjs",
     "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
     "cron:run": "node scripts/run-cron.mjs",
     "test": "vitest",
@@ -20,12 +21,14 @@
   "name": "renewpilot-ai",
   "version": "1.0.0",
   "dependencies": {
+    "@vercel/blob": "^2.6.1",
     "next": "^15.4.0",
     "pg": "^8.22.0",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "resend": "^6.17.2"
+    "resend": "^6.17.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",

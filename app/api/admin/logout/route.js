@@ -12,7 +12,7 @@ export async function POST(request) {
   }
   await destroySession(request);
   return Response.json(
-    { ok: true },
+    { ok: true, redirectUrl: "/advanced-pro-control" },
     { headers: { "Set-Cookie": clearSessionCookie() } }
   );
 }

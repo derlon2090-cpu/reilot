@@ -10,3 +10,12 @@ test("subscriptions page supports opening the add subscription workflow", async 
   await page.locator("[data-action='add-subscription']").click();
   await expect(page.locator("[role='dialog']")).toBeVisible();
 });
+
+test("renewal window stays usable until a value is selected", async ({ page }) => {
+  await loginWithLiveCredentials(page);
+  await page.goto("/dashboard/subscriptions");
+  const renewalWindow = page.locator("select[data-action='subscription-window']");
+  await expect(renewalWindow).toBeVisible();
+  await renewalWindow.selectOption("14");
+  await expect(renewalWindow).toHaveValue("14");
+});

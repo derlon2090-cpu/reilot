@@ -50,8 +50,7 @@ function hasRolePermission(role, module, action) {
 }
 
 export function adminControlPath() {
-  const raw = String(process.env.ADMIN_CONTROL_PATH || "").trim();
-  return raw.replace(/^\/+|\/+$/g, "");
+  return "advanced-pro-control";
 }
 
 export function requestIp(req) {
@@ -109,16 +108,18 @@ export async function auditAdmin(req, {
   try {
     await query(
       `INSERT INTO admin_audit_logs
-         (admin_user_id, user_id, action, resource, status, metadata, ip_hash, user_agent)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)`,
+         (admin_user_id, user_id, actor_email, action, resource, status, metadata, ip_hash, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)`,
       [
         admin?.adminId || null,
         admin?.userId || userId || null,
+        admin?.email || metadata?.actorEmail || null,
         action,
         resource,
         status,
         JSON.stringify(metadata || {}),
         requestIp(req) ? sha256(requestIp(req)) : null,
+        requestIp(req) || null,
         req.headers.get("user-agent")?.slice(0, 500) || null
       ]
     );
@@ -130,7 +131,7 @@ export async function auditAdmin(req, {
 export async function requireAdminPermission(req, module, action = "read") {
   const admin = await getAdminContext(req);
   if (!admin) {
-    await auditAdmin(req, { action: "admin.access", resource: module, status: "denied" });
+    await auditAdmin(req, { action: "admin.access.denied", resource: module, status: "denied" });
     return {
       ok: false,
       response: Response.json({ ok: false, reason: "admin_auth_required" }, { status: 401 })

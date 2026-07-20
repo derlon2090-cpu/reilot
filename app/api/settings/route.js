@@ -6,10 +6,24 @@ export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const [result, storage] = await Promise.all([query(
-    `SELECT u.name, u.email, u.image, s.language, s.theme,
+    `SELECT u.name, u.name AS "fullName", u.email, u.image, u.image AS "avatarUrl", u.phone,
+            COALESCE(st.name, '') AS "storeName", COALESCE(tm.role, u.role) AS role,
+            COALESCE(s.language, 'ar') AS language, COALESCE(s.theme, 'light') AS theme,
+            COALESCE(s.interface_density, 'comfortable') AS "interfaceDensity",
+            u.mfa_enabled AS "mfaEnabled",
             COALESCE(s.notification_channels, '{}'::jsonb) AS "notificationChannels",
-            COALESCE(s.security, '{}'::jsonb) AS security
-       FROM users u LEFT JOIN settings s ON s.tenant_id = u.tenant_id
+            COALESCE(s.security, '{}'::jsonb) AS security,
+            jsonb_build_object(
+              'renewalBillingNotifications', COALESCE(np.renewal_billing_notifications, true),
+              'securityNotifications', true,
+              'productUpdates', COALESCE(np.product_updates, true),
+              'messageFailureNotifications', COALESCE(np.message_failure_notifications, true)
+            ) AS notifications
+       FROM users u
+       LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
+       LEFT JOIN LATERAL (SELECT name FROM stores WHERE tenant_id = u.tenant_id ORDER BY created_at LIMIT 1) st ON true
+       LEFT JOIN settings s ON s.tenant_id = u.tenant_id
+       LEFT JOIN user_notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1 AND u.tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
   ), getTenantStorage(auth.session.tenantId)]);

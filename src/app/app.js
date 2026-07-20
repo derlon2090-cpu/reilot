@@ -507,7 +507,10 @@ const dashboardAliases = {
 };
 
 function applyPreferences() {
-  document.documentElement.dataset.theme = state.theme;
+  const resolvedTheme = state.theme === "system"
+    ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : state.theme;
+  document.documentElement.dataset.theme = resolvedTheme;
   document.documentElement.lang = state.language;
   document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
 }
@@ -723,6 +726,7 @@ function dashboardIcon(name) {
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
     orderLink: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><rect x="8" y="8" width="8" height="8" rx="2"/>',
     apps: '<path d="M19 13h-2.5a1.5 1.5 0 0 0-1.5 1.5V17h-3v-2.5a1.5 1.5 0 0 0-1.5-1.5H8V10h2.5A1.5 1.5 0 0 0 12 8.5V6h3v2.5a1.5 1.5 0 0 0 1.5 1.5H19z"/><path d="M8 10V7a2 2 0 1 0-4 0v3H2v4h2v3a2 2 0 1 0 4 0v-4"/><path d="M19 10h1a2 2 0 1 0 0-4h-2V3h-4v3"/>',
+    language: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
@@ -1260,7 +1264,6 @@ function dashboardShell(content) {
   const profile = state.dashboardOverview?.profile || {};
   const profileName = profile.name || (state.language === "ar" ? "المستخدم" : "User");
   const profileInitial = profileName.trim().slice(0, 1) || "R";
-  const planName = profile.planName || (state.language === "ar" ? "تجربة مجانية" : "Free Trial");
   const profileAvatar = profile.image
     ? `<img class="avatar avatar-image" src="${escapeHtml(profile.image)}" alt="${escapeHtml(profileName)}">`
     : `<span class="avatar">${escapeHtml(profileInitial)}</span>`;
@@ -1276,15 +1279,14 @@ function dashboardShell(content) {
           <button class="btn btn-secondary icon-btn mobile-side-toggle" data-action="toggle-sidebar">☰</button>
           <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${state.search}"></div>
         </div>
-        <div class="topbar-tools">
-          <span class="plan-badge">${escapeHtml(planName)}</span>
-          <button class="btn btn-ghost icon-btn" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
+        <div class="topbar-tools topbar-account-tools">
+          <button class="profile-trigger compact-profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong></span><span class="profile-caret">⌄</span></button>
+          <button class="btn btn-ghost icon-btn theme-topbar-button" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
+          <button class="btn btn-secondary language-topbar-button" data-action="language" title="${state.language === "ar" ? "اللغة" : "Language"}">${dashboardIcon("language")}<span>${state.language === "ar" ? "AR" : "EN"}</span></button>
           <div class="notification-trigger-wrap">
             <button class="btn btn-ghost icon-btn notification-trigger" data-action="notifications" title="${state.language === "ar" ? "الإشعارات" : "Notifications"}">${dashboardIcon("notifications")}${unreadNotifications ? `<span class="notification-badge">${unreadNotifications > 99 ? "99+" : unreadNotifications}</span>` : ""}</button>
             ${state.notificationDropdownOpen ? notificationDropdownMarkup() : ""}
           </div>
-          <button class="btn btn-secondary" data-action="language">${state.language === "ar" ? "EN" : "AR"}</button>
-          <button class="profile-trigger" data-action="profile-menu">${profileAvatar}<span><strong>${escapeHtml(profileName)}</strong><small>${escapeHtml(profile.email || "")}</small></span></button>
           ${state.profileOpen ? `<div class="profile-menu"><button data-link="/dashboard/settings">${t("dashboard.profile")}</button><button data-link="/dashboard/settings">${t("dashboard.settings")}</button><button class="danger-text" data-action="logout-confirm">${t("auth.logout")}</button></div>` : ""}
         </div>
       </header>
@@ -2304,25 +2306,26 @@ function billingWorkspacePage() {
 function settingsPage() {
   const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
   const storage = state.accountSettings?.storage || { usedMb: 0, limitMb: 100, percent: 0, breakdown: [] };
-  const notifications = remote.notificationChannels || {};
-  const security = remote.security || {};
-  const avatar = remote.image
-    ? `<img class="settings-avatar-image" src="${escapeHtml(remote.image)}" alt="صورة الحساب">`
-    : `<span class="settings-avatar-fallback">${escapeHtml((remote.name || "م").trim().charAt(0) || "م")}</span>`;
-  return dashboardShell(`${pageTitle("الإعدادات", `<button class="btn btn-primary" data-action="save-settings">حفظ التغييرات</button>`)}
+  const notifications = remote.notifications || {};
+  const avatarUrl = remote.avatarUrl || remote.image;
+  const fullName = remote.fullName || remote.name || "";
+  const avatar = avatarUrl
+    ? `<img class="settings-avatar-image" src="${escapeHtml(avatarUrl)}" alt="صورة الحساب">`
+    : `<span class="settings-avatar-fallback">${escapeHtml(fullName.trim().charAt(0) || "م")}</span>`;
+  const canEditStore = ["owner", "admin"].includes(String(remote.role || ""));
+  return dashboardShell(`${pageTitle("الإعدادات")}
+    <p class="page-kicker">إدارة معلومات الحساب والأمان وتفضيلات الواجهة.</p>
     <div class="settings-layout">
-      <article class="card settings-panel account-photo-panel"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">بيانات المستخدم وصورة الحساب.</p></div></div><div class="avatar-editor">${avatar}<div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">إضافة أو تغيير الصورة</button>${remote.image ? `<button class="btn btn-ghost danger-text" data-action="remove-avatar">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 512 كيلوبايت بعد التحسين.</small></div></div><form data-submit="profile-settings" class="form-grid"><label class="field"><span>الاسم</span><input class="input" name="name" value="${escapeHtml(remote.name || "")}" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" disabled></label><button class="btn btn-primary">حفظ الملف الشخصي</button></form></article>
+      <article class="card settings-panel account-photo-panel settings-account-card"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">تحديث معلومات حسابك الشخصية وبيانات التواصل.</p></div></div><div class="avatar-editor">${avatar}<div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="avatar-camera-button" data-action="choose-avatar" title="تغيير الصورة">${dashboardIcon("reports")}</button>${avatarUrl ? `<button class="btn btn-ghost danger-text" data-action="remove-avatar">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</small></div></div><form data-submit="profile-settings" class="settings-profile-form" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" value="${escapeHtml(remote.storeName || "")}" ${canEditStore ? "" : "disabled title=\"لا تملك صلاحية تعديل اسم المتجر\""}></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly title="لتغيير البريد، استخدم إجراء التحقق المخصص."></label><label class="field"><span>رقم الهاتف</span><input class="input" name="phone" dir="ltr" placeholder="+9665XXXXXXXX" value="${escapeHtml(remote.phone || "")}"></label><button class="btn btn-primary profile-save-button" disabled>حفظ التغييرات</button><button type="button" class="btn btn-danger settings-logout-button" data-action="logout-confirm">تسجيل الخروج</button></form></article>
+      <article class="card settings-panel settings-security-card"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.</p></div></div><form data-submit="password" class="security-password-form"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" autocomplete="current-password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="btn btn-primary">تحديث كلمة المرور</button></form><div class="setting-row"><div><strong>المصادقة الثنائية</strong><p class="muted">طبقة حماية إضافية لحسابك</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><button class="btn btn-secondary sessions-button" data-action="manage-sessions">إدارة الجلسات النشطة</button></article>
+      <article class="card settings-panel settings-interface-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الواجهة واللغة</h2><p class="muted">تخصيص مظهر وكثافة ولغة الواجهة.</p></div></div><div class="settings-select-grid"><label class="field"><span>اللغة</span><select class="select" data-action="preference-select" data-preference="language"><option value="ar" ${state.language === "ar" ? "selected" : ""}>◉ العربية</option><option value="en" ${state.language === "en" ? "selected" : ""}>◉ English</option></select></label><label class="field"><span>المظهر</span><select class="select theme-preference-select" data-action="preference-select" data-preference="theme"><option value="light" ${state.theme === "light" ? "selected" : ""}>☀ شمسي (فاتح)</option><option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾ قمري (داكن)</option><option value="system" ${remote.theme === "system" ? "selected" : ""}>النظام</option></select></label><label class="field"><span>كثافة الواجهة</span><select class="select" data-action="preference-select" data-preference="interfaceDensity"><option value="comfortable" ${remote.interfaceDensity === "comfortable" ? "selected" : ""}>مريحة</option><option value="medium" ${remote.interfaceDensity === "medium" ? "selected" : ""}>متوسطة</option><option value="compact" ${remote.interfaceDensity === "compact" ? "selected" : ""}>مضغوطة</option></select></label></div></article>
+      <article class="card settings-panel settings-notifications-card"><div class="settings-panel-head">${dashboardIcon("notifications")}<div><h2>الإشعارات</h2><p class="muted">اختر الإشعارات التي ترغب في استلامها.</p></div></div>${notificationSettingToggle("renewalBillingNotifications", "إشعارات التجديد والفواتير", Boolean(notifications.renewalBillingNotifications))}${notificationSettingToggle("securityNotifications", "التنبيهات الأمنية الأساسية", true, true)}${notificationSettingToggle("productUpdates", "تقارير النظام والتحديثات", Boolean(notifications.productUpdates))}${notificationSettingToggle("messageFailureNotifications", "تنبيهات فشل الرسائل", Boolean(notifications.messageFailureNotifications))}<small class="security-always-note">التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.</small></article>
       <article class="card settings-panel storage-panel"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>من ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Math.min(100, Number(storage.percent || 0))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small><div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">عرض حدود الباقات</button></article>
-      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>اللغة والمظهر</h2><p class="muted">تحفظ التفضيلات للحساب والمتصفح.</p></div></div><div class="setting-row"><span>اللغة</span><div class="segmented"><button class="${state.language === "ar" ? "active" : ""}" data-action="set-language" data-value="ar">AR</button><button class="${state.language === "en" ? "active" : ""}" data-action="set-language" data-value="en">EN</button></div></div><div class="setting-row"><span>المظهر</span><div class="segmented"><button class="${state.theme === "light" ? "active" : ""}" data-action="set-theme" data-value="light">شمسي</button><button class="${state.theme === "dark" ? "active" : ""}" data-action="set-theme" data-value="dark">ليلي</button></div></div></article>
-      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">كلمة المرور والمصادقة الثنائية.</p></div></div>${settingToggle("twoFactor", "المصادقة الثنائية (2FA)", Boolean(security.twoFactor))}<button class="btn btn-secondary" data-action="change-password">تغيير كلمة المرور</button><button class="btn btn-secondary" data-action="manage-sessions">إدارة الجلسات</button></article>
-      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("subscriptions")}<div><h2>الإشعارات</h2><p class="muted">اختر القنوات التي تريد تفعيلها.</p></div></div>${settingToggle("whatsapp", "واتساب", Boolean(notifications.whatsapp))}${settingToggle("email", "البريد الإلكتروني", Boolean(notifications.email))}${settingToggle("sms", "الرسائل النصية", Boolean(notifications.sms))}</article>
-      <article class="card settings-panel"><div class="settings-panel-head">${dashboardIcon("reports")}<div><h2>إعدادات النظام</h2><p class="muted">قواعد التشغيل الخاصة بالحساب.</p></div></div>${settingToggle("renewAuto", "التجديد التلقائي", Boolean(security.renewAuto))}<button class="btn btn-secondary" data-link="/dashboard/security">إدارة سياسة الإرسال</button></article>
-      <article class="card settings-panel session-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الجلسة الحالية</h2><p class="muted">${escapeHtml(remote.email || "")}</p></div></div><span class="status success">نشطة</span><button class="btn btn-danger" data-action="logout-confirm">تسجيل الخروج</button></article>
     </div>`);
 }
 
-function settingToggle(key, label, checked = state.settings[key]) {
-  return `<label class="setting-row setting-toggle"><span>${label}</span><input type="checkbox" data-action="setting-toggle" data-key="${key}" ${checked ? "checked" : ""}></label>`;
+function notificationSettingToggle(key, label, checked, disabled = false) {
+  return `<label class="setting-row"><span>${label}</span><span class="switch-control"><input type="checkbox" data-action="notification-preference" data-key="${key}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}><span></span></span></label>`;
 }
 
 function simpleTable(headers, rows) {
@@ -2659,52 +2662,80 @@ function openOrderLinkSendModal(item) {
   openModal("إرسال رابط معلومات الطلب", `<form data-submit="order-link-send" data-id="${item.id}" class="grid"><div class="order-send-summary"><strong>${escapeHtml(item.customerName || "العميل")}</strong><span>#${escapeHtml(item.orderNumber || "")}</span></div><label class="field"><span>طريقة الإرسال</span><select class="select" name="method"><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option><option value="copy">نسخ فقط</option></select></label><button class="btn btn-primary">إرسال الرابط</button></form>`);
 }
 
-async function saveAccountSettings(overrides = {}) {
-  const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
-  const notificationChannels = { ...(remote.notificationChannels || {}) };
-  const security = { ...(remote.security || {}) };
-  for (const key of ["whatsapp", "email", "sms"]) {
-    if (Object.hasOwn(state.settings, key)) notificationChannels[key] = Boolean(state.settings[key]);
-  }
-  for (const key of ["twoFactor", "renewAuto"]) {
-    if (Object.hasOwn(state.settings, key)) security[key] = Boolean(state.settings[key]);
-  }
+async function saveProfileSettings(data, form) {
+  const button = form?.querySelector(".profile-save-button");
+  if (button) { button.disabled = true; button.textContent = "جارٍ الحفظ..."; }
   try {
-    await fetchJson("/api/settings", {
+    await fetchJson("/api/settings/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: overrides.name || remote.name || undefined,
-        language: state.language,
-        theme: state.theme,
-        notificationChannels,
-        security
+        fullName: String(data.fullName || "").trim(),
+        storeName: data.storeName === undefined ? undefined : String(data.storeName || "").trim() || null,
+        phone: String(data.phone || "").trim() || null
       })
     });
     state.accountSettings = null;
     state.dashboardOverview = null;
     await syncRouteData(true);
-    toast("تم حفظ التغييرات بنجاح");
-  } catch (error) { toast(error.message || "تعذر حفظ الإعدادات", "danger"); }
+    toast("تم حفظ إعدادات الحساب بنجاح");
+  } catch (error) {
+    if (button) { button.disabled = false; button.textContent = "حفظ التغييرات"; }
+    const firstError = Object.values(error.payload?.errors || {}).flat()[0];
+    toast(firstError || error.message || "تعذر حفظ التغييرات. حاول مرة أخرى.", "danger");
+  }
 }
 
-async function imageFileToDataUrl(file) {
-  if (!file?.type?.match(/^image\/(png|jpeg|webp)$/)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
-  const source = await createImageBitmap(file);
-  const scale = Math.min(1, 512 / Math.max(source.width, source.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(source.width * scale));
-  canvas.height = Math.max(1, Math.round(source.height * scale));
-  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
-  source.close?.();
-  let quality = .84;
-  let data = canvas.toDataURL("image/webp", quality);
-  while (data.length > 680000 && quality > .45) {
-    quality -= .1;
-    data = canvas.toDataURL("image/webp", quality);
-  }
-  if (data.length > 700000) throw new Error("الصورة كبيرة جدًا، اختر صورة أصغر.");
-  return data;
+async function saveInterfacePreferences(overrides = {}) {
+  const remote = state.accountSettings?.settings || {};
+  const language = overrides.language || state.language;
+  const theme = overrides.theme || state.theme;
+  const interfaceDensity = overrides.interfaceDensity || remote.interfaceDensity || "comfortable";
+  await fetchJson("/api/settings/preferences", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ language, theme, interfaceDensity })
+  });
+  state.language = language;
+  state.theme = theme;
+  localStorage.setItem("renewpilot_locale", language);
+  localStorage.setItem("renewpilot_theme", theme);
+  applyPreferences();
+  state.accountSettings = null;
+  await syncRouteData(true);
+}
+
+async function saveNotificationPreference(key, checked) {
+  const remote = state.accountSettings?.settings || {};
+  const current = { ...(remote.notifications || {}), [key]: checked };
+  await fetchJson("/api/settings/notifications", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      renewalBillingNotifications: Boolean(current.renewalBillingNotifications),
+      productUpdates: Boolean(current.productUpdates),
+      messageFailureNotifications: Boolean(current.messageFailureNotifications)
+    })
+  });
+  state.accountSettings = null;
+  await syncRouteData(true);
+  toast("تم حفظ تفضيلات الإشعارات");
+}
+
+async function showSessionsDrawer() {
+  openDrawer("إدارة الجلسات النشطة", `<div class="loading-state">جارٍ تحميل الجلسات...</div>`);
+  try {
+    const payload = await fetchJson("/api/settings/security/sessions");
+    const rows = payload.sessions || [];
+    openDrawer("إدارة الجلسات النشطة", `<div class="session-list">${rows.map((item) => `<div class="setting-row session-settings-row"><div><strong>${escapeHtml(item.device)}</strong><p class="muted">${escapeHtml(item.location)} · آخر نشاط ${new Date(item.lastActivityAt).toLocaleString("ar-SA")}</p></div>${item.current ? `<span class="status success">الجلسة الحالية</span>` : `<button class="btn btn-danger" data-action="revoke-session" data-id="${escapeHtml(item.id)}">إنهاء الجلسة</button>`}</div>`).join("") || `<p class="muted">لا توجد جلسات نشطة.</p>`}<button class="btn btn-secondary" data-action="revoke-other-sessions">إنهاء جميع الجلسات الأخرى</button></div>`);
+  } catch (error) { openDrawer("إدارة الجلسات النشطة", `<div class="empty-state"><strong>تعذر تحميل الجلسات</strong><p>${escapeHtml(error.message)}</p></div>`); }
+}
+
+async function startMfaSetup() {
+  try {
+    const payload = await fetchJson("/api/settings/security/mfa/setup", { method: "POST" });
+    openModal("تفعيل المصادقة الثنائية", `<form data-submit="mfa-verify" class="grid"><p>امسح الرمز عبر تطبيق المصادقة، ثم أدخل الرمز المكوّن من 6 أرقام.</p><img class="mfa-qr" src="${escapeHtml(payload.qrCode)}" alt="رمز إعداد المصادقة الثنائية"><code class="mfa-secret">${escapeHtml(payload.secret)}</code><label class="field"><span>رمز التطبيق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><button class="btn btn-primary">تأكيد التفعيل</button></form>`);
+  } catch (error) { toast(error.message || "تعذر بدء إعداد المصادقة الثنائية", "danger"); render(); }
 }
 
 async function saveSallaSettings() {
@@ -2822,11 +2853,6 @@ async function handleAction(target) {
     render();
     return;
   }
-  if (action === "subscription-window") {
-    state.subscriptionWindow = target.value;
-    render();
-    return;
-  }
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
   if (action === "close-modal") closePortal();
@@ -2835,7 +2861,7 @@ async function handleAction(target) {
   if (action === "remove-avatar") {
     if (!confirm("هل تريد حذف صورة الحساب؟")) return;
     try {
-      await fetchJson("/api/settings/avatar", { method: "DELETE" });
+      await fetchJson("/api/settings/profile/avatar", { method: "DELETE" });
       state.accountSettings = null; state.dashboardOverview = null;
       await syncRouteData(true);
       toast("تم حذف صورة الحساب");
@@ -2885,6 +2911,7 @@ async function handleAction(target) {
     applyPreferences();
     toast(state.theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي");
     render();
+    void saveInterfacePreferences({ theme: state.theme }).catch(() => null);
   }
   if (action === "language") {
     state.language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
@@ -2892,6 +2919,7 @@ async function handleAction(target) {
     applyPreferences();
     toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
     render();
+    void saveInterfacePreferences({ language: state.language }).catch(() => null);
   }
   if (action === "profile-menu") { state.profileOpen = !state.profileOpen; render(); }
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
@@ -3336,11 +3364,19 @@ async function handleAction(target) {
     const health = state.whatsappHealth?.health;
     openDrawer("سياسة الإرسال الآمن", health ? `<div class="grid"><div class="risk-summary"><strong>${Number(health.risk || 0)}</strong><span>/100</span></div><p>${escapeHtml(health.advice || "")}</p><p class="muted">عدد قواعد الإرسال النشطة: ${overviewStats().safeRules}</p></div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط جهازًا أولًا لعرض تفاصيل السياسة."));
   }
-  if (action === "set-language") { state.language = target.dataset.value === "en" ? "en" : "ar"; localStorage.setItem("renewpilot_locale", state.language); applyPreferences(); render(); }
-  if (action === "set-theme") { state.theme = target.dataset.value === "dark" ? "dark" : "light"; localStorage.setItem("renewpilot_theme", state.theme); applyPreferences(); render(); }
-  if (action === "save-settings") await saveAccountSettings();
-  if (action === "change-password") openModal("تغيير كلمة المرور", `<form data-submit="password" class="grid">${field("كلمة المرور الحالية", "old", "password")}${field("كلمة المرور الجديدة", "new", "password")}<button class="btn btn-primary">حفظ</button></form>`);
-  if (action === "manage-sessions") openDrawer("إدارة الجلسات", `<div class="session-list"><div class="setting-row"><div><strong>الجلسة الحالية</strong><p class="muted">${escapeHtml(state.dashboardOverview?.profile?.email || "")}</p></div><span class="status success">نشطة</span></div><button class="btn btn-danger" data-action="logout-confirm">تسجيل الخروج من الجلسة</button></div>`);
+  if (action === "manage-sessions") await showSessionsDrawer();
+  if (action === "revoke-session") {
+    try { await fetchJson(`/api/settings/security/sessions/${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" }); toast("تم إنهاء الجلسة"); await showSessionsDrawer(); }
+    catch (error) { toast(error.message || "تعذر إنهاء الجلسة", "danger"); }
+  }
+  if (action === "revoke-other-sessions") {
+    try { await fetchJson("/api/settings/security/sessions/revoke-others", { method: "POST" }); toast("تم إنهاء الجلسات الأخرى"); await showSessionsDrawer(); }
+    catch (error) { toast(error.message || "تعذر إنهاء الجلسات", "danger"); }
+  }
+  if (action === "mfa-toggle") {
+    if (target.checked) await startMfaSetup();
+    else openModal("إيقاف المصادقة الثنائية", `<form data-submit="mfa-disable" class="grid"><p>أكد هويتك بكلمة المرور أو رمز تطبيق المصادقة.</p><label class="field"><span>كلمة المرور</span><input class="input" name="password" type="password"></label><label class="field"><span>رمز التطبيق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6"></label><button class="btn btn-danger">إيقاف المصادقة الثنائية</button></form>`);
+  }
   if (action === "remove-unsubscribe") {
     try { await fetchJson(`/api/unsubscribes?id=${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" }); state.unsubscribes = null; state.dashboardOverview = null; await syncRouteData(true); toast("تم حذف الرقم"); }
     catch (error) { toast(error.message || "تعذر حذف الرقم", "danger"); }
@@ -3686,16 +3722,38 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "password") {
-    const password = data.new || "";
-    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) return toast("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف ورقم ورمز خاص.", "danger");
+    if (String(data.newPassword || "").length < 10 || !/[A-Za-z]/.test(data.newPassword || "") || !/\d/.test(data.newPassword || "")) return toast("كلمة المرور يجب ألا تقل عن 10 أحرف وتحتوي على حروف وأرقام.", "danger");
+    if (data.newPassword !== data.confirmPassword) return toast("كلمتا المرور غير متطابقتين.", "danger");
+    const button = form.querySelector("button[type='submit'], button:not([type])");
+    if (button) { button.disabled = true; button.textContent = "جارٍ التحديث..."; }
     try {
-      await fetchJson("/api/auth/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: data.old, newPassword: data.new }) });
-      closePortal(); toast("تم تغيير كلمة المرور بنجاح.");
-    } catch (error) { toast(error.message || "تعذر تغيير كلمة المرور", "danger"); }
+      await fetchJson("/api/settings/security/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      form.reset(); toast("تم تحديث كلمة المرور بنجاح.");
+      if (button) { button.disabled = false; button.textContent = "تحديث كلمة المرور"; }
+    } catch (error) {
+      if (button) { button.disabled = false; button.textContent = "تحديث كلمة المرور"; }
+      const firstError = Object.values(error.payload?.errors || {}).flat()[0];
+      toast(firstError || error.message || "تعذر تغيير كلمة المرور", "danger");
+    }
     return;
   }
   if (type === "profile-settings") {
-    await saveAccountSettings({ name: data.name });
+    await saveProfileSettings(data, form);
+    return;
+  }
+  if (type === "mfa-verify") {
+    try {
+      const payload = await fetchJson("/api/settings/security/mfa/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: data.code }) });
+      openModal("رموز الاسترداد", `<div class="grid"><p>احفظ هذه الرموز في مكان آمن. لن تظهر مرة أخرى.</p><div class="recovery-code-grid">${payload.recoveryCodes.map((code) => `<code>${escapeHtml(code)}</code>`).join("")}</div><button class="btn btn-primary" data-action="close-modal">حفظت الرموز</button></div>`);
+      state.accountSettings = null; await syncRouteData(true); toast("تم تفعيل المصادقة الثنائية بنجاح");
+    } catch (error) { toast(error.message || "رمز التحقق غير صحيح", "danger"); }
+    return;
+  }
+  if (type === "mfa-disable") {
+    try {
+      await fetchJson("/api/settings/security/mfa/disable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: data.password || "", code: data.code || "" }) });
+      closePortal(); state.accountSettings = null; await syncRouteData(true); toast("تم إيقاف المصادقة الثنائية");
+    } catch (error) { toast(error.message || "تعذر إيقاف المصادقة الثنائية", "danger"); }
     return;
   }
   if (type === "customer-import") {
@@ -3824,6 +3882,14 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  const profileForm = target.closest?.('[data-submit="profile-settings"]');
+  if (profileForm) {
+    const nameChanged = String(profileForm.elements.fullName?.value || "").trim() !== String(profileForm.dataset.originalName || "");
+    const storeChanged = profileForm.elements.storeName && !profileForm.elements.storeName.disabled && String(profileForm.elements.storeName.value || "").trim() !== String(profileForm.dataset.originalStore || "");
+    const phoneChanged = String(profileForm.elements.phone?.value || "").trim() !== String(profileForm.dataset.originalPhone || "");
+    const button = profileForm.querySelector(".profile-save-button");
+    if (button) button.disabled = !(nameChanged || storeChanged || phoneChanged);
+  }
   if (target.dataset.emailField !== undefined) refreshEmailTemplatePreview();
   if (target.dataset.sallaRuleField) {
     const index = Number(target.dataset.ruleIndex);
@@ -3853,11 +3919,15 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "avatar-file" && target.files?.[0]) {
     void (async () => {
       try {
-        const image = await imageFileToDataUrl(target.files[0]);
-        await fetchJson("/api/settings/avatar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }) });
+        const file = target.files[0];
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
+        if (file.size > 2 * 1024 * 1024) throw new Error("يجب ألا يتجاوز حجم الصورة 2 ميجابايت.");
+        const formData = new FormData();
+        formData.append("file", file);
+        await fetchJson("/api/settings/profile/avatar", { method: "POST", body: formData });
         state.accountSettings = null; state.dashboardOverview = null;
         await syncRouteData(true);
-        toast("تم تحديث صورة الحساب");
+        toast("تم تحديث الصورة الشخصية بنجاح.");
       } catch (error) { toast(error.message || "تعذر رفع الصورة", "danger"); }
     })();
   }
@@ -3880,13 +3950,22 @@ document.addEventListener("change", (event) => {
     state.subscriptionWindow = target.value;
     render();
   }
+  if (target.dataset.action === "preference-select") {
+    const value = target.value;
+    const key = target.dataset.preference;
+    if (key === "language") state.language = value === "en" ? "en" : "ar";
+    if (key === "theme") state.theme = ["light", "dark", "system"].includes(value) ? value : "light";
+    localStorage.setItem("renewpilot_locale", state.language);
+    localStorage.setItem("renewpilot_theme", state.theme);
+    applyPreferences();
+    void saveInterfacePreferences({ [key]: value }).then(() => toast("تم حفظ تفضيلات الواجهة")).catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
+  }
+  if (target.dataset.action === "notification-preference") {
+    void saveNotificationPreference(target.dataset.key, target.checked).catch((error) => { target.checked = !target.checked; toast(error.message || "تعذر حفظ الإشعارات", "danger"); });
+  }
   if (target.dataset.action === "report-period") {
     state.reportPeriod = target.value;
     render();
-  }
-  if (target.dataset.action === "setting-toggle") {
-    state.settings[target.dataset.key] = target.checked;
-    void saveAccountSettings();
   }
   if (target.dataset.action === "template-channel") {
     state.templateChannel = target.value === "email" ? "email" : "whatsapp";

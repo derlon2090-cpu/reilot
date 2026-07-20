@@ -234,6 +234,22 @@
   text-decoration: none;
 }
 
+.loginOptions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.loginOptions a { color: #2563eb; text-decoration: none; font-weight: 700; }
+.loginCard .rememberRow { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; font-weight: 500; }
+.loginCard .rememberRow input { width: 17px; height: 17px; margin: 0; accent-color: #2563eb; }
+.fieldError { color: #b91c1c; font-size: 12px; font-weight: 500; }
+.secureNote { margin: 20px 0 0 !important; text-align: center; color: #64748b; font-size: 13px; }
+.loginCard .codeField { direction: ltr; text-align: center; letter-spacing: 9px; font-size: 23px; font-weight: 800; }
+
 .error,
 .loading {
   padding: 14px 16px;

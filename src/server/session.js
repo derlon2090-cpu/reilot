@@ -15,17 +15,18 @@ export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
     || process.env.NODE_ENV === "production"
     || publicUrl.startsWith("https://");
   const secure = secureCookie ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  const lifetime = maxAge === null ? "" : `; Max-Age=${Math.max(0, Number(maxAge) || 0)}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${lifetime}${secure}`;
 }
 
 export function clearSessionCookie() {
   return sessionCookie("", 0);
 }
 
-export async function createSession(client, { userId, ipAddress, userAgent }) {
+export async function createSession(client, { userId, ipAddress, userAgent, maxAgeSeconds = SESSION_AGE_SECONDS }) {
   const rawToken = randomToken(32);
   const tokenHash = sha256(rawToken);
-  const expiresAt = new Date(Date.now() + SESSION_AGE_SECONDS * 1000);
+  const expiresAt = new Date(Date.now() + Math.max(300, Number(maxAgeSeconds) || SESSION_AGE_SECONDS) * 1000);
   await client.query(
     `INSERT INTO sessions (user_id, token, expires_at, ip_address, user_agent)
      VALUES ($1, $2, $3, $4, $5)`,

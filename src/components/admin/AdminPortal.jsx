@@ -49,102 +49,6 @@ function Brand() {
   );
 }
 
-function Login({ onAuthenticated }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          controlPath: window.location.pathname
-        })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setError(data.reason === "rate_limited"
-          ? "تم إيقاف المحاولات مؤقتًا. حاول لاحقًا."
-          : data.reason === "mfa_required"
-            ? "يتطلب هذا الحساب إكمال المصادقة الثنائية."
-            : "بيانات الدخول غير صحيحة.");
-        return;
-      }
-      onAuthenticated(data.admin);
-    } catch {
-      setError("تعذر الاتصال بخدمة تسجيل الدخول.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <main className={styles.loginPage} dir="rtl">
-      <section className={styles.loginIntro}>
-        <Brand />
-        <div className={styles.introMark}><img src="/assets/renvix-mark.png" alt="" /></div>
-        <h1>مركز التحكم الآمن</h1>
-        <p>إدارة مركزية للمنصة، المستخدمين، القنوات، والحماية.</p>
-        <div className={styles.securityPill}>جلسة مشفرة · صلاحيات دقيقة · سجل تدقيق</div>
-      </section>
-      <section className={styles.loginPanel}>
-        <div className={styles.loginCard}>
-          <span className={styles.controlBadge}>لوحة التحكم الخاصة</span>
-          <div className={styles.loginIcon}><img src="/assets/renvix-mark.png" alt="" /></div>
-          <h2>تسجيل دخول الأدمن</h2>
-          <p>أدخل بيانات حساب الإدارة المصرح له.</p>
-          <form onSubmit={submit}>
-            <label>
-              البريد الإلكتروني
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label>
-              كلمة المرور
-              <span className={styles.passwordField}>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-                <button
-                  type="button"
-                  className={styles.eyeButton}
-                  onClick={() => setShowPassword((value) => !value)}
-                  aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                >
-                  {showPassword ? "إخفاء" : "إظهار"}
-                </button>
-              </span>
-            </label>
-            {error ? <div className={styles.error} role="alert">{error}</div> : null}
-            <button className={styles.primaryButton} type="submit" disabled={busy}>
-              {busy ? "جارٍ التحقق..." : "تسجيل الدخول الآمن"}
-            </button>
-          </form>
-          <a className={styles.backLink} href="/">العودة إلى الموقع الرئيسي</a>
-        </div>
-      </section>
-    </main>
-  );
-}
-
 function StatCard({ label, value, helper, tone = "blue" }) {
   return (
     <article className={styles.statCard}>
@@ -363,8 +267,6 @@ function Dashboard({ admin, onLogout }) {
 }
 
 export default function AdminPortal({ initialAdmin }) {
-  const [admin, setAdmin] = useState(initialAdmin);
-  return admin
-    ? <Dashboard admin={admin} onLogout={() => setAdmin(null)} />
-    : <Login onAuthenticated={setAdmin} />;
+  if (!initialAdmin) return null;
+  return <Dashboard admin={initialAdmin} onLogout={() => window.location.assign("/advanced-pro-control")} />;
 }
