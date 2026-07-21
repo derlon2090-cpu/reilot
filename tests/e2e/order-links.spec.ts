@@ -37,7 +37,7 @@ test("order information builder and public page are responsive and private", asy
   await page.route("**/api/dashboard/overview", (route) => route.fulfill({ json: { ok: true, stats: {}, profile: {} } }));
   await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [] } }));
   await page.route("**/api/order-link/profile", (route) => route.fulfill({ json: { ok: true, profile } }));
-  await page.route("**/api/order-link/templates", (route) => route.fulfill({ json: { ok: true, items: [{
+  await page.route("**/api/order-information/template", (route) => route.fulfill({ json: { ok: true, items: [{
     id: "template-1",
     name: "قالب معلومات الطلب الاحترافي",
     style: "classic",
@@ -209,8 +209,8 @@ test("manual customer order is added beneath one stable template link", async ({
     }
     return route.fulfill({ json: { ok: true, profile: { ...profile, slug: "liong-d" } } });
   });
-  await page.route("**/api/order-link/templates", async (route) => {
-    if (route.request().method() === "POST") {
+  await page.route("**/api/order-information/template", async (route) => {
+    if (route.request().method() === "PUT") {
       const body = route.request().postDataJSON();
       return route.fulfill({ status: 201, json: { ok: true, item: {
         id: "template-manual-1",
