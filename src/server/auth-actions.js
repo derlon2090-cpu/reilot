@@ -68,7 +68,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent }) {
   if (attempts.rows[0].count >= 10) return { ok: false, status: 429, reason: "rate_limited" };
 
   const result = await query(
-    `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, COALESCE(tm.role, u.role) AS role, a.password
+    `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword", COALESCE(tm.role, u.role) AS role, a.password
        FROM users u
        JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id

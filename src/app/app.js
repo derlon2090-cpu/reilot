@@ -675,7 +675,9 @@ async function browserSessionIsValid() {
   try {
     const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "include" });
     const payload = await response.json().catch(() => null);
-    return response.ok && payload?.ok === true && Boolean(payload.user?.id);
+    const valid = response.ok && payload?.ok === true && Boolean(payload.user?.id);
+    if (valid) state.mustChangePassword = Boolean(payload.user?.mustChangePassword);
+    return valid;
   } catch {
     return false;
   }
@@ -691,6 +693,11 @@ async function navigate(to) {
       render();
       toast(t("auth.invalidCredentials"), "danger");
       return;
+    }
+    if (state.mustChangePassword && url.pathname !== "/dashboard/settings") {
+      url.pathname = "/dashboard/settings";
+      url.search = "";
+      appToast.warning("غيّر كلمة المرور المؤقتة", { description: "لحماية حسابك، يجب تعيين كلمة مرور جديدة قبل استخدام المنصة.", id: "must-change-password" });
     }
   }
   history.pushState({}, "", url.pathname + url.search);
@@ -712,14 +719,16 @@ async function navigate(to) {
 
 async function enterDashboardAfterSessionVerification() {
   if (!await browserSessionIsValid()) return false;
-  history.pushState({}, "", "/dashboard");
-  state.route = "/dashboard";
+  const destination = state.mustChangePassword ? "/dashboard/settings" : "/dashboard";
+  history.pushState({}, "", destination);
+  state.route = destination;
   state.query = new URLSearchParams();
   state.navOpen = false;
   state.sidebarOpen = false;
   state.profileOpen = false;
   state.search = "";
   render();
+  if (state.mustChangePassword) appToast.warning("غيّر كلمة المرور المؤقتة", { description: "لحماية حسابك، يجب تعيين كلمة مرور جديدة قبل استخدام المنصة.", id: "must-change-password", persistent: true });
   return true;
 }
 

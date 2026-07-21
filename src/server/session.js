@@ -39,7 +39,7 @@ export async function getSession(req) {
   const rawToken = cookieValue(req, SESSION_COOKIE);
   if (!rawToken) return null;
   const result = await query(
-    `SELECT s.id, s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name,
+    `SELECT s.id, s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.must_change_password AS "mustChangePassword",
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
        FROM sessions s
        JOIN users u ON u.id = s.user_id

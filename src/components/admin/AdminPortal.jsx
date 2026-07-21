@@ -13,23 +13,27 @@ const ROLE_LABELS = {
 };
 
 const ADMIN_NAV = [
-  ["overview", "الرئيسية"],
-  ["subscriptions", "الاشتراكات"],
-  ["users", "المستخدمون"],
-  ["devices", "الأجهزة والقنوات"],
-  ["security", "الحماية والامتثال"],
-  ["reports", "التقارير"],
-  ["roles", "الأدوار والصلاحيات"]
+  ["overview", "الرئيسية", "grid"],
+  ["subscriptions", "إدارة الاشتراكات", "card"],
+  ["users", "إدارة العملاء", "users"],
+  ["provisioning", "تفعيل حسابات سلة", "users"],
+  ["devices", "الأجهزة والقنوات", "device"],
+  ["security", "الحماية والامتثال", "shield"],
+  ["reports", "التقارير", "chart"],
+  ["roles", "الأدوار والصلاحيات", "team"],
+  ["settings", "إعدادات النظام", "settings"]
 ];
 
 const PANEL_COPY = {
   overview: ["لوحة الأدمن", "نظرة تشغيلية مباشرة على منصة Renvix."],
   subscriptions: ["الاشتراكات", "متابعة اشتراكات المنصة وحالاتها الحالية."],
   users: ["المستخدمون", "ملخص حسابات المنصة ومساحات العمل المسجلة."],
+  provisioning: ["تفعيل حسابات سلة", "طلبات إنشاء الحسابات الناتجة عن منتجات سلة المربوطة فقط."],
   devices: ["الأجهزة والقنوات", "متابعة القنوات المتصلة وحالتها التشغيلية."],
   security: ["الحماية والامتثال", "متابعة المخاطر والتنبيهات وسجل التدقيق الإداري."],
   reports: ["التقارير", "مؤشرات الإرسال والتسليم والعمليات المسجلة."],
-  roles: ["الأدوار والصلاحيات", "مرجع واضح لنطاق الوصول الممنوح لحساب الإدارة الحالي."]
+  roles: ["الأدوار والصلاحيات", "إدارة الأدوار والصلاحيات والتحكم في الوصول."],
+  settings: ["إعدادات النظام", "الإعدادات العامة والتكاملات وخيارات تشغيل المنصة."]
 };
 
 const ROLE_SCOPES = {
@@ -49,15 +53,62 @@ function Brand() {
   );
 }
 
-function StatCard({ label, value, helper, tone = "blue" }) {
+const ICONS = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 15h4"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8M16 3.2a4 4 0 0 1 0 7.6"/>',
+  device: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  chart: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
+  team: '<circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M15 15a5 5 0 0 1 6 4v2"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6v-2.6h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L9 6.6l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.6v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v2.6h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
+  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0 1 4M20 4v7h-7"/>'
+};
+
+function Icon({ name }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[name] || ICONS.grid }} />;
+}
+
+function StatCard({ label, value, helper, tone = "blue", icon = "chart" }) {
   return (
     <article className={styles.statCard}>
-      <span className={`${styles.statIcon} ${styles[tone]}`}>{label.slice(0, 1)}</span>
+      <span className={`${styles.statIcon} ${styles[tone]}`}><Icon name={icon} /></span>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{helper}</small>
     </article>
   );
+}
+
+function iconForLabel(label) {
+  const value = String(label);
+  if (value.includes("اشتراك") || value.includes("فترة")) return "card";
+  if (value.includes("مستخدم") || value.includes("مستأجر") || value.includes("عملاء")) return "users";
+  if (value.includes("قناة") || value.includes("جهاز")) return "device";
+  if (value.includes("خطر") || value.includes("فشل") || value.includes("تنبيه")) return "shield";
+  if (value.includes("دور") || value.includes("صلاح")) return "team";
+  if (value.includes("جلسة")) return "shield";
+  return "chart";
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium" }).format(date);
+}
+
+function statusLabel(value) {
+  const labels = { active: "نشط", trial: "تجريبي", expired: "منتهي", connected: "متصل", disconnected: "غير متصل", pending: "معلّق", sent: "تم الإرسال", failed: "فشل", disabled: "معطل" };
+  return labels[value] || value || "—";
+}
+
+function DataTable({ title, description, columns, rows, empty = "لا توجد بيانات فعلية لهذا القسم حتى الآن." }) {
+  return <section className={styles.dataCard}>
+    <div className={styles.sectionHeading}><div><h2>{title}</h2><p>{description}</p></div><button className={styles.filterButton} type="button"><Icon name="refresh" /> تحديث</button></div>
+    {!rows?.length ? <div className={styles.emptyState}><strong>{empty}</strong><span>تعرض هذه الصفحة البيانات المحفوظة فقط من قاعدة البيانات.</span></div> : <div className={styles.tableWrap}><table><thead><tr>{columns.map(([key, label]) => <th key={key}>{label}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={row.id || index}>{columns.map(([key]) => <td key={key}>{key === "status" ? <span className={styles.status}>{statusLabel(row[key])}</span> : key === "createdAt" || key === "expiresAt" || key === "startsAt" || key === "lastCheckAt" || key === "lastLoginAt" ? formatDate(row[key]) : row[key] ?? "—"}</td>)}</tr>)}</tbody></table></div>}
+  </section>;
 }
 
 function Dashboard({ admin, onLogout }) {
@@ -138,8 +189,14 @@ function Dashboard({ admin, onLogout }) {
       ["الجلسة", "نشطة", "جلسة إدارية محمية", "green"],
       ["سجل التدقيق", data.recentAudit.length, "آخر العمليات الظاهرة", "violet"],
       ["نطاق العرض", "مباشر", "بيانات فعلية من المنصة", "cyan"]
+    ],
+    provisioning: [
+      ["وظائف التفعيل", data.provisioningJobs?.length || 0, "آخر 30 وظيفة", "blue"],
+      ["بانتظار المعالجة", (data.provisioningJobs || []).filter((job) => job.status === "pending").length, "تحتاج Worker", "violet"],
+      ["فشل البريد", (data.provisioningJobs || []).filter((job) => job.status === "email_failed").length, "تحتاج إعادة إرسال", "red"],
+      ["مكتملة", (data.provisioningJobs || []).filter((job) => job.status === "completed").length, "تفعيل ناجح", "green"]
     ]
-  }[activePanel] : [];
+  }[activePanel] || [] : [];
 
   const auditItems = (data?.recentAudit || []).filter((item) => {
     if (["overview", "roles"].includes(activePanel)) return true;
@@ -158,14 +215,14 @@ function Dashboard({ admin, onLogout }) {
       <aside className={styles.sidebar}>
         <Brand />
         <nav aria-label="قائمة الأدمن">
-          {ADMIN_NAV.map(([key, label]) => (
+          {ADMIN_NAV.map(([key, label, icon]) => (
             <button
               key={key}
               type="button"
               className={activePanel === key ? styles.activeNav : ""}
               onClick={() => setActivePanel(key)}
               aria-current={activePanel === key ? "page" : undefined}
-            >{label}</button>
+            ><Icon name={icon} /><span>{label}</span></button>
           ))}
         </nav>
         <div className={styles.sidebarNote}>
@@ -176,11 +233,12 @@ function Dashboard({ admin, onLogout }) {
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>
-          <div>
-            <strong>{admin.name || admin.email}</strong>
-            <span>{ROLE_LABELS[admin.role] || admin.role}</span>
+          <div className={styles.topbarIdentity}>
+            <span className={styles.avatar}>{(admin.name || admin.email || "A").slice(0, 1).toUpperCase()}</span>
+            <div><strong>{admin.name || admin.email}</strong><span>{ROLE_LABELS[admin.role] || admin.role}</span></div>
           </div>
-          <button onClick={logout} className={styles.logoutButton}>تسجيل الخروج</button>
+          <div className={styles.topbarCenter}><label className={styles.adminSearch}><Icon name="search" /><input placeholder="بحث سريع..." aria-label="بحث سريع" /></label><span className={styles.planBadge}>لوحة التحكم</span></div>
+          <div className={styles.topbarActions}><button className={styles.iconButton} type="button" aria-label="التنبيهات"><Icon name="bell" /><b>{data?.stats?.unreadNotifications || 0}</b></button><button onClick={logout} className={styles.logoutButton}>تسجيل الخروج</button></div>
         </header>
 
         <div className={styles.content}>
@@ -199,9 +257,21 @@ function Dashboard({ admin, onLogout }) {
             <>
               <section className={styles.statsGrid}>
                 {panelCards.map(([label, value, helper, tone]) => (
-                  <StatCard key={label} label={label} value={value} helper={helper} tone={tone} />
+                  <StatCard key={label} label={label} value={value} helper={helper} tone={tone} icon={iconForLabel(label)} />
                 ))}
               </section>
+
+              {activePanel === "overview" ? <section className={styles.overviewGrid}>
+                <article className={styles.chartCard}><div className={styles.sectionHeading}><div><h2>نظرة عامة على المنصة</h2><p>المؤشرات الحالية من الطوابير والاشتراكات والقنوات.</p></div><span className={styles.periodBadge}>بيانات مباشرة</span></div><div className={styles.metricBars}><div><span>الرسائل المرسلة</span><b>{stats.queue.sent.toLocaleString("ar-SA")}</b><i className={styles.barBlue} /></div><div><span>القنوات المتصلة</span><b>{stats.connectedChannels.toLocaleString("ar-SA")}</b><i className={styles.barCyan} /></div><div><span>الاشتراكات النشطة</span><b>{stats.platformSubscriptions.active.toLocaleString("ar-SA")}</b><i className={styles.barGreen} /></div></div></article>
+                <article className={styles.quickCard}><div className={styles.sectionHeading}><div><h2>إجراءات سريعة</h2><p>اختصارات لا تغيّر البيانات دون تأكيد.</p></div></div><button type="button"><Icon name="users" /> مراجعة العملاء</button><button type="button"><Icon name="card" /> مراجعة الاشتراكات</button><button type="button"><Icon name="shield" /> مراجعة المخاطر</button><button type="button"><Icon name="chart" /> فتح التقارير</button></article>
+                <article className={styles.healthCard}><div className={styles.sectionHeading}><div><h2>صحة الأنظمة</h2><p>نتائج الاتصال المسجلة حاليًا.</p></div><span className={styles.goodDot}>سليم</span></div><div className={styles.healthLine}><span>قنوات واتساب</span><strong>{stats.connectedChannels} متصلة</strong></div><div className={styles.healthLine}><span>Queue</span><strong>{stats.queue.pending} معلّقة</strong></div><div className={styles.healthLine}><span>جلسات الأدمن</span><strong>{stats.activeSessions} نشطة</strong></div></article>
+              </section> : null}
+
+              {activePanel === "users" ? <DataTable title="إدارة العملاء ومساحات العمل" description="المستأجرون والحسابات المرتبطة بهم من السجلات الفعلية." columns={[["name","المتجر"],["ownerName","المالك"],["email","البريد"],["memberCount","الأعضاء"],["subscriptionCount","الاشتراكات"],["status","الحالة"],["createdAt","تاريخ الإنشاء"]]} rows={data.tenants} /> : null}
+              {activePanel === "provisioning" ? <DataTable title="تفعيل حسابات سلة" description="كل وظيفة مرتبطة بطلب سلة، مع عرض حالات البريد والأخطاء دون بيانات تجريبية." columns={[["orderId","رقم الطلب"],["customerName","العميل"],["email","البريد"],["planName","الباقة"],["status","حالة التفعيل"],["emailStatus","حالة البريد"],["failureCode","سبب التعثر"],["createdAt","تاريخ الإنشاء"]]} rows={data.provisioningJobs} empty="لا توجد وظائف تفعيل حسابات سلة حتى الآن." /> : null}
+              {activePanel === "subscriptions" ? <DataTable title="إدارة اشتراكات المنصة" description="الاشتراكات المفعلة أو التجريبية حسب بيانات الفوترة." columns={[["tenantName","مساحة العمل"],["planName","الباقة"],["billingCycle","الدورة"],["status","الحالة"],["paymentProvider","مزود الدفع"],["startsAt","البداية"],["expiresAt","النهاية"]]} rows={data.subscriptions} /> : null}
+              {activePanel === "devices" ? <DataTable title="الأجهزة والقنوات" description="القنوات المسجلة وحالة الاتصال وفحص الصحة الأخير." columns={[["tenantName","مساحة العمل"],["displayName","اسم القناة"],["phoneNumber","الرقم"],["status","الحالة"],["healthScore","درجة الصحة"],["lastCheckAt","آخر فحص"]]} rows={data.channels} /> : null}
+              {activePanel === "settings" ? <DataTable title="إعدادات حسابات الأدمن" description="الحسابات الإدارية المسجلة وصلاحياتها الحالية." columns={[["name","المسؤول"],["email","البريد"],["role","الدور"],["mfaEnabled","MFA"],["status","الحالة"],["lastLoginAt","آخر دخول"]]} rows={data.adminUsers} /> : null}
 
               {activePanel === "roles" ? (
                 <section className={styles.permissionCard}>

@@ -68,10 +68,10 @@ export default function AdminLoginForm() {
 
   return (
     <div className={styles.loginCard}>
-      <span className={styles.controlBadge}>منطقة إدارة خاصة</span>
+      <span className={styles.controlBadge}>لوحة التحكم الكاملة <span aria-hidden="true">◈</span></span>
       <div className={styles.loginIcon}><img src="/assets/renvix-mark.png" alt="" /></div>
-      <h2>دخول الأدمن</h2>
-      <p>هذه الصفحة مخصصة لإدارة منصة Renvix فقط، ولا تظهر في واجهة العملاء.</p>
+      <h2>تسجيل دخول الأدمن</h2>
+      <p>الوصول إلى مركز التحكم الكامل بالمنصة</p>
       <form onSubmit={submit} noValidate>
         <label>
           البريد الإلكتروني
@@ -82,7 +82,7 @@ export default function AdminLoginForm() {
           كلمة المرور
           <span className={styles.passwordField}>
             <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" aria-invalid={Boolean(fieldErrors.password)} />
-            <button type="button" className={styles.eyeButton} onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? "إخفاء" : "إظهار"}</button>
+            <button type="button" className={styles.eyeButton} onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
           </span>
           {fieldErrors.password?.[0] ? <small className={styles.fieldError}>{fieldErrors.password[0]}</small> : null}
         </label>
@@ -90,7 +90,7 @@ export default function AdminLoginForm() {
           <label className={styles.rememberRow}><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} /> <span>تذكرني على هذا الجهاز</span></label>
           <a href="/advanced-pro-control/forgot-password">نسيت كلمة المرور؟</a>
         </div>
-        <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "جارٍ التحقق..." : "دخول لوحة الأدمن"}</button>
+        <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "جارٍ التحقق..." : "تسجيل الدخول الآمن"} <span aria-hidden="true">◈</span></button>
       </form>
       <p className={styles.secureNote}>يتم تسجيل الدخول بشكل آمن ومشفّر.</p>
       {toast ? <div className={`${styles.adminToast} ${styles[toast.type]}`} role={["error", "warning"].includes(toast.type) ? "alert" : "status"} aria-live={["error", "warning"].includes(toast.type) ? "assertive" : "polite"}>

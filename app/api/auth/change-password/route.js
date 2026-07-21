@@ -17,6 +17,7 @@ export async function POST(req) {
       [auth.session.userId]
     );
     await client.query("UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential'", [await hashPassword(body.newPassword), auth.session.userId]);
+    await client.query("UPDATE users SET must_change_password = false, password_initialized_at = COALESCE(password_initialized_at, now()), password_changed_at = now(), updated_at = now() WHERE id = $1", [auth.session.userId]);
     await client.query("DELETE FROM sessions WHERE user_id = $1 AND id <> $2", [auth.session.userId, auth.session.id]);
     await client.query("INSERT INTO activity_logs (tenant_id, user_id, type, title) VALUES ($1, $2, 'auth.password_changed', 'Password changed')", [auth.session.tenantId, auth.session.userId]);
     return userResult.rows[0] || null;

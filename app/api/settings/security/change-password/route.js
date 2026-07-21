@@ -23,7 +23,7 @@ export async function POST(request) {
       [await hashPassword(parsed.data.newPassword), auth.session.userId]
     );
     await client.query(
-      "UPDATE users SET password_strength = $1, password_changed_at = now(), updated_at = now() WHERE id = $2",
+      "UPDATE users SET password_strength = $1, password_changed_at = now(), must_change_password = false, password_initialized_at = COALESCE(password_initialized_at, now()), updated_at = now() WHERE id = $2",
       [classifyPasswordStrength(parsed.data.newPassword, user.rows[0]?.email), auth.session.userId]
     );
     await client.query("DELETE FROM sessions WHERE user_id = $1 AND id <> $2", [auth.session.userId, auth.session.id]);
