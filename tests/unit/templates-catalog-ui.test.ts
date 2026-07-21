@@ -11,10 +11,14 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain("function templatesCatalogPage()");
   });
 
-  it("combines persisted renewal and Salla order templates without sample data", () => {
-    expect(appSource).toContain("state.notificationTemplate?.templates");
-    expect(appSource).toContain("state.orderLinkTemplates");
-    expect(appSource).toContain('loadRemotePage("orderLinkTemplates", "/api/order-information/template"');
+  it("loads the four persisted catalog templates without mixing in order information", () => {
+    expect(appSource).toContain('loadRemotePage("catalogTemplates", "/api/templates/catalog"');
+    expect(appSource).toContain("whatsapp_menu");
+    expect(appSource).toContain("email_delivery");
+    expect(appSource).toContain("renewal_whatsapp");
+    expect(appSource).toContain("salla_fulfilled");
+    expect(appSource).toContain("قالب تم التنفيذ — سلة");
+    expect(appSource).not.toContain('key: `order_${item.id}`');
     expect(appSource).not.toContain("const fakeTemplates");
     expect(appSource).not.toContain("const sampleEmailValue");
   });
@@ -23,9 +27,13 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain('class="template-catalog-grid"');
     expect(appSource).toContain('class="template-catalog-card"');
     expect(appSource).toContain("function renewalTemplateEditorPageV2");
+    expect(appSource).toContain("function catalogTemplateEditorPage");
     expect(appSource).toContain('class="whatsapp-phone-preview"');
     expect(appSource).toContain("email-preview-v2");
+    expect(appSource).toContain("catalog-salla-previews");
+    expect(appSource).toContain("whatsapp-opened-list");
     expect(stylesSource).toContain(".template-editor-v2-whatsapp");
     expect(stylesSource).toContain(".template-editor-v2-email");
+    expect(stylesSource).toContain(".template-editor-v2-salla");
   });
 });

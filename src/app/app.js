@@ -442,6 +442,7 @@ state.operationalIssues = null;
 state.whatsappHealth = null;
 state.securityScore = null;
 state.notificationTemplate = null;
+state.catalogTemplates = null;
 state.billingOverview = null;
 state.messageUsage = null;
 state.appsOverview = null;
@@ -638,7 +639,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
-  if (state.route === "/dashboard/templates" && (force || state.orderLinkTemplates === null)) void loadRemotePage("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
+  if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
   if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) void loadRemotePage("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
   if (state.route === "/dashboard/order-links") {
     if (force || state.orderLinkProfile === null) void loadRemotePage("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
@@ -2149,34 +2150,25 @@ function refreshEmailTemplatePreview() {
 }
 
 function templateCatalogItems() {
-  const renewalTemplates = Array.isArray(state.notificationTemplate?.templates) ? state.notificationTemplate.templates : [];
-  const renewalItems = renewalTemplates
-    .filter((item) => ["renewal_whatsapp", "renewal_email"].includes(item.templateKey || `renewal_${item.channel}`))
-    .map((item) => ({
-      id: item.id,
-      key: item.templateKey || `renewal_${item.channel}`,
-      kind: "renewal",
-      channel: item.channel,
-      name: item.name || (item.channel === "email" ? "قالب البريد الإلكتروني للتجديد" : "قالب رسالة التجديد - واتساب"),
-      description: item.channel === "email" ? "يُستخدم لإرسال رسائل التجديد والتنبيهات عبر البريد الإلكتروني." : "يُستخدم لإرسال تذكير التجديد للعملاء عبر واتساب قبل انتهاء الاشتراك.",
-      isActive: item.isActive !== false,
-      updatedAt: item.updatedAt,
+  const definitions = {
+    whatsapp_menu: { channel: "whatsapp", name: "قائمة واتساب", description: "قائمة تفاعلية لعرض خدمات المتجر وخيارات العميل عبر واتساب." },
+    email_delivery: { channel: "email", name: "قالب قناة إرسال بريد", description: "قالب لإرسال تفاصيل الطلب وتأكيد التجهيز عبر البريد الإلكتروني." },
+    renewal_whatsapp: { channel: "whatsapp", name: "قالب رسالة التجديد — واتساب", description: "قالب تذكير العميل قبل انتهاء الاشتراك ومتابعة التجديد." },
+    salla_fulfilled: { channel: "salla", name: "قالب تم التنفيذ — سلة", description: "رسالة تُجهّز عند تنفيذ طلب سلة وتتضمن رابط الطلب الخاص بالعميل." }
+  };
+  const templates = Array.isArray(state.catalogTemplates) ? state.catalogTemplates : [];
+  return Object.entries(definitions).map(([key, definition]) => {
+    const item = templates.find((template) => template.templateKey === key);
+    return item ? {
+      ...item,
+      key,
+      kind: "catalog",
+      channel: definition.channel,
+      name: definition.name,
+      description: definition.description,
       templateVersion: item.templateVersion || 1
-    }));
-  const orderTemplates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
-  const orderItems = orderTemplates.map((item) => ({
-    id: item.id,
-    key: `order_${item.id}`,
-    kind: "order",
-    channel: "salla",
-    name: item.name || "قالب معلومات الطلب - سلة",
-    description: "قالب مرتبط بسلة لعرض تفاصيل الطلب ورابط المتابعة للعميل.",
-    isActive: item.isActive !== false,
-    updatedAt: item.updatedAt,
-    openedCount: Number(item.openedCount || 0),
-    style: item.style || "standard"
-  }));
-  return [...renewalItems, ...orderItems];
+    } : null;
+  }).filter(Boolean);
 }
 
 function templateChannelLabel(channel) {
@@ -2193,28 +2185,27 @@ function templateCatalogIcon(item) {
 
 function templatesCatalogPage() {
   const editorKey = state.query.get("edit") || "";
-  if (["renewal_whatsapp", "renewal_email"].includes(editorKey)) {
-    return renewalTemplateEditorPageV2(editorKey.endsWith("email") ? "email" : "whatsapp");
-  }
-  const loading = state.notificationTemplate === null || state.orderLinkTemplates === null;
+  if (editorKey === "renewal_whatsapp") return renewalTemplateEditorPageV2("whatsapp");
+  if (["whatsapp_menu", "email_delivery", "salla_fulfilled"].includes(editorKey)) return catalogTemplateEditorPage(editorKey);
+  const loading = state.catalogTemplates === null;
   const items = templateCatalogItems();
   const channel = state.templateCatalogChannel || "all";
   const search = String(state.templateCatalogSearch || "").trim().toLocaleLowerCase("ar");
   const filtered = items.filter((item) => (channel === "all" || item.channel === channel) && (!search || `${item.name} ${item.description}`.toLocaleLowerCase("ar").includes(search)));
   const rows = filtered.map((item) => {
-    const editTarget = item.kind === "renewal" ? `/dashboard/templates?edit=${encodeURIComponent(item.key)}` : `/dashboard/order-links?templateId=${encodeURIComponent(item.id)}`;
+    const editTarget = `/dashboard/templates?edit=${encodeURIComponent(item.key)}`;
     const updated = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "لم يتم التحديث بعد";
     return `<article class="template-catalog-card">
       <div class="template-catalog-card-head">${templateCatalogIcon(item)}<div><div class="template-card-title-row"><h2>${escapeHtml(item.name)}</h2><span class="channel-pill ${item.channel}">${templateChannelLabel(item.channel)}</span></div><p>${escapeHtml(item.description)}</p></div></div>
       <div class="template-card-divider"></div>
-      <div class="template-card-meta"><span>${status(item.isActive ? "active" : "paused")}</span><span>آخر تحديث: ${escapeHtml(updated)}</span>${item.kind === "order" ? `<span>النمط: ${escapeHtml(item.style || "قياسي")}</span>` : `<span>الإصدار ${Number(item.templateVersion || 1)}</span>`}</div>
+      <div class="template-card-meta"><span>${status(item.isActive ? "active" : "paused")}</span><span>آخر تحديث: ${escapeHtml(updated)}</span><span>الإصدار ${Number(item.templateVersion || 1)}</span></div>
       <div class="template-card-actions"><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("settings")} تحرير</button></div>
     </article>`;
   }).join("");
   const body = loading
     ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>`
-    : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${items.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب محفوظة حتى الآن"}</strong><p>${items.length ? "غيّر البحث أو القناة لعرض القوالب." : "أنشئ قالب واتساب أو بريد أو اربط قالب معلومات الطلب من الأقسام المخصصة."}</p>${items.length ? "" : `<div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_whatsapp">إعداد قالب واتساب</button><button class="btn btn-secondary" data-link="/dashboard/templates?edit=renewal_email">إعداد قالب البريد</button><button class="btn btn-secondary" data-link="/dashboard/order-links">قالب معلومات الطلب</button></div>`}</div>`;
-  return dashboardShell(`${pageTitle("القوالب", `<div class="template-header-actions"><button class="btn btn-secondary" data-link="/dashboard/templates?edit=renewal_whatsapp">${dashboardIcon("eye")} معاينة</button><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_email">${dashboardIcon("settings")} تحرير</button></div>`)}
+    : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${items.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب محفوظة حتى الآن"}</strong><p>${items.length ? "غيّر البحث أو القناة لعرض القوالب." : "سيتم إنشاء القوالب الأربعة الأساسية لمساحة العمل تلقائيًا."}</p></div>`;
+  return dashboardShell(`${pageTitle("القوالب", `<div class="template-header-actions"><button class="btn btn-secondary" data-link="/dashboard/templates?edit=whatsapp_menu">${dashboardIcon("eye")} معاينة</button><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_whatsapp">${dashboardIcon("settings")} تحرير</button></div>`)}
     <p class="page-kicker">إدارة قوالب الرسائل والروابط الجاهزة حسب القناة.</p>
     <section class="card template-catalog-shell">
       <div class="template-catalog-toolbar"><label class="template-search-wrap">${dashboardIcon("reports")}<input class="input" data-action="template-catalog-search" value="${escapeHtml(state.templateCatalogSearch || "")}" placeholder="ابحث عن قالب..."></label><select class="select template-channel-select" data-action="template-catalog-channel"><option value="all" ${channel === "all" ? "selected" : ""}>كل القنوات</option><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>بريد إلكتروني</option><option value="salla" ${channel === "salla" ? "selected" : ""}>سلة</option></select><span class="template-catalog-count">${loading ? "جارٍ التحميل..." : `${filtered.length} قالب محفوظ`}</span></div>
@@ -2262,6 +2253,28 @@ function templatesPage() {
       <div class="template-catalog-list">${body}</div>
       ${!loading && filtered.length ? `<div class="template-catalog-footer"><span>عرض ${filtered.length} من ${total}</span><span>جميع الأرقام من القوالب المحفوظة في مساحة العمل.</span></div>` : ""}
     </section>`);
+}
+
+function catalogTemplateEditorPage(templateKey) {
+  const template = (Array.isArray(state.catalogTemplates) ? state.catalogTemplates : []).find((item) => item.templateKey === templateKey);
+  const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
+  if (!template) return dashboardShell(`${pageTitle("القوالب", backButton)}<div class="loading-state">جارٍ تحميل القالب المحفوظ...</div>`);
+  const commonFields = `<input type="hidden" name="templateKey" value="${escapeHtml(templateKey)}"><div class="template-editor-meta-v2"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" required></label><label class="setting-row setting-toggle"><span><strong>حالة القالب</strong><small>يمكن إيقافه دون حذفه</small></span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>`;
+  const footer = `<div class="template-editor-v2-footer"><span class="muted">الحفظ يحدّث القالب نفسه ولا ينشئ نسخة جديدة.</span><div class="template-actions"><button class="btn btn-primary">حفظ القالب ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="preview-catalog-template">معاينة ${dashboardIcon("eye")}</button></div></div>`;
+
+  if (templateKey === "whatsapp_menu") {
+    const section = template.contentJson?.sections?.[0] || { title: "الخدمات", rows: [] };
+    const rows = Array.from({ length: 3 }, (_, index) => section.rows?.[index] || {}).map((row, index) => `<div class="catalog-menu-row"><input type="hidden" name="rowId" value="${escapeHtml(row.id || `option_${index + 1}`)}"><label class="field"><span>عنوان الخيار ${index + 1}</span><input class="input" name="rowTitle" value="${escapeHtml(row.title || "")}" data-catalog-preview-row="${index}" required></label><label class="field"><span>الوصف</span><input class="input" name="rowDescription" value="${escapeHtml(row.description || "")}" data-catalog-preview-description="${index}"></label></div>`).join("");
+    const previewRows = Array.from({ length: 3 }, (_, index) => section.rows?.[index]).filter(Boolean).map((row) => `<li><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.description || "")}</span></li>`).join("");
+    return dashboardShell(`${pageTitle("قائمة واتساب", backButton)}<p class="page-kicker">تحرير رسالة القائمة التفاعلية ومعاينة الرسالة والقائمة بعد فتحها.</p><section class="template-editor-v2 template-editor-v2-whatsapp catalog-special-editor"><article class="card template-editor-card-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>محتوى رسالة الترحيب</span><textarea class="textarea template-editor-v2-body" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="template-meta-grid"><label class="field"><span>نص زر القائمة</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض القائمة")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div><div class="catalog-menu-options"><h2>خيارات القائمة</h2><label class="field"><span>عنوان القسم</span><input class="input" name="sectionTitle" value="${escapeHtml(section.title || "الخدمات")}" required></label>${rows}</div>${footer}</form></article><aside class="template-preview-v2 catalog-dual-preview"><article class="card template-phone-card"><div class="section-head"><div><h2>الرسالة الأساسية</h2><p>النص وزر فتح القائمة.</p></div>${dashboardIcon("whatsapp")}</div><div class="whatsapp-phone-preview compact"><div class="whatsapp-phone-shell"><div class="whatsapp-phone-speaker"></div><div class="whatsapp-chat-top"><span>‹</span><b>Renvix</b><small>حساب أعمال</small><i>⋮</i></div><div class="whatsapp-chat-day">اليوم</div><div class="whatsapp-message-bubble"><p data-catalog-preview-output>${escapeHtml(template.body || "")}</p><span class="whatsapp-list-button" data-catalog-preview-button-output>${escapeHtml(template.buttonLabel || "عرض القائمة")}</span><small>11:21 ص ✓✓</small></div></div></div></article><article class="card whatsapp-opened-list"><div class="section-head"><div><h2>القائمة بعد الفتح</h2><p>معاينة بنية الخيارات التفاعلية.</p></div>${dashboardIcon("template")}</div><strong>${escapeHtml(section.title || "الخدمات")}</strong><ul data-catalog-menu-preview>${previewRows}</ul><small>قد تختلف بعض التفاصيل البصرية حسب جهاز العميل وإصدار واتساب.</small></article></aside></section>`);
+  }
+
+  if (templateKey === "email_delivery") {
+    const emailDraft = { ...template, storeName: "{{store_name}}", themeColor: template.themeColor || "#0EA5A8" };
+    return dashboardShell(`${pageTitle("قالب قناة إرسال بريد", backButton)}<p class="page-kicker">قالب البريد المستخدم لإرسال تفاصيل الطلب ورابط صفحة العميل.</p><section class="template-editor-v2 template-editor-v2-email catalog-email-editor"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">عنوان المرسل ثابت وموثّق.</p><label class="field"><span>المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>لون القالب</span><input class="input" type="color" name="themeColorExternal" value="${safeEmailTheme(emailDraft.themeColor)}" data-catalog-theme></label><div class="email-settings-hint">رابط معلومات الطلب يُضاف آمنًا لكل عميل ولا يُحفظ كرابط ثابت داخل القالب.</div></article><article class="card template-editor-card-v2 email-editor-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>موضوع البريد</span><input class="input" name="title" value="${escapeHtml(template.title || "")}" data-catalog-preview-title required></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea template-editor email-content-editor" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}","{{order_number}}","{{order_portal_url}}","{{store_name}}"].map((item) => `<span class="chip">${item}</span>`).join("")}</div><div class="template-meta-grid"><label class="field"><span>نص الزر</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div>${footer}</form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>سطح المكتب والجوال بنفس محتوى الإرسال.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-catalog-preview-title-output>الموضوع: ${escapeHtml(template.title || "")}</span></div><div data-catalog-email-preview>${emailTemplatePreview(emailDraft)}</div></article></aside></section>`);
+  }
+
+  return dashboardShell(`${pageTitle("قالب تم التنفيذ — سلة", backButton)}<p class="page-kicker">الرسالة التي تُجهّز بعد تنفيذ طلب سلة، مع رابط طلب خاص وغير قابل للحذف.</p><section class="template-editor-v2 template-editor-v2-salla"><article class="card template-editor-card-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>نص الرسالة</span><textarea class="textarea template-editor-v2-body" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}","{{order_number}}","{{store_name}}"].map((item) => `<span class="chip">${item}</span>`).join("")}</div><div class="catalog-locked-link">${dashboardIcon("security")}<div><strong>رابط الطلب الخاص بالعميل</strong><small>يُنشأ تلقائيًا لكل طلب ولا يمكن حذفه أو استبداله برابط ثابت.</small></div></div><input type="hidden" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}"><input type="hidden" name="footerText" value="${escapeHtml(template.footerText || "Renvix")}">${footer}</form></article><aside class="template-preview-v2 catalog-salla-previews"><article class="card"><div class="section-head"><div><h2>معاينة الرسالة</h2><p>النص الذي يصل إلى العميل.</p></div><img class="salla-preview-logo" src="/assets/salla-logo.svg" alt="سلة"></div><div class="salla-message-preview"><p data-catalog-preview-output>${escapeHtml(template.body || "")}</p><div class="catalog-locked-link compact">🔒 رابط الطلب الخاص بالعميل</div></div></article><article class="card"><div class="section-head"><div><h2>معاينة صفحة الطلب</h2><p>تُعرض المتغيرات حتى اختيار طلب حقيقي.</p></div>${dashboardIcon("orderLink")}</div><div class="salla-order-page-preview"><div class="salla-order-brand"><img src="/assets/salla-logo.svg" alt="سلة"><strong>{{store_name}}</strong></div><h3>تفاصيل الطلب</h3><dl><div><dt>رقم الطلب</dt><dd>{{order_number}}</dd></div><div><dt>الحالة</dt><dd>تم التنفيذ</dd></div><div><dt>العميل</dt><dd>{{customer_name}}</dd></div></dl><p>لا توجد بيانات طلب حقيقي محددة للمعاينة.</p></div></article></aside></section>`);
 }
 
 function renewalTemplateEditorPageV2(forcedChannel = "") {
@@ -3439,6 +3452,7 @@ async function handleAction(target) {
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
   if (action === "template-catalog-channel" && target.tagName !== "SELECT") { state.templateCatalogChannel = target.dataset.channel || "all"; render(); }
+  if (action === "preview-catalog-template") document.querySelector(".template-preview-v2")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (action === "close-modal") closePortal();
   if (action === "copy-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
   if (action === "choose-avatar") document.querySelector('[data-action="avatar-file"]')?.click();
@@ -4346,6 +4360,42 @@ async function handleSubmit(form, event) {
     toast(t("auth.registerSuccess"));
     return;
   }
+  if (type === "catalog-template") {
+    const templateKey = String(data.templateKey || "");
+    if (!data.name?.trim() || !data.body?.trim()) return toast("أكمل اسم القالب ومحتوى الرسالة.", "danger");
+    const formData = new FormData(form);
+    const payload = {
+      templateKey,
+      name: data.name,
+      title: data.title || null,
+      body: data.body,
+      buttonLabel: data.buttonLabel || null,
+      footerText: data.footerText || null,
+      themeColor: document.querySelector("[data-catalog-theme]")?.value || "#0EA5A8",
+      isActive: data.isActive === "on",
+      contentJson: templateKey === "whatsapp_menu" ? {
+        sections: [{
+          title: data.sectionTitle || "الخدمات",
+          rows: formData.getAll("rowTitle").map((title, index) => ({
+            id: formData.getAll("rowId")[index] || `option_${index + 1}`,
+            title,
+            description: formData.getAll("rowDescription")[index] || ""
+          }))
+        }]
+      } : templateKey === "salla_fulfilled" ? { lockedPortalLink: true } : {}
+    };
+    try {
+      const result = await fetchJson("/api/templates/catalog", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      state.catalogTemplates = (state.catalogTemplates || []).map((item) => item.templateKey === result.item.templateKey ? result.item : item);
+      toast("تم حفظ القالب وتحديث الإصدار نفسه");
+      render();
+    } catch (error) { toast(error.message || "تعذر حفظ القالب", "danger"); }
+    return;
+  }
   if (type === "renewal-template") {
     if (!data.name?.trim()) return toast("اكتب اسمًا للقالب.", "danger");
     if (!data.body?.trim()) return toast("اكتب محتوى رسالة التجديد.", "danger");
@@ -4736,6 +4786,46 @@ document.addEventListener("input", (event) => {
   if (target.dataset.action === "template-body") {
     const preview = document.querySelector("[data-whatsapp-preview-body]");
     if (preview) preview.textContent = target.value || "اكتب محتوى الرسالة ليظهر هنا.";
+  }
+  if (target.dataset.catalogPreviewBody !== undefined) {
+    document.querySelectorAll("[data-catalog-preview-output]").forEach((preview) => { preview.textContent = target.value || "اكتب محتوى الرسالة ليظهر هنا."; });
+    const emailBody = document.querySelector("[data-catalog-email-preview] .email-preview-body");
+    if (emailBody) {
+      emailBody.querySelectorAll("p:not(.email-thanks)").forEach((node) => node.remove());
+      const action = emailBody.querySelector("a");
+      String(target.value || "").split(/\n{2,}/).filter(Boolean).forEach((text) => {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = text;
+        emailBody.insertBefore(paragraph, action);
+      });
+    }
+  }
+  if (target.dataset.catalogPreviewButton !== undefined) {
+    document.querySelectorAll("[data-catalog-preview-button-output]").forEach((preview) => { preview.textContent = target.value; });
+    const emailButton = document.querySelector("[data-catalog-email-preview] .email-preview-body a");
+    if (emailButton) emailButton.textContent = target.value;
+  }
+  if (target.dataset.catalogPreviewTitle !== undefined) {
+    const subject = document.querySelector("[data-catalog-preview-title-output]");
+    if (subject) subject.textContent = `الموضوع: ${target.value}`;
+    const heading = document.querySelector("[data-catalog-email-preview] .email-preview-body h3");
+    if (heading) heading.textContent = target.value;
+  }
+  if (target.dataset.catalogPreviewFooter !== undefined) {
+    const footer = document.querySelector("[data-catalog-email-preview] .email-thanks");
+    if (footer) footer.textContent = `${target.value} ♥`;
+  }
+  if (target.dataset.catalogTheme !== undefined) {
+    const envelope = document.querySelector("[data-catalog-email-preview] .email-envelope");
+    if (envelope) envelope.style.setProperty("--email-theme", safeEmailTheme(target.value));
+  }
+  if (target.dataset.catalogPreviewRow !== undefined || target.dataset.catalogPreviewDescription !== undefined) {
+    const index = Number(target.dataset.catalogPreviewRow ?? target.dataset.catalogPreviewDescription);
+    const form = target.closest("form");
+    const titles = [...(form?.querySelectorAll("[data-catalog-preview-row]") || [])];
+    const descriptions = [...(form?.querySelectorAll("[data-catalog-preview-description]") || [])];
+    const list = document.querySelector("[data-catalog-menu-preview]");
+    if (list) list.innerHTML = titles.map((input, rowIndex) => `<li><strong>${escapeHtml(input.value)}</strong><span>${escapeHtml(descriptions[rowIndex]?.value || "")}</span></li>`).join("");
   }
   if (target.dataset.action === "template-catalog-search") {
     state.templateCatalogSearch = target.value;

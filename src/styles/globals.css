@@ -2222,6 +2222,59 @@ html[dir="rtl"] .devices-workspace > * { direction: rtl; }
   .template-editor-v2-footer .btn { flex: 1; min-width: 0; }
 }
 
+/* Complete four-template catalog editors. */
+.catalog-special-editor .template-editor-v2-body { min-height: 190px; }
+.catalog-menu-options { padding: 16px; display: grid; gap: 12px; border: 1px solid #dfe7f1; border-radius: 11px; background: #f9fbfe; }
+.catalog-menu-options h2 { margin: 0; color: #17365f; font-size: 16px; }
+.catalog-menu-row { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 10px; }
+.catalog-dual-preview { align-content: start; }
+.whatsapp-phone-preview.compact { min-height: 430px; }
+.whatsapp-phone-preview.compact .whatsapp-phone-shell { height: 408px; }
+.whatsapp-list-button { margin-top: 10px; padding: 8px 10px; display: block; color: #78d7ff; border-top: 1px solid rgba(255,255,255,.13); text-align: center; font-weight: 800; }
+.whatsapp-opened-list { display: grid; gap: 12px; }
+.whatsapp-opened-list > strong { color: #16345f; }
+.whatsapp-opened-list ul { margin: 0; padding: 0; display: grid; gap: 7px; list-style: none; }
+.whatsapp-opened-list li { padding: 10px 12px; display: grid; gap: 3px; border: 1px solid #e0e8f2; border-radius: 9px; background: #f8fbff; }
+.whatsapp-opened-list li strong { color: #15345e; font-size: 11px; }
+.whatsapp-opened-list li span, .whatsapp-opened-list > small { color: #7789a1; font-size: 9px; }
+.catalog-email-editor .email-settings-v2 input[type="color"] { min-height: 48px; padding: 5px; cursor: pointer; }
+.template-editor-v2-salla { grid-template-columns: minmax(0, 1fr) minmax(390px, .76fr); direction: rtl; }
+.template-editor-v2-salla > * { direction: rtl; }
+.catalog-locked-link { min-height: 68px; padding: 13px 15px; display: flex; align-items: center; gap: 12px; color: #30527e; border: 1px solid #cfe0f5; border-radius: 10px; background: #f2f7ff; }
+.catalog-locked-link .line-icon { width: 22px; height: 22px; color: #1769ed; }
+.catalog-locked-link div { display: grid; gap: 4px; }
+.catalog-locked-link small { color: #71849e; font-size: 10px; }
+.catalog-locked-link.compact { min-height: 46px; margin-top: 12px; justify-content: center; font-size: 10px; font-weight: 800; }
+.catalog-salla-previews { align-content: start; }
+.salla-preview-logo { width: 44px; max-height: 34px; object-fit: contain; }
+.salla-message-preview { padding: 18px; color: #25466f; border: 1px solid #d9e8d3; border-radius: 12px; background: linear-gradient(145deg, #fbfff9, #f2faed); line-height: 1.95; }
+.salla-message-preview p { margin: 0; white-space: pre-wrap; }
+.salla-order-page-preview { overflow: hidden; border: 1px solid #dce5ef; border-radius: 12px; background: #fff; box-shadow: 0 9px 24px rgba(26,64,109,.08); }
+.salla-order-brand { padding: 14px; display: flex; align-items: center; justify-content: space-between; color: #fff; background: linear-gradient(135deg, #36b8bd, #0c8791); }
+.salla-order-brand img { width: 48px; filter: brightness(0) invert(1); }
+.salla-order-page-preview h3 { margin: 16px; color: #17365f; }
+.salla-order-page-preview dl { margin: 0 16px; border: 1px solid #e2e9f1; border-radius: 9px; }
+.salla-order-page-preview dl div { min-height: 42px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #edf1f6; }
+.salla-order-page-preview dl div:last-child { border-bottom: 0; }
+.salla-order-page-preview dt { color: #71829b; font-size: 10px; }
+.salla-order-page-preview dd { margin: 0; color: #183861; font-size: 11px; font-weight: 800; }
+.salla-order-page-preview > p { margin: 14px 16px 17px; color: #8190a5; font-size: 9px; }
+:root[data-theme="dark"] .catalog-menu-options,
+:root[data-theme="dark"] .whatsapp-opened-list li,
+:root[data-theme="dark"] .salla-order-page-preview { border-color: #293d54; background: #0a1727; }
+:root[data-theme="dark"] .catalog-menu-options h2,
+:root[data-theme="dark"] .whatsapp-opened-list > strong,
+:root[data-theme="dark"] .whatsapp-opened-list li strong,
+:root[data-theme="dark"] .salla-order-page-preview h3,
+:root[data-theme="dark"] .salla-order-page-preview dd { color: #e0ebf7; }
+:root[data-theme="dark"] .catalog-locked-link { color: #b9d6f7; border-color: #294867; background: #10243b; }
+@media (max-width: 1050px) {
+  .template-editor-v2-salla { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .catalog-menu-row { grid-template-columns: 1fr; }
+}
+
 .billing-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
 .plan-catalog { padding: 20px; }
 .dashboard-plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }

@@ -7,10 +7,22 @@ describe("system template separation", () => {
   const orderRoute = readFileSync("app/api/order-link/templates/route.js", "utf8");
   const defaults = readFileSync("src/server/default-templates.js", "utf8");
 
-  it("defines exactly the three required immutable template keys", () => {
+  it("defines the four catalog keys and keeps order information separate", () => {
+    expect(defaults).toContain('WHATSAPP_MENU: "whatsapp_menu"');
+    expect(defaults).toContain('EMAIL_DELIVERY: "email_delivery"');
     expect(defaults).toContain('RENEWAL_WHATSAPP: "renewal_whatsapp"');
     expect(defaults).toContain('RENEWAL_EMAIL: "renewal_email"');
+    expect(defaults).toContain('SALLA_FULFILLED: "salla_fulfilled"');
     expect(defaults).toContain('ORDER_INFORMATION_SALLA: "order_information_salla"');
+  });
+
+  it("exposes a tenant-scoped catalog endpoint that updates the same stable key", () => {
+    const catalogRoute = readFileSync("app/api/templates/catalog/route.js", "utf8");
+    expect(catalogRoute).toContain("TEMPLATE_KEYS.WHATSAPP_MENU");
+    expect(catalogRoute).toContain("TEMPLATE_KEYS.EMAIL_DELIVERY");
+    expect(catalogRoute).toContain("TEMPLATE_KEYS.SALLA_FULFILLED");
+    expect(catalogRoute).toContain("WHERE tenant_id=$10 AND template_key=$11");
+    expect(catalogRoute).not.toContain("order_information_salla");
   });
 
   it("scopes the general templates endpoint to renewal templates", () => {
