@@ -780,7 +780,14 @@ function dashboardIcon(name) {
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     support: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M18 19h-2v-7h4v5a2 2 0 0 1-2 2ZM6 19H4a2 2 0 0 1-2-2v-5h4v7Z"/><path d="M16 19c0 1.1-.9 2-2 2h-2"/>',
-    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
+     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
+     linkedin: '<path d="M6 9v9M6 6v.01M10 18v-5a4 4 0 0 1 8 0v5M10 13V9"/><rect x="3" y="3" width="18" height="18" rx="4"/>',
+     youtube: '<rect x="3" y="6" width="18" height="12" rx="4"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/>',
+     x: '<path d="m5 4 14 16M19 4 5 20"/>',
+     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
+     whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.9 7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M8.7 8.1c.3 2.7 2.5 4.8 5.2 5.2M14.6 12.2l-1.4 1.1M9.8 9.4l1.1-1.2"/>',
+     send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+     warning: '<path d="M10.3 3.5 2.5 18a2 2 0 0 0 1.8 3h15.4a2 2 0 0 0 1.8-3L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
     "eye-off": '<path d="m3 3 18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.1 3.8M6.2 6.2C3.6 8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 3.2-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>'
@@ -833,7 +840,7 @@ function publicFooter() {
   return `<footer class="public-footer"><div class="container public-footer-inner">
     <div class="footer-brand-mini">${logo()}<span>© 2026 Renvix. جميع الحقوق محفوظة.</span></div>
     <nav class="footer-links" aria-label="روابط سريعة"><button data-link="/about">عن المنصة</button><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button><button data-link="/support">الدعم</button><button data-link="/contact">تواصل معنا</button><button data-link="/blog">المدونة</button></nav>
-    <div class="footer-social"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">in</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">▶</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">X</a><a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="WhatsApp">◉</a></div>
+    <div class="footer-social"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="الموقع">${dashboardIcon("globe")}</a></div>
   </div></footer>`;
 }
 
@@ -1703,7 +1710,8 @@ function subscriptionsPage() {
   const upcoming = meta.upcoming || [];
   const sendLog = meta.sendLog || [];
   const listSection = `<section class="subscription-workspace"><article class="card table-card subscription-list-card"><div class="section-head"><div><h2>قائمة الاشتراكات <span>(${Number(meta.total || 0).toLocaleString("ar-SA")})</span></h2><p class="muted">الطلبات المدفوعة المرتبطة بباقات Renvix فقط.</p></div></div>${content}<div class="subscription-pagination"><span>صفحة ${Number(meta.page||1)} من ${Math.max(1,Math.ceil(Number(meta.total||0)/Number(meta.limit||20)))}</span><div><button class="btn btn-secondary" data-action="subscription-page" data-page="${Math.max(1,Number(meta.page||1)-1)}" ${Number(meta.page||1)<=1?"disabled":""}>السابق</button><button class="btn btn-secondary" data-action="subscription-page" data-page="${Number(meta.page||1)+1}" ${Number(meta.page||1)*Number(meta.limit||20)>=Number(meta.total||0)?"disabled":""}>التالي</button></div></div></article><aside class="subscription-side-column"><article class="card subscription-reminder-summary"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">الإعدادات محفوظة لكل اشتراك وقناته الاحتياطية.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div><div class="reminder-summary-points"><div><strong>يدوي</strong><span>معاينة وتأكيد قبل الجدولة</span></div><div><strong>تلقائي</strong><span>يعمل من Worker دون فتح الصفحة</span></div><div><strong>الخصم</strong><span>بعد قبول المزود للرسالة فقط</span></div></div><button class="btn btn-primary" data-action="subscription-section" data-section="settings">إدارة إعدادات التذكير</button></article><article class="card subscription-upcoming"><div class="section-head"><h2>التجديدات القادمة</h2><button data-action="clear-subscription-filters">عرض الكل</button></div>${upcoming.length?upcoming.map((item)=>`<button class="upcoming-renewal-row" data-action="subscription-edit-db" data-id="${item.id}"><span><strong>${escapeHtml(item.customerName)}</strong><small>${escapeHtml(item.planName)}</small></span><b>${new Date(item.endDate).toLocaleDateString("ar-SA",{day:"numeric",month:"short"})}</b></button>`).join(""):`<div class="security-empty-row">لا توجد تجديدات قادمة.</div>`}</article></aside></section>`;
-  const settingsSection = `<article class="card section subscription-preferences-list"><div class="section-head"><div><h2>إعدادات التذكير</h2><p class="muted">عدّل القناة الأساسية والاحتياطية ووضع الإرسال لكل اشتراك.</p></div></div>${rows.length?rows.map((row)=>`<div><span><strong>${escapeHtml(row.customerName)}</strong><small>${escapeHtml(row.planName)}</small></span><span>${row.reminderChannel==="email"?"البريد":"واتساب"}${row.fallbackChannel?` ← احتياطي: ${row.fallbackChannel==="email"?"البريد":"واتساب"}`:""}</span><span>${row.reminderMode==="automatic"?"تلقائي":"يدوي"}</span><button class="btn btn-secondary" data-action="subscription-edit-db" data-id="${row.id}">تعديل</button></div>`).join(""):emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعداداته.")}</article>`;
+  const settingsRow = rows[0] || {};
+  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد القناة وطريقة التشغيل والموعد المناسب للاشتراك المحدد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${rows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form"><label class="field"><span>قناة الإرسال</span><select class="select" name="reminderChannel"><option value="whatsapp" ${settingsRow.reminderChannel !== "email" ? "selected" : ""}>واتساب</option><option value="email" ${settingsRow.reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><small>القناة التي تُرسل عبرها التذكيرات لهذا الاشتراك.</small></label><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">${[[0,"يوم الانتهاء"],[1,"قبل يوم واحد"],[3,"قبل 3 أيام"],[4,"قبل 4 أيام"],[7,"قبل 7 أيام"],[14,"قبل 14 يومًا"]].map(([value,label]) => `<option value="${value}" ${Number(settingsRow.reminderDaysBefore || 7) === value ? "selected" : ""}>${label}</option>`).join("")}</select><small>يُعاد إنشاء الجدولة عند الحفظ.</small></label><fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch"><label><input type="radio" name="reminderMode" value="automatic" ${settingsRow.reminderMode !== "manual" ? "checked" : ""}><span>تلقائي</span></label><label><input type="radio" name="reminderMode" value="manual" ${settingsRow.reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label></div><small>اليدوي لا ينشئ تذكيرًا مجدولًا حتى تؤكد الإرسال.</small></fieldset><label class="field"><span>الاشتراك المحدد</span><input class="input" value="${escapeHtml(`${settingsRow.customerName || ""} · ${settingsRow.planName || ""}`)}" readonly></label><div class="subscription-settings-actions"><button class="btn btn-primary">حفظ الإعدادات</button><button type="button" class="btn btn-secondary" data-action="subscription-edit-db" data-id="${escapeHtml(settingsRow.id || "")}">فتح التفاصيل</button></div></form>` : emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعدادات التذكير.")}</article>`;
   const templatesSection = `<article class="card section subscription-template-bridge"><div>${dashboardIcon("template")}<h2>قوالب رسائل التجديد</h2><p>قالب واتساب وقالب البريد مستقلان، ولا تُرسل رسالة إذا كان قالب القناة غير مهيأ أو يحتوي متغيرًا غير معتمد.</p><button class="btn btn-primary" data-link="/dashboard/templates">فتح القوالب</button></div></article>`;
   const logSection = `<article class="card table-card section"><div class="section-head"><div><h2>سجل الإرسال</h2><p class="muted">يبقى السجل محفوظًا حتى بعد اختفاء شارة «تم الإرسال» بعد 72 ساعة.</p></div></div>${sendLog.length?simpleTable(["العميل","الخدمة","القناة","الحالة","وقت النجاح","السبب"],sendLog.map((item)=>[escapeHtml(item.customerName||"-"),escapeHtml(item.serviceName||"-"),item.channel==="email"?"البريد":"واتساب",status(item.status),item.sentAt?new Date(item.sentAt).toLocaleString("ar-SA"):"-",escapeHtml(item.errorMessage||"-")])):emptyState("لا توجد رسائل مسجلة","ستظهر هنا نتائج الإرسال الفعلية.")}</article>`;
   const activeSection = state.subscriptionSection==="settings"?settingsSection:state.subscriptionSection==="templates"?templatesSection:state.subscriptionSection==="log"?logSection:listSection;
@@ -1920,9 +1928,9 @@ function securityPage() {
             ${securityMetricCard("حماية المنصة", platform, "security", "المسارات والأسرار وقاعدة البيانات")}
             ${securityMetricCard("حماية الحساب", accounts, "customers", "كلمة المرور والدخول والاسترداد")}
             ${securityMetricCard("أمان الجلسات", sessions, "devices", "الجلسات الفعلية وخصائص Cookie")}
-            ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "devices", "الاتصال والرسائل والـQueue")}
-            ${securityMetricCard("أمان الإرسال", sending, "template", "الفاصل والحدود والإيقاف الوقائي")}
-            ${securityMetricCard("الخطر الحالي", currentRisk, "reports", `${Number(currentRisk.issues || 0)} أحداث تحتاج المراجعة`, true)}
+            ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "whatsapp", "الاتصال والرسائل والـQueue")}
+            ${securityMetricCard("أمان الإرسال", sending, "send", "الفاصل والحدود والإيقاف الوقائي")}
+            ${securityMetricCard("الخطر الحالي", currentRisk, "warning", `${Number(currentRisk.issues || 0)} أحداث تحتاج المراجعة`, true)}
           </div>
         </section>
         <section class="security-center-middle">
@@ -2092,8 +2100,8 @@ function emailTemplatePreview(template) {
   const footerText = templatePreviewValue(template.footerText || localDefaultEmailTemplate.footerText);
   const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
   return `<div class="email-envelope" style="--email-theme:${theme}">
-    <div class="email-preview-brand"><span class="email-store-icon">⌑</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
-    <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">♢ بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♡</p></div>
+    <div class="email-preview-brand"><span class="email-store-icon"><img src="/assets/renvix-mark.png" alt="Renvix"></span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
+    <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">${dashboardIcon("security")} بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♥</p></div>
     <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
   </div>`;
 }
@@ -2801,7 +2809,7 @@ function subscriptionForm(row = {}, editId = "") {
   const fallbackChannel = row.fallbackChannel === "email" || row.fallbackChannel === "whatsapp" ? row.fallbackChannel : "";
   const reminderMode = row.reminderMode === "automatic" ? "automatic" : "manual";
   const reminderDaysBefore = Number.isInteger(Number(row.reminderDaysBefore)) ? Number(row.reminderDaysBefore) : 7;
-  return `<form data-submit="subscription" data-id="${editId}" class="form-grid">
+  return `<form data-submit="subscription" data-id="${editId}" class="form-grid ${editId ? "subscription-edit-form" : "manual-subscription-form"}">
     <label class="field"><span>العميل</span><select class="select" name="customerId" ${editId ? "disabled" : ""} required>${customers.map((customer) => `<option value="${customer.id}" ${row.customerId === customer.id ? "selected" : ""}>${escapeHtml(customer.name)}</option>`).join("")}</select></label>
     ${field("رقم الطلب (اختياري)", "orderNumber", "text", row.orderNumber || "", false)}
     ${field("نوع الخدمة", "serviceName", "text", row.serviceName || "")}
@@ -4272,6 +4280,19 @@ async function handleSubmit(form, event) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast("أدخل بريدًا إلكترونيًا صحيحًا.", "danger");
     form.reset();
     toast("تم الاشتراك في النشرة بنجاح");
+    return;
+  }
+  if (type === "subscription-settings") {
+    try {
+      await fetchJson(`/api/subscriptions/${form.dataset.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reminderChannel: data.reminderChannel, reminderMode: data.reminderMode, reminderDaysBefore: Number(data.reminderDaysBefore || 7) })
+      });
+      state.dbSubscriptions = null;
+      await syncRouteData(true);
+      toast("تم حفظ إعدادات التذكير وإعادة جدولة الموعد");
+    } catch (error) { toast(error.message || "تعذر حفظ إعدادات التذكير", "danger"); }
     return;
   }
   if (type === "subscription") {

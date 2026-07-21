@@ -1268,6 +1268,7 @@ tbody tr:hover { background: #fbfeff; }
 .language-topbar-button { min-width: 58px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; color: #355278; background: #fff; }
 .language-topbar-button .line-icon { width: 16px; height: 16px; }
 .subscription-delivery-settings { padding: 18px; border: 1px solid #dce8f5; border-radius: 12px; background: linear-gradient(145deg, #f8fbff, #f5fcfc); }
+.manual-subscription-form .subscription-delivery-settings { display: none; }
 .subscription-delivery-heading { margin-bottom: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .subscription-delivery-heading strong, .subscription-delivery-heading small { display: block; }
 .subscription-delivery-heading strong { color: #102b55; font-size: 15px; }
@@ -1327,6 +1328,14 @@ tbody tr:hover { background: #fbfeff; }
 .subscription-preferences-list > div:not(.section-head) { display:grid; grid-template-columns:minmax(180px,1.5fr) 1fr .6fr auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
 .subscription-preferences-list span strong,.subscription-preferences-list span small { display:block; }
 .subscription-preferences-list small { color:var(--muted); }
+.subscription-settings-panel { padding: 20px; }
+.subscription-settings-form { margin-top: 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.subscription-settings-form .field { min-width: 0; }
+.subscription-settings-form .field > small,
+.subscription-settings-form .delivery-mode-field > small { min-height: 34px; display: block; margin-top: 7px; color: #71839e; font-size: 11px; line-height: 1.55; }
+.subscription-settings-form .delivery-mode-field { margin: 0; }
+.subscription-settings-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+[data-theme="dark"] .subscription-settings-panel { background: #0d1a2b; }
 .subscription-template-bridge { min-height:360px; display:grid; place-items:center; text-align:center; }
 .subscription-template-bridge > div { max-width:620px; }
 .subscription-template-bridge svg { width:48px; height:48px; color:#2770ef; }
@@ -1336,6 +1345,7 @@ tbody tr:hover { background: #fbfeff; }
 :root[data-theme="dark"] .upcoming-renewal-row b { background:#3b2c13; color:#ffc366; }
 @media (max-width:1180px) { .subscription-server-filters { grid-template-columns:repeat(3,1fr); } .subscription-search { grid-column:span 2; } .subscription-workspace { grid-template-columns:1fr; } .subscription-side-column { grid-template-columns:1fr 1fr; } }
 @media (max-width:720px) { .subscription-server-filters { grid-template-columns:1fr 1fr; } .subscription-search { grid-column:1/-1; } .subscription-side-column { grid-template-columns:1fr; } .subscription-preferences-list > div:not(.section-head) { grid-template-columns:1fr; } }
+@media (max-width:900px) { .subscription-settings-form { grid-template-columns: 1fr; } .subscription-settings-actions { grid-column: auto; } }
 [data-theme="dark"] .subscription-delivery-settings { border-color: #253d5d; background: linear-gradient(145deg, #102139, #0d2630); }
 [data-theme="dark"] .subscription-delivery-heading strong { color: #e6efff; }
 [data-theme="dark"] .delivery-mode-switch { border-color: #304967; background: #0d1d32; }
@@ -1832,6 +1842,7 @@ tbody tr:hover { background: #fbfeff; }
 .footer-links button { color: inherit; background: transparent; cursor: pointer; }
 .social-links span,
 .footer-social a { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #e3e9f1; border-radius: 50%; color: #263d62; background: #f8fafc; font-weight: 800; }
+.footer-social a .line-icon { width: 17px; height: 17px; }
 .footer-copy { color: #7c899c; font-size: 11px; }
 
 .auth-light-page { display: flex; flex-direction: column; }
@@ -1969,14 +1980,16 @@ html[dir="rtl"] .devices-workspace > * { direction: rtl; }
 .email-envelope { overflow: hidden; color: #40546f; border: 1px solid #dfe8f1; border-radius: 10px; background: #fff; box-shadow: 0 9px 24px rgba(24, 59, 101, .07); text-align: center; }
 .email-envelope::before { height: 6px; display: block; content: ""; background: var(--email-theme); }
 .email-preview-brand { padding: 20px 18px 9px; display: grid; justify-items: center; gap: 3px; color: var(--email-theme); }
-.email-store-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 12px; font-size: 25px; }
+.email-store-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--email-theme) 35%, #dbe7f2); border-radius: 12px; background: color-mix(in srgb, var(--email-theme) 9%, #fff); }
+.email-store-icon img { width: 29px; height: 29px; object-fit: contain; }
 .email-preview-brand strong { font-size: 15px; }
 .email-preview-brand small { color: #93a1b2; font-size: 9px; }
 .email-preview-body { padding: 8px 25px 22px; line-height: 1.85; }
 .email-preview-body h3 { margin: 6px 0 16px; color: #15325c; font-size: 20px; }
 .email-preview-body p { margin: 0 0 12px; text-align: right; font-size: 12px; }
 .email-preview-body > a { margin: 9px auto 15px; padding: 10px 23px; display: inline-block; color: #fff; border-radius: 7px; background: var(--email-theme); text-decoration: none; font-size: 12px; font-weight: 800; pointer-events: none; }
-.email-trust-note { padding: 9px 10px; color: #708198; border-radius: 7px; background: #f2f7fb; font-size: 9px; }
+.email-trust-note { padding: 9px 10px; display: flex; align-items: center; gap: 6px; color: #708198; border-radius: 7px; background: #f2f7fb; font-size: 9px; }
+.email-trust-note .line-icon { width: 13px; height: 13px; flex: 0 0 13px; color: var(--email-theme); }
 .email-preview-body .email-thanks { margin: 13px 0 0; text-align: center; color: #657890; }
 .email-preview-footer { padding: 12px; color: #9aa7b7; border-top: 1px solid #edf1f5; background: #fafbfd; font-size: 9px; }
 .email-safety-card { color: #58708f; font-size: 12px; }
@@ -3428,6 +3441,17 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 
 .password-input-wrap .input {
   padding-inline-end: 3.15rem;
+}
+
+/* Keep one consistent Renvix visibility control. Chromium/Edge otherwise
+   adds a second native reveal icon on password fields. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .password-toggle {
