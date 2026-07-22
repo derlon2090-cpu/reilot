@@ -2,7 +2,7 @@ import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
 import { query, transaction } from "../../../../../src/server/db.js";
 import { verifyPassword } from "../../../../../src/server/password.js";
-import { isValidEmail, normalizeEmail, sha256 } from "../../../../../src/server/security.js";
+import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { createSession, destroySession, sessionCookie } from "../../../../../src/server/session.js";
 
 const loginSchema = z.object({
@@ -15,7 +15,8 @@ const loginSchema = z.object({
 });
 
 export async function POST(request) {
-  const parsed = loginSchema.safeParse(await request.json().catch(() => ({})));
+  try {
+    const parsed = loginSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
     return Response.json({ ok: false, reason: "validation_error", errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
@@ -88,9 +89,17 @@ export async function POST(request) {
     return created;
   });
   await auditAdmin(request, { admin, action: "admin.login.success", resource: "admin_portal", metadata: { role: admin.adminRole } });
-  return Response.json({
-    ok: true,
-    redirectUrl: "/admin",
-    admin: { name: admin.name, email: admin.email, role: admin.adminRole }
-  }, { headers: { "Set-Cookie": sessionCookie(session.token, parsed.data.rememberMe ? maxAgeSeconds : null) } });
+    return Response.json({
+      ok: true,
+      redirectUrl: "/admin",
+      admin: { name: admin.name, email: admin.email, role: admin.adminRole }
+    }, { headers: { "Set-Cookie": sessionCookie(session.token, parsed.data.rememberMe ? maxAgeSeconds : null) } });
+  } catch (error) {
+    console.error("admin login unavailable", safeErrorMessage(error));
+    return Response.json({
+      ok: false,
+      reason: "admin_service_unavailable",
+      message: "خدمة لوحة الأدمن غير متاحة حاليًا بسبب تعذر الاتصال بقاعدة البيانات."
+    }, { status: 503 });
+  }
 }
