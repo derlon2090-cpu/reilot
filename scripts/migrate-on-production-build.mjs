@@ -9,4 +9,7 @@ if (!shouldMigrate) {
   throw new Error("DATABASE_URL is required for the production database migration");
 } else {
   await import("./migrate.mjs");
+  if (process.env.ADMIN_BOOTSTRAP_ON_BUILD === "true") {
+    await import("./bootstrap-admin.mjs");
+  }
 }

@@ -72,7 +72,7 @@ export default function AdminLoginForm() {
         <label>
           البريد الإلكتروني
           <span className={styles.inputShell}>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" placeholder="أدخل بريدك الإلكتروني أو اسم المستخدم" aria-invalid={Boolean(fieldErrors.email)} />
+            <input type="text" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" placeholder="أدخل بريدك الإلكتروني أو اسم المستخدم" aria-invalid={Boolean(fieldErrors.email)} />
             <span className={styles.fieldIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span>
           </span>
           {fieldErrors.email?.[0] ? <small className={styles.fieldError}>{fieldErrors.email[0]}</small> : null}

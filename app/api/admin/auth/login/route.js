@@ -6,7 +6,10 @@ import { isValidEmail, normalizeEmail, sha256 } from "../../../../../src/server/
 import { createSession, destroySession, sessionCookie } from "../../../../../src/server/session.js";
 
 const loginSchema = z.object({
-  email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني.").refine(isValidEmail, "يرجى إدخال بريد إلكتروني صحيح."),
+  email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني أو اسم المستخدم.").refine(
+    (value) => isValidEmail(value) || /^[a-zA-Z][a-zA-Z0-9._-]{5,63}$/.test(value),
+    "يرجى إدخال بريد إلكتروني أو اسم مستخدم صحيح."
+  ),
   password: z.string().min(1, "يرجى إدخال كلمة المرور."),
   rememberMe: z.boolean().optional().default(false)
 });
@@ -16,13 +19,13 @@ export async function POST(request) {
   if (!parsed.success) {
     return Response.json({ ok: false, reason: "validation_error", errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
-  const email = normalizeEmail(parsed.data.email);
+  const identifier = normalizeEmail(parsed.data.email);
   const ip = requestIp(request);
   const failures = await query(
     `SELECT count(*)::int AS count FROM login_attempts
       WHERE success = false AND created_at > now() - interval '15 minutes'
         AND (email = $1 OR ($2 <> '' AND ip_address = $2))`,
-    [email, ip]
+    [identifier, ip]
   );
   if (failures.rows[0].count >= 5) {
     return Response.json({ ok: false, reason: "rate_limited", message: "تم تجاوز عدد محاولات الدخول. حاول مرة أخرى لاحقًا." }, { status: 429 });
@@ -35,8 +38,10 @@ export async function POST(request) {
        FROM users u
        JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
        LEFT JOIN admin_users au ON au.user_id = u.id
-      WHERE lower(u.email) = $1 LIMIT 1`,
-    [email]
+      WHERE lower(u.email) = $1 OR lower(a.account_id) = $1
+      ORDER BY CASE WHEN lower(u.email) = $1 THEN 0 ELSE 1 END
+      LIMIT 1`,
+    [identifier]
   );
   const admin = result.rows[0];
   const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.password) : false;
@@ -47,7 +52,7 @@ export async function POST(request) {
   await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [email, sha256(email), ip || null, request.headers.get("user-agent")?.slice(0, 500) || null, Boolean(valid), valid ? null : "invalid_admin_credentials"]
+    [identifier, sha256(identifier), ip || null, request.headers.get("user-agent")?.slice(0, 500) || null, Boolean(valid), valid ? null : "invalid_admin_credentials"]
   );
 
   if (!valid) {
@@ -56,7 +61,7 @@ export async function POST(request) {
       action: "admin.login.failed",
       resource: "admin_portal",
       status: "failed",
-      metadata: { reason: expired ? "expired" : passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials", actorEmail: email }
+      metadata: { reason: expired ? "expired" : passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials", actorEmail: admin?.email || identifier }
     });
     if (passwordValid && admin?.status === "disabled") {
       return Response.json({ ok: false, reason: "admin_disabled", message: "تم تعطيل حساب الأدمن. تواصل مع المسؤول الأعلى." }, { status: 403 });
