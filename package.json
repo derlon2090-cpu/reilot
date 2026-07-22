@@ -23,6 +23,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@vercel/blob": "^2.6.1",
+    "bcryptjs": "^3.0.2",
     "libphonenumber-js": "^1.12.31",
     "next": "^15.4.0",
     "pg": "^8.22.0",

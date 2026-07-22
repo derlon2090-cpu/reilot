@@ -1,0 +1,37 @@
+.page { min-height: 100vh; position: relative; overflow: hidden; display: grid; place-items: center; padding: 42px 18px; color: #102c5c; background: linear-gradient(145deg,#fff 0%,#f8fbff 58%,#eef5ff 100%); font-family: "IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif; }
+.page * { box-sizing: border-box; }
+.shell { position: relative; z-index: 1; width: min(100%,720px); text-align: center; }
+.brand img { width: 196px; height: auto; }
+.badge { display: inline-flex; margin: 16px 0 10px; padding: 7px 13px; border: 1px solid #cae8ee; border-radius: 999px; color: #07879a; background: #effcfd; font-size: 12px; font-weight: 800; }
+.shell h1 { margin: 0; font-size: clamp(30px,5vw,43px); letter-spacing: -.7px; }
+.lead { max-width: 610px; margin: 10px auto 24px; color: #7085a6; line-height: 1.8; }
+.card { width: 100%; padding: 30px; border: 1px solid #dfe8f4; border-radius: 20px; background: rgba(255,255,255,.94); box-shadow: 0 22px 60px rgba(24,58,111,.1); }
+.card h2 { margin: 10px 0 7px; }
+.card > p { margin: 0; color: #7185a4; line-height: 1.7; }
+.card > a { display: inline-flex; margin-top: 20px; color: #1767e8; font-weight: 800; text-decoration: none; }
+.fieldGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: right; }
+.fieldGrid label { display: grid; gap: 8px; color: #28466f; font-size: 14px; font-weight: 700; }
+.fieldGrid input { width: 100%; height: 54px; padding: 0 15px; border: 1px solid #d4dfed; border-radius: 11px; outline: 0; color: #16335f; background: #fff; font: inherit; font-weight: 500; }
+.fieldGrid input:focus { border-color: #2770ef; box-shadow: 0 0 0 4px rgba(39,112,239,.1); }
+.fieldGrid input:disabled { color: #8394ae; background: #f6f8fb; }
+.fieldGrid small { color: #c73434; font-size: 12px; font-weight: 600; }
+.passwordField { position: relative; display: block; }
+.passwordField input { padding-left: 50px; }
+.passwordField button { position: absolute; top: 8px; left: 8px; width: 38px; height: 38px; border: 0; border-radius: 9px; color: #607ba5; background: #f2f6fc; cursor: pointer; }
+.passwordRules { margin: 22px 0; display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.passwordRules span { padding: 9px; border-radius: 9px; color: #527093; background: #f4f8fd; font-size: 11px; }
+.submit { width: 100%; min-height: 55px; border: 0; border-radius: 11px; color: #fff; background: linear-gradient(100deg,#08b4c4,#2563eb); box-shadow: 0 12px 25px rgba(37,99,235,.18); cursor: pointer; font: inherit; font-weight: 800; }
+.submit:disabled { opacity: .68; cursor: wait; }
+.securityNote { margin: 16px 0 0 !important; font-size: 12px; }
+.stateIcon { width: 58px; height: 58px; margin: auto; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #e34c4c; font-size: 30px; font-weight: 900; }
+.success .stateIcon { background: #15a875; }
+.warning .stateIcon { background: #e69a19; }
+.successBanner,.formError { margin-bottom: 18px; padding: 13px; border-radius: 10px; font-weight: 800; }
+.successBanner { color: #116b50; background: #eaf9f2; }
+.formError { color: #9e2929; background: #fff0f0; }
+.loader { width: 42px; height: 42px; margin: 0 auto 16px; border: 4px solid #dce8fb; border-top-color: #2563eb; border-radius: 50%; animation: spin .8s linear infinite; }
+.decor { position: absolute; width: 340px; height: 340px; border: 1px solid rgba(86,139,230,.14); border-radius: 50%; background: rgba(232,241,255,.4); }
+.decorTop { top: -190px; right: -110px; }
+.decorBottom { bottom: -220px; left: -130px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width:640px) { .page { padding: 26px 13px; align-items: start; } .brand img { width: 170px; } .card { padding: 22px 17px; } .fieldGrid { grid-template-columns: 1fr; } .passwordRules { grid-template-columns: 1fr 1fr; } }
