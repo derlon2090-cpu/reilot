@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260722-platform-final-v10" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260722-dashboard-stable-v11" />
       </head>
       <body>{children}</body>
     </html>

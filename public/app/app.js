@@ -572,8 +572,8 @@ function isRealQrDataUri(value) {
   return typeof value === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(value);
 }
 
-async function loadRemotePage(key, url, target, options) {
-  if (state.remoteLoading[key]) return;
+async function loadRemotePage(key, url, target, options, { renderOnComplete = true } = {}) {
+  if (state.remoteLoading[key]) return null;
   state.remoteLoading[key] = true;
   try {
     const payload = await fetchJson(url, options);
@@ -598,16 +598,25 @@ async function loadRemotePage(key, url, target, options) {
     state[target] = { error: error.message || "تعذر تحميل البيانات" };
   } finally {
     state.remoteLoading[key] = false;
-    render();
+    if (renderOnComplete) render();
   }
+  return state[target];
 }
 
 function syncRouteData(force = false) {
-  if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) void loadRemotePage("overview", "/api/dashboard/overview", "dashboardOverview");
-  if (state.route.startsWith("/dashboard") && (force || state.messageUsage === null)) void loadRemotePage("messageUsage", "/api/billing/message-usage", "messageUsage");
+  const routeAtStart = state.route;
+  const isDashboardHome = state.route === "/dashboard";
+  const pending = [];
+  const queue = (key, url, target, options) => {
+    const request = loadRemotePage(key, url, target, options, { renderOnComplete: !isDashboardHome });
+    if (isDashboardHome && request) pending.push(request);
+  };
+
+  if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) queue("overview", "/api/dashboard/overview", "dashboardOverview");
+  if (state.route.startsWith("/dashboard") && (force || state.messageUsage === null)) queue("messageUsage", "/api/billing/message-usage", "messageUsage");
   if (state.route.startsWith("/dashboard") && (force || state.notifications === null)) {
     const notificationLimit = state.route === "/dashboard/notifications" ? 50 : 8;
-    void loadRemotePage("notifications", `/api/notifications?limit=${notificationLimit}`, "notifications");
+    queue("notifications", `/api/notifications?limit=${notificationLimit}`, "notifications");
   }
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/reports"].includes(state.route) && (force || state.dbSubscriptions === null)) {
     const params = new URLSearchParams();
@@ -624,29 +633,35 @@ function syncRouteData(force = false) {
       if (state.subscriptionDateTo) params.set("dateTo", state.subscriptionDateTo);
       params.set("page", String(state.subscriptionPage || 1));
     }
-    void loadRemotePage("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
+    queue("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
   }
-  if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) void loadRemotePage("appsOverview", "/api/apps", "appsOverview");
+  if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) queue("appsOverview", "/api/apps", "appsOverview");
   if (state.route.startsWith("/dashboard/integrations/salla/products") && (force || state.sallaProductMappings === null)) {
-    void loadRemotePage("sallaProductMappings", "/api/apps/salla/product-mappings", "sallaProductMappings");
+    queue("sallaProductMappings", "/api/apps/salla/product-mappings", "sallaProductMappings");
   }
   const renewalMappingId = state.route.match(/^\/dashboard\/integrations\/salla\/products\/([^/]+)$/)?.[1];
   if (renewalMappingId && (force || state.sallaRenewalOptions === null)) {
-    void loadRemotePage("sallaRenewalOptions", `/api/apps/salla/product-mappings/${encodeURIComponent(renewalMappingId)}/renewal-options`, "sallaRenewalOptions");
+    queue("sallaRenewalOptions", `/api/apps/salla/product-mappings/${encodeURIComponent(renewalMappingId)}/renewal-options`, "sallaRenewalOptions");
   }
-  if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
-  if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
-  if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
-  if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) queue("customers", "/api/customers", "dbCustomers");
+  if (state.route === "/dashboard/security" && (force || state.securityScore === null)) queue("securityScore", "/api/security/score", "securityScore");
+  if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
+  if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
-  if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) void loadRemotePage("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
+  if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) queue("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
   if (state.route === "/dashboard/order-links") {
-    if (force || state.orderLinkProfile === null) void loadRemotePage("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
-    if (force || state.orderLinkSubscriptions === null) void loadRemotePage("orderLinkSubscriptions", "/api/order-link/subscriptions", "orderLinkSubscriptions");
-    if (force || state.orderLinks === null) void loadRemotePage("orderLinks", "/api/order-link/list", "orderLinks");
+    if (force || state.orderLinkProfile === null) queue("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
+    if (force || state.orderLinkSubscriptions === null) queue("orderLinkSubscriptions", "/api/order-link/subscriptions", "orderLinkSubscriptions");
+    if (force || state.orderLinks === null) queue("orderLinks", "/api/order-link/list", "orderLinks");
   }
-  if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) void loadRemotePage("billing", "/api/billing", "billingOverview");
-  if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) void loadRemotePage("settings", "/api/settings", "accountSettings");
+  if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) queue("billing", "/api/billing", "billingOverview");
+  if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) queue("settings", "/api/settings", "accountSettings");
+
+  if (pending.length) {
+    void Promise.allSettled(pending).then(() => {
+      if (state.route === routeAtStart) render();
+    });
+  }
 }
 
 async function ensureLinkingInstance(options = {}) {
@@ -1442,10 +1457,12 @@ function dashboardHome() {
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
       : latest.length ? subscriptionsTable(latest, true) : emptyState("لا توجد اشتراكات بعد", "ابدأ بإضافة أول اشتراك لإدارة التجديدات والتنبيهات.", "إضافة اشتراك", "add-subscription");
   const activities = (state.dashboardOverview?.activities || []).filter((item) => !String(item.type || "").startsWith("auth."));
+  const overviewReady = state.dashboardOverview !== null && !state.dashboardOverview?.error;
   const hasBusinessData = stats.totalSubscriptions > 0 || stats.totalCustomers > 0 || stats.connectedDevices > 0;
+  const showWelcome = overviewReady && !hasBusinessData;
   const alertDisabled = stats.connectedDevices > 0 ? "" : "disabled";
   return dashboardShell(`${pageTitle("الرئيسية", `<button class="btn btn-primary" data-action="add-subscription">إضافة اشتراك</button>`)}
-    ${!hasBusinessData ? `<section class="welcome-panel"><div><span class="welcome-kicker">Renvix</span><h2>مرحبًا بك في Renvix</h2><p>ابدأ بإضافة أول عميل أو ربط جهازك. لن تظهر هنا أي بيانات ما لم تضفها أنت.</p></div><div class="welcome-actions"><button class="btn btn-primary" data-action="add-customer">إضافة أول عميل</button><button class="btn btn-secondary" data-link="/dashboard/devices">ربط جهاز</button></div></section>` : ""}
+    ${showWelcome ? `<section class="welcome-panel"><div><span class="welcome-kicker">Renvix</span><h2>مرحبًا بك في Renvix</h2><p>ابدأ بإضافة أول عميل أو ربط جهازك. لن تظهر هنا أي بيانات ما لم تضفها أنت.</p></div><div class="welcome-actions"><button class="btn btn-primary" data-action="add-customer">إضافة أول عميل</button><button class="btn btn-secondary" data-link="/dashboard/devices">ربط جهاز</button></div></section>` : ""}
     ${statGrid([
       { title: "إجمالي الاشتراكات", value: stats.totalSubscriptions, caption: "اشتراك", tone: "info", icon: "subscriptions" },
       { title: "التجديدات القادمة", value: stats.upcomingRenewals, caption: "خلال 7 أيام", tone: "warning", icon: "reports" },
