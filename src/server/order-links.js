@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
-import { getOrCreateOrderPortalLink } from "./order-portal-links.js";
 import {
   DEFAULT_VISIBLE_FIELDS,
   normalizeAdditionalNotes,
@@ -128,7 +127,20 @@ export async function ensureTemplatePublicLink({ tenantId, templateId, expiresIn
         LIMIT 1`,
       [templateId, tenantId]
     );
-    if (existing.rows[0]) return { ok: true, item: existing.rows[0] };
+    if (existing.rows[0]) {
+      if (existing.rows[0].status === "active" && (!existing.rows[0].expiresAt || new Date(existing.rows[0].expiresAt) > new Date())) {
+        return { ok: true, item: existing.rows[0] };
+      }
+      const restored = await client.query(
+        `UPDATE order_template_links
+            SET status = 'active', expires_at = NULL, updated_at = now()
+          WHERE id = $1 AND tenant_id = $2
+          RETURNING id, public_url AS "publicUrl", status, expires_at AS "expiresAt",
+                    opened_count AS "openedCount", created_at AS "createdAt"`,
+        [existing.rows[0].id, tenantId]
+      );
+      return { ok: true, item: restored.rows[0] };
+    }
 
     const publicToken = randomToken(12);
     const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -179,6 +191,8 @@ export async function createOrderInfoLink({
   externalOrderId = null
 }) {
   if (!templateId) return { ok: false, reason: "template_required" };
+  const stableTemplateLink = await ensureTemplatePublicLink({ tenantId, templateId, expiresInDays: null });
+  if (!stableTemplateLink.ok) return stableTemplateLink;
   const result = await transaction(async (client) => {
     const subscription = await client.query(
       `SELECT s.id, s.order_number AS "orderNumber", s.customer_id AS "customerId"
@@ -195,11 +209,13 @@ export async function createOrderInfoLink({
       `INSERT INTO order_info_links (
          tenant_id, template_id, template_link_id, subscription_id, customer_id, order_number,
          public_token, public_url, send_method, expires_at, source, external_order_id
-       ) VALUES ($1, $2, NULL, $3, $4, $5, $6, '', $7, now() + ($8 || ' days')::interval, $9, $10)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval, $11, $12)
        ON CONFLICT (tenant_id, subscription_id) DO UPDATE SET
          template_id = EXCLUDED.template_id,
+         template_link_id = EXCLUDED.template_link_id,
          customer_id = EXCLUDED.customer_id,
          order_number = EXCLUDED.order_number,
+         public_url = EXCLUDED.public_url,
          send_method = EXCLUDED.send_method,
          source = EXCLUDED.source,
          external_order_id = COALESCE(EXCLUDED.external_order_id, order_info_links.external_order_id),
@@ -208,8 +224,9 @@ export async function createOrderInfoLink({
          updated_at = now()
        RETURNING id, order_number AS "orderNumber", status,
                  expires_at AS "expiresAt", created_at AS "createdAt"`,
-      [tenantId, templateId, subscriptionId, subscription.rows[0].customerId, orderNumber,
-        sha256(randomToken(12)), ["copy", "whatsapp", "email"].includes(sendMethod) ? sendMethod : "copy", String(days),
+      [tenantId, templateId, stableTemplateLink.item.id, subscriptionId, subscription.rows[0].customerId, orderNumber,
+        sha256(randomToken(12)), stableTemplateLink.item.publicUrl,
+        ["copy", "whatsapp", "email"].includes(sendMethod) ? sendMethod : "copy", String(days),
         source === "salla" ? "salla" : "manual", externalOrderId || null]
     );
     await client.query(
@@ -224,9 +241,7 @@ export async function createOrderInfoLink({
     return { ok: true, item: inserted.rows[0] };
   });
   if (!result.ok) return result;
-  const portal = await getOrCreateOrderPortalLink({ tenantId, orderId: result.item.id, expiresInDays });
-  if (!portal.ok) return portal;
-  return { ok: true, item: { ...result.item, publicUrl: portal.url, portalLinkId: portal.id, linkCreated: portal.created } };
+  return { ok: true, item: { ...result.item, publicUrl: stableTemplateLink.item.publicUrl, templateLinkId: stableTemplateLink.item.id } };
 }
 
 export function hashOrderLinkIp(req) {

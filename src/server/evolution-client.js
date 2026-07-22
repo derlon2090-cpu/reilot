@@ -139,17 +139,34 @@ export async function evolutionHealth() {
   return { ok: true, latencyMs: Date.now() - startedAt, version: body?.version || body?.response?.version || null };
 }
 
-export function evolutionCreateInstance(instanceName, options = {}) {
-  const qrcode = options.qrcode === true;
-  const number = String(options.phoneNumber || "").replace(/\D/g, "");
+function evolutionWebhookConfig() {
   const webhookBase = process.env.EVOLUTION_WEBHOOK_URL;
   const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET;
-  const webhook = webhookBase && webhookSecret ? {
+  if (!webhookBase || !webhookSecret) return null;
+  return {
     enabled: true,
     url: `${webhookBase}${webhookBase.includes("?") ? "&" : "?"}secret=${encodeURIComponent(webhookSecret)}`,
+    webhookByEvents: false,
+    webhookBase64: false,
     events: ["CONNECTION_UPDATE", "QRCODE_UPDATED", "MESSAGES_UPSERT"]
-  } : undefined;
-  return request("/instance/create", {
+  };
+}
+
+export function evolutionSetWebhook(instanceName) {
+  const webhook = evolutionWebhookConfig();
+  if (!webhook) return Promise.resolve({ ok: false, skipped: true, reason: "webhook_not_configured" });
+  return request(`/webhook/set/${encodeURIComponent(instanceName)}`, {
+    method: "POST",
+    body: JSON.stringify(webhook),
+    timeoutMs: 15_000
+  });
+}
+
+export async function evolutionCreateInstance(instanceName, options = {}) {
+  const qrcode = options.qrcode === true;
+  const number = String(options.phoneNumber || "").replace(/\D/g, "");
+  const webhook = evolutionWebhookConfig();
+  const created = await request("/instance/create", {
     method: "POST",
     body: JSON.stringify({
       instanceName,
@@ -160,6 +177,8 @@ export function evolutionCreateInstance(instanceName, options = {}) {
     }),
     timeoutMs: 20_000
   });
+  if (webhook) await evolutionSetWebhook(instanceName);
+  return created;
 }
 
 export function evolutionConnect(instanceName, phoneNumber, timeoutMs = 20_000) {
@@ -191,6 +210,32 @@ export function evolutionSendText(instanceName, number, text) {
     method: "POST",
     body: JSON.stringify({ number, text, delay: delayMs, linkPreview: false }),
     timeoutMs: delayMs + 20_000
+  });
+}
+
+export function evolutionSendList(instanceName, number, { title, description, buttonText, footerText, sections }) {
+  const values = (Array.isArray(sections) ? sections : []).map((section, sectionIndex) => ({
+    title: String(section?.title || `الخدمات ${sectionIndex + 1}`).slice(0, 60),
+    rows: (Array.isArray(section?.rows) ? section.rows : []).map((row, rowIndex) => ({
+      title: String(row?.title || `خيار ${rowIndex + 1}`).slice(0, 60),
+      description: String(row?.description || "").slice(0, 72),
+      rowId: String(row?.id || row?.rowId || `option_${sectionIndex + 1}_${rowIndex + 1}`).slice(0, 200)
+    })).filter((row) => row.title)
+  })).filter((section) => section.rows.length);
+  if (!values.length) throw new Error("WhatsApp list must contain at least one row");
+  return request(`/message/sendList/${encodeURIComponent(instanceName)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      number: String(number || "").replace(/\D/g, ""),
+      title: String(title || "مرحبًا بك").slice(0, 60),
+      description: String(description || "اختر الخدمة التي تحتاجها.").slice(0, 1024),
+      buttonText: String(buttonText || "عرض القائمة").slice(0, 20),
+      footerText: String(footerText || "Renvix").slice(0, 60),
+      values,
+      delay: 700,
+      linkPreview: false
+    }),
+    timeoutMs: 15_000
   });
 }
 

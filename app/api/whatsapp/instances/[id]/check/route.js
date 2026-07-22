@@ -1,6 +1,7 @@
 import {
   evolutionConnectionState,
   evolutionInstanceDetails,
+  evolutionSetWebhook,
   isEvolutionAuthFailed,
   isEvolutionInstanceMissing,
   isEvolutionTimeout,
@@ -43,6 +44,7 @@ export async function POST(req, { params }) {
       lastError: null
     });
     if (status === "connected") {
+      await evolutionSetWebhook(channel.instanceName);
       await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.connected", title: "WhatsApp connected" }).catch(() => null);
     }
     return Response.json({

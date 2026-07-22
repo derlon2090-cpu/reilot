@@ -2,7 +2,7 @@ import { query } from "../../../../../src/server/db.js";
 import { queueOrderInformationLink } from "../../../../../src/server/message-queue.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { PLAN_MESSAGE_LIMIT_REACHED } from "../../../../../src/lib/billing/message-quota.js";
-import { getOrCreateOrderPortalLink } from "../../../../../src/server/order-portal-links.js";
+import { ensureTemplatePublicLink } from "../../../../../src/server/order-links.js";
 
 export async function POST(req, { params }) {
   const auth = await requireSession(req);
@@ -12,7 +12,7 @@ export async function POST(req, { params }) {
   const body = await req.json().catch(() => ({}));
   const method = ["copy", "whatsapp", "email"].includes(body.method) ? body.method : "copy";
   const result = await query(
-    `SELECT l.id, l.order_number AS "orderNumber", l.status,
+    `SELECT l.id, l.order_number AS "orderNumber", l.status, l.template_id AS "templateId",
             l.customer_id AS "customerId", l.subscription_id AS "subscriptionId",
             c.name AS "customerName", c.email,
             COALESCE(c.whatsapp_number, c.phone) AS "phoneNumber",
@@ -29,9 +29,15 @@ export async function POST(req, { params }) {
   if (link.status !== "active") {
     return Response.json({ ok: false, reason: "link_not_active" }, { status: 409 });
   }
-  const portal = await getOrCreateOrderPortalLink({ tenantId: auth.session.tenantId, orderId: id });
-  if (!portal.ok) return Response.json(portal, { status: 404 });
-  link.publicUrl = portal.url;
+  const stable = await ensureTemplatePublicLink({ tenantId: auth.session.tenantId, templateId: link.templateId, expiresInDays: null });
+  if (!stable.ok) return Response.json(stable, { status: 404 });
+  link.publicUrl = stable.item.publicUrl;
+  await query(
+    `UPDATE order_info_links
+        SET template_link_id = $3, public_url = $4, updated_at = now()
+      WHERE id = $1 AND tenant_id = $2`,
+    [id, auth.session.tenantId, stable.item.id, stable.item.publicUrl]
+  );
 
   if (method === "copy") {
     await query(

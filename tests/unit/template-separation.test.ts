@@ -47,6 +47,7 @@ describe("system template separation", () => {
     const createBody = service.slice(createStart, service.indexOf("export function hashOrderLinkIp"));
     expect(createBody).not.toContain("INSERT INTO order_info_templates");
     expect(createBody).not.toContain("INSERT INTO notification_templates");
-    expect(createBody).toContain("getOrCreateOrderPortalLink");
+    expect(createBody).toContain("ensureTemplatePublicLink");
+    expect(createBody).not.toContain("getOrCreateOrderPortalLink");
   });
 });

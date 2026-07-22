@@ -635,7 +635,6 @@ function syncRouteData(force = false) {
     void loadRemotePage("sallaRenewalOptions", `/api/apps/salla/product-mappings/${encodeURIComponent(renewalMappingId)}/renewal-options`, "sallaRenewalOptions");
   }
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) void loadRemotePage("customers", "/api/customers", "dbCustomers");
-  if (state.route === "/dashboard/security" && (force || state.unsubscribes === null)) void loadRemotePage("unsubscribes", "/api/unsubscribes", "unsubscribes");
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) void loadRemotePage("securityScore", "/api/security/score", "securityScore");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) void loadRemotePage("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) void loadRemotePage("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
@@ -855,6 +854,16 @@ function publicNavbar() {
 
 function publicShell(content) {
   return `<div class="page-shell public-site">${publicNavbar()}${content}${publicFooter()}</div>`;
+}
+
+function resetPasswordIcon() {
+  return `<svg class="reset-password-icon-svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+    <path d="M51 32A19 19 0 1 1 45 18"/>
+    <path d="M44 10v9h9"/>
+    <rect x="22" y="28" width="20" height="16" rx="3.5"/>
+    <path d="M26.5 28v-5a5.5 5.5 0 0 1 11 0v5"/>
+    <path d="M32 34v3"/>
+  </svg>`;
 }
 
 function publicFooter() {
@@ -1205,7 +1214,7 @@ function authPublicPage() {
 function forgotPublicPage() {
   const step = state.resetStep;
   const content = step === 1 ? `<form data-submit="forgot" class="grid auth-form"><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" required></label><button class="btn btn-primary auth-submit">إرسال رابط الاستعادة</button></form>` : step === 2 ? `<form data-submit="reset-password" class="grid auth-form"><label class="field"><span>رمز التحقق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" type="password" name="password" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" required></label><button class="btn btn-primary auth-submit">تعيين كلمة المرور</button></form>` : `<div class="auth-success"><span class="success-mark">✓</span><p>تم تغيير كلمة المرور بنجاح.</p><button class="btn btn-primary" data-link="/login">تسجيل الدخول</button></div>`;
-  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">${dashboardIcon("passwordReset")}</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual">${stackedLogo()}</div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
+  return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">${resetPasswordIcon()}</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual">${stackedLogo()}</div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
 }
 
 function loginPage() {
@@ -1450,7 +1459,7 @@ function dashboardHome() {
       <button class="quick-action" data-action="add-customer">${dashboardIcon("customers")}<span>إضافة عميل</span></button>
       <button class="quick-action" data-link="/dashboard/devices">${dashboardIcon("devices")}<span>ربط جهاز جديد</span></button>
       <button class="quick-action" data-action="send-message" ${alertDisabled} title="${alertDisabled ? "اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات." : "إرسال تنبيه"}">${dashboardIcon("reports")}<span>إرسال تنبيه</span></button>
-      <button class="quick-action" data-link="/dashboard/security">${dashboardIcon("security")}<span>قائمة إيقاف الرسائل</span></button>
+      <button class="quick-action" data-link="/dashboard/security">${dashboardIcon("security")}<span>الحماية والأمان</span></button>
     </div></section>
     <div class="section dashboard-two-column">
       <article class="card table-card"><div class="section-head"><div><h2>أحدث الاشتراكات</h2><p class="muted">بيانات حقيقية تخص مساحة عملك فقط.</p></div><button class="text-button" data-link="/dashboard/subscriptions">عرض الكل</button></div>${latestContent}</article>
@@ -1916,7 +1925,7 @@ function securityEventsTable(events = []) {
   return `<div class="compare security-events-table"><table><thead><tr><th>نوع الحدث</th><th>المستوى</th><th>الوقت</th><th>الحالة</th><th>التفاصيل</th></tr></thead><tbody>${events.map((item) => `<tr><td><strong>${escapeHtml(item.type)}</strong></td><td><span class="security-severity ${escapeHtml(item.severity || "low")}">${item.severity === "critical" ? "حرج" : item.severity === "error" ? "عالٍ" : item.severity === "warning" ? "متوسط" : "منخفض"}</span></td><td>${escapeHtml(securityTime(item.occurredAt))}</td><td><span class="security-event-status">${escapeHtml(item.status || "مسجل")}</span></td><td>${escapeHtml(item.detail || "-")}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
-function securityPage() {
+function legacySecurityPage() {
   const list = Array.isArray(state.unsubscribes) ? state.unsubscribes : [];
   const score = state.securityScore?.overall ? state.securityScore : null;
   const listContent = state.unsubscribes?.error
@@ -1967,6 +1976,72 @@ function securityPage() {
     <p class="security-page-subtitle">إدارة سياسات الحماية ومراقبة سلامة الحساب وقنوات الإرسال من مصادر فعلية.</p>
     ${scoreContent}
     <article class="card table-card section security-optout-card"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام الفعلية التي يمنع النظام الإرسال إليها قبل إدراج أي رسالة.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div></div>${listContent}</article>`);
+}
+
+function securityPage() {
+  const score = state.securityScore?.overall ? state.securityScore : null;
+  if (state.securityScore === null) {
+    return dashboardShell(`${pageTitle("الحماية والأمان")}<p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p><div class="loading-state">جاري حساب مؤشرات الحماية من البيانات الفعلية...</div>`);
+  }
+  if (state.securityScore?.error || !score) {
+    return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button>`)}<p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p>${emptyState("تعذر حساب مستوى الحماية", "لا نعرض درجات افتراضية. أعد الفحص لاسترجاع المؤشرات الفعلية.", "إعادة الفحص", "recalculate-security")}`);
+  }
+
+  const overall = score.overall;
+  const platform = score.platform || { score: null, label: "غير متاح" };
+  const accounts = score.accounts || score.account || { score: null, label: "غير متاح" };
+  const sessions = score.sessions || { score: null, activeSessions: 0, items: [] };
+  const whatsapp = score.whatsapp || { healthScore: null, label: "غير مهيأ" };
+  const sending = score.sending || { score: null, policies: [] };
+  const risk = score.risk || { score: null, label: "غير متاح", issues: 0 };
+  const checkedLabel = score.calculatedAt ? securityTime(score.calculatedAt) : "الآن";
+  const factors = [
+    { label: "جميع الأنظمة الأساسية تعمل بشكل طبيعي", ok: platform.score !== null && platform.score >= 70 },
+    { label: "لا توجد تهديدات حرجة مفتوحة", ok: Number(risk.issues || 0) === 0 },
+    { label: "سياسات الحماية مطبقة", ok: sending.score !== null && sending.score >= 70 },
+    { label: "تم تنفيذ فحص حديث", ok: Boolean(score.calculatedAt) }
+  ];
+  const sessionItems = Array.isArray(sessions.items) ? sessions.items.slice(0, 5) : [];
+  const policies = Array.isArray(sending.policies) ? sending.policies.slice(0, 5) : [];
+  const alerts = Array.isArray(score.criticalIssues) ? score.criticalIssues : [];
+
+  return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary security-refresh" data-action="recalculate-security">${dashboardIcon("security")} إعادة الفحص</button>`)}
+    <p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p>
+    <section class="security-reference-top">
+      <article class="card security-overall-card ${securityScoreTone(overall.score)}">
+        <div class="security-overall-ring ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
+        <div><h2>مؤشر الحماية العام</h2><p>أداء الحماية في وضع ${escapeHtml(overall.label)}، وجميع النتائج مأخوذة من فحص حسابك الفعلي.</p><span class="security-live-dot">تحسن ومراقبة مباشرة</span><small>آخر تحديث: ${escapeHtml(checkedLabel)}</small></div>
+      </article>
+      ${securityMetricCard("حماية المنصة", platform, "security", "جدار حماية وتهيئة النظام")}
+      ${securityMetricCard("حماية الحساب", accounts, "customers", "المصادقة وسياسات الدخول")}
+      ${securityMetricCard("أمان الإرسال", sending, "send", "مراقبة الرسائل والقنوات")}
+      ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "whatsapp", "حالة الاتصال الفعلية")}
+      ${securityMetricCard("مستوى الخطر", risk, "warning", `${Number(risk.issues || 0)} تنبيهات مفتوحة`, true)}
+    </section>
+    <section class="security-reference-middle">
+      <article class="card security-reference-general">
+        <div class="security-panel-title">${dashboardIcon("security")}<h2>مؤشر الحماية العام</h2></div>
+        <div class="security-general-content">
+          <div class="security-overall-ring large ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
+          <div class="security-factor-list">${factors.map((item) => `<div class="${item.ok ? "ok" : "attention"}"><span>${item.ok ? "✓" : "!"}</span>${escapeHtml(item.label)}</div>`).join("")}</div>
+        </div>
+        <div class="security-trend" aria-label="مؤشر الحماية خلال الفحص"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </article>
+      <article class="card security-reference-policy">
+        <div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>إعدادات محسوبة لحماية عمليات الإرسال.</p></div></div>
+        <div class="security-reference-policy-list">${policies.length ? policies.map((item) => `<div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "مفعل" : "يحتاج ضبط"}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد سياسة إرسال مهيأة بعد.</div>`}</div>
+        <button class="security-safe-action" data-action="preview-safe-settings">إدارة سياسة الإرسال</button>
+      </article>
+      <article class="card security-reference-sessions">
+        <div class="security-panel-title">${dashboardIcon("devices")}<div><h2>الجلسات النشطة</h2><p>${Number(sessions.activeSessions || 0)} جلسة فعلية مرتبطة بحسابك.</p></div></div>
+        <div class="security-reference-session-list">${sessionItems.length ? sessionItems.map((item, index) => `<div><span class="session-os">${index === 0 ? "▦" : index % 2 ? "●" : "◆"}</span><div><strong>${escapeHtml(item.device || "جهاز غير معروف")}</strong><small>${escapeHtml(item.location || "موقع غير متاح")}</small></div><time>${escapeHtml(securityTime(item.lastActivityAt))}</time></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}</div>
+        <button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button>
+      </article>
+    </section>
+    <article class="card security-reference-alerts">
+      <div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>آخر التنبيهات والحالة الأمنية.</p></div></div>
+      ${alerts.length ? `<div class="security-reference-alert-list">${alerts.slice(0, 4).map((item) => `<div class="${escapeHtml(item.severity || "warning")}"><span>!</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description || "راجع إعدادات الحماية.")}</small></div>`).join("")}</div>` : `<div class="security-reference-clear"><span>✓</span><div><strong>لا توجد تنبيهات حاليًا</strong><small>جميع الأنظمة آمنة ولا توجد تهديدات أو مشكلات تتطلب تدخلك.</small></div></div>`}
+    </article>`);
 }
 
 function connectedDevicesCenterPage() {
@@ -3716,8 +3791,8 @@ async function handleAction(target) {
   if (action === "preview-order-link") {
     const orderId = target.dataset.id || target.closest(".row-actions")?.querySelector("[data-id]")?.dataset.id;
     if (orderId) {
-      const payload = await fetchJson(`/api/orders/${orderId}/portal-link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      window.open(payload.url, "_blank", "noopener,noreferrer");
+      const payload = await fetchJson(`/api/order-link/${orderId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "copy" }) });
+      window.open(payload.publicUrl, "_blank", "noopener,noreferrer");
     }
   }
   if (action === "send-order-link") {
