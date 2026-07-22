@@ -645,6 +645,106 @@
   from { opacity: 0; transform: translate(50%, 18px) scale(.98); }
   to { opacity: 1; transform: translate(50%, 0) scale(1); }
 }
+
+/* Admin authentication: centered control-center layout matching the current Renvix visual system. */
+.adminAuthPage {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 44px 20px;
+  color: #0e2a5d;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 55%, #f1f6ff 100%);
+  font-family: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+}
+.adminAuthPage *, .adminAuthPage *::before, .adminAuthPage *::after { box-sizing: border-box; }
+.adminAuthContent { position: relative; z-index: 1; width: min(100%, 650px); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.adminAuthBrand { margin-bottom: 14px; }
+.adminAuthBrand .brandLogo { width: 214px; }
+.adminAuthContent h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.8px; }
+.adminAuthDescription { margin: 8px 0 26px; color: #6d82a4; font-size: 17px; }
+.adminAuthContent .loginPanel { width: 100%; min-height: 0; padding: 0; display: block; }
+.adminAuthContent .loginCard { width: min(100%, 610px); margin: 0 auto; padding: 34px 38px; border-radius: 20px; box-shadow: 0 20px 60px rgba(31, 71, 133, .1); }
+.adminAuthContent .loginCard form { gap: 18px; text-align: right; }
+.adminAuthContent .loginCard label { color: #243f70; }
+.adminAuthContent .loginCard input { height: 58px; border-color: #d7e1ef; border-radius: 12px; background: rgba(255,255,255,.88); }
+.adminAuthContent .loginCard input::placeholder { color: #9aabc4; }
+.adminAuthContent .loginCard input:focus { border-color: #2b6df3; box-shadow: 0 0 0 4px rgba(43, 109, 243, .1); }
+.adminAuthContent .passwordField { width: 100%; }
+.inputShell { position: relative; display: block; width: 100%; }
+.adminAuthContent .inputShell input { width: 100%; padding-right: 48px; }
+.adminAuthContent .passwordField input { padding-right: 48px; padding-left: 54px; }
+.fieldIcon { position: absolute; z-index: 1; top: 50%; right: 15px; width: 21px; height: 21px; display: grid; place-items: center; color: #7b91b3; transform: translateY(-50%); pointer-events: none; }
+.fieldIcon svg { width: 21px; height: 21px; }
+.adminAuthContent .eyeButton { left: 11px; top: 11px; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; color: #6b83a8; background: transparent; }
+.adminAuthContent .eyeButton svg { width: 21px; height: 21px; }
+.adminAuthContent .primaryButton { height: 58px; border-radius: 12px; background: linear-gradient(100deg, #08b6c8 0%, #2563eb 92%); font-size: 16px; }
+.adminOnlyNote { margin-top: 24px; padding-top: 18px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #60799f; border-top: 1px solid #e2eaf4; font-size: 13px; }
+.adminOnlyNote span { color: #2c70ef; font-size: 18px; }
+.authSecurityCard { width: min(100%, 610px); margin-top: 24px; padding: 18px 22px; display: flex; align-items: center; justify-content: center; gap: 14px; border: 1px solid #dce8fb; border-radius: 16px; background: rgba(247, 250, 255, .84); text-align: right; }
+.authSecurityCard > div { display: grid; gap: 3px; }
+.authSecurityCard strong { font-size: 16px; }
+.authSecurityCard span:last-child { color: #7890b2; font-size: 13px; }
+.authSecurityIcon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; color: #2563eb; background: #eaf2ff; font-size: 22px; font-weight: 900; }
+.authDecor { position: absolute; width: 330px; height: 330px; border: 1px solid rgba(95, 146, 235, .15); border-radius: 50%; pointer-events: none; }
+.authDecor::after { content: ""; position: absolute; inset: 28px; border: 1px solid rgba(95, 146, 235, .12); border-radius: 50%; }
+.authDecorTop { top: -170px; right: -100px; background: rgba(233, 241, 255, .55); }
+.authDecorBottom { bottom: -210px; left: -120px; background: rgba(233, 241, 255, .55); }
+.authDots { position: absolute; width: 112px; height: 78px; opacity: .55; background-image: radial-gradient(#9ec4ff 2px, transparent 2px); background-size: 23px 23px; }
+.authDotsTop { top: 16%; left: 7%; }
+.authDotsBottom { right: 8%; bottom: 12%; }
+
+/* Admin workspace */
+.dashboard { grid-template-columns: 252px minmax(0, 1fr); background: #fbfdff; }
+.sidebar { padding: 24px 16px; border-left-color: #e5ebf4; box-shadow: -6px 0 24px rgba(26, 57, 104, .025); }
+.sidebar .brand { justify-content: center; }
+.sidebar .brandLogo { width: 176px; }
+.sidebar nav { margin-top: 30px; gap: 6px; }
+.sidebar nav button { min-height: 50px; border-radius: 10px; color: #536b90; }
+.sidebar nav .activeNav { color: #1765e8; background: linear-gradient(90deg, #eff6ff, #f3f8ff); box-shadow: inset -3px 0 0 #2d71f4; }
+.sidebarNote { border-color: #dce7f7; border-radius: 14px; color: #173663; background: linear-gradient(145deg, #fbfdff, #f3f7ff); }
+.sidebarNote::before { content: "●  حالة النظام"; color: #0fa86b; font-size: 12px; font-weight: 800; }
+.topbar { min-height: 78px; direction: ltr; border-bottom-color: #e6edf6; }
+.topbarIdentity, .topbarCenter, .topbarActions { direction: rtl; }
+.content { direction: rtl; padding: 26px 28px 34px; }
+.pageHeading h1 { font-size: 28px; letter-spacing: -.5px; }
+.statsGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.statCard { min-height: 126px; padding: 16px; grid-template-columns: 42px minmax(0, 1fr); border-radius: 12px; }
+.statIcon { width: 42px; height: 42px; border-radius: 11px; }
+.statCard strong { margin-top: 4px; font-size: 23px; }
+.statCard small { font-size: 12px; }
+.overviewGrid { grid-template-columns: minmax(0, 1.55fr) minmax(240px, .8fr) minmax(240px, .8fr); }
+.chartCard, .quickCard, .healthCard, .dataCard, .auditCard, .permissionCard { border-color: #e2e9f3; border-radius: 13px; box-shadow: 0 6px 20px rgba(20, 48, 90, .035); }
+
+@media (max-width: 1320px) {
+  .statsGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .overviewGrid { grid-template-columns: minmax(0, 1.4fr) minmax(240px, .8fr); }
+  .healthCard { grid-column: 1 / -1; }
+}
+
+@media (max-width: 820px) {
+  .adminAuthPage { padding: 28px 15px; }
+  .adminAuthBrand .brandLogo { width: 188px; }
+  .adminAuthContent .loginCard { padding: 27px 20px; }
+  .authDecor { width: 220px; height: 220px; }
+  .authDots { display: none; }
+  .dashboard { grid-template-columns: 1fr; }
+  .topbar { position: static; padding: 12px 16px; flex-wrap: wrap; }
+  .topbarCenter { order: 3; width: 100%; }
+  .adminSearch { width: 100%; }
+  .statsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overviewGrid { grid-template-columns: 1fr; }
+  .healthCard { grid-column: auto; }
+}
+
+@media (max-width: 560px) {
+  .adminAuthContent h1 { font-size: 31px; }
+  .adminAuthDescription { font-size: 14px; }
+  .adminAuthContent .loginOptions { align-items: flex-start; flex-direction: column; }
+  .authSecurityCard { align-items: flex-start; }
+  .statsGrid { grid-template-columns: 1fr; }
+}
 .sidebar nav button { display: flex; align-items: center; gap: 13px; font-weight: 650; }
 .sidebar nav button svg { width: 20px; height: 20px; flex: 0 0 20px; color: #647da6; }
 .sidebar nav button span { flex: 1; }

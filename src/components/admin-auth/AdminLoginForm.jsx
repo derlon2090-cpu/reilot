@@ -68,20 +68,20 @@ export default function AdminLoginForm() {
 
   return (
     <div className={styles.loginCard}>
-      <span className={styles.controlBadge}>لوحة التحكم الكاملة <span aria-hidden="true">◈</span></span>
-      <div className={styles.loginIcon}><img src="/assets/renvix-mark.png" alt="" /></div>
-      <h2>تسجيل دخول الأدمن</h2>
-      <p>الوصول إلى مركز التحكم الكامل بالمنصة</p>
       <form onSubmit={submit} noValidate>
         <label>
           البريد الإلكتروني
-          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" aria-invalid={Boolean(fieldErrors.email)} />
+          <span className={styles.inputShell}>
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" placeholder="أدخل بريدك الإلكتروني أو اسم المستخدم" aria-invalid={Boolean(fieldErrors.email)} />
+            <span className={styles.fieldIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span>
+          </span>
           {fieldErrors.email?.[0] ? <small className={styles.fieldError}>{fieldErrors.email[0]}</small> : null}
         </label>
         <label>
           كلمة المرور
-          <span className={styles.passwordField}>
-            <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" aria-invalid={Boolean(fieldErrors.password)} />
+          <span className={`${styles.passwordField} ${styles.inputShell}`}>
+            <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="أدخل كلمة المرور" aria-invalid={Boolean(fieldErrors.password)} />
+            <span className={styles.fieldIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></span>
             <button type="button" className={styles.eyeButton} onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
           </span>
           {fieldErrors.password?.[0] ? <small className={styles.fieldError}>{fieldErrors.password[0]}</small> : null}
@@ -90,9 +90,9 @@ export default function AdminLoginForm() {
           <label className={styles.rememberRow}><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} /> <span>تذكرني على هذا الجهاز</span></label>
           <a href="/advanced-pro-control/forgot-password">نسيت كلمة المرور؟</a>
         </div>
-        <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "جارٍ التحقق..." : "تسجيل الدخول الآمن"} <span aria-hidden="true">◈</span></button>
+        <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "جارٍ التحقق..." : "دخول إلى لوحة الأدمن"} <span aria-hidden="true">↲</span></button>
       </form>
-      <p className={styles.secureNote}>يتم تسجيل الدخول بشكل آمن ومشفّر.</p>
+      <div className={styles.adminOnlyNote}><span aria-hidden="true">⌾</span> هذه الصفحة مخصصة للمشرفين فقط</div>
       {toast ? <div className={`${styles.adminToast} ${styles[toast.type]}`} role={["error", "warning"].includes(toast.type) ? "alert" : "status"} aria-live={["error", "warning"].includes(toast.type) ? "assertive" : "polite"}>
         <span className={styles.adminToastIcon}>{toast.type === "success" ? "✓" : toast.type === "info" ? "i" : "!"}</span>
         <span><strong>{toast.title}</strong><small>{toast.description}</small></span>

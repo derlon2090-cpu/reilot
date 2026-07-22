@@ -13,19 +13,19 @@ const ROLE_LABELS = {
 };
 
 const ADMIN_NAV = [
-  ["overview", "الرئيسية", "grid"],
-  ["subscriptions", "إدارة الاشتراكات", "card"],
-  ["users", "إدارة العملاء", "users"],
-  ["provisioning", "تفعيل حسابات سلة", "users"],
-  ["devices", "الأجهزة والقنوات", "device"],
-  ["security", "الحماية والامتثال", "shield"],
+  ["overview", "نظرة عامة", "grid"],
+  ["users", "العملاء", "users"],
+  ["subscriptions", "الاشتراكات", "card"],
+  ["templates", "القوالب", "template"],
+  ["messages", "الرسائل", "send"],
+  ["devices", "الأجهزة", "device"],
   ["reports", "التقارير", "chart"],
-  ["roles", "الأدوار والصلاحيات", "team"],
-  ["settings", "إعدادات النظام", "settings"]
+  ["security", "الحماية والأمان", "shield"],
+  ["settings", "الإعدادات", "settings"]
 ];
 
 const PANEL_COPY = {
-  overview: ["لوحة الأدمن", "نظرة تشغيلية مباشرة على منصة Renvix."],
+  overview: ["لوحة تحكم الأدمن", "صلاحيات كاملة لإدارة منصة Renvix وجميع إعداداتها."],
   subscriptions: ["الاشتراكات", "متابعة اشتراكات المنصة وحالاتها الحالية."],
   users: ["المستخدمون", "ملخص حسابات المنصة ومساحات العمل المسجلة."],
   provisioning: ["تفعيل حسابات سلة", "طلبات إنشاء الحسابات الناتجة عن منتجات سلة المربوطة فقط."],
@@ -33,7 +33,9 @@ const PANEL_COPY = {
   security: ["الحماية والامتثال", "متابعة المخاطر والتنبيهات وسجل التدقيق الإداري."],
   reports: ["التقارير", "مؤشرات الإرسال والتسليم والعمليات المسجلة."],
   roles: ["الأدوار والصلاحيات", "إدارة الأدوار والصلاحيات والتحكم في الوصول."],
-  settings: ["إعدادات النظام", "الإعدادات العامة والتكاملات وخيارات تشغيل المنصة."]
+  settings: ["إعدادات النظام", "الإعدادات العامة والتكاملات وخيارات تشغيل المنصة."],
+  templates: ["القوالب", "إدارة قوالب الرسائل الجاهزة حسب القناة."],
+  messages: ["الرسائل", "متابعة الإرسال والتسليم وحالة طابور الرسائل."]
 };
 
 const ROLE_SCOPES = {
@@ -64,7 +66,9 @@ const ICONS = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6v-2.6h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L9 6.6l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.6v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v2.6h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
-  refresh: '<path d="M20 11a8 8 0 1 0 1 4M20 4v7h-7"/>'
+  refresh: '<path d="M20 11a8 8 0 1 0 1 4M20 4v7h-7"/>',
+  template: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'
 };
 
 function Icon({ name }) {
@@ -145,14 +149,12 @@ function Dashboard({ admin, onLogout }) {
   const panelCopy = PANEL_COPY[activePanel] || PANEL_COPY.overview;
   const panelCards = stats ? {
     overview: [
-      ["إجمالي المستأجرين", stats.tenants, "مساحة عمل", "blue"],
-      ["إجمالي المستخدمين", stats.users, "حساب مسجل", "violet"],
-      ["القنوات المتصلة", stats.connectedChannels, "قناة واتساب", "cyan"],
-      ["اشتراكات المنصة", stats.platformSubscriptions.total, `${stats.platformSubscriptions.active} نشط · ${stats.platformSubscriptions.trial} تجريبي`, "green"],
-      ["الرسائل المرسلة", stats.queue.sent, `${stats.queue.pending} في الانتظار`, "cyan"],
-      ["معدل التسليم", `${stats.deliveryRate}%`, `${stats.queue.failed} فشل`, "green"],
-      ["مخاطر مرتفعة", stats.risks.high + stats.risks.critical, `${stats.risks.critical} حرجة`, "red"],
-      ["إشعارات غير مقروءة", stats.unreadNotifications, "إشعارات داخل المنصة", "violet"]
+      ["العملاء النشطون", stats.users, "من الشهر الماضي", "violet"],
+      ["الاشتراكات النشطة", stats.platformSubscriptions.active, `${stats.platformSubscriptions.trial} تجريبي`, "blue"],
+      ["الرسائل المرسلة اليوم", stats.queue.sent, `${stats.queue.pending} في الانتظار`, "green"],
+      ["المشكلات المعلقة", stats.risks.high + stats.risks.critical, `${stats.risks.critical} حرجة`, "red"],
+      ["القنوات المتصلة", stats.connectedChannels, "قناة فعالة", "cyan"],
+      ["معدل النجاح العام", `${stats.deliveryRate}%`, `${stats.queue.failed} فشل`, "green"]
     ],
     subscriptions: [
       ["إجمالي الاشتراكات", stats.platformSubscriptions.total, "جميع الحالات", "blue"],
@@ -184,6 +186,18 @@ function Dashboard({ admin, onLogout }) {
       ["في الانتظار", stats.queue.pending, "رسالة", "cyan"],
       ["معدل التسليم", `${stats.deliveryRate}%`, `${stats.queue.failed} فشل`, "violet"]
     ],
+    templates: [
+      ["القنوات المتصلة", stats.connectedChannels, "واتساب وبريد", "cyan"],
+      ["الرسائل المرسلة", stats.queue.sent, "مرسلة بنجاح", "green"],
+      ["الرسائل الفاشلة", stats.queue.failed, "تحتاج مراجعة", "red"],
+      ["معدل التسليم", `${stats.deliveryRate}%`, "من الرسائل المسجلة", "blue"]
+    ],
+    messages: [
+      ["إجمالي الرسائل", stats.queue.total, "كل الحالات", "blue"],
+      ["تم الإرسال", stats.queue.sent, "رسالة ناجحة", "green"],
+      ["في الانتظار", stats.queue.pending, "ضمن الطابور", "cyan"],
+      ["فشل التسليم", stats.queue.failed, "عملية فاشلة", "red"]
+    ],
     roles: [
       ["دور الحساب", ROLE_LABELS[admin.role] || admin.role, "الدور الإداري الحالي", "blue"],
       ["الجلسة", "نشطة", "جلسة إدارية محمية", "green"],
@@ -206,7 +220,9 @@ function Dashboard({ admin, onLogout }) {
       users: ["user", "customer", "tenant", "account"],
       devices: ["device", "channel", "whatsapp"],
       security: ["security", "permission", "login", "access", "risk"],
-      reports: ["report", "export", "queue", "message"]
+      reports: ["report", "export", "queue", "message"],
+      templates: ["template", "قالب"],
+      messages: ["message", "رسالة", "queue"]
     }[activePanel] || [];
     return terms.some((term) => value.includes(term));
   });
@@ -272,6 +288,8 @@ function Dashboard({ admin, onLogout }) {
               {activePanel === "subscriptions" ? <DataTable title="إدارة اشتراكات المنصة" description="الاشتراكات المفعلة أو التجريبية حسب بيانات الفوترة." columns={[["tenantName","مساحة العمل"],["planName","الباقة"],["billingCycle","الدورة"],["status","الحالة"],["paymentProvider","مزود الدفع"],["startsAt","البداية"],["expiresAt","النهاية"]]} rows={data.subscriptions} /> : null}
               {activePanel === "devices" ? <DataTable title="الأجهزة والقنوات" description="القنوات المسجلة وحالة الاتصال وفحص الصحة الأخير." columns={[["tenantName","مساحة العمل"],["displayName","اسم القناة"],["phoneNumber","الرقم"],["status","الحالة"],["healthScore","درجة الصحة"],["lastCheckAt","آخر فحص"]]} rows={data.channels} /> : null}
               {activePanel === "settings" ? <DataTable title="إعدادات حسابات الأدمن" description="الحسابات الإدارية المسجلة وصلاحياتها الحالية." columns={[["name","المسؤول"],["email","البريد"],["role","الدور"],["mfaEnabled","MFA"],["status","الحالة"],["lastLoginAt","آخر دخول"]]} rows={data.adminUsers} /> : null}
+              {activePanel === "templates" ? <DataTable title="قوالب الرسائل" description="متابعة أداء القنوات والقوالب من سجل الإرسال الفعلي." columns={[["action","آخر إجراء"],["resource","القالب أو القناة"],["status","الحالة"],["createdAt","آخر تحديث"]]} rows={auditItems.filter((item) => String(item.resource || "").toLowerCase().includes("template") || String(item.resource || "").includes("قالب"))} empty="لا توجد أحداث قوالب مسجلة حتى الآن." /> : null}
+              {activePanel === "messages" ? <DataTable title="سجل الرسائل" description="حالة الرسائل من الطابور الفعلي دون بيانات تجريبية." columns={[["action","الإجراء"],["resource","المورد"],["status","الحالة"],["createdAt","الوقت"]]} rows={auditItems.filter((item) => String(item.resource || "").toLowerCase().includes("message") || String(item.resource || "").includes("رسالة"))} empty="لا توجد عمليات رسائل مسجلة حتى الآن." /> : null}
 
               {activePanel === "roles" ? (
                 <section className={styles.permissionCard}>
