@@ -16,4 +16,14 @@ describe("authentication boundary source", () => {
     expect(page).toContain('if (isDashboard)');
     expect(page).toContain('if (!session) redirect("/login")');
   });
+
+  it("does not seed the legacy temporary administrator", () => {
+    const securityMigration = fs.readFileSync("drizzle/0020_dynamic_security_scores.sql", "utf8");
+    const cleanupMigration = fs.readFileSync("drizzle/0029_remove_legacy_temporary_admin.sql", "utf8");
+
+    expect(securityMigration).not.toContain("temporary.admin@renvix.app");
+    expect(securityMigration).not.toContain("scrypt$");
+    expect(cleanupMigration).toContain("DELETE FROM users");
+    expect(cleanupMigration).toContain("temporary.admin@renvix.app");
+  });
 });

@@ -38,34 +38,3 @@ CREATE INDEX IF NOT EXISTS security_score_snapshots_tenant_calculated_idx
 
 CREATE INDEX IF NOT EXISTS security_score_snapshots_user_calculated_idx
   ON security_score_snapshots(user_id, calculated_at DESC);
-
--- One-time, least-privilege support account requested for handoff. Only the
--- scrypt hash is stored, and the server rejects it automatically after 24h.
-WITH temporary_user AS (
-  INSERT INTO users
-    (tenant_id, name, email, email_verified, role, password_strength, password_changed_at)
-  VALUES
-    (NULL, 'مدير مؤقت', 'temporary.admin@renvix.app', true, 'admin', 'very_strong', now())
-  ON CONFLICT (email) DO UPDATE SET
-    name = EXCLUDED.name,
-    email_verified = true,
-    password_strength = EXCLUDED.password_strength,
-    password_changed_at = now(),
-    updated_at = now()
-  RETURNING id
-)
-INSERT INTO accounts (user_id, account_id, provider_id, password)
-SELECT id, 'temporary.admin@renvix.app', 'credential',
-       'scrypt$befa13a153c6360ae16a13480fb22e58$c8f7925888095d591b44726a842965fcc3d3cedb8e11a311e89a456912a9036c1a9430ee2957466364142220bc40e0370ba0fba485a6721f8c3d4434dc9d2f8d'
-  FROM temporary_user
- WHERE NOT EXISTS (
-   SELECT 1 FROM accounts a
-    WHERE a.user_id = temporary_user.id AND a.provider_id = 'credential'
- );
-
-INSERT INTO admin_users (user_id, role, status, mfa_enabled, expires_at)
-SELECT id, 'viewer', 'active', false, now() + interval '24 hours'
-  FROM users WHERE email = 'temporary.admin@renvix.app'
-ON CONFLICT (user_id) DO UPDATE SET
-  role = 'viewer', status = 'active', mfa_enabled = false,
-  expires_at = now() + interval '24 hours', updated_at = now();

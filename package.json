@@ -6,6 +6,7 @@
     "dev": "next dev",
     "start": "next start",
     "db:migrate": "node scripts/migrate.mjs",
+    "db:local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-postgres.ps1",
     "admin:promote": "node scripts/promote-admin.mjs",
     "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
     "admin:create-temporary": "node scripts/create-temporary-admin.mjs",
