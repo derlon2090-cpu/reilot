@@ -5,9 +5,11 @@ import { getAdminSetupState, issueAdminSetupAccessToken, resetAdminSetupRateLimi
 describe("GET /api/admin/setup/status", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
   const originalSetupToken = process.env.ADMIN_SETUP_TOKEN;
+  const originalLocalSetup = process.env.ADMIN_SETUP_ALLOW_LOCALHOST;
 
   beforeEach(() => {
     process.env.ADMIN_SETUP_TOKEN = "setup-token-with-more-than-32-characters-123";
+    delete process.env.ADMIN_SETUP_ALLOW_LOCALHOST;
     delete process.env.DATABASE_URL;
     resetAdminSetupRateLimitForTests();
   });
@@ -17,6 +19,8 @@ describe("GET /api/admin/setup/status", () => {
     else process.env.DATABASE_URL = originalDatabaseUrl;
     if (originalSetupToken === undefined) delete process.env.ADMIN_SETUP_TOKEN;
     else process.env.ADMIN_SETUP_TOKEN = originalSetupToken;
+    if (originalLocalSetup === undefined) delete process.env.ADMIN_SETUP_ALLOW_LOCALHOST;
+    else process.env.ADMIN_SETUP_ALLOW_LOCALHOST = originalLocalSetup;
   });
 
   it("rejects a missing or incorrect setup token without querying the database", async () => {
@@ -43,6 +47,16 @@ describe("GET /api/admin/setup/status", () => {
     }));
     expect(resumed.status).toBe(503);
     expect((await resumed.json()).reason).toBe("database_unavailable");
+  });
+
+  it("allows the explicitly enabled local bootstrap URL without exposing the token", async () => {
+    process.env.ADMIN_SETUP_ALLOW_LOCALHOST = "true";
+    const local = await GET(new Request("http://127.0.0.1:3002/api/admin/setup/status"));
+    expect(local.status).toBe(503);
+    expect((await local.json()).reason).toBe("database_unavailable");
+
+    const external = await GET(new Request("https://renvix.app/api/admin/setup/status"));
+    expect(external.status).toBe(404);
   });
 
   it("reports that setup is permanently closed after an admin exists", async () => {

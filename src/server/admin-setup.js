@@ -31,6 +31,16 @@ export function verifyAdminSetupToken(candidate) {
   return secureEqual(candidate, configured);
 }
 
+export function allowLocalAdminSetup(request) {
+  if (process.env.ADMIN_SETUP_ALLOW_LOCALHOST !== "true") return false;
+  try {
+    const hostname = new URL(request.url).hostname.toLowerCase();
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
 function setupCookieSecureAttribute() {
   if (process.env.COOKIE_SECURE === "false") return "";
   return process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true" ? "; Secure" : "";

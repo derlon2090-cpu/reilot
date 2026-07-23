@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   AdminSetupError,
+  allowLocalAdminSetup,
   consumeAdminSetupRateLimit,
   createFirstAdmin,
   issueAdminSetupAccessToken,
@@ -16,6 +17,7 @@ import {
 describe("first admin setup", () => {
   beforeEach(() => {
     process.env.ADMIN_SETUP_TOKEN = "setup-token-with-more-than-32-characters-123";
+    delete process.env.ADMIN_SETUP_ALLOW_LOCALHOST;
     resetAdminSetupRateLimitForTests();
   });
 
@@ -33,6 +35,15 @@ describe("first admin setup", () => {
     expect(verifyAdminSetupAccessToken(accessToken, now + 9 * 60 * 1000)).toBe(true);
     expect(verifyAdminSetupAccessToken(accessToken, now + 11 * 60 * 1000)).toBe(false);
     expect(verifyAdminSetupAccessToken(`${accessToken}x`, now)).toBe(false);
+  });
+
+  it("allows tokenless setup only on loopback when the local override is explicit", () => {
+    process.env.ADMIN_SETUP_ALLOW_LOCALHOST = "true";
+    expect(allowLocalAdminSetup(new Request("http://127.0.0.1:3002/admin/setup"))).toBe(true);
+    expect(allowLocalAdminSetup(new Request("http://localhost:3002/admin/setup"))).toBe(true);
+    expect(allowLocalAdminSetup(new Request("https://renvix.app/admin/setup"))).toBe(false);
+    delete process.env.ADMIN_SETUP_ALLOW_LOCALHOST;
+    expect(allowLocalAdminSetup(new Request("http://127.0.0.1:3002/admin/setup"))).toBe(false);
   });
 
   it("requires a same-origin request and matching double-submit CSRF token", () => {

@@ -2,6 +2,7 @@ import {
   AdminSetupError,
   ADMIN_SETUP_ACCESS_COOKIE,
   ADMIN_SETUP_CSRF_COOKIE,
+  allowLocalAdminSetup,
   consumeAdminSetupRateLimit,
   createFirstAdmin,
   validateAdminSetupInput,
@@ -27,7 +28,7 @@ function responseJson(payload, status = 200, headers = {}, cookies = []) {
 
 export async function POST(request) {
   const token = request.headers.get("x-admin-setup-token") || "";
-  if (!verifyAdminSetupToken(token) && !verifyAdminSetupAccess(request)) {
+  if (!verifyAdminSetupToken(token) && !verifyAdminSetupAccess(request) && !allowLocalAdminSetup(request)) {
     return responseJson({ ok: false, reason: "invalid_setup_link" }, 404);
   }
   if (!verifySameOrigin(request)) return responseJson({ ok: false, reason: "csrf_failed", message: "تعذر التحقق من مصدر الطلب." }, 403);

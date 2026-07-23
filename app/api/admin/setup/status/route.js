@@ -1,5 +1,6 @@
 import { requestIp } from "../../../../../src/server/admin-auth.js";
 import {
+  allowLocalAdminSetup,
   adminSetupAccessCookie,
   adminSetupCsrfCookie,
   consumeAdminSetupRateLimit,
@@ -16,7 +17,7 @@ export const runtime = "nodejs";
 export async function GET(request) {
   const token = new URL(request.url).searchParams.get("token") || "";
   const tokenAuthorized = verifyAdminSetupToken(token);
-  if (!tokenAuthorized && !verifyAdminSetupAccess(request)) {
+  if (!tokenAuthorized && !verifyAdminSetupAccess(request) && !allowLocalAdminSetup(request)) {
     return Response.json({ ok: false, reason: "invalid_setup_link" }, { status: 404 });
   }
 
