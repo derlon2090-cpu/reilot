@@ -6,7 +6,9 @@ import { classifyPasswordStrength } from "./security-score.js";
 import { isValidEmail, normalizeEmail, randomToken } from "./security.js";
 
 export const ADMIN_SETUP_CSRF_COOKIE = "renvix_admin_setup_csrf";
+export const ADMIN_SETUP_ACCESS_COOKIE = "renvix_admin_setup_access";
 const SETUP_LOCK_KEY = "renvix:first-admin-setup:v1";
+const SETUP_ACCESS_AGE_SECONDS = 10 * 60;
 const attempts = new Map();
 
 export class AdminSetupError extends Error {
@@ -27,6 +29,30 @@ export function verifyAdminSetupToken(candidate) {
   const configured = String(process.env.ADMIN_SETUP_TOKEN || "");
   if (configured.length < 32 || String(candidate || "").length < 1) return false;
   return secureEqual(candidate, configured);
+}
+
+function setupCookieSecureAttribute() {
+  if (process.env.COOKIE_SECURE === "false") return "";
+  return process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
+}
+
+export function issueAdminSetupAccessToken(now = Date.now()) {
+  const configured = String(process.env.ADMIN_SETUP_TOKEN || "");
+  if (configured.length < 32) return "";
+  const expiresAt = Math.floor(now / 1000) + SETUP_ACCESS_AGE_SECONDS;
+  const payload = Buffer.from(String(expiresAt)).toString("base64url");
+  const signature = crypto.createHmac("sha256", configured).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+export function verifyAdminSetupAccessToken(candidate, now = Date.now()) {
+  const configured = String(process.env.ADMIN_SETUP_TOKEN || "");
+  const [payload, signature, extra] = String(candidate || "").split(".");
+  if (configured.length < 32 || !payload || !signature || extra) return false;
+  const expected = crypto.createHmac("sha256", configured).update(payload).digest("base64url");
+  if (!secureEqual(signature, expected)) return false;
+  const expiresAt = Number(Buffer.from(payload, "base64url").toString("utf8"));
+  return Number.isSafeInteger(expiresAt) && expiresAt >= Math.floor(now / 1000);
 }
 
 export function validateAdminSetupPassword(password, identity = "") {
@@ -74,8 +100,11 @@ export function resetAdminSetupRateLimitForTests() {
 }
 
 export function adminSetupCsrfCookie(token, maxAge = 10 * 60) {
-  const secure = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
-  return `${ADMIN_SETUP_CSRF_COOKIE}=${encodeURIComponent(token)}; Path=/api/admin/setup; HttpOnly; SameSite=Strict; Max-Age=${Math.max(0, maxAge)}${secure}`;
+  return `${ADMIN_SETUP_CSRF_COOKIE}=${encodeURIComponent(token)}; Path=/api/admin/setup; HttpOnly; SameSite=Strict; Max-Age=${Math.max(0, maxAge)}${setupCookieSecureAttribute()}`;
+}
+
+export function adminSetupAccessCookie(token, maxAge = SETUP_ACCESS_AGE_SECONDS) {
+  return `${ADMIN_SETUP_ACCESS_COOKIE}=${encodeURIComponent(token)}; Path=/api/admin/setup; HttpOnly; SameSite=Strict; Max-Age=${Math.max(0, maxAge)}${setupCookieSecureAttribute()}`;
 }
 
 export function readCookie(request, name) {
@@ -88,6 +117,10 @@ export function verifyAdminSetupCsrf(request) {
   const header = request.headers.get("x-csrf-token") || "";
   const cookie = readCookie(request, ADMIN_SETUP_CSRF_COOKIE);
   return Boolean(header && cookie && secureEqual(header, cookie));
+}
+
+export function verifyAdminSetupAccess(request) {
+  return verifyAdminSetupAccessToken(readCookie(request, ADMIN_SETUP_ACCESS_COOKIE));
 }
 
 export function verifySameOrigin(request) {

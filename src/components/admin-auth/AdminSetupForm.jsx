@@ -24,16 +24,13 @@ export default function AdminSetupForm() {
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token") || "";
-    if (!token) {
-      setPhase("invalid");
-      return;
-    }
     let active = true;
-    fetch(`/api/admin/setup/status?token=${encodeURIComponent(token)}`, { cache: "no-store", credentials: "same-origin" })
+    const statusUrl = token ? `/api/admin/setup/status?token=${encodeURIComponent(token)}` : "/api/admin/setup/status";
+    fetch(statusUrl, { cache: "no-store", credentials: "same-origin" })
       .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
       .then(({ response, data }) => {
         if (!active) return;
-        window.history.replaceState({}, "", "/admin/setup");
+        if (token) window.history.replaceState({}, "", "/admin/setup");
         if (response.status === 409 || data.state === "configured") setPhase("configured");
         else if (response.status === 503 || data.reason === "database_unavailable") setPhase("database_error");
         else if (response.status === 429) { setMessage(data.retryAfterSeconds ? `أعد المحاولة بعد ${data.retryAfterSeconds} ثانية.` : ""); setPhase("rate_limited"); }

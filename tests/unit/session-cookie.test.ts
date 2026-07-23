@@ -24,4 +24,11 @@ describe("session cookie security", () => {
 
     expect(sessionCookie("token")).toContain("; Secure");
   });
+
+  it("allows the documented local HTTP override in a production build", () => {
+    process.env.NODE_ENV = "production";
+    process.env.COOKIE_SECURE = "false";
+
+    expect(sessionCookie("token")).not.toContain("; Secure");
+  });
 });

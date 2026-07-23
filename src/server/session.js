@@ -11,9 +11,11 @@ function cookieValue(req, name) {
 }
 export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
   const publicUrl = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
-  const secureCookie = process.env.COOKIE_SECURE === "true"
+  const secureCookie = process.env.COOKIE_SECURE !== "false" && (
+    process.env.COOKIE_SECURE === "true"
     || process.env.NODE_ENV === "production"
-    || publicUrl.startsWith("https://");
+    || publicUrl.startsWith("https://")
+  );
   const secure = secureCookie ? "; Secure" : "";
   const lifetime = maxAge === null ? "" : `; Max-Age=${Math.max(0, Number(maxAge) || 0)}`;
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${lifetime}${secure}`;

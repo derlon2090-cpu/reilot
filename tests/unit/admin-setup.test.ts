@@ -3,9 +3,11 @@ import {
   AdminSetupError,
   consumeAdminSetupRateLimit,
   createFirstAdmin,
+  issueAdminSetupAccessToken,
   resetAdminSetupRateLimitForTests,
   validateAdminSetupInput,
   validateAdminSetupPassword,
+  verifyAdminSetupAccessToken,
   verifyAdminSetupCsrf,
   verifySameOrigin,
   verifyAdminSetupToken
@@ -23,6 +25,14 @@ describe("first admin setup", () => {
     expect(validateAdminSetupPassword("short", "admin@example.com")).toBeTruthy();
     expect(validateAdminSetupPassword("AdminPassword123!", "admin@example.com")).toContain("ضعيفة");
     expect(validateAdminSetupInput({ name: "Admin", email: "admin@example.com", password: "Vx!2026KiteRiverStone", confirmPassword: "Vx!2026KiteRiverStone" }).ok).toBe(true);
+  });
+
+  it("issues a short-lived signed setup session after the full link is verified", () => {
+    const now = Date.UTC(2026, 6, 23, 12, 0, 0);
+    const accessToken = issueAdminSetupAccessToken(now);
+    expect(verifyAdminSetupAccessToken(accessToken, now + 9 * 60 * 1000)).toBe(true);
+    expect(verifyAdminSetupAccessToken(accessToken, now + 11 * 60 * 1000)).toBe(false);
+    expect(verifyAdminSetupAccessToken(`${accessToken}x`, now)).toBe(false);
   });
 
   it("requires a same-origin request and matching double-submit CSRF token", () => {
