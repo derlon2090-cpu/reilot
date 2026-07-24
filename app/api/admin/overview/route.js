@@ -23,7 +23,14 @@ export async function GET(request) {
     recentTenants,
     recentSubscriptions,
     recentChannels,
-    adminUsers
+    adminUsers,
+    storesCount,
+    recentCustomers,
+    recentStores,
+    adminTemplates,
+    integrationHealth,
+    adminMessages,
+    dailyMetrics
   ] = await Promise.all([
     query("SELECT count(*)::int AS count FROM tenants"),
     query("SELECT count(*)::int AS count FROM users"),
@@ -102,10 +109,77 @@ export async function GET(request) {
               au.last_login_at AS "lastLoginAt",au.created_at AS "createdAt"
          FROM admin_users au JOIN users u ON u.id=au.user_id
         ORDER BY au.created_at DESC LIMIT 30`
+    ),
+    query("SELECT count(*)::int AS count FROM stores"),
+    query(
+      `SELECT u.id,u.name,u.email,
+              CASE WHEN u.phone IS NULL OR u.phone='' THEN NULL ELSE left(u.phone,4) || ' *** ' || right(u.phone,3) END AS phone,
+              u.role,u.created_at AS "createdAt",t.name AS "tenantName",t.status,
+              COALESCE(store_count.count,0)::int AS "storeCount",pp.name AS "planName"
+         FROM users u
+         LEFT JOIN tenants t ON t.id=u.tenant_id
+         LEFT JOIN LATERAL (SELECT count(*) AS count FROM stores s WHERE s.tenant_id=u.tenant_id) store_count ON true
+         LEFT JOIN LATERAL (
+           SELECT plan.name FROM platform_subscriptions ps JOIN platform_plans plan ON plan.id=ps.plan_id
+            WHERE ps.tenant_id=u.tenant_id ORDER BY ps.created_at DESC LIMIT 1
+         ) pp ON true
+        WHERE u.tenant_id IS NOT NULL
+        ORDER BY u.created_at DESC LIMIT 30`
+    ),
+    query(
+      `SELECT s.id,s.name,s.domain,s.created_at AS "createdAt",t.name AS "tenantName",t.status,
+              owner.name AS "ownerName",owner.email AS "ownerEmail",
+              ps.status AS "subscriptionStatus",pp.name AS "planName",
+              ac.status AS "sallaStatus",wc.status AS "metaStatus",
+              COALESCE(usage.used_messages,0)::int AS "messageVolume"
+         FROM stores s JOIN tenants t ON t.id=s.tenant_id
+         LEFT JOIN LATERAL (SELECT u.name,u.email FROM users u WHERE u.tenant_id=t.id ORDER BY u.created_at LIMIT 1) owner ON true
+         LEFT JOIN LATERAL (SELECT * FROM platform_subscriptions x WHERE x.tenant_id=t.id ORDER BY x.created_at DESC LIMIT 1) ps ON true
+         LEFT JOIN platform_plans pp ON pp.id=ps.plan_id
+         LEFT JOIN app_connections ac ON ac.tenant_id=t.id AND ac.provider='salla'
+         LEFT JOIN LATERAL (SELECT status FROM whatsapp_channels x WHERE x.tenant_id=t.id ORDER BY x.updated_at DESC LIMIT 1) wc ON true
+         LEFT JOIN message_usage usage ON usage.tenant_id=t.id AND usage.month=extract(month from now())::int AND usage.year=extract(year from now())::int
+        ORDER BY s.created_at DESC LIMIT 30`
+    ),
+    query(
+      `SELECT id,template_key AS "templateKey",name,description,channel,is_active AS "isActive",version,
+              updated_at AS "updatedAt" FROM admin_message_templates ORDER BY created_at`
+    ),
+    query(
+      `SELECT provider,status,response_time_ms AS "responseTimeMs",last_checked_at AS "lastCheckedAt",
+              last_webhook_at AS "lastWebhookAt",error_count AS "errorCount",last_error_safe AS "lastError"
+         FROM platform_integration_health ORDER BY provider`
+    ),
+    query(
+      `SELECT id,template_key AS "templateKey",event_type AS "eventType",provider,channel,status,
+              credit_status AS "creditStatus",is_test_message AS "isTestMessage",created_at AS "createdAt"
+         FROM admin_outbound_messages ORDER BY created_at DESC LIMIT 30`
+    ),
+    query(
+      `SELECT metric_date AS date,stores_count AS stores,active_users_count AS "activeUsers",
+              active_subscriptions_count AS "activeSubscriptions",messages_accepted AS accepted,
+              messages_delivered AS delivered,messages_failed AS failed,revenue_amount AS revenue
+         FROM platform_daily_metrics ORDER BY metric_date DESC LIMIT 30`
     )
   ]);
 
   const queueStats = queue.rows[0] || {};
+  const [campaignSummary, recentCampaigns, contactSummary, recentCampaignContacts] = await Promise.all([
+    query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status IN ('scheduled','queueing','sending'))::int AS active,
+                  COALESCE(sum(sent_count),0)::int AS sent,COALESCE(sum(delivered_count),0)::int AS delivered,
+                  COALESCE(sum(failed_count),0)::int AS failed FROM campaigns`),
+    query(`SELECT c.id,c.name,c.channel,c.status,c.total_recipients AS "totalRecipients",c.sent_count AS "sentCount",
+                  c.delivered_count AS "deliveredCount",c.failed_count AS "failedCount",c.scheduled_for AS "scheduledFor",
+                  c.created_at AS "createdAt",t.name AS "tenantName"
+             FROM campaigns c JOIN tenants t ON t.id=c.tenant_id ORDER BY c.created_at DESC LIMIT 30`),
+    query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status='active')::int AS active,
+                  count(*) FILTER(WHERE status='merge_review')::int AS "needsReview" FROM contacts`),
+    query(`SELECT c.id,c.display_name AS "displayName",c.company_name AS "companyName",c.source,c.status,
+                  c.created_at AS "createdAt",t.name AS "tenantName",
+                  EXISTS(SELECT 1 FROM contact_points p WHERE p.contact_id=c.id AND p.channel='email' AND p.status='active') AS "hasEmail",
+                  EXISTS(SELECT 1 FROM contact_points p WHERE p.contact_id=c.id AND p.channel='whatsapp' AND p.status='active') AS "hasWhatsapp"
+             FROM contacts c JOIN tenants t ON t.id=c.tenant_id ORDER BY c.created_at DESC LIMIT 30`)
+  ]);
   let provisioningJobs = { rows: [] };
   try {
     provisioningJobs = await query(
@@ -138,6 +212,7 @@ export async function GET(request) {
     ok: true,
     stats: {
       tenants: number(tenants.rows[0]?.count),
+      stores: number(storesCount.rows[0]?.count),
       users: number(users.rows[0]?.count),
       platformSubscriptions: {
         total: number(subscriptions.rows[0]?.total),
@@ -160,13 +235,23 @@ export async function GET(request) {
         high: number(risks.rows[0]?.high),
         critical: number(risks.rows[0]?.critical)
       },
-      unreadNotifications: number(notifications.rows[0]?.count)
+      unreadNotifications: number(notifications.rows[0]?.count),
+      campaigns: campaignSummary.rows[0],
+      contacts: contactSummary.rows[0]
     },
     recentAudit: canAudit ? audit.rows : [],
     tenants: canCustomers ? recentTenants.rows : [],
+    customers: canCustomers ? recentCustomers.rows : [],
+    stores: adminCan(auth.admin, "stores", "read") ? recentStores.rows : [],
     subscriptions: canSubscriptions ? recentSubscriptions.rows : [],
     channels: canDevices ? recentChannels.rows : [],
     adminUsers: auth.admin.adminRole === "super_admin" ? adminUsers.rows : [],
-    provisioningJobs: canCustomers ? provisioningJobs.rows : []
+    provisioningJobs: canCustomers ? provisioningJobs.rows : [],
+    adminTemplates: adminCan(auth.admin, "templates", "read") ? adminTemplates.rows : [],
+    integrationHealth: adminCan(auth.admin, "integrations", "read") ? integrationHealth.rows : [],
+    adminMessages: adminCan(auth.admin, "reports", "read") ? adminMessages.rows : [],
+    campaigns: adminCan(auth.admin, "campaigns", "read") ? recentCampaigns.rows : [],
+    campaignContacts: adminCan(auth.admin, "contacts", "read") ? recentCampaignContacts.rows : [],
+    dailyMetrics: dailyMetrics.rows.reverse()
   });
 }

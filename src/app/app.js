@@ -445,6 +445,9 @@ state.notificationTemplate = null;
 state.catalogTemplates = null;
 state.billingOverview = null;
 state.messageUsage = null;
+state.campaignsOverview = null;
+state.contactsOverview = null;
+state.contactStatistics = null;
 state.appsOverview = null;
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
@@ -508,6 +511,8 @@ const dashboardRoutes = [
   ["/dashboard/customers", "العملاء", "customers"],
   ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
   ["/dashboard/templates", "القوالب", "template"],
+  ["/dashboard/campaigns", "الحملات", "campaigns"],
+  ["/dashboard/contacts", "جهات الاتصال", "contacts"],
   ["/dashboard/devices", "الأجهزة", "devices"],
   ["/dashboard/apps", "تطبيقاتنا", "apps"],
   ["/dashboard/security", "الحماية والأمان", "security"],
@@ -580,7 +585,7 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     if (target === "dbSubscriptions") {
       state.dbSubscriptions = payload.items || [];
       state.subscriptionMeta = payload;
-    } else state[target] = target === "orderLinks" || target === "notifications"
+    } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics"].includes(target)
       ? payload
       : target === "orderLinkProfile"
         ? payload.profile
@@ -648,6 +653,9 @@ function syncRouteData(force = false) {
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
+  if (state.route === "/dashboard/campaigns" && (force || state.campaignsOverview === null)) queue("campaignsOverview", "/api/campaigns", "campaignsOverview");
+  if (state.route === "/dashboard/contacts" && (force || state.contactsOverview === null)) queue("contactsOverview", "/api/contacts", "contactsOverview");
+  if (state.route === "/dashboard/contacts" && (force || state.contactStatistics === null)) queue("contactStatistics", "/api/contacts/statistics", "contactStatistics");
   if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) queue("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
   if (state.route === "/dashboard/order-links") {
     if (force || state.orderLinkProfile === null) queue("orderLinkProfile", "/api/order-link/profile", "orderLinkProfile");
@@ -771,7 +779,10 @@ function status(value) {
     pending_pairing: "بانتظار الاقتران", connecting: "جارٍ الاتصال", sent: "تم الإرسال",
     delivered: "تم التسليم", read: "تمت القراءة", failed: "فشل",
     pending_activation: "بانتظار التفعيل", needs_review: "يحتاج مراجعة", scheduled: "مجدول",
-    queued: "في قائمة الإرسال", processing: "قيد الإرسال", skipped: "تم التخطي"
+    queued: "في قائمة الإرسال", processing: "قيد الإرسال", skipped: "تم التخطي",
+    draft: "مسودة", validating: "جارٍ التحقق", ready: "جاهزة", queueing: "قيد الجدولة",
+    sending: "جارٍ الإرسال", completed: "مكتملة", archived: "مؤرشفة", blocked: "محظورة",
+    merge_review: "تحتاج مراجعة دمج"
   } : {};
   const label = labels[value] || value || (state.language === "ar" ? "غير محدد" : "Unknown");
   return `<span class="status ${toneClass(value)}">${escapeHtml(label)}</span>`;
@@ -805,6 +816,8 @@ function dashboardIcon(name) {
     security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    campaigns: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    contacts: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 8v6M16 11h6"/>',
     orderLink: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><rect x="8" y="8" width="8" height="8" rx="2"/>',
     apps: '<path d="M19 13h-2.5a1.5 1.5 0 0 0-1.5 1.5V17h-3v-2.5a1.5 1.5 0 0 0-1.5-1.5H8V10h2.5A1.5 1.5 0 0 0 12 8.5V6h3v2.5a1.5 1.5 0 0 0 1.5 1.5H19z"/><path d="M8 10V7a2 2 0 1 0-4 0v3H2v4h2v3a2 2 0 1 0 4 0v-4"/><path d="M19 10h1a2 2 0 1 0 0-4h-2V3h-4v3"/>',
     language: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
@@ -1361,10 +1374,10 @@ function notificationsPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "القوالب": "Templates", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "القوالب": "Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
   const routeGroups = [
     { label: "", paths: ["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"] },
-    { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates"] },
+    { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates", "/dashboard/campaigns", "/dashboard/contacts"] },
     { label: state.language === "ar" ? "القنوات والربط" : "Channels & integrations", paths: ["/dashboard/devices", "/dashboard/apps"] },
     { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/settings"] }
   ];
@@ -1827,6 +1840,66 @@ function filterRows(rows, keys) {
     const matchSearch = !q || keys.some((key) => String(row[key] || "").includes(q));
     return matchFilter && matchSearch;
   });
+}
+
+function campaignChannel(channel) {
+  return channel === "email"
+    ? `<span class="campaign-channel email">${dashboardIcon("email")} بريد إلكتروني</span>`
+    : `<span class="campaign-channel whatsapp">${dashboardIcon("whatsapp")} واتساب</span>`;
+}
+
+function campaignProgress(value, total) {
+  const percent = total > 0 ? Math.min(100, Math.round((Number(value || 0) / Number(total)) * 100)) : 0;
+  return `<div class="campaign-progress"><span><i style="width:${percent}%"></i></span><b>${percent}%</b></div>`;
+}
+
+function campaignsTable(items) {
+  if (!items.length) return emptyState("لا توجد حملات حتى الآن", "أنشئ حملتك الأولى وحدد القناة والجمهور، ولن يبدأ أي إرسال قبل مراجعتك.", "حملة جديدة", "campaign-create");
+  return `<div class="compare campaign-table"><table><thead><tr><th>اسم الحملة</th><th>القناة</th><th>الجمهور</th><th>الموعد</th><th>الحالة</th><th>معدل التسليم</th><th>معدل الفشل</th><th>الإجراءات</th></tr></thead><tbody>${items.map((item) => {
+    const sent = Number(item.sentCount || 0), delivered = Number(item.deliveredCount || 0), failed = Number(item.failedCount || 0);
+    return `<tr><td><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.description || "حملة تواصل")}</small></td><td>${campaignChannel(item.channel)}</td><td><strong>${Number(item.eligibleRecipients || 0).toLocaleString("ar-SA")}</strong><small>جهة مؤهلة</small></td><td>${item.scheduledFor ? `<strong>${new Date(item.scheduledFor).toLocaleDateString("ar-SA")}</strong><small>${new Date(item.scheduledFor).toLocaleTimeString("ar-SA", { hour:"2-digit",minute:"2-digit" })}</small>` : `<span class="muted">لم يحدد بعد</span>`}</td><td>${status(item.status)}</td><td>${campaignProgress(delivered, sent)}</td><td>${campaignProgress(failed, Math.max(sent, 1))}</td><td><div class="inline-actions"><button class="btn btn-ghost icon-only" data-action="campaign-estimate" data-id="${item.id}" title="فحص الجمهور">${dashboardIcon("reports")}</button>${["draft","ready","paused"].includes(item.status) ? `<button class="btn btn-secondary icon-only" data-action="campaign-start" data-id="${item.id}" title="بدء الحملة">${dashboardIcon("send")}</button>` : ""}${["scheduled","queueing","sending"].includes(item.status) ? `<button class="btn btn-secondary" data-action="campaign-pause" data-id="${item.id}">إيقاف</button>` : ""}</div></td></tr>`;
+  }).join("")}</tbody></table></div>`;
+}
+
+function campaignActivityMarkup(items = []) {
+  if (!items.length) return `<div class="campaign-activity-empty">لا توجد أنشطة حملات مسجلة بعد.</div>`;
+  return items.map((item) => `<div class="campaign-activity"><span>${dashboardIcon(item.type?.includes("queued") ? "send" : "campaigns")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${new Date(item.createdAt).toLocaleString("ar-SA")}</small></div></div>`).join("");
+}
+
+function campaignsPage() {
+  const data = state.campaignsOverview;
+  const items = Array.isArray(data?.items) ? data.items : [];
+  const summary = data?.summary || { total:0,active:0,messagesThisMonth:0,deliveryRate:0,failed:0 };
+  const content = data?.error ? emptyState("تعذر تحميل الحملات", escapeHtml(data.error), "إعادة المحاولة", "campaign-reload") : data === null ? `<div class="loading-state">جاري تحميل الحملات...</div>` : campaignsTable(items);
+  return dashboardShell(`${pageTitle("الحملات", `<button class="btn btn-primary" data-action="campaign-create">${dashboardIcon("campaigns")} حملة جديدة</button><button class="btn btn-secondary" data-action="campaign-export">تصدير</button><button class="btn btn-secondary" data-link="/dashboard/contacts">جهات الاتصال</button>`)}`+
+    `<p class="dashboard-page-lead">إدارة حملات واتساب والبريد الإلكتروني باحترافية، مع نتائج فعلية من مزودي الإرسال.</p>`+
+    statGrid([
+      { title:"إجمالي الحملات",value:Number(summary.total||0).toLocaleString("ar-SA"),caption:"حملة محفوظة",tone:"info",icon:"template" },
+      { title:"الحملات النشطة",value:Number(summary.active||0).toLocaleString("ar-SA"),caption:"مجدولة أو قيد الإرسال",tone:"purple",icon:"campaigns" },
+      { title:"معدل الوصول",value:`${Number(summary.deliveryRate||0)}%`,caption:"تأكيد مزود فعلي",tone:"success",icon:"reports" },
+      { title:"الرسائل المرسلة هذا الشهر",value:Number(summary.messagesThisMonth||0).toLocaleString("ar-SA"),caption:"دون بيانات تجريبية",tone:"warning",icon:"send" }
+    ])+
+    `<section class="campaign-tabs"><button class="active">كل الحملات</button><button>المجدولة</button><button>النشطة</button><button>المكتملة</button></section>`+
+    `<div class="campaign-layout"><section class="card campaign-main-card"><div class="toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="campaign-search" placeholder="ابحث عن حملة..."></div><select class="select"><option>كل القنوات</option><option>واتساب</option><option>البريد الإلكتروني</option></select><select class="select"><option>كل الحالات</option><option>مسودة</option><option>مجدولة</option><option>مكتملة</option></select></div>${content}</section>`+
+    `<aside class="card campaign-activity-card"><div class="section-head"><div><h2>أحدث الأنشطة</h2><p class="muted">أحداث محفوظة في سجل مساحة العمل.</p></div></div>${campaignActivityMarkup(data?.activity || [])}</aside></div>`+
+    `<section class="campaign-bottom-grid"><article class="card"><div class="section-head"><div><h2>نظرة عامة على الأداء</h2><p class="muted">المؤشرات محسوبة من الرسائل الفعلية فقط.</p></div></div><div class="campaign-performance"><div><span>تم التسليم</span><strong>${Number(summary.delivered||0).toLocaleString("ar-SA")}</strong>${campaignProgress(summary.delivered,summary.sent)}</div><div><span>فشل الإرسال</span><strong>${Number(summary.failed||0).toLocaleString("ar-SA")}</strong>${campaignProgress(summary.failed,summary.sent)}</div></div></article><article class="card campaign-tip"><span>${dashboardIcon("reports")}</span><div><h2>اقتراح لتحسين الأداء</h2><p>استخدم جمهورًا لديه موافقة صالحة، واختبر المحتوى قبل جدولة الحملة.</p><button class="btn btn-ghost" data-link="/dashboard/templates">فتح القوالب</button></div></article></section>`);
+}
+
+function contactsTable(items) {
+  if (!items.length) return emptyState("لا توجد جهات اتصال", "أضف جهة اتصال يدويًا أو استوردها من سلة أو CSV.", "إضافة جهة اتصال", "contact-create");
+  return `<div class="compare"><table><thead><tr><th>جهة الاتصال</th><th>البريد</th><th>واتساب</th><th>المصدر</th><th>الحالة</th><th>آخر تحديث</th><th>الإجراء</th></tr></thead><tbody>${items.map((item) => {
+    const email=item.points?.find((point)=>point.channel==="email");const whatsapp=item.points?.find((point)=>point.channel==="whatsapp");
+    return `<tr><td><strong>${escapeHtml(item.displayName)}</strong><small>${escapeHtml(item.companyName||"")}</small></td><td>${escapeHtml(email?.value||"غير متوفر")}</td><td>${escapeHtml(whatsapp?.value||"غير متوفر")}</td><td>${escapeHtml(item.source)}</td><td>${status(item.status)}</td><td>${new Date(item.updatedAt).toLocaleDateString("ar-SA")}</td><td><button class="btn btn-secondary" data-action="contact-archive" data-id="${item.id}" ${item.status==="archived"?"disabled":""}>أرشفة</button></td></tr>`;
+  }).join("")}</tbody></table></div>`;
+}
+
+function contactsPage() {
+  const data=state.contactsOverview;const stats=state.contactStatistics?.statistics||{};const items=Array.isArray(data?.items)?data.items:[];
+  const content=data?.error?emptyState("تعذر تحميل جهات الاتصال",escapeHtml(data.error),"إعادة المحاولة","contacts-reload"):data===null?`<div class="loading-state">جاري تحميل جهات الاتصال...</div>`:contactsTable(items);
+  return dashboardShell(`${pageTitle("جهات الاتصال",`<button class="btn btn-primary" data-action="contact-create">${dashboardIcon("contacts")} إضافة جهة اتصال</button><button class="btn btn-secondary" data-action="contacts-salla-sync">مزامنة سلة</button><button class="btn btn-secondary" data-action="contacts-import">استيراد CSV</button><button class="btn btn-secondary" data-action="contacts-export">تصدير</button>`)}`+
+    `<p class="dashboard-page-lead">قاعدة جمهور الحملات، منفصلة عن حسابات مستخدمي المنصة ومحمية حسب مساحة العمل.</p>`+
+    statGrid([{title:"إجمالي جهات الاتصال",value:Number(stats.total||0),caption:"سجل محفوظ",tone:"info",icon:"contacts"},{title:"مؤهلون لواتساب",value:Number(stats.whatsappEligible||0),caption:"رقم صالح وغير موقوف",tone:"success",icon:"whatsapp"},{title:"مؤهلون للبريد",value:Number(stats.emailEligible||0),caption:"بريد صالح وغير موقوف",tone:"purple",icon:"email"},{title:"مستبعدون",value:Number(stats.excluded||0),caption:"مؤرشفون أو بلا قناة",tone:"warning",icon:"security"}])+
+    `<section class="card contact-card"><div class="toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="contact-search" placeholder="ابحث بالاسم أو البريد أو الجوال..."></div><select class="select"><option>كل القنوات</option><option>واتساب</option><option>البريد الإلكتروني</option></select><span class="status warning">تحتاج مراجعة: ${Number(stats.needsReview||0)}</span></div>${content}</section>`);
 }
 
 function customersPage() {
@@ -3427,6 +3500,37 @@ function readSallaRuleDrafts() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "campaign-reload") { state.campaignsOverview=null; syncRouteData(true); return render(); }
+  if (action === "contacts-reload") { state.contactsOverview=null; state.contactStatistics=null; syncRouteData(true); return render(); }
+  if (action === "campaign-create") {
+    return openModal("إنشاء حملة جديدة", `<form data-submit="campaign-create" class="grid campaign-create-form"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="مثال: عروض نهاية الشهر"></label><label class="field"><span>قناة الإرسال</span><select class="select" name="channel"><option value="whatsapp">واتساب عبر Meta Cloud API</option><option value="email">البريد الإلكتروني عبر Resend</option></select></label><label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="600" placeholder="الغرض من الحملة"></label><label class="field"><span>عنوان البريد (للبريد فقط)</span><input class="input" name="subject" maxlength="200"></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea" name="body" maxlength="12000" rows="7" required placeholder="مرحبًا {{customer_name}}..."></textarea></label><div class="campaign-safety-note">لن يبدأ الإرسال عند الحفظ. تُنشأ الحملة كمسودة ثم تُفحص أهلية الجمهور قبل الجدولة.</div><button class="btn btn-primary" type="submit">حفظ المسودة</button></form>`);
+  }
+  if (action === "contact-create") {
+    return openModal("إضافة جهة اتصال", `<form data-submit="contact-create" class="grid"><label class="field"><span>الاسم</span><input class="input" name="displayName" maxlength="160"></label><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" inputmode="tel" placeholder="+966 5X XXX XXXX"></label><label class="field"><span>الشركة (اختياري)</span><input class="input" name="companyName" maxlength="160"></label><label class="field"><span>الموافقة على التواصل</span><select class="select" name="consentStatus"><option value="unknown">غير محددة</option><option value="granted">موافق</option><option value="revoked">سحب الموافقة</option></select></label><button class="btn btn-primary">حفظ جهة الاتصال</button></form>`);
+  }
+  if (action === "contacts-import") {
+    return openModal("استيراد جهات الاتصال", `<form data-submit="contacts-import" class="grid"><p class="muted">ألصق CSV بالترتيب: الاسم، البريد، الجوال. حد أقصى 500 صف.</p><textarea class="textarea" name="text" rows="10" required placeholder="الاسم,email@example.com,+966501234567"></textarea><button class="btn btn-primary">تحقق واستيراد</button></form>`);
+  }
+  if (action === "contacts-salla-sync") {
+    try { const payload=await fetchJson("/api/contacts/salla-sync",{method:"POST"}); state.contactsOverview=null;state.contactStatistics=null;await syncRouteData(true);toast(`تمت مزامنة ${Number(payload.imported||0)} جهة اتصال من سلة`); }
+    catch(error){toast(error.message||"تعذرت مزامنة سلة","danger");} return;
+  }
+  if (action === "contact-archive") {
+    try { await fetchJson(`/api/contacts/${encodeURIComponent(target.dataset.id)}`,{method:"DELETE"});state.contactsOverview=null;state.contactStatistics=null;await syncRouteData(true);toast("تمت أرشفة جهة الاتصال"); }
+    catch(error){toast(error.message||"تعذرت الأرشفة","danger");} return;
+  }
+  if (action === "campaign-estimate") {
+    try { const payload=await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/estimate`);openDrawer("فحص جمهور الحملة",`<div class="grid"><div class="mini-stat"><span>إجمالي الجمهور</span><strong>${Number(payload.estimate.total||0).toLocaleString("ar-SA")}</strong></div><div class="mini-stat"><span>مؤهلون للإرسال</span><strong>${Number(payload.estimate.eligible||0).toLocaleString("ar-SA")}</strong></div><div class="mini-stat"><span>مستبعدون بأمان</span><strong>${Number(payload.estimate.excluded||0).toLocaleString("ar-SA")}</strong></div><p class="muted">لا يتم إرسال أي رسالة في خطوة الفحص.</p></div>`); }
+    catch(error){toast(error.message||"تعذر فحص الجمهور","danger");} return;
+  }
+  if (action === "campaign-start") {
+    try { const payload=await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/start`,{method:"POST"});state.campaignsOverview=null;state.messageUsage=null;await syncRouteData(true);toast(`تمت جدولة ${Number(payload.queued||0)} رسالة. سيُخصم الرصيد فقط بعد قبول مزود الإرسال.`); }
+    catch(error){if(error.usage)showMessageQuotaLimit(error.usage);else toast(error.message||"تعذر بدء الحملة","danger");} return;
+  }
+  if (action === "campaign-pause") {
+    try { await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/pause`,{method:"POST"});state.campaignsOverview=null;state.messageUsage=null;await syncRouteData(true);toast("تم إيقاف الحملة وإعادة الرصيد المحجوز غير المستخدم"); }
+    catch(error){toast(error.message||"تعذر إيقاف الحملة","danger");} return;
+  }
   if (action === "open-salla-product-mappings") {
     closePortal();
     return navigate("/dashboard/integrations/salla/products");
@@ -4108,6 +4212,20 @@ async function handleAction(target) {
     if (!rows.length) return toast("لا توجد بيانات لتصديرها", "warning");
     exportCsv("customers.csv", [["الاسم", "البريد", "الهاتف", "الحالة", "عدد الاشتراكات"], ...rows.map((r) => [r.name, r.email || "", r.phone || "", r.status, r.subscriptionCount || 0])]);
   }
+  if (action === "campaign-export") {
+    const rows = Array.isArray(state.campaignsOverview?.items) ? state.campaignsOverview.items : [];
+    if (!rows.length) return toast("لا توجد حملات لتصديرها", "warning");
+    exportCsv("renvix-campaigns.csv", [["الحملة", "القناة", "الحالة", "الجمهور المؤهل", "تم الإرسال", "تم التسليم", "الفشل", "الموعد"], ...rows.map((row) => [row.name, row.channel, row.status, row.eligibleRecipients || 0, row.sentCount || 0, row.deliveredCount || 0, row.failedCount || 0, row.scheduledFor || ""])]);
+  }
+  if (action === "contacts-export") {
+    const rows = Array.isArray(state.contactsOverview?.items) ? state.contactsOverview.items : [];
+    if (!rows.length) return toast("لا توجد جهات اتصال لتصديرها", "warning");
+    exportCsv("renvix-contacts.csv", [["الاسم", "البريد", "واتساب", "المصدر", "الحالة", "آخر تحديث"], ...rows.map((row) => {
+      const email = row.points?.find((point) => point.channel === "email")?.value || "";
+      const whatsapp = row.points?.find((point) => point.channel === "whatsapp")?.value || "";
+      return [row.displayName, email, whatsapp, row.source, row.status, row.updatedAt || ""];
+    })]);
+  }
   if (action === "export-report") {
     const stats = overviewStats();
     exportCsv("renewpilot-report.csv", [["المؤشر", "القيمة"], ["الإيراد الشهري", stats.monthlyRevenue], ["الرسائل المرسلة", stats.sentMessages], ["نسبة النجاح", `${stats.successRate}%`], ["العملاء المتجددون", stats.renewedCustomers]]);
@@ -4201,6 +4319,28 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "campaign-create") {
+    try {
+      await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:data.name,channel:data.channel,description:data.description||null,subject:data.subject||null,body:data.body,scheduleMode:"manual"}) });
+      closePortal(); state.campaignsOverview=null; await syncRouteData(true); toast("تم حفظ الحملة كمسودة. افحص الجمهور قبل بدء الإرسال.");
+    } catch(error){toast(error.message||"تعذر إنشاء الحملة","danger");}
+    return;
+  }
+  if (type === "contact-create") {
+    try {
+      await fetchJson("/api/contacts", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({displayName:data.displayName,email:data.email||null,phone:data.phone||null,companyName:data.companyName||null,consentStatus:data.consentStatus}) });
+      closePortal(); state.contactsOverview=null;state.contactStatistics=null;await syncRouteData(true);toast("تم حفظ جهة الاتصال");
+    } catch(error){toast(error.message||"تعذر حفظ جهة الاتصال","danger");}
+    return;
+  }
+  if (type === "contacts-import") {
+    const lines=String(data.text||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean).slice(0,500);
+    const rows=lines.map(line=>{const [displayName,email,phone,companyName]=line.split(",").map(value=>value?.trim());return{displayName,email:email||null,phone:phone||null,companyName:companyName||null};});
+    if(!rows.length)return toast("لا توجد صفوف صالحة للاستيراد","warning");
+    try {const payload=await fetchJson("/api/contacts/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows})});closePortal();state.contactsOverview=null;state.contactStatistics=null;await syncRouteData(true);toast(`تم استيراد ${Number(payload.imported||0)} جهة، واستبعاد ${Number(payload.invalid||0)} صف غير صالح.`);}
+    catch(error){toast(error.message||"تعذر الاستيراد","danger");}
+    return;
+  }
   if (type === "renewal-option") {
     const [targetSallaProductId, targetSallaVariantId, targetSallaSku] = String(data.catalogProduct || "").split("|");
     const optionId = form.dataset.optionId || "";
@@ -4772,6 +4912,8 @@ function render() {
       "/dashboard/subscriptions": subscriptionsPage,
       "/dashboard/customers": customersPage,
       "/dashboard/templates": templatesCatalogPage,
+      "/dashboard/campaigns": campaignsPage,
+      "/dashboard/contacts": contactsPage,
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,

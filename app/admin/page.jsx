@@ -3,6 +3,5 @@ import { requireAdminPage } from "../../src/lib/admin/require-admin.js";
 
 export default async function AdminPage() {
   const admin = await requireAdminPage();
-  return <AdminPortal initialAdmin={{ name: admin.name, email: admin.email, role: admin.adminRole }} />;
+  return <AdminPortal initialPanel="overview" initialAdmin={{ name: admin.name, email: admin.email, role: admin.adminRole }} />;
 }
-

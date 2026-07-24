@@ -4,6 +4,11 @@ import { safeErrorMessage, sha256 } from "./security.js";
 
 const ROLE_PERMISSIONS = {
   super_admin: { "*": ["*"] },
+  operations_admin: {
+    overview: ["read"], subscriptions: ["read", "update"], customers: ["read", "update"],
+    stores: ["read", "update"], templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"], devices: ["read", "update"],
+    integrations: ["read", "update"], reports: ["read", "export"], audit: ["read"]
+  },
   admin: {
     overview: ["read"],
     subscriptions: ["read", "update"],
@@ -11,6 +16,13 @@ const ROLE_PERMISSIONS = {
     devices: ["read", "update"],
     security: ["read"],
     reports: ["read", "export"],
+    stores: ["read", "update"],
+    templates: ["read", "update"],
+    campaigns: ["read", "update"],
+    contacts: ["read", "update"],
+    integrations: ["read", "update"],
+    billing: ["read", "update"],
+    settings: ["read", "update"],
     audit: ["read"]
   },
   support_admin: {
@@ -22,13 +34,23 @@ const ROLE_PERMISSIONS = {
   billing_admin: {
     overview: ["read"],
     subscriptions: ["read", "update"],
-    reports: ["read", "export"]
+    reports: ["read", "export"],
+    billing: ["read", "update"]
   },
   security_admin: {
     overview: ["read"],
     devices: ["read", "update"],
     security: ["read", "update"],
     audit: ["read"]
+  },
+  security_auditor: {
+    overview: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
+    reports: ["read"], audit: ["read"]
+  },
+  read_only: {
+    overview: ["read"], subscriptions: ["read"], customers: ["read"], stores: ["read"], campaigns: ["read"], contacts: ["read"],
+    templates: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
+    reports: ["read"], billing: ["read"], settings: ["read"], audit: ["read"]
   },
   viewer: {
     overview: ["read"],
@@ -110,7 +132,7 @@ export async function auditAdmin(req, {
     await query(
       `INSERT INTO admin_audit_logs
          (admin_user_id, user_id, actor_email, action, resource, status, metadata, ip_hash, ip_address, user_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, NULL, $9)`,
       [
         admin?.adminId || null,
         admin?.userId || userId || null,
@@ -120,7 +142,6 @@ export async function auditAdmin(req, {
         status,
         JSON.stringify(metadata || {}),
         requestIp(req) ? sha256(requestIp(req)) : null,
-        requestIp(req) || null,
         req.headers.get("user-agent")?.slice(0, 500) || null
       ]
     );

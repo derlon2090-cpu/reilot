@@ -577,6 +577,9 @@
     scrollbar-width: thin;
   }
 
+  .navGroup { display: flex; min-width: max-content; padding: 0; margin: 0; border: 0; }
+  .navGroupLabel { display: none; }
+
   .sidebar nav button {
     min-width: max-content;
     padding: 0 14px;
@@ -701,6 +704,9 @@
 .sidebar .brand { justify-content: center; }
 .sidebar .brandLogo { width: 176px; }
 .sidebar nav { margin-top: 30px; gap: 6px; }
+.navGroup { display: grid; gap: 6px; padding: 0 0 14px; margin-bottom: 10px; border-bottom: 1px solid #edf1f7; }
+.navGroup:last-child { margin-bottom: 0; border-bottom: 0; }
+.navGroupLabel { padding: 4px 13px 1px; color: #8a9bb6; font-size: 11px; font-weight: 750; }
 .sidebar nav button { min-height: 50px; border-radius: 10px; color: #536b90; }
 .sidebar nav .activeNav { color: #1765e8; background: linear-gradient(90deg, #eff6ff, #f3f8ff); box-shadow: inset -3px 0 0 #2d71f4; }
 .sidebarNote { border-color: #dce7f7; border-radius: 14px; color: #173663; background: linear-gradient(145deg, #fbfdff, #f3f7ff); }
