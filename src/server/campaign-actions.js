@@ -26,6 +26,25 @@ export async function estimateCampaignAudience(client, campaign) {
   return { total: Number(total.rows[0]?.total || 0), eligible: result.rowCount, recipients: result.rows };
 }
 
+export async function assertCampaignChannelReady(client, campaign) {
+  if (campaign.channel === "email") {
+    if (!process.env.RESEND_API_KEY) {
+      throw Object.assign(new Error("قناة البريد غير مهيأة. اربط Resend ونطاق الإرسال أولًا."), { code: "channel_not_configured" });
+    }
+    return true;
+  }
+  const channel = await client.query(
+    `SELECT id FROM whatsapp_channels
+      WHERE tenant_id=$1 AND provider IN ('meta','meta_cloud_api') AND status='connected'
+      ORDER BY connected_at DESC NULLS LAST LIMIT 1`,
+    [campaign.tenant_id]
+  );
+  if (!channel.rowCount) {
+    throw Object.assign(new Error("قناة واتساب الرسمية غير مرتبطة. اربط Meta Cloud API أولًا."), { code: "channel_not_configured" });
+  }
+  return true;
+}
+
 export async function prepareCampaign(client, campaign) {
   const estimate = await estimateCampaignAudience(client, campaign);
   await client.query(`DELETE FROM campaign_recipients WHERE tenant_id=$1 AND campaign_id=$2 AND status='prepared'`, [campaign.tenant_id,campaign.id]);
