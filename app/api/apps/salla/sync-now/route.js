@@ -1,4 +1,4 @@
-import { query } from "../../../../../src/server/db.js";
+import { query, transaction } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import {
   getSallaAccessToken,
@@ -7,6 +7,7 @@ import {
 } from "../../../../../src/server/salla-app.js";
 import { extractSallaCustomerUrl, safeRenewalUrl } from "../../../../../src/lib/renewal-links.js";
 import { syncAutomaticRenewalOptions } from "../../../../../src/server/product-renewal-options.js";
+import { enqueueAdminDomainEvent } from "../../../../../src/server/admin-template-events.js";
 
 export async function POST(req) {
   const auth = await requireSession(req);
@@ -23,11 +24,7 @@ export async function POST(req) {
     const token = await getSallaAccessToken(connection);
     const base = (process.env.SALLA_API_BASE_URL || "https://api.salla.dev/admin/v2").replace(/\/$/, "");
     const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
-    try {
-      await registerSallaOperationalWebhooks(token, origin);
-    } catch (webhookError) {
-      console.warn("Could not refresh Salla webhook registrations during sync", webhookError);
-    }
+    await registerSallaOperationalWebhooks(token, origin);
     let synced = 0;
     let productPage = 1;
     let moreProducts = true;
@@ -108,10 +105,30 @@ export async function POST(req) {
       }
       await query("UPDATE salla_sync_cursors SET import_status='completed',updated_at=now() WHERE tenant_id=$1", [auth.session.tenantId]);
     }
-    await query("UPDATE app_connections SET last_sync_at = now(), last_error = NULL, updated_at = now() WHERE id = $1", [connection.id]);
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE app_connections SET last_sync_at=now(),last_error=NULL,
+                readiness_status='ready',webhooks_registered_at=COALESCE(webhooks_registered_at,now()),
+                initial_sync_completed_at=now(),ready_at=COALESCE(ready_at,now()),updated_at=now()
+          WHERE id=$1`,
+        [connection.id]
+      );
+      await enqueueAdminDomainEvent(client, {
+        eventType: "salla.integration.ready",
+        aggregateType: "app_connection",
+        aggregateId: connection.id,
+        payloadRefs: { connectionId: connection.id },
+        idempotencyKey: `admin-salla-installed:${connection.id}:ready`
+      });
+    });
     return Response.json({ ok: true, synced, renewalLinks });
   } catch (error) {
-    await query("UPDATE app_connections SET last_error = $2, updated_at = now() WHERE id = $1", [connection.id, String(error.message).slice(0, 300)]);
+    await query(
+      `UPDATE app_connections SET last_error=$2,
+              readiness_status=CASE WHEN readiness_status='ready' THEN readiness_status ELSE 'partially_ready' END,
+              updated_at=now() WHERE id=$1`,
+      [connection.id, String(error.message).slice(0, 300)]
+    );
     return Response.json({ ok: false, message: "تعذرت المزامنة، تحقق من صلاحيات الربط." }, { status: 502 });
   }
 }

@@ -18,7 +18,7 @@ export function withoutExpiredQr(channel, now = Date.now()) {
 
 export async function latestTenantChannel(tenantId) {
   const result = await query(
-    `SELECT id, tenant_id AS "tenantId", instance_name AS "instanceName", phone_number AS "phoneNumber",
+    `SELECT id, tenant_id AS "tenantId", provider, instance_name AS "instanceName", phone_number AS "phoneNumber",
             display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64",
             connected_at AS "connectedAt", disconnected_at AS "disconnectedAt",
             last_qr_generated_at AS "lastQrGeneratedAt", last_pairing_code_generated_at AS "lastPairingCodeGeneratedAt",
@@ -31,7 +31,7 @@ export async function latestTenantChannel(tenantId) {
 
 export async function ownedChannel(id, tenantId) {
   const result = await query(
-    `SELECT id, tenant_id AS "tenantId", instance_name AS "instanceName", phone_number AS "phoneNumber",
+    `SELECT id, tenant_id AS "tenantId", provider, instance_name AS "instanceName", phone_number AS "phoneNumber",
             display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64", risk_score AS "riskScore"
        FROM whatsapp_channels WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
     [id, tenantId]

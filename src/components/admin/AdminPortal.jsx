@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import styles from "./AdminPortal.module.css";
+import AdminSectionView, { SPECIAL_ADMIN_PANELS } from "./AdminSections.jsx";
 
 const ROLE_LABELS = {
   super_admin: "مدير النظام",
@@ -19,7 +20,7 @@ const ADMIN_NAV_GROUPS = [
   [null, [["overview", "نظرة عامة", "grid"]]],
   ["العمليات", [
     ["subscriptions", "الاشتراكات", "card"], ["customers", "العملاء", "users"],
-    ["stores", "المتاجر", "store"]
+    ["stores", "المتاجر", "store"], ["notifications", "إشعارات المنصة", "bell"]
   ]],
   ["الرسائل والطلبات", [["templates", "قوالب الإدارة", "template"], ["campaigns", "الحملات", "send"], ["contacts", "جهات الاتصال", "users"], ["messages", "سجل الرسائل", "send"]]],
   ["القنوات والربط", [["devices", "الأجهزة", "device"], ["integrations", "تطبيقات المنصة", "link"]]],
@@ -30,22 +31,23 @@ const ADMIN_NAV_GROUPS = [
 ];
 
 const PANEL_COPY = {
-  overview: ["لوحة تحكم الأدمن", "صلاحيات كاملة لإدارة منصة Renvix وجميع إعداداتها."],
+  overview: ["لوحة إدارة رينفكس", "مركز التحكم الرئيسي لإدارة المتاجر والمستخدمين والعمليات والتكاملات."],
   subscriptions: ["الاشتراكات", "متابعة اشتراكات المنصة وحالاتها الحالية."],
   customers: ["العملاء", "حسابات مستخدمي Renvix ومساحات العمل المرتبطة بهم."],
   stores: ["المتاجر", "المتاجر ومساحات العمل والتكاملات المرتبطة بها."],
   provisioning: ["تفعيل حسابات سلة", "طلبات إنشاء الحسابات الناتجة عن منتجات سلة المربوطة فقط."],
-  devices: ["الأجهزة والقنوات", "متابعة القنوات المتصلة وحالتها التشغيلية."],
-  security: ["الحماية والامتثال", "متابعة المخاطر والتنبيهات وسجل التدقيق الإداري."],
+  devices: ["الأجهزة", "متابعة القنوات المتصلة وحالتها التشغيلية."],
+  security: ["الحماية والأمان", "مركز الأمان الشامل لحماية المنصة والبيانات والمستخدمين."],
   reports: ["التقارير", "مؤشرات الإرسال والتسليم والعمليات المسجلة."],
   roles: ["الأدوار والصلاحيات", "إدارة الأدوار والصلاحيات والتحكم في الوصول."],
-  settings: ["إعدادات النظام", "الإعدادات العامة والتكاملات وخيارات تشغيل المنصة."],
-  templates: ["القوالب", "إدارة قوالب الرسائل الجاهزة حسب القناة."],
+  settings: ["الإعدادات", "إدارة إعدادات الحساب والمنصة والتنبيهات والصلاحيات والسجلات."],
+  templates: ["قوالب الإدارة", "إدارة قوالب الرسائل والإشعارات المستخدمة في المنصة عبر القنوات المختلفة."],
   integrations: ["تطبيقات المنصة", "صحة تكاملات Renvix دون عرض أي أسرار أو مفاتيح."],
   billing: ["الفوترة والباقات", "الباقات والاشتراكات والإيرادات من السجلات الفعلية."],
   messages: ["الرسائل", "متابعة الإرسال والتسليم وحالة طابور الرسائل."],
   campaigns: ["الحملات", "متابعة حملات جميع مساحات العمل ومؤشرات التسليم الفعلية."],
-  contacts: ["جهات الاتصال", "جمهور حملات المتاجر، منفصل عن حسابات مستخدمي المنصة."]
+  contacts: ["جهات الاتصال", "جمهور حملات المتاجر، منفصل عن حسابات مستخدمي المنصة."],
+  notifications: ["إدارة إشعارات المنصة", "إنشاء الإشعارات الداخلية ومعاينتها وجدولتها ومتابعة وصولها للمستخدمين."]
 };
 
 const ROLE_SCOPES = {
@@ -75,6 +77,8 @@ const ICONS = {
   team: '<circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M15 15a5 5 0 0 1 6 4v2"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6v-2.6h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L9 6.6l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.6v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v2.6h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   refresh: '<path d="M20 11a8 8 0 1 0 1 4M20 4v7h-7"/>',
   template: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -298,10 +302,6 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
             ))}
           </div>)}
         </nav>
-        <div className={styles.sidebarNote}>
-          <strong>وصول إداري محمي</strong>
-          <span>كل إجراء حساس مسجل في سجل التدقيق.</span>
-        </div>
       </aside>
 
       <section className={styles.workspace}>
@@ -311,7 +311,12 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
             <div><strong>{admin.name || admin.email}</strong><span>{ROLE_LABELS[admin.role] || admin.role}</span></div>
           </div>
           <div className={styles.topbarCenter}><label className={styles.adminSearch}><Icon name="search" /><input placeholder="بحث سريع..." aria-label="بحث سريع" /></label><span className={styles.planBadge}>لوحة التحكم</span></div>
-          <div className={styles.topbarActions}><button className={styles.iconButton} type="button" aria-label="التنبيهات"><Icon name="bell" /><b>{data?.stats?.unreadNotifications || 0}</b></button><button onClick={logout} className={styles.logoutButton}>تسجيل الخروج</button></div>
+          <div className={styles.topbarActions}>
+            <button className={styles.iconButton} type="button" aria-label="اللغة العربية"><Icon name="globe" /></button>
+            <button className={styles.iconButton} type="button" aria-label="المظهر الفاتح"><Icon name="sun" /></button>
+            <button className={styles.iconButton} type="button" aria-label="التنبيهات"><Icon name="bell" /><b>{data?.stats?.unreadNotifications || 0}</b></button>
+            <button onClick={logout} className={styles.logoutButton}>تسجيل الخروج</button>
+          </div>
         </header>
 
         <div className={styles.content}>
@@ -328,26 +333,17 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
             <div className={styles.loading}>جارٍ تحميل بيانات المنصة...</div>
           ) : (
             <>
-              <section className={styles.statsGrid}>
-                {panelCards.map(([label, value, helper, tone]) => (
-                  <StatCard key={label} label={label} value={value} helper={helper} tone={tone} icon={iconForLabel(label)} />
-                ))}
-              </section>
+              {SPECIAL_ADMIN_PANELS.has(activePanel) ? (
+                <AdminSectionView panel={activePanel} data={data} stats={stats} admin={admin} />
+              ) : (
+                <section className={styles.statsGrid}>
+                  {panelCards.map(([label, value, helper, tone]) => (
+                    <StatCard key={label} label={label} value={value} helper={helper} tone={tone} icon={iconForLabel(label)} />
+                  ))}
+                </section>
+              )}
 
-              {activePanel === "overview" ? <section className={styles.overviewGrid}>
-                <article className={styles.chartCard}><div className={styles.sectionHeading}><div><h2>نظرة عامة على المنصة</h2><p>المؤشرات الحالية من الطوابير والاشتراكات والقنوات.</p></div><span className={styles.periodBadge}>بيانات مباشرة</span></div><div className={styles.metricBars}><div><span>الرسائل المرسلة</span><b>{stats.queue.sent.toLocaleString("ar-SA")}</b><i className={styles.barBlue} /></div><div><span>القنوات المتصلة</span><b>{stats.connectedChannels.toLocaleString("ar-SA")}</b><i className={styles.barCyan} /></div><div><span>الاشتراكات النشطة</span><b>{stats.platformSubscriptions.active.toLocaleString("ar-SA")}</b><i className={styles.barGreen} /></div></div></article>
-                <article className={styles.quickCard}><div className={styles.sectionHeading}><div><h2>إجراءات سريعة</h2><p>اختصارات لا تغيّر البيانات دون تأكيد.</p></div></div><button type="button"><Icon name="users" /> مراجعة العملاء</button><button type="button"><Icon name="card" /> مراجعة الاشتراكات</button><button type="button"><Icon name="shield" /> مراجعة المخاطر</button><button type="button"><Icon name="chart" /> فتح التقارير</button></article>
-                <article className={styles.healthCard}><div className={styles.sectionHeading}><div><h2>صحة الأنظمة</h2><p>نتائج الاتصال المسجلة حاليًا.</p></div><span className={styles.goodDot}>سليم</span></div><div className={styles.healthLine}><span>قنوات واتساب</span><strong>{stats.connectedChannels} متصلة</strong></div><div className={styles.healthLine}><span>Queue</span><strong>{stats.queue.pending} معلّقة</strong></div><div className={styles.healthLine}><span>جلسات الأدمن</span><strong>{stats.activeSessions} نشطة</strong></div></article>
-              </section> : null}
-
-              {activePanel === "customers" ? <DataTable title="إدارة العملاء" description="حسابات مستخدمي Renvix فقط، وليست جهات اتصال حملات المتاجر." columns={[["name","العميل"],["email","البريد"],["phone","الجوال"],["tenantName","مساحة العمل"],["storeCount","المتاجر"],["planName","الباقة"],["status","الحالة"],["createdAt","الانضمام"]]} rows={data.customers} /> : null}
-              {activePanel === "stores" ? <DataTable title="إدارة المتاجر" description="المتاجر المرتبطة وحالات الاشتراك وسلة وقناة Meta دون عرض التوكنات." columns={[["name","المتجر"],["ownerName","المالك"],["domain","النطاق"],["planName","الباقة"],["subscriptionStatus","الاشتراك"],["sallaStatus","سلة"],["metaStatus","Meta"],["messageVolume","الرسائل"]]} rows={data.stores} /> : null}
               {activePanel === "provisioning" ? <DataTable title="تفعيل حسابات سلة" description="كل وظيفة مرتبطة بطلب سلة، مع عرض حالات البريد والأخطاء دون بيانات تجريبية." columns={[["orderId","رقم الطلب"],["customerName","العميل"],["email","البريد"],["planName","الباقة"],["status","حالة التفعيل"],["emailStatus","حالة البريد"],["failureCode","سبب التعثر"],["createdAt","تاريخ الإنشاء"]]} rows={data.provisioningJobs} empty="لا توجد وظائف تفعيل حسابات سلة حتى الآن." /> : null}
-              {activePanel === "subscriptions" ? <DataTable title="إدارة اشتراكات المنصة" description="الاشتراكات المفعلة أو التجريبية حسب بيانات الفوترة." columns={[["tenantName","مساحة العمل"],["planName","الباقة"],["billingCycle","الدورة"],["status","الحالة"],["paymentProvider","مزود الدفع"],["startsAt","البداية"],["expiresAt","النهاية"]]} rows={data.subscriptions} /> : null}
-              {activePanel === "devices" ? <DataTable title="الأجهزة والقنوات" description="القنوات المسجلة وحالة الاتصال وفحص الصحة الأخير." columns={[["tenantName","مساحة العمل"],["displayName","اسم القناة"],["phoneNumber","الرقم"],["status","الحالة"],["healthScore","درجة الصحة"],["lastCheckAt","آخر فحص"]]} rows={data.channels} /> : null}
-              {activePanel === "settings" ? <DataTable title="إعدادات حسابات الأدمن" description="الحسابات الإدارية المسجلة وصلاحياتها الحالية." columns={[["name","المسؤول"],["email","البريد"],["role","الدور"],["mfaEnabled","MFA"],["status","الحالة"],["lastLoginAt","آخر دخول"]]} rows={data.adminUsers} /> : null}
-              {activePanel === "templates" ? <DataTable title="قوالب الإدارة النظامية" description="أربعة قوالب ثابتة مرتبطة بأحداث فعلية؛ الحفظ يحدث السجل نفسه ولا ينشئ نسخة جديدة." columns={[["name","القالب"],["description","متى يعمل"],["channel","القناة"],["isActive","نشط"],["version","الإصدار"],["updatedAt","آخر تحديث"]]} rows={data.adminTemplates} empty="لم تُطبّق ترحيلات قوالب الإدارة بعد." /> : null}
-              {activePanel === "integrations" ? <DataTable title="تطبيقات المنصة" description="نتائج فحوصات التكامل الحقيقية دون مفاتيح أو أسرار." columns={[["provider","التطبيق"],["status","الحالة"],["responseTimeMs","زمن الاستجابة"],["lastCheckedAt","آخر فحص"],["lastWebhookAt","آخر Webhook"],["errorCount","الأخطاء"],["lastError","آخر خطأ آمن"]]} rows={data.integrationHealth} /> : null}
               {activePanel === "billing" ? <DataTable title="اشتراكات العملاء والفوترة" description="الاشتراكات والباقات الفعلية فقط." columns={[["tenantName","مساحة العمل"],["planName","الباقة"],["billingCycle","الدورة"],["status","الحالة"],["paymentProvider","مزود الدفع"],["startsAt","البداية"],["expiresAt","النهاية"]]} rows={data.subscriptions} /> : null}
               {activePanel === "messages" ? <DataTable title="سجل الرسائل" description="حالة الرسائل من الطابور الفعلي دون بيانات تجريبية." columns={[["action","الإجراء"],["resource","المورد"],["status","الحالة"],["createdAt","الوقت"]]} rows={auditItems.filter((item) => String(item.resource || "").toLowerCase().includes("message") || String(item.resource || "").includes("رسالة"))} empty="لا توجد عمليات رسائل مسجلة حتى الآن." /> : null}
               {activePanel === "campaigns" ? <DataTable title="الحملات" description="حملات المستخدمين عبر واتساب والبريد، مع حالات وأرقام حقيقية فقط." columns={[["name","الحملة"],["tenantName","مساحة العمل"],["channel","القناة"],["status","الحالة"],["totalRecipients","الجمهور"],["sentCount","تم الإرسال"],["deliveredCount","تم التسليم"],["failedCount","فشل"],["scheduledFor","الموعد"]]} rows={data.campaigns} empty="لا توجد حملات محفوظة حتى الآن." /> : null}
@@ -366,7 +362,7 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
                 </section>
               ) : null}
 
-              <section className={styles.auditCard}>
+              {!SPECIAL_ADMIN_PANELS.has(activePanel) ? <section className={styles.auditCard}>
                 <div className={styles.sectionHeading}>
                   <div>
                     <h2>أحدث النشاط الإداري</h2>
@@ -407,7 +403,7 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
                     </table>
                   </div>
                 )}
-              </section>
+              </section> : null}
             </>
           )}
         </div>

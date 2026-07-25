@@ -3,6 +3,7 @@ import { addSubscriptionDuration } from "../../../../../src/lib/subscription-lif
 import { transaction } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { rescheduleSubscriptionReminders } from "../../../../../src/server/subscription-operations.js";
+import { enqueueAdminDomainEvent } from "../../../../../src/server/admin-template-events.js";
 
 const durations = {
   month: [1, "month"],
@@ -37,10 +38,10 @@ export async function POST(req, { params }) {
         newExpiry = addSubscriptionDuration(base, durationValue, durationUnit);
       }
       const sourceItemId = `manual:${crypto.randomUUID()}`;
-      await client.query(
+      const renewal = await client.query(
         `INSERT INTO subscription_renewals
            (tenant_id,subscription_id,source,source_order_item_id,previous_expires_at,new_expires_at,duration_value,duration_unit)
-         VALUES ($1,$2,'manual',$3,$4,$5,$6,$7)`,
+         VALUES ($1,$2,'manual',$3,$4,$5,$6,$7) RETURNING id`,
         [auth.session.tenantId, id, sourceItemId, previous, newExpiry, durationValue, durationUnit]
       );
       const updated = await client.query(
@@ -56,6 +57,13 @@ export async function POST(req, { params }) {
          VALUES ($1,$2,'subscription.renewed','Subscription renewed',$3::jsonb)`,
         [auth.session.tenantId, auth.session.userId, JSON.stringify({ subscriptionId: id, previousExpiresAt: previous, newExpiresAt: newExpiry })]
       );
+      await enqueueAdminDomainEvent(client, {
+        eventType: "subscription.renewed",
+        aggregateType: "subscription_renewal",
+        aggregateId: renewal.rows[0].id,
+        payloadRefs: { renewalId: renewal.rows[0].id },
+        idempotencyKey: `admin-subscription-renewed:${renewal.rows[0].id}`
+      });
       return updated.rows[0];
     });
     if (!result) return Response.json({ ok: false }, { status: 404 });

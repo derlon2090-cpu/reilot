@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { after } from "next/server";
 import { verifySallaWebhook } from "../../../../../src/lib/salla.js";
+import { normalizeSubscriptionPhone } from "../../../../../src/lib/subscription-lifecycle.js";
 import { query, transaction } from "../../../../../src/server/db.js";
 import { provisionCustomerAccount } from "../../../../../src/server/provisioning.js";
 
@@ -16,7 +17,11 @@ function customerFrom(data) {
   const customer = data.customer || data.buyer || {};
   return {
     name: first(customer.name, [customer.first_name, customer.last_name].filter(Boolean).join(" "), data.customer_name),
-    email: first(customer.email, data.customer_email, data.email)
+    email: first(customer.email, data.customer_email, data.email),
+    phone: normalizeSubscriptionPhone(
+      first(customer.mobile, customer.phone, data.receiver?.phone, data.customer_phone),
+      first(customer.country_code, data.receiver?.country_code, "SA")
+    )
   };
 }
 
@@ -81,10 +86,24 @@ export async function POST(req) {
       if (!mapping.rowCount) continue;
       const match = mapping.rows[0];
       const job = await client.query(
-        `INSERT INTO account_provisioning_jobs (external_order_id,external_order_item_id,customer_email,customer_name,mapping_id,plan_id,duration_value,duration_unit,quantity,status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        `INSERT INTO account_provisioning_jobs
+           (external_order_id,external_order_item_id,customer_email,customer_name,customer_phone_e164,
+            mapping_id,plan_id,duration_value,duration_unit,quantity,status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (external_order_id,external_order_item_id) DO NOTHING RETURNING id`,
-        [orderId, item.itemId || `${orderId}:${item.productId}:${item.variantId}`, customer.email || null, customer.name || null, match.id, match.planId, match.durationValue, match.durationUnit, item.quantity, match.activationTrigger === "manual_approval" ? "pending" : "pending"]
+        [
+          orderId,
+          item.itemId || `${orderId}:${item.productId}:${item.variantId}`,
+          customer.email || null,
+          customer.name || null,
+          customer.phone || null,
+          match.id,
+          match.planId,
+          match.durationValue,
+          match.durationUnit,
+          item.quantity,
+          "pending"
+        ]
       );
       if (job.rowCount) ids.push(job.rows[0].id);
     }

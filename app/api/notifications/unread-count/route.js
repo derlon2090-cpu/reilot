@@ -12,5 +12,13 @@ export async function GET(req) {
         AND is_read = false`,
     [auth.session.tenantId, auth.session.userId]
   );
-  return Response.json({ ok: true, count: result.rows[0]?.count || 0 });
+  const platform = await query(
+    `SELECT count(*)::int AS count
+       FROM platform_notification_recipients r JOIN platform_notifications n ON n.id=r.notification_id
+      WHERE r.user_id=$1 AND r.read_at IS NULL AND r.delivery_status='available'
+        AND n.status IN ('published','partially_published')
+        AND (n.expires_at IS NULL OR n.expires_at > now())`,
+    [auth.session.userId]
+  ).catch(() => ({ rows: [{ count: 0 }] }));
+  return Response.json({ ok: true, count: Number(result.rows[0]?.count || 0) + Number(platform.rows[0]?.count || 0) });
 }

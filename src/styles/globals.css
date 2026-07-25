@@ -2039,6 +2039,133 @@ html[dir="rtl"] .devices-workspace > * { direction: rtl; }
 .device-card-actions { display: flex; flex-wrap: wrap; gap: 9px; }
 .device-card-actions .btn { flex: 1; }
 
+.meta-device-stats { margin-top: 16px; }
+.meta-devices-layout {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 16px;
+  align-items: start;
+}
+html[dir="rtl"] .meta-devices-layout { direction: ltr; }
+html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
+.meta-devices-main,
+.meta-devices-side { min-width: 0; display: grid; gap: 16px; }
+.meta-connect-card,
+.meta-accounts-card,
+.meta-requirements-card,
+.meta-important-card { padding: 18px; }
+.meta-connect-card .section-head { align-items: flex-start; }
+.meta-connect-card .section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #122d55;
+}
+.meta-connect-card .section-head h2 .line-icon { width: 24px; height: 24px; color: #10b981; }
+.meta-setup-steps {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  position: relative;
+  border: 1px solid #e2eaf3;
+  border-radius: 10px;
+  background: #fbfdff;
+}
+.meta-setup-steps::before {
+  height: 1px;
+  position: absolute;
+  inset: 42px 11% auto;
+  content: "";
+  background: #cad9ea;
+}
+.meta-setup-steps > div {
+  min-height: 148px;
+  padding: 18px 12px 14px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 7px;
+  position: relative;
+  text-align: center;
+}
+.meta-setup-steps > div > span {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  color: #1d6ff2;
+  border: 1px solid #cfe0fb;
+  border-radius: 50%;
+  background: #eef5ff;
+  font-weight: 800;
+}
+.meta-setup-steps > div.complete > span { color: #098d55; border-color: #bce9d2; background: #eafaf2; }
+.meta-setup-steps strong { color: #17345e; font-size: 12px; }
+.meta-setup-steps small { color: #7588a1; line-height: 1.65; font-size: 10px; }
+.meta-setup-steps em { color: #e89216; font-size: 9px; font-style: normal; font-weight: 800; }
+.meta-setup-steps .complete em { color: #0a9a5a; }
+.meta-config-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #1559b7;
+  border: 1px solid #cfe0fb;
+  border-radius: 9px;
+  background: #f4f8ff;
+}
+.meta-config-note > .line-icon { width: 20px; height: 20px; flex: 0 0 20px; }
+.meta-config-note strong { display: block; margin-bottom: 3px; }
+.meta-config-note p { margin: 0; color: #617797; line-height: 1.65; font-size: 11px; }
+.meta-accounts-card .section-head h2 span {
+  margin-inline-start: 5px;
+  color: #1769ed;
+  font-size: 11px;
+  vertical-align: top;
+}
+.meta-accounts-card table { min-width: 730px; }
+.meta-account-name { display: inline-flex; align-items: center; gap: 7px; }
+.meta-account-name .line-icon { width: 20px; height: 20px; color: #12ac67; }
+.meta-requirements-list { margin: 12px 0; display: grid; }
+.meta-requirements-list > div {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #edf1f6;
+}
+.meta-requirements-list span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: #7990ad;
+  border-radius: 50%;
+  background: #f1f5fa;
+  font-weight: 800;
+}
+.meta-requirements-list span.complete { color: #079957; background: #e8f8f0; }
+.meta-requirements-list strong { color: #294568; font-size: 11px; }
+.meta-requirements-list em { color: #8798ad; font-size: 9px; font-style: normal; }
+.meta-important-card ul { margin: 10px 0 14px; padding: 0 18px 0 0; display: grid; gap: 11px; }
+.meta-important-card li { color: #526b8d; line-height: 1.7; font-size: 11px; }
+.meta-connect-guide { display: grid; gap: 12px; color: #314d72; line-height: 1.8; }
+.meta-connect-guide ol { margin: 0; padding-inline-start: 22px; }
+.meta-connect-guide code { padding: 2px 5px; direction: ltr; border-radius: 4px; background: #edf3fb; }
+
+:root[data-theme="dark"] .meta-setup-steps { border-color: #29425e; background: #10253b; }
+:root[data-theme="dark"] .meta-connect-card .section-head h2,
+:root[data-theme="dark"] .meta-setup-steps strong,
+:root[data-theme="dark"] .meta-requirements-list strong { color: #e3efff; }
+:root[data-theme="dark"] .meta-setup-steps::before { background: #35516e; }
+:root[data-theme="dark"] .meta-config-note { color: #8ec0ff; border-color: #2e527e; background: #102b49; }
+:root[data-theme="dark"] .meta-config-note p,
+:root[data-theme="dark"] .meta-important-card li { color: #a9bdd6; }
+
 .template-workspace { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(350px, .7fr); gap: 18px; align-items: start; }
 .template-editor-card { padding: 20px; }
 .template-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
@@ -4099,4 +4226,28 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .message-usage-card.compact .message-limit-alert { grid-column: auto; }
   .message-usage-card.compact .message-usage-meta { justify-content: flex-start; }
   .message-usage-head, .message-usage-numbers, .message-limit-alert { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 1100px) {
+  .meta-devices-layout { grid-template-columns: 1fr; }
+  .meta-devices-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .meta-devices-side > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .meta-devices-side,
+  .meta-setup-steps { grid-template-columns: 1fr; }
+  .meta-devices-side > :last-child:nth-child(odd) { grid-column: auto; }
+  .meta-setup-steps::before { display: none; }
+  .meta-setup-steps > div {
+    min-height: 0;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    justify-items: start;
+    align-items: center;
+    text-align: right;
+  }
+  .meta-setup-steps > div > span { grid-row: 1 / 3; }
+  .meta-setup-steps small { text-align: right; }
+  .meta-setup-steps em { grid-column: 3; grid-row: 1 / 3; align-self: center; }
+  .meta-connect-card .section-head { align-items: stretch; flex-direction: column; }
 }

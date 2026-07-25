@@ -10,9 +10,11 @@ import {
 import { query, transaction } from "./db.js";
 import { sendQueuedEmail } from "./email/resend.service.js";
 import { evolutionConnectionState, evolutionSendText } from "./evolution-client.js";
+import { runAdminTemplateEventWorker } from "./admin-template-events.js";
 import { enqueueMessage } from "./message-queue.js";
 import { safeErrorMessage } from "./security.js";
 import { runDueSubscriptionReminders } from "./renewal-reminders.js";
+import { runPlatformNotificationWorker } from "./platform-notifications.js";
 
 export async function runRenewalReminders() {
   return runDueSubscriptionReminders();
@@ -426,6 +428,8 @@ export async function runCronJob(jobName) {
     "renewal-reminders": runRenewalReminders,
     "message-retry": runMessageRetry,
     "message-worker": runMessageRetry,
+    "platform-notifications": runPlatformNotificationWorker,
+    "admin-template-events": runAdminTemplateEventWorker,
     "whatsapp-health-check": runWhatsAppHealthCheck,
     "usage-reset": runUsageReset,
     cleanup: runCleanup
