@@ -7,6 +7,8 @@ const allowed = new Set([
   "whatsapp-health-check",
   "message-retry",
   "message-worker",
+  "platform-notifications",
+  "admin-template-events",
   "usage-reset",
   "cleanup"
 ]);

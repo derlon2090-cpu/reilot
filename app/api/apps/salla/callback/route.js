@@ -33,12 +33,28 @@ export async function GET(req) {
       refreshToken: tokens.refresh_token, expiresIn: tokens.expires_in, scopes: tokens.scope, merchant });
     try {
       await registerSallaOperationalWebhooks(tokens.access_token, origin);
+      await query(
+        `UPDATE app_connections SET readiness_status='initial_sync_pending',
+                webhooks_registered_at=now(),last_error=NULL,updated_at=now()
+          WHERE tenant_id=$1 AND provider='salla'`,
+        [state.tenantId]
+      );
     } catch (webhookError) {
-      await query(`INSERT INTO app_sync_logs (tenant_id, provider, event_type, status, message)
-        VALUES ($1,'salla','webhook.registration','warning',$2)`, [state.tenantId, String(webhookError.message).slice(0,300)]).catch(() => {});
+      const message = String(webhookError.message || "webhook_registration_failed").slice(0, 300);
+      await query(
+        `UPDATE app_connections SET readiness_status='partially_ready',last_error=$2,updated_at=now()
+          WHERE tenant_id=$1 AND provider='salla'`,
+        [state.tenantId, message]
+      );
+      await query(
+        `INSERT INTO app_sync_logs (tenant_id, provider, event_type, status, message)
+         VALUES ($1,'salla','webhook.registration','failed',$2)`,
+        [state.tenantId, message]
+      ).catch(() => {});
+      return redirect(req, "webhook_setup_failed");
     }
     await query("INSERT INTO activity_logs (tenant_id, type, title) VALUES ($1, 'salla.connected', 'تم ربط متجر سلة')", [state.tenantId]);
-    return redirect(req, "connected");
+    return redirect(req, "sync_required");
   } catch (error) {
     await query(`UPDATE app_connections SET status = 'error', last_error = $2, updated_at = now()
       WHERE tenant_id = $1 AND provider = 'salla'`, [state.tenantId, String(error.message).slice(0, 300)]).catch(() => {});

@@ -6,7 +6,8 @@ const ROLE_PERMISSIONS = {
   super_admin: { "*": ["*"] },
   operations_admin: {
     overview: ["read"], subscriptions: ["read", "update"], customers: ["read", "update"],
-    stores: ["read", "update"], templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"], devices: ["read", "update"],
+    stores: ["read", "update"], notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
+    templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"], devices: ["read", "update"],
     integrations: ["read", "update"], reports: ["read", "export"], audit: ["read"]
   },
   admin: {
@@ -18,6 +19,7 @@ const ROLE_PERMISSIONS = {
     reports: ["read", "export"],
     stores: ["read", "update"],
     templates: ["read", "update"],
+    notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
     campaigns: ["read", "update"],
     contacts: ["read", "update"],
     integrations: ["read", "update"],
@@ -49,7 +51,7 @@ const ROLE_PERMISSIONS = {
   },
   read_only: {
     overview: ["read"], subscriptions: ["read"], customers: ["read"], stores: ["read"], campaigns: ["read"], contacts: ["read"],
-    templates: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
+    templates: ["read"], notifications: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
     reports: ["read"], billing: ["read"], settings: ["read"], audit: ["read"]
   },
   viewer: {

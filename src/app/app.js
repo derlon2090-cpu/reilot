@@ -2230,31 +2230,80 @@ function connectedDevicesCenterPage() {
 
 function devicesWorkspacePage() {
   const device = { ...defaultLinkedDevice, ...state.linkedDevice };
-  const stats = overviewStats();
-  const isConnected = device.status === "connected";
-  const isPending = ["pending_pairing", "pending_qr", "connecting"].includes(device.status);
-  const method = device.linkMethod || "pairing";
-  const hasQr = isRealQrDataUri(device.qrBase64);
-  const hasPairing = device.status === "pending_pairing" && Boolean(device.pairingCode);
-  const lastCheck = device.lastCheckAt || (stats.lastDeviceCheck ? new Date(stats.lastDeviceCheck).toLocaleString("ar-SA") : "لم يتم الفحص بعد");
-  const quality = isConnected ? "ممتاز" : "غير متاح";
-  const deviceRows = isConnected || isPending ? [[
-    `<strong>${escapeHtml(device.deviceName || (isConnected ? "جهاز واتساب متصل" : "جلسة ربط جديدة"))}</strong><small>جلسة ربط آمنة</small>`,
-    escapeHtml(device.phoneNumber || device.phoneInput || "غير متوفر"), status(device.status), isConnected ? "ممتاز" : "بانتظار الربط", escapeHtml(lastCheck),
-    `<div class="row-actions"><button class="icon-action" data-action="check-device-connection" title="فحص الاتصال">${dashboardIcon("reports")}</button>${isConnected ? `<button class="icon-action danger-text" data-action="disconnect-device" title="فصل الجهاز">×</button>` : ""}<button class="icon-action danger-text" data-action="delete-device" title="حذف الجهاز">⋮</button></div>`
+  const isMetaChannel = ["meta", "meta_cloud_api"].includes(String(device.provider || "").toLowerCase());
+  const isConnected = isMetaChannel && device.status === "connected";
+  const isPending = isMetaChannel && ["pending", "connecting", "pending_setup"].includes(device.status);
+  const accountCount = isMetaChannel ? 1 : 0;
+  const connectedCount = isConnected ? 1 : 0;
+  const pendingCount = isPending ? 1 : 0;
+  const lastCheck = device.lastCheckAt || device.lastHealthCheckAt || "";
+  const accountName = device.displayName || device.deviceName || "حساب واتساب الرسمي";
+  const phone = device.phoneNumber || "";
+  const activity = Array.isArray(device.activity) ? device.activity : [];
+  const metaConfigured = Boolean(window.__RENVIX_CONFIG__?.metaWhatsAppEnabled);
+  const requirements = [
+    ["حساب Meta Business", isConnected || isPending, isConnected || isPending ? "متصل" : "غير متصل"],
+    ["رقم واتساب رسمي", Boolean(phone), phone ? "تم التحقق" : "غير مضاف"],
+    ["صلاحيات API", isConnected, isConnected ? "مفعلة" : "غير مفعلة"],
+    ["Webhook", isConnected, isConnected ? "مفعل" : "غير مفعّل"],
+    ["حالة API", isConnected, isConnected ? "سليم" : "غير متاح"]
+  ];
+  const rows = accountCount ? [[
+    `<span class="meta-account-name">${dashboardIcon("whatsapp")}<strong>${escapeHtml(accountName)}</strong></span>`,
+    escapeHtml(phone || "غير متوفر"),
+    `<span class="status ${isConnected ? "success" : "warning"}">${isConnected ? "متصل" : "قيد الإعداد"}</span>`,
+    escapeHtml(lastCheck ? new Date(lastCheck).toLocaleString("ar-SA") : "لم تتم المزامنة بعد"),
+    Number(device.messages24h || 0).toLocaleString("ar-SA"),
+    `<div class="row-actions"><button class="btn btn-secondary" data-action="check-device-connection">متابعة</button><button class="icon-action" aria-label="المزيد">⋯</button></div>`
   ]] : [];
-  const qrPanel = `<div class="device-method-panel qr-method-panel">${hasQr ? `<button class="qr-display" data-action="show-device-qr"><img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب الحقيقي"><span>اضغط لتكبير الباركود</span></button>` : `<div class="device-empty-visual">${dashboardIcon("devices")}<strong>لا يوجد باركود جاهز</strong><p>${escapeHtml(device.qrError || "أنشئ باركودًا جديدًا للبدء.")}</p></div>`}<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : "إنشاء/تحديث الباركود"}</button>${hasQr ? `<small>صالح حتى ${escapeHtml(device.qrExpiresAt || "وقت قصير")}</small>` : ""}</div>`;
-  const pairingPanel = `<div class="device-method-panel pairing-method-panel"><label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${escapeHtml(device.phoneInput || "")}" placeholder="0551234567 أو 9665XXXXXXXX" inputmode="tel"></label><small>سيتم تحويل الرقم السعودي المحلي تلقائيًا إلى الصيغة الدولية.</small><button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء الرمز..." : "إنشاء رمز الاقتران"}</button>${device.pairingError ? `<p class="status danger">${escapeHtml(device.pairingError)}</p>` : ""}${hasPairing ? `<div class="pairing-success"><span class="status success">تم الإنشاء بنجاح</span><div class="pairing-code-row"><strong>${escapeHtml(device.pairingCode)}</strong><button class="btn btn-secondary" data-action="copy-pairing">نسخ</button></div><small>صالح حتى ${escapeHtml(device.pairingExpiresAt || "وقت قصير")}</small><p>افتح واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز ← الربط برقم الهاتف، ثم أدخل الرمز.</p></div>` : `<div class="device-empty-visual compact">${dashboardIcon("template")}<strong>سيظهر رمز الاقتران الحقيقي هنا</strong><p>لن تعرض المنصة أي رمز غير صالح أو مُنشأ محليًا.</p></div>`}</div>`;
-  return dashboardShell(`${pageTitle("الأجهزة المرتبطة", `<button class="btn btn-secondary" data-action="check-device-connection" ${!device.instanceId ? "disabled" : ""}>${dashboardIcon("reports")} فحص الاتصال</button>`)}
-    <p class="page-kicker">إدارة أجهزة واتساب المرتبطة بحسابك ومراقبة حالة الاتصال في الوقت الفعلي.</p>
-    ${statGrid([
-      { title: "الأجهزة المتصلة", value: stats.connectedDevices, caption: "أجهزة متصلة الآن", tone: isConnected ? "success" : "neutral", icon: "devices" },
-      { title: "بانتظار الربط", value: stats.pendingDevices, caption: "جلسات فعلية", tone: "warning", icon: "template" },
-      { title: "جودة الاتصال", value: quality, caption: isConnected ? "واتساب متصل" : "اربط جهازًا للقياس", tone: isConnected ? "success" : "neutral", icon: "reports" },
-      { title: "آخر فحص", value: lastCheck, caption: "حالة القناة الحالية", tone: "info", icon: "security" }
-    ])}
-    <section class="section devices-workspace"><article class="card devices-table-card"><div class="section-head"><div><h2>الأجهزة المرتبطة</h2><p>تظهر هنا القناة الفعلية الخاصة بمساحة عملك فقط.</p></div><button class="btn btn-secondary" data-action="check-device-connection" ${!device.instanceId ? "disabled" : ""}>فحص الاتصال</button></div>${deviceRows.length ? simpleTable(["اسم النسخة", "رقم الهاتف", "الحالة", "جودة الاتصال", "آخر مزامنة", "الإجراء"], deviceRows) : emptyState("لا توجد أجهزة مرتبطة", "ابدأ بإنشاء رمز اقتران أو باركود من اللوحة المجاورة.")}</article>
-      <aside class="card device-link-card"><div class="section-head"><div><h2>ربط جهاز جديد</h2><p>اختر طريقة الربط المناسبة لك.</p></div>${dashboardIcon("devices")}</div><span class="field-label">طريقة الربط</span><div class="segmented device-method-tabs"><button class="${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">${dashboardIcon("template")} الربط عبر رمز الاقتران</button><button class="${method === "qr" ? "active" : ""}" data-action="device-link-method" data-method="qr">${dashboardIcon("devices")} الربط عبر الباركود</button></div>${method === "pairing" ? pairingPanel : qrPanel}<div class="device-card-actions">${isConnected ? `<button class="btn btn-secondary" data-action="send-device-test">إرسال رسالة اختبار</button><button class="btn btn-danger" data-action="disconnect-device">فصل الجهاز</button>` : `<button class="btn btn-secondary" data-action="check-device-connection" ${!isPending ? "disabled" : ""}>فحص حالة الربط</button>`}</div></aside>
+
+  return dashboardShell(`${pageTitle("الأجهزة", `<div class="inline-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">+ ربط حساب جديد</button><button class="btn btn-secondary" data-action="check-device-connection" ${!accountCount ? "disabled" : ""}>${dashboardIcon("reports")} مزامنة الحالة</button></div>`)}
+    <p class="page-kicker">إدارة وربط حسابات واتساب الرسمية عبر واجهة Meta Cloud API ومراقبة حالتها.</p>
+    <section class="meta-device-stats">
+      ${statGrid([
+        { title: "حالة التكامل", value: isConnected ? "سليم" : isPending ? "قيد الإعداد" : "غير مربوط", caption: isConnected ? "جميع الأنظمة تعمل بشكل طبيعي" : "اربط حساب Meta للبدء", tone: isConnected ? "success" : "neutral", icon: "security" },
+        { title: "القنوات النشطة", value: connectedCount, caption: "قنوات واتساب نشطة", tone: isConnected ? "info" : "neutral", icon: "reports" },
+        { title: "اتصالات قيد الإعداد", value: pendingCount, caption: pendingCount ? "بانتظار الإكمال" : "لا توجد اتصالات معلقة", tone: pendingCount ? "warning" : "neutral", icon: "template" },
+        { title: "الأرقام الرسمية المتصلة", value: connectedCount, caption: accountCount ? `من أصل ${accountCount}` : "لا توجد أرقام بعد", tone: isConnected ? "success" : "neutral", icon: "whatsapp" }
+      ])}
+    </section>
+    <section class="meta-devices-layout">
+      <div class="meta-devices-main">
+        <article class="card meta-connect-card">
+          <div class="section-head"><div><h2>${dashboardIcon("whatsapp")} ربط حساب واتساب الرسمي</h2><p>اربط حساب واتساب التجاري الرسمي الخاص بك عبر Meta Business بشكل آمن ومعتمد.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">+ ربط حساب جديد</button><button class="btn btn-secondary" data-action="check-device-connection" ${!accountCount ? "disabled" : ""}>مزامنة الحالة</button></div></div>
+          <div class="meta-setup-steps">
+            ${[
+              ["1", "اختيار الحساب التجاري", "اختر حساب Meta Business وWhatsApp Manager.", isConnected || isPending],
+              ["2", "ربط الرقم", "اختر رقم واتساب رسميًا ومعتمدًا.", Boolean(phone)],
+              ["3", "إعداد Webhook", "تسجيل Webhook واستقبال الأحداث والرسائل.", isConnected],
+              ["4", "تأكيد الحالة", "فحص الصلاحيات وتفعيل القناة في مساحة عملك.", isConnected]
+            ].map(([number, title, description, complete]) => `<div class="${complete ? "complete" : ""}"><span>${complete ? "✓" : number}</span><strong>${title}</strong><small>${description}</small><em>${complete ? "مكتمل" : "بانتظار الإعداد"}</em></div>`).join("")}
+          </div>
+          ${!metaConfigured && !accountCount ? `<div class="meta-config-note">${dashboardIcon("notifications")}<div><strong>الربط الرسمي غير مهيأ بعد</strong><p>يجب أن يضبط مسؤول المنصة بيانات تطبيق Meta وCallback الآمن قبل بدء الربط. لن تُعرض جلسات QR أو بيانات تجريبية بديلة.</p></div></div>` : ""}
+        </article>
+        <article class="card meta-accounts-card">
+          <div class="section-head"><div><h2>الحسابات المتصلة <span>${accountCount}</span></h2><p>الحسابات الرسمية المسجلة فعليًا في مساحة عملك.</p></div></div>
+          ${rows.length ? simpleTable(["الاسم المعروض", "رقم العمل", "النوع", "آخر مزامنة", "الأحداث (24 ساعة)", "الإجراءات"], rows) : emptyState("لا توجد حسابات واتساب رسمية مرتبطة", "ابدأ بربط حساب Meta Business. ستظهر الحسابات هنا بعد اكتمال التفويض والتحقق من Webhook.")}
+        </article>
+      </div>
+      <aside class="meta-devices-side">
+        <article class="card meta-requirements-card">
+          <div class="section-head"><div><h2>متطلبات ربط واتساب الرسمي</h2><p>حالة كل متطلب مأخوذة من إعداد القناة الفعلي.</p></div><span class="status ${isConnected ? "success" : "neutral"}">${isConnected ? "جاهز" : "غير مكتمل"}</span></div>
+          <div class="meta-requirements-list">${requirements.map(([label, complete, value]) => `<div><span class="${complete ? "complete" : ""}">${complete ? "✓" : "•"}</span><strong>${label}</strong><em>${value}</em></div>`).join("")}</div>
+          <button class="btn btn-secondary" data-action="connect-meta-whatsapp">فتح دليل الربط الإرشادي</button>
+        </article>
+        <article class="card meta-important-card">
+          <div class="section-head"><div><h2>${dashboardIcon("notifications")} معلومات مهمة</h2></div></div>
+          <ul>
+            <li>يجب أن يكون رقم واتساب غير مستخدم في تطبيق واتساب العادي عند بدء الربط الرسمي.</li>
+            <li>لا تُحفظ مفاتيح Meta كنص صريح داخل قاعدة البيانات أو الواجهة.</li>
+            <li>يتم التحقق من توقيع Webhook قبل قبول أي حدث.</li>
+            <li>تعتمد حالة الرسالة على تأكيد Meta الفعلي، ولا تُعرض «تم التسليم» قبل وصول الإيصال.</li>
+          </ul>
+          <button class="btn btn-link" data-action="connect-meta-whatsapp">قراءة المزيد من التعليمات</button>
+        </article>
+        ${activity.length ? `<article class="card"><h2>آخر النشاطات</h2><div class="activity-list">${activity.slice(0, 5).map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(typeof item === "string" ? item : item.title || "نشاط واتساب")}</strong><p class="muted">${escapeHtml(typeof item === "object" ? item.createdAt || "" : "")}</p></div></div>`).join("")}</div></article>` : ""}
+      </aside>
     </section>`);
 }
 
@@ -3974,6 +4023,26 @@ async function handleAction(target) {
   if (action === "device-link-method") {
     state.linkedDevice = { ...state.linkedDevice, linkMethod: target.dataset.method };
     render();
+  }
+  if (action === "connect-meta-whatsapp") {
+    const connectUrl = window.__RENVIX_CONFIG__?.metaWhatsAppConnectUrl;
+    if (connectUrl) {
+      window.location.assign(connectUrl);
+      return;
+    }
+    openModal(
+      "ربط حساب واتساب الرسمي",
+      `<div class="meta-connect-guide">
+        <p>يحتاج الربط الرسمي إلى تطبيق Meta Business مهيأ من مسؤول المنصة.</p>
+        <ol>
+          <li>إضافة رابط Embedded Signup الآمن في متغير <code>NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL</code>.</li>
+          <li>تسجيل Callback وWebhook في تطبيق Meta والتحقق من التوقيع.</li>
+          <li>تشفير Access Token في الخادم وربطه بمساحة العمل الحالية.</li>
+        </ol>
+        <div class="meta-config-note"><strong>حماية البيانات</strong><p>لن تطلب Renvix مفتاح Meta داخل المتصفح، ولن تنشئ قناة وهمية بدل الربط الرسمي.</p></div>
+      </div>`,
+      `<button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`
+    );
   }
   if (action === "create-pairing-code") {
     let phone = String(state.linkedDevice.phoneInput || "").replace(/\D/g, "");

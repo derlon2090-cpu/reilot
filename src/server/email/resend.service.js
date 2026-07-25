@@ -24,7 +24,7 @@ export async function sendOrderInformationEmail({ to, customerName, storeName, o
   });
 }
 
-export async function sendQueuedEmail({ to, subject, text, templateSnapshot = null }) {
+export async function sendQueuedEmail({ to, subject, text, templateSnapshot = null, tags = [] }) {
   if (templateSnapshot?.type === "renewal_email_v1") {
     return sendEmail({
       to,
@@ -39,6 +39,7 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
     to,
     subject: subject || "إشعار من Renvix",
     text,
+    tags,
     html: baseEmail({
       title: subject || "إشعار من Renvix",
       children: `<div style="color:#0f172a;line-height:1.9">${safeText}</div>`

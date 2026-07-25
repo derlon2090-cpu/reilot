@@ -53,6 +53,34 @@ export async function GET(req) {
     params
   );
 
+  const platformParams = [auth.session.userId];
+  const platformWhere = [
+    "r.user_id = $1",
+    "r.delivery_status = 'available'",
+    "n.status IN ('published','partially_published')",
+    "(n.expires_at IS NULL OR n.expires_at > now())"
+  ];
+  if (status === "unread") platformWhere.push("r.read_at IS NULL");
+  if (status === "read") platformWhere.push("r.read_at IS NOT NULL");
+  if (search) {
+    platformParams.push(`%${search}%`);
+    platformWhere.push(`(n.title ILIKE $${platformParams.length} OR n.body ILIKE $${platformParams.length})`);
+  }
+  platformParams.push(limit);
+  const platformResult = await query(
+    `SELECT r.id,n.notification_type AS type,n.title,n.body AS message,NULL::text AS "entityType",
+            NULL::uuid AS "entityId",n.priority,(r.read_at IS NOT NULL) AS "isRead",r.read_at AS "readAt",
+            n.action_url AS "actionUrl",
+            jsonb_build_object('source','platform','surfaces',n.delivery_surfaces,'actionLabel',n.action_label,
+              'requireAcknowledgement',n.require_acknowledgement,'pinned',n.pinned) AS metadata,
+            n.created_at AS "createdAt"
+       FROM platform_notification_recipients r
+       JOIN platform_notifications n ON n.id=r.notification_id
+      WHERE ${platformWhere.join(" AND ")}
+      ORDER BY n.pinned DESC,n.created_at DESC LIMIT $${platformParams.length}`,
+    platformParams
+  ).catch(() => ({ rows: [] }));
+
   const summary = await query(
     `SELECT COUNT(*)::int AS total,
             COUNT(*) FILTER (WHERE is_read = false)::int AS unread,
@@ -62,6 +90,28 @@ export async function GET(req) {
       WHERE tenant_id = $1 AND (user_id IS NULL OR user_id = $2)`,
     [auth.session.tenantId, auth.session.userId]
   );
-
-  return Response.json({ ok: true, items: result.rows, summary: summary.rows[0] });
+  const platformSummary = await query(
+    `SELECT count(*)::int AS total,count(*) FILTER(WHERE r.read_at IS NULL)::int AS unread,
+            count(*) FILTER(WHERE n.created_at >= date_trunc('day',now() AT TIME ZONE 'Asia/Riyadh'))::int AS today,
+            count(*) FILTER(WHERE n.created_at >= now()-interval '7 days')::int AS week
+       FROM platform_notification_recipients r JOIN platform_notifications n ON n.id=r.notification_id
+      WHERE r.user_id=$1 AND r.delivery_status='available' AND n.status IN ('published','partially_published')
+        AND (n.expires_at IS NULL OR n.expires_at > now())`,
+    [auth.session.userId]
+  ).catch(() => ({ rows: [{ total: 0, unread: 0, today: 0, week: 0 }] }));
+  const merged = [...result.rows, ...platformResult.rows]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, limit);
+  const base = summary.rows[0] || {};
+  const platform = platformSummary.rows[0] || {};
+  return Response.json({
+    ok: true,
+    items: merged,
+    summary: {
+      total: Number(base.total || 0) + Number(platform.total || 0),
+      unread: Number(base.unread || 0) + Number(platform.unread || 0),
+      today: Number(base.today || 0) + Number(platform.today || 0),
+      week: Number(base.week || 0) + Number(platform.week || 0)
+    }
+  });
 }

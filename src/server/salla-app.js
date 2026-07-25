@@ -80,8 +80,10 @@ export async function upsertSallaConnection({ tenantId, accessToken, refreshToke
     const result = await client.query(
       `INSERT INTO app_connections
         (tenant_id, provider, provider_store_id, provider_store_name, provider_store_domain,
-         status, access_token_encrypted, refresh_token_encrypted, token_expires_at, scopes, last_error)
-       VALUES ($1, 'salla', $2, $3, $4, 'connected', $5, $6, $7, $8::jsonb, NULL)
+         status, access_token_encrypted, refresh_token_encrypted, token_expires_at, scopes, last_error,
+         readiness_status,webhooks_registered_at,initial_sync_completed_at,ready_at)
+       VALUES ($1, 'salla', $2, $3, $4, 'connected', $5, $6, $7, $8::jsonb, NULL,
+         'token_saved',NULL,NULL,NULL)
        ON CONFLICT (tenant_id, provider) DO UPDATE SET
          provider_store_id = EXCLUDED.provider_store_id,
          provider_store_name = EXCLUDED.provider_store_name,
@@ -89,7 +91,8 @@ export async function upsertSallaConnection({ tenantId, accessToken, refreshToke
          status = 'connected', access_token_encrypted = EXCLUDED.access_token_encrypted,
          refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
          token_expires_at = EXCLUDED.token_expires_at, scopes = EXCLUDED.scopes,
-         last_error = NULL, updated_at = now()
+         last_error = NULL,readiness_status='token_saved',webhooks_registered_at=NULL,
+         initial_sync_completed_at=NULL,ready_at=NULL, updated_at = now()
        RETURNING id`,
       [tenantId, storeId, storeName, storeDomain,
         encryptSecret(accessToken, process.env.ENCRYPTION_KEY),

@@ -4,6 +4,7 @@ import {
   addSubscriptionDuration, findProductPlanMapping, normalizeSallaSubscriptionOrder,
   reminderIdempotencyKey, renewalBaseDate
 } from "../lib/subscription-lifecycle.js";
+import { enqueueAdminDomainEvent } from "./admin-template-events.js";
 
 function pgDate(value) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -247,6 +248,13 @@ export async function processSallaSubscriptionOrder({ tenantId, connectionId, pa
           );
           await scheduleSubscriptionReminders(client, updated.rows[0], mapping, { enabled: sendNotifications });
           await client.query("UPDATE renewal_tracking_links SET renewed_at = now() WHERE subscription_id = $1 AND renewed_at IS NULL", [previous.id]);
+          await enqueueAdminDomainEvent(client, {
+            eventType: "subscription.renewed",
+            aggregateType: "subscription_renewal",
+            aggregateId: renewal.rows[0].id,
+            payloadRefs: { renewalId: renewal.rows[0].id },
+            idempotencyKey: `admin-subscription-renewed:${renewal.rows[0].id}`
+          });
           result.renewed += 1;
         } else {
           const startsAt = new Date(order.activatedAt);

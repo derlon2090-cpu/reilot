@@ -3,7 +3,11 @@ import { requireAdminPermission } from "../../../../../../src/server/admin-auth.
 import { query } from "../../../../../../src/server/db.js";
 import { renderAdminTemplate } from "../../../../../../src/server/admin-messaging.js";
 
-const schema = z.object({ values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}) });
+const schema = z.object({
+  values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+  subject: z.string().max(200).optional().nullable(),
+  body: z.string().max(10000).optional()
+});
 
 export async function POST(request, { params }) {
   const auth = await requireAdminPermission(request, "templates", "read");
@@ -18,12 +22,14 @@ export async function POST(request, { params }) {
   );
   const template = result.rows[0];
   if (!template) return Response.json({ ok: false, reason: "template_not_found" }, { status: 404 });
-  if (!template.isActive) return Response.json({ ok: false, reason: "template_disabled" }, { status: 409 });
   try {
-    const rendered = renderAdminTemplate(template, parsed.data.values, { maskTemporaryPassword: true });
+    const rendered = renderAdminTemplate({
+      ...template,
+      subject: parsed.data.subject === undefined ? template.subject : parsed.data.subject,
+      body: parsed.data.body === undefined ? template.body : parsed.data.body
+    }, parsed.data.values, { maskTemporaryPassword: true });
     return Response.json({ ok: true, rendered, isPreview: true }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     return Response.json({ ok: false, reason: error.code || "render_failed", variables: error.variables || [] }, { status: 400 });
   }
 }
-

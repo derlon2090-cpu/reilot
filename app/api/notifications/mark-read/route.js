@@ -13,7 +13,19 @@ export async function POST(req) {
       RETURNING id`,
     [body.id, auth.session.tenantId, auth.session.userId]
   );
-  return result.rows[0]
+  if (result.rows[0]) return Response.json({ ok: true });
+  const platform = await query(
+    `WITH changed AS (
+       UPDATE platform_notification_recipients
+          SET read_at=now()
+        WHERE id=$1 AND user_id=$2 AND read_at IS NULL
+        RETURNING notification_id
+     )
+     UPDATE platform_notifications n SET read_count=read_count+1
+       FROM changed WHERE n.id=changed.notification_id RETURNING n.id`,
+    [body.id, auth.session.userId]
+  ).catch(() => ({ rows: [] }));
+  return platform.rows[0]
     ? Response.json({ ok: true })
     : Response.json({ ok: false, reason: "notification_not_found" }, { status: 404 });
 }
