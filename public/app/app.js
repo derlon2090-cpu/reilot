@@ -825,9 +825,11 @@ function dashboardIcon(name) {
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     support: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M18 19h-2v-7h4v5a2 2 0 0 1-2 2ZM6 19H4a2 2 0 0 1-2-2v-5h4v7Z"/><path d="M16 19c0 1.1-.9 2-2 2h-2"/>',
      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
-     linkedin: '<path d="M6 9v9M6 6v.01M10 18v-5a4 4 0 0 1 8 0v5M10 13V9"/><rect x="3" y="3" width="18" height="18" rx="4"/>',
-     youtube: '<rect x="3" y="6" width="18" height="12" rx="4"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/>',
-     x: '<path d="m5 4 14 16M19 4 5 20"/>',
+     linkedin: '<path fill="currentColor" stroke="none" d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.32 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14ZM7.1 20.45H3.54V9H7.1v11.45Z"/>',
+     facebook: '<path fill="currentColor" stroke="none" d="M13.7 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.25-1.5 1.55-1.5h1.65V3.62c-.29-.04-1.27-.12-2.42-.12-2.4 0-4.05 1.47-4.05 4.16V9.9H7.7V13h2.73v8h3.27Z"/>',
+     youtube: '<path fill="currentColor" stroke="none" d="M21.58 7.19a2.96 2.96 0 0 0-2.08-2.1C17.66 4.6 12 4.6 12 4.6s-5.66 0-7.5.49a2.96 2.96 0 0 0-2.08 2.1A30.8 30.8 0 0 0 1.93 12c0 1.63.14 3.25.49 4.81a2.96 2.96 0 0 0 2.08 2.1c1.84.49 7.5.49 7.5.49s5.66 0 7.5-.49a2.96 2.96 0 0 0 2.08-2.1c.35-1.56.49-3.18.49-4.81s-.14-3.25-.49-4.81Z"/><path fill="#fff" stroke="none" d="m9.85 15.15 5.15-3.15-5.15-3.15v6.3Z"/>',
+     x: '<path fill="currentColor" stroke="none" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>',
+     instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.7" r="1" fill="currentColor" stroke="none"/>',
      globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
      whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.9 7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M8.7 8.1c.3 2.7 2.5 4.8 5.2 5.2M14.6 12.2l-1.4 1.1M9.8 9.4l1.1-1.2"/>',
     send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
@@ -886,11 +888,12 @@ function publicShell(content) {
 
 function resetPasswordIcon() {
   return `<svg class="reset-password-icon-svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-    <path d="M51 32A19 19 0 1 1 45 18"/>
-    <path d="M44 10v9h9"/>
-    <rect x="22" y="28" width="20" height="16" rx="3.5"/>
-    <path d="M26.5 28v-5a5.5 5.5 0 0 1 11 0v5"/>
-    <path d="M32 34v3"/>
+    <path d="M47 49A23 23 0 1 1 54 31"/>
+    <path d="M54 20v11"/>
+    <path d="m48 25 6 6 6-6"/>
+    <rect x="21" y="28" width="22" height="18" rx="4"/>
+    <path d="M26 28v-5.5a6 6 0 0 1 12 0V28"/>
+    <path d="M32 34v4"/>
   </svg>`;
 }
 
@@ -898,7 +901,7 @@ function publicFooter() {
   return `<footer class="public-footer"><div class="container public-footer-inner">
     <div class="footer-brand-mini">${logo()}<span>© 2026 Renvix. جميع الحقوق محفوظة.</span></div>
     <nav class="footer-links" aria-label="روابط سريعة"><button data-link="/about">عن المنصة</button><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button><button data-link="/support">الدعم</button><button data-link="/contact">تواصل معنا</button><button data-link="/blog">المدونة</button></nav>
-    <div class="footer-social"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://wa.me/" target="_blank" rel="noreferrer" aria-label="${state.language === "en" ? "Website" : "الموقع"}">${dashboardIcon("globe")}</a></div>
+    <div class="footer-social" aria-label="${state.language === "en" ? "Social media" : "وسائل التواصل الاجتماعي"}"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://www.facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">${dashboardIcon("facebook")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">${dashboardIcon("instagram")}</a></div>
   </div></footer>`;
 }
 
