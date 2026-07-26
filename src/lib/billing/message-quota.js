@@ -126,7 +126,7 @@ async function insertNotification(client, { tenantId, type, title, message, prio
 
 async function notifyForUsage(client, tenantId, period, channelType = null) {
   const usage = calculateMessageUsage(period);
-  const channels = channelType ? [channelType] : ["email", "sms"];
+  const channels = channelType ? [channelType] : ["email"];
   for (const channel of channels) {
     const channelUsage = usage.channels[channel];
     if (!channelUsage || channelUsage.unlimited || channelUsage.limit <= 0) continue;

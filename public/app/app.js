@@ -102,7 +102,7 @@ Object.assign(operationalEnglishPhrases, {
   "إدارة اشتراكات ذكية": "Smart subscription management",
   "أتمتة التجديدات والتنبيهات وتقليل الانقطاعات وزيادة رضا العملاء.": "Automate renewals and reminders, reduce interruptions, and improve customer satisfaction.",
   "تذكيرات متعددة القنوات": "Multi-channel reminders",
-  "إرسال عبر واتساب وSMS والبريد الإلكتروني في الوقت المناسب.": "Send timely reminders through WhatsApp, SMS, and email.",
+  "إرسال عبر واتساب والبريد الإلكتروني في الوقت المناسب.": "Send timely reminders through WhatsApp and email.",
   "ربط الأجهزة بسهولة": "Easy device linking",
   "دعم الباركود ورمز الاقتران لأكثر من جهاز وقناة.": "Connect devices and channels using QR or pairing codes.",
   "تقارير وتحليلات متقدمة": "Advanced reports and analytics",
@@ -276,7 +276,7 @@ Object.assign(operationalEnglishPhrases, {
   "حفظ وتنظيم بيانات العملاء وسجل المعاملات والتجديدات في مكان واحد.": "Organize customer data, transactions, and renewals in one place.",
   "ربط الأجهزة والباركود": "Device and QR linking",
   "ربط الأجهزة وتوليد الباركود ورمز الاقتران ومراقبة الاتصال.": "Link devices, generate QR and pairing codes, and monitor connectivity.",
-  "التذكيرات عبر واتساب وSMS والبريد": "WhatsApp, SMS, and email reminders",
+  "التذكيرات عبر واتساب والبريد": "WhatsApp and email reminders",
   "إرسال تذكيرات متعددة القنوات بقوالب مرنة ومخصصة.": "Send multi-channel reminders with flexible, personalized templates.",
   "التحليلات والتقارير": "Analytics and reports",
   "تقارير تفصيلية ولوحات تحكم ذكية لمراقبة الأداء واتخاذ قرارات دقيقة.": "Use detailed reports and intelligent dashboards to make informed decisions.",
@@ -459,7 +459,7 @@ const state = {
   subscriptionSection: "list",
   templateCatalogChannel: "all",
   templateCatalogSearch: "",
-  settings: { whatsapp: false, email: false, sms: false, twoFactor: false, renewAuto: false },
+  settings: { whatsapp: false, email: false, twoFactor: false, renewAuto: false },
   linkedDevice: { ...defaultLinkedDevice }
 };
 
@@ -629,7 +629,6 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       state.settings = {
         whatsapp: Boolean(payload.settings.notificationChannels?.whatsapp),
         email: Boolean(payload.settings.notificationChannels?.email),
-        sms: Boolean(payload.settings.notificationChannels?.sms),
         twoFactor: Boolean(payload.settings.security?.twoFactor),
         renewAuto: Boolean(payload.settings.security?.renewAuto)
       };
@@ -1181,7 +1180,7 @@ const publicBlogPosts = [
 function marketingHomePage() {
   const highlights = [
     ["إدارة اشتراكات ذكية", "أتمتة التجديدات والتنبيهات وتقليل الانقطاعات وزيادة رضا العملاء.", "subscriptions"],
-    ["تذكيرات متعددة القنوات", "إرسال عبر واتساب وSMS والبريد الإلكتروني في الوقت المناسب.", "template"],
+    ["تذكيرات متعددة القنوات", "إرسال عبر واتساب والبريد الإلكتروني في الوقت المناسب.", "template"],
     ["ربط الأجهزة بسهولة", "دعم الباركود ورمز الاقتران لأكثر من جهاز وقناة.", "devices"],
     ["تقارير وتحليلات متقدمة", "لوحات واضحة لاتخاذ قرارات أفضل وتنمية عملك.", "reports"]
   ];
@@ -2591,7 +2590,7 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
   const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
   const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
   const body = template.body || "";
-  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option><option value="sms" disabled>الرسائل النصية SMS — مغلق حاليًا</option></select></label>`;
+  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>`;
   const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
   const variableButtons = (variables) => variables.map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("");
   const reminderSettings = `<div class="template-settings-grid"><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل 7 أيام</option><option value="4" ${Number(rule.daysOffset) === 4 ? "selected" : ""}>قبل 4 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل 3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل يوم واحد</option></select></label><label class="setting-row setting-toggle"><span><strong>حالة القالب</strong><small>يستخدم عند الإرسال التلقائي</small></span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>`;
@@ -2629,7 +2628,7 @@ function renewalTemplateEditorPage(forcedChannel = "") {
   const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
   const body = template.body || "";
   const isWhatsappReady = overviewStats().connectedDevices > 0;
-  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option><option value="sms" disabled>الرسائل النصية SMS — قريبًا</option></select></label>`;
+  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>`;
 
   if (channel === "whatsapp") {
     const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;

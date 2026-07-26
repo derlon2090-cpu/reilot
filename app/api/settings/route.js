@@ -11,7 +11,7 @@ export async function GET(req) {
             COALESCE(s.language, 'ar') AS language, COALESCE(s.theme, 'light') AS theme,
             COALESCE(s.interface_density, 'comfortable') AS "interfaceDensity",
             u.mfa_enabled AS "mfaEnabled",
-            COALESCE(s.notification_channels, '{}'::jsonb) AS "notificationChannels",
+            (COALESCE(s.notification_channels, '{}'::jsonb) - 'sms') AS "notificationChannels",
             COALESCE(s.security, '{}'::jsonb) AS security,
             jsonb_build_object(
               'renewalBillingNotifications', COALESCE(np.renewal_billing_notifications, true),
@@ -36,6 +36,10 @@ export async function PATCH(req) {
   const body = await req.json().catch(() => ({}));
   const language = body.language === "en" ? "en" : "ar";
   const theme = body.theme === "dark" ? "dark" : "light";
+  const notificationChannels = {
+    whatsapp: body.notificationChannels?.whatsapp === true,
+    email: body.notificationChannels?.email === true
+  };
   const settings = await transaction(async (client) => {
     if (body.name && String(body.name).trim().length >= 2) {
       await client.query("UPDATE users SET name = $1, updated_at = now() WHERE id = $2 AND tenant_id = $3", [String(body.name).trim(), auth.session.userId, auth.session.tenantId]);
@@ -48,7 +52,7 @@ export async function PATCH(req) {
          notification_channels = EXCLUDED.notification_channels,
          security = EXCLUDED.security, updated_at = now()
        RETURNING language, theme, notification_channels AS "notificationChannels", security`,
-      [auth.session.tenantId, language, theme, JSON.stringify(body.notificationChannels || {}), JSON.stringify(body.security || {})]
+      [auth.session.tenantId, language, theme, JSON.stringify(notificationChannels), JSON.stringify(body.security || {})]
     );
     await client.query(
       "INSERT INTO activity_logs (tenant_id, user_id, type, title) VALUES ($1, $2, 'settings.updated', 'Settings updated')",

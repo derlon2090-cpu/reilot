@@ -53,7 +53,7 @@ export async function enqueueMessage({
   fallbackSubject = null,
   fallbackMessageBody = null
 }) {
-  if (!tenantId || !["whatsapp", "email", "sms"].includes(channelType)) {
+  if (!tenantId || !["whatsapp", "email"].includes(channelType)) {
     return { ok: false, reason: "invalid_queue_request" };
   }
   if (!String(messageBody || "").trim()) return { ok: false, reason: "message_body_required" };
