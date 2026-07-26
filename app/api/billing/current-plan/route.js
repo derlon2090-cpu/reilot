@@ -9,7 +9,7 @@ export async function GET(req) {
   const plan = await query(
     `SELECT pp.name, pp.slug, pp.monthly_message_limit AS "monthlyMessageLimit",
             pp.whatsapp_message_limit AS "whatsappMessageLimit",
-            pp.email_message_limit AS "emailMessageLimit", pp.sms_message_limit AS "smsMessageLimit",
+            pp.email_message_limit AS "emailMessageLimit",
             ps.status, ps.billing_cycle AS "billingCycle",
             ps.current_period_start AS "currentPeriodStart", ps.current_period_end AS "currentPeriodEnd"
        FROM platform_subscriptions ps

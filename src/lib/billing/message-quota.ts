@@ -1,4 +1,4 @@
-export type MessageChannel = "whatsapp" | "email" | "sms";
+export type MessageChannel = "whatsapp" | "email";
 
 export type ReserveMessageQuotaInput = {
   tenantId: string;

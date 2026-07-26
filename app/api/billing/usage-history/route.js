@@ -13,8 +13,6 @@ export async function GET(req) {
             mup.whatsapp_used AS "whatsapp", mup.whatsapp_reserved AS "whatsappReserved",
             mup.email_message_limit AS "emailLimit",
             mup.email_used AS "email", mup.email_reserved AS "emailReserved",
-            mup.sms_message_limit AS "smsLimit",
-            mup.sms_used AS "sms", mup.sms_reserved AS "smsReserved",
             pp.name AS "planName", pp.slug AS "planSlug"
        FROM message_usage_periods mup
        LEFT JOIN platform_plans pp ON pp.id = mup.plan_id
@@ -33,9 +31,6 @@ export async function GET(req) {
     whatsappReserved: Number(row.whatsappReserved),
     emailLimit: Number(row.emailLimit),
     email: Number(row.email),
-    emailReserved: Number(row.emailReserved),
-    smsLimit: Number(row.smsLimit),
-    sms: Number(row.sms),
-    smsReserved: Number(row.smsReserved)
+    emailReserved: Number(row.emailReserved)
   })) });
 }
