@@ -39,7 +39,7 @@ function TemplatePreview({ template, rendered }) {
   const body = rendered?.body || template.body || "";
   if (template.channel === "email") {
     return <div className={styles.adminEmailPreview}>
-      <img src="/assets/renewpilot-logo-horizontal.png" alt="Renvix" />
+      <img src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="Renvix" />
       <div className={styles.adminEmailLine} />
       <h3>{rendered?.subject || template.subject || template.name}</h3>
       <div className={styles.adminEmailBody}>{body}</div>
@@ -173,7 +173,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
 
   return <main className={styles.adminTemplateEditorPage} dir="rtl">
     <header className={styles.adminEditorTopbar}>
-      <a href="/admin/templates"><img src="/assets/renewpilot-logo-horizontal.png" alt="Renvix" /></a>
+      <a href="/admin/templates"><img src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="Renvix" /></a>
       <div><span>{admin.name || admin.email}</span><a href="/admin/templates">العودة إلى القوالب ←</a></div>
     </header>
     <section className={styles.adminEditorHeading}>

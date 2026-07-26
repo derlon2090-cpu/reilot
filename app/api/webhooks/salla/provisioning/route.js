@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { after } from "next/server";
 import { verifySallaWebhook } from "../../../../../src/lib/salla.js";
+import { isSallaPaymentCompleted } from "../../../../../src/lib/salla-payment.js";
 import { normalizeSubscriptionPhone } from "../../../../../src/lib/subscription-lifecycle.js";
 import { query, transaction } from "../../../../../src/server/db.js";
 import { provisionCustomerAccount } from "../../../../../src/server/provisioning.js";
@@ -35,12 +36,6 @@ function itemIds(item) {
   };
 }
 
-function isPaid(data, payload) {
-  const values = [data.payment_status, data.status?.slug, data.status?.name, data.status, payload.event, payload.event_type]
-    .map((value) => text(value).toLowerCase()).filter(Boolean);
-  return values.some((value) => /paid|payment[_ -]?completed|completed|complete|fulfilled|processing/.test(value));
-}
-
 export async function POST(req) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-salla-signature") || req.headers.get("x-salla-hmac-sha256") || "";
@@ -58,7 +53,7 @@ export async function POST(req) {
   const idempotencyKey = eventHeader || crypto.createHash("sha256").update(`${storeId}:${orderId}:${eventType}:${text(data.updated_at || data.created_at)}:${text(data.status?.slug || data.status)}`).digest("hex");
   const customer = customerFrom(data);
   const items = Array.isArray(data.items) ? data.items : Array.isArray(data.products) ? data.products : [];
-  if (!isPaid(data, payload)) return Response.json({ ok: true, queued: false, ignored: "payment_not_completed" }, { status: 200 });
+  if (!isSallaPaymentCompleted(data, payload)) return Response.json({ ok: true, queued: false, ignored: "payment_not_completed" }, { status: 200 });
 
   const jobs = await transaction(async (client) => {
     const event = await client.query(

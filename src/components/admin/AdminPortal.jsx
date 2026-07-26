@@ -62,7 +62,7 @@ const ROLE_SCOPES = {
 function Brand() {
   return (
     <div className={styles.brand} aria-label="Renvix">
-      <img className={styles.brandLogo} src="/assets/renewpilot-logo-horizontal.png" alt="Renvix" />
+      <img className={styles.brandLogo} src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="Renvix" />
     </div>
   );
 }

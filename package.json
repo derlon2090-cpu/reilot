@@ -26,7 +26,7 @@
     "@vercel/blob": "^2.6.1",
     "bcryptjs": "^3.0.2",
     "libphonenumber-js": "^1.12.31",
-    "next": "^15.4.0",
+    "next": "15.5.21",
     "pg": "^8.22.0",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
@@ -39,6 +39,7 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
   }
 }

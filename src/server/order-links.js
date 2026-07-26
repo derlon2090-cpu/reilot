@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { appBaseUrl } from "./app-url.js";
 import { query, transaction } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
 import {
@@ -85,7 +86,7 @@ export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl,
                    is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
         [tenantId, name, slugResult.slug, logoUrl || null, normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
       );
-      const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+      const baseUrl = appBaseUrl();
       await client.query(
         `UPDATE order_template_links
             SET public_url = $2 || '/o/' || $3 ||
@@ -143,7 +144,7 @@ export async function ensureTemplatePublicLink({ tenantId, templateId, expiresIn
     }
 
     const publicToken = randomToken(12);
-    const baseUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+    const baseUrl = appBaseUrl();
     const publicUrl = `${baseUrl}/o/${encodeURIComponent(profile.slug)}?t=${encodeURIComponent(publicToken)}`;
     const days = expiresInDays == null ? null : Math.min(3650, Math.max(1, Number(expiresInDays || 30)));
     const inserted = await client.query(

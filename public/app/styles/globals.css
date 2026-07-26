@@ -1803,6 +1803,7 @@ tbody tr:hover { background: #fbfeff; }
   border-radius: 8px;
   background: #edf5ff;
 }
+.marketing-mini h2,
 .marketing-mini h3 { margin: 0 0 6px; color: #17305a; font-size: 15px; }
 .marketing-mini p { margin: 0; color: #73829a; font-size: 12px; line-height: 1.7; }
 .marketing-metrics { padding: 0 0 28px; }
@@ -2681,7 +2682,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .marketing-hero-grid { min-height: 358px; grid-template-columns: minmax(520px, .95fr) minmax(620px, 1.18fr); gap: 66px; }
 .marketing-copy .eyebrow { min-height: 34px; padding: 0 17px; font-size: 12px; }
 .marketing-copy h1 { margin: 18px 0 13px; max-width: 690px; font-size: 43px; line-height: 1.43; letter-spacing: 0; }
-.marketing-copy .lead { max-width: 700px; color: #687995; font-size: 15px; line-height: 2; }
+.marketing-copy .lead { max-width: 700px; color: #5f708d; font-size: 15px; line-height: 2; }
 .marketing-copy .hero-actions { margin-top: 23px; gap: 24px; }
 .marketing-copy .hero-actions .btn { min-width: 225px; min-height: 53px; font-size: 15px; }
 .hero-product-preview { transform: none; }
@@ -2691,6 +2692,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .marketing-strip { padding-bottom: 24px; }
 .marketing-strip .grid { gap: 15px; }
 .marketing-mini { min-height: 95px; border-radius: 9px; box-shadow: 0 7px 18px rgba(25, 55, 96, .055); }
+.marketing-mini h2,
 .marketing-mini h3 { font-size: 14px; }
 .marketing-metrics { padding-bottom: 16px; }
 .marketing-metrics .container { min-height: 83px; border-radius: 9px; }
@@ -2779,7 +2781,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 
 .public-footer { min-height: 82px; margin-top: auto; }
 .public-footer-inner { min-height: 82px; direction: rtl; }
-.footer-brand-mini { display: flex; align-items: center; gap: 12px; color: #7c899c; font-size: 10px; }
+.footer-brand-mini { display: flex; align-items: center; gap: 12px; color: #596b84; font-size: 12px; }
 .footer-brand-mini .brand-mark-image { width: 32px; height: 32px; }
 .footer-brand-mini .brand-wordmark { font-size: 16px; }
 .footer-brand-mini .brand-logo-image { width: 112px; }

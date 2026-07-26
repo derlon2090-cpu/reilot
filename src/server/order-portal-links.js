@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { appBaseUrl } from "./app-url.js";
 import { query, transaction } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
 
@@ -22,7 +23,7 @@ function decryptSecret(value) {
 }
 
 function portalUrl(publicId,secret) {
-  const base=String(process.env.NEXT_PUBLIC_APP_URL||process.env.BETTER_AUTH_URL||"http://localhost:3000").replace(/\/$/,"");
+  const base=appBaseUrl();
   const url=new URL(`/o/${encodeURIComponent(publicId)}`,base);url.searchParams.set("t",secret);return url.toString();
 }
 

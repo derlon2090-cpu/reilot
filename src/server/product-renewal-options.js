@@ -1,3 +1,4 @@
+import { appBaseUrl } from "./app-url.js";
 import { query, transaction } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
 import {
@@ -153,7 +154,7 @@ export async function createRenewalRedirect({ tenantId, subscriptionId, optionId
     WHERE cs.id=$2 AND cs.tenant_id=$1 AND pro.id=$3 AND pro.is_active=true
     RETURNING id`, [tenantId, subscriptionId, optionId, hash, token.slice(0, 8), String(days)]);
   if (!result.rows[0]) return { ok: false, reason: "renewal_option_not_available" };
-  const base = String(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+  const base = appBaseUrl();
   return { ok: true, url: `${base}/r/${encodeURIComponent(token)}` };
 }
 

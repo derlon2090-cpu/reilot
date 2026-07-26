@@ -49,7 +49,7 @@ test("order information builder and public page are responsive and private", asy
     visibleFields: {},
     isDefault: true,
     templateLinkId: "template-link-1",
-    publicUrl: "https://reilot.vercel.app/o/tech-store?t=publictoken123",
+    publicUrl: "https://renvix.app/o/tech-store?t=publictoken123",
     linkStatus: "active",
     updatedAt: "2026-07-17T10:30:00.000Z"
   }] } }));
@@ -68,7 +68,7 @@ test("order information builder and public page are responsive and private", asy
         openedCount: 12,
         lastOpenedAt: "2026-07-17T10:35:00.000Z",
         createdAt: "2026-07-17T10:30:00.000Z",
-        publicUrl: "https://reilot.vercel.app/o/tech-store?t=publictoken123"
+        publicUrl: "https://renvix.app/o/tech-store?t=publictoken123"
       }],
       stats: { activeTemplates: 1, sentLinks: 1, openedLinks: 1, todayRequests: 12, openRate: 100 },
       capabilities: { whatsappConnected: false, hasCustomerEmail: true }
@@ -215,7 +215,7 @@ test("manual customer order is added beneath one stable template link", async ({
       return route.fulfill({ status: 201, json: { ok: true, item: {
         id: "template-manual-1",
         templateLinkId: "template-link-manual-1",
-        publicUrl: "https://reilot.vercel.app/o/liong-d?t=secure-token",
+        publicUrl: "https://renvix.app/o/liong-d?t=secure-token",
         linkStatus: "active",
         ...body
       } } });
@@ -244,7 +244,7 @@ test("manual customer order is added beneath one stable template link", async ({
         ok: true,
         id: "link-manual-1",
         orderNumber: "RP-MANUAL-1",
-        publicUrl: "https://reilot.vercel.app/o/liong-d?t=secure-token"
+        publicUrl: "https://renvix.app/o/liong-d?t=secure-token"
       }
     });
   });

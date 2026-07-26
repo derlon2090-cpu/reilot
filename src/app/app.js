@@ -796,14 +796,14 @@ function logo() {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image" src="/assets/renewpilot-logo-horizontal.png" alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image" src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="${escapeHtml(appName)}">
   </button>`;
 }
 
 function stackedLogo() {
   const appName = t("app.name") || "Renvix";
   return `<div class="brand-logo-stacked" role="img" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image" src="/assets/renewpilot-logo-horizontal.png" alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image" src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="${escapeHtml(appName)}">
   </div>`;
 }
 
@@ -945,7 +945,7 @@ function performanceChart(rows = []) {
 }
 
 function dashboardPreview() {
-  return `<article class="dashboard-reference"><img src="/assets/dashboard-preview.png" alt="معاينة لوحة تحكم Renvix"></article>`;
+  return `<article class="dashboard-reference"><img src="/assets/dashboard-preview.webp" width="838" height="360" alt="معاينة لوحة تحكم Renvix"></article>`;
 }
 
 function featureGrid(limit = features.length) {
@@ -1146,10 +1146,10 @@ function marketingHomePage() {
   ];
   return publicShell(`<main>
     <section class="marketing-hero"><div class="container marketing-hero-grid">
-      <div class="marketing-copy"><span class="hero-trust-pill"><img src="/assets/renvix-mark.png" alt=""><span>${localizedCopy("اشتراكات منظمة، تجديدات في وقتها", "Organized subscriptions, renewals on time")}</span><i aria-hidden="true"></i></span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات عملائك بذكاء مع", "Manage customer subscriptions and renewals intelligently with")} <span>Renvix</span></h1><p class="lead">Renvix منصة ذكية تساعدك على إدارة الاشتراكات، متابعة التجديدات، إرسال التنبيهات، وإنشاء روابط معلومات الطلب باحترافية.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
+      <div class="marketing-copy"><span class="hero-trust-pill"><img src="/assets/renvix-mark.webp" width="327" height="342" alt=""><span>${localizedCopy("اشتراكات منظمة، تجديدات في وقتها", "Organized subscriptions, renewals on time")}</span><i aria-hidden="true"></i></span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات عملائك بذكاء مع", "Manage customer subscriptions and renewals intelligently with")} <span>Renvix</span></h1><p class="lead">Renvix منصة ذكية تساعدك على إدارة الاشتراكات، متابعة التجديدات، إرسال التنبيهات، وإنشاء روابط معلومات الطلب باحترافية.</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">ابدأ الآن</button><button class="btn btn-secondary" data-link="/features">استكشف المميزات</button></div></div>
       <div class="hero-product-preview">${dashboardPreview()}</div>
     </div></section>
-    <section class="marketing-strip"><div class="container grid grid-4">${highlights.map(([title, body, mark]) => `<article class="marketing-mini">${dashboardIcon(mark)}<div><h3>${title}</h3><p>${body}</p></div></article>`).join("")}</div></section>
+    <section class="marketing-strip" aria-label="${localizedCopy("مزايا المنصة", "Platform benefits")}"><div class="container grid grid-4">${highlights.map(([title, body, mark]) => `<article class="marketing-mini">${dashboardIcon(mark)}<div><h2>${title}</h2><p>${body}</p></div></article>`).join("")}</div></section>
     <section class="marketing-metrics"><div class="container">${[["+10,000", "عميل نشط", "customers"], ["+250,000", "اشتراك مدار", "subscriptions"], ["98.6%", "معدل تسليم الرسائل", "template"], ["+3", "سنوات من التطوير والابتكار", "security"]].map(([value, label, mark]) => `<div>${dashboardIcon(mark)}<strong>${value}</strong><span>${label}</span></div>`).join("")}</div></section>
     <section class="section public-benefits"><div class="container"><div class="section-head centered"><div><h2>كل ما تحتاجه لإدارة احترافية لنمو مستمر</h2><p class="muted">أدوات مترابطة تعمل معًا من أول تنبيه حتى اكتمال التجديد.</p></div></div><div class="grid grid-5">${features.slice(0, 5).map(([title, body], index) => `<article>${dashboardIcon(["subscriptions", "devices", "security", "reports", "customers"][index])}<h3>${title}</h3><p>${body}</p></article>`).join("")}</div></div></section>
   </main>`);
@@ -2338,7 +2338,7 @@ function emailTemplatePreview(template) {
   const footerText = templatePreviewValue(template.footerText || localDefaultEmailTemplate.footerText);
   const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
   return `<div class="email-envelope" style="--email-theme:${theme}">
-    <div class="email-preview-brand"><span class="email-store-icon"><img src="/assets/renvix-mark.png" alt="Renvix"></span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
+    <div class="email-preview-brand"><span class="email-store-icon"><img src="/assets/renvix-mark.webp" width="327" height="342" alt="Renvix"></span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
     <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">${dashboardIcon("security")} بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♥</p></div>
     <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
   </div>`;

@@ -89,7 +89,7 @@ export default function AdminSetupForm() {
       <span className={`${styles.decor} ${styles.decorTop}`} aria-hidden="true" />
       <span className={`${styles.decor} ${styles.decorBottom}`} aria-hidden="true" />
       <section className={styles.shell}>
-        <div className={styles.brand}><img src="/assets/renewpilot-logo-horizontal.png" alt="Renvix" /></div>
+        <div className={styles.brand}><img src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="Renvix" /></div>
         <span className={styles.badge}>إعداد آمن لمرة واحدة</span>
         <h1>إنشاء أول حساب مسؤول</h1>
         <p className={styles.lead}>أنشئ الحساب الإداري الأول للمنصة. يُغلق هذا الرابط تلقائيًا بعد نجاح العملية.</p>
