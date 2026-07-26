@@ -1,5 +1,12 @@
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #1689ed #edf5fb; }
 html { scroll-behavior: smooth; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: #edf5fb; }
+*::-webkit-scrollbar-thumb { border: 2px solid #edf5fb; border-radius: 999px; background: linear-gradient(180deg, #0fc8c0, #1769ed); }
+*::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #0aaea8, #0e55c5); }
+:root[data-theme="dark"] * { scrollbar-color: #2585e8 #0a1624; }
+:root[data-theme="dark"] *::-webkit-scrollbar-track { background: #0a1624; }
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb { border-color: #0a1624; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -1942,9 +1949,9 @@ tbody tr:hover { background: #fbfeff; }
 .footer-social { display: flex; align-items: center; gap: 18px; color: #667892; font-size: 12px; }
 .footer-links button { color: inherit; background: transparent; cursor: pointer; }
 .social-links span,
-.footer-social a { width: 44px; height: 44px; display: grid; flex: 0 0 44px; place-items: center; border: 1px solid #d5e4f7; border-radius: 50%; color: #3971bd; background: #eef4ff; font-weight: 800; line-height: 0; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.footer-social a { width: 34px; height: 34px; display: grid; flex: 0 0 34px; place-items: center; border: 1px solid #d5e4f7; border-radius: 50%; color: #3971bd; background: #eef4ff; font-weight: 800; line-height: 0; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .footer-social a:hover { transform: translateY(-2px); border-color: #bdd1ed; box-shadow: 0 8px 22px rgba(22, 63, 112, .1); }
-.footer-social a .line-icon { width: 21px; height: 21px; }
+.footer-social a .line-icon { width: 16px; height: 16px; }
 .footer-copy { color: #7c899c; font-size: 11px; }
 
 .auth-light-page { display: flex; flex-direction: column; }
@@ -2504,21 +2511,99 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   .catalog-menu-row { grid-template-columns: 1fr; }
 }
 
-.billing-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+.billing-tabs { margin-top: 18px; padding: 7px; display: flex; align-items: center; gap: 5px; overflow-x: auto; border: 1px solid #e3eaf3; border-radius: 12px; background: #fff; scrollbar-width: none; }
+.billing-tabs::-webkit-scrollbar { display: none; }
+.billing-tabs button { min-height: 42px; padding: 0 18px; flex: 0 0 auto; color: #526785; border: 0; border-radius: 9px; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.billing-tabs button.active { color: #1267e9; background: #edf5ff; box-shadow: inset 0 0 0 1px #dbe9ff; }
+.billing-stats-grid { margin-top: 18px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.billing-stat { min-height: 122px; padding: 16px; display: flex; align-items: center; gap: 12px; }
+.billing-stat > span { width: 44px; height: 44px; display: grid; flex: 0 0 44px; place-items: center; color: #1769ed; border-radius: 50%; background: #eaf3ff; }
+.billing-stat > span .line-icon { width: 22px; height: 22px; }
+.billing-stat.whatsapp > span { color: #10a863; background: #e7f8f0; }
+.billing-stat.purple > span { color: #7b52df; background: #f1ecff; }
+.billing-stat.success > span { color: #0ca36a; background: #e7f8f0; }
+.billing-stat div { min-width: 0; display: grid; gap: 5px; }
+.billing-stat small,.billing-stat em { color: #7b8aa1; font-size: 10px; font-style: normal; }
+.billing-stat strong { color: #132d55; font-size: 17px; line-height: 1.4; }
+.billing-channel-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(300px, .9fr); gap: 14px; align-items: start; }
+.channel-usage-card { padding: 20px; }
+.channel-usage-title { display: flex; align-items: center; gap: 12px; }
+.channel-usage-title > div { flex: 1; }
+.channel-usage-title h2 { margin: 0; color: #16345e; }
+.channel-usage-title p { margin: 5px 0 0; color: #76869d; font-size: 11px; }
+.channel-usage-icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; }
+.channel-usage-icon.whatsapp { color: #0bad69; background: #e5f8ef; }
+.channel-usage-summary { margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.channel-usage-summary > div { min-height: 79px; padding: 13px; display: grid; align-content: center; gap: 6px; border: 1px solid #e6ecf3; border-radius: 9px; background: #fbfdff; }
+.channel-usage-summary span { color: #76869d; font-size: 10px; }
+.channel-usage-summary strong { color: #17365f; font-size: 15px; }
+.wallet-health.good { color: #0ca36a; }
+.wallet-health.low { color: #d98a00; }
+.wallet-health.critical { color: #df6d28; }
+.wallet-health.empty { color: #df4453; }
+.channel-details-toggle { margin-top: 14px; padding: 9px 0; display: inline-flex; align-items: center; gap: 6px; color: #1769ed; border: 0; background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.channel-details-toggle .line-icon { width: 15px; height: 15px; }
+.whatsapp-usage-details { margin-top: 5px; padding-top: 16px; border-top: 1px solid #e6edf5; }
+.whatsapp-usage-details h3 { margin: 0 0 12px; color: #17365f; font-size: 14px; }
+.usage-source-row { min-height: 48px; display: grid; grid-template-columns: 150px minmax(100px, 1fr) 90px 120px; align-items: center; gap: 12px; border-bottom: 1px solid #edf1f6; color: #50627c; font-size: 11px; }
+.usage-source-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #e8eef5; }
+.usage-source-progress i { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg, #13b8b1, #12ca9a); }
+.usage-source-row small { color: #77879d; text-align: left; }
+.billing-safe-note { margin-top: 14px; padding: 11px 13px; display: flex; align-items: center; gap: 8px; color: #6b7d96; border: 1px solid #dce8f8; border-radius: 8px; background: #f5f9ff; font-size: 10px; line-height: 1.8; }
+.billing-safe-note .line-icon { width: 18px; height: 18px; color: #1769ed; }
+.email-channel-card .message-usage-card { min-height: 100%; }
+.billing-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
+.billing-tab-panel { margin-top: 18px; }
 .plan-catalog { padding: 20px; }
-.dashboard-plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.dashboard-plan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .dashboard-plan { min-height: 280px; padding: 18px; display: flex; flex-direction: column; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 .dashboard-plan.current { border-color: #25b971; box-shadow: inset 0 3px #25b971; }
 .dashboard-plan h3 { margin: 15px 0 4px; color: #1b345e; }
 .dashboard-plan .plan-price { margin: 10px 0; color: #1769ed; font-size: 24px; font-weight: 800; }
 .dashboard-plan .plan-price small { color: #708099; font-size: 12px; }
 .dashboard-plan .btn { margin-top: auto; }
+.whatsapp-usage-note { margin: 0 0 14px; padding: 8px 10px; display: flex; align-items: center; gap: 7px; color: #087b57; border-radius: 7px; background: #edfbf6; font-size: 10px; line-height: 1.6; }
+.whatsapp-usage-note .line-icon { width: 16px; height: 16px; flex: 0 0 16px; }
 .billing-side { display: grid; gap: 15px; }
 .billing-side > .card { padding: 20px; }
+.billing-side > .billing-tab-panel { margin-top: 0; }
+
+.meta-template-section { margin-top: 18px; padding: 22px; }
+.meta-template-list { display: grid; gap: 10px; margin-top: 16px; }
+.meta-template-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; gap: 14px; align-items: center; padding: 15px; border: 1px solid #e3eaf3; border-radius: 12px; background: #fff; }
+.meta-template-row h3 { margin: 0; color: #0f2d59; }
+.meta-template-row p { margin: 5px 0 0; color: #71819a; font-size: 13px; }
+.meta-rejection { display: block; margin-top: 6px; color: #dc3545; }
+:root[data-theme="dark"] .meta-template-row { background: #0d1c2f; border-color: #24405f; }
+:root[data-theme="dark"] .meta-template-row h3 { color: #eef6ff; }
 .wallet-card { display: grid; gap: 13px; }
 .invoice-summary > div { min-height: 45px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #edf1f5; }
 .invoice-summary span { color: #78869b; font-size: 12px; }
 .invoice-summary strong { color: #263f66; }
+.billing-topup-panel { padding: 20px; }
+.billing-topup-panel .section-head > strong { color: #0b9663; font-size: 20px; }
+.topup-amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.topup-option { min-height: 92px; display: grid; place-items: center; align-content: center; gap: 6px; color: #1c3b67; border: 1px solid #dce6f3; border-radius: 9px; background: #fff; cursor: pointer; }
+.topup-option:hover { border-color: #1769ed; box-shadow: 0 8px 25px rgba(23,105,237,.08); }
+.topup-option:disabled { color: #8a99ad; border-color: #e2e8f0; background: #f5f7fa; box-shadow: none; cursor: not-allowed; transform: none; }
+.topup-option strong { color: #1769ed; font-size: 18px; }
+.topup-option span { color: #8290a5; font-size: 10px; }
+.topup-confirmation { display: grid; justify-items: center; gap: 12px; text-align: center; }
+.topup-confirmation > .line-icon { width: 52px; height: 52px; padding: 12px; color: #1769ed; border-radius: 50%; background: #edf5ff; }
+:root[data-theme="dark"] .billing-tabs,
+:root[data-theme="dark"] .dashboard-plan,
+:root[data-theme="dark"] .channel-usage-summary > div,
+:root[data-theme="dark"] .topup-option { border-color: #293d54; background: #0b1929; }
+:root[data-theme="dark"] .billing-tabs button,
+:root[data-theme="dark"] .billing-stat small,
+:root[data-theme="dark"] .billing-stat em,
+:root[data-theme="dark"] .channel-usage-title p,
+:root[data-theme="dark"] .channel-usage-summary span { color: #9eb0c6; }
+:root[data-theme="dark"] .billing-tabs button.active { color: #74adff; background: #102a48; box-shadow: inset 0 0 0 1px #264a70; }
+:root[data-theme="dark"] .billing-stat strong,
+:root[data-theme="dark"] .channel-usage-title h2,
+:root[data-theme="dark"] .channel-usage-summary strong,
+:root[data-theme="dark"] .whatsapp-usage-details h3 { color: #e0ebf7; }
 
 @media (max-width: 1180px) {
   .public-site .container,
@@ -2537,7 +2622,9 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   .billing-workspace { grid-template-columns: 1fr; }
   .device-link-card { position: static; }
   .email-preview-side { position: static; }
-  .dashboard-plan-grid { grid-template-columns: repeat(3, 1fr); }
+  .billing-stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .billing-channel-grid { grid-template-columns: 1fr; }
+  .dashboard-plan-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 900px) {
@@ -2565,6 +2652,14 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   .support-body > :last-child { grid-column: auto; }
   .blog-sidebar { grid-template-columns: 1fr 1fr; }
   .dashboard-plan-grid { grid-template-columns: 1fr; }
+  .billing-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .channel-usage-summary { grid-template-columns: repeat(2, 1fr); }
+  .usage-source-row { grid-template-columns: 110px minmax(80px, 1fr) 75px; }
+  .usage-source-row small { grid-column: 1 / -1; text-align: right; }
+  .topup-amounts { grid-template-columns: repeat(2, 1fr); }
+  .meta-template-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .meta-template-row > .status,
+  .meta-template-row > .inline-actions { grid-column: 2; justify-self: start; }
   .public-footer-inner { padding: 18px 0; flex-direction: column; text-align: center; }
   .footer-links { flex-wrap: wrap; justify-content: center; }
   .footer-social { justify-content: center; }
@@ -2789,7 +2884,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .footer-links { gap: 25px; }
 .footer-links button { font-size: 11px; }
 .footer-social { direction: ltr; gap: 12px; }
-.footer-social a { width: 44px; height: 44px; }
+.footer-social a { width: 34px; height: 34px; }
 
 .auth-light-header { min-height: 89px; padding: 0 5.2vw; direction: rtl; }
 .auth-light-header .brand-mark-image { width: 54px; height: 54px; }

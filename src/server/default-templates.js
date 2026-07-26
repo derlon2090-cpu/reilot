@@ -10,13 +10,13 @@ export const TEMPLATE_KEYS = Object.freeze({
 const DEFAULT_MESSAGE_TEMPLATES = [
   {
     key: TEMPLATE_KEYS.WHATSAPP_MENU,
-    group: "whatsapp_menu",
+    group: "whatsapp_interactive",
     channel: "whatsapp",
     trigger: "manual",
-    name: "قائمة واتساب",
+    name: "الرسائل التفاعلية",
     title: null,
     body: "مرحبًا {{customer_name}}،\n\nاختر الخدمة التي تحتاجها من القائمة التالية.",
-    buttonLabel: "عرض القائمة",
+    buttonLabel: "عرض الخيارات",
     footerText: "Renvix",
     contentJson: {
       sections: [{

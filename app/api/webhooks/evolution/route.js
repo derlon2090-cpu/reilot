@@ -103,6 +103,21 @@ async function recordAdminDelivery(body, event, instanceName) {
         WHERE provider='evolution' AND provider_message_id=$1`,
       [delivery.providerMessageId, delivery.status]
     );
+    await client.query(
+      `UPDATE whatsapp_usage_records SET
+              status=CASE
+                WHEN status='read' THEN status
+                WHEN status='delivered' AND $2 IN ('sent','accepted') THEN status
+                WHEN status='sent' AND $2='accepted' THEN status
+                ELSE $2
+              END,
+              delivered_at=CASE WHEN $2='delivered' THEN COALESCE(delivered_at,now()) ELSE delivered_at END,
+              read_at=CASE WHEN $2='read' THEN COALESCE(read_at,now()) ELSE read_at END,
+              failed_at=CASE WHEN $2='failed' THEN COALESCE(failed_at,now()) ELSE failed_at END,
+              updated_at=now()
+        WHERE meta_message_id=$1`,
+      [delivery.providerMessageId, delivery.status]
+    );
     await client.query("UPDATE admin_message_provider_events SET processed_at=now() WHERE id=$1", [inserted.rows[0].id]);
   });
   return true;
@@ -215,12 +230,12 @@ export async function POST(req) {
               [channel.tenant_id, phone]
             )
           ]);
-          if (!menu) throw new Error("WhatsApp menu template is unavailable");
+          if (!menu) throw new Error("WhatsApp interactive message is unavailable");
           const variables = { customer_name: identity.rows[0]?.customerName || "عميلنا", store_name: identity.rows[0]?.storeName || "Renvix" };
           await evolutionSendList(instanceName, phone, {
             title: renderMenuText(menu.title || `مرحبًا ${variables.customer_name}`, variables),
             description: renderMenuText(menu.body, variables),
-            buttonText: menu.buttonLabel || "عرض القائمة",
+            buttonText: menu.buttonLabel || "عرض الخيارات",
             footerText: renderMenuText(menu.footerText || variables.store_name, variables),
             sections: menu.contentJson?.sections || []
           });

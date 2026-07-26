@@ -138,6 +138,29 @@ async function markSent(item, providerMessageId) {
           WHERE id = $1`,
         [item.whatsapp_channel_id]
       );
+      await client.query(
+        `INSERT INTO whatsapp_usage_records (
+           tenant_id, message_id, meta_message_id, usage_source, message_kind,
+           status, accepted_at, created_at, updated_at
+         ) VALUES (
+           $1,$2,$3,
+           CASE
+             WHEN $4 IN ('renewal_reminder','renewal_test') THEN 'renewal_reminder'
+             WHEN $4 IN ('manual_order_link','order_information') THEN 'order_information'
+             WHEN $4 LIKE 'campaign%' THEN 'campaign'
+             WHEN $4 LIKE 'interactive%' THEN 'interactive_message'
+             WHEN $4 LIKE 'automation%' THEN 'automation'
+             WHEN $4 LIKE '%test%' THEN 'test_message'
+             ELSE 'manual_message'
+           END,
+           $4,'accepted',now(),now(),now()
+         )
+         ON CONFLICT (tenant_id,message_id) DO UPDATE SET
+           meta_message_id = COALESCE(EXCLUDED.meta_message_id,whatsapp_usage_records.meta_message_id),
+           status = 'accepted', accepted_at = COALESCE(whatsapp_usage_records.accepted_at,now()),
+           updated_at = now()`,
+        [item.tenant_id, item.id, providerMessageId || null, item.message_type]
+      );
     }
     if (item.is_billable !== false) {
       const charged = await client.query(
@@ -188,6 +211,26 @@ async function markFailed(item, error) {
                 last_failed_send_at = now(), last_send_at = now(), last_error = $2, updated_at = now()
           WHERE id = $1`,
         [item.whatsapp_channel_id, lastError]
+      );
+      await client.query(
+        `INSERT INTO whatsapp_usage_records (
+           tenant_id,message_id,usage_source,message_kind,status,failed_at,created_at,updated_at
+         ) VALUES (
+           $1,$2,
+           CASE
+             WHEN $3 IN ('renewal_reminder','renewal_test') THEN 'renewal_reminder'
+             WHEN $3 IN ('manual_order_link','order_information') THEN 'order_information'
+             WHEN $3 LIKE 'campaign%' THEN 'campaign'
+             WHEN $3 LIKE 'interactive%' THEN 'interactive_message'
+             WHEN $3 LIKE 'automation%' THEN 'automation'
+             WHEN $3 LIKE '%test%' THEN 'test_message'
+             ELSE 'manual_message'
+           END,
+           $3,'failed',now(),now(),now()
+         )
+         ON CONFLICT (tenant_id,message_id) DO UPDATE SET
+           status='failed',failed_at=now(),updated_at=now()`,
+        [item.tenant_id, item.id, item.message_type]
       );
     }
   });

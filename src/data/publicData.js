@@ -10,9 +10,10 @@ export const features = [
 ];
 
 export const pricingPlans = [
-  { id: "starter", name: "باقة ستارتر", monthly: 129, yearly: 103, caption: "لبدء المشاريع والفرق الصغيرة", customers: "مستخدم واحد", alerts: "10,000 رسالة / شهر", features: ["تكاملات أساسية", "تقارير أساسية", "قوالب رسائل محدودة", "دعم عبر البريد"] },
-  { id: "pro", name: "باقة برو", monthly: 499, yearly: 399, caption: "للشركات النامية", customers: "5 مستخدمين", alerts: "50,000 رسالة / شهر", features: ["تكاملات متقدمة", "تقارير وتحليلات متقدمة", "قوالب رسائل جاهزة", "دعم فني أولوية"], featured: true },
-  { id: "business", name: "باقة الأعمال", monthly: 1499, yearly: 1199, caption: "للشركات الكبيرة وفرق العمل", customers: "10 مستخدمين", alerts: "250,000 رسالة / شهر", features: ["تكاملات API وWebhooks", "تقارير مخصصة", "مدير حساب مخصص", "دعم مميز على مدار الساعة"] }
+  { id: "trial", name: "التجربة المجانية", monthly: 0, yearly: 0, caption: "لاختبار المنصة قبل الترقية", customers: "عميل واحد", alerts: "50 رسالة بريد", features: ["قناة واتساب رسمية واحدة", "واتساب حسب الاستخدام", "100 MB تخزين"] },
+  { id: "starter", name: "Starter", monthly: 199, yearly: 159, caption: "لبدء المشاريع والفرق الصغيرة", customers: "20 عميلًا", alerts: "500 رسالة بريد", features: ["قناة واتساب رسمية واحدة", "واتساب حسب الاستخدام", "1 GB تخزين", "تقارير أساسية"] },
+  { id: "business", name: "Business", monthly: 499, yearly: 399, caption: "للشركات النامية", customers: "100 عميل", alerts: "2,000 رسالة بريد", features: ["قناتا واتساب رسميتان", "واتساب حسب الاستخدام", "10 GB تخزين", "حملات وأتمتة"], featured: true },
+  { id: "pro", name: "Pro", monthly: 999, yearly: 799, caption: "للشركات ذات التشغيل المتقدم", customers: "250 عميلًا", alerts: "10,000 رسالة بريد", features: ["قنوات واتساب متعددة", "واتساب حسب الاستخدام", "50 GB تخزين", "تقارير متقدمة"] }
 ];
 
 export const knowledgeBase = ["البدء السريع", "إدارة الاشتراكات", "التكاملات والإعدادات", "الفوترة والدفع", "التقارير والتحليلات", "استكشاف الأخطاء"];

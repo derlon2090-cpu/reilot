@@ -11,6 +11,12 @@ function period(overrides = {}) {
     whatsapp_used: 0,
     email_used: 0,
     sms_used: 0,
+    whatsapp_reserved: 0,
+    email_reserved: 0,
+    sms_reserved: 0,
+    whatsapp_message_limit: -1,
+    email_message_limit: 50,
+    sms_message_limit: 0,
     ...overrides
   };
 }
@@ -28,18 +34,25 @@ describe("database-backed message quota", () => {
   });
 
   it("counts reservations and blocks the next message at 50 / 50", () => {
-    expect(calculateMessageUsage(period({ used_messages: 49 }))).toMatchObject({ remaining: 1, isLimitReached: false });
-    expect(calculateMessageUsage(period({ used_messages: 49, reserved_messages: 1 }))).toMatchObject({ remaining: 0, percentage: 100, isLimitReached: true });
+    expect(calculateMessageUsage(period({ used_messages: 49, email_used: 49 }))).toMatchObject({ remaining: 1, isLimitReached: false });
+    expect(calculateMessageUsage(period({ used_messages: 49, reserved_messages: 1, email_used: 49, email_reserved: 1 }))).toMatchObject({ remaining: 0, percentage: 100, isLimitReached: true });
   });
 
-  it("keeps channel totals and supports a future unlimited plan", () => {
-    expect(calculateMessageUsage(period({ used_messages: 12, reserved_messages: 3, whatsapp_used: 8, email_used: 4 }))).toMatchObject({
-      consumed: 15,
-      remaining: 35,
-      percentage: 30,
+  it("keeps email limits independent from usage-based WhatsApp", () => {
+    expect(calculateMessageUsage(period({ used_messages: 12, reserved_messages: 3, whatsapp_used: 8, whatsapp_reserved: 2, email_used: 4, email_reserved: 1 }))).toMatchObject({
+      consumed: 5,
+      remaining: 45,
+      percentage: 10,
       byChannel: { whatsapp: 8, email: 4, sms: 0 }
     });
-    expect(calculateMessageUsage(period({ message_limit: -1, used_messages: 900 }))).toMatchObject({ unlimited: true, remaining: -1, percentage: null, isLimitReached: false });
+    expect(calculateMessageUsage(period({ whatsapp_used: 900 }))).toMatchObject({
+      unlimited: false,
+      remaining: 50,
+      channels: {
+        whatsapp: { unlimited: true, remaining: -1, percentage: null, used: 900 },
+        email: { unlimited: false, remaining: 50 }
+      }
+    });
   });
 
   it("serializes reservations and consumes or releases them through the secure queue", () => {
