@@ -11,29 +11,31 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain("function templatesCatalogPage()");
   });
 
-  it("loads the four persisted catalog templates without mixing in order information", () => {
+  it("loads the two general templates and an approved Meta template without Salla fulfillment", () => {
     expect(appSource).toContain('loadRemotePage("catalogTemplates", "/api/templates/catalog"');
-    expect(appSource).toContain("whatsapp_menu");
     expect(appSource).toContain("email_delivery");
     expect(appSource).toContain("renewal_whatsapp");
-    expect(appSource).toContain("salla_fulfilled");
-    expect(appSource).toContain("قالب تم التنفيذ — سلة");
+    expect(appSource).toContain("subscription_renewal_reminder");
+    expect(appSource).toContain('pageTitle("قوالب عامة"');
+    expect(appSource).not.toContain("سيتم إنشاء القوالب الأربعة الأساسية لمساحة العمل تلقائيًا");
     expect(appSource).not.toContain('key: `order_${item.id}`');
     expect(appSource).not.toContain("const fakeTemplates");
     expect(appSource).not.toContain("const sampleEmailValue");
   });
 
-  it("uses the new card grid and channel-specific editors", () => {
-    expect(appSource).toContain('class="template-catalog-grid"');
-    expect(appSource).toContain('class="template-catalog-card"');
+  it("uses the exact general list and server-backed Meta template controls", () => {
+    expect(appSource).toContain('class="general-templates-list"');
+    expect(appSource).toContain('class="general-template-card"');
+    expect(appSource).toContain('data-action="meta-template-sync"');
+    expect(appSource).toContain('data-action="meta-template-delete"');
+    expect(appSource).toContain("حذف القالب من Meta قد يمنع استخدامه");
     expect(appSource).toContain("function renewalTemplateEditorPageV2");
     expect(appSource).toContain("function catalogTemplateEditorPage");
     expect(appSource).toContain('class="whatsapp-phone-preview"');
     expect(appSource).toContain("email-preview-v2");
-    expect(appSource).toContain("catalog-salla-previews");
-    expect(appSource).toContain("whatsapp-opened-list");
+    expect(stylesSource).toContain(".general-template-card");
+    expect(stylesSource).toContain(".meta-approved-editor");
     expect(stylesSource).toContain(".template-editor-v2-whatsapp");
     expect(stylesSource).toContain(".template-editor-v2-email");
-    expect(stylesSource).toContain(".template-editor-v2-salla");
   });
 });

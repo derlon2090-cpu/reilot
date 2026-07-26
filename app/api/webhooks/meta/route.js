@@ -42,7 +42,8 @@ export async function POST(request) {
           status: value.event || value.status || "",
           category: value.category || null,
           reason: value.reason || value.rejection_reason || null,
-          qualityRating: value.quality_score || value.quality_rating || null
+          qualityRating: value.quality_score || value.quality_rating || null,
+          rawPayload: { entryId: entry.id || null, field: change.field, value }
         });
         if (result.changed) processed += 1;
       }

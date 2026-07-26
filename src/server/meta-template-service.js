@@ -10,6 +10,9 @@ export const META_TEMPLATE_STATUSES = Object.freeze({
   REJECTED: "rejected",
   PAUSED: "paused",
   DISABLED: "disabled",
+  PENDING_DELETION: "pending_deletion",
+  DELETED: "deleted",
+  UNKNOWN: "unknown",
   ERROR: "error"
 });
 
@@ -45,6 +48,7 @@ const componentSchema = z.discriminatedUnion("type", [
 
 export const metaTemplateDraftSchema = z.object({
   integrationId: z.string().uuid().optional(),
+  displayName: z.string().trim().min(1).max(120).optional(),
   name: z.string().trim().toLowerCase()
     .min(1).max(512)
     .regex(/^[a-z0-9_]+$/, "اسم القالب يقبل أحرفًا إنجليزية صغيرة وأرقامًا وشرطة سفلية فقط"),
@@ -61,12 +65,14 @@ export const metaTemplateDraftSchema = z.object({
 function templateSelect() {
   return `SELECT mt.id, mt.meta_integration_id AS "integrationId",
     mt.meta_template_id AS "metaTemplateId", mt.template_name AS name,
+    mt.display_name AS "displayName", mt.waba_id AS "wabaId", mt.source,
     mt.language, mt.requested_category AS category,
     mt.approved_category AS "approvedCategory", mt.components,
     mt.local_status AS status, mt.meta_status AS "metaStatus",
     mt.rejection_reason AS "rejectionReason", mt.quality_rating AS "qualityRating",
     mt.submitted_at AS "submittedAt", mt.approved_at AS "approvedAt",
-    mt.rejected_at AS "rejectedAt", mt.created_at AS "createdAt",
+    mt.rejected_at AS "rejectedAt", mt.last_synced_at AS "lastSyncedAt",
+    mt.created_at AS "createdAt",
     mt.updated_at AS "updatedAt", wc.display_name AS "channelName",
     wc.phone_number AS "phoneNumber"
     FROM meta_message_templates mt
@@ -83,7 +89,7 @@ function integrationSelect() {
 
 export async function listMetaTemplates(tenantId) {
   const [templates, integrations] = await Promise.all([
-    query(`${templateSelect()} WHERE mt.tenant_id=$1 ORDER BY mt.updated_at DESC`, [tenantId]),
+    query(`${templateSelect()} WHERE mt.tenant_id=$1 AND mt.deleted_at IS NULL ORDER BY mt.updated_at DESC`, [tenantId]),
     query(integrationSelect(), [tenantId])
   ]);
   return { items: templates.rows, integrations: integrations.rows };
@@ -124,11 +130,12 @@ export async function createMetaTemplateDraft({ tenantId, userId, input }) {
     }
     const saved = await client.query(
       `INSERT INTO meta_message_templates (
-         tenant_id, meta_integration_id, template_name, language,
-         requested_category, components, created_by
-       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)
+         tenant_id, meta_integration_id, waba_id, template_name, display_name, language,
+         requested_category, components, source, created_by
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,'LOCAL_DRAFT',$9)
        RETURNING id`,
-      [tenantId, integration.id, parsed.data.name, parsed.data.language,
+      [tenantId, integration.id, integration.waba_id, parsed.data.name,
+        parsed.data.displayName || parsed.data.name, parsed.data.language,
         parsed.data.category, JSON.stringify(parsed.data.components), userId]
     );
     await client.query(
@@ -167,11 +174,12 @@ export async function updateMetaTemplateDraft({ tenantId, userId, templateId, in
       throw error;
     }
     await client.query(
-      `UPDATE meta_message_templates SET meta_integration_id=$3,template_name=$4,
-       language=$5,requested_category=$6,components=$7::jsonb,
+      `UPDATE meta_message_templates SET meta_integration_id=$3,waba_id=$4,template_name=$5,
+       display_name=$6,language=$7,requested_category=$8,components=$9::jsonb,
        local_status='draft',meta_status=NULL,rejection_reason=NULL,updated_at=now()
        WHERE id=$1 AND tenant_id=$2`,
-      [templateId, tenantId, integration.id, parsed.data.name, parsed.data.language,
+      [templateId, tenantId, integration.id, integration.waba_id, parsed.data.name,
+        parsed.data.displayName || parsed.data.name, parsed.data.language,
         parsed.data.category, JSON.stringify(parsed.data.components)]
     );
     await client.query(
@@ -273,8 +281,10 @@ export async function submitMetaTemplate({ tenantId, userId, templateId }) {
       await client.query(
         `UPDATE meta_message_templates SET meta_template_id=$3,
          local_status='pending',meta_status=COALESCE($4,'PENDING'),
-         submitted_at=now(),updated_at=now() WHERE id=$1 AND tenant_id=$2`,
-        [templateId, tenantId, payload.id || null, String(payload.status || "PENDING").toUpperCase()]
+         raw_meta_payload=$5::jsonb,source='META',submitted_at=now(),
+         last_synced_at=now(),updated_at=now() WHERE id=$1 AND tenant_id=$2`,
+        [templateId, tenantId, payload.id || null,
+          String(payload.status || "PENDING").toUpperCase(), JSON.stringify(payload)]
       );
       await client.query(
         `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
@@ -300,11 +310,13 @@ function localStatus(metaStatus) {
   if (normalized === "REJECTED") return "rejected";
   if (normalized === "PAUSED") return "paused";
   if (normalized === "DISABLED") return "disabled";
-  return "pending";
+  if (normalized === "DELETED") return "deleted";
+  if (["PENDING", "IN_APPEAL", "PENDING_DELETION"].includes(normalized)) return normalized === "PENDING_DELETION" ? "pending_deletion" : "pending";
+  return "unknown";
 }
 
 export async function applyMetaTemplateStatus({
-  wabaId, templateId, name, language, status, category, reason, qualityRating
+  wabaId, templateId, name, language, status, category, reason, qualityRating, rawPayload
 }) {
   const channel = await query(
     `SELECT id,tenant_id FROM whatsapp_channels
@@ -328,7 +340,8 @@ export async function applyMetaTemplateStatus({
       }
     }
     const found = await client.query(
-      `SELECT id,local_status FROM meta_message_templates WHERE ${matches.join(" AND ")} FOR UPDATE`,
+      `SELECT id,local_status FROM meta_message_templates WHERE ${matches.join(" AND ")}
+       AND deleted_at IS NULL FOR UPDATE`,
       values
     );
     if (!found.rows[0]) return { changed: false };
@@ -336,13 +349,15 @@ export async function applyMetaTemplateStatus({
       `UPDATE meta_message_templates SET meta_status=$3,local_status=$4,
        approved_category=COALESCE($5,approved_category),rejection_reason=$6,
        quality_rating=COALESCE($7,quality_rating),
+       raw_meta_payload=COALESCE($8::jsonb,raw_meta_payload),last_synced_at=now(),
        approved_at=CASE WHEN $4='approved' THEN now() ELSE approved_at END,
        rejected_at=CASE WHEN $4='rejected' THEN now() ELSE rejected_at END,
        updated_at=now() WHERE id=$1 AND tenant_id=$2`,
       [found.rows[0].id, channel.rows[0].tenant_id, String(status || "").toUpperCase(),
         mapped, category ? String(category).toUpperCase() : null,
         mapped === "rejected" ? String(reason || "لم تُرسل Meta سببًا تفصيليًا.").slice(0, 500) : null,
-        qualityRating ? String(qualityRating).slice(0, 80) : null]
+        qualityRating ? String(qualityRating).slice(0, 80) : null,
+        rawPayload ? JSON.stringify(rawPayload) : null]
     );
     const approved = mapped === "approved";
     const rejected = mapped === "rejected";
@@ -365,6 +380,90 @@ export async function applyMetaTemplateStatus({
   });
 }
 
+async function listAllGraphTemplates(config) {
+  const items = [];
+  let after = "";
+  do {
+    const params = new URLSearchParams({
+      fields: "id,name,language,status,category,components,rejected_reason,quality_score",
+      limit: "100"
+    });
+    if (after) params.set("after", after);
+    const payload = await graphRequest({
+      path: `${config.version}/${encodeURIComponent(config.wabaId)}/message_templates?${params}`,
+      accessToken: config.accessToken
+    });
+    items.push(...(Array.isArray(payload.data) ? payload.data : []));
+    after = payload?.paging?.next ? String(payload?.paging?.cursors?.after || "") : "";
+  } while (after);
+  return items;
+}
+
+async function upsertSyncedTemplate({ client, tenantId, integration, item, userId }) {
+  const metaTemplateId = String(item.id || "");
+  const name = String(item.name || "").trim().toLowerCase();
+  const language = String(item.language || "").trim();
+  if (!metaTemplateId || !name || !language) return "unchanged";
+
+  const status = localStatus(item.status);
+  const category = ["MARKETING", "UTILITY", "AUTHENTICATION"].includes(String(item.category || "").toUpperCase())
+    ? String(item.category).toUpperCase()
+    : "UTILITY";
+  const components = Array.isArray(item.components) ? item.components : [];
+  const qualityRating = item.quality_score?.score || item.quality_score || null;
+  const reason = item.rejected_reason || null;
+  const existing = await client.query(
+    `SELECT id,meta_status,local_status,requested_category,components,rejection_reason,quality_rating
+       FROM meta_message_templates
+      WHERE tenant_id=$1 AND meta_integration_id=$2 AND deleted_at IS NULL
+        AND (meta_template_id=$3 OR (template_name=$4 AND language=$5))
+      ORDER BY CASE WHEN meta_template_id=$3 THEN 0 ELSE 1 END LIMIT 1 FOR UPDATE`,
+    [tenantId, integration.id, metaTemplateId, name, language]
+  );
+  if (!existing.rows[0]) {
+    await client.query(
+      `INSERT INTO meta_message_templates (
+        tenant_id,meta_integration_id,waba_id,meta_template_id,template_name,display_name,
+        language,requested_category,approved_category,components,local_status,meta_status,
+        rejection_reason,quality_rating,source,raw_meta_payload,last_synced_at,submitted_at,
+        approved_at,rejected_at,created_by
+      ) VALUES (
+        $1,$2,$3,$4,$5,$5,$6,$7,$7,$8::jsonb,$9,$10,$11,$12,'META',$13::jsonb,now(),now(),
+        CASE WHEN $9='approved' THEN now() END,CASE WHEN $9='rejected' THEN now() END,$14
+      )`,
+      [tenantId, integration.id, integration.waba_id, metaTemplateId, name, language,
+        category, JSON.stringify(components), status, String(item.status || "").toUpperCase(),
+        reason ? String(reason).slice(0, 500) : null,
+        qualityRating ? String(qualityRating).slice(0, 80) : null, JSON.stringify(item), userId]
+    );
+    return "added";
+  }
+
+  const row = existing.rows[0];
+  const changed = row.meta_status !== String(item.status || "").toUpperCase()
+    || row.local_status !== status
+    || row.requested_category !== category
+    || JSON.stringify(row.components || []) !== JSON.stringify(components)
+    || String(row.rejection_reason || "") !== String(reason || "")
+    || String(row.quality_rating || "") !== String(qualityRating || "");
+  await client.query(
+    `UPDATE meta_message_templates SET
+      waba_id=$3,meta_template_id=$4,template_name=$5,language=$6,
+      requested_category=$7,approved_category=$7,components=$8::jsonb,
+      local_status=$9,meta_status=$10,rejection_reason=$11,quality_rating=$12,
+      source='META',raw_meta_payload=$13::jsonb,last_synced_at=now(),
+      approved_at=CASE WHEN $9='approved' THEN COALESCE(approved_at,now()) ELSE approved_at END,
+      rejected_at=CASE WHEN $9='rejected' THEN COALESCE(rejected_at,now()) ELSE rejected_at END,
+      updated_at=CASE WHEN $14 THEN now() ELSE updated_at END
+      WHERE id=$1 AND tenant_id=$2`,
+    [row.id, tenantId, integration.waba_id, metaTemplateId, name, language, category,
+      JSON.stringify(components), status, String(item.status || "").toUpperCase(),
+      reason ? String(reason).slice(0, 500) : null,
+      qualityRating ? String(qualityRating).slice(0, 80) : null, JSON.stringify(item), changed]
+  );
+  return changed ? "updated" : "unchanged";
+}
+
 export async function syncMetaTemplates({ tenantId, userId }) {
   const integrations = await query(
     `SELECT id,waba_id,channel_token_encrypted,status FROM whatsapp_channels
@@ -372,35 +471,103 @@ export async function syncMetaTemplates({ tenantId, userId }) {
         AND status='connected' AND waba_id IS NOT NULL`,
     [tenantId]
   );
-  let updated = 0;
+  if (!integrations.rowCount) {
+    const error = new Error("اربط حساب واتساب الرسمي عبر Meta Cloud API قبل مزامنة القوالب المعتمدة.");
+    error.code = "META_INTEGRATION_REQUIRED";
+    error.status = 409;
+    throw error;
+  }
+
+  const summary = { added: 0, updated: 0, unchanged: 0, deleted: 0, integrations: integrations.rowCount };
   for (const integration of integrations.rows) {
     const config = graphConfiguration(integration);
-    const params = new URLSearchParams({
-      fields: "id,name,language,status,category,rejected_reason,quality_score",
-      limit: "250"
+    const remoteItems = await listAllGraphTemplates(config);
+    await transaction(async (client) => {
+      const seen = [];
+      for (const item of remoteItems) {
+        if (item?.id) seen.push(String(item.id));
+        const outcome = await upsertSyncedTemplate({ client, tenantId, integration, item, userId });
+        summary[outcome] += 1;
+      }
+      const missing = await client.query(
+        `UPDATE meta_message_templates SET local_status='deleted',meta_status='MISSING_FROM_META',
+          deleted_at=now(),last_synced_at=now(),updated_at=now()
+         WHERE tenant_id=$1 AND meta_integration_id=$2 AND source='META' AND deleted_at IS NULL
+           AND meta_template_id IS NOT NULL AND NOT (meta_template_id=ANY($3::text[]))
+         RETURNING id`,
+        [tenantId, integration.id, seen]
+      );
+      summary.deleted += missing.rowCount;
     });
-    const payload = await graphRequest({
-      path: `${config.version}/${encodeURIComponent(config.wabaId)}/message_templates?${params}`,
-      accessToken: config.accessToken
-    });
-    for (const item of Array.isArray(payload.data) ? payload.data : []) {
-      const result = await applyMetaTemplateStatus({
-        wabaId: config.wabaId,
-        templateId: item.id,
-        name: item.name,
-        language: item.language,
-        status: item.status,
-        category: item.category,
-        reason: item.rejected_reason,
-        qualityRating: item.quality_score?.score || item.quality_score
-      });
-      if (result.changed) updated += 1;
-    }
   }
   await query(
     `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
      VALUES ($1,$2,'meta_template.synced','Meta WhatsApp templates synchronized',$3::jsonb)`,
-    [tenantId, userId, JSON.stringify({ updated, integrations: integrations.rowCount })]
+    [tenantId, userId, JSON.stringify(summary)]
   );
-  return { updated, integrations: integrations.rowCount };
+  return { ...summary, total: summary.added + summary.updated + summary.unchanged };
+}
+
+export async function deleteMetaTemplate({ tenantId, userId, templateId }) {
+  const prepared = await transaction(async (client) => {
+    const result = await client.query(
+      `SELECT mt.id,mt.template_name,mt.meta_template_id,mt.local_status,
+              wc.waba_id,wc.channel_token_encrypted,wc.status AS channel_status
+         FROM meta_message_templates mt
+         JOIN whatsapp_channels wc ON wc.id=mt.meta_integration_id AND wc.tenant_id=mt.tenant_id
+        WHERE mt.id=$1 AND mt.tenant_id=$2 AND mt.deleted_at IS NULL FOR UPDATE OF mt`,
+      [templateId, tenantId]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    if (row.local_status === "submitting") {
+      const error = new Error("انتظر اكتمال إرسال القالب إلى Meta قبل حذفه.");
+      error.status = 409;
+      throw error;
+    }
+    await client.query(
+      "UPDATE meta_message_templates SET local_status='pending_deletion',updated_at=now() WHERE id=$1 AND tenant_id=$2",
+      [templateId, tenantId]
+    );
+    return row;
+  });
+  if (!prepared) return null;
+
+  try {
+    if (prepared.meta_template_id) {
+      if (prepared.channel_status !== "connected") {
+        const error = new Error("تعذر حذف القالب من Meta لأن اتصال واتساب غير نشط.");
+        error.status = 409;
+        throw error;
+      }
+      const config = graphConfiguration(prepared);
+      const params = new URLSearchParams({ name: prepared.template_name });
+      await graphRequest({
+        method: "DELETE",
+        path: `${config.version}/${encodeURIComponent(config.wabaId)}/message_templates?${params}`,
+        accessToken: config.accessToken
+      });
+    }
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE meta_message_templates SET local_status='deleted',meta_status='DELETED',
+         deleted_at=now(),last_synced_at=now(),updated_at=now()
+         WHERE id=$1 AND tenant_id=$2`,
+        [templateId, tenantId]
+      );
+      await client.query(
+        `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
+         VALUES ($1,$2,'meta_template.deleted','Meta WhatsApp template deleted',$3::jsonb)`,
+        [tenantId, userId, JSON.stringify({ templateId, metaTemplateId: prepared.meta_template_id || null })]
+      );
+    });
+    return { id: templateId };
+  } catch (error) {
+    await query(
+      `UPDATE meta_message_templates SET local_status=CASE WHEN meta_template_id IS NULL THEN 'draft' ELSE 'error' END,
+       rejection_reason=$3,updated_at=now() WHERE id=$1 AND tenant_id=$2`,
+      [templateId, tenantId, String(error.message || "Meta deletion failed").slice(0, 500)]
+    );
+    throw error;
+  }
 }

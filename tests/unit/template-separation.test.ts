@@ -16,11 +16,12 @@ describe("system template separation", () => {
     expect(defaults).toContain('ORDER_INFORMATION_SALLA: "order_information_salla"');
   });
 
-  it("exposes a tenant-scoped catalog endpoint that updates the same stable key", () => {
+  it("exposes only the requested general catalog keys while keeping Salla fulfillment separate", () => {
     const catalogRoute = readFileSync("app/api/templates/catalog/route.js", "utf8");
-    expect(catalogRoute).toContain("TEMPLATE_KEYS.WHATSAPP_MENU");
     expect(catalogRoute).toContain("TEMPLATE_KEYS.EMAIL_DELIVERY");
-    expect(catalogRoute).toContain("TEMPLATE_KEYS.SALLA_FULFILLED");
+    expect(catalogRoute).toContain("TEMPLATE_KEYS.RENEWAL_WHATSAPP");
+    expect(catalogRoute).not.toContain("TEMPLATE_KEYS.SALLA_FULFILLED");
+    expect(catalogRoute).not.toContain("TEMPLATE_KEYS.WHATSAPP_MENU");
     expect(catalogRoute).toContain("WHERE tenant_id=$10 AND template_key=$11");
     expect(catalogRoute).not.toContain("order_information_salla");
   });

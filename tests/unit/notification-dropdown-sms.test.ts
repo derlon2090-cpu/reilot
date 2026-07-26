@@ -10,11 +10,12 @@ const planRouteSource = readFileSync(new URL("../../app/api/billing/current-plan
 const historyRouteSource = readFileSync(new URL("../../app/api/billing/usage-history/route.js", import.meta.url), "utf8");
 
 describe("notification dropdown layout", () => {
-  it("centers the dropdown in the viewport without relying on its trigger position", () => {
-    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?position:\s*fixed;/);
-    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?left:\s*50%;/);
-    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?transform:\s*translateX\(-50%\);/);
-    expect(stylesSource).not.toContain("inset-inline-end: -70px");
+  it("anchors the compact dropdown to the notification trigger", () => {
+    expect(stylesSource).toMatch(/\.notification-trigger-wrap\s*\{[\s\S]*?position:\s*relative;/);
+    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?position:\s*absolute;/);
+    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?inset-inline-end:\s*0;/);
+    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?width:\s*min\(326px,/);
+    expect(stylesSource).not.toMatch(/\.notification-dropdown\s*\{[\s\S]*?left:\s*50%;/);
   });
 });
 

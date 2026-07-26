@@ -3,17 +3,13 @@ import { ensureDefaultTemplates, TEMPLATE_KEYS } from "../../../../src/server/de
 import { requireSession } from "../../../../src/server/session.js";
 
 const catalogKeys = [
-  TEMPLATE_KEYS.WHATSAPP_MENU,
   TEMPLATE_KEYS.EMAIL_DELIVERY,
-  TEMPLATE_KEYS.RENEWAL_WHATSAPP,
-  TEMPLATE_KEYS.SALLA_FULFILLED
+  TEMPLATE_KEYS.RENEWAL_WHATSAPP
 ];
 const allowedKeys = new Set(catalogKeys);
 const allowedVariables = {
-  [TEMPLATE_KEYS.WHATSAPP_MENU]: new Set(["customer_name", "store_name"]),
   [TEMPLATE_KEYS.EMAIL_DELIVERY]: new Set(["customer_name", "order_number", "order_portal_url", "store_name"]),
-  [TEMPLATE_KEYS.RENEWAL_WHATSAPP]: new Set(["customer_name", "service_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number"]),
-  [TEMPLATE_KEYS.SALLA_FULFILLED]: new Set(["customer_name", "order_number", "order_portal_url", "store_name"])
+  [TEMPLATE_KEYS.RENEWAL_WHATSAPP]: new Set(["customer_name", "service_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number"])
 };
 
 function sanitizeText(value, maxLength, required = true) {
@@ -41,12 +37,16 @@ function normalizeMenuContent(value) {
 }
 
 function selectCatalogTemplates() {
-  return `SELECT id,template_key AS "templateKey",template_group AS "templateGroup",name,channel,trigger_type AS "triggerType",
-    title,body,variables,content_json AS "contentJson",button_label AS "buttonLabel",footer_text AS "footerText",
-    theme_color AS "themeColor",template_version AS "templateVersion",is_system_default AS "isSystemDefault",
-    is_active AS "isActive",updated_at AS "updatedAt"
-    FROM notification_templates WHERE tenant_id=$1 AND template_key=ANY($2::text[])
-    ORDER BY array_position($2::text[],template_key)`;
+  return `SELECT nt.id,nt.template_key AS "templateKey",nt.template_group AS "templateGroup",nt.name,nt.channel,
+    nt.trigger_type AS "triggerType",nt.title,nt.body,nt.variables,nt.content_json AS "contentJson",
+    nt.button_label AS "buttonLabel",nt.footer_text AS "footerText",nt.theme_color AS "themeColor",
+    nt.template_version AS "templateVersion",nt.is_system_default AS "isSystemDefault",
+    nt.is_active AS "isActive",nt.updated_at AS "updatedAt",
+    (SELECT count(*)::int FROM message_queue mq
+      WHERE mq.tenant_id=nt.tenant_id AND mq.template_id=nt.id
+        AND mq.status IN ('sent','delivered','read')) AS "usageCount"
+    FROM notification_templates nt WHERE nt.tenant_id=$1 AND nt.template_key=ANY($2::text[])
+    ORDER BY array_position($2::text[],nt.template_key)`;
 }
 
 export async function GET(req) {
@@ -72,9 +72,7 @@ export async function PUT(req) {
   if (!name || !body || ![title, body, buttonLabel, footerText].every((value) => hasAllowedVariables(value, allowed))) {
     return Response.json({ ok: false, message: "تحقق من محتوى القالب والمتغيرات المستخدمة" }, { status: 400 });
   }
-  const contentJson = templateKey === TEMPLATE_KEYS.WHATSAPP_MENU
-    ? normalizeMenuContent(input.contentJson)
-    : templateKey === TEMPLATE_KEYS.SALLA_FULFILLED ? { lockedPortalLink: true } : {};
+  const contentJson = {};
   const themeColor = /^#[0-9a-f]{6}$/i.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#0EA5A8";
   const saved = await transaction(async (client) => {
     await ensureDefaultTemplates(client, auth.session.tenantId);
