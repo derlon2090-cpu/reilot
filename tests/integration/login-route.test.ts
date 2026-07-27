@@ -52,4 +52,17 @@ describe("POST /api/auth/login", () => {
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(loginAccount).not.toHaveBeenCalled();
   });
+
+  it("reports OTP delivery outages without claiming the password is wrong", async () => {
+    vi.mocked(loginAccount).mockResolvedValue({
+      ok: false,
+      status: 503,
+      reason: "email_otp_unavailable"
+    });
+    const response = await POST(loginRequest("Correct@12345"));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(await response.json()).toEqual({ ok: false, reason: "email_otp_unavailable" });
+  });
 });

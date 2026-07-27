@@ -97,28 +97,68 @@ export async function verifyResetCode({ email, code }) {
 
 export async function resetPassword({ email, code, password }) {
   if (!isStrongPassword(password)) return { ok: false, status: 400, reason: "weak_password" };
-  const verified = await verifyResetCode({ email, code });
-  if (!verified.ok) return { ok: false, status: 400, reason: verified.reason };
+  const normalized = normalizeEmail(email);
+  if (!normalized || !/^\d{6}$/.test(String(code || ""))) {
+    return { ok: false, status: 400, reason: "invalid" };
+  }
   const passwordHash = await hashPassword(password);
-  const account = await transaction(async (client) => {
+  const outcome = await transaction(async (client) => {
+    const resetResult = await client.query(
+      `SELECT id, user_id AS "userId", code_hash AS "codeHash", attempts, expires_at AS "expiresAt"
+         FROM password_reset_codes
+        WHERE email = $1 AND used_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE`,
+      [normalized]
+    );
+    const reset = resetResult.rows[0];
+    if (!reset || new Date(reset.expiresAt) <= new Date() || Number(reset.attempts) >= 5) {
+      return { ok: false, status: 400, reason: "expired" };
+    }
+    const suppliedHash = sha256(String(code));
+    const expectedHash = String(reset.codeHash || "");
+    const supplied = Buffer.from(suppliedHash, "hex");
+    const expected = Buffer.from(expectedHash, "hex");
+    const valid = supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+    if (!valid) {
+      await client.query("UPDATE password_reset_codes SET attempts = attempts + 1 WHERE id = $1", [reset.id]);
+      return { ok: false, status: 400, reason: "invalid" };
+    }
+
     const userResult = await client.query(
       `SELECT id, tenant_id AS "tenantId", email
          FROM users
-        WHERE id = $1
+        WHERE id = $1 AND lower(email) = $2
         LIMIT 1`,
-      [verified.record.userId]
+      [reset.userId, normalized]
     );
-    await client.query("UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2", [passwordHash, verified.record.userId]);
+    if (!userResult.rows[0]) return { ok: false, status: 400, reason: "expired" };
+    const updatedAccount = await client.query(
+      "UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential' RETURNING user_id",
+      [passwordHash, reset.userId]
+    );
+    if (!updatedAccount.rowCount) return { ok: false, status: 400, reason: "expired" };
     await client.query(
       "UPDATE users SET password_strength = $1, password_changed_at = now(), updated_at = now() WHERE id = $2",
-      [classifyPasswordStrength(password, userResult.rows[0]?.email), verified.record.userId]
+      [classifyPasswordStrength(password, userResult.rows[0]?.email), reset.userId]
     );
-    await client.query("UPDATE password_reset_codes SET used_at = now() WHERE id = $1", [verified.record.id]);
-    await client.query("DELETE FROM sessions WHERE user_id = $1", [verified.record.userId]);
-    await client.query("UPDATE auth_trusted_devices SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [verified.record.userId]);
-    await client.query("UPDATE auth_email_otp_challenges SET invalidated_at = now(), updated_at = now() WHERE user_id = $1 AND consumed_at IS NULL AND invalidated_at IS NULL", [verified.record.userId]);
-    return userResult.rows[0] || null;
+    await client.query("UPDATE password_reset_codes SET used_at = now() WHERE id = $1", [reset.id]);
+    await client.query("DELETE FROM sessions WHERE user_id = $1", [reset.userId]);
+    const optionalAuthTables = await client.query(
+      `SELECT to_regclass('auth_trusted_devices') AS trusted_devices,
+              to_regclass('auth_email_otp_challenges') AS otp_challenges`
+    );
+    if (optionalAuthTables.rows[0]?.trusted_devices) {
+      await client.query("UPDATE auth_trusted_devices SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [reset.userId]);
+    }
+    if (optionalAuthTables.rows[0]?.otp_challenges) {
+      await client.query("UPDATE auth_email_otp_challenges SET invalidated_at = now(), updated_at = now() WHERE user_id = $1 AND consumed_at IS NULL AND invalidated_at IS NULL", [reset.userId]);
+    }
+    return { ok: true, account: userResult.rows[0] };
   });
+  if (!outcome.ok) return outcome;
+  const account = outcome.account;
   if (account?.email) {
     await notifyPasswordChanged({
       tenantId: account.tenantId,

@@ -429,6 +429,18 @@ const defaultLinkedDevice = {
   activity: []
 };
 
+function readPasswordResetSession() {
+  try {
+    const email = sessionStorage.getItem("renvix.passwordReset.email") || "";
+    const step = Number(sessionStorage.getItem("renvix.passwordReset.step") || 1);
+    return { email, step: email && step === 2 ? 2 : 1 };
+  } catch {
+    return { email: "", step: 1 };
+  }
+}
+
+const passwordResetSession = readPasswordResetSession();
+
 const state = {
   route: location.pathname,
   query: new URLSearchParams(location.search),
@@ -437,8 +449,8 @@ const state = {
   theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
   profileOpen: false,
-  resetStep: 1,
-  resetEmail: "",
+  resetStep: passwordResetSession.step,
+  resetEmail: passwordResetSession.email,
   emailOtpStatus: null,
   emailOtpLoading: false,
   billing: storage.get("renewpilot.billing", "monthly"),
@@ -5477,6 +5489,8 @@ async function handleSubmit(form, event) {
       setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
       if (networkFailed) return appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "login-network" });
       if (failureReason === "rate_limited") return appToast.warning("محاولات تسجيل دخول كثيرة", { description: "انتظر قليلًا قبل المحاولة مرة أخرى.", id: "login-rate-limit" });
+      if (failureReason === "email_otp_unavailable") return appToast.error("تعذر إرسال رمز التحقق", { description: "خدمة التحقق عبر البريد غير متاحة حاليًا. تواصل مع مسؤول المنصة.", id: "login-otp-unavailable" });
+      if (failureReason === "server_error") return appToast.error("تعذر تسجيل الدخول مؤقتًا", { description: "حدث خطأ في الخادم ولم يتم التحقق من بياناتك. حاول مرة أخرى بعد قليل.", id: "login-server-error" });
       return appToast.error("تعذر تسجيل الدخول", { description: "البريد الإلكتروني أو كلمة المرور غير صحيحة.", id: "login-error" });
     }
     if (!await browserSessionIsValid()) {
@@ -5750,6 +5764,10 @@ async function handleSubmit(form, event) {
       }
       state.resetEmail = data.email;
       state.resetStep = 2;
+      try {
+        sessionStorage.setItem("renvix.passwordReset.email", state.resetEmail);
+        sessionStorage.setItem("renvix.passwordReset.step", "2");
+      } catch {}
       appToast.success("تم استلام طلبك", { description: "إذا كان البريد مسجلًا لدينا، فسيصلك رمز إعادة تعيين كلمة المرور.", id: "forgot-success" });
       render();
     } catch {
@@ -5767,19 +5785,33 @@ async function handleSubmit(form, event) {
       setFormError(form, "confirmPassword", "كلمتا المرور غير متطابقتين.");
       return appToast.error("كلمتا المرور غير متطابقتين", { description: "أعد كتابة كلمة المرور الجديدة بشكل مطابق.", id: "reset-password-mismatch" });
     }
-    if (!/^(?=.*[A-Za-z])(?=.*\d).{10,}$/.test(data.password || "")) {
-      setFormError(form, "password", "استخدم 10 أحرف على الأقل مع أرقام وحروف.");
-      return appToast.warning("كلمة المرور غير قوية", { description: "استخدم 10 أحرف على الأقل مع أرقام وحروف.", id: "reset-password-weak" });
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) {
+      setFormError(form, "password", "استخدم 8 خانات على الأقل تشمل حروفًا ورقمًا ورمزًا خاصًا.");
+      return appToast.warning("كلمة المرور غير قوية", { description: "استخدم 8 خانات على الأقل تشمل حروفًا ورقمًا ورمزًا خاصًا.", id: "reset-password-weak" });
     }
     try {
-      const response = await fetch("/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.resetEmail, code: data.code, password: data.password }) });
+      let resetEmail = state.resetEmail;
+      try { resetEmail ||= sessionStorage.getItem("renvix.passwordReset.email") || ""; } catch {}
+      if (!resetEmail) {
+        state.resetStep = 1;
+        render();
+        return appToast.warning("ابدأ طلب الاستعادة من جديد", { description: "أدخل بريد حسابك أولًا لإرسال رمز تحقق جديد.", id: "reset-email-missing" });
+      }
+      const response = await fetch("/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resetEmail, code: data.code, password: data.password }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (payload.reason === "expired") return appToast.warning("انتهت صلاحية الرمز", { description: "اطلب رمزًا جديدًا لإكمال إعادة تعيين كلمة المرور.", id: "reset-code-expired" });
         if (payload.reason === "invalid") return appToast.error("رمز التحقق غير صحيح", { description: "تحقق من الرمز المرسل إلى بريدك وحاول مرة أخرى.", id: "reset-code-invalid" });
+        if (payload.reason === "weak_password") return appToast.warning("كلمة المرور غير قوية", { description: "استخدم حروفًا وأرقامًا ورمزًا خاصًا ثم حاول مرة أخرى.", id: "reset-password-weak-server" });
+        if (payload.reason === "server_error") return appToast.error("تعذر إكمال الطلب", { description: "حدث خطأ في الخادم ولم تُغيّر كلمة المرور. حاول مرة أخرى بعد قليل.", id: "reset-server-error" });
         return appToast.error("تعذر تغيير كلمة المرور", { description: "جلسة إعادة التعيين غير صالحة. ابدأ العملية من جديد.", id: "reset-error" });
       }
       state.resetStep = 3;
+      state.resetEmail = "";
+      try {
+        sessionStorage.removeItem("renvix.passwordReset.email");
+        sessionStorage.removeItem("renvix.passwordReset.step");
+      } catch {}
       appToast.success("تم تغيير كلمة المرور بنجاح", { description: "يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة.", id: "reset-success" });
       render();
     } catch { appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "reset-network" }); }

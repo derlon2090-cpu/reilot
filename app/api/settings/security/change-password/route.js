@@ -27,7 +27,10 @@ export async function POST(request) {
       [classifyPasswordStrength(parsed.data.newPassword, user.rows[0]?.email), auth.session.userId]
     );
     await client.query("DELETE FROM sessions WHERE user_id = $1 AND id <> $2", [auth.session.userId, auth.session.id]);
-    await client.query("UPDATE auth_trusted_devices SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [auth.session.userId]);
+    const trustedDevices = await client.query("SELECT to_regclass('auth_trusted_devices') AS table_name");
+    if (trustedDevices.rows[0]?.table_name) {
+      await client.query("UPDATE auth_trusted_devices SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [auth.session.userId]);
+    }
     await client.query(
       `INSERT INTO activity_logs (tenant_id, user_id, type, title)
        VALUES ($1, $2, 'password.changed', 'Password changed')`,

@@ -7,6 +7,43 @@ import { classifyPasswordStrength } from "./security-score.js";
 import { ensureDefaultTemplates } from "./default-templates.js";
 import { createLoginEmailOtpChallenge, isTrustedDevice } from "./email-otp.js";
 
+function isEmailOtpSchemaUnavailable(error) {
+  return error?.code === "42703" || error?.code === "42P01";
+}
+
+function emailOtpDeliveryConfigured() {
+  const pepper = process.env.EMAIL_OTP_PEPPER?.trim() || "";
+  return Boolean(process.env.RESEND_API_KEY?.trim()) && pepper.length >= 24;
+}
+
+async function findCredentialUser(normalizedEmail) {
+  try {
+    return await query(
+      `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
+              u.email_otp_enabled AS "emailOtpEnabled", COALESCE(tm.role, u.role) AS role, a.password
+         FROM users u
+         JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
+         LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
+        WHERE lower(u.email) = $1 LIMIT 1`,
+      [normalizedEmail]
+    );
+  } catch (error) {
+    // Keep credential login available during rolling deployments where the OTP
+    // migration has not reached the database yet. OTP remains opt-in once the
+    // schema is present.
+    if (!isEmailOtpSchemaUnavailable(error)) throw error;
+    return query(
+      `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
+              false AS "emailOtpEnabled", COALESCE(tm.role, u.role) AS role, a.password
+         FROM users u
+         JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
+         LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
+        WHERE lower(u.email) = $1 LIMIT 1`,
+      [normalizedEmail]
+    );
+  }
+}
+
 function slugify(value) {
   const base = String(value || "store").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return `${base || "store"}-${crypto.randomBytes(3).toString("hex")}`;
@@ -68,15 +105,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   );
   if (attempts.rows[0].count >= 10) return { ok: false, status: 429, reason: "rate_limited" };
 
-  const result = await query(
-    `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
-            u.email_otp_enabled AS "emailOtpEnabled", COALESCE(tm.role, u.role) AS role, a.password
-       FROM users u
-       JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
-       LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-      WHERE lower(u.email) = $1 LIMIT 1`,
-    [normalized]
-  );
+  const result = await findCredentialUser(normalized);
   const user = result.rows[0];
   const valid = user ? await verifyPassword(password, user.password) : false;
   await query(
@@ -103,6 +132,9 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     ? await isTrustedDevice({ userId: user.id, rawToken: trustedDeviceToken })
     : false;
   if (user.emailOtpEnabled && !trusted) {
+    if (!emailOtpDeliveryConfigured()) {
+      return { ok: false, status: 503, reason: "email_otp_unavailable" };
+    }
     const challenge = await createLoginEmailOtpChallenge({
       user,
       ipAddress,
