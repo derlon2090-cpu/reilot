@@ -41,6 +41,31 @@ describe("POST /api/auth/login", () => {
     expect(JSON.stringify(body)).not.toContain("raw-session-token");
   });
 
+  it("creates only the temporary OTP cookie when email verification is required", async () => {
+    vi.mocked(loginAccount).mockResolvedValue({
+      ok: true,
+      status: 202,
+      requiresEmailOtp: true,
+      challenge: {
+        challengeCookie: "signed-challenge",
+        maskedEmail: "ow***@example.com",
+        expiresAt: new Date("2026-07-27T12:05:00.000Z"),
+        resendAt: new Date("2026-07-27T12:01:00.000Z")
+      }
+    });
+
+    const response = await POST(loginRequest("Test@12345"));
+    const body = await response.json();
+    const cookie = response.headers.get("set-cookie") || "";
+
+    expect(response.status).toBe(202);
+    expect(body.requiresEmailOtp).toBe(true);
+    expect(cookie).toContain("renvix_email_otp_challenge=");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).not.toContain("renewpilot_session=");
+    expect(JSON.stringify(body)).not.toContain("signed-challenge");
+  });
+
   it("returns 400 without a cookie for malformed JSON", async () => {
     const response = await POST(new Request("http://localhost/api/auth/login", {
       method: "POST",

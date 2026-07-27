@@ -16,6 +16,16 @@ function emailOtpDeliveryConfigured() {
   return Boolean(process.env.RESEND_API_KEY?.trim()) && pepper.length >= 24;
 }
 
+function emailOtpRequired(user) {
+  // Email OTP is a platform security boundary. It is enforced by default and
+  // can only be relaxed explicitly for a controlled recovery deployment.
+  // The browser never decides whether the second factor is required.
+  if (process.env.EMAIL_OTP_ENFORCE_ALL === "false") {
+    return Boolean(user?.emailOtpEnabled);
+  }
+  return true;
+}
+
 async function findCredentialUser(normalizedEmail) {
   try {
     return await query(
@@ -64,8 +74,8 @@ export async function registerAccount({ name, companyName, email, password, ipAd
     );
     const tenantId = tenant.rows[0].id;
     const user = await client.query(
-      `INSERT INTO users (tenant_id, name, email, role, password_strength, password_changed_at)
-       VALUES ($1, $2, $3, 'owner', $4, now()) RETURNING id, name, email`,
+      `INSERT INTO users (tenant_id, name, email, role, password_strength, password_changed_at, email_otp_enabled)
+       VALUES ($1, $2, $3, 'owner', $4, now(), true) RETURNING id, name, email`,
       [tenantId, String(name).trim(), normalized, classifyPasswordStrength(password, normalized)]
     );
     const userId = user.rows[0].id;
@@ -128,10 +138,11 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     return { ok: false, status: 401, reason: "invalid_credentials" };
   }
 
-  const trusted = user.emailOtpEnabled
+  const requiresEmailOtp = emailOtpRequired(user);
+  const trusted = requiresEmailOtp
     ? await isTrustedDevice({ userId: user.id, rawToken: trustedDeviceToken })
     : false;
-  if (user.emailOtpEnabled && !trusted) {
+  if (requiresEmailOtp && !trusted) {
     if (!emailOtpDeliveryConfigured()) {
       return { ok: false, status: 503, reason: "email_otp_unavailable" };
     }
