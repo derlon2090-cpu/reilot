@@ -1,6 +1,7 @@
 import { transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
 import { rescheduleSubscriptionReminders } from "../../../../src/server/subscription-operations.js";
+import { assertPlanFeature, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
 
 const statuses = new Set(["pending_activation","active","expired","renewed","paused","cancelled","needs_review"]);
 const channels = new Set(["whatsapp","email"]);
@@ -10,6 +11,15 @@ export async function PATCH(req, { params }) {
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
+  if (body.reminderMode === "automatic") {
+    try {
+      await assertPlanFeature(auth.session.tenantId, "automationEnabled");
+    } catch (error) {
+      const response = planEntitlementResponse(error);
+      if (response) return response;
+      throw error;
+    }
+  }
   const updated = await transaction(async (client) => {
     const current = await client.query("SELECT * FROM customer_subscriptions WHERE id=$1 AND tenant_id=$2 FOR UPDATE", [id, auth.session.tenantId]);
     if (!current.rows[0]) return null;
@@ -19,6 +29,9 @@ export async function PATCH(req, { params }) {
     if (new Date(end) < new Date(start)) throw new Error("invalid_dates");
     const preferred = channels.has(body.reminderChannel) ? body.reminderChannel : row.preferred_channel;
     const fallback = channels.has(body.fallbackChannel) && body.fallbackChannel !== preferred ? body.fallbackChannel : null;
+    const reminderMode = body.reminderMode === "manual" || body.reminderMode === "automatic"
+      ? body.reminderMode
+      : row.reminder_mode;
     const result = await client.query(
       `UPDATE customer_subscriptions SET service_name=$2,starts_at=$3,expires_at=$4,status=$5,
         amount=$6,reminder_mode=$7,reminder_days=$8::jsonb,preferred_channel=$9,fallback_channel=$10,updated_at=now()
@@ -26,7 +39,7 @@ export async function PATCH(req, { params }) {
         preferred_channel AS "reminderChannel",fallback_channel AS "fallbackChannel"`,
       [id, body.serviceName || row.service_name, start, end,
         statuses.has(body.status) ? body.status : row.status, Number(body.price ?? row.amount ?? 0),
-        body.reminderMode === "manual" ? "manual" : "automatic",
+        reminderMode,
         JSON.stringify([Math.max(0,Math.min(90,Number(body.reminderDaysBefore ?? row.reminder_days?.[0] ?? 7)))]), preferred, fallback]
     );
     if (row.legacy_subscription_id) await client.query(
@@ -34,7 +47,7 @@ export async function PATCH(req, { params }) {
         reminder_mode=$7,reminder_channel=$8,updated_at=now() WHERE id=$1`,
       [row.legacy_subscription_id, body.serviceName || row.service_name, start, end,
         ["pending_activation","needs_review"].includes(body.status) ? "paused" : body.status === "expiring_soon" ? "active" : statuses.has(body.status) ? body.status : row.status,
-        Number(body.price ?? row.amount ?? 0), body.reminderMode === "manual" ? "manual" : "automatic", preferred]
+        Number(body.price ?? row.amount ?? 0), reminderMode, preferred]
     );
     return result.rows[0];
   });
@@ -56,3 +69,4 @@ export async function DELETE(req, { params }) {
   });
   return changed ? Response.json({ok:true}) : Response.json({ok:false},{status:404});
 }
+

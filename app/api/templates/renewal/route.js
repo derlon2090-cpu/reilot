@@ -3,6 +3,7 @@ import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../src/server/security.js";
 import { ensureDefaultTemplates } from "../../../../src/server/default-templates.js";
+import { assertPlanFeature, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
 import {
   PLAN_MESSAGE_LIMIT_REACHED,
   consumeReservedQuotaWithClient,
@@ -108,6 +109,15 @@ export async function PUT(req) {
   const messageBody = sanitizePlainText(input.body, 8000);
   const daysOffset = Math.min(30, Math.max(0, Number(input.daysOffset || 7)));
   const isActive = input.isActive !== false;
+  if (isActive) {
+    try {
+      await assertPlanFeature(auth.session.tenantId, "automationEnabled");
+    } catch (error) {
+      const response = planEntitlementResponse(error);
+      if (response) return response;
+      throw error;
+    }
+  }
   if (!name || !messageBody) return Response.json({ ok: false, message: "اسم القالب ومحتواه مطلوبان" }, { status: 400 });
 
   let title = null;
@@ -299,3 +309,4 @@ export async function POST(req) {
     return Response.json({ ok: false, message: "تعذر إرسال الرسالة التجريبية. تحقق من إعدادات البريد." }, { status: 502 });
   }
 }
+

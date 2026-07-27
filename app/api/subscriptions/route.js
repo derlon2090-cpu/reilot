@@ -3,6 +3,7 @@ import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 import { inferSubscriptionStatus } from "../../../src/lib/orderLinks.js";
 import { listSubscriptionOperations, rescheduleSubscriptionReminders, subscriptionOperationsSummary } from "../../../src/server/subscription-operations.js";
+import { assertPlanFeature, planEntitlementResponse } from "../../../src/server/plan-entitlements.js";
 
 const allowedChannels = new Set(["whatsapp", "email"]);
 const allowedReminderModes = new Set(["manual", "automatic"]);
@@ -59,6 +60,15 @@ export async function POST(req) {
     return Response.json({ ok: false, reason: "invalid_dates" }, { status: 400 });
   }
   const preferences = deliveryPreferences(body);
+  if (preferences.mode === "automatic") {
+    try {
+      await assertPlanFeature(auth.session.tenantId, "automationEnabled");
+    } catch (error) {
+      const response = planEntitlementResponse(error);
+      if (response) return response;
+      throw error;
+    }
+  }
   const status = allowedStatuses.has(body.status) ? body.status : inferSubscriptionStatus(body.startDate, body.endDate) || "active";
   const item = await transaction(async (client) => {
     const customer = await client.query("SELECT id FROM customers WHERE id = $1 AND tenant_id = $2", [body.customerId, auth.session.tenantId]);
@@ -117,3 +127,4 @@ export async function POST(req) {
   }
   return Response.json({ ok: true, item }, { status: 201 });
 }
+

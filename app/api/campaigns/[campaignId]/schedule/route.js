@@ -3,6 +3,7 @@ import { transaction } from "../../../../../src/server/db.js";
 import { requireSession } from "../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../src/server/campaign-contacts.js";
 import { lockTenantCampaign, prepareCampaign } from "../../../../../src/server/campaign-actions.js";
+import { assertPlanFeature, planEntitlementResponse } from "../../../../../src/server/plan-entitlements.js";
 
 const schema = z.object({ scheduledFor: z.string().datetime({ offset: true }) });
 
@@ -10,6 +11,8 @@ export async function POST(request, { params }) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   if (!sameOriginRequest(request)) return Response.json({ ok: false, reason: "invalid_origin" }, { status: 403 });
+  try { await assertPlanFeature(auth.session.tenantId, "campaignsEnabled"); }
+  catch (error) { const response = planEntitlementResponse(error); if (response) return response; throw error; }
   const parsed = schema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return Response.json({ ok: false, reason: "invalid_input" }, { status: 400 });
   const scheduledFor = new Date(parsed.data.scheduledFor);
@@ -45,3 +48,4 @@ export async function POST(request, { params }) {
     return Response.json({ ok: false, reason: error.code || "schedule_failed", message: error.message }, { status: 409 });
   }
 }
+

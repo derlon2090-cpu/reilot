@@ -2,6 +2,7 @@ import { transaction, query } from "../../../src/server/db.js";
 import { hasCustomerIdentity, validateOptionalEmail } from "../../../src/lib/customerValidation.js";
 import { normalizeEvolutionPhone } from "../../../src/lib/evolution.js";
 import { requireSession } from "../../../src/server/session.js";
+import { assertPlanCapacity, planEntitlementResponse } from "../../../src/server/plan-entitlements.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -41,7 +42,10 @@ export async function POST(req) {
     return Response.json({ ok: false, reason: "missing_customer_identity", message: "أدخل اسم العميل أو رقم الجوال." }, { status: 400 });
   }
   name ||= phone;
-  const item = await transaction(async (client) => {
+  let item;
+  try { item = await transaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`plan-customers:${auth.session.tenantId}`]);
+    await assertPlanCapacity(auth.session.tenantId, "customers", client);
     const inserted = await client.query(
       `INSERT INTO customers (tenant_id, name, email, phone, whatsapp_number, status, tags)
        VALUES ($1, $2, $3, $4, $4, $5, $6::jsonb)
@@ -54,6 +58,9 @@ export async function POST(req) {
       [auth.session.tenantId, auth.session.userId, inserted.rows[0].id]
     );
     return inserted.rows[0];
-  });
+  }); } catch (error) {
+    const response = planEntitlementResponse(error); if (response) return response; throw error;
+  }
   return Response.json({ ok: true, item }, { status: 201 });
 }
+

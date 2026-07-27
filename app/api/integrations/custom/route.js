@@ -1,6 +1,7 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { query, transaction } from "../../../../src/server/db.js";
 import { createApiKey, normalizeScopes } from "../../../../src/server/custom-integrations.js";
+import { assertPlanFeature, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -21,6 +22,8 @@ export async function POST(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   if (!["owner", "admin", "ADMIN"].includes(auth.session.role)) return Response.json({ ok: false, reason: "forbidden" }, { status: 403 });
+  try { await assertPlanFeature(auth.session.tenantId, "customApiEnabled"); }
+  catch (error) { const response = planEntitlementResponse(error); if (response) return response; throw error; }
   const body = await req.json().catch(() => ({}));
   const name = String(body.name || "").trim();
   const scopes = normalizeScopes(body.scopes);
@@ -52,3 +55,4 @@ export async function POST(req) {
   });
   return Response.json({ ok: true, item, apiKey: key.raw, warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى." }, { status: 201 });
 }
+

@@ -7,7 +7,9 @@ beforeAll(() => {
 describe("email OTP security helpers", () => {
   it("normalizes Arabic and Eastern Arabic digits", async () => {
     const { normalizeOtpDigits } = await import("../../src/server/email-otp.js");
-    expect(normalizeOtpDigits("١۲ ٣۴-٥۶")).toBe("123456");
+    expect(normalizeOtpDigits("\u0661\u06F2 \u0663\u06F4-\u0665\u06F6")).toBe("123456");
+    expect(normalizeOtpDigits("123456")).toBe("123456");
+    expect(normalizeOtpDigits("\u0661" + "2" + "\u06F3" + "4" + "\u0665" + "6")).toBe("123456");
   });
 
   it("generates exactly six digits", async () => {
@@ -20,3 +22,4 @@ describe("email OTP security helpers", () => {
     expect(digestOtp("123456", "challenge-a")).not.toBe(digestOtp("123456", "challenge-b"));
   });
 });
+

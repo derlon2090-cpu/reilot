@@ -50,11 +50,9 @@ export function readCookie(req, name) {
 }
 
 export function normalizeOtpDigits(value) {
-  const arabic = "٠١٢٣٤٥٦٧٨٩";
-  const eastern = "۰۱۲۳۴۵۶۷۸۹";
   return String(value || "")
-    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)))
+    .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
     .replace(/\D/g, "")
     .slice(0, 6);
 }
@@ -121,8 +119,25 @@ export async function createLoginEmailOtpChallenge({
   locale = "ar",
   purpose = "login"
 }) {
-  const code = generateEmailOtp();
+  let code = "";
   const challenge = await transaction(async (client) => {
+    // A browser can submit the login form twice (double click, password manager,
+    // or a retried request). Serialize creation per user and reuse the very
+    // recent challenge so that the first email is never invalidated by the
+    // second request.
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email-otp:${user.id}:${purpose}`]);
+    const existing = await client.query(
+      `SELECT id, expires_at AS "expiresAt", last_sent_at AS "lastSentAt"
+         FROM auth_email_otp_challenges
+        WHERE user_id = $1 AND purpose = $2
+          AND consumed_at IS NULL AND invalidated_at IS NULL
+          AND expires_at > now() AND created_at >= now() - interval '15 seconds'
+        ORDER BY created_at DESC LIMIT 1`,
+      [user.id, purpose]
+    );
+    if (existing.rows[0]) return { ...existing.rows[0], reused: true };
+
+    code = generateEmailOtp();
     await client.query(
       `UPDATE auth_email_otp_challenges
           SET invalidated_at = now(), updated_at = now()
@@ -146,10 +161,19 @@ export async function createLoginEmailOtpChallenge({
       title: "Email OTP requested",
       metadata: { purpose }
     });
-    return row;
+    return { ...row, reused: false };
   });
 
   try {
+    if (challenge.reused) {
+      return {
+        challengeCookie: signChallengeId(challenge.id),
+        maskedEmail: maskEmail(user.email),
+        expiresAt: challenge.expiresAt,
+        resendAt: new Date(new Date(challenge.lastSentAt).getTime() + EMAIL_OTP_RESEND_SECONDS * 1000),
+        reused: true
+      };
+    }
     await sendLoginEmailOtp({ to: user.email, code, expiresInMinutes: 5, locale, name: user.name });
     await query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
@@ -168,7 +192,8 @@ export async function createLoginEmailOtpChallenge({
     challengeCookie: signChallengeId(challenge.id),
     maskedEmail: maskEmail(user.email),
     expiresAt: challenge.expiresAt,
-    resendAt: new Date(new Date(challenge.lastSentAt).getTime() + EMAIL_OTP_RESEND_SECONDS * 1000)
+    resendAt: new Date(new Date(challenge.lastSentAt).getTime() + EMAIL_OTP_RESEND_SECONDS * 1000),
+    reused: false
   };
 }
 
@@ -239,7 +264,7 @@ export async function resendEmailOtp({ rawCookie, ipAddress, userAgent, locale =
       title: "Email OTP resent",
       metadata: { purpose: row.purpose }
     });
-    return { ok: true, email: row.email, ...updated.rows[0] };
+    return { ok: true, email: row.email, name: row.name, ...updated.rows[0] };
   });
   if (!result.ok) return result;
   try {
@@ -369,3 +394,4 @@ export async function revokeTrustedDevicesForUser(userId) {
     [userId]
   );
 }
+

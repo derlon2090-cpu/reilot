@@ -34,10 +34,17 @@ export async function getTenantStorage(tenantId) {
         WHERE table_schema = 'public' AND column_name = 'tenant_id'`
     ),
     query(
-      `SELECT COALESCE(pp.storage_limit_mb, 100)::int AS "limitMb"
-         FROM platform_subscriptions ps
-         JOIN platform_plans pp ON pp.id = ps.plan_id
-        WHERE ps.tenant_id = $1 ORDER BY ps.created_at DESC LIMIT 1`,
+      `SELECT COALESCE(
+          (SELECT pp.storage_limit_mb
+             FROM platform_subscriptions ps
+             JOIN platform_plans pp ON pp.id = ps.plan_id
+            WHERE ps.tenant_id = $1
+              AND ps.status IN ('active','trial','past_due')
+              AND ps.current_period_end > now()
+            ORDER BY ps.created_at DESC LIMIT 1),
+          (SELECT storage_limit_mb FROM platform_plans WHERE slug = 'free' AND is_active = true LIMIT 1),
+          1
+        )::int AS "limitMb"`,
       [tenantId]
     )
   ]);
@@ -58,7 +65,7 @@ export async function getTenantStorage(tenantId) {
     breakdownMap.set(group, (breakdownMap.get(group) || 0) + bytes);
   }
 
-  const limitMb = Math.max(100, Number(plan.rows[0]?.limitMb || 100));
+  const limitMb = Math.max(1, Number(plan.rows[0]?.limitMb || 1));
   const limitBytes = limitMb * 1024 * 1024;
   return {
     usedBytes,
@@ -71,3 +78,4 @@ export async function getTenantStorage(tenantId) {
       .sort((a, b) => b.bytes - a.bytes)
   };
 }
+

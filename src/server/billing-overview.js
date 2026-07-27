@@ -19,6 +19,12 @@ function normalizePlan(plan) {
     customersLimit: numeric(plan.customersLimit),
     usersLimit: numeric(plan.usersLimit),
     storageLimitMb: numeric(plan.storageLimitMb),
+    orderLinksLimit: numeric(plan.orderLinksLimit),
+    campaignsEnabled: Boolean(plan.campaignsEnabled),
+    automationEnabled: Boolean(plan.automationEnabled),
+    customApiEnabled: Boolean(plan.customApiEnabled),
+    sallaEnabled: Boolean(plan.sallaEnabled),
+    customPricing: Boolean(plan.customPricing),
     features: Array.isArray(plan.features) ? plan.features : []
   };
 }
@@ -129,9 +135,12 @@ export async function getBillingOverview(tenantId) {
               whatsapp_message_limit AS "whatsappMessageLimit",
               whatsapp_channels_limit AS "whatsappChannelsLimit",
               customers_limit AS "customersLimit", users_limit AS "usersLimit",
-              storage_limit_mb AS "storageLimitMb", features
-         FROM platform_plans WHERE is_active = true
-        ORDER BY CASE slug WHEN 'trial' THEN 0 WHEN 'starter' THEN 1
+              storage_limit_mb AS "storageLimitMb", order_links_limit AS "orderLinksLimit",
+              campaigns_enabled AS "campaignsEnabled", automation_enabled AS "automationEnabled",
+              custom_api_enabled AS "customApiEnabled", salla_enabled AS "sallaEnabled",
+              custom_pricing AS "customPricing", features
+         FROM platform_plans WHERE is_active = true AND slug <> 'trial'
+        ORDER BY CASE slug WHEN 'free' THEN 0 WHEN 'starter' THEN 1
                           WHEN 'business' THEN 2 WHEN 'pro' THEN 3 ELSE 4 END`,
       []
     ),
@@ -180,3 +189,4 @@ export async function getBillingOverview(tenantId) {
     storage
   };
 }
+

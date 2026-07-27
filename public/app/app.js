@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 153370)
+Total output lines: 6317
+
 import { features, pricingPlans, knowledgeBase } from "../data/publicData.js";
 
 const app = document.querySelector("#app");
@@ -556,7 +559,7 @@ state.remoteLoading = {};
 const routes = [
   ["/", "sidebar.home"],
   ["/features", "public.features"],
-  ["/pricing", "public.pricing"],
+  ["/pricing", "الباقات"],
   ["/blog", "المدونة"],
   ["/support", "public.support"]
 ];
@@ -968,7 +971,7 @@ function resetPasswordIcon() {
 function publicFooter() {
   return `<footer class="public-footer"><div class="container public-footer-inner">
     <div class="footer-brand-mini">${logo()}<span>© 2026 Renvix. جميع الحقوق محفوظة.</span></div>
-    <nav class="footer-links" aria-label="روابط سريعة"><button data-link="/about">عن المنصة</button><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button><button data-link="/support">الدعم</button><button data-link="/contact">تواصل معنا</button><button data-link="/blog">المدونة</button></nav>
+    <nav class="footer-links" aria-label="روابط سريعة"><button data-link="/pricing">الباقات</button><button data-link="/about">عن المنصة</button><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">سياسة الاستخدام</button><button data-link="/refund-policy">سياسة الاستبدال والاسترجاع</button><button data-link="/support">الدعم</button><button data-link="/contact">تواصل معنا</button><button data-link="/blog">المدونة</button></nav>
     <div class="footer-social" aria-label="${state.language === "en" ? "Social media" : "وسائل التواصل الاجتماعي"}"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://www.facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">${dashboardIcon("facebook")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">${dashboardIcon("instagram")}</a></div>
   </div></footer>`;
 }
@@ -1024,61 +1027,18 @@ function featureGrid(limit = features.length) {
   </article>`).join("")}</div>`;
 }
 
-function pricingCards(short = false) {
+function pricingCards(short = false, billingCycle = state.billing) {
   return `<div class="grid grid-4">${pricingPlans.map((plan) => {
-    const price = state.billing === "yearly" ? plan.yearly : plan.monthly;
+    const price = plan.priceLabel || (billingCycle === "yearly" ? plan.yearly : plan.monthly);
+    const features = short ? plan.features.slice(0, 6) : plan.features;
     return `<article class="card pricing-card ${plan.featured ? "featured" : ""}">
-      ${plan.featured ? `<span class="badge">الأكثر شعبية</span>` : ""}
-      <div><h3>${plan.name}</h3><p class="muted">${plan.caption}</p></div>
-      <div class="price">${price} ر.س <small>/ شهريًا</small></div>
-      <p class="muted">${plan.customers} · ${plan.alerts}</p>
-      <ul class="check-list">${plan.features.slice(0, short ? 3 : plan.features.length).map((item) => `<li>${item}</li>`).join("")}</ul>
-      <button class="btn btn-primary" data-action="select-plan" data-plan="${plan.id}">ابدأ الآن</button>
+      ${plan.badge ? `<span class="badge">${plan.badge}</span>` : ""}
+      <div><h3>${plan.name}</h3></div>
+      <div class="price">${typeof price === "number" ? `<strong>${price}</strong><small>ريال / شهريًا</small>` : `<strong>${price}</strong><small>تواصل معنا للحصول على عرض سعر</small>`}</div>
+      <ul class="plan-feature-list">${features.map(([item, included]) => `<li class="${included ? "included" : "excluded"}">${dashboardIcon(included ? "success" : "close")}<span>${item}</span></li>`).join("")}</ul>
+      <button class="btn ${plan.featured ? "btn-primary" : "btn-secondary"}" ${plan.contact ? 'data-link="/contact"' : `data-link="/register?plan=${plan.id}"`}>${plan.cta}</button>
     </article>`;
   }).join("")}</div>`;
-}
-
-function homePage() {
-  return publicShell(`<main>
-    <section class="hero">
-      <div class="container hero-grid">
-        <div>
-          <span class="eyebrow">منصة تجديدات ذكية</span>
-          <h1>إدارة الاشتراكات والتجديدات بذكاء</h1>
-          <p class="lead">منصة تساعدك على تتبع اشتراكات عملائك، إرسال تنبيهات التجديد تلقائيًا، وزيادة معدلات التجديد والإيرادات.</p>
-          <div class="hero-actions">
-            <button class="btn btn-primary" data-link="/login">ابدأ مجانًا</button>
-            <button class="btn btn-secondary" data-link="/dashboard">شاهد لوحة التحكم</button>
-          </div>
-          <div class="trust-row">
-            <div class="trust-item"><strong>99.9%</strong><span>وقت تشغيل</span></div>
-            <div class="trust-item"><strong>+10,000</strong><span>عميل نشط</span></div>
-            <div class="trust-item"><strong>+300%</strong><span>زيادة في التجديدات</span></div>
-          </div>
-        </div>
-        ${dashboardPreview()}
-      </div>
-    </section>
-    <section class="section"><div class="container">
-      <div class="section-head"><div><h2>كل ما تحتاجه لإدارة دورة التجديد</h2><p class="muted">تنبيهات، عملاء، ضمان، وتحليلات من لوحة واحدة.</p></div><button class="btn btn-secondary" data-link="/features">عرض كل المميزات</button></div>
-      ${featureGrid(4)}
-    </div></section>
-    <section class="section"><div class="container">
-      <div class="section-head"><div><h2>باقات واضحة وقابلة للنمو</h2><p class="muted">ابدأ صغيرًا ثم وسع التشغيل بدون تعقيد.</p></div><button class="btn btn-secondary" data-link="/pricing">مقارنة الباقات</button></div>
-      ${pricingCards(true)}
-    </div></section>
-    <section class="section"><div class="container">
-      <div class="section-head"><div><h2>من التنبيه إلى التجديد في 3 خطوات ذكية</h2><p class="muted">سير عمل بسيط يحافظ على العميل قريبًا من قرار التجديد.</p></div></div>
-      <div class="grid grid-3 steps">
-        ${["تنبيه ذكي", "رابط تجديد آمن", "تجديد وتأكيد فوري"].map((item) => `<article class="card step-card"><h3>${item}</h3><p class="muted">خطوة منظمة قابلة للتتبع مع سجل كامل لكل عميل.</p></article>`).join("")}
-      </div>
-    </div></section>
-    <section class="section"><div class="container">${cta()}</div></section>
-  </main>`);
-}
-
-function cta() {
-  return `<div class="cta-band"><div><h2>ابدأ بتحويل التجديدات إلى إيرادات متوقعة</h2><p>كل عميل، كل رسالة، وكل رابط تجديد في نظام واضح.</p></div><button class="btn btn-secondary" data-link="/login">ابدأ الآن</button></div>`;
 }
 
 function featuresPage() {
@@ -1091,27 +1051,6 @@ function featuresPage() {
         ${["تنبيه ذكي", "رابط تجديد آمن", "تجديد وتأكيد فوري"].map((item) => `<article class="card step-card"><h3>${item}</h3><p class="muted">تجربة مبسطة تقلل المتابعة اليدوية وتزيد الوضوح للعميل.</p></article>`).join("")}
       </div>
     </div></section>
-  </main>`);
-}
-
-function pricingPage() {
-  return publicShell(`<main>
-    ${pageHero("خطط أسعار مرنة تناسب جميع المتاجر", "اختر الباقة المناسبة الآن، ويمكنك ترقية الخطة عندما يكبر حجم الاشتراكات.", `<div class="pricing-toggle"><button class="toggle-pill ${state.billing === "monthly" ? "active" : ""}" data-action="billing" data-billing="monthly">شهري</button><button class="toggle-pill ${state.billing === "yearly" ? "active" : ""}" data-action="billing" data-billing="yearly">سنوي وفر 20%</button></div>`)}
-    <section class="section"><div class="container">${pricingCards()}</div></section>
-    <section class="section"><div class="container">
-      <div class="section-head"><div><h2>مقارنة الباقات</h2><p class="muted">تفاصيل تساعدك على اختيار الخطة بدقة.</p></div></div>
-      <div class="card compare"><table><thead><tr><th>الميزة</th><th>Trial</th><th>Starter</th><th>Business</th><th>Pro</th></tr></thead><tbody>
-        <tr><td>رسائل البريد شهريًا</td><td>50</td><td>500</td><td>2,000</td><td>10,000</td></tr>
-        <tr><td>العملاء</td><td>1</td><td>20</td><td>100</td><td>250</td></tr>
-        <tr><td>قنوات واتساب الرسمية</td><td>1</td><td>1</td><td>2</td><td>متعددة</td></tr>
-        <tr><td>رسائل واتساب</td><td colspan="4">حسب الاستخدام عبر المحفظة وتسعير المزود الرسمي</td></tr>
-        <tr><td>التخزين</td><td>100 MB</td><td>1 GB</td><td>10 GB</td><td>50 GB</td></tr>
-        <tr><td>التقارير والأتمتة</td><td>أساسية</td><td>تقارير أساسية</td><td>حملات وأتمتة</td><td>تقارير متقدمة</td></tr>
-      </tbody></table></div>
-    </div></section>
-    <section class="section"><div class="container"><div class="grid grid-4">
-      ${["تجربة مجانية", "دعم فني", "أمان وخصوصية", "ضمان استعادة الأموال"].map((item, i) => `<article class="card feature-card">${icon(String(i + 1), i % 2 ? "green" : "")}<h3>${item}</h3><p class="muted">سياسة واضحة تساعدك على البدء بثقة.</p></article>`).join("")}
-    </div></div></section>
   </main>`);
 }
 
@@ -1236,11 +1175,33 @@ function marketingFeaturesPage() {
 
 function marketingPricingPage() {
   const topups = [50, 100, 250, 500, 1000];
-  return publicShell(`<main><section class="public-heading pricing-heading"><div class="container"><h1>الباقات</h1><p>اختر الباقة المناسبة لنمو أعمالك وتواصل بذكاء واحترافية.</p><div class="pricing-toggle"><button class="toggle-pill ${state.billing === "monthly" ? "active" : ""}" data-action="billing" data-billing="monthly">شهري</button><button class="toggle-pill ${state.billing === "yearly" ? "active" : ""}" data-action="billing" data-billing="yearly">سنوي</button><span>وفر حتى 20%</span></div></div></section>
-    <section class="section pricing-section"><div class="container pricing-public-grid">${pricingCards()}</div></section>
-    <section class="section section-tight"><div class="container pricing-assurance"><span>◉ إلغاء في أي وقت</span><span>◇ أمان وخصوصية</span><span>✦ تحديثات مستمرة</span><span>♬ دعم موثوق</span></div></section>
-    <section class="section section-tight"><div class="container pricing-extras"><article class="card faq-card faq-compact"><h2>أسئلة شائعة</h2>${["هل يمكنني الترقية أو التبديل بين الباقات؟", "هل البريد وواتساب ضمن حد واحد؟", "ما سياسة إلغاء الاشتراك؟", "كيف يتم احتساب الرسائل؟"].map((q) => `<details><summary>${q}</summary><p>نعم، يمكنك إدارة خطتك بمرونة من صفحة الفوترة، ويُحتسب استخدام البريد وواتساب كلٌ على حدة وفق الرسائل الناجحة فعليًا.</p></details>`).join("")}</article><article class="card topup-card pricing-extra-card"><div><h2>شحن رصيد واتساب</h2><p>أضف رصيدًا لاستخدام رسائل واتساب الرسمية حسب احتياجك.</p></div><div class="credit-grid">${topups.map((amount) => `<div class="credit-option"><span>رصيد واتساب</span><strong>${state.language === "en" ? `SAR ${amount.toLocaleString("en-US")}` : `${amount.toLocaleString("ar-SA")} ر.س`}</strong><button class="btn btn-secondary" data-link="/register?whatsappTopup=${amount}">شحن الآن</button></div>`).join("")}</div></article></div></section>
-    <section class="section section-tight"><div class="container trust-band"><span>◎ الامتثال للمعايير العالمية</span><span>◇ أمان على مستوى المؤسسات</span><span>♙ دعم موثوق</span><span>+10,000 عميل نشط</span></div></section></main>`);
+  const questions = [
+    "هل يمكنني الترقية أو التبديل بين الباقات؟",
+    "هل البريد وواتساب ضمن حد واحد؟",
+    "ما سياسة إلغاء الاشتراك؟",
+    "كيف يتم احتساب الرسائل؟"
+  ];
+  return publicShell(`<main class="pricing-reference-page">
+    <section class="section pricing-reference-section" aria-labelledby="pricing-page-title">
+      <div class="container">
+        <div class="pricing-reference-heading">
+          <h1 id="pricing-page-title">الباقات</h1>
+          <p>اختر الباقة المناسبة لاحتياجك، مع حدود واضحة للبريد وواتساب ومزايا كل خطة.</p>
+        </div>
+        <div class="pricing-public-grid">${pricingCards(false, "monthly")}</div>
+        <div class="pricing-reference-extras">
+          <article class="card faq-card faq-compact">
+            <h2>أسئلة شائعة</h2>
+            ${questions.map((question) => `<details><summary>${question}</summary><p>يمكنك إدارة خطتك بمرونة، ويُحتسب البريد وواتساب كلٌ على حدة وفق الرسائل الناجحة فعليًا.</p></details>`).join("")}
+          </article>
+          <article class="card topup-card pricing-extra-card">
+            <div><h2>شحن رصيد البريد</h2><p>اشحن رصيدًا لاستخدام رسائل البريد حسب احتياجك.</p></div>
+            <div class="credit-grid">${topups.map((amount) => `<div class="credit-option"><span>رصيد بريد</span><strong>${amount} ر.س</strong><button class="btn btn-secondary" data-link="/register?emailTopup=${amount}">شحن الآن</button></div>`).join("")}</div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>`);
 }
 
 function blogPage() {
@@ -1322,11 +1283,9 @@ function forgotPublicPage() {
 }
 
 function normalizeEmailOtpCode(value) {
-  const arabic = "٠١٢٣٤٥٦٧٨٩";
-  const eastern = "۰۱۲۳۴۵۶۷۸۹";
   return String(value || "")
-    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)))
+    .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
     .replace(/\D/g, "")
     .slice(0, 6);
 }
@@ -1341,7 +1300,7 @@ function emailOtpPage() {
     return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-link="/login">العودة إلى تسجيل الدخول</button></section></main>`;
   }
   const maskedEmail = statusData?.maskedEmail || "جارٍ التحقق من طلب تسجيل الدخول...";
-  const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="1" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
+  const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
   return `<main class="email-otp-page" dir="rtl"><section class="email-otp-shell">
     <aside class="email-otp-visual"><div class="email-otp-brand">${stackedLogo()}</div><div class="email-otp-envelope-art" aria-hidden="true"><span class="email-otp-code-card"><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b></span><span class="email-otp-envelope"></span><span class="email-otp-art-shield">${dashboardIcon("security")}</span></div><h2>تحقق آمن · دخول موثوق.</h2><p>نرسل رمز تحقق فريدًا إلى بريدك الإلكتروني لضمان أمان حسابك وحماية بياناتك.</p><div class="email-otp-safety-card"><h3>${dashboardIcon("security")} حالة الأمان</h3><div><span>نوع التحقق</span><strong>${dashboardIcon("email")} OTP عبر البريد</strong></div><div><span>آخر طلب رمز</span><strong>${dashboardIcon("clock")} الآن</strong></div><div><span>الجهاز</span><strong>${dashboardIcon("devices")} غير موثوق بعد</strong></div></div></aside>
     <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="ltr">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 30 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
@@ -2139,1061 +2098,7 @@ function customersPage() {
   const source = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   const rows = filterRows(source, ["name", "email", "phone", "serviceName", "status"]);
   const recentNotifications = state.dashboardOverview?.recentNotifications || [];
-  const content = state.dbCustomers?.error ? emptyState("تعذر تحميل العملاء", escapeHtml(state.dbCustomers.error)) : state.dbCustomers === null ? `<div class="loading-state">جاري تحميل العملاء...</div>` : rows.length ? customersTable(rows) : emptyState("لا يوجد عملاء بعد", "أضف أول عميل لبدء إدارة الاشتراكات والتنبيهات.", "إضافة عميل", "add-customer");
-  const sendDisabled = stats.connectedDevices > 0 ? "" : "disabled";
-  return dashboardShell(`${pageTitle("العملاء", `<button class="btn btn-primary" data-action="add-customer">إضافة عميل</button><button class="btn btn-secondary" data-action="import-customers">استيراد CSV</button><button class="btn btn-secondary" data-action="export-customers">تصدير CSV</button>`)}
-    ${statGrid([
-      { title: "إجمالي العملاء", value: stats.totalCustomers, caption: "عميل", tone: "info", icon: "customers" },
-      { title: "النشطون اليوم", value: stats.activeToday, caption: "اليوم", tone: "success", icon: "customers" },
-      { title: "العملاء المميزون", value: 0, caption: "حسب التصنيف", tone: "purple", icon: "customers" },
-      { title: "معدل الاستجابة", value: `${stats.deliveryRate || 0}%`, caption: "من التنبيهات", tone: "warning", icon: "reports" }
-    ])}
-    ${tableToolbar(["الكل", "active", "inactive"])}
-    <article class="card table-card">${content}</article>
-    <article class="card table-card section"><div class="section-head"><div><h2>أحدث التنبيهات</h2><p class="muted">رسائل العملاء المسجلة فعليًا.</p></div><button class="btn btn-secondary" data-action="send-message" ${sendDisabled} title="${sendDisabled ? "اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات." : "إرسال تنبيه"}">إرسال تنبيه</button></div>${recentNotifications.length ? `<div class="notification-list">${recentNotifications.map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item.customerName || item.toNumber || "تنبيه")}</strong><p class="muted">${escapeHtml(item.channel)} · ${escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "")}</p></div>${status(item.status)}</div>`).join("")}</div>` : emptyState("لا توجد تنبيهات بعد", "ستظهر سجلات التنبيهات بعد أول عملية إرسال.")}</article>`);
-}
-
-function customersTable(rows) {
-  if (!rows.length) return emptyState("لا يوجد عملاء مطابقون", "غيّر البحث أو الفلترة.");
-  const body = rows.map((row) => `<tr><td><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.email || "")}</small></td><td>${escapeHtml(row.phone || "غير مضاف")}</td><td>${escapeHtml(row.serviceName || "لا توجد خدمة")}</td><td>${escapeHtml(row.lastRenewal ? String(row.lastRenewal).slice(0, 10) : "-")}</td><td>${status(row.status)}</td><td>${escapeHtml((row.tags || []).join("، ") || "-")}</td><td><div class="inline-actions"><button class="btn btn-secondary" data-action="customer-details-db" data-id="${row.id}">عرض</button><button class="btn btn-ghost icon-only" data-action="customer-edit-db" data-id="${row.id}" title="تعديل">${dashboardIcon("settings")}</button><button class="btn btn-ghost icon-only danger-text" data-action="customer-delete-db" data-id="${row.id}" title="حذف">×</button></div></td></tr>`).join("");
-  return `<div class="compare"><table><thead><tr>${["الاسم", "الهاتف", "الخدمة", "آخر تجديد", "الحالة", "الملاحظات", "الإجراء"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
-}
-
-function reportsPage() {
-  const stats = overviewStats();
-  const activities = (state.dashboardOverview?.activities || []).filter((item) => !String(item.type || "").startsWith("auth."));
-  const profile = state.dashboardOverview?.profile || {};
-  const reportRows = (state.dashboardOverview?.monthlyPerformance || []).slice(-Number(state.reportPeriod || 6));
-  const reminder = state.subscriptionMeta?.reminderPerformance || {};
-  return dashboardShell(`${pageTitle("التقارير", `<select class="select report-period" data-action="report-period"><option value="6" ${state.reportPeriod === "6" ? "selected" : ""}>آخر 6 أشهر</option><option value="3" ${state.reportPeriod === "3" ? "selected" : ""}>آخر 3 أشهر</option><option value="1" ${state.reportPeriod === "1" ? "selected" : ""}>هذا الشهر</option></select><button class="btn btn-primary" data-action="export-report">تصدير التقرير</button>`)}
-    ${statGrid([
-      { title: "الإيراد الشهري", value: formatMoney(stats.monthlyRevenue), caption: "حالي", tone: "success", icon: "reports" },
-      { title: "الرسائل المرسلة", value: stats.sentMessages, caption: "رسالة", tone: "info", icon: "subscriptions" },
-      { title: "نسبة النجاح", value: `${stats.successRate || 0}%`, caption: "من إجمالي الرسائل", tone: "purple", icon: "reports" },
-      { title: "العملاء المتجددون", value: stats.renewedCustomers, caption: "عميل", tone: "warning", icon: "customers" }
-    ])}
-    <article class="card chart-card section"><div class="section-head"><div><h2>رسم الأداء</h2><p class="muted">بيانات الاشتراكات للفترة المحددة.</p></div></div>${performanceChart(reportRows)}</article>
-    <article class="card section"><div class="section-head"><div><h2>أداء تذكيرات التجديد</h2><p class="muted">يُحسب التحويل فقط من روابط التجديد الخاصة القابلة للتتبع.</p></div></div>${statGrid([
-      {title:"الرسائل المجدولة",value:Number(reminder.scheduled||0),caption:"قيد الانتظار",tone:"info",icon:"template"},
-      {title:"الرسائل الناجحة",value:Number(reminder.successful||0),caption:"قبِلها المزود",tone:"success",icon:"subscriptions"},
-      {title:"الرسائل الفاشلة",value:Number(reminder.failed||0),caption:"مع سبب محفوظ",tone:"danger",icon:"security"},
-      {title:"التجديدات المتتبعة",value:Number(reminder.renewed||0),caption:reminder.bestChannel?`أفضل قناة: ${reminder.bestChannel==="email"?"البريد":"واتساب"}`:"لا توجد بيانات",tone:"purple",icon:"reports"},
-      {title:"فتح رابط التجديد",value:Number(reminder.opened||0),caption:`نقرات الزر ${Number(reminder.clicked||0)}`,tone:"warning",icon:"reports"},
-      {title:"التحويل إلى تجديد",value:reminder.conversionRate===null||reminder.conversionRate===undefined?"غير متاح":`${Number(reminder.conversionRate)}%`,caption:"من الروابط المتتبعة فقط",tone:"success",icon:"reports"}
-    ])}</article>
-    <div class="section dashboard-two-column">
-      <article class="card table-card"><div class="section-head"><div><h2>سجل النشاط</h2><p class="muted">آخر العمليات داخل مساحة العمل.</p></div></div>${activities.length ? activityList(activities) : emptyState("لا توجد نشاطات بعد", "ستظهر العمليات الفعلية هنا بعد استخدام المنصة.")}</article>
-      <article class="card table-card"><div class="section-head"><div><h2>الفوترة والباقات</h2><p class="muted">الخطة الحالية والفواتير.</p></div><span class="plan-badge">${escapeHtml(profile.planName || "Free Trial")}</span></div>${emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا عند إصدار أول فاتورة.", "عرض خطط الأسعار", "/pricing")}</article>
-    </div>`);
-}
-
-function securityScoreTone(score, configured = true) {
-  if (!configured || score === null || score === undefined) return "unconfigured";
-  if (score < 30) return "danger";
-  if (score < 50) return "weak";
-  if (score < 70) return "warning";
-  if (score < 85) return "good";
-  if (score < 95) return "strong";
-  return "excellent";
-}
-
-function securityFactorsMarkup(factors = []) {
-  return factors.map((item) => {
-    const symbol = item.state === "passed" ? "✓" : item.state === "critical" ? "×" : "!";
-    return `<li class="security-factor ${escapeHtml(item.state || "review")}"><span>${symbol}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div><b>${Number(item.points || 0)}/${Number(item.maxPoints || 0)}</b></li>`;
-  }).join("");
-}
-
-function securityRecommendationsMarkup(recommendations = []) {
-  if (!recommendations.length) return `<div class="security-all-clear">لا توجد توصيات عاجلة الآن. استمر في مراجعة الحماية دوريًا.</div>`;
-  return recommendations.slice(0, 6).map((item) => `<article class="security-recommendation ${escapeHtml(item.priority)}"><span>${item.priority === "critical" ? "حرجة" : item.priority === "high" ? "عالية" : "متوسطة"}</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.description)}</p><small>التأثير المتوقع: حتى +${Number(item.scoreImpact || 0)} نقطة</small></div><button class="btn btn-secondary" data-link="${escapeHtml(item.actionUrl || "/dashboard/security")}">تنفيذ</button></article>`).join("");
-}
-
-function securityMetricValue(metric = {}, risk = false) {
-  if (metric.score === null || metric.score === undefined || metric.status === "not_configured" || metric.status === "insufficient_data" || metric.status === "unavailable") {
-    return `<strong class="security-metric-state">${escapeHtml(metric.label || "تعذر التحقق")}</strong><small>${metric.status === "not_configured" ? "لم يتم إعداد المصدر" : metric.status === "insufficient_data" ? "يلزم توفر بيانات فعلية أكثر" : "لا تتوفر نتيجة موثوقة الآن"}</small>`;
-  }
-  return `<strong>${Number(metric.score)}%</strong><span class="security-mini-status ${risk ? `risk-${securityRiskTone(metric.score)}` : securityScoreTone(metric.score)}">${escapeHtml(metric.label || "")}</span>`;
-}
-
-function securityRiskTone(score) {
-  if (score === null || score === undefined) return "unavailable";
-  if (score < 20) return "low";
-  if (score < 40) return "limited";
-  if (score < 60) return "medium";
-  if (score < 80) return "high";
-  return "critical";
-}
-
-function securityMetricCard(title, metric, icon, description, risk = false) {
-  const tone = risk ? `risk-${securityRiskTone(metric?.score)}` : securityScoreTone(metric?.score, metric?.status !== "not_configured");
-  return `<article class="card security-mini-card ${tone}"><div class="security-mini-head">${dashboardIcon(icon)}<span>${escapeHtml(title)}</span></div><div class="security-mini-value">${securityMetricValue(metric, risk)}</div><p>${escapeHtml(description)}</p>${metric?.coverage !== undefined && !risk ? `<small>تغطية البيانات ${Number(metric.coverage)}%</small>` : ""}</article>`;
-}
-
-function securityTime(value) {
-  if (!value) return "غير متوفر";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "غير متوفر";
-  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
-  if (minutes < 1) return "الآن";
-  if (minutes < 60) return `منذ ${minutes} دقيقة`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `منذ ${hours} ساعة`;
-  return date.toLocaleDateString("ar-SA");
-}
-
-function securityEventsTable(events = []) {
-  if (!events.length) return `<div class="security-empty-row">لا توجد أحداث أمنية مسجلة.</div>`;
-  return `<div class="compare security-events-table"><table><thead><tr><th>نوع الحدث</th><th>المستوى</th><th>الوقت</th><th>الحالة</th><th>التفاصيل</th></tr></thead><tbody>${events.map((item) => `<tr><td><strong>${escapeHtml(item.type)}</strong></td><td><span class="security-severity ${escapeHtml(item.severity || "low")}">${item.severity === "critical" ? "حرج" : item.severity === "error" ? "عالٍ" : item.severity === "warning" ? "متوسط" : "منخفض"}</span></td><td>${escapeHtml(securityTime(item.occurredAt))}</td><td><span class="security-event-status">${escapeHtml(item.status || "مسجل")}</span></td><td>${escapeHtml(item.detail || "-")}</td></tr>`).join("")}</tbody></table></div>`;
-}
-
-function legacySecurityPage() {
-  const list = Array.isArray(state.unsubscribes) ? state.unsubscribes : [];
-  const score = state.securityScore?.overall ? state.securityScore : null;
-  const listContent = state.unsubscribes?.error
-    ? emptyState("تعذر تحميل قائمة الإيقاف", escapeHtml(state.unsubscribes.error))
-    : state.unsubscribes === null
-      ? `<div class="loading-state">جاري تحميل قائمة الإيقاف...</div>`
-      : list.length
-        ? simpleTable(["الرقم", "السبب", "المصدر", "التاريخ", "الإجراء"], list.map((item) => [escapeHtml(item.phoneNumber), escapeHtml(item.reason || "-"), escapeHtml(item.source || "يدوي"), escapeHtml(item.unsubscribedAt ? new Date(item.unsubscribedAt).toLocaleDateString("ar-SA") : "-"), `<button class="btn btn-ghost danger-text" data-action="remove-unsubscribe" data-id="${item.id}">حذف</button>`]))
-        : emptyState("لا توجد أرقام محظورة", "لم تتم إضافة أي رقم إلى قائمة إيقاف الرسائل.", "إضافة رقم", "add-unsubscribe");
-  const loading = state.securityScore === null;
-  const error = state.securityScore?.error;
-  const checkedLabel = score?.calculatedAt ? securityTime(score.calculatedAt) : "لم يتم الفحص";
-  const overall = score?.overall || { score: null, label: "لم يتم الفحص", coverage: 0, status: "unavailable" };
-  const platform = score?.platform || { score: null, label: "لم يتم الفحص", coverage: 0 };
-  const accounts = score?.accounts || score?.account || { score: null, label: "لم يتم الفحص", coverage: 0 };
-  const sessions = score?.sessions || { score: null, label: "لم يتم الفحص", activeSessions: 0, items: [] };
-  const whatsapp = score?.whatsapp || { score: null, healthScore: null, riskScore: null, label: "غير مهيأ", status: "not_configured", coverage: 0 };
-  const sending = score?.sending || { score: null, label: "لم يتم الفحص", policies: [] };
-  const currentRisk = score?.risk || { score: null, label: "غير متاح", issues: 0 };
-  const scoreContent = loading
-    ? `<div class="loading-state">جاري حساب مستوى الحماية من البيانات الفعلية...</div>`
-    : error
-      ? emptyState("تعذر حساب مستوى الحماية", "لم يتم استبدال النتيجة بقيمة افتراضية. حاول إعادة الفحص.", "إعادة الفحص", "recalculate-security")
-      : `<section class="security-center-overview">
-          <article class="card security-overall-card ${securityScoreTone(overall.score)}">
-            <div class="security-overall-ring ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div>${overall.score === null ? `<strong>—</strong>` : `<strong>${Number(overall.score)}%</strong>`}<span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
-            <div><h2>مؤشر الحماية العام</h2><p>تم حساب النتيجة من حماية المنصة والحساب والجلسات وقنوات الإرسال.</p><span class="security-live-dot">نتيجة حقيقية</span><small>آخر فحص: ${escapeHtml(checkedLabel)} · التغطية ${Number(overall.coverage || 0)}%</small></div>
-          </article>
-          <div class="security-metrics-grid">
-            ${securityMetricCard("حماية المنصة", platform, "security", "المسارات والأسرار وقاعدة البيانات")}
-            ${securityMetricCard("حماية الحساب", accounts, "customers", "كلمة المرور والدخول والاسترداد")}
-            ${securityMetricCard("أمان الجلسات", sessions, "devices", "الجلسات الفعلية وخصائص Cookie")}
-            ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "whatsapp", "الاتصال والرسائل والـQueue")}
-            ${securityMetricCard("أمان الإرسال", sending, "send", "الفاصل والحدود والإيقاف الوقائي")}
-            ${securityMetricCard("الخطر الحالي", currentRisk, "warning", `${Number(currentRisk.issues || 0)} أحداث تحتاج المراجعة`, true)}
-          </div>
-        </section>
-        <section class="security-center-middle">
-          <article class="card security-policy-card"><div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>تساعد على تقليل الضغط والمخاطر، ولا تضمن عدم تقييد القناة من مقدم الخدمة.</p></div></div><div class="security-policy-body"><div class="security-shield-art">${dashboardIcon("security")}<span>حماية تلقائية</span></div><div class="security-policy-list">${(sending.policies || []).length ? sending.policies.map((item) => `<div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "نشط" : "يحتاج ضبط"}</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></div>`).join("") : `<div class="security-empty-row">لم يتم إعداد سياسة الإرسال بعد.</div>`}</div></div><button class="security-safe-action" data-action="preview-safe-settings">تطبيق الإعدادات الآمنة الموصى بها</button></article>
-          <div class="security-activity-column">
-            <article class="card security-compact-panel"><div class="security-panel-title">${dashboardIcon("devices")}<h2>الجلسات النشطة</h2></div><div class="security-panel-summary"><strong>${Number(sessions.activeSessions || 0)}</strong><span>جلسة حالية فعلية</span></div>${(sessions.items || []).length ? sessions.items.slice(0, 2).map((item) => `<div class="security-activity-line"><span>✓</span><div><strong>${escapeHtml(item.device)}</strong><small>${escapeHtml(item.location)} · ${escapeHtml(securityTime(item.lastActivityAt))}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}<button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button></article>
-            <article class="card security-compact-panel"><div class="security-panel-title">${dashboardIcon("customers")}<h2>محاولات الدخول</h2></div><div class="security-panel-summary"><strong>${Number(score.login?.failed24h || 0)}</strong><span>محاولة فاشلة خلال 24 ساعة</span></div>${(score.login?.recent || []).length ? score.login.recent.slice(0, 2).map((item) => `<div class="security-activity-line ${item.success ? "success" : "warning"}"><span>${item.success ? "✓" : "!"}</span><div><strong>${item.success ? "تسجيل دخول ناجح" : "محاولة غير ناجحة"}</strong><small>${escapeHtml(item.device)} · ${escapeHtml(securityTime(item.occurredAt))}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد محاولات دخول مسجلة.</div>`}</article>
-          </div>
-          <article class="card security-alerts-card"><div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>نتائج فعلية تحتاج انتباهك.</p></div></div>${(score.criticalIssues || []).length ? score.criticalIssues.map((item) => `<div class="security-alert-line ${escapeHtml(item.severity || "warning")}"><span>!</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description || "راجع تفاصيل الحدث.")}</small></div></div>`).join("") : `<div class="security-empty-row success">لا توجد تنبيهات حماية مفتوحة.</div>`}${(score.recommendations || []).slice(0, 2).map((item) => `<div class="security-alert-line recommendation"><span>i</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></div></div>`).join("")}</article>
-        </section>
-        <article class="card security-events-card"><div class="section-head"><div class="security-panel-title">${dashboardIcon("reports")}<div><h2>سجل الأحداث الأمنية</h2><p>محاولات الدخول ومشكلات التشغيل وسجل الحساب الفعلي.</p></div></div><span class="security-last-check">آخر فحص ${escapeHtml(checkedLabel)}</span></div>${securityEventsTable(score.events || [])}</article>`;
-  return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button>`)}
-    <p class="security-page-subtitle">إدارة سياسات الحماية ومراقبة سلامة الحساب وقنوات الإرسال من مصادر فعلية.</p>
-    ${scoreContent}
-    <article class="card table-card section security-optout-card"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام الفعلية التي يمنع النظام الإرسال إليها قبل إدراج أي رسالة.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div></div>${listContent}</article>`);
-}
-
-function securityPage() {
-  const score = state.securityScore?.overall ? state.securityScore : null;
-  if (state.securityScore === null) {
-    return dashboardShell(`${pageTitle("الحماية والأمان")}<p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p><div class="loading-state">جاري حساب مؤشرات الحماية من البيانات الفعلية...</div>`);
-  }
-  if (state.securityScore?.error || !score) {
-    return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button>`)}<p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p>${emptyState("تعذر حساب مستوى الحماية", "لا نعرض درجات افتراضية. أعد الفحص لاسترجاع المؤشرات الفعلية.", "إعادة الفحص", "recalculate-security")}`);
-  }
-
-  const overall = score.overall;
-  const platform = score.platform || { score: null, label: "غير متاح" };
-  const accounts = score.accounts || score.account || { score: null, label: "غير متاح" };
-  const sessions = score.sessions || { score: null, activeSessions: 0, items: [] };
-  const whatsapp = score.whatsapp || { healthScore: null, label: "غير مهيأ" };
-  const sending = score.sending || { score: null, policies: [] };
-  const risk = score.risk || { score: null, label: "غير متاح", issues: 0 };
-  const checkedLabel = score.calculatedAt ? securityTime(score.calculatedAt) : "الآن";
-  const factors = [
-    { label: "جميع الأنظمة الأساسية تعمل بشكل طبيعي", ok: platform.score !== null && platform.score >= 70 },
-    { label: "لا توجد تهديدات حرجة مفتوحة", ok: Number(risk.issues || 0) === 0 },
-    { label: "سياسات الحماية مطبقة", ok: sending.score !== null && sending.score >= 70 },
-    { label: "تم تنفيذ فحص حديث", ok: Boolean(score.calculatedAt) }
-  ];
-  const sessionItems = Array.isArray(sessions.items) ? sessions.items.slice(0, 5) : [];
-  const policies = Array.isArray(sending.policies) ? sending.policies.slice(0, 5) : [];
-  const alerts = Array.isArray(score.criticalIssues) ? score.criticalIssues : [];
-
-  return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary security-refresh" data-action="recalculate-security">${dashboardIcon("security")} إعادة الفحص</button>`)}
-    <p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p>
-    <section class="security-reference-top">
-      <article class="card security-overall-card ${securityScoreTone(overall.score)}">
-        <div class="security-overall-ring ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
-        <div><h2>مؤشر الحماية العام</h2><p>أداء الحماية في وضع ${escapeHtml(overall.label)}، وجميع النتائج مأخوذة من فحص حسابك الفعلي.</p><span class="security-live-dot">تحسن ومراقبة مباشرة</span><small>آخر تحديث: ${escapeHtml(checkedLabel)}</small></div>
-      </article>
-      ${securityMetricCard("حماية المنصة", platform, "security", "جدار حماية وتهيئة النظام")}
-      ${securityMetricCard("حماية الحساب", accounts, "customers", "المصادقة وسياسات الدخول")}
-      ${securityMetricCard("أمان الإرسال", sending, "send", "مراقبة الرسائل والقنوات")}
-      ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "whatsapp", "حالة الاتصال الفعلية")}
-      ${securityMetricCard("مستوى الخطر", risk, "warning", `${Number(risk.issues || 0)} تنبيهات مفتوحة`, true)}
-    </section>
-    <section class="security-reference-middle">
-      <article class="card security-reference-general">
-        <div class="security-panel-title">${dashboardIcon("security")}<h2>مؤشر الحماية العام</h2></div>
-        <div class="security-general-content">
-          <div class="security-overall-ring large ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
-          <div class="security-factor-list">${factors.map((item) => `<div class="${item.ok ? "ok" : "attention"}"><span>${item.ok ? "✓" : "!"}</span>${escapeHtml(item.label)}</div>`).join("")}</div>
-        </div>
-        <div class="security-trend" aria-label="مؤشر الحماية خلال الفحص"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      </article>
-      <article class="card security-reference-policy">
-        <div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>إعدادات محسوبة لحماية عمليات الإرسال.</p></div></div>
-        <div class="security-reference-policy-list">${policies.length ? policies.map((item) => `<div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "مفعل" : "يحتاج ضبط"}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد سياسة إرسال مهيأة بعد.</div>`}</div>
-        <button class="security-safe-action" data-action="preview-safe-settings">إدارة سياسة الإرسال</button>
-      </article>
-      <article class="card security-reference-sessions">
-        <div class="security-panel-title">${dashboardIcon("devices")}<div><h2>الجلسات النشطة</h2><p>${Number(sessions.activeSessions || 0)} جلسة فعلية مرتبطة بحسابك.</p></div></div>
-        <div class="security-reference-session-list">${sessionItems.length ? sessionItems.map((item, index) => `<div><span class="session-os">${index === 0 ? "▦" : index % 2 ? "●" : "◆"}</span><div><strong>${escapeHtml(item.device || "جهاز غير معروف")}</strong><small>${escapeHtml(item.location || "موقع غير متاح")}</small></div><time>${escapeHtml(securityTime(item.lastActivityAt))}</time></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}</div>
-        <button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button>
-      </article>
-    </section>
-    <article class="card security-reference-alerts">
-      <div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>آخر التنبيهات والحالة الأمنية.</p></div></div>
-      ${alerts.length ? `<div class="security-reference-alert-list">${alerts.slice(0, 4).map((item) => `<div class="${escapeHtml(item.severity || "warning")}"><span>!</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description || "راجع إعدادات الحماية.")}</small></div>`).join("")}</div>` : `<div class="security-reference-clear"><span>✓</span><div><strong>لا توجد تنبيهات حاليًا</strong><small>جميع الأنظمة آمنة ولا توجد تهديدات أو مشكلات تتطلب تدخلك.</small></div></div>`}
-    </article>`);
-}
-
-function connectedDevicesCenterPage() {
-  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
-  const stats = overviewStats();
-  const health = state.whatsappHealth?.health || null;
-  const isConnected = device.status === "connected";
-  const hasRealQr = isRealQrDataUri(device.qrBase64);
-  const hasQrSession = ["pending_qr", "connecting"].includes(device.status);
-  const isPendingQr = hasQrSession && hasRealQr && device.qrImageLoaded;
-  const isQrRendering = hasQrSession && hasRealQr && !device.qrImageLoaded;
-  const isQrExpired = hasQrSession && !hasRealQr;
-  const isPendingPairing = device.status === "pending_pairing" && Boolean(device.pairingCode);
-  const method = device.linkMethod || "qr";
-  const statusText = isConnected ? "متصل الآن" : isPendingQr ? "بانتظار مسح الباركود" : isQrRendering ? "جاري عرض الباركود" : isQrExpired ? "انتهت صلاحية الباركود" : isPendingPairing ? "بانتظار إدخال رمز الاقتران" : device.status === "disconnected" ? "غير متصل" : "غير مربوط";
-  const statusTone = isConnected ? "success" : isPendingQr || isQrRendering || isQrExpired || isPendingPairing ? "warning" : "danger";
-  const qrImage = hasRealQr
-    ? `<img class="qr-real" src="${device.qrBase64}" alt="باركود ربط واتساب">`
-    : `<div class="qr-empty"><strong>لا يوجد باركود صالح</strong><p class="muted">أنشئ باركود ربط حقيقي.</p></div>`;
-  const activity = device.activity?.length ? device.activity : [];
-  const connectedTable = simpleTable(["الجهاز", "رقم واتساب", "الحالة", "آخر فحص", "آخر إرسال", "الإجراءات"], [[device.deviceName || "غير متوفر", device.phoneNumber || "غير متوفر", status("نشط"), device.lastCheckAt || "لم يتم الفحص", device.lastSendAt || "لم يتم الإرسال", `<button class="btn btn-secondary" data-action="check-device-connection">فحص</button>`]]);
-
-  return dashboardShell(`${pageTitle("الأجهزة", `<button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري إنشاء الباركود..." : "إنشاء/تحديث باركود"}</button>`)}
-    ${statGrid([
-      { title: "الأجهزة المتصلة", value: stats.connectedDevices, caption: "جهاز", tone: isConnected ? "success" : "neutral", icon: "devices" },
-      { title: "بانتظار الربط", value: stats.pendingDevices, caption: "جلسة", tone: "warning", icon: "devices" },
-      { title: "جودة الاتصال", value: isConnected ? "100%" : "0%", caption: statusText, tone: isConnected ? "success" : "neutral", icon: "reports" },
-      { title: "آخر فحص", value: device.lastCheckAt || "لم يتم", caption: "فحص الاتصال", tone: "info", icon: "security" }
-    ])}
-    <p class="linked-subtitle">قم بربط واتساب وإدارة أجهزتك المرتبطة بأمان لتواصل فعال مع عملائك.</p>
-    <section class="linked-layout" data-device-status="${device.status}" data-link-method="${method}">
-      <article class="card linked-main-card">
-        <div class="device-art" aria-hidden="true">
-          <div class="phone-frame"><span class="wa-logo">☎</span></div>
-          <div class="wa-check ${isConnected ? "show" : ""}">✓</div>
-          <div class="qr-float">${hasRealQr ? qrImage : `<div class="qr-unavailable">QR</div>`}</div>
-        </div>
-        <div class="link-panel">
-          <div class="section-head compact-head">
-            <div><h2>ربط واتساب</h2><p class="muted">${isConnected ? "تم ربط حساب واتساب وجاهز لإرسال تنبيهات وتجديدات العملاء." : "اربط حساب واتساب لإدارة المحادثات والرد على العملاء مباشرة من المنصة."}</p><p class="muted lock-line">🔒 آمن، خاص، ومتوافق مع سياسات واتساب.</p></div>
-            <span class="status ${statusTone}">${statusText}</span>
-          </div>
-          <div class="tabs tabs-row link-tabs">
-            <button class="tab ${method === "qr" ? "active" : ""}" data-action="device-link-method" data-method="qr">الربط بالباركود QR</button>
-            <button class="tab ${method === "pairing" ? "active" : ""}" data-action="device-link-method" data-method="pairing">الربط برمز الاقتران${device.pairingSupported === false ? " · غير مدعوم حاليًا" : ""}</button>
-          </div>
-          ${method === "qr" ? `<div class="link-box-grid">
-            <div class="qr-box ${isPendingQr ? "active" : ""}" data-action="show-device-qr">
-              ${qrImage}
-              <strong>${device.qrLoading ? "جاري طلب الباركود من خدمة الربط..." : hasRealQr && !device.qrImageLoaded ? "جاري التحقق من صورة الباركود..." : isPendingQr ? "الباركود جاهز للمسح" : isConnected ? "الجهاز متصل" : "لا يوجد باركود صالح"}</strong>
-              <small class="muted">${isPendingQr ? `ينتهي خلال 60 ثانية - صالح حتى ${device.qrExpiresAt}` : hasRealQr ? "يتم تحميل الصورة والتحقق منها داخل المتصفح." : device.qrError ? escapeHtml(device.qrError) : "اضغط إنشاء باركود جديد."}</small>
-            </div>
-            <div class="pair-code">
-              <span class="muted">رمز الاقتران</span>
-              <strong>${device.pairingCode || "غير متوفر"}</strong>
-              <small class="muted">لا يظهر الرمز إلا بعد استلامه من خدمة الربط</small>
-              <button class="btn btn-primary" data-action="create-device-qr" ${device.qrLoading ? "disabled" : ""}>${device.qrLoading ? "جاري التحميل..." : "إنشاء/تحديث باركود"}</button>
-              <button class="btn btn-secondary" data-action="copy-pairing">نسخ رمز الاقتران</button>
-              <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingQr && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
-            </div>
-          </div>` : device.pairingSupported === false ? `<div class="pairing-unsupported">
-            <p class="status warning">رمز الاقتران غير مدعوم حاليًا. يمكنك استخدام الربط بالباركود.</p>
-            <button class="btn btn-primary" data-action="device-link-method" data-method="qr">استخدام الباركود بدلًا من ذلك</button>
-          </div>` : `<div class="link-box-grid pairing-layout">
-            <div class="pairing-form">
-              <label class="field"><span>رقم واتساب</span><input class="input" data-action="pairing-phone-input" value="${device.phoneInput || ""}" placeholder="9665XXXXXXXX" inputmode="numeric"></label>
-              <small class="muted">اكتب الرقم بصيغة دولية بدون + أو مسافات، مثال: 9665XXXXXXXX.</small>
-              <button class="btn btn-primary" data-action="create-pairing-code" ${device.pairingLoading ? "disabled" : ""}>${device.pairingLoading ? "جاري إنشاء رمز الاقتران..." : "إنشاء رمز الاقتران"}</button>
-              ${device.pairingError ? `<p class="status danger" data-pairing-error>${escapeHtml(device.pairingError)}</p>` : ""}
-            </div>
-            <div class="pair-code pairing-result">
-              <span class="muted">رمز الاقتران</span>
-              <strong>${isPendingPairing ? device.pairingCode : "لا يوجد رمز بعد"}</strong>
-              <small class="muted">${isPendingPairing ? `ينتهي خلال 60 ثانية - صالح حتى ${device.pairingExpiresAt}` : "سيظهر الرمز بعد إدخال رقم صحيح"}</small>
-              <button class="btn btn-secondary" data-action="copy-pairing" ${!isPendingPairing ? "disabled" : ""}>نسخ الرمز</button>
-              <button class="btn btn-secondary" data-action="check-device-connection" ${!isPendingPairing && !isConnected ? "disabled" : ""}>فحص الاتصال</button>
-              <ul class="check-list"><li>اختر الربط برقم الهاتف في واتساب إذا ظهر لك.</li><li>أدخل رمز الاقتران الظاهر هنا.</li><li>انتظر حتى تصبح الحالة متصل.</li></ul>
-            </div>
-          </div>`}
-          ${isConnected ? `<div class="inline-actions"><button class="btn btn-secondary" data-action="send-device-test">إرسال رسالة اختبار</button><button class="btn btn-danger" data-action="disconnect-device">فصل الجهاز</button><button class="btn btn-ghost" data-action="delete-device">حذف الجهاز</button></div>` : ""}
-        </div>
-      </article>
-      <aside class="card link-steps-card">
-        ${isConnected ? `<div class="success-device-state"><span>✓</span><h2>حساب واتساب متصل بنجاح</h2><p class="muted">حسابك جاهز لإرسال تنبيهات وتجديدات العملاء.</p><ul class="check-list"><li>جاهز لإرسال الرسائل</li><li>استقبال وإدارة الردود</li><li>مزامنة جهات الاتصال</li><li>تتبع نشاط المحادثات</li></ul></div>` : `<h2>طريقة الربط</h2>${[["1", "افتح واتساب على هاتفك", "افتح تطبيق واتساب على هاتفك الذكي."], ["2", "الأجهزة المرتبطة", "اذهب إلى الإعدادات ثم اختر الأجهزة المرتبطة."], ["3", "امسح الباركود أو أدخل رمز الاقتران", "اربط الجهاز ثم انتظر اكتمال الاتصال."]].map(([num, title, body]) => `<div class="step-row"><span>${num}</span><strong>${title}</strong><p class="muted">${body}</p></div>`).join("")}`}
-        <div class="secure-note">تأكد من إبقاء واتساب مفتوحًا أثناء عملية الربط حتى تكتمل بنجاح.</div>
-      </aside>
-    </section>
-    <section class="linked-bottom-grid">
-      <article class="card usage-card"><span class="mini-icon">${dashboardIcon("devices")}</span><h3>استخدام الأجهزة المرتبطة</h3><strong class="usage-count">${stats.connectedDevices} جهاز متصل</strong><div class="usage-bar"><span style="width:${isConnected ? 100 : 0}%"></span></div><p class="${isConnected ? "success-text" : "muted"}">${isConnected ? "تم ربط جهاز واتساب بنجاح" : "لم يتم ربط أي جهاز بعد"}</p></article>
-      <article class="card table-card security-card"><span class="mini-icon">🛡</span><h3>ملاحظات الأمان</h3><ul class="check-list">${["الاتصال مشفر بالكامل بين منصتك وواتساب.", "لا يتم تخزين أو عرض أي رموز أو توكنات.", "عند انتهاء الجلسة، سيتم طلب إعادة الربط.", "أوقف أي جهاز غير معروف من إعدادات واتساب."].map((item) => `<li>${item}</li>`).join("")}</ul></article>
-      <article class="card table-card linked-table-card"><h3>الأجهزة المرتبطة الأخيرة</h3>${isConnected ? connectedTable : `<div class="empty-device"><div class="empty-icon">🔗</div><strong>لا توجد أجهزة مرتبطة حتى الآن</strong><p class="muted">قم بربط واتساب لعرض الأجهزة المرتبطة وسجل النشاط.</p></div>`}</article>
-      <article class="card table-card activity-card"><h3>النشاط الأخير</h3>${activity.length ? `<div class="activity-list">${activity.map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item)}</strong><p class="muted">تم التحديث الآن</p></div></div>`).join("")}</div>` : emptyState("لا توجد نشاطات بعد", "ستظهر عمليات الربط والفحص هنا.")}</article>
-    </section>
-    <section class="section section-tight health-and-safety"><article class="card table-card number-health-card"><div class="section-head"><div><h3>${t("linkedDevices.health")}</h3><p class="muted">${t("linkedDevices.safeSending")}</p></div><span class="health-score">${health ? 100 - Number(health.risk || 0) : 0}/100</span></div>${health ? `<div class="health-metrics"><span><small>${t("linkedDevices.messagesToday")}</small><strong>${health.messagesToday || 0}</strong></span><span><small>${t("linkedDevices.messagesHour")}</small><strong>${health.messagesHour || 0}</strong></span><span><small>${t("linkedDevices.failureRate")}</small><strong>${health.failureRate || 0}%</strong></span><span><small>${t("linkedDevices.unsubscribeCount")}</small><strong>${health.unsubscribeCount || 0}</strong></span><span><small>${t("linkedDevices.riskScore")}</small><strong>${health.risk || 0}/100</strong></span></div><div class="secure-note"><strong>${t("linkedDevices.smartAdvice")}:</strong> ${escapeHtml(health.advice || "")}</div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط الجهاز وافحص الاتصال لعرض مؤشرات الصحة.")}</article><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3>${stats.safeRules > 0 ? `<p><strong>${stats.safeRules}</strong> قواعد نشطة من قاعدة البيانات.</p><button class="btn btn-secondary" data-link="/dashboard/security">إدارة القواعد</button>` : emptyState("لا توجد قواعد إرسال آمن", "أضف قواعدك من صفحة الحماية.", "فتح الحماية", "/dashboard/security")}</article></section>`);
-}
-
-function devicesWorkspacePage() {
-  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
-  const isMetaChannel = ["meta", "meta_cloud_api"].includes(String(device.provider || "").toLowerCase());
-  const isConnected = isMetaChannel && device.status === "connected";
-  const isPending = isMetaChannel && ["pending", "connecting", "pending_setup"].includes(device.status);
-  const accountCount = isMetaChannel ? 1 : 0;
-  const connectedCount = isConnected ? 1 : 0;
-  const pendingCount = isPending ? 1 : 0;
-  const lastCheck = device.lastCheckAt || device.lastHealthCheckAt || "";
-  const accountName = device.displayName || device.deviceName || "حساب واتساب الرسمي";
-  const phone = device.phoneNumber || "";
-  const activity = Array.isArray(device.activity) ? device.activity : [];
-  const metaConfigured = Boolean(window.__RENVIX_CONFIG__?.metaWhatsAppEnabled);
-  const requirements = [
-    ["حساب Meta Business", isConnected || isPending, isConnected || isPending ? "متصل" : "غير متصل"],
-    ["رقم واتساب رسمي", Boolean(phone), phone ? "تم التحقق" : "غير مضاف"],
-    ["صلاحيات API", isConnected, isConnected ? "مفعلة" : "غير مفعلة"],
-    ["Webhook", isConnected, isConnected ? "مفعل" : "غير مفعّل"],
-    ["حالة API", isConnected, isConnected ? "سليم" : "غير متاح"]
-  ];
-  const rows = accountCount ? [[
-    `<span class="meta-account-name">${dashboardIcon("whatsapp")}<strong>${escapeHtml(accountName)}</strong></span>`,
-    escapeHtml(phone || "غير متوفر"),
-    `<span class="status ${isConnected ? "success" : "warning"}">${isConnected ? "متصل" : "قيد الإعداد"}</span>`,
-    escapeHtml(lastCheck ? new Date(lastCheck).toLocaleString("ar-SA") : "لم تتم المزامنة بعد"),
-    Number(device.messages24h || 0).toLocaleString("ar-SA"),
-    `<div class="row-actions"><button class="btn btn-secondary" data-action="check-device-connection">متابعة</button><button class="icon-action" aria-label="المزيد">⋯</button></div>`
-  ]] : [];
-
-  return dashboardShell(`${pageTitle("الأجهزة", `<div class="inline-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">+ ربط حساب جديد</button><button class="btn btn-secondary" data-action="check-device-connection" ${!accountCount ? "disabled" : ""}>${dashboardIcon("reports")} مزامنة الحالة</button></div>`)}
-    <p class="page-kicker">إدارة وربط حسابات واتساب الرسمية عبر واجهة Meta Cloud API ومراقبة حالتها.</p>
-    <section class="meta-device-stats">
-      ${statGrid([
-        { title: "حالة التكامل", value: isConnected ? "سليم" : isPending ? "قيد الإعداد" : "غير مربوط", caption: isConnected ? "جميع الأنظمة تعمل بشكل طبيعي" : "اربط حساب Meta للبدء", tone: isConnected ? "success" : "neutral", icon: "security" },
-        { title: "القنوات النشطة", value: connectedCount, caption: "قنوات واتساب نشطة", tone: isConnected ? "info" : "neutral", icon: "reports" },
-        { title: "اتصالات قيد الإعداد", value: pendingCount, caption: pendingCount ? "بانتظار الإكمال" : "لا توجد اتصالات معلقة", tone: pendingCount ? "warning" : "neutral", icon: "template" },
-        { title: "الأرقام الرسمية المتصلة", value: connectedCount, caption: accountCount ? `من أصل ${accountCount}` : "لا توجد أرقام بعد", tone: isConnected ? "success" : "neutral", icon: "whatsapp" }
-      ])}
-    </section>
-    <section class="meta-devices-layout">
-      <div class="meta-devices-main">
-        <article class="card meta-connect-card">
-          <div class="section-head"><div><h2>${dashboardIcon("whatsapp")} ربط حساب واتساب الرسمي</h2><p>اربط حساب واتساب التجاري الرسمي الخاص بك عبر Meta Business بشكل آمن ومعتمد.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">+ ربط حساب جديد</button><button class="btn btn-secondary" data-action="check-device-connection" ${!accountCount ? "disabled" : ""}>مزامنة الحالة</button></div></div>
-          <div class="meta-setup-steps">
-            ${[
-              ["1", "اختيار الحساب التجاري", "اختر حساب Meta Business وWhatsApp Manager.", isConnected || isPending],
-              ["2", "ربط الرقم", "اختر رقم واتساب رسميًا ومعتمدًا.", Boolean(phone)],
-              ["3", "إعداد Webhook", "تسجيل Webhook واستقبال الأحداث والرسائل.", isConnected],
-              ["4", "تأكيد الحالة", "فحص الصلاحيات وتفعيل القناة في مساحة عملك.", isConnected]
-            ].map(([number, title, description, complete]) => `<div class="${complete ? "complete" : ""}"><span>${complete ? "✓" : number}</span><strong>${title}</strong><small>${description}</small><em>${complete ? "مكتمل" : "بانتظار الإعداد"}</em></div>`).join("")}
-          </div>
-          ${!metaConfigured && !accountCount ? `<div class="meta-config-note">${dashboardIcon("notifications")}<div><strong>الربط الرسمي غير مهيأ بعد</strong><p>يجب أن يضبط مسؤول المنصة بيانات تطبيق Meta وCallback الآمن قبل بدء الربط. لن تُعرض جلسات QR أو بيانات تجريبية بديلة.</p></div></div>` : ""}
-        </article>
-        <article class="card meta-accounts-card">
-          <div class="section-head"><div><h2>الحسابات المتصلة <span>${accountCount}</span></h2><p>الحسابات الرسمية المسجلة فعليًا في مساحة عملك.</p></div></div>
-          ${rows.length ? simpleTable(["الاسم المعروض", "رقم العمل", "النوع", "آخر مزامنة", "الأحداث (24 ساعة)", "الإجراءات"], rows) : emptyState("لا توجد حسابات واتساب رسمية مرتبطة", "ابدأ بربط حساب Meta Business. ستظهر الحسابات هنا بعد اكتمال التفويض والتحقق من Webhook.")}
-        </article>
-      </div>
-      <aside class="meta-devices-side">
-        <article class="card meta-requirements-card">
-          <div class="section-head"><div><h2>متطلبات ربط واتساب الرسمي</h2><p>حالة كل متطلب مأخوذة من إعداد القناة الفعلي.</p></div><span class="status ${isConnected ? "success" : "neutral"}">${isConnected ? "جاهز" : "غير مكتمل"}</span></div>
-          <div class="meta-requirements-list">${requirements.map(([label, complete, value]) => `<div><span class="${complete ? "complete" : ""}">${complete ? "✓" : "•"}</span><strong>${label}</strong><em>${value}</em></div>`).join("")}</div>
-          <button class="btn btn-secondary" data-action="connect-meta-whatsapp">فتح دليل الربط الإرشادي</button>
-        </article>
-        <article class="card meta-important-card">
-          <div class="section-head"><div><h2>${dashboardIcon("notifications")} معلومات مهمة</h2></div></div>
-          <ul>
-            <li>يجب أن يكون رقم واتساب غير مستخدم في تطبيق واتساب العادي عند بدء الربط الرسمي.</li>
-            <li>لا تُحفظ مفاتيح Meta كنص صريح داخل قاعدة البيانات أو الواجهة.</li>
-            <li>يتم التحقق من توقيع Webhook قبل قبول أي حدث.</li>
-            <li>تعتمد حالة الرسالة على تأكيد Meta الفعلي، ولا تُعرض «تم التسليم» قبل وصول الإيصال.</li>
-          </ul>
-          <button class="btn btn-link" data-action="connect-meta-whatsapp">قراءة المزيد من التعليمات</button>
-        </article>
-        ${activity.length ? `<article class="card"><h2>آخر النشاطات</h2><div class="activity-list">${activity.slice(0, 5).map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(typeof item === "string" ? item : item.title || "نشاط واتساب")}</strong><p class="muted">${escapeHtml(typeof item === "object" ? item.createdAt || "" : "")}</p></div></div>`).join("")}</div></article>` : ""}
-      </aside>
-    </section>`);
-}
-
-const localDefaultEmailTemplate = {
-  name: "تذكير بتجديد الاشتراك",
-  channel: "email",
-  storeName: "",
-  title: "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
-  themeColor: "#0EA5A8",
-  body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
-  buttonLabel: "جدد اشتراكك الآن",
-  footerText: "شكرًا لثقتك بنا"
-};
-
-function safeEmailTheme(value) {
-  return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#0EA5A8";
-}
-
-function templatePreviewValue(value) {
-  return String(value || "");
-}
-
-function emailTemplatePreview(template) {
-  const theme = safeEmailTheme(template.themeColor);
-  const storeName = templatePreviewValue(template.storeName || "{{اسم_المتجر}}");
-  const subject = templatePreviewValue(template.title || localDefaultEmailTemplate.title);
-  const content = templatePreviewValue(template.body || localDefaultEmailTemplate.body);
-  const buttonLabel = templatePreviewValue(template.buttonLabel || localDefaultEmailTemplate.buttonLabel);
-  const footerText = templatePreviewValue(template.footerText || localDefaultEmailTemplate.footerText);
-  const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
-  return `<div class="email-envelope" style="--email-theme:${theme}">
-    <div class="email-preview-brand"><span class="email-store-icon"><img src="/assets/renvix-mark.webp" width="327" height="342" alt="Renvix"></span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
-    <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">${dashboardIcon("security")} بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♥</p></div>
-    <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
-  </div>`;
-}
-
-function readEmailTemplateForm(form = document.querySelector("form[data-submit='renewal-template']")) {
-  if (!form) return { ...localDefaultEmailTemplate };
-  const data = Object.fromEntries(new FormData(form));
-  return {
-    name: data.name || "",
-    channel: "email",
-    storeName: data.storeName || document.querySelector("[data-email-field][name='storeName']")?.value || "",
-    title: data.title || document.querySelector("[data-email-field][name='title']")?.value || "",
-    themeColor: safeEmailTheme(data.themeColor || state.emailThemeColor),
-    body: data.body || "",
-    buttonLabel: data.buttonLabel || "",
-    footerText: data.footerText || "",
-    daysOffset: Number(data.daysOffset || 7),
-    isActive: data.isActive === "on"
-  };
-}
-
-function refreshEmailTemplatePreview() {
-  const preview = document.querySelector("[data-email-preview]");
-  if (preview) preview.innerHTML = emailTemplatePreview(readEmailTemplateForm());
-}
-
-function templateCatalogItems() {
-  const definitions = {
-    email_delivery: { channel: "email", name: "قالب البريد الإلكتروني", description: "قالب لإرسال تفاصيل الطلب وتأكيد الشراء عبر البريد الإلكتروني." },
-    renewal_whatsapp: { channel: "whatsapp", name: "قالب رسالة التجديد - واتساب", description: "قالب لإشعار العميل بانتهاء اشتراكه وتشجيعه على التجديد عبر واتساب." }
-  };
-  const templates = Array.isArray(state.catalogTemplates) ? state.catalogTemplates : [];
-  return Object.entries(definitions).map(([key, definition]) => {
-    const item = templates.find((template) => template.templateKey === key);
-    return item ? {
-      ...item,
-      key,
-      kind: "catalog",
-      channel: definition.channel,
-      name: definition.name,
-      description: definition.description,
-      templateVersion: item.templateVersion || 1
-    } : null;
-  }).filter(Boolean);
-}
-
-function templateChannelLabel(channel) {
-  if (channel === "whatsapp") return "واتساب";
-  if (channel === "email") return "البريد الإلكتروني";
-  if (channel === "salla") return "سلة";
-  return "القناة";
-}
-
-function templateCatalogIcon(item) {
-  if (item.channel === "salla") return `<span class="template-brand-icon salla"><img src="/assets/salla-logo.svg" alt="سلة"></span>`;
-  return `<span class="template-brand-icon ${item.channel}">${dashboardIcon(item.channel === "whatsapp" ? "whatsapp" : "template")}</span>`;
-}
-
-function metaTemplateStatusLabel(value) {
-  return {
-    draft: "مسودة",
-    submitting: "جارٍ الإرسال",
-    pending: "قيد المراجعة",
-    approved: "معتمد",
-    rejected: "مرفوض",
-    paused: "موقوف",
-    disabled: "معطل",
-    pending_deletion: "قيد الحذف",
-    deleted: "محذوف",
-    unknown: "حالة غير معروفة",
-    error: "خطأ في الإرسال"
-  }[String(value || "")] || "غير معروف";
-}
-
-function metaTemplateStatusTone(value) {
-  if (value === "approved") return "active";
-  if (["rejected", "error", "disabled", "deleted"].includes(value)) return "expired";
-  if (["pending", "submitting", "paused", "pending_deletion"].includes(value)) return "pending";
-  return "neutral";
-}
-
-function metaApprovedTemplatesSection() {
-  const payload = state.metaTemplates;
-  const loading = payload === null;
-  const items = Array.isArray(payload?.items) ? payload.items : [];
-  const integrations = Array.isArray(payload?.integrations) ? payload.integrations : [];
-  const rows = items.map((item) => `<article class="meta-template-row">
-    <span class="template-brand-icon whatsapp">${dashboardIcon("whatsapp")}</span>
-    <div><div class="template-row-heading"><h3>${escapeHtml(item.name)}</h3><span class="channel-pill whatsapp">${escapeHtml(item.language)}</span></div>
-      <p>${item.category === "MARKETING" ? "تسويقية" : item.category === "AUTHENTICATION" ? "مصادقة" : "خدمية"} · ${escapeHtml(item.channelName || item.phoneNumber || "قناة Meta")}</p>
-      ${item.rejectionReason ? `<small class="meta-rejection">${escapeHtml(item.rejectionReason)}</small>` : ""}
-    </div>
-    <span class="status ${metaTemplateStatusTone(item.status)}">${metaTemplateStatusLabel(item.status)}</span>
-    <div class="template-row-actions">
-      ${["draft", "rejected", "error"].includes(item.status) ? `<button class="btn btn-primary" data-action="meta-template-submit" data-id="${item.id}">${dashboardIcon("send")} إرسال إلى Meta</button>` : ""}
-    </div>
-  </article>`).join("");
-  return `<section class="card meta-template-section">
-    <div class="section-head"><div><h2>قوالب واتساب المعتمدة</h2><p>مسودات مستقلة تُرسل من الخادم إلى Meta للمراجعة، ولا تصبح معتمدة إلا من Webhook أو المزامنة الفعلية.</p></div>
-      <div class="inline-actions"><button class="btn btn-secondary" data-action="meta-template-sync" ${integrations.some((item) => item.status === "connected" && item.wabaId) ? "" : "disabled"}>${dashboardIcon("refresh")} مزامنة مع Meta</button><button class="btn btn-primary" data-action="meta-template-create">${dashboardIcon("template")} إنشاء قالب</button></div>
-    </div>
-    ${loading ? `<div class="loading-state">جارٍ تحميل قوالب Meta...</div>` : rows ? `<div class="meta-template-list">${rows}</div>` : `<div class="template-catalog-empty">${dashboardIcon("whatsapp")}<strong>لا توجد قوالب Meta محفوظة</strong><p>${integrations.length ? "أنشئ مسودة ثم أرسلها إلى Meta للمراجعة." : "اربط حساب واتساب رسميًا عبر Meta Cloud API قبل إنشاء قالب معتمد."}</p></div>`}
-  </section>`;
-}
-
-function generalTemplateCard(item) {
-  const isMeta = item.kind === "meta";
-  const editTarget = isMeta
-    ? `/dashboard/templates?metaTemplateId=${encodeURIComponent(item.id)}`
-    : `/dashboard/templates?edit=${encodeURIComponent(item.key)}`;
-  const updatedAt = isMeta ? item.lastSyncedAt || item.updatedAt : item.updatedAt;
-  const updated = updatedAt ? new Date(updatedAt).toLocaleDateString("ar-SA") : "لم يتم التحديث بعد";
-  const channel = isMeta ? "whatsapp" : item.channel;
-  const title = isMeta ? (item.displayName || "قالب واتساب المعتمد") : item.name;
-  const description = isMeta
-    ? "قالب رسمي معتمد من واتساب للإرسال عبر المنصة وفق سياسات Meta."
-    : item.description;
-  const approvedBadge = isMeta && item.status === "approved"
-    ? `<span class="channel-pill approved">${dashboardIcon("security")} معتمد</span>`
-    : "";
-  const metaStatus = isMeta ? `<span class="status ${metaTemplateStatusTone(item.status)}">${metaTemplateStatusLabel(item.status)}</span>` : status(item.isActive ? "active" : "paused");
-  const activityLabel = isMeta
-    ? `آخر مزامنة: ${escapeHtml(updated)}`
-    : `استخدام فعلي: ${Number(item.usageCount || 0).toLocaleString("ar-SA")}`;
-  return `<article class="general-template-card">
-    <div class="general-template-main">
-      <span class="template-brand-icon ${channel}">${dashboardIcon(isMeta ? "security" : channel === "whatsapp" ? "whatsapp" : "template")}</span>
-      <div class="general-template-copy">
-        <div class="template-card-title-row"><h2>${escapeHtml(title)}</h2><span class="channel-pill ${channel}">${templateChannelLabel(channel)}</span>${approvedBadge}</div>
-        <p>${escapeHtml(description)}</p>
-        <div class="general-template-state">${metaStatus}</div>
-      </div>
-    </div>
-    <div class="general-template-actions">
-      <button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("eye")} معاينة</button>
-      <button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("settings")} تحرير</button>
-    </div>
-    <div class="general-template-stats">
-      <span>${dashboardIcon("calendar")}<small>آخر تحديث</small><strong>${escapeHtml(updated)}</strong></span>
-      <span>${dashboardIcon("reports")}<small>${isMeta ? "حالة المزامنة" : "الاستخدام"}</small><strong>${activityLabel}</strong></span>
-    </div>
-  </article>`;
-}
-
-function metaTemplateEditorPage(template) {
-  const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
-  if (!template) return dashboardShell(`${pageTitle("قالب واتساب المعتمد", backButton)}<div class="template-catalog-empty">${dashboardIcon("whatsapp")}<strong>القالب غير متاح</strong><p>زامن القوالب مع Meta ثم حاول مرة أخرى.</p></div>`);
-  const components = Array.isArray(template.components) ? template.components : [];
-  const body = components.find((component) => component.type === "BODY")?.text || "";
-  const categoryLabel = template.category === "MARKETING" ? "تسويقي" : template.category === "AUTHENTICATION" ? "مصادقة" : "خدمي";
-  const updated = template.lastSyncedAt ? new Date(template.lastSyncedAt).toLocaleString("ar-SA") : "لم تتم المزامنة بعد";
-  const approved = template.status === "approved";
-  return dashboardShell(`<div class="template-breadcrumb"><span>القوالب العامة</span><b>/</b><strong>قالب واتساب المعتمد</strong></div>
-    ${pageTitle(template.displayName || "قالب واتساب المعتمد", backButton)}
-    <p class="page-kicker">قالب مرتبط بحساب واتساب الرسمي، وتأتي حالته مباشرة من Meta.</p>
-    <section class="meta-approved-editor">
-      <article class="card meta-approved-form">
-        <div class="section-head"><div><h2>${dashboardIcon("template")} معلومات القالب</h2><p>البيانات التقنية المعتمدة في WhatsApp Manager.</p></div>${approved ? `<span class="channel-pill approved">${dashboardIcon("security")} معتمد</span>` : `<span class="status ${metaTemplateStatusTone(template.status)}">${metaTemplateStatusLabel(template.status)}</span>`}</div>
-        <div class="meta-approved-fields">
-          <label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(template.name)}" readonly></label>
-          <label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(template.displayName || template.name)}" readonly></label>
-          <label class="field"><span>الحالة</span><input class="input" value="${escapeHtml(metaTemplateStatusLabel(template.status))}" readonly></label>
-          <label class="field"><span>التصنيف</span><input class="input" value="${escapeHtml(categoryLabel)}" readonly></label>
-          <label class="field"><span>اللغة</span><input class="input" value="${escapeHtml(template.language === "ar" ? "العربية" : template.language)}" readonly></label>
-          <label class="field"><span>تقييم الجودة</span><input class="input" value="${escapeHtml(template.qualityRating || "غير متاح من Meta")}" readonly></label>
-        </div>
-        <label class="field"><span>محتوى الرسالة</span><textarea class="textarea meta-approved-body" readonly>${escapeHtml(body)}</textarea></label>
-        ${template.rejectionReason ? `<div class="inline-notice danger"><strong>سبب الرفض</strong><p>${escapeHtml(template.rejectionReason)}</p></div>` : ""}
-        <div class="meta-approved-footer">
-          <span>${dashboardIcon("refresh")} آخر مزامنة: ${escapeHtml(updated)}</span>
-          <div class="inline-actions">
-            ${["draft", "rejected", "error"].includes(template.status) ? `<button class="btn btn-primary" data-action="meta-template-submit" data-id="${template.id}">${dashboardIcon("send")} إرسال إلى Meta</button>` : ""}
-            <button class="btn btn-secondary" data-action="meta-template-sync">${dashboardIcon("refresh")} مزامنة مع Meta</button>
-            <button class="btn btn-danger-outline" data-action="meta-template-delete" data-id="${template.id}">${dashboardIcon("delete")} حذف القالب</button>
-          </div>
-        </div>
-      </article>
-      <aside class="card meta-approved-preview"><div class="section-head"><div><h2>معاينة القالب</h2><p>معاينة تقريبية لمحتوى رسالة واتساب.</p></div>${dashboardIcon("whatsapp")}</div><div class="meta-approved-message"><strong>${escapeHtml(template.displayName || template.name)}</strong><p>${escapeHtml(body).replaceAll("\n", "<br>")}</p><small>الحالة: ${escapeHtml(metaTemplateStatusLabel(template.status))}</small></div></aside>
-    </section>`);
-}
-
-function templatesCatalogPage() {
-  const editorKey = state.query.get("edit") || "";
-  const metaTemplateId = state.query.get("metaTemplateId") || "";
-  if (metaTemplateId) {
-    const template = (Array.isArray(state.metaTemplates?.items) ? state.metaTemplates.items : []).find((item) => item.id === metaTemplateId);
-    return metaTemplateEditorPage(template);
-  }
-  if (editorKey === "renewal_whatsapp") return renewalTemplateEditorPageV2("whatsapp");
-  if (editorKey === "email_delivery") return catalogTemplateEditorPage(editorKey);
-
-  const loading = state.catalogTemplates === null || state.metaTemplates === null;
-  const templates = templateCatalogItems();
-  const metaPayload = state.metaTemplates && !state.metaTemplates.error ? state.metaTemplates : {};
-  const integrations = Array.isArray(metaPayload.integrations) ? metaPayload.integrations : [];
-  const hasOfficialConnection = integrations.some((item) => item.status === "connected" && item.wabaId);
-  const metaItems = Array.isArray(metaPayload.items) ? metaPayload.items : [];
-  const preferredMeta = metaItems.find((item) => item.name === "subscription_renewal_reminder" && item.status === "approved")
-    || metaItems.find((item) => item.status === "approved")
-    || metaItems[0];
-  const rows = [
-    ...templates.map((item) => generalTemplateCard(item)),
-    ...(hasOfficialConnection && preferredMeta ? [generalTemplateCard({ ...preferredMeta, kind: "meta" })] : [])
-  ].join("");
-  const metaNotice = hasOfficialConnection
-    ? (preferredMeta ? "" : `<div class="general-template-notice">${dashboardIcon("whatsapp")}<div><strong>لا توجد قوالب واتساب في حساب Meta المرتبط حتى الآن.</strong><p>أنشئ القالب من WhatsApp Manager أو من Renvix ثم اضغط مزامنة مع Meta.</p></div><div class="inline-actions"><button class="btn btn-secondary" data-action="meta-template-sync">${dashboardIcon("refresh")} مزامنة مع Meta</button><button class="btn btn-primary" data-action="meta-template-create">${dashboardIcon("template")} إنشاء قالب</button></div></div>`)
-    : `<div class="general-template-notice">${dashboardIcon("whatsapp")}<div><strong>قوالب واتساب المعتمدة غير متاحة بعد.</strong><p>اربط حساب واتساب الرسمي عبر Meta Cloud API قبل إنشاء أو مزامنة القوالب المعتمدة.</p></div></div>`;
-  return dashboardShell(`${pageTitle("قوالب عامة", `<button class="btn btn-secondary" data-link="/dashboard">${dashboardIcon("arrow-left")} العودة إلى اللوحة</button>`)}
-    <p class="page-kicker">قوالب ثابتة ولوحة المستخدم العامة التي يمكنك استخدامها في مراسلاتك عبر قنوات التواصل.</p>
-    <section class="general-templates-list">
-      ${loading ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>` : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>لا توجد قوالب عامة حتى الآن</strong><p>أعد تحميل الصفحة بعد اكتمال تهيئة مساحة العمل.</p></div>`}
-    </section>
-    ${loading ? "" : metaNotice}`);
-}
-
-function templatesPage() {
-  const editorKey = state.query.get("edit") || "";
-  if (["renewal_whatsapp", "renewal_email"].includes(editorKey)) {
-    return renewalTemplateEditorPage(editorKey.endsWith("email") ? "email" : "whatsapp");
-  }
-  const loading = state.notificationTemplate === null;
-  const items = templateCatalogItems();
-  const channel = state.templateCatalogChannel || "all";
-  const search = String(state.templateCatalogSearch || "").trim().toLocaleLowerCase("ar");
-  const filtered = items.filter((item) => (channel === "all" || item.channel === channel) && (!search || `${item.name} ${item.description}`.toLocaleLowerCase("ar").includes(search)));
-  const total = items.length;
-  const active = items.filter((item) => item.isActive).length;
-  const inactive = total - active;
-  const channelTabs = [["all", "الكل"], ["whatsapp", "واتساب"], ["email", "بريد إلكتروني"]];
-  const rows = filtered.map((item) => {
-    const editTarget = item.kind === "renewal" ? `/dashboard/templates?edit=${encodeURIComponent(item.key)}` : `/dashboard/order-links?templateId=${encodeURIComponent(item.id)}`;
-    const updated = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "لم يُحدّث بعد";
-    return `<article class="template-catalog-row">
-      ${templateCatalogIcon(item)}
-      <div class="template-catalog-copy"><div class="template-row-heading"><h2>${escapeHtml(item.name)}</h2><span class="channel-pill ${item.channel}">${templateChannelLabel(item.channel)}</span></div><p>${escapeHtml(item.description)}</p><div class="template-row-meta"><span>${status(item.isActive ? "active" : "paused")}</span><span>آخر تحديث: ${escapeHtml(updated)}</span>${item.kind === "order" ? `<span>${item.openedCount} فتح فعلي</span>` : `<span>الإصدار ${Number(item.templateVersion || 1)}</span>`}</div></div>
-      <div class="template-row-actions"><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("settings")} تحرير</button></div>
-    </article>`;
-  }).join("");
-  const body = loading
-    ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>`
-    : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${items.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب محفوظة حتى الآن"}</strong><p>${items.length ? "غيّر البحث أو القناة لعرض القوالب." : "يمكنك إعداد قالب التجديد لواتساب أو البريد، أو إنشاء قالب معلومات طلب من القسم المخصص."}</p>${items.length ? "" : `<div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_whatsapp">إعداد قالب واتساب</button><button class="btn btn-secondary" data-link="/dashboard/templates?edit=renewal_email">إعداد قالب البريد</button><button class="btn btn-secondary" data-link="/dashboard/order-links">قالب معلومات الطلب</button></div>`}</div>`;
-  return dashboardShell(`<div class="template-breadcrumb"><span>الرئيسية</span><b>/</b><strong>القوالب</strong></div>
-    ${pageTitle("قوالب التجديد")}
-    <p class="page-kicker">إدارة رسائل تذكير العملاء عبر واتساب والبريد الإلكتروني.</p>
-    <section class="template-summary-grid">
-      <article class="card"><span class="template-summary-icon">${dashboardIcon("template")}</span><div><small>إجمالي القوالب</small><strong>${total}</strong></div></article>
-      <article class="card"><span class="template-summary-icon success">${dashboardIcon("security")}</span><div><small>قوالب نشطة</small><strong>${active}</strong></div></article>
-      <article class="card"><span class="template-summary-icon warning">${dashboardIcon("reports")}</span><div><small>مسودات أو متوقفة</small><strong>${inactive}</strong></div></article>
-    </section>
-    <section class="card template-catalog-card">
-      <div class="template-catalog-toolbar"><label class="template-search-wrap">${dashboardIcon("reports")}<input class="input" data-action="template-catalog-search" value="${escapeHtml(state.templateCatalogSearch || "")}" placeholder="ابحث عن قالب..."></label><select class="select template-channel-select" data-action="template-catalog-channel"><option value="all" ${channel === "all" ? "selected" : ""}>كل القنوات</option>${channelTabs.slice(1).map(([value,label]) => `<option value="${value}" ${channel === value ? "selected" : ""}>${label}</option>`).join("")}</select><div class="template-channel-tabs">${channelTabs.map(([value,label]) => `<button class="${channel === value ? "active" : ""}" data-action="template-catalog-channel" data-channel="${value}">${label}</button>`).join("")}</div></div>
-      <div class="template-catalog-list">${body}</div>
-      ${!loading && filtered.length ? `<div class="template-catalog-footer"><span>عرض ${filtered.length} من ${total}</span><span>جميع الأرقام من القوالب المحفوظة في مساحة العمل.</span></div>` : ""}
-    </section>`);
-}
-
-function catalogTemplateEditorPage(templateKey) {
-  const template = (Array.isArray(state.catalogTemplates) ? state.catalogTemplates : []).find((item) => item.templateKey === templateKey);
-  const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
-  if (!template) return dashboardShell(`${pageTitle("القوالب", backButton)}<div class="loading-state">جارٍ تحميل القالب المحفوظ...</div>`);
-  const commonFields = `<input type="hidden" name="templateKey" value="${escapeHtml(templateKey)}"><div class="template-editor-meta-v2"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" required></label><label class="setting-row setting-toggle"><span><strong>حالة القالب</strong><small>يمكن إيقافه دون حذفه</small></span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>`;
-  const footer = `<div class="template-editor-v2-footer"><span class="muted">الحفظ يحدّث القالب نفسه ولا ينشئ نسخة جديدة.</span><div class="template-actions"><button class="btn btn-primary">حفظ القالب ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="preview-catalog-template">معاينة ${dashboardIcon("eye")}</button></div></div>`;
-
-  if (templateKey === "whatsapp_menu") {
-    const section = template.contentJson?.sections?.[0] || { title: "الخدمات", rows: [] };
-    const rows = Array.from({ length: 3 }, (_, index) => section.rows?.[index] || {}).map((row, index) => `<div class="catalog-menu-row"><input type="hidden" name="rowId" value="${escapeHtml(row.id || `option_${index + 1}`)}"><label class="field"><span>عنوان الخيار ${index + 1}</span><input class="input" name="rowTitle" value="${escapeHtml(row.title || "")}" data-catalog-preview-row="${index}" required></label><label class="field"><span>الوصف</span><input class="input" name="rowDescription" value="${escapeHtml(row.description || "")}" data-catalog-preview-description="${index}"></label></div>`).join("");
-    const previewRows = Array.from({ length: 3 }, (_, index) => section.rows?.[index]).filter(Boolean).map((row) => `<li><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.description || "")}</span></li>`).join("");
-    return dashboardShell(`${pageTitle("الرسائل التفاعلية", backButton)}<p class="page-kicker">تحرير الرسالة التفاعلية ومعاينة الرسالة والخيارات بعد فتحها.</p><section class="template-editor-v2 template-editor-v2-whatsapp catalog-special-editor"><article class="card template-editor-card-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>محتوى رسالة الترحيب</span><textarea class="textarea template-editor-v2-body" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="template-meta-grid"><label class="field"><span>نص زر الخيارات</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض الخيارات")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div><div class="catalog-menu-options"><h2>الخيارات التفاعلية</h2><label class="field"><span>عنوان القسم</span><input class="input" name="sectionTitle" value="${escapeHtml(section.title || "الخدمات")}" required></label>${rows}</div>${footer}</form></article><aside class="template-preview-v2 catalog-dual-preview"><article class="card template-phone-card"><div class="section-head"><div><h2>الرسالة الأساسية</h2><p>النص وزر فتح الخيارات.</p></div>${dashboardIcon("whatsapp")}</div><div class="whatsapp-phone-preview compact"><div class="whatsapp-phone-shell"><div class="whatsapp-phone-speaker"></div><div class="whatsapp-chat-top"><span>‹</span><b>Renvix</b><small>حساب أعمال</small><i>⋮</i></div><div class="whatsapp-chat-day">اليوم</div><div class="whatsapp-message-bubble"><p data-catalog-preview-output>${escapeHtml(template.body || "")}</p><span class="whatsapp-list-button" data-catalog-preview-button-output>${escapeHtml(template.buttonLabel || "عرض الخيارات")}</span><small>11:21 ص ✓✓</small></div></div></div></article><article class="card whatsapp-opened-list"><div class="section-head"><div><h2>الخيارات بعد الفتح</h2><p>معاينة بنية الخيارات التفاعلية.</p></div>${dashboardIcon("template")}</div><strong>${escapeHtml(section.title || "الخدمات")}</strong><ul data-catalog-menu-preview>${previewRows}</ul><small>قد تختلف بعض التفاصيل البصرية حسب جهاز العميل وإصدار واتساب.</small></article></aside></section>`);
-  }
-
-  if (templateKey === "email_delivery") {
-    const emailDraft = { ...template, storeName: "{{store_name}}", themeColor: template.themeColor || "#0EA5A8" };
-    return dashboardShell(`${pageTitle("قالب قناة إرسال بريد", backButton)}<p class="page-kicker">قالب البريد المستخدم لإرسال تفاصيل الطلب ورابط صفحة العميل.</p><section class="template-editor-v2 template-editor-v2-email catalog-email-editor"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">عنوان المرسل ثابت وموثّق.</p><label class="field"><span>المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>لون القالب</span><input class="input" type="color" name="themeColorExternal" value="${safeEmailTheme(emailDraft.themeColor)}" data-catalog-theme></label><div class="email-settings-hint">رابط معلومات الطلب يُضاف آمنًا لكل عميل ولا يُحفظ كرابط ثابت داخل القالب.</div></article><article class="card template-editor-card-v2 email-editor-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>موضوع البريد</span><input class="input" name="title" value="${escapeHtml(template.title || "")}" data-catalog-preview-title required></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea template-editor email-content-editor" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}","{{order_number}}","{{order_portal_url}}","{{store_name}}"].map((item) => `<span class="chip">${item}</span>`).join("")}</div><div class="template-meta-grid"><label class="field"><span>نص الزر</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div>${footer}</form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>سطح المكتب والجوال بنفس محتوى الإرسال.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-catalog-preview-title-output>الموضوع: ${escapeHtml(template.title || "")}</span></div><div data-catalog-email-preview>${emailTemplatePreview(emailDraft)}</div></article></aside></section>`);
-  }
-
-  return dashboardShell(`${pageTitle("قالب تم التنفيذ — سلة", backButton)}<p class="page-kicker">الرسالة التي تُجهّز بعد تنفيذ طلب سلة، مع رابط طلب خاص وغير قابل للحذف.</p><section class="template-editor-v2 template-editor-v2-salla"><article class="card template-editor-card-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>نص الرسالة</span><textarea class="textarea template-editor-v2-body" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}","{{order_number}}","{{store_name}}"].map((item) => `<span class="chip">${item}</span>`).join("")}</div><div class="catalog-locked-link">${dashboardIcon("security")}<div><strong>رابط الطلب الخاص بالعميل</strong><small>يُنشأ تلقائيًا لكل طلب ولا يمكن حذفه أو استبداله برابط ثابت.</small></div></div><input type="hidden" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}"><input type="hidden" name="footerText" value="${escapeHtml(template.footerText || "Renvix")}">${footer}</form></article><aside class="template-preview-v2 catalog-salla-previews"><article class="card"><div class="section-head"><div><h2>معاينة الرسالة</h2><p>النص الذي يصل إلى العميل.</p></div><img class="salla-preview-logo" src="/assets/salla-logo.svg" alt="سلة"></div><div class="salla-message-preview"><p data-catalog-preview-output>${escapeHtml(template.body || "")}</p><div class="catalog-locked-link compact">🔒 رابط الطلب الخاص بالعميل</div></div></article><article class="card"><div class="section-head"><div><h2>معاينة صفحة الطلب</h2><p>تُعرض المتغيرات حتى اختيار طلب حقيقي.</p></div>${dashboardIcon("orderLink")}</div><div class="salla-order-page-preview"><div class="salla-order-brand"><img src="/assets/salla-logo.svg" alt="سلة"><strong>{{store_name}}</strong></div><h3>تفاصيل الطلب</h3><dl><div><dt>رقم الطلب</dt><dd>{{order_number}}</dd></div><div><dt>الحالة</dt><dd>تم التنفيذ</dd></div><div><dt>العميل</dt><dd>{{customer_name}}</dd></div></dl><p>لا توجد بيانات طلب حقيقي محددة للمعاينة.</p></div></article></aside></section>`);
-}
-
-function renewalTemplateEditorPageV2(forcedChannel = "") {
-  const payload = state.notificationTemplate || {};
-  const templates = Array.isArray(payload.templates) ? payload.templates : (payload.template ? [payload.template] : []);
-  const rules = Array.isArray(payload.rules) ? payload.rules : (payload.rule ? [payload.rule] : []);
-  const channel = forcedChannel || state.templateChannel || payload.template?.channel || "whatsapp";
-  const defaults = { ...localDefaultEmailTemplate, ...(payload.defaultEmailTemplate || {}) };
-  const storedTemplate = templates.find((item) => item.channel === channel);
-  const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
-  const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
-  const body = template.body || "";
-  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>`;
-  const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
-  const variableButtons = (variables) => variables.map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("");
-  const reminderSettings = `<div class="template-settings-grid"><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل 7 أيام</option><option value="4" ${Number(rule.daysOffset) === 4 ? "selected" : ""}>قبل 4 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل 3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل يوم واحد</option></select></label><label class="setting-row setting-toggle"><span><strong>حالة القالب</strong><small>يستخدم عند الإرسال التلقائي</small></span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>`;
-
-  if (channel === "whatsapp") {
-    const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : "اكتب محتوى الرسالة ليظهر هنا.";
-    return dashboardShell(`${pageTitle("قالب رسالة التجديد", backButton)}<p class="page-kicker">إنشاء وتخصيص قالب رسالة تذكير التجديد التي يتم إرسالها للعملاء عبر واتساب.</p>
-      <section class="template-editor-v2 template-editor-v2-whatsapp">
-        <article class="card template-editor-card-v2"><form data-submit="renewal-template" class="grid">
-          <div class="template-editor-meta-v2"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "قالب رسالة التجديد - واتساب")}" required></label>${channelSelect}<label class="field"><span>اسم المتجر</span><input class="input" name="storeName" value="${escapeHtml(template.storeName || "Renvix")}"></label><label class="field"><span>عنوان الرسالة</span><input class="input" name="title" value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}"></label></div>
-          <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>محتوى الرسالة</span></div><textarea class="textarea template-editor template-editor-v2-body" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea>
-          <div class="variables-row"><span>المتغيرات المتاحة</span>${variableButtons(["{{customer_name}}", "{{plan_name}}", "{{expiry_date}}", "{{days_remaining}}", "{{renewal_url}}"])}</div>
-          ${reminderSettings}
-          <div class="template-editor-v2-footer"><span class="muted">يمكنك تخصيص النص ونمط الرسالة بما يناسب علامتك التجارية.</span><div class="template-actions"><button class="btn btn-primary">حفظ القالب ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="test-template">معاينة مباشرة ${dashboardIcon("eye")}</button></div></div>
-        </form></article>
-        <aside class="template-preview-v2"><article class="card template-phone-card"><div class="section-head"><div><h2>معاينة واتساب</h2><p>تظهر المعاينة كما سيشاهدها العميل على واتساب.</p></div>${dashboardIcon("whatsapp")}</div><div class="whatsapp-phone-preview"><div class="whatsapp-phone-shell"><div class="whatsapp-phone-speaker"></div><div class="whatsapp-chat-top"><span>‹</span><b>Renvix</b><small>حساب أعمال</small><i>⋮</i></div><div class="whatsapp-chat-day">اليوم</div><div class="whatsapp-message-bubble"><strong>${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}</strong><p data-whatsapp-preview-body>${preview}</p><a href="#" tabindex="-1">رابط التجديد</a><small>11:21 ص ✓✓</small></div><div class="whatsapp-chat-composer">اكتب رسالة <span>⌕</span><b>●</b></div></div></div><p class="preview-note">هذه معاينة آمنة للرسالة، ولا يتم إرسالها أو خصم أي رصيد.</p></article><article class="card template-safety-note"><strong>ملاحظة مهمة</strong><p>تأكد من اتصال جهاز واتساب قبل تفعيل الإرسال التلقائي.</p></article></aside>
-      </section>`);
-  }
-
-  const colors = ["#0EA5A8", "#2563EB", "#7C3AED", "#22C55E", "#F97316", "#64748B"];
-  const variables = ["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{days_remaining}}", "{{renewal_link}}", "{{store_name}}"];
-  return dashboardShell(`${pageTitle("قالب البريد الإلكتروني للتجديد", backButton)}<p class="page-kicker">تم إعداد هذا البريد لإرسال تذكيرات التجديد للعملاء قبل انتهاء اشتراكاتهم.</p>
-    <section class="template-editor-v2 template-editor-v2-email"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">خصّص ألوان القالب وهوية المتجر.</p><div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div><label class="field"><span>اسم المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>اسم المتجر في الرسالة</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}" required></label><label class="field"><span>موضوع الرسالة</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}" required></label><div class="email-settings-hint">عنوان المرسل موثّق ولا يمكن تعديله من القالب.</div></article>
-      <article class="card template-editor-card-v2 email-editor-v2"><form data-submit="renewal-template" class="grid"><div class="template-editor-meta-v2"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "قالب البريد الإلكتروني للتجديد")}" required></label>${channelSelect}</div><div class="editor-toolbar"><button type="button">↶</button><button type="button">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>محرر الرسالة</span></div><textarea class="textarea template-editor email-content-editor" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body || "")}</textarea><div class="variables-row email-variables"><span>المتغيرات المتاحة</span>${variableButtons(variables)}</div><div class="template-meta-grid"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel || "جدد اشتراكك الآن")}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText || "شكرًا لثقتك بنا")}" required></label></div>${reminderSettings}<div class="template-editor-v2-footer"><span class="muted">عنوان المرسل ثابت: Renvix &lt;noreply@notify.renvix.app&gt;</span><div class="template-actions"><button class="btn btn-primary">حفظ القالب ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="test-template">إرسال رسالة تجريبية ${dashboardIcon("send")}</button></div></div></form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>معاينة حقيقية لمحتوى البريد المرسل.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span>الموضوع: ${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}</span></div><div data-email-preview>${emailTemplatePreview(template)}</div></article></aside></section>`);
-}
-
-function renewalTemplateEditorPage(forcedChannel = "") {
-  const payload = state.notificationTemplate || {};
-  const templates = Array.isArray(payload.templates) ? payload.templates : (payload.template ? [payload.template] : []);
-  const rules = Array.isArray(payload.rules) ? payload.rules : (payload.rule ? [payload.rule] : []);
-  const channel = forcedChannel || state.templateChannel || payload.template?.channel || "whatsapp";
-  const defaults = { ...localDefaultEmailTemplate, ...(payload.defaultEmailTemplate || {}) };
-  const storedTemplate = templates.find((item) => item.channel === channel);
-  const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
-  const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
-  const body = template.body || "";
-  const isWhatsappReady = overviewStats().connectedDevices > 0;
-  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>`;
-
-  if (channel === "whatsapp") {
-    const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;
-    return dashboardShell(`${pageTitle("قالب رسالة التجديد - واتساب", `<button class="btn btn-secondary" data-link="/dashboard/templates">‹ العودة إلى القوالب</button>`)}
-      <p class="page-kicker">أنشئ وخصص رسالة التجديد التي سيتم إرسالها للعملاء قبل انتهاء اشتراكاتهم.</p>
-      <section class="template-workspace"><article class="card template-editor-card"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر محتوى الرسالة باستخدام المتغيرات الذكية.</p></div>${dashboardIcon("template")}</div><form data-submit="renewal-template" class="grid">
-        <div class="template-meta-grid"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" placeholder="مثال: تذكير قبل التجديد"></label>${channelSelect}</div>
-        <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>النص</span></div><textarea class="textarea template-editor" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{renewal_link}}"].map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
-        <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
-        <div class="template-actions"><button class="btn btn-primary">حفظ القالب</button><button type="button" class="btn btn-secondary" data-action="test-template" ${!isWhatsappReady ? "disabled title=\"اربط جهازًا أولًا حتى تتمكن من إرسال رسالة تجريبية.\"" : ""}>إرسال رسالة تجريبية</button></div></form></article>
-        <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">معاينة القالب</span><div class="message-bubble">${preview}<small>معاينة فقط ✓✓</small></div></div><p class="preview-note">المعاينة تعرض المتغيرات كما هي، ولا تستخدم بيانات عميل أو طلب مختلقة.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>واتساب</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
-      </section>`);
-  }
-
-  const colors = ["#0EA5A8", "#2563EB", "#7C3AED", "#22C55E", "#F97316", "#64748B"];
-  const variables = ["{{اسم_العميل}}", "{{اسم_الخدمة}}", "{{تاريخ_الانتهاء}}", "{{الأيام_المتبقية}}", "{{رابط_التجديد}}", "{{رقم_الطلب}}", "{{اسم_المتجر}}"];
-  return dashboardShell(`${pageTitle("قالب البريد الإلكتروني للتجديد", `<button class="btn btn-secondary" data-link="/dashboard/templates">‹ العودة إلى القوالب</button>`)}
-    <p class="page-kicker">خصص رسالة البريد التي ستصل للعميل قبل انتهاء اشتراكه، من داخل صفحة القالب الحالية.</p>
-    <section class="email-template-layout">
-      <article class="card template-editor-card email-template-editor"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر بريد آمن مع متغيرات معتمدة ومعاينة مطابقة للقالب المرسل.</p></div>${dashboardIcon("template")}</div>
-        <form data-submit="renewal-template" class="grid">
-          <div class="email-template-meta"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName)}" required></label>${channelSelect}</div>
-          <label class="field"><span>عنوان البريد</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title)}" required></label>
-          <div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div>
-          <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص آمن</span></div>
-          <textarea class="textarea template-editor email-content-editor" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body)}</textarea>
-          <div class="variables-row email-variables"><span>المتغيرات المتاحة</span>${variables.map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
-          <div class="template-meta-grid"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel)}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText)}" required></label></div>
-          <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
-          <div class="email-template-actions"><button class="btn btn-primary">حفظ القالب ✓</button><button type="button" class="btn btn-secondary" data-action="test-template">إرسال رسالة تجريبية</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة</button><button type="button" class="btn btn-ghost" data-action="restore-email-template">استعادة الافتراضي</button></div>
-        </form>
-      </article>
-      <aside class="template-side email-preview-side"><article class="card template-preview-card"><div class="section-head"><div><h2>معاينة القالب</h2><p>هذه معاينة تقريبية لما سيصل إلى البريد الإلكتروني.</p></div>${dashboardIcon("reports")}</div><div class="email-header-preview"><span>من: <b>Renvix &lt;noreply@notify.renvix.app&gt;</b></span><span>الرد إلى: <b>support@renvix.app</b></span></div><div data-email-preview>${emailTemplatePreview(template)}</div></article><article class="card email-safety-card"><strong>إرسال آمن وموثوق</strong><p>يُثبّت عنوان المرسل والرد من الخادم، ويُمنع HTML والسكربتات والروابط غير الآمنة.</p></article></aside>
-    </section>`);
-}
-
-const orderLinkStyleOptions = [
-  ["classic", "كلاسيكي"], ["modern", "حديث"], ["professional", "احترافي"],
-  ["minimal", "بسيط"], ["premium", "فاخر"], ["colorful", "ملون"]
-];
-const orderLinkColorOptions = [
-  ["#2563EB", "أزرق"], ["#06B6D4", "تركواز"], ["#8B5CF6", "بنفسجي"], ["#22C55E", "أخضر"],
-  ["#F97316", "برتقالي"], ["#EF4444", "أحمر"], ["#64748B", "رمادي"], ["#0F172A", "كحلي"]
-];
-
-function safeOrderLinkColor(value) {
-  return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#2563EB";
-}
-
-function todayDateInputValue() {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-}
-
-function hydrateOrderLinkDraft() {
-  const profile = state.orderLinkProfile;
-  if (!profile || profile.error || state.orderLinkDraft.hydrated) return;
-  const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
-  const requestedTemplateId = state.query.get("templateId") || "";
-  const defaultTemplate = templates.find((item) => item.id === requestedTemplateId) || templates.find((item) => item.isDefault) || templates[0];
-  state.orderLinkDraft = {
-    ...state.orderLinkDraft,
-    hydrated: true,
-    storeName: defaultTemplate?.storeName || profile.storeName || "",
-    slug: profile.slug || "",
-    style: defaultTemplate?.style || profile.defaultTemplateStyle || "classic",
-    themeColor: safeOrderLinkColor(defaultTemplate?.themeColor || profile.defaultThemeColor),
-    templateId: defaultTemplate?.id || "",
-    templateName: defaultTemplate?.name || "",
-    publicUrl: defaultTemplate?.publicUrl || "",
-    templateLinkId: defaultTemplate?.templateLinkId || "",
-    manualStartDate: state.orderLinkDraft.manualStartDate || todayDateInputValue(),
-    headerText: defaultTemplate?.headerText || "شكرًا لاختيارك خدماتنا",
-    footerText: defaultTemplate?.footerText || "Renvix",
-    additionalNotes: Array.isArray(defaultTemplate?.additionalNotes) ? [...defaultTemplate.additionalNotes] : [],
-    visibleFields: { ...state.orderLinkDraft.visibleFields, ...(defaultTemplate?.visibleFields || {}) },
-    isDefault: defaultTemplate?.isDefault ?? true
-  };
-}
-
-function clientRemaining(endDate) {
-  if (!endDate) return { days: 0, state: "expired", label: "غير متوفر" };
-  const end = new Date(`${String(endDate).slice(0, 10)}T23:59:59`);
-  const now = new Date();
-  const days = Math.ceil((end - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
-  if (days < 0) return { days, state: "expired", label: "انتهى الاشتراك" };
-  if (days === 0) return { days: 0, state: "today", label: "ينتهي اليوم" };
-  return { days, state: "remaining", label: `باقي ${days} يومًا` };
-}
-
-function inferredSubscriptionStatus(startDate, endDate) {
-  if (!startDate || !endDate) return "";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(`${String(startDate).slice(0, 10)}T00:00:00`);
-  const end = new Date(`${String(endDate).slice(0, 10)}T23:59:59`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
-  if (end < today) return "expired";
-  const remaining = Math.ceil((end - today) / 86400000);
-  return remaining <= 7 ? "expiring_soon" : "active";
-}
-
-function orderLinkPreviewOrder(subscriptions = [], customers = []) {
-  const draft = state.orderLinkDraft;
-  const selected = subscriptions.find((item) => item.id === draft.subscriptionId);
-  if (selected) return selected;
-  if (draft.sourceMode === "manual") {
-    const customer = customers.find((item) => item.id === draft.customerId);
-    if (customer && draft.manualServiceName?.trim() && draft.manualPlanName?.trim() && draft.manualStartDate && draft.manualEndDate) {
-      return {
-        orderNumber: draft.manualOrderNumber || "سيُنشأ عند الحفظ",
-        customerName: customer.name,
-        planName: draft.manualPlanName,
-        serviceName: draft.manualServiceName,
-        startDate: draft.manualStartDate,
-        endDate: draft.manualEndDate,
-        status: inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate) || "غير مكتمل",
-        isDraftPreview: true
-      };
-    }
-  }
-  return null;
-}
-
-function orderInfoPreviewCard(subscription, draft, publicData = null) {
-  if (Array.isArray(publicData?.items)) {
-    return `<section class="order-portal-items">${publicData.items.map((item) => {
-      const remaining = item.remaining || {};
-      const remainingText = remaining.status === "pending" ? "لم يبدأ الاشتراك"
-        : remaining.status === "expired" ? "انتهى الاشتراك"
-          : `${Number(remaining.remainingDays || 0)} يوم و${Number(remaining.remainingHours || 0)} ساعة و${Number(remaining.remainingMinutes || 0)} دقيقة`;
-      const itemData = { ...publicData, items: undefined, order: {
-        ...publicData.order, serviceName: item.serviceName, planName: item.planName, status: item.status,
-        startDate: item.startsAt, endDate: item.expiresAt, remaining
-      }, renewalOptions: item.renewalOptions || [] };
-      return `<article class="subscription-live-time">
-        <div><span>الخدمة</span><strong>${escapeHtml(item.serviceName || item.planName || "الاشتراك")}</strong></div>
-        <div><span>المدة الأصلية</span><strong>${escapeHtml(item.durationLabel || "مدة الاشتراك غير مهيأة")}</strong></div>
-        <div><span>المدة المتبقية</span><strong data-subscription-countdown data-expires-at="${escapeHtml(item.expiresAt)}" data-server-now="${escapeHtml(publicData.serverNow)}">${escapeHtml(remainingText)}</strong></div>
-        <div class="subscription-time-progress"><i><b style="width:${Math.min(100, Math.max(0, Number(remaining.progressPercentage || 0)))}%"></b></i><small>اكتمل ${Math.min(100, Math.max(0, Number(remaining.progressPercentage || 0)))}% من المدة</small></div>
-      </article>${orderInfoPreviewCard(null, draft, itemData)}`;
-    }).join("")}</section>`;
-  }
-  const order = publicData?.order || subscription;
-  const store = publicData?.store || { name: draft.storeName };
-  const template = publicData?.template || draft;
-  if (!order) return emptyState("لا توجد معاينة بعد", "اختر اشتراكًا أو أدخل معلومات الطلب يدويًا.");
-  const remaining = publicData?.order?.remaining || clientRemaining(order.endDate);
-  const themeColor = safeOrderLinkColor(template.themeColor);
-  const visible = template.visibleFields || draft.visibleFields || {};
-  const notes = Array.isArray(template.additionalNotes) ? template.additionalNotes : [];
-  const orderNumber = order.orderNumber || "";
-  const customerName = order.customerName || "";
-  const planName = order.planName || "";
-  const startDate = order.startDate ? new Date(order.startDate).toLocaleDateString("ar-SA") : "";
-  const endDate = order.endDate ? new Date(order.endDate).toLocaleDateString("ar-SA") : "";
-  const subscriptionStatus = order.status === "active" ? "نشط" : order.status === "expiring_soon" ? "ينتهي قريبًا" : order.status === "expired" ? "منتهي" : order.status || "غير محدد";
-  return `<article class="order-customer-card order-style-${escapeHtml(template.style || "classic")} ${order.isPlaceholder ? "is-placeholder" : ""}" style="--order-theme:${themeColor}">
-    <div class="order-card-accent"></div>
-    <div class="order-card-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
-    <div class="order-number-row"><span>رقم الطلب</span><strong>#${escapeHtml(orderNumber)}</strong>${status(subscriptionStatus)}</div>
-    <div class="order-information-grid">
-      ${visible.customerName !== false ? `<div>${dashboardIcon("customers")}<span>اسم العميل</span><strong>${escapeHtml(customerName)}</strong></div>` : ""}
-      ${visible.status !== false ? `<div>${dashboardIcon("security")}<span>حالة الاشتراك</span><strong>${escapeHtml(subscriptionStatus)}</strong></div>` : ""}
-      ${visible.remainingDays !== false ? `<div class="remaining-field">${dashboardIcon("template")}<span>المدة المتبقية</span><strong>${escapeHtml(remaining.label || (remaining.state === "today" ? "ينتهي اليوم" : remaining.state === "expired" ? "انتهى الاشتراك" : `باقي ${remaining.days} يومًا`))}</strong></div>` : ""}
-      ${visible.startDate !== false ? `<div>${dashboardIcon("template")}<span>تاريخ البداية</span><strong>${escapeHtml(startDate)}</strong></div>` : ""}
-      ${visible.endDate !== false ? `<div>${dashboardIcon("template")}<span>تاريخ النهاية</span><strong>${escapeHtml(endDate)}</strong></div>` : ""}
-      ${visible.planName !== false ? `<div>${dashboardIcon("subscriptions")}<span>اسم الخطة</span><strong>${escapeHtml(planName)}</strong></div>` : ""}
-      ${visible.storeName !== false ? `<div>${dashboardIcon("home")}<span>اسم المتجر</span><strong>${escapeHtml(store.name || "")}</strong></div>` : ""}
-      ${order.maskedPhone ? `<div>${dashboardIcon("devices")}<span>رقم التواصل</span><strong dir="ltr">${escapeHtml(order.maskedPhone)}</strong></div>` : ""}
-    </div>
-    ${visible.additionalNotes !== false && notes.length ? `<div class="order-notes"><h3>${dashboardIcon("template")} ملاحظات إضافية</h3><ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul></div>` : ""}
-    ${Array.isArray(publicData?.renewalOptions) && publicData.renewalOptions.length ? `<section class="public-renewal-options"><div><h3>خيارات تجديد ${escapeHtml(order.serviceName || planName || "الاشتراك")}</h3><p>اختر المدة المناسبة لهذا المنتج.</p></div><div class="public-renewal-grid">${publicData.renewalOptions.map((item) => `<a href="${escapeHtml(item.url)}" class="public-renewal-card"><span>${dashboardIcon("subscriptions")}</span><div><strong>${escapeHtml(item.label)}</strong><small>${renewalDurationLabel(item.durationValue, item.durationUnit)}${item.note ? ` · ${escapeHtml(item.note)}` : ""}</small></div><b>تجديد الآن ←</b></a>`).join("")}</div></section>` : ""}
-    ${template.footerText ? `<p class="order-card-footer">${escapeHtml(template.footerText)}</p>` : ""}
-  </article>`;
-}
-
-function orderLookupPreviewCard(draft) {
-  const themeColor = safeOrderLinkColor(draft.themeColor);
-  const storeName = draft.storeName?.trim() || "اسم متجرك";
-  return `<article class="order-lookup-preview order-style-${escapeHtml(draft.style || "classic")}" style="--order-theme:${themeColor}">
-    <div class="order-lookup-accent"></div>
-    <div class="order-lookup-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(storeName)}</h2><p>مرحبًا بك في صفحة متابعة طلبك</p></div></div>
-    <div class="order-lookup-content">
-      <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
-      <h3>أدخل رقم الطلب</h3>
-      <p>اكتب رقم طلبك لعرض حالة الاشتراك ومدته ومعلومات الباقة.</p>
-      <label><span>رقم الطلب</span><div class="order-lookup-input"><input value="" placeholder="مثال: 54981" readonly aria-label="معاينة حقل رقم الطلب">${dashboardIcon("orderLink")}</div></label>
-      <button class="btn btn-primary order-themed-action" type="button" data-action="order-preview-show-result">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
-      <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
-    </div>
-    <p class="order-card-footer">${escapeHtml(draft.footerText || "Renvix")}</p>
-  </article>`;
-}
-
-function publicOrderLookupCard(presentation, orderNumber = "") {
-  const store = presentation?.store || {};
-  const template = presentation?.template || {};
-  const themeColor = safeOrderLinkColor(template.themeColor);
-  return `<article class="order-lookup-preview public-order-lookup-card order-style-${escapeHtml(template.style || "classic")}" style="--order-theme:${themeColor}">
-    <div class="order-lookup-accent"></div>
-    <div class="order-lookup-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || "معلومات الطلب")}</h2><p>${escapeHtml(template.headerText || "مرحبًا بك في صفحة متابعة طلبك")}</p></div></div>
-    <form class="order-lookup-content" data-submit="public-order-search">
-      <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
-      <h3>أدخل رقم الطلب</h3>
-      <p>اكتب رقم طلبك لعرض حالة الاشتراك ومدته ومعلومات الباقة.</p>
-      <label><span>رقم الطلب</span><div class="order-lookup-input"><input name="orderNumber" value="${escapeHtml(orderNumber)}" placeholder="مثال: 54981" inputmode="text" autocomplete="off" required>${dashboardIcon("orderLink")}</div></label>
-      <button class="btn btn-primary order-themed-action" type="submit">عرض معلومات الطلب ${dashboardIcon("reports")}</button>
-      <small>${dashboardIcon("security")} بياناتك آمنة ولا تظهر إلا عبر رابط المتجر الخاص.</small>
-    </form>
-    <p class="order-card-footer">${escapeHtml(template.footerText || "Renvix")}</p>
-  </article>`;
-}
-
-function orderLinkPreviewSlides(subscription, draft) {
-  const activeSlide = Number(state.orderLinkPreviewSlide || 0) === 1 ? 1 : 0;
-  return `<div class="order-preview-carousel" data-active-slide="${activeSlide}">
-    <div class="order-preview-toolbar" aria-label="التنقل بين المعاينات">
-      <button type="button" class="order-preview-arrow" data-action="order-preview-step" data-direction="-1" ${activeSlide === 0 ? "disabled" : ""} title="المعاينة السابقة">‹</button>
-      <div class="order-preview-tabs" role="tablist">
-        <button type="button" class="${activeSlide === 0 ? "active" : ""}" data-action="order-preview-slide" data-value="0"><b>1</b><span>صفحة إدخال الطلب</span></button>
-        <button type="button" class="${activeSlide === 1 ? "active" : ""}" data-action="order-preview-slide" data-value="1"><b>2</b><span>معلومات الطلب</span></button>
-      </div>
-      <button type="button" class="order-preview-arrow" data-action="order-preview-step" data-direction="1" ${activeSlide === 1 ? "disabled" : ""} title="المعاينة التالية">›</button>
-    </div>
-    <div class="order-preview-viewport">
-      <section class="order-preview-slide ${activeSlide === 0 ? "active" : ""}" aria-hidden="${activeSlide !== 0}">${orderLookupPreviewCard(draft)}</section>
-      <section class="order-preview-slide ${activeSlide === 1 ? "active" : ""}" aria-hidden="${activeSlide !== 1}">${orderInfoPreviewCard(subscription, draft)}</section>
-    </div>
-  </div>`;
-}
-
-function orderLinksWorkspacePage() {
-  hydrateOrderLinkDraft();
-  const profile = state.orderLinkProfile || {};
-  const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
-  const subscriptions = Array.isArray(state.orderLinkSubscriptions) ? state.orderLinkSubscriptions : [];
-  const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
-  const linksPayload = state.orderLinks && !Array.isArray(state.orderLinks) ? state.orderLinks : {};
-  const links = Array.isArray(linksPayload.items) ? linksPayload.items : [];
-  const stats = linksPayload.stats || { activeTemplates: 0, sentLinks: 0, openedLinks: 0, todayRequests: 0, openRate: 0 };
-  const draft = state.orderLinkDraft;
-  const selected = orderLinkPreviewOrder(subscriptions, customers);
-  const selectedCustomerSubscriptions = draft.customerId ? subscriptions.filter((item) => item.customerId === draft.customerId) : subscriptions;
-  const manualDatesValid = Boolean(
-    draft.customerId && draft.manualServiceName?.trim() && draft.manualPlanName?.trim() &&
-    draft.manualStartDate && draft.manualEndDate && inferredSubscriptionStatus(draft.manualStartDate, draft.manualEndDate)
-  );
-  const canCreate = draft.sourceMode === "manual" ? manualDatesValid : Boolean(subscriptions.find((item) => item.id === draft.subscriptionId));
-  const publicUrl = draft.publicUrl || templates.find((item) => item.id === draft.templateId)?.publicUrl || "";
-  const templateRows = templates.map((item) => [
-    `<strong>${escapeHtml(item.name)}</strong>`,
-    escapeHtml(orderLinkStyleOptions.find(([value]) => value === item.style)?.[1] || item.style),
-    `<span class="color-dot" style="background:${safeOrderLinkColor(item.themeColor)}"></span>`,
-    escapeHtml(item.storeName),
-    item.isDefault ? status("نشط") : "—",
-    escapeHtml(item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA") : "—"),
-    `<div class="row-actions"><button class="btn btn-ghost" data-action="load-order-template" data-id="${item.id}">تعديل القالب الثابت</button></div>`
-  ]);
-  const linkRows = links.map((item) => [
-    `<button class="order-number-copy" data-action="copy-order-number" data-value="${escapeHtml(item.orderNumber)}" title="نسخ رقم الطلب"><strong>#${escapeHtml(item.orderNumber)}</strong>${dashboardIcon("orderLink")}</button>`,
-    escapeHtml(item.customerName || "—"),
-    escapeHtml(item.templateName || "بدون قالب"),
-    `<span class="color-dot" style="background:${safeOrderLinkColor(item.themeColor)}"></span>`,
-    escapeHtml(item.sendMethod || "copy"),
-    status(item.status),
-    Number(item.openedCount || 0),
-    escapeHtml(item.lastOpenedAt ? new Date(item.lastOpenedAt).toLocaleString("ar-SA") : "—"),
-    escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "—"),
-    `<div class="row-actions"><button class="icon-action" data-action="copy-order-link" data-id="${item.id}" title="نسخ">⧉</button><button class="icon-action" data-action="preview-order-link" data-id="${item.id}" title="معاينة">◉</button><button class="icon-action" data-action="send-order-link" data-id="${item.id}" title="إرسال">↗</button><button class="icon-action" data-action="regenerate-order-link" data-id="${item.id}" title="إنشاء رابط سري جديد">↻</button><button class="icon-action" data-action="archive-order-link" data-id="${item.id}" title="أرشفة">□</button><button class="icon-action danger-text" data-action="disable-order-link" data-id="${item.id}" title="تعطيل">×</button><button class="icon-action danger-text" data-action="delete-order-link" data-id="${item.id}" title="حذف">⌫</button></div>`
-  ]);
-  return dashboardShell(`${pageTitle("إرسال معلومات الطلب")}
-    ${statGrid([
-      { title: "قالب معلومات الطلب", value: stats.activeTemplates || 0, caption: "قالب ثابت", tone: "purple", icon: "template" },
-      { title: "روابط الطلبات", value: stats.sentLinks || 0, caption: "رابط خاص", tone: "info", icon: "orderLink" },
-      { title: "الروابط المفتوحة", value: stats.openedLinks || 0, caption: "رابط", tone: "success", icon: "reports" },
-      { title: "طلبات اليوم", value: stats.todayRequests || 0, caption: "استعلام", tone: "warning", icon: "template" },
-      { title: "نسبة الفتح", value: `${stats.openRate || 0}%`, caption: "من الروابط", tone: "info", icon: "reports" }
-    ])}
-    <section class="order-link-workspace section">
-      <article class="card order-link-builder">
-        <div class="section-head"><div><h2>قالب معلومات الطلب — سلة</h2><p>خصص نص الرسالة ومظهر صفحة الطلب المستخدمة لجميع طلبات متجرك.</p></div>${dashboardIcon("orderLink")}</div>
-        <form data-submit="order-link-template" class="order-link-form">
-          <div class="order-source-picker" role="tablist" aria-label="مصدر معلومات الطلب">
-            <button type="button" class="${draft.sourceMode === "existing" ? "active" : ""}" data-action="order-source-mode" data-value="existing">اشتراك موجود</button>
-            <button type="button" class="${draft.sourceMode === "customer" ? "active" : ""}" data-action="order-source-mode" data-value="customer">اختيار حسب العميل</button>
-            <button type="button" class="${draft.sourceMode === "manual" ? "active" : ""}" data-action="order-source-mode" data-value="manual">إضافة يدوية</button>
-          </div>
-          <div class="order-profile-grid">
-            <label class="field"><span>اسم القالب</span><input class="input" name="templateName" data-order-field="templateName" value="${escapeHtml(draft.templateName)}" placeholder="قالب معلومات الطلب"></label>
-            <label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-order-field="storeName" value="${escapeHtml(draft.storeName)}" required></label>
-            <label class="field"><span>رابط المتجر المخصص</span><div class="slug-input"><span>/o/</span><input class="input" name="slug" data-order-field="slug" value="${escapeHtml(draft.slug || profile.slug || "")}" pattern="[a-z0-9-]+"></div><small>حروف إنجليزية صغيرة وأرقام وشرطات فقط.</small></label>
-            ${draft.sourceMode === "existing" ? `<label class="field"><span>اختيار الطلب / الاشتراك</span><select class="select" name="subscriptionId" data-order-field="subscriptionId"><option value="">اختر اشتراكًا حقيقيًا</option>${subscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customerName)} · ${escapeHtml(item.planName)}</option>`).join("")}</select></label>` : ""}
-            ${draft.sourceMode !== "existing" ? `<label class="field"><span>اختيار العميل</span><select class="select" name="customerId" data-order-field="customerId"><option value="">اختر عميلًا من قاعدة البيانات</option>${customers.map((item) => `<option value="${item.id}" ${item.id === draft.customerId ? "selected" : ""}>${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ""}</option>`).join("")}</select><small>${customers.length ? "اختر العميل الذي سيظهر في صفحة الطلب." : "لا يوجد عملاء بعد. أضف العميل أولًا ثم أكمل."}</small></label>` : ""}
-            ${draft.sourceMode === "customer" ? `<label class="field"><span>اشتراكات العميل</span><select class="select" name="subscriptionId" data-order-field="subscriptionId" ${draft.customerId ? "" : "disabled"}><option value="">اختر اشتراك العميل</option>${selectedCustomerSubscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.planName)}</option>`).join("")}</select><small>${draft.customerId && !selectedCustomerSubscriptions.length ? "لا يملك هذا العميل اشتراكًا. استخدم الإضافة اليدوية لإنشاء طلبه." : ""}</small></label>` : ""}
-          </div>
-          ${draft.sourceMode !== "existing" && !customers.length ? `<div class="order-inline-notice"><span>أضف العميل الحقيقي أولًا ليتم ربط الطلب به.</span><button type="button" class="btn btn-secondary" data-action="add-customer">إضافة عميل</button></div>` : ""}
-          ${draft.sourceMode === "customer" && draft.customerId && !selectedCustomerSubscriptions.length ? `<div class="order-inline-notice"><span>لا توجد اشتراكات لهذا العميل.</span><button type="button" class="btn btn-primary" data-action="order-source-mode" data-value="manual">إضافة طلب يدوي لهذا العميل</button></div>` : ""}
+  const content = state.dbCustomers?.error ? emptyState("تعذر تحميل العملاء", escapeHtml(state.dbCustomers.error)) : sta…33370 tokens truncated…-mode" data-value="manual">إضافة طلب يدوي لهذا العميل</button></div>` : ""}
           ${draft.sourceMode === "manual" ? `<div class="manual-order-panel">
             <div class="section-head"><div><h3>معلومات الطلب اليدوي</h3><p>سيُحفظ هذا الطلب كاشتراك حقيقي ثم يُنشأ له الرابط.</p></div>${dashboardIcon("subscriptions")}</div>
             <div class="order-profile-grid">
@@ -3398,8 +2303,9 @@ function whatsappSourceLabel(source) {
 
 function billingPlanCatalog(plans, current) {
   if (!plans.length) return emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support");
+  const currentSlug = current?.planSlug || "free";
   return `<div class="dashboard-plan-grid">${plans.map((plan) => {
-    const isCurrent = plan.slug === current.planSlug;
+    const isCurrent = plan.slug === currentSlug || (plan.slug === "free" && currentSlug === "trial");
     const planFeatures = Array.isArray(plan.features) && plan.features.length ? plan.features : [
       `${Number(plan.emailMessageLimit || 0).toLocaleString("ar-SA")} رسالة بريد إلكتروني`,
       `${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل`,
@@ -3410,10 +2316,10 @@ function billingPlanCatalog(plans, current) {
     return `<article class="dashboard-plan ${isCurrent ? "current" : ""}">
       <span class="status ${isCurrent ? "success" : "info"}">${isCurrent ? "خطتك الحالية" : "متاحة"}</span>
       <h3>${escapeHtml(plan.name)}</h3>
-      <p class="plan-price">${formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>/ ${state.billing === "yearly" ? "سنة" : "شهر"}</small></p>
+      <p class="plan-price">${plan.customPricing ? "مخصص" : formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>${plan.customPricing ? "تواصل معنا" : `/ ${state.billing === "yearly" ? "سنة" : "شهر"}`}</small></p>
       <ul class="check-list">${planFeatures.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul>
-      <p class="whatsapp-usage-note" title="رسوم واتساب الرسمية تُحسب وفق تسعير Meta والاستخدام الفعلي، وليست ضمن حد رسائل البريد.">${dashboardIcon("whatsapp")} واتساب حسب الاستخدام ورصيد المحفظة</p>
-      <button class="btn ${isCurrent ? "btn-secondary" : "btn-primary"}" data-link="/pricing">${isCurrent ? "الخطة الحالية" : "اختيار الباقة"}</button>
+      <p class="whatsapp-usage-note" title="رسوم واتساب الرسمية تُحسب وفق تسعير Meta والاستخدام الفعلي، وليست ضمن حد رسائل البريد.">${dashboardIcon("whatsapp")} واتساب مستقل حسب الاستخدام ورصيد المحفظة</p>
+      <button class="btn ${isCurrent ? "btn-secondary" : "btn-primary"}" ${isCurrent ? "disabled" : 'data-link="/support"'}>${isCurrent ? "الخطة الحالية" : plan.customPricing ? "تواصل معنا" : "طلب الترقية"}</button>
     </article>`;
   }).join("")}</div>`;
 }
@@ -5502,7 +4408,7 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "email-otp") {
-    const code = Array.from({ length: 6 }, (_, index) => normalizeEmailOtpDigit(data[`digit${index}`])).join("");
+    const code = normalizeEmailOtpCode(Array.from({ length: 6 }, (_, index) => data[`digit${index}`] || "").join(""));
     if (!/^\d{6}$/.test(code)) {
       return appToast.warning("أدخل رمز التحقق كاملًا", {
         description: "يتكون رمز التحقق من 6 أرقام.",
@@ -6120,8 +5026,17 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("input", (event) => {
   const target = event.target;
   if (target.matches?.("[data-otp-digit]")) {
-    const value = normalizeEmailOtpDigit(target.value);
+    const normalized = normalizeEmailOtpCode(target.value);
     const index = Number(target.dataset.otpDigit);
+    if (normalized.length > 1) {
+      [...normalized].slice(0, 6).forEach((digit, digitIndex) => {
+        const input = document.querySelector(`[data-otp-digit="${digitIndex}"]`);
+        if (input) input.value = digit;
+      });
+      document.querySelector(`[data-otp-digit="${Math.min(5, normalized.length - 1)}"]`)?.focus();
+      return;
+    }
+    const value = normalizeEmailOtpDigit(normalized);
     target.value = value;
     if (value && index < 5) document.querySelector(`[data-otp-digit="${index + 1}"]`)?.focus();
     return;
@@ -6348,3 +5263,4 @@ document.addEventListener("paste", (event) => {
 setInterval(updateEmailOtpCountdown, 1000);
 render();
 if (state.route === "/dashboard/devices") void syncLinkedDevice();
+

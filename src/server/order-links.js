@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { appBaseUrl } from "./app-url.js";
 import { query, transaction } from "./db.js";
+import { assertPlanCapacity } from "./plan-entitlements.js";
 import { randomToken, sha256 } from "./security.js";
 import {
   DEFAULT_VISIBLE_FIELDS,
@@ -195,6 +196,12 @@ export async function createOrderInfoLink({
   const stableTemplateLink = await ensureTemplatePublicLink({ tenantId, templateId, expiresInDays: null });
   if (!stableTemplateLink.ok) return stableTemplateLink;
   const result = await transaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`plan-order-links:${tenantId}`]);
+    const existingLink = await client.query(
+      "SELECT id FROM order_info_links WHERE tenant_id = $1 AND subscription_id = $2 LIMIT 1",
+      [tenantId, subscriptionId]
+    );
+    if (!existingLink.rows[0]) await assertPlanCapacity(tenantId, "orderLinks", client);
     const subscription = await client.query(
       `SELECT s.id, s.order_number AS "orderNumber", s.customer_id AS "customerId"
          FROM subscriptions s
@@ -292,3 +299,4 @@ export function publicOrderPayload(row) {
     })) : []
   };
 }
+

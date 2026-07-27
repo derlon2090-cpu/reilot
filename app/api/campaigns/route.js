@@ -2,6 +2,7 @@ import { z } from "zod";
 import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 import { sameOriginRequest } from "../../../src/server/campaign-contacts.js";
+import { assertPlanFeature, planEntitlementResponse } from "../../../src/server/plan-entitlements.js";
 
 const campaignSchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -53,6 +54,8 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = await requireSession(request); if (!auth.ok) return auth.response;
   if (!sameOriginRequest(request)) return Response.json({ ok: false, reason: "invalid_origin" }, { status: 403 });
+  try { await assertPlanFeature(auth.session.tenantId, "campaignsEnabled"); }
+  catch (error) { const response = planEntitlementResponse(error); if (response) return response; throw error; }
   const parsed = campaignSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return Response.json({ ok: false, reason: "invalid_input", issues: parsed.error.issues }, { status: 400 });
   if (parsed.data.scheduleMode === "scheduled" && (!parsed.data.scheduledFor || parsed.data.scheduledFor <= new Date())) {
@@ -72,3 +75,4 @@ export async function POST(request) {
   });
   return Response.json({ ok: true, item }, { status: 201 });
 }
+

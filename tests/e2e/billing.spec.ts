@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("pricing selection carries the selected plan into registration", async ({ page }) => {
+test("standalone pricing renders the packages page", async ({ page }) => {
   await page.goto("/pricing");
-  await page.locator("[data-action='billing'][data-billing='yearly']").click();
-  await page.locator("[data-action='select-plan'][data-plan='pro']").click();
-  await expect(page).toHaveURL(/\/register\?plan=pro$/);
+  await expect(page).toHaveURL(/\/pricing$/);
+  await expect(page.getByRole("heading", { name: "الباقات" })).toBeVisible();
+  await expect(page.locator(".pricing-public-grid")).toBeVisible();
+  await page.locator('[data-link="/register?plan=business"]').click();
+  await expect(page).toHaveURL(/\/register\?plan=business$/);
 });
+
