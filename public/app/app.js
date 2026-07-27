@@ -486,6 +486,8 @@ state.contactStatistics = null;
 state.appsOverview = null;
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
+state.sallaAutomationTemplates = null;
+state.sallaAutomationTemplate = null;
 state.renewalOptionMode = "automatic";
 state.sallaRuleDrafts = null;
 state.sallaSettingsOpen = false;
@@ -499,6 +501,9 @@ state.publicOrderLookup = "";
 state.publicOrderPresentation = null;
 state.publicOrderPresentationLoading = false;
 state.publicOrderPresentationKey = "";
+state.publicSallaPage = null;
+state.publicSallaPageLoading = false;
+state.publicSallaPageKey = "";
 state.orderLinkPreviewSlide = 0;
 state.orderLinkCreating = false;
 state.orderLinkDraft = {
@@ -675,6 +680,13 @@ function syncRouteData(force = false) {
     queue("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
   }
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) queue("appsOverview", "/api/apps", "appsOverview");
+  if (state.route === "/dashboard/apps/salla/templates" && (force || state.sallaAutomationTemplates === null)) {
+    queue("sallaAutomationTemplates", "/api/apps/salla/templates", "sallaAutomationTemplates");
+  }
+  const sallaTemplateKey = state.route.match(/^\/dashboard\/apps\/salla\/templates\/([^/]+)$/)?.[1];
+  if (sallaTemplateKey && (force || state.sallaAutomationTemplate?.item?.templateKey !== sallaTemplateKey)) {
+    queue("sallaAutomationTemplate", `/api/apps/salla/templates/${encodeURIComponent(sallaTemplateKey)}`, "sallaAutomationTemplate");
+  }
   if (state.route.startsWith("/dashboard/integrations/salla/products") && (force || state.sallaProductMappings === null)) {
     queue("sallaProductMappings", "/api/apps/salla/product-mappings", "sallaProductMappings");
   }
@@ -1443,7 +1455,7 @@ function dashboardShell(content) {
     { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/settings"] }
   ];
   const links = routeGroups.map((group) => {
-    const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => `<button class="side-link ${state.route === path ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
+    const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => `<button class="side-link ${state.route === path || (path === "/dashboard/apps" && state.route.startsWith("/dashboard/apps/")) ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
     return `<div class="side-group">${group.label ? `<span class="side-group-title">${group.label}</span>` : ""}${items}</div>`;
   }).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
@@ -1668,6 +1680,92 @@ function renewalOptionForm(mappingId, item = null) {
   </form>`;
 }
 
+function sallaTemplateIcon(item) {
+  const iconMap = {
+    cart: "subscriptions", clock: "template", settings: "settings", check: "security",
+    plane: "orderLink", truck: "devices", package: "apps", return: "subscriptions",
+    refund: "billing", invoice: "template"
+  };
+  return dashboardIcon(iconMap[item.icon] || "template");
+}
+
+function sallaAutomationTemplatesPage() {
+  const payload = state.sallaAutomationTemplates;
+  if (!payload) return dashboardShell(`${pageTitle("قوالب سلة")}<div class="loading-state">جاري تحميل القوالب المرتبطة بمتجر سلة...</div>`);
+  if (payload.error) return dashboardShell(`${pageTitle("قوالب سلة")} ${emptyState("تعذر تحميل قوالب سلة", payload.error, "إعادة المحاولة", "reload-salla-templates")}`);
+  if (!payload.available) {
+    return dashboardShell(`${pageTitle("قوالب سلة")}
+      <section class="card salla-templates-locked">
+        <span class="salla-template-lock-logo"><img src="/assets/salla-logo.svg" alt="سلة"></span>
+        <h2>قوالب سلة غير متاحة</h2>
+        <p>اربط متجرك بتطبيق سلة للوصول إلى قوالب حالات الطلب والسلات المتروكة والفواتير.</p>
+        <button class="btn btn-primary" data-link="/dashboard/apps">ربط متجر سلة</button>
+      </section>`);
+  }
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  const cards = items.map((item) => `<article class="card salla-template-card ${item.templateKey === "salla_order_completed" ? "featured" : ""}">
+    <div class="salla-template-card-head">
+      <span class="salla-template-card-icon">${sallaTemplateIcon(item)}</span>
+      <div><span class="salla-chip">سلة</span><h2>${escapeHtml(item.name)}</h2></div>
+    </div>
+    <p>${escapeHtml(item.description)}</p>
+    ${item.templateKey === "salla_order_completed" ? `<div class="salla-mode-chips"><span>واتساب</span><span>صفحة آمنة</span></div>` : ""}
+    <span class="status ${item.isEnabled ? "success" : "neutral"}">${item.isEnabled ? "نشط" : "غير مفعل"} <i></i></span>
+    <footer><small>آخر تحديث: ${item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "—"}</small><div><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("template")} تحرير</button></div></footer>
+  </article>`).join("");
+  return dashboardShell(`${pageTitle("قوالب سلة", `<button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة حالات سلة</button><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة للتطبيقات</button>`)}
+    <p class="page-kicker">إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة؛ كل قالب سجل مستقل ولا يتكرر عند الحفظ أو إعادة الربط.</p>
+    <section class="inline-notice info salla-templates-notice">${dashboardIcon("info")}<span>هذه القوالب تعمل بعد أحداث سلة الموثقة فقط. الإرسال يتم عبر Queue ولا يظهر النجاح قبل قبول مزود القناة.</span></section>
+    <section class="salla-templates-grid">${cards}</section>`);
+}
+
+function sallaTemplatePreviewPanel(item) {
+  const body = escapeHtml(item.messageBody || "").replace(/\n/g, "<br>");
+  const isEmail = item.channel === "email";
+  return `<aside class="card salla-template-live-preview">
+    <div class="section-head"><div><h2>معاينة الرسالة</h2><p>معاينة فقط — لن يتم إرسال أي رسالة.</p></div>${dashboardIcon("eye")}</div>
+    <div class="${isEmail ? "salla-email-preview" : "salla-whatsapp-preview"}">
+      ${isEmail ? `<div class="salla-email-preview-head">${brandLogo("dashboard")}<strong>${escapeHtml(item.emailSubject || "عنوان الرسالة")}</strong></div>` : `<div class="salla-whatsapp-preview-head">${brandLogo("dashboard")}<div><strong>Renvix</strong><small>حساب أعمال</small></div></div>`}
+      <div class="salla-preview-message">${body}</div>
+      <small>${isEmail ? "بريد تجريبي" : "10:30 ص ✓✓"}</small>
+    </div>
+    ${item.lastFailureAt ? `<div class="inline-notice danger"><strong>آخر خطأ</strong><span>${escapeHtml(item.lastFailureCode || "provider_failed")}</span></div>` : ""}
+  </aside>`;
+}
+
+function sallaAutomationTemplateEditorPage() {
+  const payload = state.sallaAutomationTemplate;
+  if (!payload) return dashboardShell(`${pageTitle("إعداد قالب سلة")}<div class="loading-state">جاري تحميل القالب...</div>`);
+  if (payload.error) return dashboardShell(`${pageTitle("إعداد قالب سلة")} ${emptyState("تعذر تحميل القالب", payload.error, "العودة للقوالب", "back-salla-templates")}`);
+  if (!payload.available || !payload.item) return sallaAutomationTemplatesPage();
+  const item = payload.item;
+  const statuses = Array.isArray(payload.statuses) ? payload.statuses : [];
+  const metaTemplates = Array.isArray(payload.metaTemplates) ? payload.metaTemplates : [];
+  const settings = item.settings || {};
+  const statusField = item.requiresStatusMapping ? `<label class="field"><span>حالة سلة التي تشغّل القالب</span><select class="select" name="mappedStatusId" required><option value="">اختيار الحالة</option>${statuses.map((statusItem) => `<option value="${escapeHtml(statusItem.id)}" data-slug="${escapeHtml(statusItem.slug || "")}" data-name="${escapeHtml(statusItem.name)}" ${statusItem.id === item.mappedStatusId ? "selected" : ""}>${escapeHtml(statusItem.name)}${statusItem.isCustom ? " — مخصصة" : ""}</option>`).join("")}</select><small>${statuses.length ? "المطابقة تعتمد على المعرّف أو slug، وليس الاسم العربي وحده." : "زامن حالات سلة أولًا؛ لا يمكن التفعيل قبل المطابقة."}</small></label>` : "";
+  const metaPanel = `<section class="salla-channel-panel" data-channel-panel="whatsapp" ${item.channel === "whatsapp" ? "" : "hidden"}><label class="field"><span>قالب Meta المعتمد</span><select class="select" name="whatsappTemplateId"><option value="">اختر قالبًا معتمدًا</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === item.whatsappTemplateId ? "selected" : ""}>${escapeHtml(template.displayName || template.name)} — ${escapeHtml(template.language)}</option>`).join("")}</select><small>لا يمكن تفعيل الإرسال التلقائي قبل اعتماد القالب في Meta.</small></label></section>`;
+  const emailPanel = `<section class="salla-channel-panel" data-channel-panel="email" ${item.channel === "email" ? "" : "hidden"}><label class="field"><span>عنوان البريد</span><input class="input" name="emailSubject" value="${escapeHtml(item.emailSubject || "")}" placeholder="تحديث طلبك رقم {{order_number}}"></label></section>`;
+  const abandoned = item.templateKey === "salla_abandoned_cart" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>تسلسل التذكير</h2><p>تُلغى الرسائل المؤجلة عند تحوّل السلة إلى طلب.</p></div>${dashboardIcon("clock")}</div><div class="form-grid three">${(settings.delaysMinutes || [30,1440,4320]).map((minutes,index) => `<label class="field"><span>الرسالة ${index + 1} — بعد كم دقيقة</span><input class="input" type="number" min="5" max="43200" name="delay${index + 1}" value="${Number(minutes)}"></label>`).join("")}</div><label class="setting-line"><span><strong>إيقاف التسلسل عند إتمام الشراء</strong><small>منع أي تذكير بعد وصول طلب حقيقي.</small></span><input type="checkbox" name="stopOnConversion" ${settings.stopOnConversion !== false ? "checked" : ""}></label></section>` : "";
+  const completed = item.templateKey === "salla_order_completed" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>طريقة تسليم الطلب</h2><p>اختر وضعًا واحدًا فقط؛ لا تُعرض إعدادات الوضعين معًا.</p></div>${dashboardIcon("orderLink")}</div><div class="segmented"><label><input type="radio" name="completedDeliveryMode" value="whatsapp_message" ${settings.completedDeliveryMode !== "secure_order_page" ? "checked" : ""}><span>رسالة واتساب</span></label><label><input type="radio" name="completedDeliveryMode" value="secure_order_page" ${settings.completedDeliveryMode === "secure_order_page" ? "checked" : ""}><span>صفحة معلومات الطلب</span></label></div><label class="setting-line"><span><strong>إظهار مدة الاشتراك</strong><small>تُحسب من expiresAt الحقيقي عند فتح الصفحة، ولا تُخزن كرقم متناقص.</small></span><input type="checkbox" name="showSubscriptionDuration" ${settings.showSubscriptionDuration !== false ? "checked" : ""}></label></section>` : "";
+  const invoice = item.templateKey === "salla_invoice_ready" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>صفحة الفاتورة الآمنة</h2><p>الأرقام للقراءة فقط وتأتي من فاتورة سلة الحقيقية.</p></div>${dashboardIcon("billing")}</div><label class="field"><span>حدث الإرسال</span><select class="select" name="invoiceTrigger"><option value="invoice.created" ${settings.invoiceTrigger !== "after_completed" ? "selected" : ""}>عند إنشاء الفاتورة</option><option value="after_completed" ${settings.invoiceTrigger === "after_completed" ? "selected" : ""}>بعد اكتمال الطلب وانتظار جاهزية الفاتورة</option></select></label></section>` : "";
+  return dashboardShell(`${pageTitle(item.name, `<button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`)}
+    <p class="page-kicker">${escapeHtml(item.description)}</p>
+    <div class="salla-template-enable card"><div>${sallaTemplateIcon(item)}<span><strong>تفعيل القالب</strong><small>يتم التحقق من القناة والحالة والمزود قبل التفعيل.</small></span></div><button class="switch-button ${item.isEnabled ? "active" : ""}" data-action="salla-template-toggle" data-key="${escapeHtml(item.templateKey)}" data-enabled="${item.isEnabled ? "true" : "false"}" role="switch" aria-checked="${item.isEnabled ? "true" : "false"}"><span></span>${item.isEnabled ? "مفعل" : "غير مفعل"}</button></div>
+    <section class="salla-template-editor-layout">
+      <form class="grid" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
+        <article class="card salla-template-form-card">
+          <div class="form-grid two"><label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-salla-channel-choice><option value="">اختر القناة</option><option value="whatsapp" ${item.channel === "whatsapp" ? "selected" : ""}>واتساب الرسمي</option><option value="email" ${item.channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>${statusField || `<label class="field"><span>حدث التشغيل</span><input class="input" value="${escapeHtml(item.eventName || item.triggerType)}" disabled></label>`}</div>
+          ${metaPanel}${emailPanel}
+          <label class="field"><span>محتوى الرسالة</span><textarea class="textarea salla-template-message-editor" name="messageBody" required>${escapeHtml(item.messageBody || "")}</textarea></label>
+          <div class="variables-row"><strong>المتغيرات المتاحة</strong>${item.variables.map((variable) => `<button type="button" class="chip" data-action="insert-salla-variable" data-variable="{{${escapeHtml(variable)}}}">{{${escapeHtml(variable)}}}</button>`).join("")}</div>
+        </article>
+        ${abandoned}${completed}${invoice}
+        <div class="salla-editor-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button><button class="btn btn-secondary" type="button" data-action="preview-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} تحديث المعاينة</button><button class="btn btn-secondary" type="button" data-action="test-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("orderLink")} إرسال اختبار</button></div>
+      </form>
+      ${sallaTemplatePreviewPanel(item)}
+    </section>`);
+}
+
 function appsPage() {
   const data = state.appsOverview;
   if (data === null) return dashboardShell(`${pageTitle("تطبيقاتنا")}<div class="loading-state">جاري تحميل التطبيقات...</div>`);
@@ -1768,7 +1866,7 @@ function appsPage() {
   }
   return dashboardShell(`${pageTitle("تطبيقاتنا")}
     ${statGrid([{ title: "التطبيقات المتاحة", value: stats.availableApps || 0, caption: "تطبيق", icon: "apps" }, { title: "التطبيقات المرتبطة", value: stats.connectedApps || 0, caption: "اتصال", tone: "success", icon: "apps" }, { title: "آخر مزامنة", value: stats.lastSyncAt ? new Date(stats.lastSyncAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "لا يوجد", caption: "تحديث البيانات", tone: "warning", icon: "reports" }, { title: "طلبات تمت مزامنتها", value: stats.syncedOrders || 0, caption: "طلب حقيقي", tone: "purple", icon: "subscriptions" }])}
-    <section class="card salla-app-card section"><div class="salla-card-head"><div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="/assets/salla-logo.svg" alt="سلة"></span><div><h2>سلة</h2><p>منصة التجارة الإلكترونية السعودية</p></div></div><span class="status ${connected ? "success" : connection?.status === "error" || connection?.status === "expired" ? "danger" : "neutral"}">${statusLabel}</span></div><p class="salla-app-description">اربط متجر سلة عبر OAuth لمزامنة الطلبات والعملاء والاشتراكات دون نسخ التوكنات إلى المتصفح.</p>${connected ? `<div class="salla-connected-meta"><div><span>المتجر</span><strong>${escapeHtml(connection.storeName || "-")}</strong></div><div><span>آخر مزامنة</span><strong>${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة"}</strong></div></div><div class="salla-header-actions"><button class="btn btn-primary" data-action="open-salla-settings">إعدادات الربط</button><button class="btn btn-secondary" data-action="open-salla-product-mappings">ربط المنتجات بالباقات</button><button class="btn btn-secondary" data-action="sync-salla-now">مزامنة الآن</button><button class="btn btn-secondary" data-action="show-salla-logs">عرض السجلات</button><button class="btn btn-ghost danger-text" data-action="disconnect-salla">فصل الربط</button></div>` : `<div class="salla-header-actions"><button class="btn btn-primary" data-action="connect-salla" ${data.configured ? "" : "disabled"} title="${data.configured ? "ربط سلة" : "إعدادات OAuth لسلة غير مكتملة على الخادم"}">ربط سلة</button></div>${!data.configured ? `<p class="inline-notice warning">تكامل سلة بانتظار إضافة بيانات OAuth الآمنة في الخادم.</p>` : ""}`}</section>
+    <section class="card salla-app-card section"><div class="salla-card-head"><div class="salla-brand"><span class="salla-logo-shell"><img class="salla-logo" src="/assets/salla-logo.svg" alt="سلة"></span><div><h2>سلة</h2><p>منصة التجارة الإلكترونية السعودية</p></div></div><span class="status ${connected ? "success" : connection?.status === "error" || connection?.status === "expired" ? "danger" : "neutral"}">${statusLabel}</span></div><p class="salla-app-description">اربط متجر سلة عبر OAuth لمزامنة الطلبات والعملاء والاشتراكات دون نسخ التوكنات إلى المتصفح.</p>${connected ? `<div class="salla-connected-meta"><div><span>المتجر</span><strong>${escapeHtml(connection.storeName || "-")}</strong></div><div><span>آخر مزامنة</span><strong>${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة"}</strong></div></div><div class="salla-header-actions"><button class="btn btn-primary" data-link="/dashboard/apps/salla/templates">قوالب سلة</button><button class="btn btn-secondary" data-action="open-salla-settings">إعدادات الربط</button><button class="btn btn-secondary" data-action="open-salla-product-mappings">ربط المنتجات بالباقات</button><button class="btn btn-secondary" data-action="sync-salla-now">مزامنة الآن</button><button class="btn btn-secondary" data-action="show-salla-logs">عرض السجلات</button><button class="btn btn-ghost danger-text" data-action="disconnect-salla">فصل الربط</button></div>` : `<div class="salla-header-actions"><button class="btn btn-primary" data-action="connect-salla" ${data.configured ? "" : "disabled"} title="${data.configured ? "ربط سلة" : "إعدادات OAuth لسلة غير مكتملة على الخادم"}">ربط سلة</button></div>${!data.configured ? `<p class="inline-notice warning">تكامل سلة بانتظار إضافة بيانات OAuth الآمنة في الخادم.</p>` : ""}`}</section>
     ${settingsPanel}
     <section class="card table-card section" id="salla-sync-logs"><div class="section-head"><div><h2>سجل المزامنة</h2><p class="muted">النتائج الفعلية المسجلة لهذا المتجر.</p></div></div>${logs.length ? simpleTable(["الوقت", "التطبيق", "الحدث", "الحالة", "الرسالة"], logs.map((item) => [new Date(item.createdAt).toLocaleString("ar-SA"), "سلة", escapeHtml(item.eventType || "-"), status(item.status), escapeHtml(item.message || "-")])) : emptyState("لا توجد سجلات مزامنة", "ستظهر هنا الأحداث بعد ربط متجر سلة.")}</section>`);
 }
@@ -3154,6 +3252,59 @@ function publicOrderPage() {
   </div>`;
 }
 
+async function loadPublicSallaPage() {
+  const publicId = state.route.split("/").filter(Boolean)[1] || "";
+  const token = state.query.get("t") || "";
+  const key = `${publicId}:${token}`;
+  if (!publicId || !token || state.publicSallaPageLoading || state.publicSallaPageKey === key) return;
+  state.publicSallaPageLoading = true;
+  state.publicSallaPageKey = key;
+  state.publicSallaPage = null;
+  try {
+    const payload = await fetchJson(`/api/public/salla-page/${encodeURIComponent(publicId)}?t=${encodeURIComponent(token)}`);
+    state.publicSallaPage = payload.data;
+  } catch (error) {
+    state.publicSallaPage = { error: error.message || "الرابط غير صالح أو انتهت صلاحيته." };
+  } finally {
+    state.publicSallaPageLoading = false;
+    render();
+  }
+}
+
+function publicSallaPage() {
+  const publicId = state.route.split("/").filter(Boolean)[1] || "";
+  const token = state.query.get("t") || "";
+  const key = `${publicId}:${token}`;
+  const data = state.publicSallaPageKey === key ? state.publicSallaPage : null;
+  if (token && state.publicSallaPageKey !== key && !state.publicSallaPageLoading) queueMicrotask(() => loadPublicSallaPage());
+  const snapshot = data?.snapshot || {};
+  const invoice = snapshot.invoice || {};
+  const order = snapshot.order || {};
+  const store = snapshot.store || {};
+  const theme = safeOrderLinkColor(data?.branding?.themeColor || "#2563EB");
+  const isInvoice = data?.pageType === "invoice";
+  const money = (value) => value == null || value === "" ? "—" : `${Number(value).toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ${escapeHtml(invoice.currency || "SAR")}`;
+  const rows = (snapshot.items || []).map((item) => `<tr><td>${escapeHtml(item.name || "—")}</td><td>${Number(item.quantity || 1).toLocaleString("ar-SA")}</td><td>${money(item.unitPrice)}</td><td>${money(item.total)}</td></tr>`).join("");
+  return `<div class="salla-public-page" style="--salla-public-theme:${theme}">
+    <header class="salla-public-header">${logo()}<div><strong>${escapeHtml(store.name || "Renvix")}</strong><small>${isInvoice ? "فاتورة إلكترونية آمنة" : "صفحة معلومات الطلب الآمنة"}</small></div></header>
+    <main class="salla-public-main">
+      ${state.publicSallaPageLoading && !data ? `<div class="loading-state">جاري التحقق من الرابط...</div>` : data?.error ? `<section class="public-order-error">${dashboardIcon("security")}<h2>${escapeHtml(data.error)}</h2><p>تواصل مع المتجر للحصول على رابط جديد.</p></section>` : data ? `<section class="salla-public-card">
+        <span class="salla-public-status">${dashboardIcon(isInvoice ? "billing" : "orderLink")} رابط موثّق وآمن</span>
+        <h1>${isInvoice ? `فاتورة رقم ${escapeHtml(invoice.number || "—")}` : "تم تنفيذ طلبك بنجاح"}</h1>
+        <p>مرحبًا ${escapeHtml(snapshot.customer?.name || "عميلنا")}، هذه البيانات مأخوذة من سجل سلة المرتبط بمتجرك.</p>
+        <div class="salla-public-summary">
+          <div><span>رقم الطلب</span><strong>${escapeHtml(order.number || order.id || "—")}</strong></div>
+          ${isInvoice ? `<div><span>تاريخ الفاتورة</span><strong>${escapeHtml(invoice.date ? new Date(invoice.date).toLocaleDateString("ar-SA") : "—")}</strong></div><div><span>حالة الدفع</span><strong>${escapeHtml(invoice.paymentStatus || "—")}</strong></div><div><span>الإجمالي</span><strong>${money(invoice.total)}</strong></div>` : ""}
+        </div>
+        ${rows ? `<div class="salla-public-table-wrap"><table><thead><tr><th>المنتج</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
+        ${!isInvoice && data.subscriptions?.length ? `<div class="salla-public-subscriptions">${data.subscriptions.map((item) => `<article><span>${escapeHtml(item.serviceName || item.planName || "الاشتراك")}</span><strong>${Number(item.remainingDays || 0).toLocaleString("ar-SA")} يومًا متبقيًا</strong><small>${escapeHtml(item.startsAt ? new Date(item.startsAt).toLocaleDateString("ar-SA") : "—")} — ${escapeHtml(item.expiresAt ? new Date(item.expiresAt).toLocaleDateString("ar-SA") : "—")}</small></article>`).join("")}</div>` : ""}
+        ${isInvoice ? `<div class="salla-public-totals"><span>المجموع الفرعي <b>${money(invoice.subtotal)}</b></span><span>الخصم <b>${money(invoice.discounts)}</b></span><span>الضريبة <b>${money(invoice.tax)}</b></span><span>الشحن <b>${money(invoice.shipping)}</b></span><strong>الإجمالي <b>${money(invoice.total)}</b></strong></div>` : ""}
+      </section>` : ""}
+    </main>
+    <footer class="public-order-footer"><small>© 2026 Renvix — صفحة محمية ولا تحتوي على معرفات داخلية قابلة للتخمين.</small></footer>
+  </div>`;
+}
+
 function billingAmount(value, currency = "SAR") {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "قيد المزامنة";
@@ -3968,6 +4119,79 @@ async function handleAction(target) {
     try { await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/pause`,{method:"POST"});state.campaignsOverview=null;state.messageUsage=null;await syncRouteData(true);toast("تم إيقاف الحملة وإعادة الرصيد المحجوز غير المستخدم"); }
     catch(error){toast(error.message||"تعذر إيقاف الحملة","danger");} return;
   }
+  if (action === "reload-salla-templates") {
+    state.sallaAutomationTemplates = null;
+    await syncRouteData(true);
+    return render();
+  }
+  if (action === "back-salla-templates") return navigate("/dashboard/apps/salla/templates");
+  if (action === "sync-salla-statuses") {
+    target.disabled = true;
+    try {
+      const payload = await fetchJson("/api/apps/salla/order-statuses", { method: "POST" });
+      state.sallaAutomationTemplates = null;
+      state.sallaAutomationTemplate = null;
+      await syncRouteData(true);
+      toast(`تمت مزامنة ${Number(payload.count || 0)} حالة طلب من سلة.`);
+    } catch (error) {
+      toast(error.message || "تعذرت مزامنة حالات سلة.", "danger");
+    } finally {
+      target.disabled = false;
+    }
+    return;
+  }
+  if (action === "salla-template-toggle") {
+    const templateKey = target.dataset.key;
+    const shouldEnable = target.dataset.enabled !== "true";
+    target.disabled = true;
+    try {
+      const payload = await fetchJson(`/api/apps/salla/templates/${encodeURIComponent(templateKey)}/${shouldEnable ? "enable" : "disable"}`, { method: "POST" });
+      if (!payload.ok) {
+        const details = Array.isArray(payload.errors) ? payload.errors.join(" • ") : payload.message;
+        throw new Error(details || "لم ينجح التحقق من متطلبات القالب.");
+      }
+      state.sallaAutomationTemplate = null;
+      state.sallaAutomationTemplates = null;
+      await syncRouteData(true);
+      toast(shouldEnable ? "تم تفعيل القالب بعد اجتياز التحقق." : "تم إيقاف القالب.");
+    } catch (error) {
+      toast(error.message || "تعذر تغيير حالة القالب.", "danger");
+    } finally {
+      target.disabled = false;
+    }
+    return;
+  }
+  if (action === "insert-salla-variable") {
+    const textarea = target.closest("form")?.elements.messageBody;
+    if (!textarea) return;
+    const value = target.dataset.variable || "";
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? start;
+    textarea.value = `${textarea.value.slice(0, start)}${value}${textarea.value.slice(end)}`;
+    textarea.focus();
+    textarea.setSelectionRange(start + value.length, start + value.length);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    return;
+  }
+  if (action === "preview-salla-template") {
+    const form = target.closest("form");
+    const preview = document.querySelector(".salla-preview-message");
+    if (!form || !preview) return;
+    preview.innerHTML = escapeHtml(form.elements.messageBody?.value || "").replace(/\n/g, "<br>");
+    const subject = document.querySelector(".salla-email-preview-head strong");
+    if (subject) subject.textContent = form.elements.emailSubject?.value || "عنوان الرسالة";
+    toast("تم تحديث المعاينة محليًا. لن يتم إرسال أي رسالة.");
+    return;
+  }
+  if (action === "test-salla-template") {
+    const templateKey = target.dataset.key;
+    const channel = state.sallaAutomationTemplate?.item?.channel;
+    return openModal("إرسال رسالة اختبار", `<form class="grid" data-submit="salla-template-test" data-template-key="${escapeHtml(templateKey)}">
+      <p class="inline-notice info">هذه رسالة اختبار من Renvix ولا تخص طلبًا فعليًا، ولن تُسجل كتذكير عميل.</p>
+      <label class="field"><span>${channel === "email" ? "البريد الإلكتروني" : "رقم واتساب بصيغة دولية"}</span><input class="input" name="destination" ${channel === "email" ? 'type="email"' : 'inputmode="tel" dir="ltr"'} required></label>
+      <button class="btn btn-primary" type="submit">جدولة رسالة الاختبار</button>
+    </form>`);
+  }
   if (action === "open-salla-product-mappings") {
     closePortal();
     return navigate("/dashboard/integrations/salla/products");
@@ -4776,6 +5000,77 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "salla-automation-template") {
+    const templateKey = form.dataset.templateKey;
+    const statusSelect = form.elements.mappedStatusId;
+    const selectedStatus = statusSelect?.selectedOptions?.[0];
+    const currentSettings = state.sallaAutomationTemplate?.item?.settings || {};
+    const settings = {
+      ...currentSettings,
+      ...(form.elements.delay1 ? {
+        delaysMinutes: [form.elements.delay1, form.elements.delay2, form.elements.delay3]
+          .filter(Boolean).map((input) => Number(input.value || 30)),
+        maxMessages: 3,
+        stopOnConversion: Boolean(form.elements.stopOnConversion?.checked)
+      } : {}),
+      ...(form.elements.completedDeliveryMode ? {
+        completedDeliveryMode: data.completedDeliveryMode,
+        showSubscriptionDuration: Boolean(form.elements.showSubscriptionDuration?.checked)
+      } : {}),
+      ...(form.elements.invoiceTrigger ? { invoiceTrigger: data.invoiceTrigger } : {})
+    };
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري حفظ القالب...");
+    try {
+      const payload = await fetchJson(`/api/apps/salla/templates/${encodeURIComponent(templateKey)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel: data.channel || null,
+          whatsappTemplateId: data.whatsappTemplateId || null,
+          emailSubject: data.emailSubject || null,
+          messageBody: data.messageBody,
+          mappedStatusId: data.mappedStatusId || null,
+          mappedStatusSlug: selectedStatus?.dataset.slug || null,
+          mappedStatusName: selectedStatus?.dataset.name || null,
+          settings
+        })
+      });
+      state.sallaAutomationTemplate = {
+        ...(state.sallaAutomationTemplate || {}),
+        item: {
+          ...(state.sallaAutomationTemplate?.item || {}),
+          ...payload.item
+        }
+      };
+      state.sallaAutomationTemplates = null;
+      toast("تم حفظ تعديلات القالب دون إنشاء سجل إضافي.");
+      render();
+    } catch (error) {
+      toast(error.message || "تعذر حفظ قالب سلة.", "danger");
+    } finally {
+      setSubmitBusy(button, false, "حفظ التغييرات");
+    }
+    return;
+  }
+  if (type === "salla-template-test") {
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري جدولة الاختبار...");
+    try {
+      const payload = await fetchJson(`/api/apps/salla/templates/${encodeURIComponent(form.dataset.templateKey)}/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination: data.destination })
+      });
+      if (!payload.ok) throw new Error(payload.reason || payload.message || "تعذرت جدولة رسالة الاختبار.");
+      closePortal();
+      toast("تمت جدولة رسالة الاختبار. سيظهر النجاح بعد قبول مزود الإرسال.");
+    } catch (error) {
+      toast(error.message || "تعذرت جدولة رسالة الاختبار.", "danger");
+      setSubmitBusy(button, false, "جدولة رسالة الاختبار");
+    }
+    return;
+  }
   if (type === "campaign-create") {
     try {
       await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:data.name,channel:data.channel,description:data.description||null,subject:data.subject||null,body:data.body,scheduleMode:"manual"}) });
@@ -5414,6 +5709,10 @@ function render() {
       ? sallaProductsPage
       : /^\/dashboard\/integrations\/salla\/products\/[^/]+$/.test(state.route)
         ? sallaProductRenewalPage
+        : state.route === "/dashboard/apps/salla/templates"
+          ? sallaAutomationTemplatesPage
+          : /^\/dashboard\/apps\/salla\/templates\/[^/]+$/.test(state.route)
+            ? sallaAutomationTemplateEditorPage
         : pages[state.route] || dashboardHome;
     app.innerHTML = dashboardPage();
     localizeElement(app);
@@ -5438,7 +5737,14 @@ function render() {
     "/refund-policy": policyPage,
     "/contact": policyPage
   };
-  const page = state.route.startsWith("/blog/") ? articlePage : state.route.startsWith("/o/") ? publicOrderPage : pages[state.route] || marketingHomePage;
+  const isSallaPublicOrder = /^\/o\/sord_/.test(state.route);
+  const page = state.route.startsWith("/blog/")
+    ? articlePage
+    : isSallaPublicOrder || state.route.startsWith("/i/")
+      ? publicSallaPage
+      : state.route.startsWith("/o/")
+        ? publicOrderPage
+        : pages[state.route] || marketingHomePage;
   app.innerHTML = page();
   localizeElement(app);
   ensurePasswordToggles();
@@ -5586,6 +5892,13 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.sallaChannelChoice !== undefined) {
+    const form = target.closest("form");
+    form?.querySelectorAll("[data-channel-panel]").forEach((panel) => {
+      panel.toggleAttribute("hidden", panel.dataset.channelPanel !== target.value);
+    });
+    return;
+  }
   if (target.dataset.action === "renewal-option-mode") {
     const form = target.closest("form");
     const automatic = target.value === "automatic";

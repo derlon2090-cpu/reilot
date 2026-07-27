@@ -76,7 +76,7 @@ export async function upsertSallaConnection({ tenantId, accessToken, refreshToke
   const storeName = String(merchant.name || merchant.store_name || "متجر سلة").trim();
   const storeDomain = merchant.domain || merchant.store_domain || null;
   const tokenExpiresAt = expiresIn ? new Date(Date.now() + Number(expiresIn) * 1000) : null;
-  return transaction(async (client) => {
+  const connectionId = await transaction(async (client) => {
     const result = await client.query(
       `INSERT INTO app_connections
         (tenant_id, provider, provider_store_id, provider_store_name, provider_store_domain,
@@ -111,6 +111,9 @@ export async function upsertSallaConnection({ tenantId, accessToken, refreshToke
     );
     return result.rows[0].id;
   });
+  const { ensureSallaAutomationTemplates } = await import("./salla-templates.js");
+  await ensureSallaAutomationTemplates(tenantId, connectionId);
+  return connectionId;
 }
 
 export async function registerSallaOperationalWebhooks(accessToken, origin) {
@@ -124,7 +127,8 @@ export async function registerSallaOperationalWebhooks(accessToken, origin) {
   const desired = [
     "order.created", "order.updated", "order.payment.updated", "order.status.updated",
     "order.cancelled", "order.refunded", "order.deleted", "order.products.updated",
-    "customer.created", "customer.updated"
+    "customer.created", "customer.updated", "abandoned.cart", "invoice.created",
+    "order.return.created", "order.return.updated"
   ].filter((event) => available.size === 0 || available.has(event));
   const callbackUrl = `${String(origin).replace(/\/$/, "")}/api/webhooks/salla`;
   for (const event of desired) {
@@ -590,6 +594,8 @@ export async function runSallaWebhookWorker() {
   for (const item of claimed) {
     try {
       await processSallaEvent(item.payload, { sendNotifications: true });
+      const { processSallaTemplateEvent } = await import("./salla-templates.js");
+      await processSallaTemplateEvent(item.payload);
       await query("UPDATE webhook_events SET processing_status='completed',processed_at=now(),error_message=NULL,updated_at=now() WHERE id=$1", [item.id]);
       completed += 1;
     } catch (error) {
