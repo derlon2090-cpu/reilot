@@ -25,4 +25,3 @@ export async function POST(req) {
   if (!result.ok) return Response.json(result, { status: 404 });
   return Response.json({ ok: true, ...result.item }, { status: 201 });
 }
-

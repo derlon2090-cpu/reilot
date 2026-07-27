@@ -76,4 +76,3 @@ export function planEntitlementResponse(error) {
   if (!(error instanceof PlanEntitlementError)) return null;
   return Response.json({ ok: false, reason: error.reason, message: error.message, ...error.details }, { status: 403 });
 }
-

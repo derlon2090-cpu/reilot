@@ -309,4 +309,3 @@ export async function POST(req) {
     return Response.json({ ok: false, message: "تعذر إرسال الرسالة التجريبية. تحقق من إعدادات البريد." }, { status: 502 });
   }
 }
-

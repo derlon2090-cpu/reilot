@@ -78,4 +78,3 @@ export async function getTenantStorage(tenantId) {
       .sort((a, b) => b.bytes - a.bytes)
   };
 }
-

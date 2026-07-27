@@ -46,4 +46,3 @@ SET message_limit = plan.email_message_limit,
     updated_at = now()
 FROM platform_plans plan
 WHERE plan.id = period.plan_id AND plan.slug IN ('free','trial','starter','business','pro');
-

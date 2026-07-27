@@ -30,4 +30,3 @@ describe("plan entitlements", () => {
     expect(runner.query).toHaveBeenCalledTimes(1);
   });
 });
-

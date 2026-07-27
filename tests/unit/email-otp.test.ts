@@ -22,4 +22,3 @@ describe("email OTP security helpers", () => {
     expect(digestOtp("123456", "challenge-a")).not.toBe(digestOtp("123456", "challenge-b"));
   });
 });
-

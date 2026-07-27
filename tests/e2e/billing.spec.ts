@@ -8,4 +8,3 @@ test("standalone pricing renders the packages page", async ({ page }) => {
   await page.locator('[data-link="/register?plan=business"]').click();
   await expect(page).toHaveURL(/\/register\?plan=business$/);
 });
-

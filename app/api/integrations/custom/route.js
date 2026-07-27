@@ -55,4 +55,3 @@ export async function POST(req) {
   });
   return Response.json({ ok: true, item, apiKey: key.raw, warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى." }, { status: 201 });
 }
-

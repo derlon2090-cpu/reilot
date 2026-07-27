@@ -18,4 +18,3 @@ export async function GET(req) {
   url.searchParams.set("state", state);
   return Response.redirect(url, 302);
 }
-

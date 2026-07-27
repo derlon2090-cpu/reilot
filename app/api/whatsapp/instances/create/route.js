@@ -31,4 +31,3 @@ export async function POST(req) {
     return Response.json({ ok: false, message: "تعذر إنشاء قناة الربط حاليًا." }, { status: 500 });
   }
 }
-

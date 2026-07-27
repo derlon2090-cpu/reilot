@@ -69,4 +69,3 @@ export async function DELETE(req, { params }) {
   });
   return changed ? Response.json({ok:true}) : Response.json({ok:false},{status:404});
 }
-
