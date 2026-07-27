@@ -115,6 +115,8 @@ export async function resetPassword({ email, code, password }) {
     );
     await client.query("UPDATE password_reset_codes SET used_at = now() WHERE id = $1", [verified.record.id]);
     await client.query("DELETE FROM sessions WHERE user_id = $1", [verified.record.userId]);
+    await client.query("UPDATE auth_trusted_devices SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [verified.record.userId]);
+    await client.query("UPDATE auth_email_otp_challenges SET invalidated_at = now(), updated_at = now() WHERE user_id = $1 AND consumed_at IS NULL AND invalidated_at IS NULL", [verified.record.userId]);
     return userResult.rows[0] || null;
   });
   if (account?.email) {

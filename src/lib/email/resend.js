@@ -18,6 +18,9 @@ function extractAddress(value) {
 export function getEmailConfig() {
   const provider = (process.env.EMAIL_PROVIDER || "resend").trim().toLowerCase();
   const apiKey = process.env.RESEND_API_KEY?.trim();
+  // The platform sender identity is deliberately fixed server-side. Allowing
+  // request-controlled or deployment-overridden sender values would make it
+  // possible to impersonate another domain and would break DMARC alignment.
   const from = RENVIX_FROM_EMAIL;
   const supportEmail = RENVIX_REPLY_TO_EMAIL;
 

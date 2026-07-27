@@ -1,0 +1,138 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Renvix Custom Integration API",
+    "version": "1.0.0",
+    "description": "واجهة Renvix العامة لإدارة العملاء والاشتراكات والدفعات والرسائل والأحداث. استخدم Idempotency-Key في كل عملية كتابة."
+  },
+  "servers": [
+    { "url": "https://renvix.app/api/v1", "description": "Production" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "rvx_live_*" }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "request_id": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/customers": {
+      "get": { "summary": "List customers", "responses": { "200": { "description": "Customer cursor page" } } },
+      "post": {
+        "summary": "Create or upsert a customer",
+        "parameters": [{ "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }],
+        "responses": { "201": { "description": "Customer created" }, "409": { "description": "Idempotency conflict" } }
+      }
+    },
+    "/customers/{customerId}": {
+      "get": {
+        "summary": "Get customer",
+        "parameters": [{ "in": "path", "name": "customerId", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Customer" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "summary": "Update a tenant-owned customer",
+        "parameters": [
+          { "in": "path", "name": "customerId", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Customer updated" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/subscriptions": {
+      "get": { "summary": "List subscriptions", "responses": { "200": { "description": "Subscription cursor page" } } },
+      "post": {
+        "summary": "Create or upsert a subscription",
+        "parameters": [{ "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }],
+        "responses": { "201": { "description": "Subscription created" } }
+      }
+    },
+    "/subscriptions/{subscriptionId}": {
+      "get": {
+        "summary": "Get a tenant-owned subscription",
+        "parameters": [{ "in": "path", "name": "subscriptionId", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Subscription" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "summary": "Update a tenant-owned subscription",
+        "parameters": [
+          { "in": "path", "name": "subscriptionId", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Subscription updated" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/subscriptions/{subscriptionId}/renew": {
+      "post": {
+        "summary": "Renew a subscription using calendar-aware duration arithmetic",
+        "parameters": [
+          { "in": "path", "name": "subscriptionId", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Subscription renewed" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/subscriptions/{subscriptionId}/cancel": {
+      "post": {
+        "summary": "Cancel a tenant-owned subscription",
+        "parameters": [
+          { "in": "path", "name": "subscriptionId", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Subscription cancelled" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/payments": {
+      "get": { "summary": "List external payments", "responses": { "200": { "description": "Payment cursor page" } } },
+      "post": {
+        "summary": "Record an external payment",
+        "description": "Only the explicit SUCCEEDED state is treated as successful.",
+        "parameters": [{ "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }],
+        "responses": { "202": { "description": "Payment accepted" } }
+      }
+    },
+    "/payments/{paymentId}": {
+      "get": {
+        "summary": "Get a tenant-owned payment",
+        "parameters": [{ "in": "path", "name": "paymentId", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Payment" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/messages": {
+      "get": { "summary": "List queued and delivered messages", "responses": { "200": { "description": "Message cursor page" } } },
+      "post": {
+        "summary": "Queue a message using a tenant-owned template",
+        "parameters": [{ "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }],
+        "responses": { "202": { "description": "Message queued" } }
+      }
+    },
+    "/messages/{messageId}": {
+      "get": {
+        "summary": "Get a tenant-owned message",
+        "parameters": [{ "in": "path", "name": "messageId", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Message" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/events": {
+      "post": {
+        "summary": "Ingest a supported external event",
+        "parameters": [{ "in": "header", "name": "Idempotency-Key", "required": true, "schema": { "type": "string" } }],
+        "responses": { "202": { "description": "Event accepted" } }
+      }
+    }
+  }
+}

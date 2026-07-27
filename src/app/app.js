@@ -439,6 +439,8 @@ const state = {
   profileOpen: false,
   resetStep: 1,
   resetEmail: "",
+  emailOtpStatus: null,
+  emailOtpLoading: false,
   billing: storage.get("renewpilot.billing", "monthly"),
   billingTab: storage.get("renvix.billing.tab", "overview"),
   whatsappUsageExpanded: false,
@@ -484,6 +486,8 @@ state.campaignsOverview = null;
 state.contactsOverview = null;
 state.contactStatistics = null;
 state.appsOverview = null;
+state.customIntegrations = null;
+state.customIntegrationSecret = null;
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
 state.sallaAutomationTemplates = null;
@@ -680,6 +684,9 @@ function syncRouteData(force = false) {
     queue("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
   }
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) queue("appsOverview", "/api/apps", "appsOverview");
+  if (state.route === "/dashboard/apps/custom-integration" && (force || state.customIntegrations === null)) {
+    queue("customIntegrations", "/api/integrations/custom", "customIntegrations");
+  }
   if (state.route === "/dashboard/apps/salla/templates" && (force || state.sallaAutomationTemplates === null)) {
     queue("sallaAutomationTemplates", "/api/apps/salla/templates", "sallaAutomationTemplates");
   }
@@ -1302,6 +1309,59 @@ function forgotPublicPage() {
   return `<main class="auth-light-page"><header class="auth-light-header">${logo()}<button class="link-button" data-link="/">العودة إلى الرئيسية ←</button></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">${resetPasswordIcon()}</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? "لا مشكلة، أدخل بريدك الإلكتروني المرتبط بحسابك وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور." : step === 2 ? "أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة." : "يمكنك الآن العودة إلى حسابك."}</p>${content}<p class="muted">إذا كان البريد موجودًا فسيصلك رابط الاستعادة خلال دقائق.</p><button class="link-button" data-link="/login">تذكرت كلمة المرور؟ تسجيل الدخول</button></article><aside class="card reset-light-visual"><div class="mail-visual">${stackedLogo()}</div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>سنرسل لك رابطًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.</p></aside></section>${publicFooter()}</main>`;
 }
 
+function normalizeEmailOtpCode(value) {
+  const arabic = "٠١٢٣٤٥٦٧٨٩";
+  const eastern = "۰۱۲۳۴۵۶۷۸۹";
+  return String(value || "")
+    .replace(/[٠-٩]/g, (digit) => String(arabic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(eastern.indexOf(digit)))
+    .replace(/\D/g, "")
+    .slice(0, 6);
+}
+
+function normalizeEmailOtpDigit(value) {
+  return normalizeEmailOtpCode(value).slice(-1);
+}
+
+function emailOtpPage() {
+  const statusData = state.emailOtpStatus;
+  if (statusData?.error) {
+    return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-link="/login">العودة إلى تسجيل الدخول</button></section></main>`;
+  }
+  const maskedEmail = statusData?.maskedEmail || "جارٍ التحقق من طلب تسجيل الدخول...";
+  const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="1" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
+  return `<main class="email-otp-page" dir="rtl"><section class="email-otp-shell">
+    <aside class="email-otp-visual"><div class="email-otp-brand">${stackedLogo()}</div><div class="email-otp-envelope-art" aria-hidden="true"><span class="email-otp-code-card"><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b></span><span class="email-otp-envelope"></span><span class="email-otp-art-shield">${dashboardIcon("security")}</span></div><h2>تحقق آمن · دخول موثوق.</h2><p>نرسل رمز تحقق فريدًا إلى بريدك الإلكتروني لضمان أمان حسابك وحماية بياناتك.</p><div class="email-otp-safety-card"><h3>${dashboardIcon("security")} حالة الأمان</h3><div><span>نوع التحقق</span><strong>${dashboardIcon("email")} OTP عبر البريد</strong></div><div><span>آخر طلب رمز</span><strong>${dashboardIcon("clock")} الآن</strong></div><div><span>الجهاز</span><strong>${dashboardIcon("devices")} غير موثوق بعد</strong></div></div></aside>
+    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="ltr">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 30 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
+  </section><footer class="email-otp-footer"><span>© 2026 Renvix.</span><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">الشروط والأحكام</button><button data-link="/contact">اتصل بنا</button><span>جميع الحقوق محفوظة</span></footer></main>`;
+}
+
+async function loadEmailOtpStatus(force = false) {
+  if (state.emailOtpLoading || (state.emailOtpStatus && !force)) return;
+  state.emailOtpLoading = true;
+  try {
+    const response = await fetch("/api/auth/email-otp/status", { credentials: "include", cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    state.emailOtpStatus = response.ok && payload.ok
+      ? payload
+      : { error: payload.reason === "challenge_expired" ? "انتهت صلاحية رمز التحقق. سجّل الدخول لطلب رمز جديد." : "طلب التحقق غير صالح أو انتهت صلاحيته." };
+  } catch {
+    state.emailOtpStatus = { error: "تعذر الاتصال بخدمة التحقق. حاول مرة أخرى بعد قليل." };
+  } finally {
+    state.emailOtpLoading = false;
+    if (state.route === "/auth/verify-email") render();
+  }
+}
+
+function updateEmailOtpCountdown() {
+  if (state.route !== "/auth/verify-email" || !state.emailOtpStatus?.resendAt) return;
+  const countdown = document.querySelector("[data-otp-countdown]");
+  const button = document.querySelector('[data-action="email-otp-resend"]');
+  const seconds = Math.max(0, Math.ceil((new Date(state.emailOtpStatus.resendAt).getTime() - Date.now()) / 1000));
+  if (countdown) countdown.textContent = seconds ? `إعادة إرسال الرمز خلال 00:${String(seconds).padStart(2, "0")}` : "يمكنك إعادة إرسال رمز جديد الآن";
+  if (button) button.disabled = seconds > 0;
+}
+
 function loginPage() {
   const isRegister = state.route === "/register";
   return `<main class="auth-page ${isRegister ? "register-mode" : "login-mode"}">
@@ -1852,7 +1912,7 @@ function appsPage() {
           <p class="integration-description">اربط نظامك الخاص عبر API أو Webhook لتحكم كامل في التكامل.</p>
           <span class="integration-status disconnected"><i></i> غير مربوط</span>
           <ul class="integration-features"><li>تكامل مخصص عبر API</li><li>إمكانية Webhooks</li><li>إرسال واستقبال البيانات</li><li>توثيق شامل ومرن</li></ul>
-          <button class="btn btn-secondary integration-action" data-action="integration-coming-soon" data-integration="API / Webhook">إعداد الربط</button>
+          <button class="btn btn-secondary integration-action" data-link="/dashboard/apps/custom-integration">إعداد التكامل</button>
         </article>
         <article class="integration-empty-card">
           <div class="integration-empty-art" aria-hidden="true"><span>◇</span><i></i><i></i><i></i></div>
@@ -4311,6 +4371,50 @@ async function handleAction(target) {
   if (action === "template-catalog-channel" && target.tagName !== "SELECT") { state.templateCatalogChannel = target.dataset.channel || "all"; render(); }
   if (action === "preview-catalog-template") document.querySelector(".template-preview-v2")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (action === "close-modal") closePortal();
+  if (action === "email-otp-cancel") {
+    state.emailOtpStatus = null;
+    void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
+    return navigate("/login");
+  }
+  if (action === "email-otp-help") {
+    return appToast.info("تحقق من مجلد البريد غير الهام", {
+      description: "ابحث عن رسالة من Renvix، وتأكد من أن البريد الظاهر في صفحة التحقق هو بريد حسابك.",
+      id: "email-otp-help"
+    });
+  }
+  if (action === "email-otp-resend") {
+    target.disabled = true;
+    try {
+      const response = await fetch("/api/auth/email-otp/resend", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: state.language })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = payload.reason === "resend_cooldown"
+          ? "انتظر انتهاء العداد قبل طلب رمز جديد."
+          : payload.reason === "resend_limit"
+            ? "تم بلوغ الحد المؤقت لإعادة الإرسال. حاول لاحقًا."
+            : "تعذر إرسال رمز جديد الآن.";
+        throw new Error(message);
+      }
+      state.emailOtpStatus = payload;
+      render();
+      appToast.success("تم إرسال رمز تحقق جديد", {
+        description: "استخدم أحدث رمز وصلك؛ تم إلغاء صلاحية الرمز السابق.",
+        id: "email-otp-resent"
+      });
+    } catch (error) {
+      updateEmailOtpCountdown();
+      appToast.error("تعذرت إعادة إرسال الرمز", {
+        description: error.message || "حاول مرة أخرى بعد قليل.",
+        id: "email-otp-resend-error"
+      });
+    }
+    return;
+  }
   if (action === "copy-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
   if (action === "choose-avatar") document.querySelector('[data-action="avatar-file"]')?.click();
   if (action === "remove-avatar") {
@@ -4326,6 +4430,16 @@ async function handleAction(target) {
     } catch { appToast.error("تعذر حذف الصورة", { description: "حاول مرة أخرى بعد قليل.", id: "avatar-remove-error" }); }
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
+  if (action === "reload-custom-integrations") { state.customIntegrations = null; syncRouteData(true); }
+  if (action === "copy-custom-secret") {
+    if (state.customIntegrationSecret?.value) await copyText(state.customIntegrationSecret.value, "تم نسخ السر");
+    return;
+  }
+  if (action === "dismiss-custom-secret") { state.customIntegrationSecret = null; render(); return; }
+  if (action === "add-custom-webhook") {
+    openModal("إضافة Webhook", `<form class="grid" data-submit="custom-webhook" data-integration-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>Webhook URL</span><input class="input" type="url" name="url" dir="ltr" required placeholder="https://client.example.com/webhooks/renvix"></label><label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="200"></label><fieldset class="custom-scope-fieldset"><legend>الأحداث المشترَك فيها</legend><div>${["customer.created","customer.updated","subscription.created","subscription.updated","subscription.renewed","subscription.expired","subscription.cancelled","payment.succeeded","payment.failed","message.sent","message.delivered","message.failed","campaign.completed"].map((eventType) => `<label><input type="checkbox" name="events" value="${eventType}" ${["customer.created","subscription.created","subscription.renewed"].includes(eventType) ? "checked" : ""}><span><b dir="ltr">${eventType}</b></span></label>`).join("")}</div></fieldset><button class="btn btn-primary" type="submit">حفظ وإنشاء سر التوقيع</button></form>`, `<button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+    return;
+  }
   if (action === "connect-salla") window.location.href = "/api/apps/salla/connect";
   if (action === "integration-coming-soon") toast(`تكامل ${target.dataset.integration || "هذا التطبيق"} قيد التجهيز وسيُتاح قريبًا.`, "info");
   if (action === "integration-guide") openModal("دليل ربط التطبيقات", `<div class="integration-guide"><p>اختر التطبيق المطلوب ثم اضغط زر الربط. عند اختيار سلة ستنتقل إلى صفحة التفويض الآمنة، وبعد الموافقة تعود تلقائيًا إلى Renvix وتبدأ المزامنة.</p><ol><li>تأكد أن حساب المتجر يملك صلاحية إدارة التطبيقات.</li><li>اضغط «ربط سلة» وأكمل الموافقة داخل سلة.</li><li>ارجع إلى هذه الصفحة واضبط خيارات المزامنة.</li></ol></div>`, `<button class="btn btn-primary" data-action="connect-salla">ربط سلة</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
@@ -5000,6 +5114,46 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "custom-integration") {
+    const button = form.querySelector("button[type='submit']");
+    const formData = new FormData(form);
+    const scopes = formData.getAll("scopes");
+    setSubmitBusy(button, true, "جاري إنشاء التكامل...");
+    try {
+      const payload = await fetchJson("/api/integrations/custom", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: data.name, description: data.description, environment: data.environment, direction: data.direction, scopes })
+      });
+      state.customIntegrationSecret = { kind: "api", value: payload.apiKey };
+      state.customIntegrations = null;
+      await syncRouteData(true);
+      appToast.success("تم إنشاء التكامل", { description: "انسخ مفتاح API الآن؛ لن يظهر كاملًا مرة أخرى.", id: "custom-integration-created" });
+    } catch (error) {
+      appToast.error("تعذر إنشاء التكامل", { description: error.message || "تحقق من الإعدادات السرية وقاعدة البيانات.", id: "custom-integration-error" });
+      setSubmitBusy(button, false, "إنشاء التكامل والمفتاح");
+    }
+    return;
+  }
+  if (type === "custom-webhook") {
+    const button = form.querySelector("button[type='submit']");
+    const formData = new FormData(form);
+    setSubmitBusy(button, true, "جاري التحقق من العنوان...");
+    try {
+      const payload = await fetchJson(`/api/integrations/custom/${encodeURIComponent(form.dataset.integrationId)}/webhooks`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: data.url, description: data.description, events: formData.getAll("events") })
+      });
+      closePortal();
+      state.customIntegrationSecret = { kind: "webhook", value: payload.signingSecret };
+      state.customIntegrations = null;
+      await syncRouteData(true);
+      appToast.success("تمت إضافة Webhook", { description: "انسخ سر التوقيع الآن؛ لن يظهر كاملًا مرة أخرى.", id: "custom-webhook-created" });
+    } catch (error) {
+      appToast.error("تعذر إضافة Webhook", { description: error.code === "private_address" ? "العنوان خاص أو محلي وغير مسموح." : error.message, id: "custom-webhook-error" });
+      setSubmitBusy(button, false, "حفظ وإنشاء سر التوقيع");
+    }
+    return;
+  }
   if (type === "salla-automation-template") {
     const templateKey = form.dataset.templateKey;
     const statusSelect = form.elements.mappedStatusId;
@@ -5289,8 +5443,31 @@ async function handleSubmit(form, event) {
     let failureReason = "";
     let networkFailed = false;
     try {
-      const response = await fetch("/api/auth/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, locale: state.language })
+      });
       const payload = await response.json().catch(() => null);
+      if (response.ok && payload?.ok === true && payload?.requiresEmailOtp === true) {
+        state.emailOtpStatus = {
+          ok: true,
+          maskedEmail: payload.maskedEmail,
+          expiresAt: payload.expiresAt,
+          resendAt: payload.resendAt,
+          attemptsRemaining: 5
+        };
+        setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
+        history.pushState({}, "", "/auth/verify-email");
+        render();
+        requestAnimationFrame(() => document.querySelector('[data-otp-digit="0"]')?.focus());
+        appToast.info("أرسلنا رمز التحقق إلى بريدك", {
+          description: "أدخل الرمز المكوّن من 6 أرقام لإكمال تسجيل الدخول.",
+          id: "email-otp-required"
+        });
+        return;
+      }
       loginAccepted = response.ok && payload?.ok === true && Boolean(payload.user?.id);
       failureReason = payload?.reason || "";
     } catch {
@@ -5308,6 +5485,57 @@ async function handleSubmit(form, event) {
     }
     appToast.success("تم تسجيل الدخول بنجاح", { description: "مرحبًا بك في Renvix، جاري تحويلك إلى لوحة التحكم.", id: "login-success", duration: 1800 });
     setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 650);
+    return;
+  }
+  if (type === "email-otp") {
+    const code = Array.from({ length: 6 }, (_, index) => normalizeEmailOtpDigit(data[`digit${index}`])).join("");
+    if (!/^\d{6}$/.test(code)) {
+      return appToast.warning("أدخل رمز التحقق كاملًا", {
+        description: "يتكون رمز التحقق من 6 أرقام.",
+        id: "email-otp-incomplete"
+      });
+    }
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جارٍ التحقق...");
+    try {
+      const response = await fetch("/api/auth/email-otp/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, rememberDevice: Boolean(form.elements.rememberDevice?.checked) })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        const messages = {
+          invalid_code: `رمز التحقق غير صحيح${Number.isFinite(payload.attemptsRemaining) ? ` — تبقى ${payload.attemptsRemaining} محاولات` : ""}.`,
+          challenge_expired: "انتهت صلاحية رمز التحقق. اطلب رمزًا جديدًا.",
+          challenge_invalid: "طلب التحقق غير صالح. سجّل الدخول من جديد.",
+          attempts_exceeded: "تم تجاوز عدد المحاولات المسموح. سجّل الدخول لطلب رمز جديد."
+        };
+        const error = new Error(messages[payload.reason] || "تعذر التحقق من الرمز.");
+        error.reason = payload.reason;
+        throw error;
+      }
+      state.emailOtpStatus = null;
+      appToast.success("تم التحقق وتسجيل الدخول", {
+        description: "مرحبًا بك في Renvix، جاري تحويلك إلى لوحة التحكم.",
+        id: "email-otp-success",
+        duration: 1500
+      });
+      setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450);
+    } catch (error) {
+      setSubmitBusy(button, false, "تحقق وتسجيل الدخول ←");
+      form.querySelectorAll("[data-otp-digit]").forEach((input) => { input.value = ""; });
+      form.querySelector('[data-otp-digit="0"]')?.focus();
+      if (["challenge_invalid", "attempts_exceeded"].includes(error.reason)) {
+        state.emailOtpStatus = { error: error.message };
+        render();
+      }
+      appToast.error("تعذر إكمال التحقق", {
+        description: error.message || "تحقق من الرمز ثم حاول مرة أخرى.",
+        id: "email-otp-verify-error"
+      });
+    }
     return;
   }
   if (type === "register") {
@@ -5699,6 +5927,7 @@ function render() {
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,
+      "/dashboard/apps/custom-integration": customIntegrationPage,
       "/dashboard/notifications": notificationsPage,
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
@@ -5732,6 +5961,7 @@ function render() {
     "/register": authPublicPage,
     "/forgot-password": forgotPublicPage,
     "/reset-password": forgotPublicPage,
+    "/auth/verify-email": emailOtpPage,
     "/privacy": policyPage,
     "/terms": policyPage,
     "/refund-policy": policyPage,
@@ -5748,6 +5978,49 @@ function render() {
   app.innerHTML = page();
   localizeElement(app);
   ensurePasswordToggles();
+  if (state.route === "/auth/verify-email") {
+    if (!state.emailOtpStatus) queueMicrotask(() => loadEmailOtpStatus());
+    requestAnimationFrame(() => {
+      updateEmailOtpCountdown();
+      document.querySelector('[data-otp-digit="0"]:not([disabled])')?.focus();
+    });
+  }
+}
+
+function customIntegrationPage() {
+  const payload = state.customIntegrations;
+  if (payload === null) return dashboardShell(`${pageTitle("API / Webhook")}<div class="loading-state">جاري تحميل التكاملات...</div>`);
+  if (payload?.error) return dashboardShell(`${pageTitle("API / Webhook")}${emptyState("تعذر تحميل التكاملات", escapeHtml(payload.error), "إعادة المحاولة", "reload-custom-integrations")}`);
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const secret = state.customIntegrationSecret;
+  const statusText = { DRAFT: "قيد الإعداد", PARTIALLY_CONFIGURED: "مهيأ جزئيًا", ACTIVE: "مربوط", PAUSED: "متوقف", ERROR: "يوجد خطأ", REVOKED: "ملغي" };
+  const scopeOptions = [
+    ["customers:read","قراءة العملاء"],["customers:write","إدارة العملاء"],
+    ["subscriptions:read","قراءة الاشتراكات"],["subscriptions:write","إدارة الاشتراكات"],
+    ["renewals:read","قراءة التجديدات"],["renewals:write","إدارة التجديدات"],
+    ["messages:read","قراءة الرسائل"],["messages:send","إرسال الرسائل"],
+    ["payments:read","قراءة الدفعات"],["payments:write","تسجيل الدفعات"],
+    ["campaigns:read","قراءة الحملات"],["events:write","إرسال الأحداث"],["webhooks:manage","إدارة Webhooks"]
+  ];
+  return dashboardShell(`
+    <section class="custom-integration-page">
+      <div class="custom-integration-heading"><div><span class="custom-integration-kicker">&lt;/&gt; تطبيق مخصص</span><h1>تكامل API / Webhook</h1><p>اربط نظامك الخارجي مع Renvix بمفاتيح آمنة، صلاحيات دقيقة، Webhooks موقعة وسجل قابل للتدقيق.</p></div><a class="btn btn-secondary" href="/openapi/renvix-v1.json" target="_blank" rel="noopener">عرض توثيق OpenAPI</a></div>
+      ${secret ? `<article class="custom-secret-alert"><span>${dashboardIcon("security")}</span><div><strong>${secret.kind === "webhook" ? "سر توقيع Webhook" : "مفتاح API — يظهر مرة واحدة فقط"}</strong><code dir="ltr">${escapeHtml(secret.value)}</code><small>انسخه الآن واحفظه في مدير أسرار آمن. لن يظهر كاملًا مرة أخرى.</small></div><button class="btn btn-primary" data-action="copy-custom-secret">نسخ</button><button class="btn btn-ghost" data-action="dismiss-custom-secret">إغلاق</button></article>` : ""}
+      <div class="custom-integration-grid">
+        <form class="card custom-integration-setup" data-submit="custom-integration">
+          <div class="section-head"><div><h2>إعداد تكامل جديد</h2><p class="muted">أنشئ مفتاحًا بصلاحيات الحد الأدنى المطلوب.</p></div><span class="step-badge">1–4</span></div>
+          <div class="form-grid two"><label class="field"><span>اسم التكامل</span><input class="input" name="name" required maxlength="100" placeholder="نظام الفوترة الداخلي"></label><label class="field"><span>البيئة</span><select class="select" name="environment"><option value="test">تجريبية</option><option value="live">إنتاجية</option></select></label></div>
+          <label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="300" placeholder="مزامنة العملاء والاشتراكات"></label>
+          <label class="field"><span>اتجاه التكامل</span><select class="select" name="direction"><option value="inbound">إرسال بيانات إلى Renvix عبر API</option><option value="outbound">استقبال أحداث من Renvix عبر Webhook</option><option value="bidirectional" selected>كلاهما</option></select></label>
+          <fieldset class="custom-scope-fieldset"><legend>الصلاحيات</legend><div>${scopeOptions.map(([value,label]) => `<label><input type="checkbox" name="scopes" value="${value}" ${["customers:read","customers:write","subscriptions:read","subscriptions:write","events:write"].includes(value) ? "checked" : ""}><span><b dir="ltr">${value}</b><small>${label}</small></span></label>`).join("")}</div></fieldset>
+          <button class="btn btn-primary" type="submit">${dashboardIcon("add")} إنشاء التكامل والمفتاح</button>
+        </form>
+        <aside class="card custom-integration-guide-card"><span class="custom-api-art">&lt;/&gt;</span><h2>اتصال آمن ومرن</h2><ul><li>مفتاح API مشفر ببصمة HMAC ولا يُخزن نصه.</li><li>عزل كامل حسب المتجر والصلاحيات.</li><li>منع التكرار عبر Idempotency-Key.</li><li>توقيع Webhook باستخدام HMAC-SHA256.</li><li>حماية SSRF ومحاولات إعادة تلقائية.</li></ul><code dir="ltr">Authorization: Bearer rvx_live_...</code></aside>
+      </div>
+      <section class="card custom-integrations-list"><div class="section-head"><div><h2>التكاملات</h2><p class="muted">الحالة «مربوط» لا تظهر إلا بعد طلب API ناجح أو اختبار Webhook ناجح.</p></div><button class="btn btn-secondary" data-action="reload-custom-integrations">تحديث</button></div>
+        ${items.length ? items.map((item) => `<article class="custom-integration-row"><span class="integration-logo integration-logo--api">&lt;/&gt;</span><div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.description || "تكامل مخصص")}</p><div class="custom-integration-meta"><code>${escapeHtml(item.environment)}</code><span>${Number(item.activeKeys)} مفتاح نشط</span><span>${Number(item.activeWebhooks)} Webhook</span></div></div><span class="status ${item.status === "ACTIVE" ? "success" : item.status === "ERROR" ? "danger" : "warning"}">${statusText[item.status] || item.status}</span><button class="btn btn-secondary" data-action="add-custom-webhook" data-id="${item.id}">إضافة Webhook</button></article>`).join("") : emptyState("لا يوجد تكامل مخصص", "أنشئ التكامل الأول من النموذج أعلاه.")}
+      </section>
+    </section>`);
 }
 
 function bindQrImageState() {
@@ -5797,10 +6070,30 @@ document.addEventListener("submit", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && portal.innerHTML) closePortal();
+  const target = event.target.closest?.("[data-otp-digit]");
+  if (!target) return;
+  const index = Number(target.dataset.otpDigit);
+  if (event.key === "Backspace" && !target.value && index > 0) {
+    event.preventDefault();
+    const previous = document.querySelector(`[data-otp-digit="${index - 1}"]`);
+    if (previous) {
+      previous.value = "";
+      previous.focus();
+    }
+  }
+  if (event.key === "ArrowLeft" && index < 5) document.querySelector(`[data-otp-digit="${index + 1}"]`)?.focus();
+  if (event.key === "ArrowRight" && index > 0) document.querySelector(`[data-otp-digit="${index - 1}"]`)?.focus();
 });
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.matches?.("[data-otp-digit]")) {
+    const value = normalizeEmailOtpDigit(target.value);
+    const index = Number(target.dataset.otpDigit);
+    target.value = value;
+    if (value && index < 5) document.querySelector(`[data-otp-digit="${index + 1}"]`)?.focus();
+    return;
+  }
   const profileForm = target.closest?.('[data-submit="profile-settings"]');
   if (profileForm) {
     const nameChanged = String(profileForm.elements.fullName?.value || "").trim() !== String(profileForm.dataset.originalName || "");
@@ -6008,5 +6301,18 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("popstate", render);
+document.addEventListener("paste", (event) => {
+  const target = event.target.closest?.("[data-otp-digit]");
+  if (!target) return;
+  const digits = normalizeEmailOtpCode(event.clipboardData?.getData("text") || "");
+  if (!digits) return;
+  event.preventDefault();
+  [...digits].slice(0, 6).forEach((digit, index) => {
+    const input = document.querySelector(`[data-otp-digit="${index}"]`);
+    if (input) input.value = digit;
+  });
+  document.querySelector(`[data-otp-digit="${Math.min(5, digits.length - 1)}"]`)?.focus();
+});
+setInterval(updateEmailOtpCountdown, 1000);
 render();
 if (state.route === "/dashboard/devices") void syncLinkedDevice();

@@ -5,6 +5,7 @@ import { createSession } from "./session.js";
 import { isStrongPassword, normalizeEmail, sha256 } from "./security.js";
 import { classifyPasswordStrength } from "./security-score.js";
 import { ensureDefaultTemplates } from "./default-templates.js";
+import { createLoginEmailOtpChallenge, isTrustedDevice } from "./email-otp.js";
 
 function slugify(value) {
   const base = String(value || "store").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -58,7 +59,7 @@ export async function registerAccount({ name, companyName, email, password, ipAd
   });
 }
 
-export async function loginAccount({ email, password, ipAddress, userAgent }) {
+export async function loginAccount({ email, password, ipAddress, userAgent, trustedDeviceToken = "", locale = "ar" }) {
   const normalized = normalizeEmail(email);
   const attempts = await query(
     `SELECT count(*)::int AS count FROM login_attempts
@@ -68,7 +69,8 @@ export async function loginAccount({ email, password, ipAddress, userAgent }) {
   if (attempts.rows[0].count >= 10) return { ok: false, status: 429, reason: "rate_limited" };
 
   const result = await query(
-    `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword", COALESCE(tm.role, u.role) AS role, a.password
+    `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
+            u.email_otp_enabled AS "emailOtpEnabled", COALESCE(tm.role, u.role) AS role, a.password
        FROM users u
        JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
@@ -97,6 +99,31 @@ export async function loginAccount({ email, password, ipAddress, userAgent }) {
     return { ok: false, status: 401, reason: "invalid_credentials" };
   }
 
+  const trusted = user.emailOtpEnabled
+    ? await isTrustedDevice({ userId: user.id, rawToken: trustedDeviceToken })
+    : false;
+  if (user.emailOtpEnabled && !trusted) {
+    const challenge = await createLoginEmailOtpChallenge({
+      user,
+      ipAddress,
+      userAgent,
+      locale,
+      purpose: "login"
+    });
+    await query(
+      `INSERT INTO security_events
+         (tenant_id, user_id, category, event_type, severity, risk_weight, half_life_hours, ip_hash, user_agent_summary)
+       VALUES ($1, $2, 'account', 'EMAIL_OTP_REQUIRED', 'info', 0, 6, $3, $4)`,
+      [user.tenantId, user.id, ipAddress ? sha256(String(ipAddress)) : null, String(userAgent || "").slice(0, 180)]
+    ).catch(() => null);
+    return {
+      ok: true,
+      status: 202,
+      requiresEmailOtp: true,
+      challenge
+    };
+  }
+
   return transaction(async (client) => {
     const session = await createSession(client, { userId: user.id, ipAddress, userAgent });
     await client.query(
@@ -109,7 +136,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent }) {
        VALUES ($1, $2, 'account', 'LOGIN_SUCCEEDED', 'info', 0, 6, $3, $4)`,
       [user.tenantId, user.id, ipAddress ? sha256(String(ipAddress)) : null, String(userAgent || "").slice(0, 180)]
     );
-    const { password: _password, ...safeUser } = user;
+    const { password: _password, emailOtpEnabled: _emailOtpEnabled, ...safeUser } = user;
     return { ok: true, status: 200, user: safeUser, session };
   });
 }

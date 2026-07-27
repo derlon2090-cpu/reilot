@@ -1,0 +1,22 @@
+import { beforeAll, describe, expect, it } from "vitest";
+
+beforeAll(() => {
+  process.env.EMAIL_OTP_PEPPER = "test-email-otp-pepper-that-is-long-enough";
+});
+
+describe("email OTP security helpers", () => {
+  it("normalizes Arabic and Eastern Arabic digits", async () => {
+    const { normalizeOtpDigits } = await import("../../src/server/email-otp.js");
+    expect(normalizeOtpDigits("١۲ ٣۴-٥۶")).toBe("123456");
+  });
+
+  it("generates exactly six digits", async () => {
+    const { generateEmailOtp } = await import("../../src/server/email-otp.js");
+    for (let index = 0; index < 20; index += 1) expect(generateEmailOtp()).toMatch(/^\d{6}$/);
+  });
+
+  it("binds the digest to the challenge id", async () => {
+    const { digestOtp } = await import("../../src/server/email-otp.js");
+    expect(digestOtp("123456", "challenge-a")).not.toBe(digestOtp("123456", "challenge-b"));
+  });
+});

@@ -4,9 +4,18 @@ import { forgotPasswordCodeEmail } from "../../lib/email/templates/forgot-passwo
 import { orderInfoLinkEmail } from "../../lib/email/templates/order-info-link.js";
 import { passwordChangedEmail } from "../../lib/email/templates/password-changed.js";
 import { renewalReminderEmail } from "../../lib/email/templates/renewal-reminder.js";
+import { loginEmailOtp } from "../../lib/email/templates/login-email-otp.js";
 
 export async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes = 10, locale = "ar" }) {
   return sendEmail({ to, ...forgotPasswordCodeEmail({ code, expiresInMinutes, locale }) });
+}
+
+export async function sendLoginEmailOtp({ to, code, expiresInMinutes = 5, locale = "ar", name = "" }) {
+  return sendEmail({
+    to,
+    tags: [{ name: "purpose", value: "login_otp" }],
+    ...loginEmailOtp({ code, expiresInMinutes, locale, name })
+  });
 }
 
 export async function sendTestEmail({ to, locale = "ar" }) {
