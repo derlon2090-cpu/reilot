@@ -623,6 +623,8 @@ const dashboardRoutes = [
 ];
 
 const dashboardAliases = {
+  "/settings/integrations/custom-api": "/dashboard/settings/integrations/custom-api",
+  "/dashboard/apps/custom-integration": "/dashboard/settings/integrations/custom-api",
   "/dashboard/renewals": "/dashboard/subscriptions",
   "/dashboard/connected-devices": "/dashboard/devices",
   "/dashboard/linked-devices": "/dashboard/devices",
@@ -1958,7 +1960,7 @@ function appsPage() {
           <p class="integration-description">اربط نظامك الخاص عبر API أو Webhook لتحكم كامل في التكامل.</p>
           <span class="integration-status disconnected"><i></i> غير مربوط</span>
           <ul class="integration-features"><li>تكامل مخصص عبر API</li><li>إمكانية Webhooks</li><li>إرسال واستقبال البيانات</li><li>توثيق شامل ومرن</li></ul>
-          <button class="btn btn-secondary integration-action" data-link="/settings/integrations/custom-api">إعداد التكامل</button>
+          <button class="btn btn-secondary integration-action" data-link="/dashboard/settings/integrations/custom-api">إعداد التكامل</button>
         </article>
         <article class="integration-empty-card">
           <div class="integration-empty-art" aria-hidden="true"><span>◇</span><i></i><i></i><i></i></div>
