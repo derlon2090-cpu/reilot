@@ -1,6 +1,7 @@
 import { requireSession } from "../../../../../../src/server/session.js";
 import { query, transaction } from "../../../../../../src/server/db.js";
 import { createApiKey, normalizeScopes } from "../../../../../../src/server/custom-integrations.js";
+import { requirePlanEntitlement, planEntitlementResponse } from "../../../../../../src/server/plan-entitlements.js";
 
 function canManage(role) {
   return ["owner", "admin", "ADMIN"].includes(role);
@@ -25,6 +26,8 @@ export async function POST(req, { params }) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   if (!canManage(auth.session.role)) return Response.json({ ok: false, reason: "forbidden" }, { status: 403 });
+  try { await requirePlanEntitlement(auth.session.tenantId, "api_access"); }
+  catch (error) { const response = planEntitlementResponse(error); if (response) return response; throw error; }
   const { integrationId } = await params;
   const body = await req.json().catch(() => ({}));
   const identifier = `${auth.session.tenantId}:${auth.session.userId}:${integrationId}`;
@@ -56,15 +59,17 @@ export async function POST(req, { params }) {
     );
     const inserted = await client.query(
       `INSERT INTO custom_integration_api_keys
-         (integration_id,tenant_id,name,key_prefix,key_digest,scopes,expires_at,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
+         (integration_id,tenant_id,name,public_key_id,key_prefix,key_digest,environment,status,scopes,expires_at,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE',$8::jsonb,$9,$10)
        RETURNING id,name,key_prefix AS prefix,scopes,expires_at AS "expiresAt",created_at AS "createdAt"`,
       [
         integrationId,
         auth.session.tenantId,
         String(body.name || "مفتاح API").slice(0, 120),
+        key.publicKeyId,
         key.prefix,
         key.digest,
+        key.environment,
         JSON.stringify(scopes),
         body.expiresAt || null,
         auth.session.userId

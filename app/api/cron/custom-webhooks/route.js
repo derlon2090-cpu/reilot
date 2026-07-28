@@ -1,5 +1,11 @@
 import { query } from "../../../../src/server/db.js";
 import { deliverCustomWebhook, retryDelaySeconds } from "../../../../src/server/custom-integrations.js";
+import {
+  commitUsage,
+  PlanEntitlementError,
+  releaseUsage,
+  reserveUsage
+} from "../../../../src/server/plan-entitlements.js";
 
 function authorized(req) {
   const expected = process.env.CRON_SECRET;
@@ -32,10 +38,27 @@ export async function POST(req) {
       await query("UPDATE custom_integration_webhook_deliveries SET status='cancelled',updated_at=now() WHERE id=$1", [item.id]);
       continue;
     }
+    try {
+      await reserveUsage({
+        tenantId: item.tenantId,
+        featureKey: "webhook_deliveries_monthly",
+        amount: 1
+      });
+    } catch (error) {
+      if (!(error instanceof PlanEntitlementError)) throw error;
+      await query(
+        `UPDATE custom_integration_webhook_deliveries
+            SET status='cancelled',error_code=$2,response_body_safe=$3,updated_at=now()
+          WHERE id=$1`,
+        [item.id, error.reason, error.message]
+      );
+      continue;
+    }
     const result = await deliverCustomWebhook({ ...item, ...endpoint.rows[0] });
     if (result.ok) {
       delivered += 1;
       await Promise.all([
+        commitUsage({ tenantId: item.tenantId, featureKey: "webhook_deliveries_monthly", amount: 1 }),
         query(
           `UPDATE custom_integration_webhook_deliveries
               SET status='delivered',response_status=$2,response_body_safe=$3,delivered_at=now(),updated_at=now()
@@ -51,6 +74,7 @@ export async function POST(req) {
         query("UPDATE custom_integrations SET status='ACTIVE',last_success_at=now(),updated_at=now() WHERE id=$1", [item.integrationId])
       ]);
     } else {
+      await releaseUsage({ tenantId: item.tenantId, featureKey: "webhook_deliveries_monthly", amount: 1 });
       const exhausted = item.attempts >= item.maxAttempts || !result.retryable;
       await Promise.all([
         query(

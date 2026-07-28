@@ -4,6 +4,13 @@ import net from "node:net";
 import { query, transaction } from "./db.js";
 import { decryptSecret, encryptSecret } from "../lib/encryption.js";
 import { safeErrorMessage, sha256 } from "./security.js";
+import {
+  commitUsage,
+  PlanEntitlementError,
+  releaseUsage,
+  reserveUsage,
+  requirePlanEntitlement
+} from "./plan-entitlements.js";
 
 export const CUSTOM_SCOPES = new Set([
   "customers:read", "customers:write",
@@ -21,6 +28,7 @@ export const CUSTOM_EVENTS = new Set([
   "payment.succeeded", "payment.failed",
   "message.queued", "message.sent", "message.delivered", "message.read", "message.failed",
   "campaign.started", "campaign.completed", "campaign.failed",
+  "invoice_link.created", "invoice_link.opened", "invoice_link.completed",
   "integration.test"
 ]);
 
@@ -42,18 +50,34 @@ export function normalizeScopes(scopes) {
 
 export function createApiKey(environment = "live") {
   const env = String(environment).toLowerCase() === "test" ? "test" : "live";
-  const raw = `rvx_${env}_${crypto.randomBytes(32).toString("base64url")}`;
+  const publicKeyId = crypto.randomUUID().replaceAll("-", "");
+  const secret = crypto.randomBytes(32).toString("base64url");
+  const prefix = `rvx_${env}_${publicKeyId}`;
+  const raw = `${prefix}_${secret}`;
   return {
     raw,
-    prefix: raw.slice(0, 18),
-    digest: crypto.createHmac("sha256", apiPepper()).update(raw).digest("hex")
+    publicKeyId,
+    secret,
+    environment: env,
+    prefix,
+    digest: crypto.createHmac("sha256", apiPepper()).update(secret).digest("hex")
   };
 }
 
 export function verifyApiKeyDigest(raw, digest) {
-  const supplied = Buffer.from(crypto.createHmac("sha256", apiPepper()).update(String(raw)).digest("hex"), "hex");
+  const parsed = parseApiKey(raw);
+  const supplied = Buffer.from(
+    crypto.createHmac("sha256", apiPepper()).update(parsed?.secret || String(raw)).digest("hex"),
+    "hex"
+  );
   const expected = Buffer.from(String(digest || ""), "hex");
   return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+}
+
+export function parseApiKey(raw) {
+  const match = String(raw || "").match(/^rvx_(live|test)_([a-f0-9]{32})_([A-Za-z0-9_-]{40,})$/);
+  if (!match) return null;
+  return { environment: match[1], publicKeyId: match[2], secret: match[3] };
 }
 
 export function createWebhookSecret() {
@@ -136,21 +160,30 @@ export async function authenticateCustomApi(req, requiredScope) {
   const authorization = req.headers.get("authorization") || "";
   const raw = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!raw) return { ok: false, status: 401, code: "missing_api_key", requestId };
-  if (!/^rvx_(live|test)_[A-Za-z0-9_-]{30,}$/.test(raw)) {
+  const parsed = parseApiKey(raw);
+  const legacyKey = !parsed && /^rvx_(live|test)_[A-Za-z0-9_-]{30,}$/.test(raw);
+  if (!parsed && !legacyKey) {
     return { ok: false, status: 401, code: "invalid_api_key", requestId };
   }
-  const prefix = raw.slice(0, 18);
+  const prefix = legacyKey ? raw.slice(0, 18) : `rvx_${parsed.environment}_${parsed.publicKeyId}`;
   const result = await query(
     `SELECT k.id AS "apiKeyId", k.tenant_id AS "tenantId", k.integration_id AS "integrationId",
             k.key_digest AS "keyDigest", k.scopes, k.expires_at AS "expiresAt", k.revoked_at AS "revokedAt",
+            k.environment,k.status,k.grace_expires_at AS "graceExpiresAt",
             i.status AS "integrationStatus"
        FROM custom_integration_api_keys k
        JOIN custom_integrations i ON i.id = k.integration_id AND i.tenant_id = k.tenant_id
-      WHERE k.key_prefix = $1 LIMIT 5`,
-    [prefix]
+      WHERE ${parsed ? "k.public_key_id = $1" : "k.key_prefix = $1"} LIMIT 5`,
+    [parsed?.publicKeyId || prefix]
   );
   const auth = result.rows.find((row) => !row.revokedAt && verifyApiKeyDigest(raw, row.keyDigest));
   if (!auth || auth.expiresAt && new Date(auth.expiresAt) <= new Date()) {
+    return { ok: false, status: 401, code: "invalid_api_key", requestId };
+  }
+  if (parsed && auth.environment !== parsed.environment) {
+    return { ok: false, status: 401, code: "invalid_api_key", requestId };
+  }
+  if (["REVOKED", "EXPIRED"].includes(auth.status)) {
     return { ok: false, status: 401, code: "invalid_api_key", requestId };
   }
   if (auth.integrationStatus === "PAUSED" || auth.integrationStatus === "REVOKED") {
@@ -159,6 +192,26 @@ export async function authenticateCustomApi(req, requiredScope) {
   const scopes = normalizeScopes(auth.scopes);
   if (requiredScope && !scopes.includes(requiredScope)) {
     return { ok: false, status: 403, code: "insufficient_scope", requestId };
+  }
+  const isWriteRequest = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+  let generalUsageReserved = false;
+  let writeUsageReserved = false;
+  try {
+    await requirePlanEntitlement(auth.tenantId, "api_access");
+    await reserveUsage({ tenantId: auth.tenantId, featureKey: "api_requests_monthly", amount: 1 });
+    generalUsageReserved = true;
+    if (isWriteRequest) {
+      await reserveUsage({ tenantId: auth.tenantId, featureKey: "api_write_requests_monthly", amount: 1 });
+      writeUsageReserved = true;
+    }
+  } catch (error) {
+    if (generalUsageReserved) {
+      await releaseUsage({ tenantId: auth.tenantId, featureKey: "api_requests_monthly", amount: 1 });
+    }
+    if (error instanceof PlanEntitlementError) {
+      return { ok: false, status: 403, code: error.reason, requestId, details: error.details };
+    }
+    throw error;
   }
   const limit = Math.max(10, Number(process.env.CUSTOM_API_RATE_LIMIT_PER_MINUTE || 120));
   const identifier = sha256(`${auth.apiKeyId}:${req.headers.get("x-forwarded-for") || "unknown"}`);
@@ -176,9 +229,22 @@ export async function authenticateCustomApi(req, requiredScope) {
     );
     return Number(count.rows[0].count) + 1;
   });
-  if (usage > limit) return { ok: false, status: 429, code: "rate_limit_exceeded", requestId, limit };
+  if (usage > limit) {
+    await Promise.all([
+      releaseUsage({ tenantId: auth.tenantId, featureKey: "api_requests_monthly", amount: 1 }),
+      ...(writeUsageReserved
+        ? [releaseUsage({ tenantId: auth.tenantId, featureKey: "api_write_requests_monthly", amount: 1 })]
+        : [])
+    ]);
+    return { ok: false, status: 429, code: "rate_limit_exceeded", requestId, limit };
+  }
   await Promise.all([
-    query("UPDATE custom_integration_api_keys SET last_used_at = now() WHERE id = $1", [auth.apiKeyId]),
+    query(
+      `UPDATE custom_integration_api_keys
+          SET last_used_at=now(),last_used_ip_hash=$2,request_count=request_count+1,updated_at=now()
+        WHERE id=$1`,
+      [auth.apiKeyId, identifier]
+    ),
     query(
       `UPDATE custom_integrations
           SET last_success_at = now(),
@@ -186,7 +252,11 @@ export async function authenticateCustomApi(req, requiredScope) {
               updated_at = now()
         WHERE id = $1`,
       [auth.integrationId]
-    )
+    ),
+    commitUsage({ tenantId: auth.tenantId, featureKey: "api_requests_monthly", amount: 1 }),
+    ...(isWriteRequest
+      ? [commitUsage({ tenantId: auth.tenantId, featureKey: "api_write_requests_monthly", amount: 1 })]
+      : [])
   ]);
   return { ok: true, ...auth, scopes, requestId, rateLimit: { limit, remaining: Math.max(0, limit - usage) } };
 }

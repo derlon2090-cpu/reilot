@@ -1,7 +1,7 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { query, transaction } from "../../../../src/server/db.js";
 import { createApiKey, normalizeScopes } from "../../../../src/server/custom-integrations.js";
-import { assertPlanFeature, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
+import { requirePlanEntitlement, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -65,14 +65,55 @@ export async function GET(req) {
        FROM custom_integrations i WHERE i.tenant_id=$1 ORDER BY i.created_at DESC`,
     [auth.session.tenantId]
   );
-  return Response.json({ ok: true, items: result.rows });
+  const [entitlements, usage, billing, invoices] = await Promise.all([
+    query(`WITH current_subscription AS (
+             SELECT plan_id FROM platform_subscriptions
+              WHERE tenant_id=$1 AND status IN ('active','trial','past_due','grace_period') AND current_period_end>now()
+              ORDER BY created_at DESC LIMIT 1
+           ), effective_plan AS (
+             SELECT plan_id FROM current_subscription
+             UNION ALL
+             SELECT id AS plan_id FROM platform_plans
+              WHERE slug='free' AND NOT EXISTS (SELECT 1 FROM current_subscription)
+             LIMIT 1
+           )
+           SELECT e.feature_key AS "featureKey",e.enabled,e.limit_value AS "limitValue",e.limit_unit AS "limitUnit"
+             FROM effective_plan s JOIN billing_plan_entitlements e ON e.plan_id=s.plan_id`, [auth.session.tenantId]),
+    query(`SELECT feature_key AS "featureKey",used_value AS "usedValue",reserved_value AS "reservedValue",
+                  limit_value AS "limitValue",period_start AS "periodStart",period_end AS "periodEnd"
+             FROM billing_usage_counters WHERE tenant_id=$1 AND period_start<=now() AND period_end>now()`, [auth.session.tenantId]),
+    query(`SELECT p.slug,p.name,p.monthly_price_sar AS "monthlyPriceSar",s.status,
+                  s.current_period_start AS "periodStart",s.current_period_end AS "periodEnd",s.payment_provider AS provider
+             FROM platform_subscriptions s JOIN platform_plans p ON p.id=s.plan_id
+            WHERE s.tenant_id=$1 ORDER BY s.created_at DESC LIMIT 1`, [auth.session.tenantId]),
+    query(`SELECT id,invoice_number AS number,status,amount,currency,issued_at AS "issuedAt",paid_at AS "paidAt"
+             FROM billing_invoices WHERE tenant_id=$1 ORDER BY issued_at DESC LIMIT 10`, [auth.session.tenantId])
+  ]);
+  const items = await Promise.all(result.rows.map(async (integration) => {
+    const [keys, webhooks] = await Promise.all([
+      query(`SELECT id,name,key_prefix AS prefix,environment,status,scopes,last_used_at AS "lastUsedAt",
+                    expires_at AS "expiresAt",revoked_at AS "revokedAt",request_count AS "requestCount",created_at AS "createdAt"
+               FROM custom_integration_api_keys WHERE integration_id=$1 AND tenant_id=$2 ORDER BY created_at DESC`, [integration.id, auth.session.tenantId]),
+      query(`SELECT id,url,description,event_types AS events,status,last_tested_at AS "lastTestedAt",
+                    last_success_at AS "lastSuccessAt",last_failure_at AS "lastFailureAt",failure_count AS "failureCount",created_at AS "createdAt"
+               FROM custom_integration_webhook_endpoints WHERE integration_id=$1 AND tenant_id=$2 ORDER BY created_at DESC`, [integration.id, auth.session.tenantId])
+    ]);
+    return { ...integration, keys: keys.rows, webhooks: webhooks.rows };
+  }));
+  return Response.json({
+    ok: true,
+    items,
+    entitlements: Object.fromEntries(entitlements.rows.map((entry) => [entry.featureKey, entry])),
+    usage: usage.rows,
+    billing: { subscription: billing.rows[0] || null, invoices: invoices.rows, providerConfigured: Boolean(billing.rows[0]?.provider) }
+  });
 }
 
 export async function POST(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   if (!["owner", "admin", "ADMIN"].includes(auth.session.role)) return Response.json({ ok: false, reason: "forbidden" }, { status: 403 });
-  try { await assertPlanFeature(auth.session.tenantId, "customApiEnabled"); }
+  try { await requirePlanEntitlement(auth.session.tenantId, "api_access"); }
   catch (error) { const response = planEntitlementResponse(error); if (response) return response; throw error; }
   const body = await req.json().catch(() => ({}));
   const name = String(body.name || "").trim();
@@ -91,10 +132,10 @@ export async function POST(req) {
     );
     await client.query(
       `INSERT INTO custom_integration_api_keys
-         (integration_id,tenant_id,name,key_prefix,key_digest,scopes,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)`,
+         (integration_id,tenant_id,name,public_key_id,key_prefix,key_digest,environment,status,scopes,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE',$8::jsonb,$9)`,
       [integration.rows[0].id, auth.session.tenantId, body.keyName || "المفتاح الرئيسي",
-        key.prefix, key.digest, JSON.stringify(scopes), auth.session.userId]
+        key.publicKeyId, key.prefix, key.digest, key.environment, JSON.stringify(scopes), auth.session.userId]
     );
     await client.query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)

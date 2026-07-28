@@ -171,6 +171,51 @@ Object.assign(operationalEnglishPhrases, {
   "◉ إلغاء في أي وقت": "◉ Cancel at any time",
   "✦ تحديثات مستمرة": "✦ Continuous updates",
   "♬ دعم موثوق": "♬ Reliable support",
+  "اختر الباقة المناسبة لاحتياجك، مع حدود واضحة للبريد وواتساب ومزايا كل خطة.": "Choose the plan that fits your needs, with clear email and WhatsApp limits for every tier.",
+  "محدودة": "Limited",
+  "المجانية": "Free",
+  "الأساسية": "Starter",
+  "الاحترافية": "Professional",
+  "الأعمال": "Business",
+  "الأكثر شعبية": "Most popular",
+  "مخصص": "Custom",
+  "ريال / شهريًا": "SAR / month",
+  "تواصل معنا للحصول على عرض سعر": "Contact us for a tailored quote",
+  "ابدأ مجانًا": "Start free",
+  "ابدأ الآن": "Get started",
+  "اختر الاحترافية أو ابدأ الآن": "Choose Professional",
+  "تواصل معنا": "Contact us",
+  "مساحة تخزين 1 MB": "1 MB storage",
+  "50 رسالة بريد شهريًا فقط": "50 email messages per month",
+  "ربط API متاح": "API access included",
+  "قسم الحملات مغلق": "Campaigns are unavailable",
+  "لا يوجد واتساب رسمي": "Official WhatsApp is unavailable",
+  "لا تشمل إرسال معلومات الطلب": "Order information delivery is unavailable",
+  "ميزات محدودة": "Limited features",
+  "100 MB تخزين قاعدة البيانات": "100 MB database storage",
+  "500 رسالة بريد شهريًا": "500 email messages per month",
+  "جهاز واتساب رسمي واحد": "One official WhatsApp device",
+  "السلات المتروكة": "Abandoned carts",
+  "حالات الطلب": "Order statuses",
+  "100 رابط خاص للفاتورة أو تم التنفيذ": "100 secure invoice or completion links",
+  "إرسال معلومات الطلب": "Order information delivery",
+  "1 GB تخزين قاعدة البيانات": "1 GB database storage",
+  "2500 رسالة بريد شهريًا": "2,500 email messages per month",
+  "حتى 4 أجهزة / أرقام واتساب رسمية": "Up to 4 official WhatsApp devices or numbers",
+  "الحملات": "Campaigns",
+  "الأتمتة": "Automation",
+  "إعادة استهداف العملاء": "Customer retargeting",
+  "1000 رابط خاص للفاتورة أو تم التنفيذ": "1,000 secure invoice or completion links",
+  "دعم فني مخصص": "Dedicated technical support",
+  "إعدادات مخصصة وصلاحيات فريق": "Custom settings and team permissions",
+  "5 GB تخزين قاعدة البيانات": "5 GB database storage",
+  "رسائل بريد حسب الاستخدام": "Usage-based email messages",
+  "ربط API و Webhooks مخصص": "Custom API and Webhooks",
+  "أجهزة / أرقام واتساب رسمية متعددة": "Multiple official WhatsApp devices or numbers",
+  "يمكنك إدارة خطتك بمرونة، ويُحتسب البريد وواتساب كلٌ على حدة وفق الرسائل الناجحة فعليًا.": "You can manage your plan flexibly; email and WhatsApp are counted separately after successful delivery.",
+  "شحن رصيد البريد": "Add email credit",
+  "اشحن رصيدًا لاستخدام رسائل البريد حسب احتياجك.": "Add email credit whenever your usage requires it.",
+  "رصيد بريد": "Email credit",
   "المدونة": "Blog",
   "أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.": "The latest insights on subscription renewals, customer retention, and intelligent automation.",
   "ابحث في المقالات...": "Search articles...",
@@ -696,7 +741,7 @@ function syncRouteData(force = false) {
     queue("subscriptions", `/api/subscriptions?${params}`, "dbSubscriptions");
   }
   if (state.route === "/dashboard/apps" && (force || state.appsOverview === null)) queue("appsOverview", "/api/apps", "appsOverview");
-  if (state.route === "/dashboard/apps/custom-integration" && (force || state.customIntegrations === null)) {
+  if (["/dashboard/apps/custom-integration", "/settings/integrations/custom-api", "/dashboard/settings/integrations/custom-api"].includes(state.route) && (force || state.customIntegrations === null)) {
     queue("customIntegrations", "/api/integrations/custom", "customIntegrations");
   }
   if (state.route === "/dashboard/apps/salla/templates" && (force || state.sallaAutomationTemplates === null)) {
@@ -1913,7 +1958,7 @@ function appsPage() {
           <p class="integration-description">اربط نظامك الخاص عبر API أو Webhook لتحكم كامل في التكامل.</p>
           <span class="integration-status disconnected"><i></i> غير مربوط</span>
           <ul class="integration-features"><li>تكامل مخصص عبر API</li><li>إمكانية Webhooks</li><li>إرسال واستقبال البيانات</li><li>توثيق شامل ومرن</li></ul>
-          <button class="btn btn-secondary integration-action" data-link="/dashboard/apps/custom-integration">إعداد التكامل</button>
+          <button class="btn btn-secondary integration-action" data-link="/settings/integrations/custom-api">إعداد التكامل</button>
         </article>
         <article class="integration-empty-card">
           <div class="integration-empty-art" aria-hidden="true"><span>◇</span><i></i><i></i><i></i></div>
@@ -6014,6 +6059,8 @@ function render() {
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,
       "/dashboard/apps/custom-integration": customIntegrationPage,
+      "/settings/integrations/custom-api": customIntegrationPage,
+      "/dashboard/settings/integrations/custom-api": customIntegrationPage,
       "/dashboard/notifications": notificationsPage,
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
@@ -6123,6 +6170,20 @@ function customIntegrationPage() {
   const webhook = item?.webhook && typeof item.webhook === "object" ? item.webhook : {};
   const deliveries = Array.isArray(item?.recentDeliveries) ? item.recentDeliveries : [];
   const secret = state.customIntegrationSecret;
+  const entitlementMap = payload?.entitlements && typeof payload.entitlements === "object" ? payload.entitlements : {};
+  const usageRows = Array.isArray(payload?.usage) ? payload.usage : [];
+  const usageMap = Object.fromEntries(usageRows.map((entry) => [entry.featureKey, entry]));
+  const billing = payload?.billing && typeof payload.billing === "object" ? payload.billing : { subscription: null, invoices: [] };
+  const usageFeatures = [
+    ["api_requests_monthly", "طلبات API"],
+    ["api_write_requests_monthly", "طلبات الكتابة عبر API"],
+    ["webhook_deliveries_monthly", "تسليمات Webhook"],
+    ["email_messages_monthly", "رسائل البريد"],
+    ["renewal_customers", "عملاء التجديد"],
+    ["database_storage_bytes", "مساحة التخزين"],
+    ["official_whatsapp_devices", "أجهزة واتساب الرسمية"],
+    ["invoice_links_monthly", "روابط الفواتير والطلبات"]
+  ];
   const formatIntegrationDate = (value) => {
     if (!value) return "لا يوجد بعد";
     const date = new Date(value);
@@ -6214,10 +6275,17 @@ function customIntegrationPage() {
           <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>${formatIntegrationDate(webhook.lastTestedAt || item.createdAt)}</strong><em>${Number(item.events24h || 0)} حدث خلال 24 ساعة</em></article>
         </div>
 
-        <div class="custom-api-layout">
+        <nav class="custom-api-tabs" aria-label="أقسام التكامل">
+          <a href="#custom-api-overview">نظرة عامة</a><a href="#custom-api-keys">مفاتيح API</a>
+          <a href="#custom-api-webhooks">Webhooks</a><a href="#custom-api-deliveries">الأحداث والتسليمات</a>
+          <a href="#custom-api-usage">الاستخدام والحدود</a><a href="#custom-api-billing">الفوترة</a>
+          <a href="/openapi/renvix-v1.json" target="_blank" rel="noopener">التوثيق</a>
+        </nav>
+
+        <div class="custom-api-layout" id="custom-api-overview">
           <main class="custom-api-main">
             <div class="custom-api-config-grid">
-              <article class="card custom-api-key-card">
+              <article class="card custom-api-key-card" id="custom-api-keys">
                 <div class="section-head"><div><h2>مفتاح API</h2><p class="muted">استخدم المفتاح في ترويسة Authorization فقط.</p></div><span class="custom-api-card-icon">${dashboardIcon("key")}</span></div>
                 <label class="field"><span>مفتاح API</span><div class="custom-api-secret-field" dir="ltr"><code>${escapeHtml(item.latestKeyPrefix || "rvx_••••••••")}${item.latestKeyPrefix ? "••••••••••••••••" : ""}</code><span class="status success">نشط</span></div></label>
                 <div class="custom-api-scopes"><span>الصلاحيات</span><code dir="ltr">${(Array.isArray(item.scopes) ? item.scopes : []).map((scope) => escapeHtml(scope)).join(", ") || "لا توجد صلاحيات"}</code></div>
@@ -6226,7 +6294,7 @@ function customIntegrationPage() {
                 </div>
               </article>
 
-              <article class="card custom-api-webhook-card">
+              <article class="card custom-api-webhook-card" id="custom-api-webhooks">
                 <div class="section-head"><div><h2>Webhook</h2><p class="muted">إرسال الأحداث من Renvix إلى نظامك بتوقيع HMAC-SHA256.</p></div><span class="custom-api-card-icon">${dashboardIcon("webhook")}</span></div>
                 ${webhook.id ? `
                   <label class="field"><span>Webhook URL</span><div class="custom-api-copy-field" dir="ltr"><code>${escapeHtml(webhook.url || "")}</code><button type="button" data-action="copy-text" data-value="${escapeHtml(webhook.url || "")}" aria-label="نسخ الرابط">${dashboardIcon("copy")}</button></div></label>
@@ -6240,7 +6308,7 @@ function customIntegrationPage() {
               </article>
             </div>
 
-            <article class="card custom-api-deliveries">
+            <article class="card custom-api-deliveries" id="custom-api-deliveries">
               <div class="section-head"><div><h2>سجل الأحداث والتسليمات</h2><p class="muted">يعرض السجل الحقيقي فقط ولا يحتوي على بيانات وهمية.</p></div><span class="status ${Number(item.pendingDeliveries || 0) ? "warning" : "success"}">${Number(item.pendingDeliveries || 0)} قيد الانتظار</span></div>
               ${deliveries.length ? `
                 <div class="table-scroll"><table><thead><tr><th>نوع الحدث</th><th>وقت الإرسال</th><th>الحالة</th><th>HTTP</th><th>المحاولات</th><th>الإجراء</th></tr></thead><tbody>
@@ -6268,7 +6336,29 @@ function customIntegrationPage() {
               <div><span>${dashboardIcon("security")}</span><p><b>توثيق شامل ومرن</b><small>أمثلة واختبارات وسجل تدقيق</small></p></div>
             </article>
           </aside>
-        </div>` : `
+        </div>
+
+        <section class="custom-api-limits" id="custom-api-usage">
+          <div class="section-head"><div><h2>الاستخدام والحدود</h2><p class="muted">القيم محسوبة من دورة الباقة الحالية وتُفرض من الخادم.</p></div></div>
+          <div class="custom-api-limit-grid">
+            ${usageFeatures.map(([featureKey, label]) => {
+              const entitlement = entitlementMap[featureKey] || {};
+              const usage = usageMap[featureKey] || {};
+              const enabled = Boolean(entitlement.enabled);
+              const limit = entitlement.limitValue == null ? 0 : Number(entitlement.limitValue);
+              const used = Number(usage.usedValue || 0);
+              const unlimited = limit < 0;
+              const percent = enabled && !unlimited && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+              return `<article class="card"><div><span>${dashboardIcon(featureKey.includes("webhook") ? "webhook" : featureKey.includes("email") ? "mail" : "chart")}</span><h3>${label}</h3></div><strong>${enabled ? `${used.toLocaleString("ar-SA")} / ${unlimited ? "غير محدود" : limit.toLocaleString("ar-SA")}` : "غير متاح"}</strong><div class="usage-progress"><i style="width:${percent}%"></i></div><small>${enabled ? `${percent}% مستخدم` : "تتطلب ترقية الباقة"}</small></article>`;
+            }).join("")}
+          </div>
+        </section>
+
+        <section class="card custom-api-billing" id="custom-api-billing">
+          <div class="section-head"><div><h2>الفوترة</h2><p class="muted">حالة الاشتراك والفواتير الفعلية فقط.</p></div><span class="status ${billing.subscription?.status === "active" ? "success" : "warning"}">${escapeHtml(billing.subscription?.status || "غير مفعلة")}</span></div>
+          <div class="custom-api-billing-summary"><div><small>الباقة الحالية</small><strong>${escapeHtml(billing.subscription?.name || "لا توجد باقة")}</strong></div><div><small>السعر الشهري</small><strong>${billing.subscription ? `${Number(billing.subscription.monthlyPriceSar || 0).toLocaleString("ar-SA")} ر.س` : "—"}</strong></div><div><small>التجديد</small><strong>${formatIntegrationDate(billing.subscription?.periodEnd)}</strong></div><div><small>بوابة الدفع</small><strong>${billing.providerConfigured ? escapeHtml(billing.subscription?.provider) : "لم يتم ربط بوابة دفع"}</strong></div></div>
+          ${(Array.isArray(billing.invoices) && billing.invoices.length) ? `<div class="table-scroll"><table><thead><tr><th>رقم الفاتورة</th><th>الحالة</th><th>المبلغ</th><th>التاريخ</th></tr></thead><tbody>${billing.invoices.map((invoice) => `<tr><td>${escapeHtml(invoice.number)}</td><td>${escapeHtml(invoice.status)}</td><td>${Number(invoice.amount || 0).toLocaleString("ar-SA")} ${escapeHtml(invoice.currency || "SAR")}</td><td>${formatIntegrationDate(invoice.issuedAt)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted custom-api-no-invoices">لا توجد فواتير حتى الآن.</p>`}
+        </section>` : `
         <section class="custom-api-welcome">
           <article class="card"><span>${dashboardIcon("code")}</span><h2>ابدأ تكاملك المخصص</h2><p>أنشئ مفتاح API محدود الصلاحيات، ثم أضف Webhook موقّعًا لاستقبال الأحداث.</p></article>
         </section>`}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { assertPlanCapacity, assertPlanFeature } from "../../src/server/plan-entitlements.js";
+import { assertPlanCapacity, assertPlanFeature, assertUsageAvailable, getPlanEntitlement } from "../../src/server/plan-entitlements.js";
 
 function runnerWith(...rows: Array<Record<string, unknown>>) {
   return {
@@ -28,5 +28,24 @@ describe("plan entitlements", () => {
     await expect(assertPlanCapacity("tenant-a", "orderLinks", runner))
       .resolves.toMatchObject({ limit: -1, used: 0 });
     expect(runner.query).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads centralized feature limits from the active plan", async () => {
+    const runner = runnerWith(
+      { id: "plan-pro", slug: "business", name: "Professional", subscriptionId: "sub-1", periodStart: "2026-07-01", periodEnd: "2026-08-01" },
+      { enabled: true, limitValue: 100000, limitUnit: "request/month" }
+    );
+    await expect(getPlanEntitlement("tenant-a", "api_requests_monthly", runner))
+      .resolves.toMatchObject({ enabled: true, limitValue: 100000, plan: "business" });
+  });
+
+  it("blocks usage when used and reserved values reach the plan limit", async () => {
+    const runner = runnerWith(
+      { id: "plan-starter", slug: "starter", subscriptionId: "sub-1", periodStart: "2026-07-01", periodEnd: "2026-08-01" },
+      { enabled: true, limitValue: 10, limitUnit: "request/month" },
+      { used: 8, reserved: 2 }
+    );
+    await expect(assertUsageAvailable({ tenantId: "tenant-a", featureKey: "api_requests_monthly", amount: 1, runner }))
+      .rejects.toMatchObject({ reason: "plan_limit_reached", details: { limit: 10, used: 8, reserved: 2 } });
   });
 });

@@ -7,9 +7,10 @@ beforeAll(() => {
 
 describe("custom integration security", () => {
   it("creates one-time API keys and verifies only the original", async () => {
-    const { createApiKey, verifyApiKeyDigest } = await import("../../src/server/custom-integrations.js");
+    const { createApiKey, parseApiKey, verifyApiKeyDigest } = await import("../../src/server/custom-integrations.js");
     const key = createApiKey("live");
-    expect(key.raw).toMatch(/^rvx_live_/);
+    expect(key.raw).toMatch(/^rvx_live_[a-f0-9]{32}_[A-Za-z0-9_-]{40,}$/);
+    expect(parseApiKey(key.raw)).toMatchObject({ environment: "live", publicKeyId: key.publicKeyId });
     expect(key.digest).not.toContain(key.raw);
     expect(verifyApiKeyDigest(key.raw, key.digest)).toBe(true);
     expect(verifyApiKeyDigest(`${key.raw}x`, key.digest)).toBe(false);

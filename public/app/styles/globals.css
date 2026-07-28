@@ -4904,6 +4904,9 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .custom-api-summary small,.custom-api-summary em{color:#8090a8;font-style:normal;font-size:12px}
 .custom-api-summary strong{color:#0a2857;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .custom-api-summary .status{justify-self:start;padding:4px 9px}
+.custom-api-tabs{display:flex;gap:6px;padding:6px;border:1px solid #dfe8f4;border-radius:14px;background:#fff;overflow-x:auto;scrollbar-width:thin}
+.custom-api-tabs a{flex:0 0 auto;padding:10px 14px;border-radius:10px;color:#536986;font-size:13px;font-weight:750;text-decoration:none;white-space:nowrap}
+.custom-api-tabs a:first-child,.custom-api-tabs a:hover{background:#eef5ff;color:#1769ed}
 .custom-api-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:15px;align-items:start}
 .custom-api-main,.custom-api-sidebar{display:grid;gap:15px}
 .custom-api-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
@@ -4941,16 +4944,28 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .custom-api-create-form>.form-grid{margin-top:16px}
 .custom-api-welcome article{display:grid;place-items:center;min-height:210px;padding:24px;text-align:center}
 .custom-api-welcome article>span{color:#1769ed}.custom-api-welcome h2{color:#0a2857}
+.custom-api-limits{display:grid;gap:12px;scroll-margin-top:90px}
+.custom-api-limit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.custom-api-limit-grid article{display:grid;gap:10px;padding:16px}
+.custom-api-limit-grid article>div:first-child{display:flex;align-items:center;gap:9px}.custom-api-limit-grid h3{margin:0;color:#173963;font-size:14px}
+.custom-api-limit-grid article>div:first-child>span{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#eef5ff;color:#1769ed}
+.custom-api-limit-grid strong{color:#0a2857;font-size:18px}.custom-api-limit-grid small{color:#8090a8}
+.usage-progress{height:7px;border-radius:99px;background:#e8eef7;overflow:hidden}.usage-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#10b9c5,#2864fa)}
+.custom-api-billing{display:grid;gap:15px;padding:19px;scroll-margin-top:90px}.custom-api-billing h2{margin:0;color:#0a2857}
+.custom-api-billing-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.custom-api-billing-summary>div{display:grid;gap:5px;padding:13px;border:1px solid #e3ebf5;border-radius:11px;background:#fbfdff}.custom-api-billing-summary small{color:#8090a8}.custom-api-billing-summary strong{color:#173963}
+.custom-api-billing table{width:100%;border-collapse:collapse}.custom-api-billing th,.custom-api-billing td{padding:10px;border-bottom:1px solid #e7edf5;text-align:right;font-size:12px}.custom-api-no-invoices{margin:0;padding:16px;text-align:center}
 @media(max-width:1100px){
   .custom-api-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
   .custom-api-layout{grid-template-columns:1fr}
   .custom-api-sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .custom-api-limit-grid,.custom-api-billing-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
   .custom-api-header{flex-direction:column}.custom-api-header-actions{width:100%}
   .custom-api-summary,.custom-api-config-grid,.custom-api-sidebar{grid-template-columns:1fr}
   .custom-api-summary strong{font-size:16px}
   .custom-api-key-card,.custom-api-webhook-card,.custom-api-deliveries,.custom-api-control-card,.custom-api-benefits{padding:14px}
+  .custom-api-limit-grid,.custom-api-billing-summary{grid-template-columns:1fr}
 }
 :root[data-theme="dark"] .custom-api-header h1,
 :root[data-theme="dark"] .custom-api-summary strong,
@@ -4963,5 +4978,8 @@ input[type="password"]::-webkit-textfield-decoration-container {
 :root[data-theme="dark"] .custom-api-scopes>span,
 :root[data-theme="dark"] .custom-api-events>span{color:#e9f2ff}
 :root[data-theme="dark"] .custom-api-summary article,
+:root[data-theme="dark"] .custom-api-tabs,
+:root[data-theme="dark"] .custom-api-limit-grid article,
+:root[data-theme="dark"] .custom-api-billing-summary>div,
 :root[data-theme="dark"] .custom-api-secret-field,
 :root[data-theme="dark"] .custom-api-copy-field{background:#0d2037;border-color:#29415e}
