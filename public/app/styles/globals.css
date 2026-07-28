@@ -4680,7 +4680,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 /* Secure email OTP login */
 .email-otp-page{
   min-height:100vh;
-  padding:38px 48px 22px;
+  padding:20px 28px 14px;
   color:#0b2755;
   background:
     radial-gradient(circle at 12% 28%,rgba(37,99,235,.075),transparent 27%),
@@ -4688,12 +4688,13 @@ input[type="password"]::-webkit-textfield-decoration-container {
     #fbfdff;
 }
 .email-otp-shell{
-  width:min(1580px,100%);
-  min-height:790px;
+  width:min(1460px,100%);
+  min-height:660px;
   margin:0 auto;
   display:grid;
-  grid-template-columns:minmax(420px,.78fr) minmax(660px,1.22fr);
-  gap:36px;
+  grid-template-columns:minmax(390px,.86fr) minmax(610px,1.14fr);
+  gap:24px;
+  direction:ltr;
 }
 .email-otp-visual,.email-otp-panel{
   border:1px solid #cddbeb;
@@ -4702,27 +4703,28 @@ input[type="password"]::-webkit-textfield-decoration-container {
   box-shadow:0 16px 42px rgba(26,70,122,.055);
 }
 .email-otp-visual{
-  padding:52px 64px 44px;
+  padding:28px 38px 26px;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   text-align:center;
+  direction:rtl;
   background:linear-gradient(150deg,#fff 0%,#f5faff 58%,#eef6ff 100%);
 }
-.email-otp-brand{margin-bottom:34px}
-.email-otp-brand .brand-logo-stacked{width:min(330px,82%)}
+.email-otp-brand{margin-bottom:18px}
+.email-otp-brand .brand-logo-stacked{width:min(275px,78%)}
 .email-otp-envelope-art{
-  width:300px;
-  height:235px;
-  margin:4px auto 24px;
+  width:235px;
+  height:180px;
+  margin:0 auto 12px;
   position:relative;
   filter:drop-shadow(0 18px 18px rgba(58,111,190,.15));
 }
 .email-otp-envelope{
   position:absolute;
-  inset:auto 28px 18px;
-  height:150px;
+  inset:auto 22px 14px;
+  height:116px;
   border-radius:10px 10px 20px 20px;
   background:linear-gradient(145deg,#dce9ff,#fff 52%,#cddffd);
   border:1px solid #c9d9ef;
@@ -4731,9 +4733,9 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .email-otp-code-card{
   position:absolute;
   z-index:2;
-  inset:10px 45px auto;
-  height:105px;
-  padding:22px 16px;
+  inset:7px 35px auto;
+  height:82px;
+  padding:16px 12px;
   display:flex;
   align-items:flex-start;
   justify-content:center;
@@ -4744,55 +4746,55 @@ input[type="password"]::-webkit-textfield-decoration-container {
   box-shadow:0 10px 25px rgba(31,79,139,.12);
 }
 .email-otp-code-card b{
-  width:31px;height:42px;display:grid;place-items:center;
-  border:1px solid #cfe0f6;border-radius:5px;color:#1269ed;font-size:22px;
+  width:25px;height:34px;display:grid;place-items:center;
+  border:1px solid #cfe0f6;border-radius:5px;color:#1269ed;font-size:18px;
 }
 .email-otp-art-shield{
-  position:absolute;z-index:4;inset:auto 15px 0 auto;
-  width:78px;height:88px;display:grid;place-items:center;
-  color:#fff;border-radius:23px 23px 34px 34px;
+  position:absolute;z-index:4;inset:auto 12px 0 auto;
+  width:62px;height:70px;display:grid;place-items:center;
+  color:#fff;border-radius:18px 18px 28px 28px;
   background:linear-gradient(145deg,#08b8c2,#1670f1);
   box-shadow:0 10px 25px rgba(19,121,222,.24);
 }
-.email-otp-art-shield svg{width:43px;height:43px}
-.email-otp-visual h2{margin:8px 0 10px;font-size:clamp(27px,2.1vw,38px);color:#0b2755}
-.email-otp-visual>p{max-width:480px;margin:0;color:#687e9c;font-size:18px;line-height:1.9}
+.email-otp-art-shield svg{width:34px;height:34px}
+.email-otp-visual h2{margin:6px 0 7px;font-size:clamp(24px,1.75vw,31px);color:#0b2755}
+.email-otp-visual>p{max-width:440px;margin:0;color:#687e9c;font-size:15px;line-height:1.75}
 .email-otp-safety-card{
-  width:min(100%,470px);margin-top:30px;padding:20px 24px;
+  width:min(100%,430px);margin-top:18px;padding:13px 18px;
   border:1px solid #d6e3f2;border-radius:13px;background:rgba(255,255,255,.8);
 }
-.email-otp-safety-card h3{display:flex;justify-content:center;gap:9px;margin:0 0 12px}
+.email-otp-safety-card h3{display:flex;justify-content:center;gap:8px;margin:0 0 8px;font-size:16px}
 .email-otp-safety-card h3 svg,.email-otp-safety-card strong svg{width:18px;height:18px;color:#136ef1}
-.email-otp-safety-card>div{display:flex;justify-content:space-between;gap:18px;padding:10px 0;border-top:1px solid #e7eef7;color:#71839e}
+.email-otp-safety-card>div{display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-top:1px solid #e7eef7;color:#71839e;font-size:13px}
 .email-otp-safety-card strong{display:flex;align-items:center;gap:8px;color:#244468}
-.email-otp-panel{padding:34px 32px;display:flex;flex-direction:column}
+.email-otp-panel{padding:24px 26px;display:flex;flex-direction:column;direction:rtl}
 .email-otp-secure-badge{
   align-self:flex-end;display:inline-flex;align-items:center;gap:8px;
-  padding:9px 14px;border-radius:8px;background:#e9fafa;color:#0097a4;font-weight:800;
+  padding:7px 11px;border-radius:8px;background:#e9fafa;color:#0097a4;font-size:13px;font-weight:800;
 }
 .email-otp-secure-badge svg{width:20px;height:20px}
 .email-otp-panel-grid{
-  flex:1;display:grid;grid-template-columns:minmax(0,1fr) 190px;
-  align-items:center;gap:36px;padding:16px 0;
+  flex:1;display:grid;grid-template-columns:minmax(0,1fr) 150px;
+  align-items:center;gap:24px;padding:10px 0 2px;direction:ltr;
 }
-.email-otp-content{padding:15px 4px 15px 0}
-.email-otp-content>h1{margin:0 0 10px;font-size:clamp(34px,3vw,50px);line-height:1.2}
-.email-otp-content>p{margin:0 0 30px;color:#6d7f99;font-size:18px;line-height:1.8}
+.email-otp-content{padding:10px 0;direction:rtl}
+.email-otp-content>h1{margin:0 0 8px;font-size:clamp(29px,2.25vw,39px);line-height:1.22}
+.email-otp-content>p{margin:0 0 19px;color:#6d7f99;font-size:15px;line-height:1.75}
 .email-otp-email .input{
   min-height:49px;text-align:center;color:#0e2d55;
   background:linear-gradient(90deg,#edf4ff,#e9f2ff);border-color:#cedcf0;
 }
-.email-otp-form{display:grid;gap:16px;margin-top:21px}
-.email-otp-form>label:first-child{font-size:17px;font-weight:800}
-.email-otp-digits{display:flex;gap:16px;justify-content:flex-start}
+.email-otp-form{display:grid;gap:12px;margin-top:14px}
+.email-otp-form>label:first-child{font-size:15px;font-weight:800}
+.email-otp-digits{display:flex;gap:9px;justify-content:flex-start}
 .email-otp-digit{
-  width:78px;height:72px;border:1px solid #cad8e9;border-radius:9px;
-  background:#fff;color:#071d43;text-align:center;font:800 31px/1 inherit;
+  width:60px;height:58px;border:1px solid #cad8e9;border-radius:9px;
+  background:#fff;color:#071d43;text-align:center;font:800 26px/1 inherit;
   outline:none;box-shadow:0 3px 10px rgba(14,47,92,.035);
 }
 .email-otp-digit:focus{border:2px solid #2e79f8;box-shadow:0 0 0 4px rgba(46,121,248,.09)}
 .email-otp-resend-row{
-  min-height:58px;padding:11px 15px;display:flex;align-items:center;
+  min-height:50px;padding:8px 12px;display:flex;align-items:center;
   justify-content:space-between;gap:15px;border:1px solid #cfdeef;border-radius:9px;
 }
 .email-otp-resend-row>span{display:flex;align-items:center;gap:8px;color:#7a8aa2}
@@ -4801,39 +4803,39 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .email-otp-resend-row .link-button:disabled{color:#95a4b9;cursor:not-allowed}
 .email-otp-remember{display:flex;align-items:center;gap:10px;color:#506886}
 .email-otp-remember input{width:20px;height:20px;accent-color:#176ef0}
-.email-otp-submit{min-height:53px;font-size:17px;background:linear-gradient(100deg,#09b8c2,#263ff3)}
+.email-otp-submit{min-height:48px;font-size:16px;background:linear-gradient(100deg,#09b8c2,#263ff3)}
 .email-otp-help{text-align:center!important;font-size:14px!important;margin:0!important}
 .email-otp-steps{
-  align-self:center;list-style:none;margin:0;padding:0 0 0 5px;
-  display:flex;flex-direction:column;gap:46px;position:relative;
+  align-self:center;list-style:none;margin:0;padding:0 0 0 4px;
+  display:flex;flex-direction:column;gap:34px;position:relative;direction:rtl;
 }
 .email-otp-steps:before{
   content:"";position:absolute;inset:21px 20px 34px auto;width:1px;background:#d2dce9;
 }
 .email-otp-steps li{display:flex;align-items:flex-start;gap:14px;position:relative;color:#4f6686}
 .email-otp-steps b{
-  width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
-  border:1px solid #c9d6e7;background:#fff;color:#607796;font-size:20px;z-index:1;
+  width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid #c9d6e7;background:#fff;color:#607796;font-size:17px;z-index:1;
 }
-.email-otp-steps strong{font-size:15px;line-height:1.7}
+.email-otp-steps strong{font-size:13px;line-height:1.65}
 .email-otp-steps small{display:block;margin-top:5px;color:#7689a5}
 .email-otp-steps .active b{color:#fff;border-color:#176ef0;background:#176ef0}
 .email-otp-steps .active small{color:#176ef0}
 .email-otp-steps .done b{color:#fff;border-color:#0bb5a6;background:#0bb5a6}
 .email-otp-steps .done small{color:#0aa991}
 .email-otp-footer{
-  width:min(1580px,100%);margin:24px auto 0;display:flex;justify-content:center;
-  gap:24px;color:#71839e;font-size:13px;
+  width:min(1460px,100%);margin:12px auto 0;display:flex;justify-content:center;
+  gap:20px;color:#71839e;font-size:12px;
 }
 .email-otp-footer button{border:0;background:none;color:inherit;cursor:pointer}
 .email-otp-invalid{width:min(520px,calc(100% - 24px));margin:15vh auto;padding:38px;text-align:center}
 .email-otp-invalid>span{width:72px;height:72px;margin:auto;display:grid;place-items:center;border-radius:50%;background:#eff6ff;color:#176ef0}
 .email-otp-invalid svg{width:38px;height:38px}
-@media(max-width:1180px){
-  .email-otp-page{padding:24px}
+@media(max-width:1020px){
+  .email-otp-page{padding:18px}
   .email-otp-shell{grid-template-columns:1fr;min-height:auto}
   .email-otp-visual{display:none}
-  .email-otp-panel{min-height:720px}
+  .email-otp-panel{min-height:620px}
 }
 @media(max-width:720px){
   .email-otp-page{padding:12px;background:#fbfdff}
@@ -4889,3 +4891,78 @@ input[type="password"]::-webkit-textfield-decoration-container {
 :root[data-theme="dark"] .email-otp-content>p{color:#9db0ca}
 :root[data-theme="dark"] .email-otp-digit{background:#10243b;border-color:#324b6d;color:#fff}
 :root[data-theme="dark"] .email-otp-email .input{background:#10243b;color:#eaf2ff;border-color:#324b6d}
+
+/* Detailed custom API dashboard */
+.custom-api-dashboard{display:grid;gap:18px}
+.custom-api-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.custom-api-header h1{display:flex;align-items:center;gap:10px;margin:7px 0 5px;color:#08275a;font-size:30px}
+.custom-api-header p{margin:0;color:#7b8ba4}
+.custom-api-title-icon,.custom-api-card-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eef5ff;color:#1769ed;font:800 15px monospace}
+.custom-api-header-actions{display:flex;gap:9px;flex-wrap:wrap}
+.custom-api-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.custom-api-summary article{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:11px;align-items:center;padding:16px;border:1px solid #dfe8f4;border-radius:15px;background:#fff;box-shadow:0 8px 28px rgba(24,64,117,.04)}
+.custom-api-summary article>span{grid-row:1/5;display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:#eef5ff;color:#1769ed}
+.custom-api-summary small,.custom-api-summary em{color:#8090a8;font-style:normal;font-size:12px}
+.custom-api-summary strong{color:#0a2857;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.custom-api-summary .status{justify-self:start;padding:4px 9px}
+.custom-api-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:15px;align-items:start}
+.custom-api-main,.custom-api-sidebar{display:grid;gap:15px}
+.custom-api-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.custom-api-key-card,.custom-api-webhook-card,.custom-api-deliveries,.custom-api-control-card,.custom-api-benefits{padding:19px}
+.custom-api-key-card h2,.custom-api-webhook-card h2,.custom-api-deliveries h2,.custom-api-control-card h2,.custom-api-benefits h2{margin:0;color:#0a2857;font-size:18px}
+.custom-api-secret-field,.custom-api-copy-field{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:9px 11px;border:1px solid #dce7f5;border-radius:10px;background:#fbfdff}
+.custom-api-secret-field code,.custom-api-copy-field code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#315076}
+.custom-api-copy-field button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;background:transparent;color:#1769ed;cursor:pointer}
+.custom-api-scopes,.custom-api-events{display:grid;gap:7px;margin-top:13px}
+.custom-api-scopes>span,.custom-api-events>span{font-weight:800;color:#173963;font-size:13px}
+.custom-api-scopes code{display:block;padding:10px;border-radius:10px;background:#f5f8fc;color:#536986;font-size:11px;line-height:1.7;overflow-wrap:anywhere}
+.custom-api-events>div{display:flex;gap:6px;flex-wrap:wrap}
+.custom-api-events>div>span{padding:5px 8px;border-radius:8px;background:#eef5ff;color:#1769ed;font-size:11px}
+.custom-api-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+.custom-api-empty-webhook,.custom-api-no-deliveries{display:grid;place-items:center;gap:8px;min-height:180px;text-align:center;color:#71819a}
+.custom-api-empty-webhook>span,.custom-api-no-deliveries>svg{width:35px;height:35px;color:#1769ed}
+.custom-api-deliveries table{width:100%;border-collapse:collapse}
+.custom-api-deliveries th,.custom-api-deliveries td{padding:11px 9px;border-bottom:1px solid #e7edf5;text-align:right;font-size:12px;white-space:nowrap}
+.custom-api-deliveries th{color:#6f8099;background:#f8fbff}
+.custom-api-deliveries td code{color:#24486f}
+.text-danger{color:#e63d4f}.text-success{color:#0ca56d}
+.custom-api-app-art{display:grid;place-items:center;width:72px;height:72px;margin:auto;border-radius:20px;background:linear-gradient(135deg,#13b8c8,#2864fa);color:#fff;box-shadow:0 14px 30px rgba(24,105,237,.18)}
+.custom-api-control-card{text-align:center}
+.custom-api-control-card h2{margin-top:11px}.custom-api-control-card p{color:#7989a2;line-height:1.7;font-size:13px}
+.custom-api-control-card .status{display:inline-flex;margin:auto}
+.custom-api-control-card .btn{width:100%}
+.custom-api-benefits{display:grid;gap:12px}
+.custom-api-benefits>div{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #e5ecf5;border-radius:12px}
+.custom-api-benefits>div>span{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;background:#eef5ff;color:#1769ed;flex:0 0 auto}
+.custom-api-benefits p{display:grid;gap:3px;margin:0}.custom-api-benefits b{color:#173963;font-size:13px}.custom-api-benefits small{color:#8492a8;font-size:11px}
+.custom-api-create{padding:0;overflow:hidden}
+.custom-api-create>summary{display:flex;align-items:center;gap:8px;padding:15px 18px;color:#1769ed;font-weight:800;cursor:pointer;list-style:none}
+.custom-api-create>summary::-webkit-details-marker{display:none}
+.custom-api-create-form{display:grid;gap:14px;padding:0 18px 18px;border-top:1px solid #e8eef6}
+.custom-api-create-form>.form-grid{margin-top:16px}
+.custom-api-welcome article{display:grid;place-items:center;min-height:210px;padding:24px;text-align:center}
+.custom-api-welcome article>span{color:#1769ed}.custom-api-welcome h2{color:#0a2857}
+@media(max-width:1100px){
+  .custom-api-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .custom-api-layout{grid-template-columns:1fr}
+  .custom-api-sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .custom-api-header{flex-direction:column}.custom-api-header-actions{width:100%}
+  .custom-api-summary,.custom-api-config-grid,.custom-api-sidebar{grid-template-columns:1fr}
+  .custom-api-summary strong{font-size:16px}
+  .custom-api-key-card,.custom-api-webhook-card,.custom-api-deliveries,.custom-api-control-card,.custom-api-benefits{padding:14px}
+}
+:root[data-theme="dark"] .custom-api-header h1,
+:root[data-theme="dark"] .custom-api-summary strong,
+:root[data-theme="dark"] .custom-api-key-card h2,
+:root[data-theme="dark"] .custom-api-webhook-card h2,
+:root[data-theme="dark"] .custom-api-deliveries h2,
+:root[data-theme="dark"] .custom-api-control-card h2,
+:root[data-theme="dark"] .custom-api-benefits h2,
+:root[data-theme="dark"] .custom-api-benefits b,
+:root[data-theme="dark"] .custom-api-scopes>span,
+:root[data-theme="dark"] .custom-api-events>span{color:#e9f2ff}
+:root[data-theme="dark"] .custom-api-summary article,
+:root[data-theme="dark"] .custom-api-secret-field,
+:root[data-theme="dark"] .custom-api-copy-field{background:#0d2037;border-color:#29415e}

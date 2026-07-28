@@ -11,7 +11,57 @@ export async function GET(req) {
             i.last_success_at AS "lastApiRequestAt",i.last_error_at AS "lastErrorAt",
             i.created_at AS "createdAt",
             COALESCE((SELECT count(*) FROM custom_integration_api_keys k WHERE k.integration_id=i.id AND k.revoked_at IS NULL),0)::int AS "activeKeys",
-            COALESCE((SELECT count(*) FROM custom_integration_webhook_endpoints w WHERE w.integration_id=i.id AND w.status='enabled'),0)::int AS "activeWebhooks"
+            COALESCE((SELECT count(*) FROM custom_integration_webhook_endpoints w WHERE w.integration_id=i.id AND w.status='enabled'),0)::int AS "activeWebhooks",
+            (SELECT k.key_prefix
+               FROM custom_integration_api_keys k
+              WHERE k.integration_id=i.id AND k.tenant_id=i.tenant_id AND k.revoked_at IS NULL
+              ORDER BY k.created_at DESC LIMIT 1) AS "latestKeyPrefix",
+            (SELECT k.last_used_at
+               FROM custom_integration_api_keys k
+              WHERE k.integration_id=i.id AND k.tenant_id=i.tenant_id AND k.revoked_at IS NULL
+              ORDER BY k.created_at DESC LIMIT 1) AS "latestKeyUsedAt",
+            COALESCE((
+              SELECT jsonb_build_object(
+                'id', w.id,
+                'url', w.url,
+                'status', w.status,
+                'events', w.event_types,
+                'lastTestedAt', w.last_tested_at,
+                'lastSuccessAt', w.last_success_at,
+                'lastFailureAt', w.last_failure_at,
+                'failureCount', w.failure_count
+              )
+                FROM custom_integration_webhook_endpoints w
+               WHERE w.integration_id=i.id AND w.tenant_id=i.tenant_id
+               ORDER BY w.created_at DESC LIMIT 1
+            ), '{}'::jsonb) AS webhook,
+            COALESCE((SELECT count(*) FROM custom_integration_events e
+                       WHERE e.integration_id=i.id AND e.tenant_id=i.tenant_id
+                         AND e.created_at > now() - interval '24 hours'),0)::int AS "events24h",
+            COALESCE((SELECT count(*) FROM custom_integration_webhook_deliveries d
+                       WHERE d.integration_id=i.id AND d.tenant_id=i.tenant_id
+                         AND d.status='delivered'
+                         AND d.created_at > now() - interval '24 hours'),0)::int AS "delivered24h",
+            COALESCE((SELECT count(*) FROM custom_integration_webhook_deliveries d
+                       WHERE d.integration_id=i.id AND d.tenant_id=i.tenant_id
+                         AND d.status IN ('pending','processing')),0)::int AS "pendingDeliveries",
+            COALESCE((
+              SELECT jsonb_agg(to_jsonb(recent_delivery))
+                FROM (
+                  SELECT d.id,
+                         d.event_type AS "eventType",
+                         d.status,
+                         d.response_status AS "httpStatus",
+                         d.attempts,
+                         d.error_code AS "errorCode",
+                         d.created_at AS "createdAt",
+                         d.delivered_at AS "deliveredAt"
+                    FROM custom_integration_webhook_deliveries d
+                   WHERE d.integration_id=i.id AND d.tenant_id=i.tenant_id
+                   ORDER BY d.created_at DESC
+                   LIMIT 8
+                ) recent_delivery
+            ), '[]'::jsonb) AS "recentDeliveries"
        FROM custom_integrations i WHERE i.tenant_id=$1 ORDER BY i.created_at DESC`,
     [auth.session.tenantId]
   );

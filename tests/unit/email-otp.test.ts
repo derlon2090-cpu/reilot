@@ -21,4 +21,13 @@ describe("email OTP security helpers", () => {
     const { digestOtp } = await import("../../src/server/email-otp.js");
     expect(digestOtp("123456", "challenge-a")).not.toBe(digestOtp("123456", "challenge-b"));
   });
+
+  it("accepts the same OTP in English, Arabic, Persian, or mixed digits", async () => {
+    const { digestOtp } = await import("../../src/server/email-otp.js");
+    const challengeId = "challenge-localized-digits";
+    const expected = digestOtp("123456", challengeId);
+    expect(digestOtp("١٢٣٤٥٦", challengeId)).toBe(expected);
+    expect(digestOtp("۱۲۳۴۵۶", challengeId)).toBe(expected);
+    expect(digestOtp("١2۳4٥6", challengeId)).toBe(expected);
+  });
 });

@@ -1,4 +1,4 @@
-import { features, pricingPlans, knowledgeBase } from "../data/publicData.js";
+import { features, pricingPlans, knowledgeBase } from "../data/publicData.js?v=20260728-otp-pricing-api-v1";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -900,6 +900,15 @@ function dashboardIcon(name) {
      whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.9 7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M8.7 8.1c.3 2.7 2.5 4.8 5.2 5.2M14.6 12.2l-1.4 1.1M9.8 9.4l1.1-1.2"/>',
     send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
     email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
+    add: '<path d="M12 5v14M5 12h14"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M15 8l2 2M17 6l2 2"/>',
+    webhook: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8.7 7.5 10.8 15M15.3 7.5 13.2 15M9 6h6"/>',
+    refresh: '<path d="M20 6v5h-5"/><path d="M4 18v-5h5"/><path d="M18.4 9A7 7 0 0 0 6.3 6.3L4 9M5.6 15A7 7 0 0 0 17.7 17.7L20 15"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+    copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><rect x="4" y="4" width="11" height="11" rx="2"/>',
+    success: '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
+    document: '<path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/>',
     save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     delete: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>',
@@ -1291,16 +1300,26 @@ function normalizeEmailOtpDigit(value) {
   return normalizeEmailOtpCode(value).slice(-1);
 }
 
+function collectEmailOtpCode(form) {
+  const fields = Array.from(form.querySelectorAll("[data-otp-digit]"))
+    .sort((first, second) => Number(first.dataset.otpDigit) - Number(second.dataset.otpDigit));
+  const completeValue = fields
+    .map((field) => normalizeEmailOtpCode(field.value))
+    .find((value) => value.length === 6);
+  if (completeValue) return completeValue;
+  return normalizeEmailOtpCode(fields.map((field) => field.value).join(""));
+}
+
 function emailOtpPage() {
   const statusData = state.emailOtpStatus;
   if (statusData?.error) {
     return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-link="/login">العودة إلى تسجيل الدخول</button></section></main>`;
   }
   const maskedEmail = statusData?.maskedEmail || "جارٍ التحقق من طلب تسجيل الدخول...";
-  const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
+  const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" pattern="[0-9٠-٩۰-۹]*" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
   return `<main class="email-otp-page" dir="rtl"><section class="email-otp-shell">
     <aside class="email-otp-visual"><div class="email-otp-brand">${stackedLogo()}</div><div class="email-otp-envelope-art" aria-hidden="true"><span class="email-otp-code-card"><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b></span><span class="email-otp-envelope"></span><span class="email-otp-art-shield">${dashboardIcon("security")}</span></div><h2>تحقق آمن · دخول موثوق.</h2><p>نرسل رمز تحقق فريدًا إلى بريدك الإلكتروني لضمان أمان حسابك وحماية بياناتك.</p><div class="email-otp-safety-card"><h3>${dashboardIcon("security")} حالة الأمان</h3><div><span>نوع التحقق</span><strong>${dashboardIcon("email")} OTP عبر البريد</strong></div><div><span>آخر طلب رمز</span><strong>${dashboardIcon("clock")} الآن</strong></div><div><span>الجهاز</span><strong>${dashboardIcon("devices")} غير موثوق بعد</strong></div></div></aside>
-    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="ltr">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 30 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
+    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 30 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
   </section><footer class="email-otp-footer"><span>© 2026 Renvix.</span><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">الشروط والأحكام</button><button data-link="/contact">اتصل بنا</button><span>جميع الحقوق محفوظة</span></footer></main>`;
 }
 
@@ -4400,11 +4419,75 @@ async function handleAction(target) {
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
   if (action === "reload-custom-integrations") { state.customIntegrations = null; syncRouteData(true); }
+  if (action === "copy-text") {
+    await copyText(target.dataset.value || "", "تم النسخ");
+    return;
+  }
   if (action === "copy-custom-secret") {
     if (state.customIntegrationSecret?.value) await copyText(state.customIntegrationSecret.value, "تم نسخ السر");
     return;
   }
   if (action === "dismiss-custom-secret") { state.customIntegrationSecret = null; render(); return; }
+  if (action === "rotate-custom-key") {
+    const button = target.closest("button");
+    setSubmitBusy(button, true, "جاري إنشاء المفتاح...");
+    try {
+      const payload = await fetchJson(`/api/integrations/custom/${encodeURIComponent(target.dataset.id)}/keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "مفتاح بديل" })
+      });
+      state.customIntegrationSecret = { kind: "api", value: payload.apiKey };
+      state.customIntegrations = null;
+      await syncRouteData(true);
+      appToast.success("تم إنشاء مفتاح بديل", {
+        description: "انسخ المفتاح الآن ثم ألغِ المفتاح السابق بعد تحديث نظامك.",
+        id: "custom-key-rotated"
+      });
+    } catch (error) {
+      appToast.error("تعذر إنشاء المفتاح", { description: error.message || "حاول مرة أخرى.", id: "custom-key-rotate-error" });
+      setSubmitBusy(button, false, "تدوير المفتاح");
+    }
+    return;
+  }
+  if (action === "test-custom-webhook") {
+    const button = target.closest("button");
+    setSubmitBusy(button, true, "جاري جدولة الاختبار...");
+    try {
+      await fetchJson(`/api/integrations/custom/${encodeURIComponent(target.dataset.id)}/webhooks/${encodeURIComponent(target.dataset.endpointId)}/test`, {
+        method: "POST"
+      });
+      state.customIntegrations = null;
+      await syncRouteData(true);
+      appToast.success("تمت جدولة رسالة الاختبار", {
+        description: "ستظهر نتيجة التسليم الحقيقية في السجل بعد تنفيذ العامل.",
+        id: "custom-webhook-test"
+      });
+    } catch (error) {
+      appToast.error("تعذر اختبار Webhook", { description: error.message || "تحقق من العنوان ثم حاول مجددًا.", id: "custom-webhook-test-error" });
+      setSubmitBusy(button, false, "إرسال حدث تجريبي");
+    }
+    return;
+  }
+  if (action === "retry-custom-delivery") {
+    const button = target.closest("button");
+    setSubmitBusy(button, true, "جاري الجدولة...");
+    try {
+      await fetchJson(`/api/integrations/custom/${encodeURIComponent(target.dataset.id)}/deliveries/${encodeURIComponent(target.dataset.deliveryId)}/retry`, {
+        method: "POST"
+      });
+      state.customIntegrations = null;
+      await syncRouteData(true);
+      appToast.success("تمت جدولة إعادة المحاولة", {
+        description: "لن تُعرض كناجحة إلا بعد استجابة Webhook الفعلية.",
+        id: "custom-delivery-retry"
+      });
+    } catch (error) {
+      appToast.error("تعذرت إعادة المحاولة", { description: error.message || "حاول مرة أخرى.", id: "custom-delivery-retry-error" });
+      setSubmitBusy(button, false, "إعادة المحاولة");
+    }
+    return;
+  }
   if (action === "add-custom-webhook") {
     openModal("إضافة Webhook", `<form class="grid" data-submit="custom-webhook" data-integration-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>Webhook URL</span><input class="input" type="url" name="url" dir="ltr" required placeholder="https://client.example.com/webhooks/renvix"></label><label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="200"></label><fieldset class="custom-scope-fieldset"><legend>الأحداث المشترَك فيها</legend><div>${["customer.created","customer.updated","subscription.created","subscription.updated","subscription.renewed","subscription.expired","subscription.cancelled","payment.succeeded","payment.failed","message.sent","message.delivered","message.failed","campaign.completed"].map((eventType) => `<label><input type="checkbox" name="events" value="${eventType}" ${["customer.created","subscription.created","subscription.renewed"].includes(eventType) ? "checked" : ""}><span><b dir="ltr">${eventType}</b></span></label>`).join("")}</div></fieldset><button class="btn btn-primary" type="submit">حفظ وإنشاء سر التوقيع</button></form>`, `<button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
     return;
@@ -5459,7 +5542,7 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "email-otp") {
-    const code = normalizeEmailOtpCode(Array.from({ length: 6 }, (_, index) => data[`digit${index}`] || "").join(""));
+    const code = collectEmailOtpCode(form);
     if (!/^\d{6}$/.test(code)) {
       return appToast.warning("أدخل رمز التحقق كاملًا", {
         description: "يتكون رمز التحقق من 6 أرقام.",
@@ -5976,7 +6059,7 @@ function render() {
   }
 }
 
-function customIntegrationPage() {
+function legacyCustomIntegrationPage() {
   const payload = state.customIntegrations;
   if (payload === null) return dashboardShell(`${pageTitle("API / Webhook")}<div class="loading-state">جاري تحميل التكاملات...</div>`);
   if (payload?.error) return dashboardShell(`${pageTitle("API / Webhook")}${emptyState("تعذر تحميل التكاملات", escapeHtml(payload.error), "إعادة المحاولة", "reload-custom-integrations")}`);
@@ -6009,6 +6092,173 @@ function customIntegrationPage() {
       <section class="card custom-integrations-list"><div class="section-head"><div><h2>التكاملات</h2><p class="muted">الحالة «مربوط» لا تظهر إلا بعد طلب API ناجح أو اختبار Webhook ناجح.</p></div><button class="btn btn-secondary" data-action="reload-custom-integrations">تحديث</button></div>
         ${items.length ? items.map((item) => `<article class="custom-integration-row"><span class="integration-logo integration-logo--api">&lt;/&gt;</span><div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.description || "تكامل مخصص")}</p><div class="custom-integration-meta"><code>${escapeHtml(item.environment)}</code><span>${Number(item.activeKeys)} مفتاح نشط</span><span>${Number(item.activeWebhooks)} Webhook</span></div></div><span class="status ${item.status === "ACTIVE" ? "success" : item.status === "ERROR" ? "danger" : "warning"}">${statusText[item.status] || item.status}</span><button class="btn btn-secondary" data-action="add-custom-webhook" data-id="${item.id}">إضافة Webhook</button></article>`).join("") : emptyState("لا يوجد تكامل مخصص", "أنشئ التكامل الأول من النموذج أعلاه.")}
       </section>
+    </section>`);
+}
+
+function customIntegrationPage() {
+  const payload = state.customIntegrations;
+  if (payload === null) {
+    return dashboardShell(`${pageTitle("API / Webhook", "إدارة الربط البرمجي الآمن بين أنظمتك وRenvix.")}<div class="loading-state">جاري تحميل التكامل...</div>`);
+  }
+  if (payload?.error) {
+    return dashboardShell(`${pageTitle("API / Webhook")}${emptyState("تعذر تحميل التكامل", escapeHtml(payload.error), "إعادة المحاولة", "reload-custom-integrations")}`);
+  }
+
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const item = items[0] || null;
+  const webhook = item?.webhook && typeof item.webhook === "object" ? item.webhook : {};
+  const deliveries = Array.isArray(item?.recentDeliveries) ? item.recentDeliveries : [];
+  const secret = state.customIntegrationSecret;
+  const formatIntegrationDate = (value) => {
+    if (!value) return "لا يوجد بعد";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "غير متاح";
+    return new Intl.DateTimeFormat("ar-SA", {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit"
+    }).format(date);
+  };
+  const integrationStatus = item?.status === "ACTIVE"
+    ? ["مربوط", "success"]
+    : item?.status === "ERROR"
+      ? ["يحتاج متابعة", "danger"]
+      : ["قيد الإعداد", "warning"];
+  const deliveryStatus = {
+    delivered: ["تم التسليم", "success"],
+    processing: ["قيد المعالجة", "info"],
+    pending: ["بانتظار الإرسال", "warning"],
+    failed: ["فشل", "danger"],
+    cancelled: ["ملغي", "muted"]
+  };
+  const eventLabels = {
+    "customer.created": "إنشاء عميل",
+    "customer.updated": "تحديث عميل",
+    "subscription.created": "إنشاء اشتراك",
+    "subscription.updated": "تحديث اشتراك",
+    "subscription.renewed": "تجديد اشتراك",
+    "subscription.expired": "انتهاء اشتراك",
+    "payment.succeeded": "نجاح دفعة",
+    "payment.failed": "فشل دفعة",
+    "message.sent": "إرسال رسالة",
+    "message.delivered": "تسليم رسالة",
+    "message.failed": "فشل رسالة",
+    "campaign.completed": "اكتمال حملة"
+  };
+  const setupForm = `
+    <details class="card custom-api-create" ${item ? "" : "open"}>
+      <summary>${dashboardIcon("add")} ${item ? "إنشاء تكامل إضافي" : "إعداد التكامل الأول"}</summary>
+      <form class="custom-api-create-form" data-submit="custom-integration">
+        <div class="form-grid two">
+          <label class="field"><span>اسم التكامل</span><input class="input" name="name" required maxlength="100" placeholder="نظام المتجر الداخلي"></label>
+          <label class="field"><span>البيئة</span><select class="select" name="environment"><option value="test">تجريبية</option><option value="live">إنتاجية</option></select></label>
+        </div>
+        <label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="300" placeholder="مزامنة العملاء والاشتراكات والرسائل"></label>
+        <label class="field"><span>اتجاه التكامل</span><select class="select" name="direction"><option value="bidirectional">API وWebhook</option><option value="inbound">API إلى Renvix</option><option value="outbound">Webhook من Renvix</option></select></label>
+        <fieldset class="custom-scope-fieldset">
+          <legend>الصلاحيات</legend>
+          <div>
+            ${[
+              ["customers:read", "قراءة العملاء"],
+              ["customers:write", "إدارة العملاء"],
+              ["subscriptions:read", "قراءة الاشتراكات"],
+              ["subscriptions:write", "إدارة الاشتراكات"],
+              ["messages:read", "قراءة الرسائل"],
+              ["messages:send", "إرسال الرسائل"],
+              ["payments:read", "قراءة المدفوعات"],
+              ["events:write", "إرسال الأحداث"],
+              ["webhooks:manage", "إدارة Webhooks"]
+            ].map(([value, label]) => `<label><input type="checkbox" name="scopes" value="${value}" ${["customers:read", "customers:write", "subscriptions:read", "subscriptions:write", "events:write"].includes(value) ? "checked" : ""}><span><b dir="ltr">${value}</b><small>${label}</small></span></label>`).join("")}
+          </div>
+        </fieldset>
+        <button class="btn btn-primary" type="submit">${dashboardIcon("security")} إنشاء التكامل والمفتاح</button>
+      </form>
+    </details>`;
+
+  return dashboardShell(`
+    <section class="custom-api-dashboard">
+      <header class="custom-api-header">
+        <div>
+          <div class="breadcrumbs"><span>الإعدادات</span><span>التكاملات</span></div>
+          <h1>API / Webhook <span class="custom-api-title-icon">&lt;/&gt;</span></h1>
+          <p>اربط نظامك الخاص عبر API أو Webhook للتحكم الكامل في التكامل.</p>
+        </div>
+        <div class="custom-api-header-actions">
+          <a class="btn btn-secondary" href="/openapi/renvix-v1.json" target="_blank" rel="noopener">${dashboardIcon("document")} عرض التوثيق</a>
+          <button class="btn btn-primary" data-action="reload-custom-integrations">${dashboardIcon("refresh")} تحديث البيانات</button>
+        </div>
+      </header>
+
+      ${secret ? `<article class="custom-secret-alert"><span>${dashboardIcon("security")}</span><div><strong>${secret.kind === "webhook" ? "سر توقيع Webhook" : "مفتاح API — يظهر مرة واحدة فقط"}</strong><code dir="ltr">${escapeHtml(secret.value)}</code><small>انسخه الآن واحفظه في مدير أسرار آمن. لن يظهر كاملًا مرة أخرى.</small></div><button class="btn btn-primary" data-action="copy-custom-secret">نسخ</button><button class="btn btn-ghost" data-action="dismiss-custom-secret">إغلاق</button></article>` : ""}
+
+      ${item ? `
+        <div class="custom-api-summary">
+          <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>${escapeHtml(item.name)}</strong><em class="status ${integrationStatus[1]}">${integrationStatus[0]}</em></article>
+          <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>${formatIntegrationDate(item.latestKeyUsedAt || item.lastApiRequestAt)}</strong><em>طلبات موثقة فقط</em></article>
+          <article><span>${dashboardIcon("success")}</span><small>آخر Webhook ناجح</small><strong>${formatIntegrationDate(webhook.lastSuccessAt)}</strong><em>${Number(item.delivered24h || 0)} تسليم خلال 24 ساعة</em></article>
+          <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>${formatIntegrationDate(webhook.lastTestedAt || item.createdAt)}</strong><em>${Number(item.events24h || 0)} حدث خلال 24 ساعة</em></article>
+        </div>
+
+        <div class="custom-api-layout">
+          <main class="custom-api-main">
+            <div class="custom-api-config-grid">
+              <article class="card custom-api-key-card">
+                <div class="section-head"><div><h2>مفتاح API</h2><p class="muted">استخدم المفتاح في ترويسة Authorization فقط.</p></div><span class="custom-api-card-icon">${dashboardIcon("key")}</span></div>
+                <label class="field"><span>مفتاح API</span><div class="custom-api-secret-field" dir="ltr"><code>${escapeHtml(item.latestKeyPrefix || "rvx_••••••••")}${item.latestKeyPrefix ? "••••••••••••••••" : ""}</code><span class="status success">نشط</span></div></label>
+                <div class="custom-api-scopes"><span>الصلاحيات</span><code dir="ltr">${(Array.isArray(item.scopes) ? item.scopes : []).map((scope) => escapeHtml(scope)).join(", ") || "لا توجد صلاحيات"}</code></div>
+                <div class="custom-api-card-actions">
+                  <button class="btn btn-secondary" data-action="rotate-custom-key" data-id="${escapeHtml(item.id)}">${dashboardIcon("refresh")} تدوير المفتاح</button>
+                </div>
+              </article>
+
+              <article class="card custom-api-webhook-card">
+                <div class="section-head"><div><h2>Webhook</h2><p class="muted">إرسال الأحداث من Renvix إلى نظامك بتوقيع HMAC-SHA256.</p></div><span class="custom-api-card-icon">${dashboardIcon("webhook")}</span></div>
+                ${webhook.id ? `
+                  <label class="field"><span>Webhook URL</span><div class="custom-api-copy-field" dir="ltr"><code>${escapeHtml(webhook.url || "")}</code><button type="button" data-action="copy-text" data-value="${escapeHtml(webhook.url || "")}" aria-label="نسخ الرابط">${dashboardIcon("copy")}</button></div></label>
+                  <label class="field"><span>Webhook Secret</span><div class="custom-api-secret-field" dir="ltr"><code>whsec_••••••••••••••••••••</code><span class="status ${webhook.status === "enabled" ? "success" : "warning"}">${webhook.status === "enabled" ? "نشط" : "متوقف"}</span></div></label>
+                  <div class="custom-api-events"><span>الأحداث المشتركة</span><div>${(Array.isArray(webhook.events) ? webhook.events : []).map((eventType) => `<span title="${escapeHtml(eventType)}">${escapeHtml(eventLabels[eventType] || eventType)}</span>`).join("") || "<em>لا توجد أحداث</em>"}</div></div>
+                  <div class="custom-api-card-actions">
+                    <button class="btn btn-secondary" data-action="test-custom-webhook" data-id="${escapeHtml(item.id)}" data-endpoint-id="${escapeHtml(webhook.id)}">${dashboardIcon("send")} إرسال حدث تجريبي</button>
+                    <button class="btn btn-secondary" data-action="add-custom-webhook" data-id="${escapeHtml(item.id)}">${dashboardIcon("edit")} إضافة عنوان آخر</button>
+                  </div>` : `
+                  <div class="custom-api-empty-webhook"><span>${dashboardIcon("webhook")}</span><p>لم تتم إضافة Webhook بعد.</p><button class="btn btn-primary" data-action="add-custom-webhook" data-id="${escapeHtml(item.id)}">إعداد Webhook</button></div>`}
+              </article>
+            </div>
+
+            <article class="card custom-api-deliveries">
+              <div class="section-head"><div><h2>سجل الأحداث والتسليمات</h2><p class="muted">يعرض السجل الحقيقي فقط ولا يحتوي على بيانات وهمية.</p></div><span class="status ${Number(item.pendingDeliveries || 0) ? "warning" : "success"}">${Number(item.pendingDeliveries || 0)} قيد الانتظار</span></div>
+              ${deliveries.length ? `
+                <div class="table-scroll"><table><thead><tr><th>نوع الحدث</th><th>وقت الإرسال</th><th>الحالة</th><th>HTTP</th><th>المحاولات</th><th>الإجراء</th></tr></thead><tbody>
+                  ${deliveries.map((delivery) => {
+                    const status = deliveryStatus[delivery.status] || [delivery.status || "غير معروف", "muted"];
+                    return `<tr><td><code dir="ltr">${escapeHtml(delivery.eventType || "event")}</code></td><td>${formatIntegrationDate(delivery.deliveredAt || delivery.createdAt)}</td><td><span class="status ${status[1]}">${escapeHtml(status[0])}</span></td><td><b class="${Number(delivery.httpStatus) >= 400 ? "text-danger" : "text-success"}">${delivery.httpStatus || "—"}</b></td><td>${Number(delivery.attempts || 0)}</td><td>${delivery.status === "failed" ? `<button class="btn btn-small btn-secondary" data-action="retry-custom-delivery" data-id="${escapeHtml(item.id)}" data-delivery-id="${escapeHtml(delivery.id)}">إعادة المحاولة</button>` : "—"}</td></tr>`;
+                  }).join("")}
+                </tbody></table></div>` : `<div class="custom-api-no-deliveries">${dashboardIcon("document")}<strong>لا توجد تسليمات حتى الآن</strong><p>ستظهر هنا الأحداث الحقيقية بعد بدء استخدام التكامل.</p></div>`}
+            </article>
+          </main>
+
+          <aside class="custom-api-sidebar">
+            <article class="card custom-api-control-card">
+              <span class="custom-api-app-art">${dashboardIcon("code")}</span>
+              <h2>تطبيق مخصص</h2>
+              <span class="status ${integrationStatus[1]}">${integrationStatus[0]}</span>
+              <p>حالة التكامل مبنية على آخر طلب API أو اختبار Webhook حقيقي.</p>
+              <button class="btn btn-primary" data-action="reload-custom-integrations">إعادة الفحص</button>
+            </article>
+            <article class="card custom-api-benefits">
+              <h2>مزايا التكامل</h2>
+              <div><span>${dashboardIcon("code")}</span><p><b>تكامل مخصص عبر API</b><small>تحكم كامل في البيانات والصلاحيات</small></p></div>
+              <div><span>${dashboardIcon("webhook")}</span><p><b>إمكانية Webhooks</b><small>استلام الأحداث الفورية بتوقيع موثوق</small></p></div>
+              <div><span>${dashboardIcon("refresh")}</span><p><b>إرسال واستقبال البيانات</b><small>تكامل ثنائي الاتجاه مع منع التكرار</small></p></div>
+              <div><span>${dashboardIcon("security")}</span><p><b>توثيق شامل ومرن</b><small>أمثلة واختبارات وسجل تدقيق</small></p></div>
+            </article>
+          </aside>
+        </div>` : `
+        <section class="custom-api-welcome">
+          <article class="card"><span>${dashboardIcon("code")}</span><h2>ابدأ تكاملك المخصص</h2><p>أنشئ مفتاح API محدود الصلاحيات، ثم أضف Webhook موقّعًا لاستقبال الأحداث.</p></article>
+        </section>`}
+      ${setupForm}
     </section>`);
 }
 
