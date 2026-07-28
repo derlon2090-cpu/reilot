@@ -4480,6 +4480,15 @@ async function handleAction(target) {
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
   if (action === "reload-custom-integrations") { state.customIntegrations = null; syncRouteData(true); }
+  if (action === "open-custom-api-setup") {
+    const setup = document.getElementById("custom-api-create");
+    if (setup instanceof HTMLDetailsElement) {
+      setup.open = true;
+      setup.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => setup.querySelector('input[name="name"]')?.focus(), 250);
+    }
+    return;
+  }
   if (action === "copy-text") {
     await copyText(target.dataset.value || "", "تم النسخ");
     return;
@@ -6224,7 +6233,7 @@ function customIntegrationPage() {
     "campaign.completed": "اكتمال حملة"
   };
   const setupForm = `
-    <details class="card custom-api-create" ${item ? "" : "open"}>
+    <details id="custom-api-create" class="card custom-api-create">
       <summary>${dashboardIcon("add")} ${item ? "إنشاء تكامل إضافي" : "إعداد التكامل الأول"}</summary>
       <form class="custom-api-create-form" data-submit="custom-integration">
         <div class="form-grid two">
@@ -6272,6 +6281,7 @@ function customIntegrationPage() {
       ${item ? `
         <div class="custom-api-summary">
           <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>${escapeHtml(item.name)}</strong><em class="status ${integrationStatus[1]}">${integrationStatus[0]}</em></article>
+          <article><span>${dashboardIcon("settings")}</span><small>البيئة</small><strong>${item.environment === "live" ? "إنتاجية" : "تجريبية"}</strong><em>بيئة التكامل</em></article>
           <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>${formatIntegrationDate(item.latestKeyUsedAt || item.lastApiRequestAt)}</strong><em>طلبات موثقة فقط</em></article>
           <article><span>${dashboardIcon("success")}</span><small>آخر Webhook ناجح</small><strong>${formatIntegrationDate(webhook.lastSuccessAt)}</strong><em>${Number(item.delivered24h || 0)} تسليم خلال 24 ساعة</em></article>
           <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>${formatIntegrationDate(webhook.lastTestedAt || item.createdAt)}</strong><em>${Number(item.events24h || 0)} حدث خلال 24 ساعة</em></article>
@@ -6361,9 +6371,52 @@ function customIntegrationPage() {
           <div class="custom-api-billing-summary"><div><small>الباقة الحالية</small><strong>${escapeHtml(billing.subscription?.name || "لا توجد باقة")}</strong></div><div><small>السعر الشهري</small><strong>${billing.subscription ? `${Number(billing.subscription.monthlyPriceSar || 0).toLocaleString("ar-SA")} ر.س` : "—"}</strong></div><div><small>التجديد</small><strong>${formatIntegrationDate(billing.subscription?.periodEnd)}</strong></div><div><small>بوابة الدفع</small><strong>${billing.providerConfigured ? escapeHtml(billing.subscription?.provider) : "لم يتم ربط بوابة دفع"}</strong></div></div>
           ${(Array.isArray(billing.invoices) && billing.invoices.length) ? `<div class="table-scroll"><table><thead><tr><th>رقم الفاتورة</th><th>الحالة</th><th>المبلغ</th><th>التاريخ</th></tr></thead><tbody>${billing.invoices.map((invoice) => `<tr><td>${escapeHtml(invoice.number)}</td><td>${escapeHtml(invoice.status)}</td><td>${Number(invoice.amount || 0).toLocaleString("ar-SA")} ${escapeHtml(invoice.currency || "SAR")}</td><td>${formatIntegrationDate(invoice.issuedAt)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted custom-api-no-invoices">لا توجد فواتير حتى الآن.</p>`}
         </section>` : `
-        <section class="custom-api-welcome">
-          <article class="card"><span>${dashboardIcon("code")}</span><h2>ابدأ تكاملك المخصص</h2><p>أنشئ مفتاح API محدود الصلاحيات، ثم أضف Webhook موقّعًا لاستقبال الأحداث.</p></article>
-        </section>`}
+        <div class="custom-api-summary custom-api-summary--empty" aria-label="ملخص حالة التكامل">
+          <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>غير مهيأ</strong><em class="status muted">غير مربوط</em></article>
+          <article><span>${dashboardIcon("settings")}</span><small>البيئة</small><strong>—</strong><em>لم يبدأ الإعداد</em></article>
+          <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>لا يوجد بعد</strong><em>٠ طلبات موثقة</em></article>
+          <article><span>${dashboardIcon("success")}</span><small>آخر Webhook ناجح</small><strong>لا يوجد بعد</strong><em>٠ تسليمات ناجحة</em></article>
+          <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>لا يوجد بعد</strong><em>٠ أحداث مستلمة</em></article>
+        </div>
+
+        <div class="custom-api-layout custom-api-layout--empty" id="custom-api-overview">
+          <main class="custom-api-main">
+            <div class="custom-api-config-grid">
+              <article class="card custom-api-key-card custom-api-placeholder-card" id="custom-api-keys">
+                <div class="section-head"><div><h2>مفتاح API</h2><p class="muted">أنشئ مفتاحًا محدود الصلاحيات لاستخدام الواجهة البرمجية.</p></div><span class="custom-api-card-icon">${dashboardIcon("key")}</span></div>
+                <div class="custom-api-empty-webhook"><span>${dashboardIcon("key")}</span><strong>لم يتم إنشاء مفتاح API بعد</strong><p>سيظهر المفتاح الكامل مرة واحدة فقط بعد إعداد التكامل.</p><button class="btn btn-primary" data-action="open-custom-api-setup">إنشاء مفتاح API</button></div>
+              </article>
+
+              <article class="card custom-api-webhook-card custom-api-placeholder-card" id="custom-api-webhooks">
+                <div class="section-head"><div><h2>Webhook</h2><p class="muted">استقبل أحداث Renvix الفورية بتوقيع HMAC-SHA256.</p></div><span class="custom-api-card-icon">${dashboardIcon("webhook")}</span></div>
+                <div class="custom-api-empty-webhook"><span>${dashboardIcon("webhook")}</span><strong>لم تتم إضافة عنوان Webhook بعد</strong><p>أكمل إعداد التكامل أولًا ثم أضف عنوان الاستقبال.</p><button class="btn btn-secondary" data-action="open-custom-api-setup">إعداد Webhook</button></div>
+              </article>
+            </div>
+
+            <article class="card custom-api-deliveries" id="custom-api-deliveries">
+              <div class="section-head"><div><h2>سجل الأحداث والتسليمات</h2><p class="muted">يعرض السجل الحقيقي فقط ولا يحتوي على بيانات وهمية.</p></div><span class="status muted">٠ أحداث</span></div>
+              <div class="custom-api-no-deliveries">${dashboardIcon("document")}<strong>لا توجد تسليمات حتى الآن</strong><p>ستظهر هنا الأحداث الحقيقية بعد إنشاء التكامل وبدء استخدامه.</p></div>
+            </article>
+          </main>
+
+          <aside class="custom-api-sidebar">
+            <article class="card custom-api-control-card custom-api-control-card--empty">
+              <span class="custom-api-app-art">${dashboardIcon("code")}</span>
+              <h2>تطبيق مخصص</h2>
+              <span class="status muted">غير مربوط</span>
+              <p>ابدأ بإعداد تكامل آمن ثم اختبر أول طلب API أو Webhook.</p>
+              <button class="btn btn-primary" data-action="open-custom-api-setup">${dashboardIcon("settings")} إعداد التكامل</button>
+              <a class="btn btn-secondary" href="/openapi/renvix-v1.json" target="_blank" rel="noopener">${dashboardIcon("document")} عرض التوثيق</a>
+            </article>
+            <article class="card custom-api-benefits">
+              <h2>مزايا التكامل</h2>
+              <div><span>${dashboardIcon("code")}</span><p><b>تكامل مخصص عبر API</b><small>تحكم كامل في البيانات والصلاحيات</small></p></div>
+              <div><span>${dashboardIcon("webhook")}</span><p><b>إمكانية Webhooks</b><small>استلام الأحداث الفورية بتوقيع موثوق</small></p></div>
+              <div><span>${dashboardIcon("refresh")}</span><p><b>إرسال واستقبال البيانات</b><small>تكامل ثنائي الاتجاه مع منع التكرار</small></p></div>
+              <div><span>${dashboardIcon("security")}</span><p><b>توثيق شامل ومرن</b><small>أمثلة واختبارات وسجل تدقيق</small></p></div>
+            </article>
+          </aside>
+        </div>`}
       ${setupForm}
     </section>`);
 }
