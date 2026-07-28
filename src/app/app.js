@@ -660,9 +660,18 @@ async function fetchJson(url, options = {}) {
     }
     throw error;
   }
-  const payload = await response.json().catch(() => ({}));
+  const rawPayload = await response.text().catch(() => "");
+  let payload = {};
+  if (rawPayload) {
+    try {
+      payload = JSON.parse(rawPayload);
+    } catch {
+      payload = { message: response.ok ? "تعذر قراءة استجابة الخادم." : "تعذر إكمال الطلب من الخادم." };
+    }
+  }
   if (!response.ok) {
-    const error = new Error(payload.message || payload.error || "Request failed");
+    const serverMessage = typeof payload.error === "object" ? payload.error?.message : payload.error;
+    const error = new Error(payload.message || serverMessage || "تعذر إكمال الطلب.");
     error.status = response.status;
     error.code = payload.code || payload.reason;
     error.payload = payload;
@@ -6148,7 +6157,7 @@ function legacyCustomIntegrationPage() {
   ];
   return dashboardShell(`
     <section class="custom-integration-page">
-      <div class="custom-integration-heading"><div><span class="custom-integration-kicker">&lt;/&gt; تطبيق مخصص</span><h1>تكامل API / Webhook</h1><p>اربط نظامك الخارجي مع Renvix بمفاتيح آمنة، صلاحيات دقيقة، Webhooks موقعة وسجل قابل للتدقيق.</p></div><a class="btn btn-secondary" href="/openapi/renvix-v1.json" target="_blank" rel="noopener">عرض توثيق OpenAPI</a></div>
+      <div class="custom-integration-heading"><div><span class="custom-integration-kicker">&lt;/&gt; تطبيق مخصص</span><h1>تكامل API / Webhook</h1><p>اربط نظامك الخارجي مع Renvix بمفاتيح آمنة، صلاحيات دقيقة، Webhooks موقعة وسجل قابل للتدقيق.</p></div><a class="btn btn-secondary" href="/docs/api" target="_blank" rel="noopener">عرض التوثيق</a></div>
       ${secret ? `<article class="custom-secret-alert"><span>${dashboardIcon("security")}</span><div><strong>${secret.kind === "webhook" ? "سر توقيع Webhook" : "مفتاح API — يظهر مرة واحدة فقط"}</strong><code dir="ltr">${escapeHtml(secret.value)}</code><small>انسخه الآن واحفظه في مدير أسرار آمن. لن يظهر كاملًا مرة أخرى.</small></div><button class="btn btn-primary" data-action="copy-custom-secret">نسخ</button><button class="btn btn-ghost" data-action="dismiss-custom-secret">إغلاق</button></article>` : ""}
       <div class="custom-integration-grid">
         <form class="card custom-integration-setup" data-submit="custom-integration">
@@ -6262,38 +6271,44 @@ function customIntegrationPage() {
       </form>
     </details>`;
 
+  const summaryPanel = `
+    <div class="custom-api-summary ${item ? "" : "custom-api-summary--empty"}" aria-label="ملخص حالة التكامل">
+      <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>${item ? escapeHtml(item.name) : "غير مهيأ"}</strong><em class="status ${item ? integrationStatus[1] : "muted"}">${item ? integrationStatus[0] : "غير مربوط"}</em></article>
+      <article><span>${dashboardIcon("settings")}</span><small>البيئة</small><strong>${item ? (item.environment === "live" ? "إنتاجية" : "تجريبية") : "—"}</strong><em>${item ? "بيئة التكامل" : "لم يبدأ الإعداد"}</em></article>
+      <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>${item ? formatIntegrationDate(item.latestKeyUsedAt || item.lastApiRequestAt) : "لا يوجد بعد"}</strong><em>${item ? "طلبات موثقة فقط" : "٠ طلبات موثقة"}</em></article>
+      <article><span>${dashboardIcon("success")}</span><small>آخر Webhook ناجح</small><strong>${item ? formatIntegrationDate(webhook.lastSuccessAt) : "لا يوجد بعد"}</strong><em>${item ? `${Number(item.delivered24h || 0)} تسليم خلال 24 ساعة` : "٠ تسليمات ناجحة"}</em></article>
+      <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>${item ? formatIntegrationDate(webhook.lastTestedAt || item.createdAt) : "لا يوجد بعد"}</strong><em>${item ? `${Number(item.events24h || 0)} حدث خلال 24 ساعة` : "٠ أحداث مستلمة"}</em></article>
+    </div>`;
+
+  const controlCard = `
+    <article class="card custom-api-control-card ${item ? "" : "custom-api-control-card--empty"}">
+      <div class="custom-api-control-identity">
+        <span class="custom-api-app-art">${dashboardIcon("code")}</span>
+        <div><h2>تطبيق مخصص</h2><span class="status ${item ? integrationStatus[1] : "muted"}">${item ? integrationStatus[0] : "غير مربوط"}</span><p>${item ? "آخر مزامنة منذ " + formatIntegrationDate(webhook.lastTestedAt || item.createdAt) : "ابدأ بإعداد اتصال آمن ومحدود الصلاحيات."}</p></div>
+      </div>
+      ${item ? `<a class="btn btn-primary" href="#custom-api-keys">${dashboardIcon("settings")} إعداد التكامل</a>${webhook.id ? `<button class="btn btn-secondary" data-action="test-custom-webhook" data-id="${escapeHtml(item.id)}" data-endpoint-id="${escapeHtml(webhook.id)}">${dashboardIcon("send")} اختبار الاتصال</button>` : `<button class="btn btn-secondary" data-action="add-custom-webhook" data-id="${escapeHtml(item.id)}">${dashboardIcon("webhook")} اختبار الاتصال</button>`}` : `<button class="btn btn-primary" data-action="open-custom-api-setup">${dashboardIcon("settings")} إعداد التكامل</button><button class="btn btn-secondary" data-action="open-custom-api-setup">${dashboardIcon("send")} اختبار الاتصال</button>`}
+      <a class="btn btn-secondary" href="/docs/api" target="_blank" rel="noopener">${dashboardIcon("document")} عرض التوثيق</a>
+    </article>`;
+
   return dashboardShell(`
     <section class="custom-api-dashboard">
-      <header class="custom-api-header">
-        <div>
-          <div class="breadcrumbs"><span>الإعدادات</span><span>التكاملات</span></div>
-          <h1>API / Webhook <span class="custom-api-title-icon">&lt;/&gt;</span></h1>
-          <p>اربط نظامك الخاص عبر API أو Webhook للتحكم الكامل في التكامل.</p>
+      <div class="custom-api-top-grid">
+        <div class="custom-api-top-main">
+          <header class="custom-api-header">
+            <div>
+              <div class="breadcrumbs"><span>الإعدادات</span><span>التكاملات</span></div>
+              <h1>API / Webhook <span class="custom-api-title-icon">&lt;/&gt;</span></h1>
+              <p>اربط نظامك الخاص عبر API أو Webhook للتحكم الكامل في التكامل.</p>
+            </div>
+          </header>
+          ${summaryPanel}
         </div>
-        <div class="custom-api-header-actions">
-          <a class="btn btn-secondary" href="/openapi/renvix-v1.json" target="_blank" rel="noopener">${dashboardIcon("document")} عرض التوثيق</a>
-          <button class="btn btn-primary" data-action="reload-custom-integrations">${dashboardIcon("refresh")} تحديث البيانات</button>
-        </div>
-      </header>
+        ${controlCard}
+      </div>
 
       ${secret ? `<article class="custom-secret-alert"><span>${dashboardIcon("security")}</span><div><strong>${secret.kind === "webhook" ? "سر توقيع Webhook" : "مفتاح API — يظهر مرة واحدة فقط"}</strong><code dir="ltr">${escapeHtml(secret.value)}</code><small>انسخه الآن واحفظه في مدير أسرار آمن. لن يظهر كاملًا مرة أخرى.</small></div><button class="btn btn-primary" data-action="copy-custom-secret">نسخ</button><button class="btn btn-ghost" data-action="dismiss-custom-secret">إغلاق</button></article>` : ""}
 
       ${item ? `
-        <div class="custom-api-summary">
-          <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>${escapeHtml(item.name)}</strong><em class="status ${integrationStatus[1]}">${integrationStatus[0]}</em></article>
-          <article><span>${dashboardIcon("settings")}</span><small>البيئة</small><strong>${item.environment === "live" ? "إنتاجية" : "تجريبية"}</strong><em>بيئة التكامل</em></article>
-          <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>${formatIntegrationDate(item.latestKeyUsedAt || item.lastApiRequestAt)}</strong><em>طلبات موثقة فقط</em></article>
-          <article><span>${dashboardIcon("success")}</span><small>آخر Webhook ناجح</small><strong>${formatIntegrationDate(webhook.lastSuccessAt)}</strong><em>${Number(item.delivered24h || 0)} تسليم خلال 24 ساعة</em></article>
-          <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>${formatIntegrationDate(webhook.lastTestedAt || item.createdAt)}</strong><em>${Number(item.events24h || 0)} حدث خلال 24 ساعة</em></article>
-        </div>
-
-        <nav class="custom-api-tabs" aria-label="أقسام التكامل">
-          <a href="#custom-api-overview">نظرة عامة</a><a href="#custom-api-keys">مفاتيح API</a>
-          <a href="#custom-api-webhooks">Webhooks</a><a href="#custom-api-deliveries">الأحداث والتسليمات</a>
-          <a href="#custom-api-usage">الاستخدام والحدود</a><a href="#custom-api-billing">الفوترة</a>
-          <a href="/openapi/renvix-v1.json" target="_blank" rel="noopener">التوثيق</a>
-        </nav>
-
         <div class="custom-api-layout" id="custom-api-overview">
           <main class="custom-api-main">
             <div class="custom-api-config-grid">
@@ -6333,13 +6348,6 @@ function customIntegrationPage() {
           </main>
 
           <aside class="custom-api-sidebar">
-            <article class="card custom-api-control-card">
-              <span class="custom-api-app-art">${dashboardIcon("code")}</span>
-              <h2>تطبيق مخصص</h2>
-              <span class="status ${integrationStatus[1]}">${integrationStatus[0]}</span>
-              <p>حالة التكامل مبنية على آخر طلب API أو اختبار Webhook حقيقي.</p>
-              <button class="btn btn-primary" data-action="reload-custom-integrations">إعادة الفحص</button>
-            </article>
             <article class="card custom-api-benefits">
               <h2>مزايا التكامل</h2>
               <div><span>${dashboardIcon("code")}</span><p><b>تكامل مخصص عبر API</b><small>تحكم كامل في البيانات والصلاحيات</small></p></div>
@@ -6371,14 +6379,6 @@ function customIntegrationPage() {
           <div class="custom-api-billing-summary"><div><small>الباقة الحالية</small><strong>${escapeHtml(billing.subscription?.name || "لا توجد باقة")}</strong></div><div><small>السعر الشهري</small><strong>${billing.subscription ? `${Number(billing.subscription.monthlyPriceSar || 0).toLocaleString("ar-SA")} ر.س` : "—"}</strong></div><div><small>التجديد</small><strong>${formatIntegrationDate(billing.subscription?.periodEnd)}</strong></div><div><small>بوابة الدفع</small><strong>${billing.providerConfigured ? escapeHtml(billing.subscription?.provider) : "لم يتم ربط بوابة دفع"}</strong></div></div>
           ${(Array.isArray(billing.invoices) && billing.invoices.length) ? `<div class="table-scroll"><table><thead><tr><th>رقم الفاتورة</th><th>الحالة</th><th>المبلغ</th><th>التاريخ</th></tr></thead><tbody>${billing.invoices.map((invoice) => `<tr><td>${escapeHtml(invoice.number)}</td><td>${escapeHtml(invoice.status)}</td><td>${Number(invoice.amount || 0).toLocaleString("ar-SA")} ${escapeHtml(invoice.currency || "SAR")}</td><td>${formatIntegrationDate(invoice.issuedAt)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted custom-api-no-invoices">لا توجد فواتير حتى الآن.</p>`}
         </section>` : `
-        <div class="custom-api-summary custom-api-summary--empty" aria-label="ملخص حالة التكامل">
-          <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>غير مهيأ</strong><em class="status muted">غير مربوط</em></article>
-          <article><span>${dashboardIcon("settings")}</span><small>البيئة</small><strong>—</strong><em>لم يبدأ الإعداد</em></article>
-          <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>لا يوجد بعد</strong><em>٠ طلبات موثقة</em></article>
-          <article><span>${dashboardIcon("success")}</span><small>آخر Webhook ناجح</small><strong>لا يوجد بعد</strong><em>٠ تسليمات ناجحة</em></article>
-          <article><span>${dashboardIcon("refresh")}</span><small>آخر مزامنة</small><strong>لا يوجد بعد</strong><em>٠ أحداث مستلمة</em></article>
-        </div>
-
         <div class="custom-api-layout custom-api-layout--empty" id="custom-api-overview">
           <main class="custom-api-main">
             <div class="custom-api-config-grid">
@@ -6400,14 +6400,6 @@ function customIntegrationPage() {
           </main>
 
           <aside class="custom-api-sidebar">
-            <article class="card custom-api-control-card custom-api-control-card--empty">
-              <span class="custom-api-app-art">${dashboardIcon("code")}</span>
-              <h2>تطبيق مخصص</h2>
-              <span class="status muted">غير مربوط</span>
-              <p>ابدأ بإعداد تكامل آمن ثم اختبر أول طلب API أو Webhook.</p>
-              <button class="btn btn-primary" data-action="open-custom-api-setup">${dashboardIcon("settings")} إعداد التكامل</button>
-              <a class="btn btn-secondary" href="/openapi/renvix-v1.json" target="_blank" rel="noopener">${dashboardIcon("document")} عرض التوثيق</a>
-            </article>
             <article class="card custom-api-benefits">
               <h2>مزايا التكامل</h2>
               <div><span>${dashboardIcon("code")}</span><p><b>تكامل مخصص عبر API</b><small>تحكم كامل في البيانات والصلاحيات</small></p></div>

@@ -4893,23 +4893,25 @@ input[type="password"]::-webkit-textfield-decoration-container {
 
 /* Detailed custom API dashboard */
 .custom-api-dashboard{display:grid;gap:18px}
+.custom-api-top-grid{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:15px;align-items:stretch}
+.custom-api-top-main{display:grid;gap:12px;min-width:0}
 .custom-api-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
 .custom-api-header h1{display:flex;align-items:center;gap:10px;margin:7px 0 5px;color:#08275a;font-size:30px}
 .custom-api-header p{margin:0;color:#7b8ba4}
 .custom-api-title-icon,.custom-api-card-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eef5ff;color:#1769ed;font:800 15px monospace}
 .custom-api-header-actions{display:flex;gap:9px;flex-wrap:wrap}
-.custom-api-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:13px}
-.custom-api-summary article{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:11px;align-items:center;padding:16px;border:1px solid #dfe8f4;border-radius:15px;background:#fff;box-shadow:0 8px 28px rgba(24,64,117,.04)}
-.custom-api-summary article>span{grid-row:1/5;display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:#eef5ff;color:#1769ed}
+.custom-api-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:hidden;border:1px solid #dfe8f4;border-radius:14px;background:#fff;box-shadow:0 8px 28px rgba(24,64,117,.04)}
+.custom-api-summary article{display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:8px;align-items:center;min-width:0;padding:13px 11px;border-inline-start:1px solid #e7edf5;background:#fff}
+.custom-api-summary article:first-child{border-inline-start:0}
+.custom-api-summary article>span{grid-row:1/5;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#eef5ff;color:#1769ed}
+.custom-api-summary article>span svg{width:17px;height:17px}
 .custom-api-summary small,.custom-api-summary em{color:#8090a8;font-style:normal;font-size:12px}
-.custom-api-summary strong{color:#0a2857;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.custom-api-summary strong{color:#0a2857;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .custom-api-summary .status{justify-self:start;padding:4px 9px}
-.custom-api-tabs{display:flex;gap:6px;padding:6px;border:1px solid #dfe8f4;border-radius:14px;background:#fff;overflow-x:auto;scrollbar-width:thin}
-.custom-api-tabs a{flex:0 0 auto;padding:10px 14px;border-radius:10px;color:#536986;font-size:13px;font-weight:750;text-decoration:none;white-space:nowrap}
-.custom-api-tabs a:first-child,.custom-api-tabs a:hover{background:#eef5ff;color:#1769ed}
-.custom-api-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:15px;align-items:start}
-.custom-api-main,.custom-api-sidebar{display:grid;gap:15px}
+.custom-api-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;grid-template-areas:"config config" "deliveries benefits";gap:15px;align-items:start}
+.custom-api-main{display:contents}.custom-api-sidebar{grid-area:benefits;display:grid;gap:15px}
 .custom-api-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.custom-api-layout .custom-api-config-grid{grid-area:config}.custom-api-layout .custom-api-deliveries{grid-area:deliveries}
 .custom-api-key-card,.custom-api-webhook-card,.custom-api-deliveries,.custom-api-control-card,.custom-api-benefits{padding:19px}
 .custom-api-key-card h2,.custom-api-webhook-card h2,.custom-api-deliveries h2,.custom-api-control-card h2,.custom-api-benefits h2{margin:0;color:#0a2857;font-size:18px}
 .custom-api-secret-field,.custom-api-copy-field{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:9px 11px;border:1px solid #dce7f5;border-radius:10px;background:#fbfdff}
@@ -4932,12 +4934,13 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .custom-api-deliveries th{color:#6f8099;background:#f8fbff}
 .custom-api-deliveries td code{color:#24486f}
 .text-danger{color:#e63d4f}.text-success{color:#0ca56d}
-.custom-api-app-art{display:grid;place-items:center;width:72px;height:72px;margin:auto;border-radius:20px;background:linear-gradient(135deg,#13b8c8,#2864fa);color:#fff;box-shadow:0 14px 30px rgba(24,105,237,.18)}
-.custom-api-control-card{text-align:center}
-.custom-api-control-card h2{margin-top:11px}.custom-api-control-card p{color:#7989a2;line-height:1.7;font-size:13px}
-.custom-api-control-card .status{display:inline-flex;margin:auto}
-.custom-api-control-card .btn{width:100%}
-.custom-api-control-card--empty{display:grid;gap:9px}
+.custom-api-app-art{display:grid;place-items:center;width:62px;height:62px;border-radius:17px;background:linear-gradient(135deg,#13b8c8,#2864fa);color:#fff;box-shadow:0 12px 25px rgba(24,105,237,.16);flex:0 0 auto}
+.custom-api-control-card{display:grid;gap:8px;text-align:start}
+.custom-api-control-identity{display:flex;align-items:center;gap:11px}.custom-api-control-identity>div{display:grid;gap:3px;min-width:0}
+.custom-api-control-card h2{margin:0}.custom-api-control-card p{margin:0;color:#7989a2;line-height:1.55;font-size:11px}
+.custom-api-control-card .status{display:inline-flex;justify-self:start}
+.custom-api-control-card .btn{width:100%;min-height:36px;padding:7px 10px;font-size:12px}
+.custom-api-control-card--empty{display:grid;gap:8px}
 .custom-api-control-card--empty .btn+.btn{margin-top:0}
 .custom-api-benefits{display:grid;gap:12px}
 .custom-api-benefits>div{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #e5ecf5;border-radius:12px}
@@ -4961,9 +4964,10 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .custom-api-billing-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.custom-api-billing-summary>div{display:grid;gap:5px;padding:13px;border:1px solid #e3ebf5;border-radius:11px;background:#fbfdff}.custom-api-billing-summary small{color:#8090a8}.custom-api-billing-summary strong{color:#173963}
 .custom-api-billing table{width:100%;border-collapse:collapse}.custom-api-billing th,.custom-api-billing td{padding:10px;border-bottom:1px solid #e7edf5;text-align:right;font-size:12px}.custom-api-no-invoices{margin:0;padding:16px;text-align:center}
 @media(max-width:1100px){
-  .custom-api-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .custom-api-layout{grid-template-columns:1fr}
-  .custom-api-sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .custom-api-top-grid{grid-template-columns:1fr}
+  .custom-api-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.custom-api-summary article{border-bottom:1px solid #e7edf5}
+  .custom-api-layout{grid-template-columns:1fr;grid-template-areas:"config" "deliveries" "benefits"}
+  .custom-api-sidebar{grid-template-columns:1fr}
   .custom-api-limit-grid,.custom-api-billing-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
@@ -4983,8 +4987,8 @@ input[type="password"]::-webkit-textfield-decoration-container {
 :root[data-theme="dark"] .custom-api-benefits b,
 :root[data-theme="dark"] .custom-api-scopes>span,
 :root[data-theme="dark"] .custom-api-events>span{color:#e9f2ff}
+:root[data-theme="dark"] .custom-api-summary,
 :root[data-theme="dark"] .custom-api-summary article,
-:root[data-theme="dark"] .custom-api-tabs,
 :root[data-theme="dark"] .custom-api-limit-grid article,
 :root[data-theme="dark"] .custom-api-billing-summary>div,
 :root[data-theme="dark"] .custom-api-secret-field,

@@ -32,16 +32,42 @@ export const CUSTOM_EVENTS = new Set([
   "integration.test"
 ]);
 
+export class CustomIntegrationConfigurationError extends Error {
+  constructor() {
+    super("Custom integration security configuration is unavailable");
+    this.name = "CustomIntegrationConfigurationError";
+    this.code = "CUSTOM_INTEGRATION_SECURITY_NOT_CONFIGURED";
+  }
+}
+
+function securityValue(explicitName, purpose) {
+  const explicitValue = String(process.env[explicitName] || "").trim();
+  if (explicitValue.length >= 24) return explicitValue;
+
+  // The dedicated values are preferred. A domain-separated value derived from
+  // the platform encryption/auth secret keeps existing installations operable
+  // without ever storing or exposing that root secret.
+  const rootSecret = [
+    process.env.ENCRYPTION_KEY,
+    process.env.JWT_SECRET,
+    process.env.BETTER_AUTH_SECRET
+  ].map((value) => String(value || "").trim()).find((value) => value.length >= 24);
+
+  if (!rootSecret) throw new CustomIntegrationConfigurationError();
+  return crypto.createHmac("sha256", rootSecret).update(`renvix:${purpose}:v1`).digest("hex");
+}
+
 function apiPepper() {
-  const value = process.env.CUSTOM_API_KEY_PEPPER;
-  if (!value || value.length < 24) throw new Error("CUSTOM_API_KEY_PEPPER is missing or too short");
-  return value;
+  return securityValue("CUSTOM_API_KEY_PEPPER", "custom-api-key-pepper");
 }
 
 function encryptionKey() {
-  const value = process.env.CUSTOM_INTEGRATION_ENCRYPTION_KEY;
-  if (!value || value.length < 24) throw new Error("CUSTOM_INTEGRATION_ENCRYPTION_KEY is missing or too short");
-  return value;
+  return securityValue("CUSTOM_INTEGRATION_ENCRYPTION_KEY", "custom-webhook-encryption");
+}
+
+export function isCustomIntegrationConfigurationError(error) {
+  return error instanceof CustomIntegrationConfigurationError
+    || error?.code === "CUSTOM_INTEGRATION_SECURITY_NOT_CONFIGURED";
 }
 
 export function normalizeScopes(scopes) {

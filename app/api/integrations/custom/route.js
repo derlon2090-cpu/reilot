@@ -1,6 +1,10 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { query, transaction } from "../../../../src/server/db.js";
-import { createApiKey, normalizeScopes } from "../../../../src/server/custom-integrations.js";
+import {
+  createApiKey,
+  isCustomIntegrationConfigurationError,
+  normalizeScopes
+} from "../../../../src/server/custom-integrations.js";
 import { requirePlanEntitlement, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
 
 export async function GET(req) {
@@ -112,37 +116,67 @@ export async function GET(req) {
 export async function POST(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
-  if (!["owner", "admin", "ADMIN"].includes(auth.session.role)) return Response.json({ ok: false, reason: "forbidden" }, { status: 403 });
-  try { await requirePlanEntitlement(auth.session.tenantId, "api_access"); }
-  catch (error) { const response = planEntitlementResponse(error); if (response) return response; throw error; }
-  const body = await req.json().catch(() => ({}));
-  const name = String(body.name || "").trim();
-  const scopes = normalizeScopes(body.scopes);
-  if (!name || !scopes.length) return Response.json({ ok: false, reason: "validation_error" }, { status: 400 });
-  const key = createApiKey(body.environment);
-  const item = await transaction(async (client) => {
-    const integration = await client.query(
-      `INSERT INTO custom_integrations
-         (tenant_id,name,description,environment,direction,status,scopes,created_by)
-       VALUES ($1,$2,$3,$4,$5,'PARTIALLY_CONFIGURED',$6::jsonb,$7)
-       RETURNING id,name,environment,direction,status`,
-      [auth.session.tenantId, name, body.description || null, body.environment === "test" ? "test" : "live",
-        ["inbound", "outbound", "bidirectional"].includes(body.direction) ? body.direction : "bidirectional",
-        JSON.stringify(scopes), auth.session.userId]
-    );
-    await client.query(
-      `INSERT INTO custom_integration_api_keys
-         (integration_id,tenant_id,name,public_key_id,key_prefix,key_digest,environment,status,scopes,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE',$8::jsonb,$9)`,
-      [integration.rows[0].id, auth.session.tenantId, body.keyName || "المفتاح الرئيسي",
-        key.publicKeyId, key.prefix, key.digest, key.environment, JSON.stringify(scopes), auth.session.userId]
-    );
-    await client.query(
-      `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
-       VALUES ($1,$2,'custom_integration.created','Custom integration created',$3::jsonb)`,
-      [auth.session.tenantId, auth.session.userId, JSON.stringify({ integrationId: integration.rows[0].id, keyPrefix: key.prefix })]
-    );
-    return integration.rows[0];
-  });
-  return Response.json({ ok: true, item, apiKey: key.raw, warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى." }, { status: 201 });
+  if (!["owner", "admin", "ADMIN"].includes(auth.session.role)) {
+    return Response.json({ ok: false, code: "forbidden", message: "لا تملك صلاحية إنشاء هذا التكامل." }, { status: 403 });
+  }
+
+  try {
+    await requirePlanEntitlement(auth.session.tenantId, "api_access");
+    const body = await req.json().catch(() => ({}));
+    const name = String(body.name || "").trim();
+    const scopes = normalizeScopes(body.scopes);
+    if (!name || !scopes.length) {
+      return Response.json({ ok: false, code: "validation_error", message: "أدخل اسم التكامل واختر صلاحية واحدة على الأقل." }, { status: 400 });
+    }
+
+    const key = createApiKey(body.environment);
+    const item = await transaction(async (client) => {
+      const integration = await client.query(
+        `INSERT INTO custom_integrations
+           (tenant_id,name,description,environment,direction,status,scopes,created_by)
+         VALUES ($1,$2,$3,$4,$5,'PARTIALLY_CONFIGURED',$6::jsonb,$7)
+         RETURNING id,name,environment,direction,status`,
+        [auth.session.tenantId, name, body.description || null, body.environment === "test" ? "test" : "live",
+          ["inbound", "outbound", "bidirectional"].includes(body.direction) ? body.direction : "bidirectional",
+          JSON.stringify(scopes), auth.session.userId]
+      );
+      await client.query(
+        `INSERT INTO custom_integration_api_keys
+           (integration_id,tenant_id,name,public_key_id,key_prefix,key_digest,environment,status,scopes,created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE',$8::jsonb,$9)`,
+        [integration.rows[0].id, auth.session.tenantId, body.keyName || "المفتاح الرئيسي",
+          key.publicKeyId, key.prefix, key.digest, key.environment, JSON.stringify(scopes), auth.session.userId]
+      );
+      await client.query(
+        `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
+         VALUES ($1,$2,'custom_integration.created','Custom integration created',$3::jsonb)`,
+        [auth.session.tenantId, auth.session.userId, JSON.stringify({ integrationId: integration.rows[0].id, keyPrefix: key.prefix })]
+      );
+      return integration.rows[0];
+    });
+    return Response.json({ ok: true, item, apiKey: key.raw, warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى." }, { status: 201 });
+  } catch (error) {
+    const entitlementResponse = planEntitlementResponse(error);
+    if (entitlementResponse) return entitlementResponse;
+    if (isCustomIntegrationConfigurationError(error)) {
+      return Response.json({
+        ok: false,
+        code: "custom_integration_security_not_configured",
+        message: "تعذر تهيئة مفاتيح أمان التكامل. تحقق من إعداد أسرار التشفير في بيئة الخادم."
+      }, { status: 503 });
+    }
+    if (["42P01", "42703"].includes(error?.code)) {
+      return Response.json({
+        ok: false,
+        code: "custom_integration_schema_missing",
+        message: "قاعدة البيانات غير مهيأة للتكامل المخصص. شغّل ترحيلات قاعدة البيانات ثم أعد المحاولة."
+      }, { status: 503 });
+    }
+    console.error("custom_integration_create_failed", { code: error?.code || "unknown", name: error?.name || "Error" });
+    return Response.json({
+      ok: false,
+      code: "custom_integration_create_failed",
+      message: "تعذر إنشاء التكامل حاليًا. تحقق من اتصال قاعدة البيانات ثم أعد المحاولة."
+    }, { status: 500 });
+  }
 }
