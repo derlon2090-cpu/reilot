@@ -1,4 +1,5 @@
 import { sessionCookie } from "../../../../../src/server/session.js";
+import { safeErrorMessage } from "../../../../../src/server/security.js";
 import {
   EMAIL_OTP_CHALLENGE_COOKIE,
   clearChallengeCookie,
@@ -31,7 +32,8 @@ export async function POST(req) {
     headers.append("Set-Cookie", clearChallengeCookie());
     if (result.trustedToken) headers.append("Set-Cookie", trustedDeviceCookie(result.trustedToken));
     return Response.json({ ok: true, user: result.user }, { headers });
-  } catch {
+  } catch (error) {
+    console.error("email OTP verification failed", safeErrorMessage(error));
     return Response.json({ ok: false, reason: "server_error" }, { status: 500 });
   }
 }

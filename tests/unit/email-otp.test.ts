@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
 
 beforeAll(() => {
   process.env.EMAIL_OTP_PEPPER = "test-email-otp-pepper-that-is-long-enough";
@@ -29,5 +30,11 @@ describe("email OTP security helpers", () => {
     expect(digestOtp("١٢٣٤٥٦", challengeId)).toBe(expected);
     expect(digestOtp("۱۲۳۴۵۶", challengeId)).toBe(expected);
     expect(digestOtp("١2۳4٥6", challengeId)).toBe(expected);
+  });
+
+  it("locks only the OTP challenge when joining optional tenant membership", async () => {
+    const source = await readFile(new URL("../../src/server/email-otp.js", import.meta.url), "utf8");
+    expect(source).toContain("FOR UPDATE OF c");
+    expect(source).not.toMatch(/LEFT JOIN tenant_members[\s\S]*?WHERE c\.id = \$1 FOR UPDATE`/);
   });
 });

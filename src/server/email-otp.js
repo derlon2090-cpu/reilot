@@ -235,7 +235,8 @@ export async function resendEmailOtp({ rawCookie, ipAddress, userAgent, locale =
       `SELECT c.*, u.email, u.name
          FROM auth_email_otp_challenges c
          JOIN users u ON u.id = c.user_id
-        WHERE c.id = $1 FOR UPDATE`,
+        WHERE c.id = $1
+        FOR UPDATE OF c`,
       [challengeId]
     );
     const row = locked.rows[0];
@@ -302,7 +303,8 @@ export async function verifyEmailOtp({
          FROM auth_email_otp_challenges c
          JOIN users u ON u.id = c.user_id
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-        WHERE c.id = $1 FOR UPDATE`,
+        WHERE c.id = $1
+        FOR UPDATE OF c`,
       [challengeId]
     );
     const row = locked.rows[0];
