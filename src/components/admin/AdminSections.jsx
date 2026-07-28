@@ -520,6 +520,184 @@ function Reports({ data, stats }) {
   </>;
 }
 
+const SUPPORT_STATUS_LABELS = {
+  NEW: "جديدة", OPEN: "مفتوحة", IN_PROGRESS: "قيد المعالجة",
+  WAITING_FOR_USER: "تم الرد", WAITING_FOR_SUPPORT: "بانتظار الرد",
+  RESOLVED: "تم الحل", CLOSED: "مغلقة", REOPENED: "أعيد فتحها"
+};
+
+const SUPPORT_TYPE_LABELS = {
+  INQUIRY: "استفسار", TECHNICAL_ISSUE: "مشكلة تقنية", SUGGESTION: "اقتراح",
+  COMPLAINT: "شكوى", BILLING: "فوترة", INTEGRATION: "تكاملات",
+  ACCOUNT: "حساب", OTHER: "أخرى"
+};
+
+const SUPPORT_PRIORITY_LABELS = {
+  LOW: "منخفضة", NORMAL: "عادية", HIGH: "عالية", URGENT: "عاجلة"
+};
+
+async function supportRequest(url, options) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
+    ...options
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) throw new Error(payload.message || "تعذر تنفيذ الطلب.");
+  return payload;
+}
+
+function Support({ admin }) {
+  const [items, setItems] = useState([]);
+  const [stats, setStats] = useState({ total: 0, open: 0, replied: 0, pending: 0 });
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState(null);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
+  const [reply, setReply] = useState("");
+  const [internal, setInternal] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadList = useCallback(async (quiet = false) => {
+    if (!quiet) setBusy(true);
+    try {
+      const params = new URLSearchParams({ limit: "25" });
+      if (search.trim()) params.set("search", search.trim());
+      if (status) params.set("status", status);
+      if (type) params.set("type", type);
+      const payload = await supportRequest(`/api/admin/support/tickets?${params}`);
+      setItems(payload.items || []);
+      setStats(payload.stats || {});
+      setError("");
+      if (!selectedId && payload.items?.[0]?.id) setSelectedId(payload.items[0].id);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      if (!quiet) setBusy(false);
+    }
+  }, [search, status, type, selectedId]);
+
+  const loadDetail = useCallback(async (id, quiet = false) => {
+    if (!id) { setDetail(null); return; }
+    if (!quiet) setBusy(true);
+    try {
+      const payload = await supportRequest(`/api/admin/support/tickets/${id}`);
+      setDetail(payload.item || null);
+      if (Number(payload.item?.adminUnreadCount || 0) > 0) {
+        await supportRequest(`/api/admin/support/tickets/${id}/read`, {
+          method: "POST",
+          body: "{}"
+        });
+        setItems((current) => current.map((item) => item.id === id ? { ...item, adminUnreadCount: 0 } : item));
+      }
+      setError("");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      if (!quiet) setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => { loadList(); }, [search, status, type]);
+  useEffect(() => { loadDetail(selectedId); }, [selectedId, loadDetail]);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadList(true);
+      if (selectedId) loadDetail(selectedId, true);
+    }, 25_000);
+    return () => clearInterval(timer);
+  }, [selectedId, loadList, loadDetail]);
+
+  async function sendReply(event) {
+    event.preventDefault();
+    if (!selectedId || reply.trim().length < 2) return;
+    setBusy(true);
+    try {
+      await supportRequest(`/api/admin/support/tickets/${selectedId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ body: reply, internal })
+      });
+      setReply("");
+      setInternal(false);
+      await Promise.all([loadDetail(selectedId, true), loadList(true)]);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateTicket(patch) {
+    if (!selectedId) return;
+    setBusy(true);
+    try {
+      await supportRequest(`/api/admin/support/tickets/${selectedId}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch)
+      });
+      await Promise.all([loadDetail(selectedId, true), loadList(true)]);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const selected = detail || items.find((item) => item.id === selectedId);
+  const attachments = Array.isArray(detail?.attachments) ? detail.attachments : [];
+  return <>
+    <KpiGrid items={[
+      { label: "إجمالي الرسائل", value: ar(stats.total), helper: "كل الرسائل والشكاوى", icon: "mail", tone: "blue" },
+      { label: "الشكاوى المفتوحة", value: ar(stats.open), helper: "تحتاج مراجعة", icon: "alert", tone: "red" },
+      { label: "تم الرد", value: ar(stats.replied), helper: "بانتظار المستخدم", icon: "check", tone: "green" },
+      { label: "بانتظار المعالجة", value: ar(stats.pending), helper: "تحتاج إجراء من الدعم", icon: "clock", tone: "orange" }
+    ]} />
+    {error ? <div className={styles.adminSupportError} role="alert">{error}</div> : null}
+    <section className={styles.adminSupportToolbar}>
+      <label className={styles.adminSearchField}><Glyph name="mail" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث بالاسم أو البريد أو رقم التذكرة..." /></label>
+      <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="حالة التذكرة"><option value="">جميع الحالات</option>{Object.entries(SUPPORT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <select value={type} onChange={(event) => setType(event.target.value)} aria-label="نوع الرسالة"><option value="">كل الأنواع</option>{Object.entries(SUPPORT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <button type="button" className={styles.adminOutlineButton} onClick={() => loadList()} disabled={busy}><Glyph name="refresh" /> تحديث</button>
+    </section>
+    <section className={styles.adminSupportLayout}>
+      <div className={styles.adminSupportTableCard}>
+        <div className={styles.adminTabs}><button className={styles.adminTabActive}>الكل</button><button onClick={() => setType("COMPLAINT")}>الشكاوى</button><button onClick={() => setType("INQUIRY")}>الرسائل</button></div>
+        {!items.length ? <Empty title={busy ? "جارٍ تحميل الرسائل..." : "لا توجد رسائل أو شكاوى"} description="ستظهر تذاكر المستخدمين هنا فور إرسالها." /> :
+          <div className={styles.adminSupportTableWrap}><table><thead><tr><th>العميل</th><th>النوع</th><th>الموضوع</th><th>التاريخ</th><th>الحالة</th><th>الأولوية</th><th>الإجراء</th></tr></thead><tbody>
+            {items.map((ticket) => <tr key={ticket.id} className={selectedId === ticket.id ? styles.adminSupportSelectedRow : ""}>
+              <td><button className={styles.adminSupportCustomer} onClick={() => setSelectedId(ticket.id)}><span>{String(ticket.requesterName || ticket.requesterEmail || "?").trim().slice(0, 1)}</span><b>{ticket.requesterName || "مستخدم Renvix"}<small>{ticket.requesterEmail}</small></b></button></td>
+              <td><span className={ticket.type === "COMPLAINT" ? styles.adminSupportComplaint : styles.adminSupportMessage}><Glyph name={ticket.type === "COMPLAINT" ? "alert" : "mail"} />{SUPPORT_TYPE_LABELS[ticket.type] || ticket.type}</span></td>
+              <td><button className={styles.adminSupportSubject} onClick={() => setSelectedId(ticket.id)}>{ticket.subject}<small>{ticket.ticketNumber}</small></button></td>
+              <td>{formatDate(ticket.updatedAt, true)}</td>
+              <td><span className={styles.adminSupportStatus}>{SUPPORT_STATUS_LABELS[ticket.status] || ticket.status}</span></td>
+              <td><span className={`${styles.adminSupportPriority} ${styles[`adminSupportPriority_${ticket.priority}`]}`}>{SUPPORT_PRIORITY_LABELS[ticket.priority] || ticket.priority}</span></td>
+              <td><button className={styles.adminSupportDetailsButton} onClick={() => setSelectedId(ticket.id)}>عرض التفاصيل</button></td>
+            </tr>)}
+          </tbody></table></div>}
+      </div>
+      <aside className={styles.adminSupportPreview}>
+        {!selected ? <Empty title="اختر رسالة للمعاينة" description="تظهر المحادثة وإجراءات المعالجة هنا." /> : <>
+          <header><div className={styles.adminSupportAvatar}>{String(selected.requesterName || selected.requesterEmail || "?").trim().slice(0, 1)}</div><div><strong>{selected.requesterName || "مستخدم Renvix"}</strong><span>{selected.requesterEmail}</span></div><span>{SUPPORT_TYPE_LABELS[selected.type]}</span></header>
+          <div className={styles.adminSupportMeta}><span><b>الموضوع</b>{selected.subject}</span><span><b>رقم الرسالة</b>{selected.ticketNumber}</span><span><b>المتجر</b>{selected.tenantName}</span></div>
+          <div className={styles.adminSupportControls}>
+            <label><span>الحالة</span><select value={selected.status || "NEW"} onChange={(event) => updateTicket({ status: event.target.value })}>{Object.entries(SUPPORT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label><span>الأولوية</span><select value={selected.priority || "NORMAL"} onChange={(event) => updateTicket({ priority: event.target.value })}>{Object.entries(SUPPORT_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <button type="button" className={styles.adminSupportAssignButton} disabled={busy || selected.assignedAdminUserId === admin?.adminId} onClick={() => updateTicket({ assignedAdminUserId: admin?.adminId })}>{selected.assignedAdminUserId === admin?.adminId ? "مسندة إليك" : "إسناد إليّ"}</button>
+          </div>
+          <div className={styles.adminSupportThread}>{(selected.messages || []).map((message) => <article key={message.id} className={`${message.senderType === "ADMIN" ? styles.adminSupportBubbleAdmin : styles.adminSupportBubbleUser} ${message.isInternalNote ? styles.adminSupportInternal : ""}`}><b>{message.isInternalNote ? "ملاحظة داخلية" : message.senderType === "ADMIN" ? message.senderName || "فريق الدعم" : message.senderName || selected.requesterName}</b><p>{message.body}</p>{attachments.filter((file) => file.messageId === message.id).map((file) => <a key={file.id} className={styles.adminSupportAttachment} href={file.url} target="_blank" rel="noreferrer"><Glyph name="document" />{file.originalName}</a>)}<time>{formatDate(message.createdAt, true)}</time></article>)}</div>
+          <form className={styles.adminSupportReply} onSubmit={sendReply}>
+            <textarea value={reply} onChange={(event) => setReply(event.target.value)} maxLength={2000} placeholder="اكتب ردك على الرسالة..." required />
+            <label><input type="checkbox" checked={internal} onChange={(event) => setInternal(event.target.checked)} /> ملاحظة داخلية لا تظهر للمستخدم</label>
+            <button className={styles.adminPrimaryButton} type="submit" disabled={busy || reply.trim().length < 2}><Glyph name="send" /> {internal ? "حفظ الملاحظة" : "الرد على الرسالة"}</button>
+          </form>
+        </>}
+      </aside>
+    </section>
+  </>;
+}
+
 function SettingCard({ icon, title, description, children }) {
   return <article className={styles.adminSettingCard}><div className={styles.adminCardHead}><span><Glyph name={icon} /></span><div><h3>{title}</h3><p>{description}</p></div></div><div className={styles.adminSettingBody}>{children}</div></article>;
 }
@@ -545,12 +723,12 @@ function Settings({ data, stats, admin }) {
   </>;
 }
 
-export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "templates", "devices", "integrations", "security", "reports", "settings"]);
+export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "devices", "integrations", "security", "reports", "settings"]);
 
 export default function AdminSectionView({ panel, data, stats, admin }) {
   if (!data || !stats) return null;
   const components = {
-    overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, notifications: Notifications, templates: Templates,
+    overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, notifications: Notifications, support: Support, templates: Templates,
     devices: Devices, integrations: Integrations, security: Security, reports: Reports, settings: Settings
   };
   const Component = components[panel];

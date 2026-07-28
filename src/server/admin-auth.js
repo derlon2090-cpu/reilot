@@ -8,7 +8,7 @@ const ROLE_PERMISSIONS = {
     overview: ["read"], subscriptions: ["read", "update"], customers: ["read", "update"],
     stores: ["read", "update"], notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
     templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"], devices: ["read", "update"],
-    integrations: ["read", "update"], reports: ["read", "export"], audit: ["read"]
+    integrations: ["read", "update"], support: ["read", "reply", "update", "assign", "close"], reports: ["read", "export"], audit: ["read"]
   },
   admin: {
     overview: ["read"],
@@ -25,12 +25,14 @@ const ROLE_PERMISSIONS = {
     integrations: ["read", "update"],
     billing: ["read", "update"],
     settings: ["read", "update"],
+    support: ["read", "reply", "update", "assign", "close"],
     audit: ["read"]
   },
   support_admin: {
     overview: ["read"],
     customers: ["read"],
     devices: ["read", "update"],
+    support: ["read", "reply", "update", "assign", "close"],
     audit: ["read"]
   },
   billing_admin: {
@@ -52,7 +54,7 @@ const ROLE_PERMISSIONS = {
   read_only: {
     overview: ["read"], subscriptions: ["read"], customers: ["read"], stores: ["read"], campaigns: ["read"], contacts: ["read"],
     templates: ["read"], notifications: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
-    reports: ["read"], billing: ["read"], settings: ["read"], audit: ["read"]
+    reports: ["read"], billing: ["read"], settings: ["read"], support: ["read"], audit: ["read"]
   },
   viewer: {
     overview: ["read"],
@@ -61,6 +63,7 @@ const ROLE_PERMISSIONS = {
     devices: ["read"],
     security: ["read"],
     reports: ["read"],
+    support: ["read"],
     audit: ["read"]
   }
 };

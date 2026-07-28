@@ -545,6 +545,10 @@ state.contactStatistics = null;
 state.appsOverview = null;
 state.customIntegrations = null;
 state.customIntegrationSecret = null;
+state.supportTickets = null;
+state.supportTicket = null;
+state.supportFilter = "all";
+state.supportSelectedId = state.query.get("ticket") || "";
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
 state.sallaAutomationTemplates = null;
@@ -619,7 +623,8 @@ const dashboardRoutes = [
   ["/dashboard/security", "الحماية والأمان", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
   ["/dashboard/billing", "الفوترة والباقات", "billing"],
-  ["/dashboard/settings", "الإعدادات", "settings"]
+  ["/dashboard/settings", "الإعدادات", "settings"],
+  ["/dashboard/support", "الدعم والمساعدة", "support"]
 ];
 
 const dashboardAliases = {
@@ -697,7 +702,7 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     if (target === "dbSubscriptions") {
       state.dbSubscriptions = payload.items || [];
       state.subscriptionMeta = payload;
-    } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates"].includes(target)
+    } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
       ? payload
       : target === "orderLinkProfile"
         ? payload.profile
@@ -786,6 +791,11 @@ function syncRouteData(force = false) {
   }
   if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) queue("billing", "/api/billing", "billingOverview");
   if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) queue("settings", "/api/settings", "accountSettings");
+  if (state.route === "/dashboard/support") {
+    const requestedTicket = state.query.get("ticket") || state.supportSelectedId;
+    if (force || state.supportTickets === null) queue("supportTickets", `/api/support/tickets?filter=${encodeURIComponent(state.supportFilter)}&limit=25`, "supportTickets");
+    if (requestedTicket && (force || state.supportTicket?.id !== requestedTicket)) queue("supportTicket", `/api/support/tickets/${encodeURIComponent(requestedTicket)}`, "supportTicket");
+  }
 
   if (pending.length) {
     void Promise.allSettled(pending).then(() => {
@@ -946,6 +956,10 @@ function dashboardIcon(name) {
     billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
     notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
     support: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M18 19h-2v-7h4v5a2 2 0 0 1-2 2ZM6 19H4a2 2 0 0 1-2-2v-5h4v7Z"/><path d="M16 19c0 1.1-.9 2-2 2h-2"/>',
+    message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
+    attachment: '<path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.7 9.7a2 2 0 0 1-2.8-2.8l8.9-8.9"/>',
+    upload: '<path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     helpBook: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
     faq: '<path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.5 4.5 8.4 8.4 0 0 1-4-.95L3 21l1.95-5.5A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 8.5 4a8.4 8.4 0 0 1 4-.95H13a8.5 8.5 0 0 1 8 8.45Z"/><path d="M10.1 9.2a2.2 2.2 0 1 1 3.65 1.65c-.8.6-1.25 1-1.25 2.15"/><path d="M12.5 16h.01"/>',
     chat: '<path d="M5 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h1M19 17h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-1"/><path d="M5 10a7 7 0 0 1 14 0v7a4 4 0 0 1-4 4h-3"/><path d="M8 13h.01M12 13h.01M16 13h.01"/>',
@@ -1587,7 +1601,7 @@ function dashboardShell(content) {
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       <div class="sidebar-brand">${logo()}</div>
       <nav class="side-links">${links}</nav>
-      <button class="sidebar-support-link" data-link="/support">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
+      <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
     </aside>
     <main class="dashboard-main">
       <header class="topbar">
@@ -4108,6 +4122,33 @@ function readSallaRuleDrafts() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "support-filter") {
+    state.supportFilter = target.dataset.filter || "all";
+    state.supportTickets = null;
+    syncRouteData(true);
+    return render();
+  }
+  if (action === "support-open") {
+    state.supportSelectedId = target.dataset.id || "";
+    state.supportTicket = null;
+    const url = new URL(location.href);
+    if (state.supportSelectedId) url.searchParams.set("ticket", state.supportSelectedId);
+    history.replaceState({}, "", url);
+    try {
+      await fetchJson(`/api/support/tickets/${encodeURIComponent(state.supportSelectedId)}/read`, { method: "POST" });
+    } catch {}
+    await syncRouteData(true);
+    return;
+  }
+  if (action === "support-reopen") {
+    try {
+      await fetchJson(`/api/support/tickets/${encodeURIComponent(target.dataset.id)}/reopen`, { method: "POST" });
+      state.supportTicket = null; state.supportTickets = null;
+      await syncRouteData(true);
+      toast("تمت إعادة فتح التذكرة");
+    } catch (error) { toast(error.message || "تعذر إعادة فتح التذكرة", "danger"); }
+    return;
+  }
   if (action === "billing-tab") {
     state.billingTab = target.dataset.tab || "overview";
     storage.set("renvix.billing.tab", state.billingTab);
@@ -5245,6 +5286,60 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "support-ticket") {
+    const button = form.querySelector("button[type='submit']");
+    const attachmentInput = form.querySelector('input[name="attachments"]');
+    const attachments = Array.from(attachmentInput?.files || []);
+    setSubmitBusy(button, true, "جاري إرسال الرسالة...");
+    try {
+      const payload = await fetchJson("/api/support/tickets", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: data.type, subject: data.subject, body: data.body })
+      });
+      if (attachments.length) {
+        const uploadData = new FormData();
+        attachments.forEach((file) => uploadData.append("files", file));
+        uploadData.append("messageId", payload.item.messageId);
+        try {
+          await fetchJson(`/api/support/tickets/${encodeURIComponent(payload.item.id)}/attachments`, {
+            method: "POST",
+            body: uploadData
+          });
+        } catch (uploadError) {
+          appToast.warning("أُرسلت الرسالة دون بعض المرفقات", {
+            description: uploadError.message,
+            id: "support-attachments-warning"
+          });
+        }
+      }
+      form.reset();
+      state.supportSelectedId = payload.item.id;
+      history.replaceState({}, "", `/dashboard/support?ticket=${encodeURIComponent(payload.item.id)}`);
+      state.supportTickets = null; state.supportTicket = null;
+      await syncRouteData(true);
+      appToast.success("تم إرسال رسالتك", { description: `رقم التذكرة ${payload.item.ticketNumber}`, id: "support-created" });
+    } catch (error) {
+      appToast.error("تعذر إرسال الرسالة", { description: error.message, id: "support-create-error" });
+      setSubmitBusy(button, false, "إرسال الرسالة");
+    }
+    return;
+  }
+  if (type === "support-reply") {
+    const id = form.dataset.ticketId;
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري إرسال الرد...");
+    try {
+      await fetchJson(`/api/support/tickets/${encodeURIComponent(id)}/messages`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: data.body })
+      });
+      form.reset(); state.supportTicket = null; state.supportTickets = null;
+      await syncRouteData(true);
+    } catch (error) {
+      toast(error.message || "تعذر إرسال الرد", "danger");
+      setSubmitBusy(button, false, "إرسال الرد");
+    }
+    return;
+  }
   if (type === "custom-integration") {
     const button = form.querySelector("button[type='submit']");
     const formData = new FormData(form);
@@ -6060,6 +6155,65 @@ async function handleSubmit(form, event) {
   }
 }
 
+function supportStatusLabel(value) {
+  return {
+    NEW: "جديدة", OPEN: "مفتوحة", IN_PROGRESS: "قيد المعالجة",
+    WAITING_FOR_USER: "تم الرد", WAITING_FOR_SUPPORT: "بانتظار الرد",
+    RESOLVED: "تم الحل", CLOSED: "مغلقة", REOPENED: "أعيد فتحها"
+  }[value] || value || "—";
+}
+
+function supportTypeLabel(value) {
+  return {
+    INQUIRY: "استفسار", TECHNICAL_ISSUE: "مشكلة تقنية", SUGGESTION: "اقتراح",
+    COMPLAINT: "شكوى", BILLING: "الفوترة", INTEGRATION: "التكاملات",
+    ACCOUNT: "الحساب", OTHER: "أخرى"
+  }[value] || value || "رسالة";
+}
+
+function supportConversation(ticket) {
+  if (!ticket) return `<div class="support-empty-conversation">${dashboardIcon("support")}<strong>اختر رسالة لعرض المحادثة</strong><p>ستظهر الردود وتحديثات فريق الدعم هنا.</p></div>`;
+  const messages = Array.isArray(ticket.messages) ? ticket.messages.filter((item) => !item.isInternalNote) : [];
+  const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
+  return `<section class="support-thread" aria-label="المحادثة">
+    <header><div><strong>${escapeHtml(ticket.subject)}</strong><span>${escapeHtml(ticket.ticketNumber)} · ${supportStatusLabel(ticket.status)}</span></div>${["RESOLVED","CLOSED"].includes(ticket.status) ? `<button class="btn btn-secondary" data-action="support-reopen" data-id="${ticket.id}">إعادة فتح التذكرة</button>` : ""}</header>
+    <div class="support-thread-messages">${messages.map((message) => `<article class="support-bubble ${message.senderType === "USER" ? "support-bubble-user" : "support-bubble-admin"}"><b>${message.senderType === "USER" ? "أنت" : escapeHtml(message.senderName || "فريق الدعم")}</b><p>${escapeHtml(message.body).replace(/\n/g, "<br>")}</p>${attachments.filter((file) => file.messageId === message.id).map((file) => `<a class="support-attachment-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${dashboardIcon("attachment")} ${escapeHtml(file.originalName)}</a>`).join("")}<time>${new Date(message.createdAt).toLocaleString("ar-SA")}</time></article>`).join("")}</div>
+    ${["CLOSED"].includes(ticket.status) ? `<p class="support-closed-note">هذه التذكرة مغلقة. يمكنك إعادة فتحها خلال المدة المتاحة.</p>` : `<form class="support-reply-form" data-submit="support-reply" data-ticket-id="${ticket.id}"><textarea name="body" maxlength="2000" minlength="2" placeholder="اكتب ردك..." required></textarea><button class="btn btn-primary" type="submit">إرسال الرد</button></form>`}
+  </section>`;
+}
+
+function dashboardSupportPage() {
+  const payload = state.supportTickets;
+  const tickets = Array.isArray(payload?.items) ? payload.items : [];
+  const counts = payload?.counts || {};
+  const selected = state.supportTicket?.id ? state.supportTicket : null;
+  const filters = [["all","الكل",counts.total],["new","جديدة",counts.new],["replied","تم الرد",counts.replied],["closed","مغلقة",counts.closed]];
+  return dashboardShell(`
+    <section class="dashboard-support-page">
+      <div class="support-page-heading"><div><span class="support-heading-icon">${dashboardIcon("support")}</span><div><h1>التواصل والمساعدة</h1><p>أرسل رسالتك إلى فريق الدعم وتابع الردود مباشرة من داخل المنصة.</p></div></div><span class="support-security-note">${dashboardIcon("security")} كل محادثاتك آمنة ومرئية بالكامل داخل المنصة</span></div>
+      <div class="support-main-grid">
+        <section class="support-conversations card">
+          <div class="support-section-title"><div><h2>الإشعارات والردود</h2><p>متابعة جميع رسائلك مع فريق الدعم.</p></div>${dashboardIcon("message")}</div>
+          <nav class="support-tabs">${filters.map(([key,label,count]) => `<button class="${state.supportFilter === key ? "active" : ""}" data-action="support-filter" data-filter="${key}">${label}<span>${Number(count || 0)}</span></button>`).join("")}</nav>
+          ${payload === null ? `<div class="loading-state">جاري تحميل الرسائل...</div>` : tickets.length ? `<div class="support-ticket-list">${tickets.map((ticket) => `<button class="support-ticket-row ${selected?.id === ticket.id ? "active" : ""}" data-action="support-open" data-id="${ticket.id}"><span class="support-ticket-mark">${dashboardIcon(ticket.type === "COMPLAINT" ? "warning" : "message")}</span><span><b>${escapeHtml(ticket.subject)}</b><small>${supportTypeLabel(ticket.type)} · ${supportStatusLabel(ticket.status)}</small><em>${escapeHtml(ticket.lastMessage || "")}</em></span><time>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</time>${Number(ticket.userUnreadCount || 0) ? `<i>${Number(ticket.userUnreadCount)}</i>` : ""}</button>`).join("")}</div>` : `<div class="support-empty-conversation"><strong>لا توجد رسائل بعد</strong><p>أرسل رسالة جديدة وسيظهر سجلها هنا.</p></div>`}
+          ${supportConversation(selected)}
+        </section>
+        <section class="support-compose card">
+          <div class="support-section-title"><div><h2>إرسال رسالة جديدة</h2><p>صف المشكلة بوضوح ليتمكن فريقنا من مساعدتك بسرعة.</p></div>${dashboardIcon("send")}</div>
+          <form data-submit="support-ticket">
+            <label><span>البريد المرتبط بالحساب</span><input value="${escapeHtml(state.accountSettings?.profile?.email || state.accountSettings?.user?.email || "")}" readonly placeholder="بريد حسابك المسجل"></label>
+            <label><span>نوع الرسالة</span><select name="type" required><option value="">اختر نوع الرسالة</option><option value="INQUIRY">استفسار</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="SUGGESTION">اقتراح</option><option value="COMPLAINT">شكوى</option><option value="BILLING">الفوترة</option><option value="INTEGRATION">التكاملات</option><option value="ACCOUNT">الحساب</option><option value="OTHER">أخرى</option></select></label>
+            <label><span>عنوان الرسالة</span><input name="subject" minlength="5" maxlength="150" required placeholder="اكتب عنوانًا مختصرًا لرسالتك"></label>
+            <label><span>تفاصيل الرسالة</span><textarea name="body" minlength="10" maxlength="2000" required placeholder="اكتب رسالتك هنا..."></textarea><small>حتى 2000 حرف</small></label>
+            <label class="support-upload-placeholder">${dashboardIcon("upload")}<strong>إرفاق ملفات (اختياري)</strong><span>PNG أو JPG أو WebP أو PDF أو TXT — حتى 5 ملفات و10MB لكل ملف</span><input name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.log,image/png,image/jpeg,image/webp,application/pdf,text/plain"></label>
+            <button class="btn btn-primary support-send-button" type="submit">${dashboardIcon("send")} إرسال الرسالة</button>
+          </form>
+        </section>
+      </div>
+      <div class="support-bottom-note">${dashboardIcon("info")} جميع المحادثات تتم من داخل المنصة فقط، وسيصلك إشعار عند وجود رد جديد.</div>
+    </section>`);
+}
+
 function render() {
   applyPreferences();
   const requestedRoute = location.pathname;
@@ -6086,6 +6240,7 @@ function render() {
       "/dashboard/reports": reportsPage,
       "/dashboard/billing": billingWorkspacePage,
       "/dashboard/settings": settingsPage
+      ,"/dashboard/support": dashboardSupportPage
     };
     const dashboardPage = state.route === "/dashboard/integrations/salla/products"
       ? sallaProductsPage
@@ -6272,7 +6427,7 @@ function customIntegrationPage() {
     </details>`;
 
   const summaryPanel = `
-    <div class="custom-api-summary ${item ? "" : "custom-api-summary--empty"}" aria-label="ملخص حالة التكامل">
+    <div class="${item ? "custom-api-summary" : "custom-api-summary custom-api-summary--empty"}" aria-label="ملخص حالة التكامل">
       <article><span>${dashboardIcon("code")}</span><small>اسم التكامل</small><strong>${item ? escapeHtml(item.name) : "غير مهيأ"}</strong><em class="status ${item ? integrationStatus[1] : "muted"}">${item ? integrationStatus[0] : "غير مربوط"}</em></article>
       <article><span>${dashboardIcon("settings")}</span><small>البيئة</small><strong>${item ? (item.environment === "live" ? "إنتاجية" : "تجريبية") : "—"}</strong><em>${item ? "بيئة التكامل" : "لم يبدأ الإعداد"}</em></article>
       <article><span>${dashboardIcon("send")}</span><small>آخر طلب API</small><strong>${item ? formatIntegrationDate(item.latestKeyUsedAt || item.lastApiRequestAt) : "لا يوجد بعد"}</strong><em>${item ? "طلبات موثقة فقط" : "٠ طلبات موثقة"}</em></article>
@@ -6713,5 +6868,11 @@ document.addEventListener("paste", (event) => {
   document.querySelector(`[data-otp-digit="${Math.min(5, digits.length - 1)}"]`)?.focus();
 });
 setInterval(updateEmailOtpCountdown, 1000);
+setInterval(() => {
+  if (state.route !== "/dashboard/support" || document.visibilityState !== "visible") return;
+  state.supportTickets = null;
+  if (state.supportSelectedId) state.supportTicket = null;
+  void syncRouteData(true);
+}, 25_000);
 render();
 if (state.route === "/dashboard/devices") void syncLinkedDevice();

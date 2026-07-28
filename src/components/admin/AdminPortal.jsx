@@ -22,7 +22,7 @@ const ADMIN_NAV_GROUPS = [
     ["subscriptions", "الاشتراكات", "card"], ["customers", "العملاء", "users"],
     ["stores", "المتاجر", "store"], ["notifications", "إشعارات المنصة", "bell"]
   ]],
-  ["الرسائل والطلبات", [["templates", "قوالب الإدارة", "template"], ["campaigns", "الحملات", "send"], ["contacts", "جهات الاتصال", "users"], ["messages", "سجل الرسائل", "send"]]],
+  ["الرسائل والطلبات", [["support", "الرسائل والشكاوى", "mail"], ["templates", "قوالب الإدارة", "template"], ["campaigns", "الحملات", "send"], ["contacts", "جهات الاتصال", "users"], ["messages", "سجل الرسائل", "send"]]],
   ["القنوات والربط", [["devices", "الأجهزة", "device"], ["integrations", "تطبيقات المنصة", "link"]]],
   ["الرقابة والإدارة", [
     ["security", "الحماية والأمان", "shield"], ["reports", "التقارير", "chart"],
@@ -45,6 +45,7 @@ const PANEL_COPY = {
   integrations: ["تطبيقات المنصة", "صحة تكاملات Renvix دون عرض أي أسرار أو مفاتيح."],
   billing: ["الفوترة والباقات", "الباقات والاشتراكات والإيرادات من السجلات الفعلية."],
   messages: ["الرسائل", "متابعة الإرسال والتسليم وحالة طابور الرسائل."],
+  support: ["الرسائل والشكاوى", "عرض وإدارة رسائل المستخدمين والشكاوى والرد عليها من مكان واحد."],
   campaigns: ["الحملات", "متابعة حملات جميع مساحات العمل ومؤشرات التسليم الفعلية."],
   contacts: ["جهات الاتصال", "جمهور حملات المتاجر، منفصل عن حسابات مستخدمي المنصة."],
   notifications: ["إدارة إشعارات المنصة", "إنشاء الإشعارات الداخلية ومعاينتها وجدولتها ومتابعة وصولها للمستخدمين."]
@@ -281,6 +282,7 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
       campaigns: ["campaign", "حملة"],
       contacts: ["contact", "campaign contact", "جهة اتصال"],
       messages: ["message", "رسالة", "queue"],
+      support: ["support", "ticket", "complaint", "شكوى", "رسالة"],
       integrations: ["integration", "webhook", "salla", "meta", "evolution"],
       billing: ["billing", "invoice", "plan", "subscription"]
     }[activePanel] || [];

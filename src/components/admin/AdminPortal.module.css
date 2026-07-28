@@ -2134,3 +2134,91 @@
   .adminTemplateMetaGrid,
   .adminVariablePanel > div:last-child { grid-template-columns: 1fr; }
 }
+.adminSupportError {
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.adminSupportToolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(150px, .55fr) minmax(150px, .55fr) auto;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 13px;
+  border: 1px solid #dce6f3;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.adminSupportToolbar select,
+.adminSupportControls select {
+  min-height: 42px;
+  border: 1px solid #d8e3f1;
+  border-radius: 9px;
+  background: #fff;
+  color: #17345e;
+  padding: 0 11px;
+  font: inherit;
+}
+
+.adminSupportLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, .7fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.adminSupportTableCard,
+.adminSupportPreview {
+  min-width: 0;
+  border: 1px solid #dce6f3;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(24, 65, 117, .045);
+}
+
+.adminSupportTableCard { overflow: hidden; }
+.adminSupportTableCard .adminTabs { padding: 12px 14px 0; }
+.adminSupportTableWrap { overflow: auto; }
+.adminSupportTableWrap table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.adminSupportTableWrap th { padding: 11px 10px; border-block: 1px solid #e6edf6; background: #fbfdff; color: #617796; font-size: 10px; text-align: right; }
+.adminSupportTableWrap td { padding: 11px 10px; border-bottom: 1px solid #edf1f7; color: #294568; font-size: 11px; vertical-align: middle; }
+.adminSupportSelectedRow { background: #f5f9ff; }
+.adminSupportCustomer,.adminSupportSubject { display:flex;align-items:center;gap:8px;border:0;background:none;color:inherit;text-align:right;cursor:pointer;font:inherit }
+.adminSupportCustomer>span,.adminSupportAvatar { display:grid;place-items:center;flex:0 0 auto;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#19b1bd,#2766f2);color:#fff;font-weight:900 }
+.adminSupportCustomer b { display:grid;gap:2px;white-space:nowrap }.adminSupportCustomer small,.adminSupportSubject small { color:#8192aa;font-size:9px;font-weight:500 }
+.adminSupportSubject { display:grid;gap:3px;min-width:150px }.adminSupportSubject:first-line{font-weight:800}
+.adminSupportComplaint,.adminSupportMessage { display:inline-flex;align-items:center;gap:5px;white-space:nowrap }
+.adminSupportComplaint { color:#ef4444 }.adminSupportMessage { color:#2563eb }.adminSupportComplaint svg,.adminSupportMessage svg{width:15px;height:15px}
+.adminSupportStatus,.adminSupportPriority { display:inline-flex;padding:5px 8px;border-radius:7px;white-space:nowrap;font-size:10px;font-weight:800 }
+.adminSupportStatus { color:#1769e8;background:#eaf3ff }.adminSupportPriority_LOW{color:#16804e;background:#eaf8f0}.adminSupportPriority_NORMAL{color:#946718;background:#fff7df}.adminSupportPriority_HIGH,.adminSupportPriority_URGENT{color:#cc3434;background:#fff0f0}
+.adminSupportDetailsButton{white-space:nowrap;border:1px solid #cfe0f7;border-radius:8px;background:#fff;color:#1769e8;padding:7px 10px;font:inherit;cursor:pointer}
+
+.adminSupportPreview { position:sticky;top:88px;padding:15px;max-height:calc(100vh - 110px);overflow:auto }
+.adminSupportPreview>header { display:flex;align-items:center;gap:9px;padding-bottom:12px;border-bottom:1px solid #e7edf5 }
+.adminSupportPreview>header>div:nth-child(2){display:grid;gap:2px;min-width:0;flex:1}.adminSupportPreview>header strong{font-size:13px}.adminSupportPreview>header span{color:#7588a4;font-size:10px;overflow:hidden;text-overflow:ellipsis}
+.adminSupportPreview>header>span:last-child{padding:5px 8px;border-radius:7px;background:#eef5ff;color:#1769e8;white-space:nowrap}
+.adminSupportMeta{display:grid;gap:9px;padding:13px 0}.adminSupportMeta span{display:grid;gap:3px;color:#425f84;font-size:11px}.adminSupportMeta b{color:#8797ac;font-size:9px}
+.adminSupportControls{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding-bottom:13px;border-bottom:1px solid #e7edf5}.adminSupportControls label{display:grid;gap:5px;color:#607795;font-size:10px}
+.adminSupportAssignButton{grid-column:1/-1;min-height:34px;border:1px solid #cfe0f7;border-radius:8px;background:#f7fbff;color:#1769e8;font:inherit;font-weight:800;cursor:pointer}.adminSupportAssignButton:disabled{opacity:.65;cursor:default}
+.adminSupportThread{display:grid;gap:9px;max-height:330px;overflow:auto;padding:14px 2px}
+.adminSupportThread article{width:88%;padding:9px 11px;border-radius:11px;font-size:11px}.adminSupportThread article b{font-size:10px}.adminSupportThread article p{margin:5px 0;white-space:pre-wrap;line-height:1.7}.adminSupportThread article time{font-size:8px;color:#7c8da5}
+.adminSupportAttachment{display:flex;align-items:center;gap:5px;width:max-content;max-width:100%;margin:6px 0;padding:5px 8px;border:1px solid #cfe0f7;border-radius:7px;background:#fff;color:#1769e8;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.adminSupportAttachment svg{width:14px;height:14px;flex:0 0 auto}
+.adminSupportBubbleUser{margin-inline-start:auto;border:1px solid #d7e6fb;background:#f0f6ff}.adminSupportBubbleAdmin{margin-inline-end:auto;border:1px solid #d5efe4;background:#effaf5}.adminSupportInternal{margin-inline-end:auto;border-color:#f6df9d;background:#fff9e9}
+.adminSupportReply{display:grid;gap:9px;padding-top:12px;border-top:1px solid #e7edf5}.adminSupportReply textarea{min-height:84px;padding:10px;border:1px solid #d8e3f1;border-radius:9px;resize:vertical;font:inherit}.adminSupportReply>label{display:flex;align-items:center;gap:7px;color:#627796;font-size:10px}.adminSupportReply button{justify-content:center}.adminSupportReply button svg{width:16px;height:16px}
+
+@media (max-width: 1100px) {
+  .adminSupportToolbar { grid-template-columns: 1fr 1fr; }
+  .adminSupportLayout { grid-template-columns: 1fr; }
+  .adminSupportPreview { position:static;max-height:none; }
+}
+
+@media (max-width: 640px) {
+  .adminSupportToolbar { grid-template-columns: 1fr; }
+  .adminSupportControls { grid-template-columns: 1fr; }
+}
