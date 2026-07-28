@@ -2978,14 +2978,14 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .support-heading .container { padding-right: 55%; }
 .support-cards { gap: 20px; }
 .support-cards > .card { min-height: 200px; padding: 23px; text-align: center; }
-.support-cards .line-icon { width: 48px; height: 48px; padding: 12px; color: #1769ed; border-radius: 10px; background: #edf5ff; }
+.support-cards .line-icon { width: 46px; height: 46px; min-width: 46px; padding: 10px; display: block; flex: 0 0 46px; color: #1769ed; border: 1px solid #e2edff; border-radius: 11px; background: #edf5ff; }
 .support-cards h2 { margin: 14px 0 7px; font-size: 17px; }
 .support-cards p { min-height: 48px; color: #718199; font-size: 12px; line-height: 1.8; }
 .support-layout { display: grid; grid-template-columns: .85fr 1.15fr .85fr; gap: 22px; }
 .support-layout > .card { padding: 22px; }
 .help-center > button { width: 100%; min-height: 57px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; border: 1px solid #e7edf4; border-radius: 7px; background: #fff; cursor: pointer; text-align: right; }
 .help-center > button + button { margin-top: 8px; }
-.help-center .line-icon { width: 35px; height: 35px; padding: 8px; color: #1769ed; border-radius: 7px; background: #edf5ff; }
+.help-center .line-icon { width: 44px; height: 44px; min-width: 44px; padding: 10px; display: block; flex: 0 0 44px; color: #1769ed; border: 1px solid #e2edff; border-radius: 10px; background: #edf5ff; }
 .help-center button span { flex: 1; }
 .help-center button strong,.help-center button small { display: block; }
 .help-center button small { margin-top: 3px; color: #8290a3; font-size: 10px; }
@@ -3203,11 +3203,15 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   text-align: center;
 }
 .support-intro-row .support-cards .line-icon {
-  width: 48px;
-  height: 48px;
-  padding: 12px;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 10px;
+  display: block;
+  flex: 0 0 46px;
   color: #1769ed;
-  border-radius: 10px;
+  border: 1px solid #e2edff;
+  border-radius: 11px;
   background: #edf5ff;
 }
 .support-intro-row .support-cards h2 { margin: 14px 0 7px; font-size: 16px; }
