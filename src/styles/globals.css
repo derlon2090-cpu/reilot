@@ -311,7 +311,7 @@ tbody tr:hover { background: #fbfeff; }
 .dashboard-main { min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 12; padding: 0 24px; background: rgba(248,252,253,.86); border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); }
 .topbar-tools { display: flex; align-items: center; gap: 10px; }
-.avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--purple)); display: grid; place-items: center; color: #fff; font-weight: 800; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #18a8c6, #2862e9); display: grid; place-items: center; color: #fff; font-weight: 800; }
 .content { padding: 28px; }
 .page-title { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .stat-card { padding: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1407,12 +1407,7 @@ tbody tr:hover { background: #fbfeff; }
 .subscription-list-card td small { margin-top:3px; color:var(--muted); font-size:10px; }
 .subscription-list-card .section-head h2 span { color:var(--muted); font-size:12px; }
 .subscription-side-column { display:grid; gap:14px; }
-.subscription-reminder-summary,.subscription-upcoming { padding:16px; }
-.subscription-reminder-summary .section-head { align-items:flex-start; }
-.reminder-summary-points { display:grid; gap:2px; margin:12px 0; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-.reminder-summary-points > div { display:grid; grid-template-columns:72px 1fr; gap:8px; padding:10px; background:color-mix(in srgb,var(--surface) 94%,#eaf3ff); }
-.reminder-summary-points span { color:var(--muted); font-size:11px; }
-.subscription-reminder-summary > .btn { width:100%; }
+.subscription-upcoming { padding:16px; }
 .subscription-upcoming .section-head button { border:0; background:transparent; color:#1765ed; cursor:pointer; }
 .upcoming-renewal-row { width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border:0; border-bottom:1px solid var(--border); background:transparent; color:inherit; text-align:right; cursor:pointer; }
 .upcoming-renewal-row span,.upcoming-renewal-row strong,.upcoming-renewal-row small { display:block; }
