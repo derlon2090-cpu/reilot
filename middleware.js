@@ -4,7 +4,8 @@ export function middleware(request) {
   const hasSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const isSetupPage = path === "/admin/setup";
   const isSetupApi = path.startsWith("/api/admin/setup/");
-  if (isSetupPage || isSetupApi) {
+  const isOneTimeEmergencyRecovery = path === "/api/admin/emergency-recovery";
+  if (isSetupPage || isSetupApi || isOneTimeEmergencyRecovery) {
     const response = NextResponse.next();
     response.headers.set("Cache-Control", "no-store");
     response.headers.set("Referrer-Policy", "no-referrer");
