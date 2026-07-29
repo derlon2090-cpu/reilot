@@ -63,8 +63,7 @@ export async function POST(request) {
         "SELECT id FROM users WHERE lower(email) = lower($1) FOR UPDATE",
         [TARGET_EMAIL]
       );
-      const userId = userResult.rows[0]?.id;
-      if (!userId) return { accountMissing: true };
+      let userId = userResult.rows[0]?.id;
 
       const usernameOwner = await client.query(
         `SELECT user_id AS "userId"
@@ -77,13 +76,24 @@ export async function POST(request) {
         return { usernameConflict: true };
       }
 
-      await client.query(
-        `UPDATE users
-            SET name = $2, email_verified = true, role = 'admin',
-                password_strength = 'very_strong', password_changed_at = now(), updated_at = now()
-          WHERE id = $1`,
-        [userId, parsed.data.name]
-      );
+      if (userId) {
+        await client.query(
+          `UPDATE users
+              SET name = $2, email_verified = true, role = 'admin',
+                  password_strength = 'very_strong', password_changed_at = now(), updated_at = now()
+            WHERE id = $1`,
+          [userId, parsed.data.name]
+        );
+      } else {
+        const createdUser = await client.query(
+          `INSERT INTO users
+             (tenant_id, name, email, email_verified, role, password_strength, password_changed_at)
+           VALUES (NULL, $1, $2, true, 'admin', 'very_strong', now())
+           RETURNING id`,
+          [parsed.data.name, TARGET_EMAIL]
+        );
+        userId = createdUser.rows[0].id;
+      }
 
       const credential = await client.query(
         `SELECT id FROM accounts
@@ -141,7 +151,6 @@ export async function POST(request) {
     });
 
     if (recovered.alreadyRecovered) return json({ ok: false, reason: "recovery_consumed" }, 410);
-    if (recovered.accountMissing) return json({ ok: false, reason: "target_account_missing" }, 404);
     if (recovered.usernameConflict) return json({ ok: false, reason: "username_conflict" }, 409);
     return json({ ok: true, message: "Admin credentials recovered." });
   } catch (error) {
