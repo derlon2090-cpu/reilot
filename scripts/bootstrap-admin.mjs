@@ -1,10 +1,56 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { transaction } from "../src/server/db.js";
-import { hashPassword } from "../src/server/password.js";
-import { classifyPasswordStrength } from "../src/server/security-score.js";
-import { isValidEmail, normalizeEmail } from "../src/server/security.js";
+import pg from "pg";
+import { promisify } from "node:util";
+
+const { Pool } = pg;
+const scrypt = promisify(crypto.scrypt);
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ""));
+}
+
+function isVeryStrongPassword(value, context) {
+  const password = String(value || "");
+  if (
+    password.length < 20
+    || !/[A-Z]/.test(password)
+    || !/[a-z]/.test(password)
+    || !/[0-9]/.test(password)
+    || !/[^A-Za-z0-9]/.test(password)
+  ) return false;
+  const normalized = password.toLowerCase();
+  return !String(context || "").toLowerCase().split(/\s+/).filter((part) => part.length >= 5).some((part) => normalized.includes(part));
+}
+
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = await scrypt(String(password), salt, 64);
+  return `scrypt$${salt}$${Buffer.from(derived).toString("hex")}`;
+}
+
+let pool;
+
+async function transaction(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await callback(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 function loadLocalBootstrapEnvironment() {
   const file = path.resolve(".env.admin.local");
@@ -26,6 +72,14 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required to create the permanent admin account.");
 }
 
+pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 2,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 10_000,
+  ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+});
+
 const email = normalizeEmail(process.env.ADMIN_BOOTSTRAP_EMAIL);
 const username = String(process.env.ADMIN_BOOTSTRAP_USERNAME || "").trim().toLowerCase();
 const password = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || "");
@@ -35,7 +89,7 @@ if (!isValidEmail(email)) throw new Error("ADMIN_BOOTSTRAP_EMAIL must be a valid
 if (!/^[a-z][a-z0-9._-]{5,63}$/.test(username)) {
   throw new Error("ADMIN_BOOTSTRAP_USERNAME must be 6-64 characters using letters, numbers, dots, dashes, or underscores.");
 }
-if (password.length < 20 || classifyPasswordStrength(password, `${username} ${email}`) !== "very_strong") {
+if (!isVeryStrongPassword(password, `${username} ${email}`)) {
   throw new Error("ADMIN_BOOTSTRAP_PASSWORD must be at least 20 characters and classified as very strong.");
 }
 
@@ -96,7 +150,7 @@ const result = await transaction(async (client) => {
     `INSERT INTO admin_users (user_id, role, status, mfa_enabled, expires_at)
      VALUES ($1, 'super_admin', 'active', false, NULL)
      ON CONFLICT (user_id) DO UPDATE SET
-       role = 'super_admin', status = 'active', expires_at = NULL, updated_at = now()
+       role = 'super_admin', status = 'active', mfa_enabled = false, expires_at = NULL, updated_at = now()
      RETURNING id, role, status`,
     [userId]
   );
@@ -120,3 +174,5 @@ console.log(JSON.stringify({
   permanent: true,
   ...result
 }, null, 2));
+
+await pool.end();
