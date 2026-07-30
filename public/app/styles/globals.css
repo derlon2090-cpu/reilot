@@ -4013,8 +4013,8 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .created-link-box .input { direction: ltr; }
 .color-dot { width: 16px; height: 16px; display: inline-block; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #cad5e2; vertical-align: middle; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 5px; white-space: nowrap; }
-.order-links-table-card { min-width: 0; overflow: hidden; }
-.order-links-table-card .compare { width: calc(100% + 36px); max-width: calc(100% + 36px); overflow-x: auto; overscroll-behavior-inline: contain; }
+.order-links-table-card { width: 100%; max-width: 100%; min-width: 0; overflow: visible; }
+.order-links-table-card .compare { width: 100%; max-width: 100%; margin-inline: 0; padding-bottom: 8px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-gutter: stable both-edges; }
 .order-links-table-card table { table-layout: auto; }
 .order-links-table-card--links table { min-width: 1260px; }
 .order-links-table-card--templates table { min-width: 900px; }
@@ -4025,6 +4025,11 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .order-links-table-card th:last-child,
 .order-links-table-card td:last-child { min-width: 220px; }
 .order-links-table-card .row-actions { min-width: max-content; flex-wrap: nowrap; }
+.saved-orders-count { display: inline-grid; place-items: center; min-width: 28px; height: 24px; margin-inline-start: 6px; padding-inline: 7px; border-radius: 999px; color: #1769ed; background: #edf5ff; font-size: 12px; vertical-align: middle; }
+.order-saved-actions .icon-action { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid #dce6f3; border-radius: 7px; background: #fff; }
+.order-saved-actions .icon-action:hover { color: #1769ed; border-color: #9fc2f7; background: #f4f8ff; }
+.order-saved-actions .icon-action svg { width: 15px; height: 15px; pointer-events: none; }
+.order-links-loading { min-height: 150px; display: grid; place-items: center; }
 
 .order-customer-card { position: relative; padding: 26px; overflow: hidden; color: #17345e; border: 1px solid color-mix(in srgb, var(--order-theme) 38%, #dbe5f1); border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgba(31, 64, 110, .08); }
 .order-customer-card.is-placeholder { border-style: dashed; }
@@ -4922,10 +4927,10 @@ input[type="password"]::-webkit-textfield-decoration-container {
 
 /* Custom API / Webhook — production flow */
 .capi-page{display:grid;gap:16px;color:#0a2857}
-.capi-page-head{display:grid;justify-items:end;gap:8px}
-.capi-breadcrumbs{display:flex;align-items:center;gap:8px;color:#8492a8;font-size:12px}
+.capi-page-head{display:grid;justify-items:right;gap:8px;direction:rtl}
+.capi-breadcrumbs{display:flex;align-items:center;gap:8px;color:#8492a8;font-size:12px;direction:rtl}
 .capi-breadcrumbs svg{width:13px;height:13px}.capi-breadcrumbs strong{color:#31537e}
-.capi-title-row{display:flex;align-items:flex-start;gap:12px;text-align:right}
+.capi-title-row{display:flex;align-items:flex-start;gap:12px;text-align:right;direction:rtl}
 .capi-title-row>div{display:grid;justify-items:end;gap:5px}.capi-title-row h1{margin:0;color:#08275a;font-size:30px;line-height:1.2}
 .capi-title-row p{margin:0;color:#7b8ba4;line-height:1.65}
 .capi-title-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;background:#eef5ff;color:#1769ed}
@@ -5035,7 +5040,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 :root[data-theme="dark"] .capi-benefits>div,:root[data-theme="dark"] .capi-empty-box,:root[data-theme="dark"] .capi-resource-value,:root[data-theme="dark"] .capi-three-fields input,:root[data-theme="dark"] .capi-three-fields select,:root[data-theme="dark"] .capi-two-fields input,:root[data-theme="dark"] .capi-webhook-receiver input,:root[data-theme="dark"] .capi-webhook-receiver select,:root[data-theme="dark"] .capi-key-copy{background:#0d2037;border-color:#29415e}
 /* Dashboard support center */
 .dashboard-support-page{display:grid;gap:18px;color:#0b2a5b}
-.support-page-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;direction:ltr}
+.support-page-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;direction:rtl}
 .support-page-heading>*{direction:rtl}
 .support-page-heading>div{display:flex;align-items:center;gap:14px}
 .support-page-heading h1{margin:0 0 5px;font-size:26px;color:#0a2856}

@@ -10,6 +10,11 @@ import {
   validateOrderSlug
 } from "../../src/lib/orderLinks.js";
 import { publicOrderPayload } from "../../src/server/order-links.js";
+import fs from "node:fs";
+import path from "node:path";
+
+const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
+const stylesSource = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
 
 describe("order information links", () => {
   it("accepts only unique-safe public slug syntax and blocks reserved routes", () => {
@@ -75,5 +80,14 @@ describe("order information links", () => {
     expect(payload).not.toHaveProperty("customerId");
     expect(payload).not.toHaveProperty("subscriptionId");
     expect(payload.order).not.toHaveProperty("email");
+  });
+
+  it("keeps saved template orders visible during loading and after creation", () => {
+    expect(appSource).toContain("جاري تحميل الطلبات المحفوظة...");
+    expect(appSource).toContain('loadRemotePage(`orderLinksAfterCreate:${created.id}`');
+    expect(appSource).toContain('data-action="reload-order-links"');
+    expect(appSource).toContain("order-saved-actions");
+    expect(stylesSource).toContain(".order-links-table-card { width: 100%; max-width: 100%; min-width: 0; overflow: visible; }");
+    expect(stylesSource).toContain("scrollbar-gutter: stable both-edges");
   });
 });

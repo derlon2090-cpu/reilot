@@ -51,4 +51,11 @@ describe("custom integration navigation", () => {
     expect(source).toContain("fetch(testEndpoint");
     expect(source).toContain("نجح اختبار API");
   });
+
+  it("keeps the one-time API key visible while the integration list refreshes", () => {
+    expect(source).toContain("if (!payload.apiKey || !payload.item?.id)");
+    expect(source).toContain("items: [createdItem, ...currentItems.filter");
+    expect(source).toContain('await navigate("/dashboard/settings/integrations/custom-api/key-created")');
+    expect(source).toContain("void syncRouteData(true)");
+  });
 });

@@ -2139,7 +2139,7 @@ function subscriptionsPage() {
   const sendLog = meta.sendLog || [];
   const listSection = `<section class="subscription-workspace"><article class="card table-card subscription-list-card"><div class="section-head"><div><h2>قائمة الاشتراكات <span>(${Number(meta.total || 0).toLocaleString("ar-SA")})</span></h2><p class="muted">الطلبات المدفوعة المرتبطة بباقات Renvix فقط.</p></div></div>${content}<div class="subscription-pagination"><span>صفحة ${Number(meta.page||1)} من ${Math.max(1,Math.ceil(Number(meta.total||0)/Number(meta.limit||20)))}</span><div><button class="btn btn-secondary" data-action="subscription-page" data-page="${Math.max(1,Number(meta.page||1)-1)}" ${Number(meta.page||1)<=1?"disabled":""}>السابق</button><button class="btn btn-secondary" data-action="subscription-page" data-page="${Number(meta.page||1)+1}" ${Number(meta.page||1)*Number(meta.limit||20)>=Number(meta.total||0)?"disabled":""}>التالي</button></div></div></article><aside class="subscription-side-column"><article class="card subscription-upcoming"><div class="section-head"><h2>التجديدات القادمة</h2><button data-action="clear-subscription-filters">عرض الكل</button></div>${upcoming.length?upcoming.map((item)=>`<button class="upcoming-renewal-row" data-action="subscription-edit-db" data-id="${item.id}"><span><strong>${escapeHtml(item.customerName)}</strong><small>${escapeHtml(item.planName)}</small></span><b>${new Date(item.endDate).toLocaleDateString("ar-SA",{day:"numeric",month:"short"})}</b></button>`).join(""):`<div class="security-empty-row">لا توجد تجديدات قادمة.</div>`}</article></aside></section>`;
   const settingsRow = rows[0] || {};
-  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد القناة وطريقة التشغيل والموعد المناسب للاشتراك المحدد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${rows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form"><label class="field"><span>قناة الإرسال</span><select class="select" name="reminderChannel"><option value="whatsapp" ${settingsRow.reminderChannel !== "email" ? "selected" : ""}>واتساب</option><option value="email" ${settingsRow.reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><small>القناة التي تُرسل عبرها التذكيرات لهذا الاشتراك.</small></label><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">${[[0,"يوم الانتهاء"],[1,"قبل يوم واحد"],[3,"قبل 3 أيام"],[4,"قبل 4 أيام"],[7,"قبل 7 أيام"],[14,"قبل 14 يومًا"]].map(([value,label]) => `<option value="${value}" ${Number(settingsRow.reminderDaysBefore || 7) === value ? "selected" : ""}>${label}</option>`).join("")}</select><small>يُعاد إنشاء الجدولة عند الحفظ.</small></label><fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch"><label><input type="radio" name="reminderMode" value="automatic" ${settingsRow.reminderMode !== "manual" ? "checked" : ""}><span>تلقائي</span></label><label><input type="radio" name="reminderMode" value="manual" ${settingsRow.reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label></div><small>اليدوي لا ينشئ تذكيرًا مجدولًا حتى تؤكد الإرسال.</small></fieldset><label class="field"><span>الاشتراك المحدد</span><input class="input" value="${escapeHtml(`${settingsRow.customerName || ""} · ${settingsRow.planName || ""}`)}" readonly></label><div class="subscription-settings-actions"><button class="btn btn-primary">حفظ الإعدادات</button><button type="button" class="btn btn-secondary" data-action="subscription-edit-db" data-id="${escapeHtml(settingsRow.id || "")}">فتح التفاصيل</button></div></form>` : emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعدادات التذكير.")}</article>`;
+  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد قناة التذكير وطريقة التشغيل والموعد من مكان واحد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${rows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form"><label class="field"><span>قناة الإرسال</span><select class="select" name="reminderChannel"><option value="whatsapp" ${settingsRow.reminderChannel !== "email" ? "selected" : ""}>واتساب</option><option value="email" ${settingsRow.reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><small>القناة المعتمدة لإرسال تذكير التجديد.</small></label><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">${[[0,"يوم الانتهاء"],[1,"قبل يوم واحد"],[3,"قبل 3 أيام"],[4,"قبل 4 أيام"],[7,"قبل 7 أيام"],[14,"قبل 14 يومًا"]].map(([value,label]) => `<option value="${value}" ${Number(settingsRow.reminderDaysBefore || 7) === value ? "selected" : ""}>${label}</option>`).join("")}</select><small>يعمل هذا الموعد عند اختيار الإرسال التلقائي.</small></label><fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch"><label><input type="radio" name="reminderMode" value="automatic" ${settingsRow.reminderMode !== "manual" ? "checked" : ""}><span>تلقائي</span></label><label><input type="radio" name="reminderMode" value="manual" ${settingsRow.reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label></div><small>اليدوي ينتظر ضغط زر «إرسال تذكير»، والتلقائي يجدوله في الموعد.</small></fieldset><div class="subscription-settings-actions"><button class="btn btn-primary">حفظ الإعدادات</button></div></form>` : emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعدادات التذكير.")}</article>`;
   const templatesSection = `<article class="card section subscription-template-bridge"><div>${dashboardIcon("template")}<h2>قوالب رسائل التجديد</h2><p>قالب واتساب وقالب البريد مستقلان، ولا تُرسل رسالة إذا كان قالب القناة غير مهيأ أو يحتوي متغيرًا غير معتمد.</p><button class="btn btn-primary" data-link="/dashboard/templates">فتح القوالب</button></div></article>`;
   const logSection = `<article class="card table-card section"><div class="section-head"><div><h2>سجل الإرسال</h2><p class="muted">يبقى السجل محفوظًا حتى بعد اختفاء شارة «تم الإرسال» بعد 72 ساعة.</p></div></div>${sendLog.length?simpleTable(["العميل","الخدمة","القناة","الحالة","وقت النجاح","السبب"],sendLog.map((item)=>[escapeHtml(item.customerName||"-"),escapeHtml(item.serviceName||"-"),item.channel==="email"?"البريد":"واتساب",status(item.status),item.sentAt?new Date(item.sentAt).toLocaleString("ar-SA"):"-",escapeHtml(item.errorMessage||"-")])):emptyState("لا توجد رسائل مسجلة","ستظهر هنا نتائج الإرسال الفعلية.")}</article>`;
   const activeSection = state.subscriptionSection==="settings"?settingsSection:state.subscriptionSection==="templates"?templatesSection:state.subscriptionSection==="log"?logSection:listSection;
@@ -3301,8 +3301,15 @@ function orderLinksWorkspacePage() {
     Number(item.openedCount || 0),
     escapeHtml(item.lastOpenedAt ? new Date(item.lastOpenedAt).toLocaleString("ar-SA") : "—"),
     escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "—"),
-    `<div class="row-actions"><button class="icon-action" data-action="copy-order-link" data-id="${item.id}" title="نسخ">⧉</button><button class="icon-action" data-action="preview-order-link" data-id="${item.id}" title="معاينة">◉</button><button class="icon-action" data-action="send-order-link" data-id="${item.id}" title="إرسال">↗</button><button class="icon-action" data-action="regenerate-order-link" data-id="${item.id}" title="إنشاء رابط سري جديد">↻</button><button class="icon-action" data-action="archive-order-link" data-id="${item.id}" title="أرشفة">□</button><button class="icon-action danger-text" data-action="disable-order-link" data-id="${item.id}" title="تعطيل">×</button><button class="icon-action danger-text" data-action="delete-order-link" data-id="${item.id}" title="حذف">⌫</button></div>`
+    `<div class="row-actions order-saved-actions"><button class="icon-action" data-action="copy-order-link" data-id="${item.id}" title="نسخ الرابط" aria-label="نسخ الرابط">${dashboardIcon("copy")}</button><button class="icon-action" data-action="preview-order-link" data-id="${item.id}" title="معاينة الطلب" aria-label="معاينة الطلب">${dashboardIcon("eye")}</button><button class="icon-action" data-action="send-order-link" data-id="${item.id}" title="إرسال رابط الطلب المحفوظ" aria-label="إرسال رابط الطلب المحفوظ">${dashboardIcon("send")}</button><button class="icon-action" data-action="regenerate-order-link" data-id="${item.id}" title="إنشاء رابط سري جديد" aria-label="إنشاء رابط سري جديد">${dashboardIcon("refresh")}</button><button class="icon-action" data-action="archive-order-link" data-id="${item.id}" title="أرشفة الطلب" aria-label="أرشفة الطلب">${dashboardIcon("document")}</button><button class="icon-action danger-text" data-action="disable-order-link" data-id="${item.id}" title="تعطيل الرابط" aria-label="تعطيل الرابط">${dashboardIcon("close")}</button><button class="icon-action danger-text" data-action="delete-order-link" data-id="${item.id}" title="حذف الطلب" aria-label="حذف الطلب">${dashboardIcon("delete")}</button></div>`
   ]);
+  const savedOrdersContent = state.orderLinks === null
+    ? `<div class="loading-state order-links-loading">جاري تحميل الطلبات المحفوظة...</div>`
+    : linksPayload?.error
+      ? `<div class="empty-state"><strong>تعذر تحميل الطلبات المحفوظة</strong><p class="muted">${escapeHtml(linksPayload.error)}</p><button class="btn btn-secondary" data-action="reload-order-links">إعادة المحاولة</button></div>`
+      : links.length
+        ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows)
+        : emptyState("لا توجد طلبات محفوظة بعد", "أضف أول طلب إلى قالبك الثابت ليتمكن العميل من البحث عنه.");
   return dashboardShell(`${pageTitle("إرسال معلومات الطلب")}
     ${statGrid([
       { title: "قالب معلومات الطلب", value: stats.activeTemplates || 0, caption: "قالب ثابت", tone: "purple", icon: "template" },
@@ -3362,7 +3369,7 @@ function orderLinksWorkspacePage() {
       </article>
       <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>نفس مكوّن الصفحة الفعلية، ببيانات الاشتراك المختار فقط.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">لا ينشئ Renvix بيانات تجريبية. اختر اشتراكًا حقيقيًا أو أكمل الطلب اليدوي لعرض المعاينة.</p></aside>
     </section>
-    <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الطلبات المحفوظة في القوالب</h2><p>كل الطلبات تستخدم الرابط الثابت للقالب، ويبحث العميل بينها برقم الطلب.</p></div></div>${links.length ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows) : emptyState("لا توجد طلبات محفوظة بعد", "أضف أول طلب إلى قالبك الثابت ليتمكن العميل من البحث عنه.")}</article>
+    <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الطلبات المحفوظة في القوالب <span class="saved-orders-count">${Number(links.length).toLocaleString("ar-SA")}</span></h2><p>كل الطلبات تستخدم الرابط الثابت للقالب، ويبحث العميل بينها برقم الطلب.</p></div></div>${savedOrdersContent}</article>
     <article class="card table-card section order-links-table-card order-links-table-card--templates"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
 }
 
@@ -3826,9 +3833,6 @@ function subscriptionForm(row = {}, editId = "") {
   const customers = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   if (!customers.length) return emptyState("أضف عميلًا أولًا", "يجب اختيار عميل حقيقي قبل إنشاء الاشتراك.", "إضافة عميل", "add-customer");
   const reminderChannel = row.reminderChannel === "email" ? "email" : "whatsapp";
-  const fallbackChannel = row.fallbackChannel === "email" || row.fallbackChannel === "whatsapp" ? row.fallbackChannel : "";
-  const reminderMode = row.reminderMode === "automatic" ? "automatic" : "manual";
-  const reminderDaysBefore = Number.isInteger(Number(row.reminderDaysBefore)) ? Number(row.reminderDaysBefore) : 7;
   const selectedCustomer = customers.find((customer) => customer.id === row.customerId) || customers[0] || {};
   const whatsappNumber = row.whatsappNumber || selectedCustomer.whatsappNumber || selectedCustomer.phone || "";
   const email = row.email || selectedCustomer.email || "";
@@ -3844,7 +3848,7 @@ function subscriptionForm(row = {}, editId = "") {
     <label class="field"><span>الحالة</span><select class="select" name="status">${[["active", "نشط"], ["expiring_soon", "ينتهي قريبًا"], ["expired", "منتهي"], ["paused", "موقوف"], ["renewed", "تم التجديد"]].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
     <section class="subscription-delivery-settings full-span" aria-labelledby="subscription-delivery-title">
       <div class="subscription-delivery-heading">
-        <div><strong id="subscription-delivery-title">إعدادات إرسال تذكير التجديد</strong><small>حدد القناة وطريقة التشغيل والموعد المناسب لهذا الاشتراك.</small></div>
+        <div><strong id="subscription-delivery-title">قناة تذكير التجديد</strong><small>اختر قناة الإرسال وأكمل بيانات التواصل المطلوبة. تتحكم بإعدادات الجدولة من تبويب إعدادات التذكير.</small></div>
         <span class="delivery-secure-badge">إرسال آمن</span>
       </div>
       <div class="subscription-delivery-grid">
@@ -3854,14 +3858,6 @@ function subscriptionForm(row = {}, editId = "") {
         </select><small>تُستخدم القناة نفسها عند الإرسال اليدوي أو التلقائي.</small></label>
         <label class="field subscription-contact-field ${reminderChannel === "whatsapp" ? "is-required" : ""}" data-subscription-contact="whatsapp"><span>رقم واتساب <b>${reminderChannel === "whatsapp" ? "مطلوب" : "اختياري"}</b></span><input class="input" type="tel" inputmode="tel" name="whatsappNumber" dir="ltr" value="${escapeHtml(whatsappNumber)}" placeholder="${reminderChannel === "whatsapp" ? "مطلوب — مثال: 9665XXXXXXXX" : "اختياري — مثال: 9665XXXXXXXX"}" ${reminderChannel === "whatsapp" ? "required" : ""}><small data-contact-hint>${reminderChannel === "whatsapp" ? "مطلوب لإرسال التذكيرات عبر واتساب." : "اختياري كقناة تواصل إضافية."}</small></label>
         <label class="field subscription-contact-field ${reminderChannel === "email" ? "is-required" : ""}" data-subscription-contact="email"><span>البريد الإلكتروني <b>${reminderChannel === "email" ? "مطلوب" : "اختياري"}</b></span><input class="input" type="email" name="email" dir="ltr" value="${escapeHtml(email)}" placeholder="${reminderChannel === "email" ? "مطلوب — name@example.com" : "اختياري — name@example.com"}" ${reminderChannel === "email" ? "required" : ""}><small data-contact-hint>${reminderChannel === "email" ? "مطلوب لإرسال التذكيرات عبر البريد الإلكتروني." : "اختياري كقناة تواصل إضافية."}</small></label>
-        <label class="field"><span>القناة الاحتياطية</span><select class="select" name="fallbackChannel"><option value="">بدون قناة احتياطية</option><option value="whatsapp" ${fallbackChannel==="whatsapp"?"selected":""}>واتساب</option><option value="email" ${fallbackChannel==="email"?"selected":""}>البريد الإلكتروني</option></select><small>تُستخدم بعد استنفاد المحاولات المسموحة فقط، وليس بعد أول فشل مؤقت.</small></label>
-        <fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch">
-          <label><input type="radio" name="reminderMode" value="manual" ${reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label>
-          <label><input type="radio" name="reminderMode" value="automatic" ${reminderMode === "automatic" ? "checked" : ""}><span>تلقائي</span></label>
-        </div><small>اليدوي ينتظر ضغط زر «إرسال تذكير»، والتلقائي يجدوله في الموعد.</small></fieldset>
-        <label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">
-          ${[[0, "يوم انتهاء الاشتراك"], [1, "قبل يوم واحد"], [2, "قبل يومين"], [3, "قبل 3 أيام"], [4, "قبل 4 أيام"], [5, "قبل 5 أيام"], [7, "قبل 7 أيام"], [14, "قبل 14 يومًا"], [30, "قبل 30 يومًا"]].map(([value, label]) => `<option value="${value}" ${reminderDaysBefore === value ? "selected" : ""}>${label}</option>`).join("")}
-        </select><small>يعمل الموعد عند اختيار الإرسال التلقائي.</small></label>
       </div>
     </section>
     <label class="field full-span"><span>ملاحظات</span><textarea class="textarea" name="notes">${escapeHtml(row.notes || "")}</textarea></label>
@@ -3991,8 +3987,7 @@ async function persistOrderLinkDraft() {
     publicUrl: state.orderLinkDraft.publicUrl || ""
   };
   state.orderLinkTemplates = null;
-  state.orderLinks = null;
-  syncRouteData(true);
+  syncRouteData();
   return templatePayload.item;
 }
 
@@ -4080,8 +4075,7 @@ async function createCurrentOrderLink(trigger) {
       createdOrderNumber: created.orderNumber,
       createdCustomerName: created.customerName
     };
-    state.orderLinks = null;
-    syncRouteData(true);
+    await loadRemotePage(`orderLinksAfterCreate:${created.id}`, "/api/order-link/list", "orderLinks", undefined, { renderOnComplete: false });
     toast(draft.sourceMode === "manual" ? "تم حفظ الطلب داخل القالب والرابط الثابت جاهز" : "تمت إضافة الطلب إلى رابط القالب الثابت");
     render();
     return created;
@@ -4651,6 +4645,7 @@ async function handleAction(target) {
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
   if (action === "reload-custom-integrations") { state.customIntegrations = null; syncRouteData(true); }
+  if (action === "reload-order-links") { state.orderLinks = null; syncRouteData(true); render(); }
   if (action === "open-custom-api-setup") {
     navigate("/dashboard/settings/integrations/custom-api/setup");
     return;
@@ -4732,10 +4727,18 @@ async function handleAction(target) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "مفتاح بديل" })
       });
+      if (!payload.apiKey) throw new Error("لم يُرجع الخادم المفتاح الجديد. أعد المحاولة دون إغلاق الصفحة.");
       state.customIntegrationSecret = { kind: "api", value: payload.apiKey, integrationId: target.dataset.id };
-      state.customIntegrations = null;
-      await syncRouteData(true);
-      navigate("/dashboard/settings/integrations/custom-api/key-created");
+      const currentItems = Array.isArray(state.customIntegrations?.items) ? state.customIntegrations.items : [];
+      state.customIntegrations = {
+        ...(state.customIntegrations || {}),
+        ok: true,
+        items: currentItems.map((item) => item.id === target.dataset.id
+          ? { ...item, latestKeyPrefix: payload.item?.prefix || item.latestKeyPrefix, activeKeys: Number(item.activeKeys || 0) + 1 }
+          : item)
+      };
+      await navigate("/dashboard/settings/integrations/custom-api/key-created");
+      void syncRouteData(true);
       appToast.success("تم إنشاء مفتاح بديل", {
         description: "انسخ المفتاح الآن ثم ألغِ المفتاح السابق بعد تحديث نظامك.",
         id: "custom-key-rotated"
@@ -5540,6 +5543,9 @@ async function handleSubmit(form, event) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: data.name, description: data.description, environment: data.environment, direction: data.direction, scopes })
       });
+      if (!payload.apiKey || !payload.item?.id) {
+        throw new Error("تم حفظ التكامل لكن لم يصل المفتاح إلى الصفحة. أعد المحاولة قبل مغادرتها.");
+      }
       state.customIntegrationDraft = {
         name: data.name,
         description: data.description,
@@ -5551,9 +5557,27 @@ async function handleSubmit(form, event) {
         integrationId: payload.item?.id
       };
       state.customIntegrationSecret = { kind: "api", value: payload.apiKey, integrationId: payload.item?.id };
-      state.customIntegrations = null;
-      await syncRouteData(true);
-      navigate("/dashboard/settings/integrations/custom-api/key-created");
+      const currentItems = Array.isArray(state.customIntegrations?.items) ? state.customIntegrations.items : [];
+      const createdItem = {
+        ...payload.item,
+        name: data.name,
+        description: data.description || "",
+        environment: data.environment === "test" ? "test" : "live",
+        direction: data.direction || "bidirectional",
+        scopes,
+        latestKeyPrefix: payload.apiKey.split("_").slice(0, 3).join("_"),
+        activeKeys: 1,
+        activeWebhooks: 0,
+        recentDeliveries: [],
+        webhook: {}
+      };
+      state.customIntegrations = {
+        ...(state.customIntegrations || {}),
+        ok: true,
+        items: [createdItem, ...currentItems.filter((item) => item.id !== createdItem.id)]
+      };
+      await navigate("/dashboard/settings/integrations/custom-api/key-created");
+      void syncRouteData(true);
       appToast.success("تم إنشاء التكامل", { description: "انسخ مفتاح API الآن؛ لن يظهر كاملًا مرة أخرى.", id: "custom-integration-created" });
     } catch (error) {
       appToast.error("تعذر إنشاء التكامل", { description: error.message || "تحقق من الإعدادات السرية وقاعدة البيانات.", id: "custom-integration-error" });
@@ -6178,7 +6202,7 @@ async function handleSubmit(form, event) {
       await fetchJson(id ? `/api/subscriptions/${id}` : "/api/subscriptions", {
         method: id ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, customerId: data.customerId || form.querySelector("[name='customerId']")?.value, price: Number(data.price || 0), reminderDaysBefore: Number(data.reminderDaysBefore || 0) })
+        body: JSON.stringify({ ...data, customerId: data.customerId || form.querySelector("[name='customerId']")?.value, price: Number(data.price || 0) })
       });
       closePortal();
       state.dbSubscriptions = null; state.dashboardOverview = null;
