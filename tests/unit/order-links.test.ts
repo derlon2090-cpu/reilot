@@ -89,5 +89,7 @@ describe("order information links", () => {
     expect(appSource).toContain("order-saved-actions");
     expect(stylesSource).toContain(".order-links-table-card { width: 100%; max-width: 100%; min-width: 0; overflow: visible; }");
     expect(stylesSource).toContain("scrollbar-gutter: stable both-edges");
+    expect(stylesSource).toContain("min-width: 286px");
+    expect(stylesSource).toContain(".order-links-table-card--links th:nth-child(9)");
   });
 });

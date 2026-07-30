@@ -131,7 +131,7 @@ export async function POST(req) {
 
     const direction = ["inbound", "outbound", "bidirectional"].includes(body.direction) ? body.direction : "bidirectional";
     const key = createApiKey(body.environment);
-    const item = await transaction(async (client) => {
+    const created = await transaction(async (client) => {
       const integration = await client.query(
         `INSERT INTO custom_integrations
            (tenant_id,name,description,environment,direction,status,scopes,created_by)
@@ -141,10 +141,11 @@ export async function POST(req) {
           direction, direction === "inbound" ? "ACTIVE" : "PARTIALLY_CONFIGURED",
           JSON.stringify(scopes), auth.session.userId]
       );
-      await client.query(
+      const apiKey = await client.query(
         `INSERT INTO custom_integration_api_keys
            (integration_id,tenant_id,name,public_key_id,key_prefix,key_digest,environment,status,scopes,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE',$8::jsonb,$9)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE',$8::jsonb,$9)
+         RETURNING id,name,key_prefix AS prefix,scopes,status,created_at AS "createdAt"`,
         [integration.rows[0].id, auth.session.tenantId, body.keyName || "المفتاح الرئيسي",
           key.publicKeyId, key.prefix, key.digest, key.environment, JSON.stringify(scopes), auth.session.userId]
       );
@@ -153,9 +154,25 @@ export async function POST(req) {
          VALUES ($1,$2,'custom_integration.created','Custom integration created',$3::jsonb)`,
         [auth.session.tenantId, auth.session.userId, JSON.stringify({ integrationId: integration.rows[0].id, keyPrefix: key.prefix })]
       );
-      return integration.rows[0];
+      return {
+        item: integration.rows[0],
+        key: {
+          id: apiKey.rows[0]?.id,
+          name: apiKey.rows[0]?.name || body.keyName || "المفتاح الرئيسي",
+          prefix: apiKey.rows[0]?.prefix || key.prefix,
+          scopes: apiKey.rows[0]?.scopes || scopes,
+          status: "ACTIVE",
+          createdAt: apiKey.rows[0]?.createdAt || new Date().toISOString()
+        }
+      };
     });
-    return Response.json({ ok: true, item, apiKey: key.raw, warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى." }, { status: 201 });
+    return Response.json({
+      ok: true,
+      item: created.item,
+      key: created.key,
+      apiKey: key.raw,
+      warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى."
+    }, { status: 201 });
   } catch (error) {
     const entitlementResponse = planEntitlementResponse(error);
     if (entitlementResponse) return entitlementResponse;

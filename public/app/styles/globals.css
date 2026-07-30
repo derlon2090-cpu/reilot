@@ -4023,9 +4023,20 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .order-links-table-card th:first-child,
 .order-links-table-card td:first-child { min-width: 140px; }
 .order-links-table-card th:last-child,
-.order-links-table-card td:last-child { min-width: 220px; }
+.order-links-table-card td:last-child {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  min-width: 286px;
+  box-shadow: none;
+}
+.order-links-table-card--links th:nth-child(8),
+.order-links-table-card--links td:nth-child(8),
+.order-links-table-card--links th:nth-child(9),
+.order-links-table-card--links td:nth-child(9) { min-width: 190px; }
 .order-links-table-card .row-actions { min-width: max-content; flex-wrap: nowrap; }
 .saved-orders-count { display: inline-grid; place-items: center; min-width: 28px; height: 24px; margin-inline-start: 6px; padding-inline: 7px; border-radius: 999px; color: #1769ed; background: #edf5ff; font-size: 12px; vertical-align: middle; }
+.order-links-table-card--links .section-head h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .order-saved-actions .icon-action { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid #dce6f3; border-radius: 7px; background: #fff; }
 .order-saved-actions .icon-action:hover { color: #1769ed; border-color: #9fc2f7; background: #f4f8ff; }
 .order-saved-actions .icon-action svg { width: 15px; height: 15px; pointer-events: none; }
@@ -4708,6 +4719,30 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-enable>div>svg{width:26px;height:26px;color:#1768ff}
 .salla-template-enable strong,.salla-template-enable small{display:block}
 .salla-template-enable small{color:#71829f;margin-top:4px}
+.message-activation-card{padding:14px 16px;margin:18px 0;display:flex;align-items:center;justify-content:space-between;gap:22px;border-color:#dce6f4;box-shadow:0 2px 8px rgba(18,54,94,.06)}
+.message-activation-copy{display:flex;align-items:center;gap:13px;min-width:0}
+.message-activation-copy>span:last-child{min-width:0}
+.message-activation-copy strong,.message-activation-copy small{display:block}
+.message-activation-copy strong{color:#092b59;font-size:14px;line-height:1.5}
+.message-activation-copy small{color:#71839e;font-size:11px;line-height:1.6;margin-top:3px}
+.message-activation-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 44px;border-radius:10px;background:#edf4ff;color:#1768ff}
+.message-activation-icon svg{width:23px;height:23px}
+.message-activation-control{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.message-activation-switch{border:0;background:transparent;padding:0;display:inline-flex;align-items:center;cursor:pointer}
+.message-activation-switch input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
+.message-activation-switch>span{width:38px;height:22px;background:#b9c4d3;border-radius:999px;position:relative;display:block;transition:background .18s ease}
+.message-activation-switch>span:after{content:"";width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:3px;inset-inline-start:3px;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:inset-inline-start .18s ease}
+.message-activation-switch.active>span,.message-activation-switch:has(input:checked)>span{background:#1768ff}
+.message-activation-switch.active>span:after,.message-activation-switch:has(input:checked)>span:after{inset-inline-start:19px}
+.message-activation-status{display:inline-flex;align-items:center;gap:5px;color:#71839e;font-size:11px;white-space:nowrap}
+.message-activation-status i{width:7px;height:7px;border-radius:50%;background:#9caabd}
+.message-activation-status b{font-weight:600}
+.message-activation-status-on{display:none}
+.message-activation-switch.active~.message-activation-status,.message-activation-control:has(input:checked) .message-activation-status{color:#174c38}
+.message-activation-switch.active~.message-activation-status i,.message-activation-control:has(input:checked) .message-activation-status i{background:#16b364}
+.message-activation-switch.active~.message-activation-status .message-activation-status-on,.message-activation-control:has(input:checked) .message-activation-status-on{display:inline}
+.message-activation-switch.active~.message-activation-status .message-activation-status-off,.message-activation-control:has(input:checked) .message-activation-status-off{display:none}
+.subscription-settings-form>.message-activation-card{grid-column:1/-1;margin:0 0 2px}
 .switch-button{border:0;background:#edf2f8;color:#66758f;padding:7px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:inherit}
 .switch-button span{width:38px;height:22px;background:#b9c4d3;border-radius:999px;position:relative}
 .switch-button span:after{content:"";width:16px;height:16px;border-radius:50%;background:white;position:absolute;top:3px;inset-inline-start:3px;box-shadow:0 2px 5px rgba(0,0,0,.2)}
@@ -4738,11 +4773,16 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .salla-templates-grid{grid-template-columns:1fr}
   .salla-template-card footer{align-items:flex-start;flex-direction:column}
   .salla-template-enable{align-items:flex-start;gap:14px;flex-direction:column}
+  .message-activation-card{align-items:flex-start;flex-direction:column}
+  .message-activation-control{width:100%;justify-content:flex-end}
   .salla-template-form-card{padding:16px}
 }
 [data-theme="dark"] .salla-template-card,[data-theme="dark"] .salla-template-form-card,[data-theme="dark"] .salla-template-live-preview{border-color:#263a58}
 [data-theme="dark"] .salla-template-card-head h2,[data-theme="dark"] .salla-preview-message{color:#e8f1ff}
 [data-theme="dark"] .salla-preview-message{background:#183a31;border-color:#255b4b}
+[data-theme="dark"] .message-activation-card{border-color:#29405f;background:#12233a}
+[data-theme="dark"] .message-activation-copy strong{color:#e8f1ff}
+[data-theme="dark"] .message-activation-copy small{color:#9dafc8}
 
 /* Secure email OTP login */
 .email-otp-page{
@@ -4949,7 +4989,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .capi-summary-card>span svg{width:20px;height:20px}.capi-summary-card>div{display:grid;gap:4px;min-width:0}
 .capi-summary-card small,.capi-summary-card em{color:#8795aa;font-size:11px;font-style:normal}.capi-summary-card strong{overflow:hidden;color:#0a2857;font-size:14px;text-overflow:ellipsis;white-space:nowrap}
 .capi-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.capi-resource-card{display:grid;gap:13px;padding:16px;min-width:0}.capi-card-head{display:flex;align-items:flex-start;gap:10px}
+.capi-resource-card{display:grid;gap:13px;padding:16px;min-width:0;overflow:hidden}.capi-card-head{display:flex;align-items:flex-start;gap:10px}
 .capi-card-head>span{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#eef5ff;color:#1769ed;flex:0 0 auto}
 .capi-card-head>span svg{width:19px;height:19px}.capi-card-head>div{display:grid;gap:3px;min-width:0;flex:1}
 .capi-card-head h2{margin:0;color:#0a2857;font-size:18px}.capi-card-head p{margin:0;color:#8190a7;font-size:12px;line-height:1.6}
@@ -4970,7 +5010,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .capi-benefits>div>span svg{width:19px;height:19px}.capi-benefits p{display:grid;gap:2px;margin:0}.capi-benefits b{color:#163962;font-size:13px}.capi-benefits small{color:#8593a8;font-size:10px;line-height:1.5}
 .capi-secure-note,.capi-help{display:grid;place-items:center;gap:9px;padding:18px;border:1px solid #d7e7fb;border-radius:14px;background:linear-gradient(135deg,#f7fbff,#eef6ff);text-align:center}
 .capi-secure-note>span{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#e5f0ff;color:#1769ed}
-.capi-secure-note>div,.capi-help{gap:4px}.capi-secure-note b,.capi-help h3{color:#1769ed}.capi-secure-note small,.capi-help p{color:#7486a0;line-height:1.6}
+.capi-secure-note>div{display:grid;justify-items:center;gap:5px;width:100%}.capi-secure-note b,.capi-secure-note small{display:block}.capi-help{gap:4px}.capi-secure-note b,.capi-help h3{color:#1769ed}.capi-secure-note small,.capi-help p{color:#7486a0;line-height:1.6}
 .capi-help h3,.capi-help p{margin:0}.capi-help .btn{width:100%;margin-top:6px}
 .capi-setup-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;align-items:start;direction:ltr}.capi-setup-layout>*{direction:rtl}.capi-setup-layout>main{display:grid;gap:14px;min-width:0}
 .capi-setup-summary,.capi-key-meta,.capi-webhook-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:14px 20px}
@@ -5000,6 +5040,15 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .capi-key-card,.capi-next-steps,.capi-granted,.capi-security-guide{display:grid;gap:14px;padding:18px}.capi-key-card .capi-card-head{align-items:center}.capi-key-card .capi-card-head em{font-style:normal}
 .capi-key-card>label>span{color:#6f8099}.capi-key-copy{display:flex;align-items:center;gap:10px;padding:9px;border:1px solid #dce6f3;border-radius:10px;background:#fbfdff}
 .capi-key-copy code{min-width:0;overflow:hidden;padding:0 8px;color:#183b65;font-weight:700;text-overflow:ellipsis;white-space:nowrap;flex:1}.capi-key-copy .btn{flex:0 0 auto}
+.capi-one-time-key{display:grid;gap:10px;min-width:0;max-width:100%;padding:14px;border:1px solid #9adbbd;border-radius:13px;background:linear-gradient(135deg,#f1fcf6,#f8fffb)}
+.capi-one-time-key>div:first-child{display:grid;gap:4px}.capi-one-time-key>div:first-child .status{justify-self:start}.capi-one-time-key>div:first-child strong{color:#14613f}.capi-one-time-key>div:first-child small{color:#56806d;line-height:1.6}
+.capi-one-time-key .capi-key-copy,.capi-key-card .capi-key-copy{min-width:0;max-width:100%;overflow:hidden}.capi-one-time-key .capi-key-copy code,.capi-key-card .capi-key-copy code{white-space:normal;overflow-wrap:anywhere;text-overflow:clip;line-height:1.65;text-align:left}
+.capi-one-time-key>.btn{justify-self:start}.capi-managed-keys{display:grid;gap:8px;min-width:0;max-width:100%;padding-top:3px}
+.capi-managed-keys-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#163962}.capi-managed-keys-head span{color:#70829c;font-size:11px}
+.capi-managed-key{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;min-width:0;max-width:100%;padding:11px;border:1px solid #dfe8f4;border-radius:11px;background:#fff}
+.capi-managed-key>div{display:grid;gap:3px;min-width:0}.capi-managed-key code{overflow:hidden;color:#24466e;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.capi-managed-key small{color:#8291a7;font-size:10px}
+.capi-managed-key.is-revoked{opacity:.68;background:#f7f9fc}.capi-managed-key .btn-compact,.capi-one-time-key .btn-compact{min-height:34px;padding:7px 10px;font-size:11px}
+.capi-managed-key .btn-danger svg{width:14px;height:14px}
 .capi-next-steps>div:last-child{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.capi-next-steps article{display:grid;gap:5px;padding:13px;border:1px solid #dfe8f4;border-radius:10px}
 .capi-next-steps b{color:#173962}.capi-next-steps small{color:#8291a7}.capi-granted>div{display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid #e1e9f4;border-radius:9px}
 .capi-granted>div svg{width:16px;color:#1769ed}.capi-security-guide ul,.capi-retry-card ul{display:grid;gap:8px;margin:0;padding-inline-start:20px;color:#5f7594;line-height:1.6}
@@ -5033,6 +5082,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .capi-overview-actions,.capi-footer-actions,.capi-page-actions{display:grid;grid-template-columns:1fr}.capi-overview-actions .btn,.capi-footer-actions .btn,.capi-page-actions .btn{width:100%;min-width:0}
   .capi-summary-grid,.capi-direction,.capi-choice-grid,.capi-event-grid,.capi-shell-grid>.capi-side-stack,.capi-setup-layout>.capi-side-stack,.capi-key-layout>.capi-side-stack{grid-template-columns:1fr}
   .capi-key-copy{align-items:stretch;flex-direction:column}.capi-key-copy .btn{width:100%}
+  .capi-managed-key{grid-template-columns:minmax(0,1fr) auto}.capi-managed-key .btn{grid-column:1/-1;width:100%}.capi-one-time-key>.btn{width:100%}
   .capi-setup-preview{grid-template-columns:1fr;min-width:0}.capi-setup-preview>section{grid-column:auto}
 }
 :root[data-theme="dark"] .capi-page{color:#e9f2ff}

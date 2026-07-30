@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   SALLA_TEMPLATE_DEFINITIONS,
@@ -6,6 +8,9 @@ import {
   previewSallaAutomationTemplate,
   renderSallaTemplate
 } from "../../src/server/salla-templates.js";
+
+const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
+const styles = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
 
 describe("Salla automation templates", () => {
   it("defines exactly one immutable record key for every required template", () => {
@@ -62,5 +67,15 @@ describe("Salla automation templates", () => {
     });
     expect(preview.body).toContain("أحمد");
     expect(preview.notice).toContain("معاينة فقط");
+  });
+
+  it("uses one activation control with a specific message title for every Salla template", () => {
+    for (const definition of SALLA_TEMPLATE_DEFINITIONS) {
+      expect(appSource).toContain(`${definition.key}: "تفعيل رسالة`);
+    }
+    expect(appSource).toContain('action: "salla-template-toggle"');
+    expect(appSource).toContain("عند الإيقاف لن تُرسل الرسالة");
+    expect(styles).toContain(".message-activation-card");
+    expect(styles).toContain(".message-activation-switch");
   });
 });

@@ -55,7 +55,18 @@ describe("custom integration navigation", () => {
   it("keeps the one-time API key visible while the integration list refreshes", () => {
     expect(source).toContain("if (!payload.apiKey || !payload.item?.id)");
     expect(source).toContain("items: [createdItem, ...currentItems.filter");
+    expect(source).toContain('target === "customIntegrations"');
+    expect(source).toContain("const preservedItem = { ...(incomingItem || {}), ...optimisticItem, keys }");
+    expect(source).toContain("keys: payload.key ? [payload.key] : []");
     expect(source).toContain('await navigate("/dashboard/settings/integrations/custom-api/key-created")');
     expect(source).toContain("void syncRouteData(true)");
+  });
+
+  it("shows and manages the created API keys from the integration dashboard", () => {
+    expect(source).toContain("function customApiKeyManagement(item)");
+    expect(source).toContain("انسخ المفتاح الحقيقي الآن");
+    expect(source).toContain('data-action="revoke-custom-key"');
+    expect(source).toContain('action === "confirm-revoke-custom-key"');
+    expect(source).toContain("/keys/${encodeURIComponent(keyId)}");
   });
 });

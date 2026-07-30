@@ -77,6 +77,9 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
   const row = result.rows[0];
   if (!row) return { ok: false, reason: "subscription_not_found" };
   if (row.status !== "active") return { ok: false, reason: "subscription_not_active" };
+  if (row.reminder_enabled === false) {
+    return { ok: false, reason: "reminder_disabled", message: "رسالة التذكير متوقفة من إعدادات الاشتراك." };
+  }
   const preferred = requestedChannel || row.preferred_channel;
   const candidates = [preferred, row.fallback_channel].filter((channel, index, list) => channel && list.indexOf(channel) === index);
   let channel = null;

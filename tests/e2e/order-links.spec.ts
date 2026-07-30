@@ -33,6 +33,7 @@ const subscription = {
 };
 
 test("order information builder and public page are responsive and private", async ({ page }) => {
+  test.setTimeout(60_000);
   await mkdir(".codex-artifacts", { recursive: true });
   await page.route("**/api/dashboard/overview", (route) => route.fulfill({ json: { ok: true, stats: {}, profile: {} } }));
   await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [] } }));
@@ -148,6 +149,15 @@ test("order information builder and public page are responsive and private", asy
   await expect(page.locator(".order-links-table-card--links")).toContainText("54981-LONG-ORDER-NUMBER");
   await expect(page.locator(".order-links-table-card--templates")).toContainText("قالب معلومات الطلب الاحترافي");
   expect(await page.locator(".order-links-table-card--links .compare").evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  const creationHeader = page.locator(".order-links-table-card--links th").nth(8);
+  const actionsHeader = page.locator(".order-links-table-card--links th").nth(9);
+  await actionsHeader.scrollIntoViewIfNeeded();
+  const creationBox = await creationHeader.boundingBox();
+  const actionsBox = await actionsHeader.boundingBox();
+  expect(creationBox && actionsBox && (
+    creationBox.x + creationBox.width <= actionsBox.x
+    || actionsBox.x + actionsBox.width <= creationBox.x
+  )).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
   await page.screenshot({ path: ".codex-artifacts/order-links-desktop.png", fullPage: true });

@@ -98,7 +98,7 @@ async function scheduleSubscriptionReminders(client, subscription, plan, { enabl
       WHERE subscription_id = $1 AND status IN ('scheduled','queued','processing','paused')`,
     [subscription.id]
   );
-  if (!enabled || subscription.reminder_mode !== "automatic" || subscription.status !== "active") {
+  if (!enabled || subscription.reminder_enabled === false || subscription.reminder_mode !== "automatic" || subscription.status !== "active") {
     await client.query("UPDATE customer_subscriptions SET next_reminder_at = NULL WHERE id = $1", [subscription.id]);
     return 0;
   }
@@ -317,7 +317,8 @@ export async function listSubscriptionOperations(tenantId, options = {}) {
             sp.name AS "planName", cs.plan_id AS "planId", cs.starts_at AS "startDate",
             cs.expires_at AS "endDate", cs.status, cs.amount AS price, cs.currency,
             cs.preferred_channel AS "reminderChannel", cs.fallback_channel AS "fallbackChannel",
-            cs.reminder_mode AS "reminderMode", COALESCE((cs.reminder_days->>0)::int,7) AS "reminderDaysBefore",
+            cs.reminder_mode AS "reminderMode", cs.reminder_enabled AS "reminderEnabled",
+            COALESCE((cs.reminder_days->>0)::int,7) AS "reminderDaysBefore",
             cs.next_reminder_at AS "nextReminderAt",
             cs.last_reminder_sent_at AS "lastReminderSentAt", cs.last_reminder_channel AS "lastReminderChannel",
             cs.notification_status AS "notificationStatus", cs.source,

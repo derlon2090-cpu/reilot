@@ -737,6 +737,32 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     if (target === "dbSubscriptions") {
       state.dbSubscriptions = payload.items || [];
       state.subscriptionMeta = payload;
+    } else if (target === "customIntegrations") {
+      const secretIntegrationId = state.customIntegrationSecret?.integrationId;
+      const currentItems = Array.isArray(state.customIntegrations?.items) ? state.customIntegrations.items : [];
+      const optimisticItem = secretIntegrationId
+        ? currentItems.find((item) => item.id === secretIntegrationId)
+        : null;
+      const incomingItems = Array.isArray(payload?.items) ? payload.items : [];
+      if (optimisticItem) {
+        const incomingItem = incomingItems.find((item) => item.id === secretIntegrationId);
+        const optimisticKeys = Array.isArray(optimisticItem.keys) ? optimisticItem.keys : [];
+        const incomingKeys = Array.isArray(incomingItem?.keys) ? incomingItem.keys : [];
+        const keys = [
+          ...optimisticKeys,
+          ...incomingKeys.filter((key) => !optimisticKeys.some((current) => current.id === key.id))
+        ];
+        const preservedItem = { ...(incomingItem || {}), ...optimisticItem, keys };
+        state.customIntegrations = {
+          ...payload,
+          items: [
+            preservedItem,
+            ...incomingItems.filter((item) => item.id !== secretIntegrationId)
+          ]
+        };
+      } else {
+        state.customIntegrations = payload;
+      }
     } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
       ? payload
       : target === "orderLinkProfile"
@@ -1863,6 +1889,41 @@ function sallaTemplateIcon(item) {
   return dashboardIcon(iconMap[item.icon] || "template");
 }
 
+function messageActivationCard({
+  title,
+  description,
+  enabled = true,
+  icon = "send",
+  action = "",
+  key = "",
+  inputName = ""
+}) {
+  const checked = Boolean(enabled);
+  const control = action
+    ? `<button type="button" class="message-activation-switch ${checked ? "active" : ""}" data-action="${escapeHtml(action)}" data-key="${escapeHtml(key)}" data-enabled="${checked ? "true" : "false"}" role="switch" aria-checked="${checked ? "true" : "false"}" aria-label="${checked ? "إيقاف" : "تفعيل"} ${escapeHtml(title)}"><span></span></button>`
+    : `<label class="message-activation-switch"><input type="checkbox" name="${escapeHtml(inputName)}" ${checked ? "checked" : ""}><span></span></label>`;
+  return `<div class="message-activation-card card">
+    <div class="message-activation-copy"><span class="message-activation-icon">${dashboardIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span></div>
+    <div class="message-activation-control">${control}<span class="message-activation-status"><i></i><b class="message-activation-status-on">مفعل</b><b class="message-activation-status-off">متوقف</b></span></div>
+  </div>`;
+}
+
+function sallaTemplateActivationTitle(item) {
+  const labels = {
+    salla_abandoned_cart: "تفعيل رسالة السلة المتروكة",
+    salla_order_under_review: "تفعيل رسالة تحت المراجعة",
+    salla_order_processing: "تفعيل رسالة قيد التنفيذ",
+    salla_order_completed: "تفعيل رسالة تم التنفيذ",
+    salla_order_shipped: "تفعيل رسالة تم الشحن",
+    salla_order_out_for_delivery: "تفعيل رسالة جاري التوصيل",
+    salla_order_delivered: "تفعيل رسالة تم التوصيل",
+    salla_order_return_pending: "تفعيل رسالة قيد الاسترجاع",
+    salla_order_returned: "تفعيل رسالة الاسترجاع",
+    salla_invoice_ready: "تفعيل رسالة الفاتورة"
+  };
+  return labels[item.templateKey] || `تفعيل رسالة ${item.name}`;
+}
+
 function sallaAutomationTemplatesPage() {
   const payload = state.sallaAutomationTemplates;
   if (!payload) return dashboardShell(`${pageTitle("قوالب سلة")}<div class="loading-state">جاري تحميل القوالب المرتبطة بمتجر سلة...</div>`);
@@ -1924,7 +1985,14 @@ function sallaAutomationTemplateEditorPage() {
   const invoice = item.templateKey === "salla_invoice_ready" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>صفحة الفاتورة الآمنة</h2><p>الأرقام للقراءة فقط وتأتي من فاتورة سلة الحقيقية.</p></div>${dashboardIcon("billing")}</div><label class="field"><span>حدث الإرسال</span><select class="select" name="invoiceTrigger"><option value="invoice.created" ${settings.invoiceTrigger !== "after_completed" ? "selected" : ""}>عند إنشاء الفاتورة</option><option value="after_completed" ${settings.invoiceTrigger === "after_completed" ? "selected" : ""}>بعد اكتمال الطلب وانتظار جاهزية الفاتورة</option></select></label></section>` : "";
   return dashboardShell(`${pageTitle(item.name, `<button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`)}
     <p class="page-kicker">${escapeHtml(item.description)}</p>
-    <div class="salla-template-enable card"><div>${sallaTemplateIcon(item)}<span><strong>تفعيل القالب</strong><small>يتم التحقق من القناة والحالة والمزود قبل التفعيل.</small></span></div><button class="switch-button ${item.isEnabled ? "active" : ""}" data-action="salla-template-toggle" data-key="${escapeHtml(item.templateKey)}" data-enabled="${item.isEnabled ? "true" : "false"}" role="switch" aria-checked="${item.isEnabled ? "true" : "false"}"><span></span>${item.isEnabled ? "مفعل" : "غير مفعل"}</button></div>
+    ${messageActivationCard({
+      title: sallaTemplateActivationTitle(item),
+      description: `عند تفعيلها، تُرسل هذه الرسالة بعد وصول حدث ${item.name} المطابق من سلة. عند الإيقاف لن تُرسل الرسالة.`,
+      enabled: item.isEnabled,
+      icon: "send",
+      action: "salla-template-toggle",
+      key: item.templateKey
+    })}
     <section class="salla-template-editor-layout">
       <form class="grid" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
         <article class="card salla-template-form-card">
@@ -2139,7 +2207,13 @@ function subscriptionsPage() {
   const sendLog = meta.sendLog || [];
   const listSection = `<section class="subscription-workspace"><article class="card table-card subscription-list-card"><div class="section-head"><div><h2>قائمة الاشتراكات <span>(${Number(meta.total || 0).toLocaleString("ar-SA")})</span></h2><p class="muted">الطلبات المدفوعة المرتبطة بباقات Renvix فقط.</p></div></div>${content}<div class="subscription-pagination"><span>صفحة ${Number(meta.page||1)} من ${Math.max(1,Math.ceil(Number(meta.total||0)/Number(meta.limit||20)))}</span><div><button class="btn btn-secondary" data-action="subscription-page" data-page="${Math.max(1,Number(meta.page||1)-1)}" ${Number(meta.page||1)<=1?"disabled":""}>السابق</button><button class="btn btn-secondary" data-action="subscription-page" data-page="${Number(meta.page||1)+1}" ${Number(meta.page||1)*Number(meta.limit||20)>=Number(meta.total||0)?"disabled":""}>التالي</button></div></div></article><aside class="subscription-side-column"><article class="card subscription-upcoming"><div class="section-head"><h2>التجديدات القادمة</h2><button data-action="clear-subscription-filters">عرض الكل</button></div>${upcoming.length?upcoming.map((item)=>`<button class="upcoming-renewal-row" data-action="subscription-edit-db" data-id="${item.id}"><span><strong>${escapeHtml(item.customerName)}</strong><small>${escapeHtml(item.planName)}</small></span><b>${new Date(item.endDate).toLocaleDateString("ar-SA",{day:"numeric",month:"short"})}</b></button>`).join(""):`<div class="security-empty-row">لا توجد تجديدات قادمة.</div>`}</article></aside></section>`;
   const settingsRow = rows[0] || {};
-  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد قناة التذكير وطريقة التشغيل والموعد من مكان واحد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${rows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form"><label class="field"><span>قناة الإرسال</span><select class="select" name="reminderChannel"><option value="whatsapp" ${settingsRow.reminderChannel !== "email" ? "selected" : ""}>واتساب</option><option value="email" ${settingsRow.reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><small>القناة المعتمدة لإرسال تذكير التجديد.</small></label><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">${[[0,"يوم الانتهاء"],[1,"قبل يوم واحد"],[3,"قبل 3 أيام"],[4,"قبل 4 أيام"],[7,"قبل 7 أيام"],[14,"قبل 14 يومًا"]].map(([value,label]) => `<option value="${value}" ${Number(settingsRow.reminderDaysBefore || 7) === value ? "selected" : ""}>${label}</option>`).join("")}</select><small>يعمل هذا الموعد عند اختيار الإرسال التلقائي.</small></label><fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch"><label><input type="radio" name="reminderMode" value="automatic" ${settingsRow.reminderMode !== "manual" ? "checked" : ""}><span>تلقائي</span></label><label><input type="radio" name="reminderMode" value="manual" ${settingsRow.reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label></div><small>اليدوي ينتظر ضغط زر «إرسال تذكير»، والتلقائي يجدوله في الموعد.</small></fieldset><div class="subscription-settings-actions"><button class="btn btn-primary">حفظ الإعدادات</button></div></form>` : emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعدادات التذكير.")}</article>`;
+  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد قناة التذكير وطريقة التشغيل والموعد من مكان واحد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${rows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form">${messageActivationCard({
+    title: "تفعيل رسالة التذكير",
+    description: "عند تفعيلها، يُرسل تذكير التجديد وفق القناة والموعد المحددين. عند الإيقاف تُلغى التذكيرات المجدولة ولا يمكن إرسالها يدويًا.",
+    enabled: settingsRow.reminderEnabled !== false,
+    icon: "send",
+    inputName: "reminderEnabled"
+  })}<label class="field"><span>قناة الإرسال</span><select class="select" name="reminderChannel"><option value="whatsapp" ${settingsRow.reminderChannel !== "email" ? "selected" : ""}>واتساب</option><option value="email" ${settingsRow.reminderChannel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><small>القناة المعتمدة لإرسال تذكير التجديد.</small></label><label class="field"><span>متى يتم الإرسال؟</span><select class="select" name="reminderDaysBefore">${[[0,"يوم الانتهاء"],[1,"قبل يوم واحد"],[3,"قبل 3 أيام"],[4,"قبل 4 أيام"],[7,"قبل 7 أيام"],[14,"قبل 14 يومًا"]].map(([value,label]) => `<option value="${value}" ${Number(settingsRow.reminderDaysBefore || 7) === value ? "selected" : ""}>${label}</option>`).join("")}</select><small>يعمل هذا الموعد عند اختيار الإرسال التلقائي.</small></label><fieldset class="field delivery-mode-field"><legend>أوامر الإرسال</legend><div class="delivery-mode-switch"><label><input type="radio" name="reminderMode" value="automatic" ${settingsRow.reminderMode !== "manual" ? "checked" : ""}><span>تلقائي</span></label><label><input type="radio" name="reminderMode" value="manual" ${settingsRow.reminderMode === "manual" ? "checked" : ""}><span>يدوي</span></label></div><small>اليدوي ينتظر ضغط زر «إرسال تذكير»، والتلقائي يجدوله في الموعد.</small></fieldset><div class="subscription-settings-actions"><button class="btn btn-primary">حفظ الإعدادات</button></div></form>` : emptyState("لا توجد اشتراكات","أضف اشتراكًا أولًا لتحديد إعدادات التذكير.")}</article>`;
   const templatesSection = `<article class="card section subscription-template-bridge"><div>${dashboardIcon("template")}<h2>قوالب رسائل التجديد</h2><p>قالب واتساب وقالب البريد مستقلان، ولا تُرسل رسالة إذا كان قالب القناة غير مهيأ أو يحتوي متغيرًا غير معتمد.</p><button class="btn btn-primary" data-link="/dashboard/templates">فتح القوالب</button></div></article>`;
   const logSection = `<article class="card table-card section"><div class="section-head"><div><h2>سجل الإرسال</h2><p class="muted">يبقى السجل محفوظًا حتى بعد اختفاء شارة «تم الإرسال» بعد 72 ساعة.</p></div></div>${sendLog.length?simpleTable(["العميل","الخدمة","القناة","الحالة","وقت النجاح","السبب"],sendLog.map((item)=>[escapeHtml(item.customerName||"-"),escapeHtml(item.serviceName||"-"),item.channel==="email"?"البريد":"واتساب",status(item.status),item.sentAt?new Date(item.sentAt).toLocaleString("ar-SA"):"-",escapeHtml(item.errorMessage||"-")])):emptyState("لا توجد رسائل مسجلة","ستظهر هنا نتائج الإرسال الفعلية.")}</article>`;
   const activeSection = state.subscriptionSection==="settings"?settingsSection:state.subscriptionSection==="templates"?templatesSection:state.subscriptionSection==="log"?logSection:listSection;
@@ -2161,8 +2235,9 @@ function subscriptionsTable(rows, compact = false) {
   const head = compact ? ["رقم الطلب", "العميل", "الباقة", "تاريخ الانتهاء", "الحالة"] : ["العميل", "الباقة", "قيمة الاشتراك", "البداية", "التجديد القادم", "الحالة", "الإجراءات"];
   const body = rows.map((row) => {
     const noContact = !row.emailEligible && !row.whatsappEligible;
-    const disabled = noContact ? "disabled" : "";
-    const reason = noContact ? "لا يمكن الإرسال لعدم توفر رقم أو بريد صالح" : "";
+    const reminderDisabled = row.reminderEnabled === false;
+    const disabled = noContact || reminderDisabled ? "disabled" : "";
+    const reason = reminderDisabled ? "رسالة التذكير متوقفة من إعدادات التذكير" : noContact ? "لا يمكن الإرسال لعدم توفر رقم أو بريد صالح" : "";
     const deliveryLabel = `${row.reminderChannel === "email" ? "البريد الإلكتروني" : "واتساب"} · ${row.reminderMode === "automatic" ? "تلقائي" : "يدوي"}`;
     const reminderAction = row.lastMessageStatus === "failed"
       ? `<button class="btn btn-secondary" data-action="send-subscription-reminder" data-id="${row.id}" ${disabled} title="سيتم خصم الرصيد فقط إذا نجح الإرسال">إعادة الإرسال</button>`
@@ -2180,7 +2255,7 @@ function subscriptionsTable(rows, compact = false) {
         ? `<span class="subscription-sent-history" title="آخر تذكير أُرسل ${new Date(row.lastReminderSentAt).toLocaleString("ar-SA")} ${row.lastReminderChannel==="email"?"عبر البريد":"عبر واتساب"}">✓</span>`
         : row.lastMessageStatus==="failed" ? `<span class="subscription-failed-badge" title="${escapeHtml(row.lastMessageError||"")}">فشل الإرسال</span>` : row.lastMessageStatus==="pending" ? `<span class="subscription-queued-badge">مجدول</span>` : "";
     const displayStatus = row.status==="active" && subscriptionRemainingDays(row)!==null && subscriptionRemainingDays(row)<=7 && subscriptionRemainingDays(row)>=0 ? "expiring_soon" : row.status;
-    return `<tr><td><strong>${escapeHtml(row.customerName)}</strong><small>${escapeHtml(row.orderNumber)}</small></td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small><span class="delivery-preference-pill ${row.reminderMode === "automatic" ? "automatic" : "manual"}">${escapeHtml(deliveryLabel)}</span></td><td>${formatMoney(Number(row.price||0))}<small>${escapeHtml(row.currency||"SAR")}</small></td><td>${escapeHtml(String(row.startDate).slice(0,10))}<small>بداية الاشتراك</small></td><td><strong>${escapeHtml(String(row.endDate).slice(0,10))}</strong><small>${subscriptionRemainingDays(row)>=0?`بعد ${subscriptionRemainingDays(row)} يوم`:"منتهي"}</small></td><td>${status(displayStatus)}${sentBadge}</td><td>${actions}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(row.customerName)}</strong><small>${escapeHtml(row.orderNumber)}</small></td><td><strong>${escapeHtml(row.planName)}</strong><small>${escapeHtml(row.serviceName)}</small><span class="delivery-preference-pill ${reminderDisabled ? "disabled" : row.reminderMode === "automatic" ? "automatic" : "manual"}">${reminderDisabled ? "التذكير متوقف" : escapeHtml(deliveryLabel)}</span></td><td>${formatMoney(Number(row.price||0))}<small>${escapeHtml(row.currency||"SAR")}</small></td><td>${escapeHtml(String(row.startDate).slice(0,10))}<small>بداية الاشتراك</small></td><td><strong>${escapeHtml(String(row.endDate).slice(0,10))}</strong><small>${subscriptionRemainingDays(row)>=0?`بعد ${subscriptionRemainingDays(row)} يوم`:"منتهي"}</small></td><td>${status(displayStatus)}${sentBadge}</td><td>${actions}</td></tr>`;
   }).join("");
   return `<div class="compare"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
@@ -4718,6 +4793,37 @@ async function handleAction(target) {
     return;
   }
   if (action === "dismiss-custom-secret") { state.customIntegrationSecret = null; render(); return; }
+  if (action === "revoke-custom-key") {
+    return openModal(
+      "إلغاء مفتاح API",
+      "<p>سيتوقف هذا المفتاح عن قبول أي طلب جديد فورًا. لن تتأثر المفاتيح الأخرى أو بيانات التكامل.</p>",
+      `<button class="btn btn-danger" data-action="confirm-revoke-custom-key" data-integration-id="${escapeHtml(target.dataset.integrationId)}" data-key-id="${escapeHtml(target.dataset.keyId)}">إلغاء المفتاح</button><button class="btn btn-secondary" data-action="close-modal">تراجع</button>`
+    );
+  }
+  if (action === "confirm-revoke-custom-key") {
+    const button = target.closest("button");
+    const integrationId = target.dataset.integrationId;
+    const keyId = target.dataset.keyId;
+    setSubmitBusy(button, true, "جاري إلغاء المفتاح...");
+    try {
+      await fetchJson(`/api/integrations/custom/${encodeURIComponent(integrationId)}/keys/${encodeURIComponent(keyId)}`, { method: "DELETE" });
+      if (state.customIntegrationSecret?.keyId === keyId) state.customIntegrationSecret = null;
+      state.customIntegrations = await fetchJson("/api/integrations/custom");
+      closePortal();
+      render();
+      appToast.success("تم إلغاء مفتاح API", {
+        description: "توقف المفتاح عن العمل، وبقيت بقية مفاتيح التكامل وبياناته كما هي.",
+        id: "custom-key-revoked"
+      });
+    } catch (error) {
+      appToast.error("تعذر إلغاء المفتاح", {
+        description: error.message || "حاول مرة أخرى بعد قليل.",
+        id: "custom-key-revoke-error"
+      });
+      setSubmitBusy(button, false, "إلغاء المفتاح");
+    }
+    return;
+  }
   if (action === "rotate-custom-key") {
     const button = target.closest("button");
     setSubmitBusy(button, true, "جاري إنشاء المفتاح...");
@@ -4728,13 +4834,25 @@ async function handleAction(target) {
         body: JSON.stringify({ name: "مفتاح بديل" })
       });
       if (!payload.apiKey) throw new Error("لم يُرجع الخادم المفتاح الجديد. أعد المحاولة دون إغلاق الصفحة.");
-      state.customIntegrationSecret = { kind: "api", value: payload.apiKey, integrationId: target.dataset.id };
+      state.customIntegrationSecret = {
+        kind: "api",
+        value: payload.apiKey,
+        integrationId: target.dataset.id,
+        keyId: payload.item?.id
+      };
       const currentItems = Array.isArray(state.customIntegrations?.items) ? state.customIntegrations.items : [];
       state.customIntegrations = {
         ...(state.customIntegrations || {}),
         ok: true,
         items: currentItems.map((item) => item.id === target.dataset.id
-          ? { ...item, latestKeyPrefix: payload.item?.prefix || item.latestKeyPrefix, activeKeys: Number(item.activeKeys || 0) + 1 }
+          ? {
+              ...item,
+              latestKeyPrefix: payload.item?.prefix || item.latestKeyPrefix,
+              activeKeys: Number(item.activeKeys || 0) + 1,
+              keys: payload.item
+                ? [{ ...payload.item, status: "ACTIVE" }, ...(Array.isArray(item.keys) ? item.keys : [])]
+                : item.keys
+            }
           : item)
       };
       await navigate("/dashboard/settings/integrations/custom-api/key-created");
@@ -5556,7 +5674,12 @@ async function handleSubmit(form, event) {
         initialWebhookDescription: data.initialWebhookDescription || "",
         integrationId: payload.item?.id
       };
-      state.customIntegrationSecret = { kind: "api", value: payload.apiKey, integrationId: payload.item?.id };
+      state.customIntegrationSecret = {
+        kind: "api",
+        value: payload.apiKey,
+        integrationId: payload.item?.id,
+        keyId: payload.key?.id
+      };
       const currentItems = Array.isArray(state.customIntegrations?.items) ? state.customIntegrations.items : [];
       const createdItem = {
         ...payload.item,
@@ -5565,9 +5688,11 @@ async function handleSubmit(form, event) {
         environment: data.environment === "test" ? "test" : "live",
         direction: data.direction || "bidirectional",
         scopes,
-        latestKeyPrefix: payload.apiKey.split("_").slice(0, 3).join("_"),
+        latestKeyPrefix: payload.key?.prefix || payload.apiKey.split("_").slice(0, 3).join("_"),
         activeKeys: 1,
         activeWebhooks: 0,
+        keys: payload.key ? [payload.key] : [],
+        webhooks: [],
         recentDeliveries: [],
         webhook: {}
       };
@@ -6173,11 +6298,16 @@ async function handleSubmit(form, event) {
       await fetchJson(`/api/subscriptions/${form.dataset.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reminderChannel: data.reminderChannel, reminderMode: data.reminderMode, reminderDaysBefore: Number(data.reminderDaysBefore || 7) })
+        body: JSON.stringify({
+          reminderEnabled: Boolean(form.elements.reminderEnabled?.checked),
+          reminderChannel: data.reminderChannel,
+          reminderMode: data.reminderMode,
+          reminderDaysBefore: Number(data.reminderDaysBefore || 7)
+        })
       });
       state.dbSubscriptions = null;
       await syncRouteData(true);
-      toast("تم حفظ إعدادات التذكير وإعادة جدولة الموعد");
+      toast(form.elements.reminderEnabled?.checked ? "تم تفعيل رسالة التذكير وحفظ الإعدادات" : "تم إيقاف رسالة التذكير وإلغاء المواعيد المجدولة");
     } catch (error) { toast(error.message || "تعذر حفظ إعدادات التذكير", "danger"); }
     return;
   }
@@ -6632,6 +6762,41 @@ function customApiLoadingPage(title = "API / Webhook") {
   return dashboardShell(`<section class="capi-page">${customApiHeader(title)}<div class="loading-state">جاري تحميل بيانات التكامل...</div></section>`);
 }
 
+function customApiKeyManagement(item) {
+  const keys = Array.isArray(item?.keys) ? item.keys : [];
+  const oneTimeSecret = state.customIntegrationSecret?.kind === "api"
+    && state.customIntegrationSecret.integrationId === item?.id
+    ? state.customIntegrationSecret.value
+    : "";
+  const activeKeys = keys.filter((key) => !key.revokedAt && String(key.status || "ACTIVE").toUpperCase() !== "REVOKED");
+  const keyRows = keys.length
+    ? `<div class="capi-managed-keys">
+        <div class="capi-managed-keys-head"><strong>المفاتيح المنشأة</strong><span>${activeKeys.length} نشط</span></div>
+        ${keys.map((key) => {
+          const revoked = Boolean(key.revokedAt) || String(key.status || "").toUpperCase() === "REVOKED";
+          return `<article class="capi-managed-key ${revoked ? "is-revoked" : ""}">
+            <div><strong>${escapeHtml(key.name || "مفتاح API")}</strong><code dir="ltr">${escapeHtml(key.prefix || item.latestKeyPrefix || "rvx_")}••••••••••••</code><small>أُنشئ ${customApiDate(key.createdAt)}</small></div>
+            <span class="status ${revoked ? "neutral" : "success"}">${revoked ? "ملغى" : "نشط"}</span>
+            ${revoked ? "" : `<button class="btn btn-danger btn-compact" data-action="revoke-custom-key" data-integration-id="${escapeHtml(item.id)}" data-key-id="${escapeHtml(key.id)}">${dashboardIcon("delete")} إلغاء المفتاح</button>`}
+          </article>`;
+        }).join("")}
+      </div>`
+    : "";
+
+  if (!item?.latestKeyPrefix && !oneTimeSecret && !keys.length) {
+    return `<div class="capi-empty-box">${dashboardIcon("key")}<strong>لم يتم إنشاء مفتاح API بعد</strong><p>سيظهر المفتاح مرة واحدة فقط بعد إنشائه.</p><button class="btn btn-primary" data-action="open-custom-api-setup">إنشاء مفتاح API</button></div>`;
+  }
+
+  return `${oneTimeSecret ? `<section class="capi-one-time-key">
+      <div><span class="status success">${dashboardIcon("success")} مفتاح جديد</span><strong>انسخ المفتاح الحقيقي الآن</strong><small>سيظل ظاهرًا في هذه الجلسة فقط، ولن يمكن استعادته بعد تحديث الصفحة.</small></div>
+      <div class="capi-key-copy"><code dir="ltr">${escapeHtml(oneTimeSecret)}</code><button class="btn btn-primary" data-action="copy-custom-secret">${dashboardIcon("copy")} نسخ المفتاح</button></div>
+      <button class="btn btn-secondary btn-compact" data-action="dismiss-custom-secret">تم الحفظ وإخفاء المفتاح</button>
+    </section>` : ""}
+    ${item?.latestKeyPrefix ? `<div class="capi-resource-value"><code dir="ltr">${escapeHtml(item.latestKeyPrefix)}••••••••••••</code><span class="status success">نشط</span></div>` : ""}
+    <div class="capi-card-actions"><button class="btn btn-secondary" data-action="rotate-custom-key" data-id="${escapeHtml(item.id)}">${dashboardIcon("refresh")} إنشاء مفتاح إضافي</button></div>
+    ${keyRows}`;
+}
+
 function customIntegrationPage() {
   const { payload, item, webhook, deliveries } = customApiPayloadContext();
   if (payload === null) return customApiLoadingPage();
@@ -6665,7 +6830,7 @@ function customIntegrationPage() {
         <div class="capi-config-grid">
           <article class="card capi-resource-card">
             <div class="capi-card-head"><span>${dashboardIcon("key")}</span><div><h2>مفتاح API</h2><p>أنشئ مفتاح API للوصول إلى نظامك عبر واجهة برمجة التطبيقات.</p></div></div>
-            ${item?.latestKeyPrefix ? `<div class="capi-resource-value"><code dir="ltr">${escapeHtml(item.latestKeyPrefix)}••••••••••••</code><span class="status success">نشط</span></div><div class="capi-card-actions"><button class="btn btn-secondary" data-action="rotate-custom-key" data-id="${escapeHtml(item.id)}">${dashboardIcon("refresh")} تدوير المفتاح</button></div>` : `<div class="capi-empty-box">${dashboardIcon("key")}<strong>لم يتم إنشاء مفتاح API بعد</strong><p>سيظهر المفتاح مرة واحدة فقط بعد إنشائه.</p><button class="btn btn-primary" data-action="open-custom-api-setup">إنشاء مفتاح API</button></div>`}
+            ${item ? customApiKeyManagement(item) : `<div class="capi-empty-box">${dashboardIcon("key")}<strong>لم يتم إنشاء مفتاح API بعد</strong><p>سيظهر المفتاح مرة واحدة فقط بعد إنشائه.</p><button class="btn btn-primary" data-action="open-custom-api-setup">إنشاء مفتاح API</button></div>`}
             <footer>${dashboardIcon("info")} احتفظ بالمفتاح في مكان آمن. لا يمكن استعادته بعد إغلاق النافذة.</footer>
           </article>
           <article class="card capi-resource-card">

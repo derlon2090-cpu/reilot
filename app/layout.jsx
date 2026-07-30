@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260730-subscriptions-api-orders-v5" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260731-message-activation-v7" />
       </head>
       <body>{children}</body>
     </html>
