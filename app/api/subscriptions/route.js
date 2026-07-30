@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 import { inferSubscriptionStatus } from "../../../src/lib/orderLinks.js";
+import { validateSubscriptionDeliveryContact } from "../../../src/lib/subscription-lifecycle.js";
 import { listSubscriptionOperations, rescheduleSubscriptionReminders, subscriptionOperationsSummary } from "../../../src/server/subscription-operations.js";
 import { assertPlanFeature, planEntitlementResponse } from "../../../src/server/plan-entitlements.js";
 
@@ -60,6 +61,14 @@ export async function POST(req) {
     return Response.json({ ok: false, reason: "invalid_dates" }, { status: 400 });
   }
   const preferences = deliveryPreferences(body);
+  const contact = validateSubscriptionDeliveryContact({
+    channel: preferences.channel,
+    whatsappNumber: body.whatsappNumber,
+    email: body.email
+  });
+  if (!contact.ok) {
+    return Response.json({ ok: false, reason: contact.reason, message: contact.message }, { status: 400 });
+  }
   if (preferences.mode === "automatic") {
     try {
       await assertPlanFeature(auth.session.tenantId, "automationEnabled");
@@ -71,8 +80,23 @@ export async function POST(req) {
   }
   const status = allowedStatuses.has(body.status) ? body.status : inferSubscriptionStatus(body.startDate, body.endDate) || "active";
   const item = await transaction(async (client) => {
-    const customer = await client.query("SELECT id FROM customers WHERE id = $1 AND tenant_id = $2", [body.customerId, auth.session.tenantId]);
+    const customer = await client.query(
+      `SELECT id,name,email,COALESCE(whatsapp_number,phone) AS phone
+         FROM customers WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
+      [body.customerId, auth.session.tenantId]
+    );
     if (!customer.rows[0]) return null;
+    const effectiveContact = {
+      email: contact.email || customer.rows[0].email || null,
+      phone: contact.phone || customer.rows[0].phone || null
+    };
+    await client.query(
+      `UPDATE customers SET
+         email=COALESCE($3,email),phone=COALESCE($4,phone),
+         whatsapp_number=COALESCE($4,whatsapp_number),updated_at=now()
+       WHERE id=$1 AND tenant_id=$2`,
+      [body.customerId, auth.session.tenantId, contact.email, contact.phone]
+    );
     const orderNumber = String(body.orderNumber || `RP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`).trim();
     const inserted = await client.query(
       `INSERT INTO subscriptions (
@@ -87,14 +111,13 @@ export async function POST(req) {
         body.renewalUrl || null, status, Boolean(body.autoRenew), Number(body.price || 0), body.notes || null,
         preferences.channel, preferences.mode, preferences.daysBefore]
     );
-    const customerData = await client.query("SELECT id,name,email,COALESCE(whatsapp_number,phone) AS phone FROM customers WHERE id=$1 AND tenant_id=$2", [body.customerId, auth.session.tenantId]);
     await client.query(
       `INSERT INTO subscription_customers
          (id,tenant_id,legacy_customer_id,full_name,phone_e164,email,email_normalized,email_eligible,whatsapp_eligible)
        VALUES ($1,$2,$1,$3,$4,$5,lower($5),$5 IS NOT NULL,$4 IS NOT NULL)
        ON CONFLICT (id) DO UPDATE SET full_name=EXCLUDED.full_name,phone_e164=COALESCE(EXCLUDED.phone_e164,subscription_customers.phone_e164),
          email=COALESCE(EXCLUDED.email,subscription_customers.email),email_normalized=COALESCE(EXCLUDED.email_normalized,subscription_customers.email_normalized),updated_at=now()`,
-      [body.customerId, auth.session.tenantId, customerData.rows[0]?.name || "عميل", customerData.rows[0]?.phone || null, customerData.rows[0]?.email || null]
+      [body.customerId, auth.session.tenantId, customer.rows[0]?.name || "عميل", effectiveContact.phone, effectiveContact.email]
     );
     const days = Math.max(1, Math.ceil((new Date(body.endDate).getTime() - new Date(body.startDate).getTime()) / 86400000));
     const plan = await client.query(

@@ -58,6 +58,12 @@ export async function PATCH(req, { params }) {
       ]
     );
     await client.query(
+      `UPDATE custom_integrations
+          SET status=$3,last_error_at=CASE WHEN $3='ACTIVE' THEN NULL ELSE last_error_at END,updated_at=now()
+        WHERE id=$1 AND tenant_id=$2`,
+      [integrationId, auth.session.tenantId, status === "enabled" ? "ACTIVE" : "PARTIALLY_CONFIGURED"]
+    );
+    await client.query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
        VALUES ($1,$2,$3,'Webhook endpoint updated',$4::jsonb)`,
       [

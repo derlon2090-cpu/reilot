@@ -142,7 +142,7 @@ export async function registerSallaOperationalWebhooks(accessToken, origin) {
 }
 
 export async function getSallaDashboard(tenantId) {
-  const [connection, templates, logs, counts] = await Promise.all([
+  const [connection, templates, logs, counts, customIntegrations] = await Promise.all([
     query(`SELECT ac.id, ac.status, ac.provider_store_name AS "storeName", ac.provider_store_domain AS "storeDomain",
                   ac.last_sync_at AS "lastSyncAt", ac.last_error AS "lastError",
                   scs.auto_sync_customers AS "autoSyncCustomers", scs.auto_sync_orders AS "autoSyncOrders",
@@ -166,14 +166,33 @@ export async function getSallaDashboard(tenantId) {
     query(`SELECT id, event_type AS "eventType", status, message, created_at AS "createdAt"
              FROM app_sync_logs WHERE tenant_id = $1 AND provider = 'salla' ORDER BY created_at DESC LIMIT 50`, [tenantId]),
     query(`SELECT
-      (SELECT count(*)::int FROM app_connections WHERE tenant_id = $1 AND status = 'connected') AS "connectedApps",
-      (SELECT count(*)::int FROM external_orders WHERE tenant_id = $1 AND provider = 'salla') AS "syncedOrders"`, [tenantId])
+      (SELECT count(*)::int FROM app_connections WHERE tenant_id = $1) AS "connectedApps",
+      (SELECT count(*)::int FROM external_orders WHERE tenant_id = $1 AND provider = 'salla') AS "syncedOrders"`, [tenantId]),
+    query(`SELECT i.id,i.name,i.environment,i.direction,i.status,i.updated_at AS "updatedAt",
+             (SELECT k.key_prefix FROM custom_integration_api_keys k
+               WHERE k.integration_id=i.id AND k.tenant_id=i.tenant_id AND k.revoked_at IS NULL
+               ORDER BY k.created_at DESC LIMIT 1) AS "keyPrefix",
+             (SELECT w.url FROM custom_integration_webhook_endpoints w
+               WHERE w.integration_id=i.id AND w.tenant_id=i.tenant_id
+               ORDER BY w.created_at DESC LIMIT 1) AS "webhookUrl",
+             (SELECT w.status FROM custom_integration_webhook_endpoints w
+               WHERE w.integration_id=i.id AND w.tenant_id=i.tenant_id
+               ORDER BY w.created_at DESC LIMIT 1) AS "webhookStatus"
+           FROM custom_integrations i WHERE i.tenant_id=$1
+          ORDER BY i.updated_at DESC,i.created_at DESC LIMIT 10`, [tenantId])
   ]);
   const row = connection.rows[0] || null;
+  const connectedCustomApps = customIntegrations.rows.length;
   return {
     configured: sallaConfigured(),
-    stats: { availableApps: 1, connectedApps: counts.rows[0]?.connectedApps || 0, syncedOrders: counts.rows[0]?.syncedOrders || 0, lastSyncAt: row?.lastSyncAt || null },
+    stats: {
+      availableApps: 3,
+      connectedApps: Number(counts.rows[0]?.connectedApps || 0) + connectedCustomApps,
+      syncedOrders: counts.rows[0]?.syncedOrders || 0,
+      lastSyncAt: row?.lastSyncAt || customIntegrations.rows[0]?.updatedAt || null
+    },
     connection: row,
+    customIntegrations: customIntegrations.rows,
     templates: templates.rows,
     logs: logs.rows
   };

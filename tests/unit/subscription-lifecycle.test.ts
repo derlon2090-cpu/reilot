@@ -3,7 +3,8 @@ import {
   addSubscriptionDuration, findProductPlanMapping, normalizeSallaSubscriptionOrder,
   normalizeSubscriptionEmail, normalizeSubscriptionPhone, orderMeetsStartTrigger,
   reminderIdempotencyKey, renderRenewalTemplate, renewalBaseDate,
-  shouldShowSentBadge, subscriptionDisplayState, validateRenewalTemplate
+  shouldShowSentBadge, subscriptionDisplayState, validateRenewalTemplate,
+  validateSubscriptionDeliveryContact
 } from "../../src/lib/subscription-lifecycle.js";
 
 describe("subscription lifecycle", () => {
@@ -18,6 +19,14 @@ describe("subscription lifecycle", () => {
   it("normalizes valid emails and rejects invalid values", () => {
     expect(normalizeSubscriptionEmail(" USER@Example.COM ")).toBe("user@example.com");
     expect(normalizeSubscriptionEmail("invalid")).toBeNull();
+  });
+  it("requires the contact selected as the primary delivery channel", () => {
+    expect(validateSubscriptionDeliveryContact({ channel: "whatsapp", whatsappNumber: "", email: "user@example.com" }))
+      .toMatchObject({ ok: false, reason: "whatsapp_required" });
+    expect(validateSubscriptionDeliveryContact({ channel: "email", whatsappNumber: "0501234567", email: "" }))
+      .toMatchObject({ ok: false, reason: "email_required" });
+    expect(validateSubscriptionDeliveryContact({ channel: "email", whatsappNumber: "", email: "USER@Example.com" }))
+      .toMatchObject({ ok: true, channel: "email", email: "user@example.com" });
   });
   it("extracts contact and every Salla order item", () => {
     const order = normalizeSallaSubscriptionOrder({ data: { id: 9, reference_id: 22, payment: { status: "paid" }, customer: { id: 4, name: "محمد", mobile: "0501234567", email: "M@EXAMPLE.COM" }, items: [{ id: 1, product: { id: 11 }, variant_id: 33, sku: "A" }, { id: 2, product_id: 12, sku: "B" }] } });

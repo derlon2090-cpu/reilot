@@ -398,7 +398,7 @@ export async function deliverCustomWebhook(delivery) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = signWebhook({ secret, timestamp, rawBody });
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8_000);
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     const started = Date.now();
     const response = await fetch(delivery.url, {
@@ -429,7 +429,7 @@ export async function deliverCustomWebhook(delivery) {
     const preview = Buffer.concat(chunks.map((value) => Buffer.from(value))).toString("utf8").slice(0, 1000);
     return { ok: response.status >= 200 && response.status < 300, status: response.status, durationMs: Date.now() - started, preview, retryable: isRetryableWebhookStatus(response.status) };
   } catch (error) {
-    return { ok: false, status: null, durationMs: 8000, preview: "", retryable: !error.permanent, error: safeErrorMessage(error) };
+    return { ok: false, status: null, durationMs: 10000, preview: "", retryable: !error.permanent, error: safeErrorMessage(error) };
   } finally {
     clearTimeout(timer);
   }

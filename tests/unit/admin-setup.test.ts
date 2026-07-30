@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  AdminSetupError,
   allowLocalAdminSetup,
   consumeAdminSetupRateLimit,
   createFirstAdmin,
@@ -97,7 +96,7 @@ describe("first admin setup", () => {
   it("blocks setup when an administrator already exists and rate-limits retries", async () => {
     await expect(createFirstAdmin({ name: "Admin", email: "admin@example.com", password: "Vx!2026KiteRiverStone", confirmPassword: "Vx!2026KiteRiverStone" }, {
       transactionFn: async (callback) => callback({ query: async (sql: string) => sql.includes("count(*)") ? { rows: [{ count: 1 }] } : { rows: [] } })
-    })).rejects.toMatchObject<AdminSetupError>({ code: "already_configured" });
+    })).rejects.toMatchObject({ code: "already_configured" });
     for (let index = 0; index < 8; index += 1) expect(consumeAdminSetupRateLimit("same-ip").ok).toBe(true);
     expect(consumeAdminSetupRateLimit("same-ip").ok).toBe(false);
   });

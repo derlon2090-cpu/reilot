@@ -53,6 +53,29 @@ export function normalizeSubscriptionPhone(value, countryCode = "SA") {
   return parsed?.isValid() ? parsed.number : null;
 }
 
+export function validateSubscriptionDeliveryContact({ channel, whatsappNumber, email } = {}) {
+  const selectedChannel = channel === "email" ? "email" : "whatsapp";
+  const rawPhone = String(whatsappNumber || "").trim();
+  const rawEmail = String(email || "").trim();
+  const phone = normalizeSubscriptionPhone(rawPhone);
+  const normalizedEmail = normalizeSubscriptionEmail(rawEmail);
+
+  if (rawPhone && !phone) {
+    return { ok: false, reason: "invalid_whatsapp_number", message: "أدخل رقم واتساب صحيحًا بصيغة دولية، مثل 9665XXXXXXXX." };
+  }
+  if (rawEmail && !normalizedEmail) {
+    return { ok: false, reason: "invalid_email", message: "أدخل بريدًا إلكترونيًا صحيحًا، مثل name@example.com." };
+  }
+  if (selectedChannel === "whatsapp" && !phone) {
+    return { ok: false, reason: "whatsapp_required", message: "رقم واتساب مطلوب عند اختيار قناة واتساب." };
+  }
+  if (selectedChannel === "email" && !normalizedEmail) {
+    return { ok: false, reason: "email_required", message: "البريد الإلكتروني مطلوب عند اختيار قناة البريد الإلكتروني." };
+  }
+
+  return { ok: true, channel: selectedChannel, phone, email: normalizedEmail };
+}
+
 function scalar(value) {
   if (value && typeof value === "object") return value.slug ?? value.status ?? value.id ?? null;
   return value ?? null;

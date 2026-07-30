@@ -129,15 +129,16 @@ export async function POST(req) {
       return Response.json({ ok: false, code: "validation_error", message: "أدخل اسم التكامل واختر صلاحية واحدة على الأقل." }, { status: 400 });
     }
 
+    const direction = ["inbound", "outbound", "bidirectional"].includes(body.direction) ? body.direction : "bidirectional";
     const key = createApiKey(body.environment);
     const item = await transaction(async (client) => {
       const integration = await client.query(
         `INSERT INTO custom_integrations
            (tenant_id,name,description,environment,direction,status,scopes,created_by)
-         VALUES ($1,$2,$3,$4,$5,'PARTIALLY_CONFIGURED',$6::jsonb,$7)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
          RETURNING id,name,environment,direction,status`,
         [auth.session.tenantId, name, body.description || null, body.environment === "test" ? "test" : "live",
-          ["inbound", "outbound", "bidirectional"].includes(body.direction) ? body.direction : "bidirectional",
+          direction, direction === "inbound" ? "ACTIVE" : "PARTIALLY_CONFIGURED",
           JSON.stringify(scopes), auth.session.userId]
       );
       await client.query(

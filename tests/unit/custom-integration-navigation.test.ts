@@ -20,17 +20,35 @@ describe("custom integration navigation", () => {
     );
   });
 
-  it("keeps the first-integration form collapsed until the setup action is used", () => {
-    expect(source).toContain('id="custom-api-create" class="card custom-api-create"');
+  it("keeps the first-integration setup on its own authenticated route", () => {
+    expect(source).toContain('"/dashboard/settings/integrations/custom-api/setup"');
+    expect(source).toContain("function customIntegrationSetupPage()");
+    expect(source).toContain('data-submit="custom-integration"');
     expect(source).toContain('data-action="open-custom-api-setup"');
     expect(source).toContain('if (action === "open-custom-api-setup")');
-    expect(source).not.toContain('class="card custom-api-create" ${item ? "" : "open"}');
+    expect(source).not.toContain('class="card custom-api-create"');
   });
 
   it("renders a complete empty dashboard without fabricated integrations", () => {
-    expect(source).toContain('custom-api-summary custom-api-summary--empty');
-    expect(source).toContain('لم يتم إنشاء مفتاح API بعد');
-    expect(source).toContain('لم تتم إضافة عنوان Webhook بعد');
-    expect(source).toContain('لا توجد تسليمات حتى الآن');
+    expect(source).toContain("capi-overview-status");
+    expect(source).toContain("لم يتم إنشاء مفتاح API بعد");
+    expect(source).toContain("لم تتم إضافة Webhook بعد");
+    expect(source).toContain("لا توجد تسليمات حتى الآن");
+  });
+
+  it("updates an existing Webhook and queues the promised test after saving", () => {
+    expect(source).toContain('data-endpoint-id="${escapeHtml(webhook.id || "")}"');
+    expect(source).toContain('method: endpointId ? "PATCH" : "POST"');
+    expect(source).toContain('`${baseUrl}/${encodeURIComponent(savedEndpointId)}/test`');
+    expect(source).toContain("تمت جدولة حدث اختبار حقيقي");
+  });
+
+  it("uses the real form values for setup preview and performs a read-only API-key test", () => {
+    expect(source).toContain("معاينة إعداد التكامل");
+    expect(source).toContain('data-action="test-custom-api-key"');
+    expect(source).toContain('"/api/v1/customers?limit=1"');
+    expect(source).toContain('"/api/v1/subscriptions?limit=1"');
+    expect(source).toContain("fetch(testEndpoint");
+    expect(source).toContain("نجح اختبار API");
   });
 });

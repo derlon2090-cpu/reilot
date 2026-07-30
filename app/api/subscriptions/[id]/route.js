@@ -1,4 +1,5 @@
 import { transaction } from "../../../../src/server/db.js";
+import { validateSubscriptionDeliveryContact } from "../../../../src/lib/subscription-lifecycle.js";
 import { requireSession } from "../../../../src/server/session.js";
 import { rescheduleSubscriptionReminders } from "../../../../src/server/subscription-operations.js";
 import { assertPlanFeature, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
@@ -21,13 +22,26 @@ export async function PATCH(req, { params }) {
     }
   }
   const updated = await transaction(async (client) => {
-    const current = await client.query("SELECT * FROM customer_subscriptions WHERE id=$1 AND tenant_id=$2 FOR UPDATE", [id, auth.session.tenantId]);
+    const current = await client.query(
+      `SELECT cs.*,sc.email AS contact_email,sc.phone_e164 AS contact_phone,
+              sc.legacy_customer_id
+         FROM customer_subscriptions cs
+         JOIN subscription_customers sc ON sc.id=cs.customer_id AND sc.tenant_id=cs.tenant_id
+        WHERE cs.id=$1 AND cs.tenant_id=$2 FOR UPDATE OF cs,sc`,
+      [id, auth.session.tenantId]
+    );
     if (!current.rows[0]) return null;
     const row = current.rows[0];
     const start = body.startDate || row.starts_at;
     const end = body.endDate || row.expires_at;
     if (new Date(end) < new Date(start)) throw new Error("invalid_dates");
     const preferred = channels.has(body.reminderChannel) ? body.reminderChannel : row.preferred_channel;
+    const contact = validateSubscriptionDeliveryContact({
+      channel: preferred,
+      whatsappNumber: Object.prototype.hasOwnProperty.call(body, "whatsappNumber") ? body.whatsappNumber : row.contact_phone,
+      email: Object.prototype.hasOwnProperty.call(body, "email") ? body.email : row.contact_email
+    });
+    if (!contact.ok) return { validationError: contact };
     const fallback = channels.has(body.fallbackChannel) && body.fallbackChannel !== preferred ? body.fallbackChannel : null;
     const reminderMode = body.reminderMode === "manual" || body.reminderMode === "automatic"
       ? body.reminderMode
@@ -49,8 +63,32 @@ export async function PATCH(req, { params }) {
         ["pending_activation","needs_review"].includes(body.status) ? "paused" : body.status === "expiring_soon" ? "active" : statuses.has(body.status) ? body.status : row.status,
         Number(body.price ?? row.amount ?? 0), reminderMode, preferred]
     );
+    await client.query(
+      `UPDATE subscription_customers SET
+         phone_e164=COALESCE($2,phone_e164),email=COALESCE($3,email),
+          email_normalized=COALESCE(lower($3::text),email_normalized),
+         whatsapp_eligible=COALESCE($2,phone_e164) IS NOT NULL,
+         email_eligible=COALESCE($3,email) IS NOT NULL,updated_at=now()
+       WHERE id=$1 AND tenant_id=$4`,
+      [row.customer_id, contact.phone, contact.email, auth.session.tenantId]
+    );
+    if (row.legacy_customer_id) {
+      await client.query(
+        `UPDATE customers SET email=COALESCE($2,email),phone=COALESCE($3,phone),
+            whatsapp_number=COALESCE($3,whatsapp_number),updated_at=now()
+          WHERE id=$1 AND tenant_id=$4`,
+        [row.legacy_customer_id, contact.email, contact.phone, auth.session.tenantId]
+      );
+    }
     return result.rows[0];
   });
+  if (updated?.validationError) {
+    return Response.json({
+      ok: false,
+      reason: updated.validationError.reason,
+      message: updated.validationError.message
+    }, { status: 400 });
+  }
   if (!updated) return Response.json({ ok:false }, { status:404 });
   await rescheduleSubscriptionReminders(auth.session.tenantId, id, updated.reminderMode === "automatic");
   return Response.json({ ok:true,item:updated });

@@ -3,7 +3,11 @@ import { getEmailConfig } from "../../src/lib/email/resend.js";
 
 describe("email integration", () => {
   it("uses a mocked Resend provider and keeps API keys server-side", async () => {
-    const resend = { send: vi.fn(async () => ({ id: "email-1" })) };
+    const resend = {
+      send: vi.fn<(message: { from: string; to: string; subject: string; html: string }) => Promise<{ id: string }>>(
+        async () => ({ id: "email-1" })
+      )
+    };
     const result = await resend.send({ from: "support@renew.test", to: "customer@test.com", subject: "Renewal", html: "<p>Hi</p>" });
 
     expect(result.id).toBe("email-1");

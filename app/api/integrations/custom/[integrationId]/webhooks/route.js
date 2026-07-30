@@ -32,6 +32,7 @@ export async function POST(req, { params }) {
   if (!valid.ok) return Response.json({ ok: false, reason: valid.reason }, { status: 400 });
   const events = [...new Set((Array.isArray(body.events) ? body.events : []).filter((type) => CUSTOM_EVENTS.has(type)))];
   if (!events.length) return Response.json({ ok: false, reason: "events_required" }, { status: 400 });
+  const endpointStatus = body.status === "disabled" ? "disabled" : "enabled";
   const secret = createWebhookSecret();
   let item;
   try {
@@ -67,13 +68,18 @@ export async function POST(req, { params }) {
       if (!owner.rows[0]) return null;
       const inserted = await client.query(
         `INSERT INTO custom_integration_webhook_endpoints
-           (integration_id,tenant_id,url,description,event_types,signing_secret_encrypted,created_by)
-         VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7)
+           (integration_id,tenant_id,url,description,event_types,signing_secret_encrypted,status,created_by)
+         VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8)
          RETURNING id,url,status,event_types AS events`,
         [integrationId, auth.session.tenantId, valid.url, body.description || null, JSON.stringify(events),
-          encryptWebhookSecret(secret), auth.session.userId]
+          encryptWebhookSecret(secret), endpointStatus, auth.session.userId]
       );
-      await client.query("UPDATE custom_integrations SET status='PARTIALLY_CONFIGURED',updated_at=now() WHERE id=$1", [integrationId]);
+      await client.query(
+        `UPDATE custom_integrations
+            SET status=$3,last_error_at=CASE WHEN $3='ACTIVE' THEN NULL ELSE last_error_at END,updated_at=now()
+          WHERE id=$1 AND tenant_id=$2`,
+        [integrationId, auth.session.tenantId, endpointStatus === "enabled" ? "ACTIVE" : "PARTIALLY_CONFIGURED"]
+      );
       return inserted.rows[0];
     });
   } catch (error) {
