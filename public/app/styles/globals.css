@@ -4719,22 +4719,24 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-enable>div>svg{width:26px;height:26px;color:#1768ff}
 .salla-template-enable strong,.salla-template-enable small{display:block}
 .salla-template-enable small{color:#71829f;margin-top:4px}
-.message-activation-card{padding:14px 16px;margin:18px 0;display:flex;align-items:center;justify-content:space-between;gap:22px;border-color:#dce6f4;box-shadow:0 2px 8px rgba(18,54,94,.06)}
-.message-activation-copy{display:flex;align-items:center;gap:13px;min-width:0}
+.message-activation-card{min-height:66px;padding:10px 14px;margin:14px 0;display:flex;align-items:center;justify-content:space-between;gap:16px;border-color:#dce6f4;box-shadow:0 2px 8px rgba(18,54,94,.06)}
+.message-activation-copy{display:flex;align-items:center;gap:11px;min-width:0}
 .message-activation-copy>span:last-child{min-width:0}
 .message-activation-copy strong,.message-activation-copy small{display:block}
-.message-activation-copy strong{color:#092b59;font-size:14px;line-height:1.5}
-.message-activation-copy small{color:#71839e;font-size:11px;line-height:1.6;margin-top:3px}
-.message-activation-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 44px;border-radius:10px;background:#edf4ff;color:#1768ff}
-.message-activation-icon svg{width:23px;height:23px}
-.message-activation-control{display:flex;align-items:center;gap:10px;flex:0 0 auto}
-.message-activation-switch{border:0;background:transparent;padding:0;display:inline-flex;align-items:center;cursor:pointer}
+.message-activation-copy strong{color:#092b59;font-size:13px;line-height:1.45}
+.message-activation-copy small{max-width:760px;color:#71839e;font-size:10.5px;line-height:1.55;margin-top:2px}
+.message-activation-icon{width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px;border-radius:9px;background:#edf4ff;color:#1768ff}
+.message-activation-icon svg{width:20px;height:20px}
+.message-activation-control{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.message-activation-switch{min-width:44px;min-height:36px;border:0;background:transparent;padding:7px 2px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .message-activation-switch input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
-.message-activation-switch>span{width:38px;height:22px;background:#b9c4d3;border-radius:999px;position:relative;display:block;transition:background .18s ease}
+.message-activation-switch>span{width:40px;height:22px;background:#b9c4d3;border-radius:999px;position:relative;display:block;transition:background .18s ease}
 .message-activation-switch>span:after{content:"";width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:3px;inset-inline-start:3px;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:inset-inline-start .18s ease}
 .message-activation-switch.active>span,.message-activation-switch:has(input:checked)>span{background:#1768ff}
-.message-activation-switch.active>span:after,.message-activation-switch:has(input:checked)>span:after{inset-inline-start:19px}
-.message-activation-status{display:inline-flex;align-items:center;gap:5px;color:#71839e;font-size:11px;white-space:nowrap}
+.message-activation-switch.active>span:after,.message-activation-switch:has(input:checked)>span:after{inset-inline-start:21px}
+.message-activation-switch:focus-visible{outline:2px solid #1768ff;outline-offset:2px;border-radius:10px}
+.message-activation-switch:focus-within{outline:2px solid #1768ff;outline-offset:2px;border-radius:10px}
+.message-activation-status{display:inline-flex;align-items:center;gap:5px;color:#71839e;font-size:10.5px;white-space:nowrap}
 .message-activation-status i{width:7px;height:7px;border-radius:50%;background:#9caabd}
 .message-activation-status b{font-weight:600}
 .message-activation-status-on{display:none}
@@ -4773,8 +4775,10 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .salla-templates-grid{grid-template-columns:1fr}
   .salla-template-card footer{align-items:flex-start;flex-direction:column}
   .salla-template-enable{align-items:flex-start;gap:14px;flex-direction:column}
-  .message-activation-card{align-items:flex-start;flex-direction:column}
-  .message-activation-control{width:100%;justify-content:flex-end}
+  .message-activation-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px 11px}
+  .message-activation-copy{gap:9px}
+  .message-activation-icon{width:34px;height:34px;flex-basis:34px}
+  .message-activation-copy small{font-size:10px}
   .salla-template-form-card{padding:16px}
 }
 [data-theme="dark"] .salla-template-card,[data-theme="dark"] .salla-template-form-card,[data-theme="dark"] .salla-template-live-preview{border-color:#263a58}

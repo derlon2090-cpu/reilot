@@ -11,6 +11,7 @@ import {
 
 const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
 const styles = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
+const serverSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/salla-templates.js"), "utf8");
 
 describe("Salla automation templates", () => {
   it("defines exactly one immutable record key for every required template", () => {
@@ -75,7 +76,12 @@ describe("Salla automation templates", () => {
     }
     expect(appSource).toContain('action: "salla-template-toggle"');
     expect(appSource).toContain("عند الإيقاف لن تُرسل الرسالة");
-    expect(styles).toContain(".message-activation-card");
+    expect(styles).toContain(".message-activation-card{min-height:66px");
     expect(styles).toContain(".message-activation-switch");
+  });
+
+  it("excludes disabled templates in the database query before any message is queued", () => {
+    expect(serverSource).toContain("WHERE tenant_id=$1 AND is_enabled=true");
+    expect(serverSource).toContain('reason: "template_disabled_or_unmapped"');
   });
 });

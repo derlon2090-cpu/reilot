@@ -1901,7 +1901,7 @@ function messageActivationCard({
   const checked = Boolean(enabled);
   const control = action
     ? `<button type="button" class="message-activation-switch ${checked ? "active" : ""}" data-action="${escapeHtml(action)}" data-key="${escapeHtml(key)}" data-enabled="${checked ? "true" : "false"}" role="switch" aria-checked="${checked ? "true" : "false"}" aria-label="${checked ? "إيقاف" : "تفعيل"} ${escapeHtml(title)}"><span></span></button>`
-    : `<label class="message-activation-switch"><input type="checkbox" name="${escapeHtml(inputName)}" ${checked ? "checked" : ""}><span></span></label>`;
+    : `<label class="message-activation-switch"><input type="checkbox" name="${escapeHtml(inputName)}" aria-label="${escapeHtml(title)}" ${checked ? "checked" : ""}><span></span></label>`;
   return `<div class="message-activation-card card">
     <div class="message-activation-copy"><span class="message-activation-icon">${dashboardIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span></div>
     <div class="message-activation-control">${control}<span class="message-activation-status"><i></i><b class="message-activation-status-on">مفعل</b><b class="message-activation-status-off">متوقف</b></span></div>

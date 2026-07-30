@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import {
-  addSubscriptionDuration, findProductPlanMapping, normalizeSallaSubscriptionOrder,
+  addSubscriptionDuration, canScheduleSubscriptionReminder, findProductPlanMapping, normalizeSallaSubscriptionOrder,
   reminderIdempotencyKey, renewalBaseDate
 } from "../lib/subscription-lifecycle.js";
 import { enqueueAdminDomainEvent } from "./admin-template-events.js";
@@ -98,7 +98,7 @@ async function scheduleSubscriptionReminders(client, subscription, plan, { enabl
       WHERE subscription_id = $1 AND status IN ('scheduled','queued','processing','paused')`,
     [subscription.id]
   );
-  if (!enabled || subscription.reminder_enabled === false || subscription.reminder_mode !== "automatic" || subscription.status !== "active") {
+  if (!canScheduleSubscriptionReminder(subscription, enabled)) {
     await client.query("UPDATE customer_subscriptions SET next_reminder_at = NULL WHERE id = $1", [subscription.id]);
     return 0;
   }

@@ -76,6 +76,22 @@ export function validateSubscriptionDeliveryContact({ channel, whatsappNumber, e
   return { ok: true, channel: selectedChannel, phone, email: normalizedEmail };
 }
 
+export function isSubscriptionReminderEnabled(subscription = {}) {
+  const source = subscription && typeof subscription === "object" ? subscription : {};
+  return source.reminder_enabled !== false && source.reminderEnabled !== false;
+}
+
+export function canScheduleSubscriptionReminder(subscription = {}, schedulingEnabled = true) {
+  const source = subscription && typeof subscription === "object" ? subscription : {};
+  const mode = source.reminder_mode ?? source.reminderMode;
+  return Boolean(
+    schedulingEnabled
+    && isSubscriptionReminderEnabled(source)
+    && mode === "automatic"
+    && source.status === "active"
+  );
+}
+
 function scalar(value) {
   if (value && typeof value === "object") return value.slug ?? value.status ?? value.id ?? null;
   return value ?? null;

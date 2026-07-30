@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { enqueueMessage } from "./message-queue.js";
-import { renderRenewalTemplate, validateRenewalTemplate } from "../lib/subscription-lifecycle.js";
+import { isSubscriptionReminderEnabled, renderRenewalTemplate, validateRenewalTemplate } from "../lib/subscription-lifecycle.js";
 import { createRenewalRedirect } from "./product-renewal-options.js";
 
 function appUrl() {
@@ -77,7 +77,7 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
   const row = result.rows[0];
   if (!row) return { ok: false, reason: "subscription_not_found" };
   if (row.status !== "active") return { ok: false, reason: "subscription_not_active" };
-  if (row.reminder_enabled === false) {
+  if (!isSubscriptionReminderEnabled(row)) {
     return { ok: false, reason: "reminder_disabled", message: "رسالة التذكير متوقفة من إعدادات الاشتراك." };
   }
   const preferred = requestedChannel || row.preferred_channel;
