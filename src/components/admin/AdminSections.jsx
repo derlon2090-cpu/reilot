@@ -559,6 +559,7 @@ function Support({ admin }) {
   const [internal, setInternal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const loadList = useCallback(async (quiet = false) => {
     if (!quiet) setBusy(true);
@@ -614,13 +615,22 @@ function Support({ admin }) {
     event.preventDefault();
     if (!selectedId || reply.trim().length < 2) return;
     setBusy(true);
+    setError("");
+    setNotice("");
     try {
-      await supportRequest(`/api/admin/support/tickets/${selectedId}/messages`, {
+      const payload = await supportRequest(`/api/admin/support/tickets/${selectedId}/messages`, {
         method: "POST",
         body: JSON.stringify({ body: reply, internal })
       });
       setReply("");
       setInternal(false);
+      if (internal) {
+        setNotice("تم حفظ الملاحظة الداخلية.");
+      } else if (payload.item?.emailDelivery?.status === "sent") {
+        setNotice("تم حفظ الرد وإرساله إلى بريد العميل.");
+      } else {
+        setError("تم حفظ الرد داخل التذكرة، لكن تعذر إرساله إلى البريد. يمكنك إعادة المحاولة بعد التحقق من إعدادات البريد.");
+      }
       await Promise.all([loadDetail(selectedId, true), loadList(true)]);
     } catch (requestError) {
       setError(requestError.message);
@@ -654,6 +664,7 @@ function Support({ admin }) {
       { label: "تم الرد", value: ar(stats.replied), helper: "بانتظار المستخدم", icon: "check", tone: "green" },
       { label: "بانتظار المعالجة", value: ar(stats.pending), helper: "تحتاج إجراء من الدعم", icon: "clock", tone: "orange" }
     ]} />
+    {notice ? <div className={styles.adminSupportNotice} role="status">{notice}</div> : null}
     {error ? <div className={styles.adminSupportError} role="alert">{error}</div> : null}
     <section className={styles.adminSupportToolbar}>
       <label className={styles.adminSearchField}><Glyph name="mail" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث بالاسم أو البريد أو رقم التذكرة..." /></label>
@@ -686,7 +697,7 @@ function Support({ admin }) {
             <label><span>الأولوية</span><select value={selected.priority || "NORMAL"} onChange={(event) => updateTicket({ priority: event.target.value })}>{Object.entries(SUPPORT_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <button type="button" className={styles.adminSupportAssignButton} disabled={busy || selected.assignedAdminUserId === admin?.adminId} onClick={() => updateTicket({ assignedAdminUserId: admin?.adminId })}>{selected.assignedAdminUserId === admin?.adminId ? "مسندة إليك" : "إسناد إليّ"}</button>
           </div>
-          <div className={styles.adminSupportThread}>{(selected.messages || []).map((message) => <article key={message.id} className={`${message.senderType === "ADMIN" ? styles.adminSupportBubbleAdmin : styles.adminSupportBubbleUser} ${message.isInternalNote ? styles.adminSupportInternal : ""}`}><b>{message.isInternalNote ? "ملاحظة داخلية" : message.senderType === "ADMIN" ? message.senderName || "فريق الدعم" : message.senderName || selected.requesterName}</b><p>{message.body}</p>{attachments.filter((file) => file.messageId === message.id).map((file) => <a key={file.id} className={styles.adminSupportAttachment} href={file.url} target="_blank" rel="noreferrer"><Glyph name="document" />{file.originalName}</a>)}<time>{formatDate(message.createdAt, true)}</time></article>)}</div>
+          <div className={styles.adminSupportThread}>{(selected.messages || []).map((message) => <article key={message.id} className={`${message.senderType === "ADMIN" ? styles.adminSupportBubbleAdmin : styles.adminSupportBubbleUser} ${message.isInternalNote ? styles.adminSupportInternal : ""}`}><b>{message.isInternalNote ? "ملاحظة داخلية" : message.senderType === "ADMIN" ? message.senderName || "فريق الدعم" : message.senderName || selected.requesterName}</b><p>{message.body}</p>{attachments.filter((file) => file.messageId === message.id).map((file) => <a key={file.id} className={styles.adminSupportAttachment} href={file.url} target="_blank" rel="noreferrer"><Glyph name="document" />{file.originalName}</a>)}{message.senderType === "ADMIN" && !message.isInternalNote ? <small className={`${styles.adminSupportEmailStatus} ${message.emailDeliveryStatus === "failed" ? styles.adminSupportEmailFailed : ""}`}>{message.emailDeliveryStatus === "sent" ? "تم الإرسال إلى البريد" : message.emailDeliveryStatus === "failed" ? "تعذر إرسال البريد" : "جارٍ إرسال البريد"}</small> : null}<time>{formatDate(message.createdAt, true)}</time></article>)}</div>
           <form className={styles.adminSupportReply} onSubmit={sendReply}>
             <textarea value={reply} onChange={(event) => setReply(event.target.value)} maxLength={2000} placeholder="اكتب ردك على الرسالة..." required />
             <label><input type="checkbox" checked={internal} onChange={(event) => setInternal(event.target.checked)} /> ملاحظة داخلية لا تظهر للمستخدم</label>

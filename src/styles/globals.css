@@ -3025,6 +3025,28 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .faq-panel summary { cursor: pointer; }
 .faq-panel p { color: #718199; line-height: 1.8; }
 .support-form-card form { margin-top: 16px; gap: 10px; }
+.support-guides { grid-column: 1 / -1; }
+.support-guides-heading { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.support-guides-heading h2 { margin: 0 0 5px; color: #17345f; }
+.support-guides-heading p { margin: 0; color: #718199; font-size: 12px; }
+.support-guides-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.support-guides-list details { min-width: 0; padding: 0 15px; border: 1px solid #e2eaf4; border-radius: 10px; background: #fbfdff; scroll-margin-top: 110px; }
+.support-guides-list details[open] { grid-column: 1 / -1; border-color: #bcd5fb; background: #f7fbff; }
+.support-guides-list summary { min-height: 68px; display: flex; align-items: center; gap: 11px; color: #17345f; cursor: pointer; list-style: none; }
+.support-guides-list summary::-webkit-details-marker { display: none; }
+.support-guides-list summary::after { content: "‹"; margin-inline-start: auto; color: #1769ed; font-size: 22px; transition: transform .18s ease; }
+.support-guides-list details[open] summary::after { transform: rotate(-90deg); }
+.support-guides-list .line-icon { width: 40px; height: 40px; min-width: 40px; padding: 9px; color: #1769ed; border-radius: 9px; background: #edf5ff; }
+.support-guides-list summary span,
+.support-guides-list summary strong,
+.support-guides-list summary small { display: block; }
+.support-guides-list summary small { margin-top: 4px; color: #7b8ba2; font-size: 11px; font-weight: 500; }
+.support-guides-list ol { margin: 0 52px 17px 0; padding: 0 18px 0 0; color: #526986; line-height: 2; }
+.support-empty { padding: 17px; color: #718199; border: 1px dashed #d9e5f4; border-radius: 8px; text-align: center; }
+.support-chat-intro { margin-bottom: 16px; padding: 14px; display: flex; align-items: center; gap: 12px; border: 1px solid #dce8f8; border-radius: 10px; background: #f7fbff; }
+.support-chat-intro .line-icon { width: 42px; height: 42px; min-width: 42px; padding: 10px; color: #1769ed; border-radius: 10px; background: #eaf3ff; }
+.support-chat-intro p { margin: 4px 0 0; line-height: 1.8; }
+.support-chat-form { gap: 11px; }
 
 .public-footer { min-height: 82px; margin-top: auto; }
 .public-footer-inner { min-height: 82px; direction: rtl; }
@@ -3330,6 +3352,10 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 @media (max-width: 640px) {
   .support-intro-row .support-cards,
   .about-value-grid { grid-template-columns: 1fr; }
+  .support-guides-heading { align-items: stretch; flex-direction: column; }
+  .support-guides-list { grid-template-columns: 1fr; }
+  .support-guides-list details[open] { grid-column: auto; }
+  .support-guides-list ol { margin-right: 18px; }
   .support-intro-copy h1 { font-size: 36px; }
   .policy-contact { align-items: stretch; flex-direction: column; }
   .policy-contact .btn { width: 100%; }

@@ -379,6 +379,75 @@ Object.assign(operationalEnglishPhrases, {
   "تفاصيل الطلب": "Request details"
 });
 
+Object.assign(operationalEnglishPhrases, {
+  "ابحث في الأدلة والأسئلة، أو أنشئ طلب دعم حقيقي يصل إلى فريق Renvix وتابع الرد عبر بريدك الإلكتروني.": "Browse guides and questions, or create a real support request that reaches the Renvix team and receive the reply by email.",
+  "أدلة عملية تساعدك خطوة بخطوة.": "Practical step-by-step guides.",
+  "إجابات واضحة لأكثر الأسئلة شيوعًا.": "Clear answers to the most common questions.",
+  "محادثة الدعم": "Support conversation",
+  "أرسل رسالة منظمة وتابع الرد عبر بريدك.": "Send a structured request and receive the reply by email.",
+  "طلب عبر البريد": "Email request",
+  "أنشئ تذكرة دعم تصل مباشرة إلى الفريق.": "Create a support ticket that goes directly to the team.",
+  "جهّز حسابك وأول اشتراك وتذكير بخطوات واضحة.": "Set up your account, first subscription, and reminder with clear steps.",
+  "أنشئ الاشتراكات وتابع التجديدات وحالة الإرسال.": "Create subscriptions and track renewals and delivery status.",
+  "اربط القنوات والتطبيقات وتحقق من جاهزيتها بأمان.": "Connect channels and apps and verify their readiness securely.",
+  "تعرّف على الباقات والفواتير والاستهلاك والتجديد.": "Understand plans, invoices, usage, and renewal.",
+  "راقب التجديد والتسليم والأداء من بيانات حسابك.": "Monitor renewals, delivery, and performance using your account data.",
+  "ابحث في مركز المساعدة": "Search the help center",
+  "ابحث عن حل أو سؤال...": "Search for a solution or question...",
+  "كيف أربط قناة واتساب؟": "How do I connect a WhatsApp channel?",
+  "هل يمكنني إلغاء التجديد؟": "Can I cancel renewal?",
+  "ما طرق الدفع المتاحة؟": "Which payment methods are available?",
+  "كيف أتابع أداء الرسائل والتجديدات؟": "How do I track message and renewal performance?",
+  "أين أجد رد فريق الدعم؟": "Where can I find the support team's reply?",
+  "سيصل الطلب إلى الرسائل والشكاوى، وسنرسل الرد إلى بريدك.": "The request will reach Messages and Complaints, and we will send the reply to your email.",
+  "نوع الطلب": "Request type",
+  "استفسار عام": "General inquiry",
+  "التكاملات وربط القنوات": "Integrations and channel connections",
+  "الحساب وتسجيل الدخول": "Account and sign-in",
+  "شكوى": "Complaint",
+  "اقتراح": "Suggestion",
+  "أخرى": "Other",
+  "عنوان الطلب": "Request subject",
+  "اكتب عنوانًا مختصرًا وواضحًا": "Write a short, clear subject",
+  "اشرح المشكلة والخطوات التي قمت بها...": "Describe the issue and the steps you have taken...",
+  "أدلة المساعدة": "Help guides",
+  "افتح الدليل المطلوب لعرض الخطوات في نفس الصفحة.": "Open a guide to view its steps on this page.",
+  "تصفح جميع المقالات": "Browse all articles",
+  "لا توجد أدلة مطابقة لعبارة البحث.": "No guides match your search.",
+  "لا توجد أسئلة مطابقة لعبارة البحث.": "No questions match your search.",
+  "جرّب البحث بكلمات أخرى أو أرسل طلبًا إلى فريق الدعم.": "Try different search terms or send a request to the support team.",
+  "أكمل بيانات الحساب والمتجر من الإعدادات.": "Complete the account and store details in Settings.",
+  "أضف العميل ثم أنشئ اشتراكه وحدد الباقة وتواريخ البداية والنهاية.": "Add the customer, create the subscription, and set the plan and start and end dates.",
+  "اختر قناة الإرسال وأدخل رقم واتساب أو البريد المطلوب.": "Choose the delivery channel and enter the required WhatsApp number or email.",
+  "اربط القناة من قسم تطبيقاتنا، ثم فعّل رسالة التذكير بعد مراجعة القالب.": "Connect the channel from Our Apps, then enable the reminder after reviewing the template.",
+  "افتح الاشتراكات واضغط إضافة اشتراك جديد.": "Open Subscriptions and select Add new subscription.",
+  "اختر العميل والخدمة والباقة وأدخل مدة الاشتراك وقيمته.": "Choose the customer, service, and plan, then enter the subscription duration and value.",
+  "حدد قناة الإرسال؛ رقم واتساب إلزامي لواتساب والبريد إلزامي للبريد.": "Choose the delivery channel; a WhatsApp number is required for WhatsApp and an email is required for email.",
+  "راجع إعدادات التذكير وحدد الموعد، ثم احفظ الاشتراك.": "Review reminder settings, set the schedule, and save the subscription.",
+  "انتقل إلى الإعدادات ثم تطبيقاتنا.": "Go to Settings, then Our Apps.",
+  "اختر التكامل المتاح واتبع خطوات الربط الظاهرة.": "Choose an available integration and follow the displayed connection steps.",
+  "استخدم مفاتيح API وWebhook من صفحة التكامل المخصصة ولا تشارك الأسرار.": "Use API keys and webhooks from the custom integration page and never share secrets.",
+  "راجع سجل الاتصال وحالة الجاهزية قبل تشغيل الإرسال.": "Review connection logs and readiness before enabling delivery.",
+  "راجع الباقة الحالية وحدودها من قسم الفوترة.": "Review the current plan and its limits in Billing.",
+  "يُحتسب رصيد البريد واستهلاك القنوات وفق تفاصيل الباقة الظاهرة.": "Email credit and channel usage are calculated according to the displayed plan details.",
+  "احتفظ بالفواتير وسجل عمليات الدفع للرجوع إليها.": "Keep invoices and payment records for reference.",
+  "يمكن إدارة التجديد من صفحة الفوترة وفق شروط الباقة.": "Renewal can be managed from Billing according to the plan terms.",
+  "افتح التقارير وحدد الفترة التي تريد تحليلها.": "Open Reports and choose the period you want to analyze.",
+  "استخدم الفلاتر لعرض القناة أو الاشتراكات أو حالات الإرسال.": "Use filters to view a channel, subscriptions, or delivery statuses.",
+  "راجع سجل التسليم والأخطاء قبل اتخاذ إجراء.": "Review delivery logs and errors before taking action.",
+  "صدّر التقرير عند الحاجة إلى مراجعته أو مشاركته داخل فريقك.": "Export the report when it needs to be reviewed or shared with your team.",
+  "Renvix منصة لإدارة العملاء والاشتراكات والتجديدات وقنوات التذكير من لوحة واحدة. تضيف بيانات العميل واشتراكه، ثم تضبط القناة والموعد والقالب، وتتابع النتيجة من السجلات والتقارير.": "Renvix manages customers, subscriptions, renewals, and reminder channels from one dashboard. Add a customer and subscription, configure the channel, schedule, and template, then track results in logs and reports.",
+  "انتقل إلى «تطبيقاتنا»، افتح تكامل واتساب المتاح، واتبع خطوات الربط حتى تظهر الحالة «متصل». لن يبدأ الإرسال قبل اكتمال الاتصال وتوفر رقم واتساب صحيح للعميل.": "Go to Our Apps, open an available WhatsApp integration, and follow the connection steps until the status is Connected. Delivery will not start until the connection is complete and the customer has a valid WhatsApp number.",
+  "يمكنك إدارة التجديد من صفحة الفوترة وفق الباقة وشروطها. إيقاف التجديد يمنع دورة التجديد التالية ولا يحذف بيانات حسابك أو اشتراكات عملائك.": "You can manage renewal from Billing according to the plan terms. Stopping renewal prevents the next cycle and does not delete your account or customer subscriptions.",
+  "تظهر طرق الدفع المتاحة فعليًا أثناء اختيار الباقة أو إتمام عملية الدفع. إذا لم تظهر وسيلة مناسبة، أرسل طلبًا بعنوان «الفوترة والباقات» ليطلع الفريق على حالتك.": "Available payment methods appear when selecting a plan or completing payment. If no suitable option appears, send a Billing and plans request for the team to review.",
+  "من قسم التقارير وسجل الإرسال يمكنك مراجعة الرسائل المجدولة والمرسلة والمتعثرة، ومعرفة الاشتراكات القريبة من التجديد واستخدام الفلاتر للوصول إلى السجل المطلوب.": "Use Reports and delivery logs to review scheduled, sent, and failed messages, identify upcoming renewals, and filter for the required record.",
+  "يرسل فريق الدعم الرد إلى البريد الذي كتبته في الطلب، ويحفظ الرد مع التذكرة داخل لوحة الإدارة. احتفظ برقم الطلب لتسهيل المتابعة.": "The support team sends its reply to the email in your request and stores it with the ticket in the admin panel. Keep the ticket number for follow-up.",
+  "نعم. افتح «الفوترة والباقات» واختر الخطة الجديدة. تُطبّق الترقية وفق السعر الظاهر قبل الدفع، بينما يبدأ خفض الباقة مع دورة الفوترة التالية ما لم تعرض صفحة الدفع خلاف ذلك، وتبقى بيانات حسابك محفوظة.": "Yes. Open Billing and plans and choose the new plan. Upgrades use the price displayed before payment, while downgrades begin with the next billing cycle unless checkout states otherwise. Your account data remains stored.",
+  "لا. حد رسائل البريد مستقل ويظهر لكل باقة، أما رسائل واتساب الرسمية فتُحتسب حسب الاستخدام. استهلاك قناة لا يخصم من رصيد القناة الأخرى.": "No. Email has an independent plan limit, while official WhatsApp messages are usage-based. Using one channel does not deduct from the other channel's balance.",
+  "يمكن إيقاف التجديد التلقائي للدورات القادمة مع استمرار الوصول حتى نهاية المدة المدفوعة. الإيقاف لا يحذف بياناتك ولا يعيد قيمة المدة المستخدمة تلقائيًا، وتُراجع طلبات الاسترجاع وفق سياسة الاستبدال والاسترجاع وحقوق المستهلك المطبقة.": "Automatic renewal can be stopped for future cycles while access continues through the paid term. Stopping renewal does not delete data or automatically refund used time; refund requests follow the refund policy and applicable consumer rights.",
+  "تُسجّل الرسالة القابلة للفوترة مرة واحدة بعد قبول مزود القناة لعملية الإرسال بنجاح، مع حماية من الخصم المكرر. الرسائل التي تفشل قبل قبول المزود لا تُحتسب كإرسال ناجح، ويمكن مراجعة التفاصيل من سجل الاستخدام والإرسال.": "A billable message is recorded once after the channel provider accepts it successfully, with duplicate-charge protection. Messages that fail before provider acceptance are not counted as successful sends; details are available in usage and delivery logs."
+});
+
 const storage = {
   get(key, fallback) {
     try {
@@ -1321,10 +1390,10 @@ function marketingFeaturesPage() {
 function marketingPricingPage() {
   const topups = [50, 100, 250, 500, 1000];
   const questions = [
-    "هل يمكنني الترقية أو التبديل بين الباقات؟",
-    "هل البريد وواتساب ضمن حد واحد؟",
-    "ما سياسة إلغاء الاشتراك؟",
-    "كيف يتم احتساب الرسائل؟"
+    ["هل يمكنني الترقية أو التبديل بين الباقات؟", "نعم. افتح «الفوترة والباقات» واختر الخطة الجديدة. تُطبّق الترقية وفق السعر الظاهر قبل الدفع، بينما يبدأ خفض الباقة مع دورة الفوترة التالية ما لم تعرض صفحة الدفع خلاف ذلك، وتبقى بيانات حسابك محفوظة."],
+    ["هل البريد وواتساب ضمن حد واحد؟", "لا. حد رسائل البريد مستقل ويظهر لكل باقة، أما رسائل واتساب الرسمية فتُحتسب حسب الاستخدام. استهلاك قناة لا يخصم من رصيد القناة الأخرى."],
+    ["ما سياسة إلغاء الاشتراك؟", "يمكن إيقاف التجديد التلقائي للدورات القادمة مع استمرار الوصول حتى نهاية المدة المدفوعة. الإيقاف لا يحذف بياناتك ولا يعيد قيمة المدة المستخدمة تلقائيًا، وتُراجع طلبات الاسترجاع وفق سياسة الاستبدال والاسترجاع وحقوق المستهلك المطبقة."],
+    ["كيف يتم احتساب الرسائل؟", "تُسجّل الرسالة القابلة للفوترة مرة واحدة بعد قبول مزود القناة لعملية الإرسال بنجاح، مع حماية من الخصم المكرر. الرسائل التي تفشل قبل قبول المزود لا تُحتسب كإرسال ناجح، ويمكن مراجعة التفاصيل من سجل الاستخدام والإرسال."]
   ];
   return publicShell(`<main class="pricing-reference-page">
     <section class="section pricing-reference-section" aria-labelledby="pricing-page-title">
@@ -1337,7 +1406,7 @@ function marketingPricingPage() {
         <div class="pricing-reference-extras">
           <article class="card faq-card faq-compact">
             <h2>أسئلة شائعة</h2>
-            ${questions.map((question) => `<details><summary>${question}</summary><p>يمكنك إدارة خطتك بمرونة، ويُحتسب البريد وواتساب كلٌ على حدة وفق الرسائل الناجحة فعليًا.</p></details>`).join("")}
+            ${questions.map(([question, answer]) => `<details><summary>${question}</summary><p>${answer}</p></details>`).join("")}
           </article>
           <article class="card topup-card pricing-extra-card">
             <div><h2>شحن رصيد البريد</h2><p>اشحن رصيدًا لاستخدام رسائل البريد حسب احتياجك.</p></div>
@@ -1368,7 +1437,9 @@ function articlePage() {
   return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.")}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في Renvix", "Put these steps into practice with Renvix")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
 }
 
-function marketingSupportPage() {
+// Kept temporarily as a compatibility reference while the support center uses the functional implementation below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function legacyMarketingSupportPage() {
   const cards = [["مركز المساعدة", "أدلة شاملة ومقالات لمساعدتك خطوة بخطوة.", "تصفح المقالات", "#help-center", "helpBook"], ["الأسئلة الشائعة", "إجابات سريعة لأكثر الأسئلة شيوعًا.", "عرض الأسئلة", "#faq", "faq"], ["الدردشة", "تحدث مباشرة مع فريق الدعم.", "ابدأ المحادثة", "open-chat", "chat"], ["تواصل عبر البريد", "راسلنا وسنرد عليك خلال 24 ساعة عمل.", "راسلنا الآن", "open-email", "email"]];
   const knowledgeIcons = {
     "البدء السريع": "rocket",
@@ -1379,6 +1450,104 @@ function marketingSupportPage() {
   };
   return publicShell(`<main class="support-page"><section class="section support-hero"><div class="container support-intro-row"><div class="support-intro-copy"><span class="eyebrow">نحن هنا لمساعدتك</span><h1>مركز الدعم</h1><p>ابحث في مقالات المساعدة، تواصل مع فريق الدعم، أو أرسل طلبك وسنعود إليك بأقرب وقت.</p></div><div class="support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action.startsWith("#") ? `<a class="btn btn-secondary" href="/support${action}">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></div></section>
     <section class="section support-body"><div class="container support-layout"><article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${knowledgeBase.slice(0, 5).map((item) => `<button data-action="knowledge" data-term="${item}">${dashboardIcon(knowledgeIcons[item] || "helpBook")}<span><strong>${item}</strong><small>تعرف على التفاصيل والخطوات الأساسية.</small></span><b>‹</b></button>`).join("")}</article><article class="card faq-panel" id="faq"><h2>ابحث في مقالات المساعدة</h2><input class="input" data-action="support-search" placeholder="ابحث عن حلول ومقالات..."><h2>الأسئلة الشائعة</h2>${["ما هو Renvix وكيف يعمل؟", "كيف يمكنني ربط حسابي في واتساب؟", "هل يمكنني إلغاء اشتراكي في أي وقت؟", "ما هي طرق الدفع المتاحة؟", "كيف أتابع أداء حملاتي وتقاريري؟"].map((q) => `<details><summary>${q}</summary><p>ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك إذا احتجت إلى توجيه إضافي.</p></details>`).join("")}</article><article class="card support-form-card"><h2>أرسل لنا طلب دعم</h2><p>صف مشكلتك أو استفسارك وسنقوم بالرد عليك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" required></label><label class="field"><span>الموضوع</span><select class="select" name="subject" required><option value="">اختر موضوع الطلب</option><option>مشكلة تقنية</option><option>الفوترة والباقات</option><option>ربط الأجهزة</option></select></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" required></textarea></label><button class="btn btn-primary">إرسال الطلب</button></form></article></div></section></main>`);
+}
+
+function marketingSupportPage() {
+  const guides = [
+    {
+      id: "quick-start",
+      title: "البدء السريع",
+      icon: "rocket",
+      summary: "جهّز حسابك وأول اشتراك وتذكير بخطوات واضحة.",
+      steps: [
+        "أكمل بيانات الحساب والمتجر من الإعدادات.",
+        "أضف العميل ثم أنشئ اشتراكه وحدد الباقة وتواريخ البداية والنهاية.",
+        "اختر قناة الإرسال وأدخل رقم واتساب أو البريد المطلوب.",
+        "اربط القناة من قسم تطبيقاتنا، ثم فعّل رسالة التذكير بعد مراجعة القالب."
+      ]
+    },
+    {
+      id: "subscriptions",
+      title: "إدارة الاشتراكات",
+      icon: "subscriptions",
+      summary: "أنشئ الاشتراكات وتابع التجديدات وحالة الإرسال.",
+      steps: [
+        "افتح الاشتراكات واضغط إضافة اشتراك جديد.",
+        "اختر العميل والخدمة والباقة وأدخل مدة الاشتراك وقيمته.",
+        "حدد قناة الإرسال؛ رقم واتساب إلزامي لواتساب والبريد إلزامي للبريد.",
+        "راجع إعدادات التذكير وحدد الموعد، ثم احفظ الاشتراك."
+      ]
+    },
+    {
+      id: "integrations",
+      title: "التكاملات والإعدادات",
+      icon: "puzzle",
+      summary: "اربط القنوات والتطبيقات وتحقق من جاهزيتها بأمان.",
+      steps: [
+        "انتقل إلى الإعدادات ثم تطبيقاتنا.",
+        "اختر التكامل المتاح واتبع خطوات الربط الظاهرة.",
+        "استخدم مفاتيح API وWebhook من صفحة التكامل المخصصة ولا تشارك الأسرار.",
+        "راجع سجل الاتصال وحالة الجاهزية قبل تشغيل الإرسال."
+      ]
+    },
+    {
+      id: "billing",
+      title: "الفوترة والدفع",
+      icon: "payments",
+      summary: "تعرّف على الباقات والفواتير والاستهلاك والتجديد.",
+      steps: [
+        "راجع الباقة الحالية وحدودها من قسم الفوترة.",
+        "يُحتسب رصيد البريد واستهلاك القنوات وفق تفاصيل الباقة الظاهرة.",
+        "احتفظ بالفواتير وسجل عمليات الدفع للرجوع إليها.",
+        "يمكن إدارة التجديد من صفحة الفوترة وفق شروط الباقة."
+      ]
+    },
+    {
+      id: "reports",
+      title: "التقارير والتحليلات",
+      icon: "barChart",
+      summary: "راقب التجديد والتسليم والأداء من بيانات حسابك.",
+      steps: [
+        "افتح التقارير وحدد الفترة التي تريد تحليلها.",
+        "استخدم الفلاتر لعرض القناة أو الاشتراكات أو حالات الإرسال.",
+        "راجع سجل التسليم والأخطاء قبل اتخاذ إجراء.",
+        "صدّر التقرير عند الحاجة إلى مراجعته أو مشاركته داخل فريقك."
+      ]
+    }
+  ];
+  const faqs = [
+    ["ما هو Renvix وكيف يعمل؟", "Renvix منصة لإدارة العملاء والاشتراكات والتجديدات وقنوات التذكير من لوحة واحدة. تضيف بيانات العميل واشتراكه، ثم تضبط القناة والموعد والقالب، وتتابع النتيجة من السجلات والتقارير."],
+    ["كيف أربط قناة واتساب؟", "انتقل إلى «تطبيقاتنا»، افتح تكامل واتساب المتاح، واتبع خطوات الربط حتى تظهر الحالة «متصل». لن يبدأ الإرسال قبل اكتمال الاتصال وتوفر رقم واتساب صحيح للعميل."],
+    ["هل يمكنني إلغاء التجديد؟", "يمكنك إدارة التجديد من صفحة الفوترة وفق الباقة وشروطها. إيقاف التجديد يمنع دورة التجديد التالية ولا يحذف بيانات حسابك أو اشتراكات عملائك."],
+    ["ما طرق الدفع المتاحة؟", "تظهر طرق الدفع المتاحة فعليًا أثناء اختيار الباقة أو إتمام عملية الدفع. إذا لم تظهر وسيلة مناسبة، أرسل طلبًا بعنوان «الفوترة والباقات» ليطلع الفريق على حالتك."],
+    ["كيف أتابع أداء الرسائل والتجديدات؟", "من قسم التقارير وسجل الإرسال يمكنك مراجعة الرسائل المجدولة والمرسلة والمتعثرة، ومعرفة الاشتراكات القريبة من التجديد واستخدام الفلاتر للوصول إلى السجل المطلوب."],
+    ["أين أجد رد فريق الدعم؟", "يرسل فريق الدعم الرد إلى البريد الذي كتبته في الطلب، ويحفظ الرد مع التذكرة داخل لوحة الإدارة. احتفظ برقم الطلب لتسهيل المتابعة."]
+  ];
+  const query = state.search.trim().toLowerCase();
+  const visibleGuides = guides.filter((guide) => !query || `${guide.title} ${guide.summary} ${guide.steps.join(" ")}`.toLowerCase().includes(query));
+  const visibleFaqs = faqs.filter(([question, answer]) => !query || `${question} ${answer}`.toLowerCase().includes(query));
+  const cards = [
+    ["مركز المساعدة", "أدلة عملية تساعدك خطوة بخطوة.", "تصفح المقالات", "blog", "helpBook"],
+    ["الأسئلة الشائعة", "إجابات واضحة لأكثر الأسئلة شيوعًا.", "عرض الأسئلة", "faq", "faq"],
+    ["محادثة الدعم", "أرسل رسالة منظمة وتابع الرد عبر بريدك.", "ابدأ المحادثة", "open-chat", "chat"],
+    ["طلب عبر البريد", "أنشئ تذكرة دعم تصل مباشرة إلى الفريق.", "راسلنا الآن", "open-email", "email"]
+  ];
+  const guideButtons = visibleGuides.length
+    ? visibleGuides.map((guide) => `<button data-action="knowledge" data-article-id="${guide.id}">${dashboardIcon(guide.icon)}<span><strong>${guide.title}</strong><small>${guide.summary}</small></span><b>‹</b></button>`).join("")
+    : `<p class="support-empty">لا توجد أدلة مطابقة لعبارة البحث.</p>`;
+  const faqItems = visibleFaqs.length
+    ? visibleFaqs.map(([question, answer]) => `<details><summary>${question}</summary><p>${answer}</p></details>`).join("")
+    : `<p class="support-empty">لا توجد أسئلة مطابقة لعبارة البحث.</p>`;
+  const guideDetails = visibleGuides.length
+    ? visibleGuides.map((guide) => `<details id="support-guide-${guide.id}"><summary>${dashboardIcon(guide.icon)}<span><strong>${guide.title}</strong><small>${guide.summary}</small></span></summary><ol>${guide.steps.map((step) => `<li>${step}</li>`).join("")}</ol></details>`).join("")
+    : `<p class="support-empty">جرّب البحث بكلمات أخرى أو أرسل طلبًا إلى فريق الدعم.</p>`;
+  return publicShell(`<main class="support-page"><section class="section support-hero"><div class="container support-intro-row"><div class="support-intro-copy"><span class="eyebrow">نحن هنا لمساعدتك</span><h1>مركز الدعم</h1><p>ابحث في الأدلة والأسئلة، أو أنشئ طلب دعم حقيقي يصل إلى فريق Renvix وتابع الرد عبر بريدك الإلكتروني.</p></div><div class="support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action === "blog" ? `<button class="btn btn-secondary" data-link="/blog">${label}</button>` : action === "faq" ? `<a class="btn btn-secondary" href="/support#faq">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></div></section>
+    <section class="section support-body"><div class="container support-layout">
+      <article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${guideButtons}</article>
+      <article class="card faq-panel" id="faq"><h2>ابحث في مركز المساعدة</h2><input class="input" data-action="support-search" value="${escapeHtml(state.search)}" placeholder="ابحث عن حل أو سؤال..."><h2>الأسئلة الشائعة</h2>${faqItems}</article>
+      <article class="card support-form-card" id="support-request"><h2>أرسل لنا طلب دعم</h2><p>سيصل الطلب إلى الرسائل والشكاوى، وسنرسل الرد إلى بريدك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" minlength="2" maxlength="120" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" maxlength="254" required></label><label class="field"><span>نوع الطلب</span><select class="select" name="type" required><option value="INQUIRY">استفسار عام</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="BILLING">الفوترة والباقات</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="ACCOUNT">الحساب وتسجيل الدخول</option><option value="COMPLAINT">شكوى</option><option value="SUGGESTION">اقتراح</option><option value="OTHER">أخرى</option></select></label><label class="field"><span>عنوان الطلب</span><input class="input" name="subject" minlength="5" maxlength="150" placeholder="اكتب عنوانًا مختصرًا وواضحًا" required></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" minlength="10" maxlength="2000" placeholder="اشرح المشكلة والخطوات التي قمت بها..." required></textarea></label><button class="btn btn-primary" type="submit">إرسال الطلب</button></form></article>
+      <article class="card support-guides"><div class="support-guides-heading"><div><h2>أدلة المساعدة</h2><p>افتح الدليل المطلوب لعرض الخطوات في نفس الصفحة.</p></div><button class="btn btn-secondary" data-link="/blog">تصفح جميع المقالات</button></div><div class="support-guides-list">${guideDetails}</div></article>
+    </div></section></main>`);
 }
 
 function aboutPage() {
@@ -5466,10 +5635,26 @@ async function handleAction(target) {
   if (action === "forgot-password") navigate("/forgot-password");
   if (action === "google-login") toast("سيتم ربط تسجيل الدخول عبر Google لاحقًا", "warning");
   if (action === "open-ticket") openModal("فتح تذكرة دعم", `<form data-submit="ticket" class="grid">${field("الموضوع", "subject")}${field("البريد", "email", "email")}<textarea class="textarea" name="body" required placeholder="وصف المشكلة"></textarea><button class="btn btn-primary">إرسال التذكرة</button></form>`);
-  if (action === "open-chat") openDrawer("الدردشة المباشرة", `<div class="activity-list"><div class="activity-item">${icon("د")}<div><strong>فريق الدعم</strong><p class="muted">مرحبًا، كيف يمكننا مساعدتك؟</p></div></div></div><form data-submit="chat"><input class="input" name="message" required placeholder="اكتب رسالتك"><br><br><button class="btn btn-primary">إرسال</button></form>`);
-  if (action === "open-email") location.href = "mailto:support@renewpilot.ai?subject=طلب دعم Renvix";
+  if (action === "open-chat") {
+    openDrawer("ابدأ محادثة مع الدعم", `<div class="support-chat-intro">${dashboardIcon("chat")}<div><strong>فريق دعم Renvix</strong><p class="muted">أرسل رسالتك الآن. ستصل إلى لوحة الدعم وسنرسل الرد إلى بريدك الإلكتروني.</p></div></div><form data-submit="support-chat" class="grid support-chat-form"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" minlength="2" maxlength="120" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" maxlength="254" required></label><label class="field"><span>نوع الطلب</span><select class="select" name="type"><option value="INQUIRY">استفسار عام</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="BILLING">الفوترة والباقات</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="COMPLAINT">شكوى</option><option value="OTHER">أخرى</option></select></label><label class="field"><span>عنوان المحادثة</span><input class="input" name="subject" minlength="5" maxlength="150" required></label><label class="field"><span>رسالتك</span><textarea class="textarea" name="message" minlength="10" maxlength="2000" required></textarea></label><button class="btn btn-primary" type="submit">إرسال إلى فريق الدعم</button></form>`);
+    return;
+  }
+  if (action === "open-email") {
+    const supportForm = document.getElementById("support-request");
+    supportForm?.scrollIntoView({ behavior: "smooth", block: "start" });
+    supportForm?.querySelector('input[name="email"]')?.focus({ preventScroll: true });
+    return;
+  }
   if (action === "open-whatsapp") window.open("https://wa.me/966500000000?text=مرحبًا، أحتاج دعم Renvix", "_blank");
-  if (action === "knowledge") toast(`تم فتح قسم ${target.dataset.term}`);
+  if (action === "knowledge") {
+    const guide = document.getElementById(`support-guide-${target.dataset.articleId || ""}`);
+    if (guide) {
+      guide.open = true;
+      guide.scrollIntoView({ behavior: "smooth", block: "center" });
+      guide.querySelector("summary")?.focus({ preventScroll: true });
+    }
+    return;
+  }
   if (action === "support-chip") { state.search = target.dataset.term; render(); }
   if (action === "blog-category") { state.blogCategory = target.dataset.category; render(); }
   if (action === "insert-template-variable") {
@@ -6378,11 +6563,32 @@ async function handleSubmit(form, event) {
     } catch (error) { toast(error.message || "تعذر حفظ القالب", "danger"); }
     return;
   }
-  if (type === "support-request") {
-    if (!data.name?.trim() || !data.email?.trim() || !data.subject || !data.details?.trim()) return toast("يرجى تعبئة جميع حقول طلب الدعم.", "danger");
+  if (type === "support-request" || type === "support-chat") {
+    const body = String(data.details || data.message || "").trim();
+    if (!data.name?.trim() || !data.email?.trim() || !data.subject?.trim() || !body) return toast("يرجى تعبئة جميع حقول طلب الدعم.", "danger");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return toast("صيغة البريد الإلكتروني غير صحيحة.", "danger");
-    form.reset();
-    toast("تم إرسال طلب الدعم بنجاح");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ إرسال الطلب...");
+    try {
+      const payload = await fetchJson("/api/public/support/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          type: data.type || "INQUIRY",
+          subject: data.subject,
+          body
+        })
+      });
+      form.reset();
+      if (type === "support-chat") closePortal();
+      toast(`تم إرسال طلبك بنجاح. رقم الطلب: ${payload.item?.ticketNumber || "—"}`);
+    } catch (error) {
+      toast(error.message || "تعذر إرسال طلب الدعم حاليًا.", "danger");
+    } finally {
+      setSubmitBusy(button, false);
+    }
     return;
   }
   if (type === "newsletter") {

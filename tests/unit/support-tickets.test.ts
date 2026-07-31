@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cleanSupportText,
+  normalizePublicSupportRequest,
   SUPPORT_PRIORITIES,
   SUPPORT_STATUSES,
   SUPPORT_TYPES
@@ -27,5 +28,38 @@ describe("support tickets domain", () => {
       max: 20,
       label: "تفاصيل الرسالة"
     })).toThrow("تفاصيل الرسالة يجب أن يكون بين 10 و20 حرفًا.");
+  });
+
+  it("normalizes a valid public support request", () => {
+    expect(normalizePublicSupportRequest({
+      name: "  وليد علي ",
+      email: " WALEED@EXAMPLE.COM ",
+      type: "COMPLAINT",
+      subject: " مشكلة في ربط القناة ",
+      body: " أحتاج إلى مساعدة في إكمال عملية الربط. "
+    })).toEqual({
+      name: "وليد علي",
+      email: "waleed@example.com",
+      type: "COMPLAINT",
+      subject: "مشكلة في ربط القناة",
+      body: "أحتاج إلى مساعدة في إكمال عملية الربط."
+    });
+  });
+
+  it("rejects invalid public email and unsafe short content", () => {
+    expect(() => normalizePublicSupportRequest({
+      name: "وليد علي",
+      email: "invalid-email",
+      type: "INQUIRY",
+      subject: "طلب دعم واضح",
+      body: "تفاصيل كافية للطلب المرسل."
+    })).toThrow("صيغة البريد الإلكتروني غير صحيحة.");
+    expect(() => normalizePublicSupportRequest({
+      name: "وليد علي",
+      email: "waleed@example.com",
+      type: "INQUIRY",
+      subject: "قصير",
+      body: "قصير"
+    })).toThrow();
   });
 });
