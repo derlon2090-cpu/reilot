@@ -63,6 +63,28 @@ function dateValue(value) {
   }).format(new Date(value));
 }
 
+function emailRecipient(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+function channelRecipient(channel, { email, phone, emailEligible = true, whatsappEligible = true }) {
+  if (channel === "email") return emailEligible === false ? null : emailRecipient(email);
+  return whatsappEligible === false ? null : normalizeSubscriptionPhone(phone);
+}
+
+function missingRecipientReason(channel) {
+  return channel === "email" ? "missing_valid_email" : "missing_valid_phone";
+}
+
+function adminEmailLogoUrl() {
+  const configured = String(process.env.ADMIN_EMAIL_LOGO_URL || "").trim();
+  try {
+    if (new URL(configured).protocol === "https:") return configured;
+  } catch {}
+  return "https://renvix.app/assets/renewpilot-logo-horizontal.webp";
+}
+
 export async function enqueueAdminDomainEvent(client, {
   eventType, aggregateType, aggregateId, payloadRefs = {}, idempotencyKey
 }) {
@@ -90,11 +112,12 @@ async function loadTemplate(templateKey) {
   return result.rows[0] || null;
 }
 
-async function resolveAccountEvent(event) {
+async function resolveAccountEvent(event, channel) {
   const jobId = event.payload_refs?.provisioningJobId || event.aggregate_id;
   const result = await query(
     `SELECT apj.id,apj.user_id AS "userId",apj.tenant_id AS "tenantId",
             apj.customer_name AS "customerName",apj.customer_email AS "customerEmail",
+            apj.customer_phone_e164 AS phone,
             apj.subscription_activated_at AS "activatedAt",
             u.email,COALESCE(pp.name,'Renvix') AS "planName",
             ps.current_period_end AS "subscriptionExpiry"
@@ -111,6 +134,8 @@ async function resolveAccountEvent(event) {
   );
   const row = result.rows[0];
   if (!row) return { skip: "account_not_fully_provisioned" };
+  const recipient = channelRecipient(channel, { email: row.email, phone: row.phone });
+  if (!recipient) return { skip: missingRecipientReason(channel) };
   const temporaryPassword = workerTemporaryPassword();
   await transaction(async (client) => {
     await client.query(
@@ -131,7 +156,7 @@ async function resolveAccountEvent(event) {
     );
   });
   return {
-    recipient: row.email,
+    recipient,
     variables: {
       customer_name: row.customerName || "عميل Renvix",
       customer_email: row.email,
@@ -146,10 +171,10 @@ async function resolveAccountEvent(event) {
   };
 }
 
-async function resolveRenewalEvent(event) {
+async function resolveRenewalEvent(event, channel) {
   if (event.payload_refs?.provisioningJobId) {
     const provisioning = await query(
-      `SELECT apj.id,apj.customer_name AS "customerName",
+      `SELECT apj.id,apj.customer_name AS "customerName",apj.customer_email AS email,
               apj.customer_phone_e164 AS phone,apj.previous_expires_at AS "oldExpiry",
               apj.new_expires_at AS "newExpiry",COALESCE(pp.name,'Renvix') AS "planName",
               COALESCE(s.name,t.name,'Renvix') AS "storeName",apj.tenant_id AS "tenantId",
@@ -171,10 +196,11 @@ async function resolveRenewalEvent(event) {
     );
     const row = provisioning.rows[0];
     if (!row) return { skip: "renewal_not_committed" };
-    if (!row.phone) return { skip: "missing_valid_phone" };
-    if (row.blocked) return { skip: "customer_blocked" };
+    const recipient = channelRecipient(channel, { email: row.email, phone: row.phone });
+    if (!recipient) return { skip: missingRecipientReason(channel) };
+    if (channel === "evolution_whatsapp" && row.blocked) return { skip: "customer_blocked" };
     return {
-      recipient: row.phone,
+      recipient,
       variables: {
         customer_name: row.customerName || "عميل Renvix",
         plan_name: row.planName,
@@ -189,7 +215,8 @@ async function resolveRenewalEvent(event) {
   const renewalId = event.payload_refs?.renewalId || event.aggregate_id;
   const result = await query(
     `SELECT sr.id,sr.previous_expires_at AS "oldExpiry",sr.new_expires_at AS "newExpiry",
-            sc.full_name AS "customerName",sc.phone_e164 AS phone,sc.whatsapp_eligible AS "whatsappEligible",
+            sc.full_name AS "customerName",sc.email,sc.email_eligible AS "emailEligible",
+            sc.phone_e164 AS phone,sc.whatsapp_eligible AS "whatsappEligible",
             sp.name AS "planName",COALESCE(s.name,t.name,'Renvix') AS "storeName",
             EXISTS (
               SELECT 1 FROM unsubscribe_list ul
@@ -206,10 +233,16 @@ async function resolveRenewalEvent(event) {
   );
   const row = result.rows[0];
   if (!row) return { skip: "renewal_not_committed" };
-  if (!row.phone || row.whatsappEligible === false) return { skip: "missing_valid_phone" };
-  if (row.blocked) return { skip: "customer_blocked" };
+  const recipient = channelRecipient(channel, {
+    email: row.email,
+    phone: row.phone,
+    emailEligible: row.emailEligible,
+    whatsappEligible: row.whatsappEligible
+  });
+  if (!recipient) return { skip: missingRecipientReason(channel) };
+  if (channel === "evolution_whatsapp" && row.blocked) return { skip: "customer_blocked" };
   return {
-    recipient: row.phone,
+    recipient,
     variables: {
       customer_name: row.customerName,
       plan_name: row.planName,
@@ -222,7 +255,7 @@ async function resolveRenewalEvent(event) {
   };
 }
 
-async function resolveDisconnectEvent(event) {
+async function resolveDisconnectEvent(event, channel) {
   const channelId = event.payload_refs?.channelId || event.aggregate_id;
   const result = await query(
     `SELECT wc.id,wc.tenant_id AS "tenantId",wc.phone_number AS "disconnectedPhone",
@@ -246,16 +279,13 @@ async function resolveDisconnectEvent(event) {
   if (!row) return { skip: "disconnect_not_confirmed" };
   const alternate = normalizeSubscriptionPhone(row.supportPhone);
   const disconnected = normalizeSubscriptionPhone(row.disconnectedPhone);
-  let recipient = alternate && alternate !== disconnected ? alternate : null;
-  let channel = "evolution_whatsapp";
-  if (!recipient && row.ownerEmail) {
-    recipient = String(row.ownerEmail).trim().toLowerCase();
-    channel = "email";
-  }
-  if (!recipient) return { skip: "alternate_contact_missing" };
+  const recipient = channelRecipient(channel, {
+    email: row.ownerEmail,
+    phone: alternate && alternate !== disconnected ? alternate : null
+  });
+  if (!recipient) return { skip: missingRecipientReason(channel) };
   return {
     recipient,
-    channel,
     variables: {
       customer_name: row.customerName,
       disconnected_phone: row.disconnectedPhone
@@ -269,18 +299,21 @@ async function resolveDisconnectEvent(event) {
   };
 }
 
-async function resolveSallaEvent(event) {
+async function resolveSallaEvent(event, channel) {
   const connectionId = event.payload_refs?.connectionId || event.aggregate_id;
   const result = await query(
     `SELECT ac.id,ac.tenant_id AS "tenantId",ac.provider_store_name AS "storeName",
             ac.provider_store_domain AS "storeDomain",ac.ready_at AS "readyAt",
-            u.name AS "customerName",u.email
+            u.name AS "customerName",u.email,s.support_phone AS "supportPhone"
        FROM app_connections ac
        JOIN LATERAL (
          SELECT u.name,u.email FROM tenant_members tm JOIN users u ON u.id=tm.user_id
           WHERE tm.tenant_id=ac.tenant_id AND tm.role='owner' AND tm.status='active'
           ORDER BY tm.created_at LIMIT 1
        ) u ON true
+       LEFT JOIN LATERAL (
+         SELECT support_phone FROM stores WHERE tenant_id=ac.tenant_id ORDER BY created_at LIMIT 1
+       ) s ON true
       WHERE ac.id=$1 AND ac.provider='salla' AND ac.status='connected'
         AND ac.readiness_status='ready' AND ac.webhooks_registered_at IS NOT NULL
         AND ac.initial_sync_completed_at IS NOT NULL AND ac.ready_at IS NOT NULL
@@ -289,8 +322,10 @@ async function resolveSallaEvent(event) {
   );
   const row = result.rows[0];
   if (!row) return { skip: "salla_integration_not_ready" };
+  const recipient = channelRecipient(channel, { email: row.email, phone: row.supportPhone });
+  if (!recipient) return { skip: missingRecipientReason(channel) };
   return {
-    recipient: row.email,
+    recipient,
     variables: {
       customer_name: row.customerName || "عميل Renvix",
       store_name: row.storeName,
@@ -303,11 +338,11 @@ async function resolveSallaEvent(event) {
   };
 }
 
-async function resolveEvent(event) {
-  if (event.event_type === "account.provisioned") return resolveAccountEvent(event);
-  if (event.event_type === "subscription.renewed") return resolveRenewalEvent(event);
-  if (event.event_type === "channel.disconnected") return resolveDisconnectEvent(event);
-  if (event.event_type === "salla.integration.ready") return resolveSallaEvent(event);
+async function resolveEvent(event, channel) {
+  if (event.event_type === "account.provisioned") return resolveAccountEvent(event, channel);
+  if (event.event_type === "subscription.renewed") return resolveRenewalEvent(event, channel);
+  if (event.event_type === "channel.disconnected") return resolveDisconnectEvent(event, channel);
+  if (event.event_type === "salla.integration.ready") return resolveSallaEvent(event, channel);
   return { skip: "unsupported_event" };
 }
 
@@ -321,7 +356,7 @@ async function platformEvolutionInstance() {
   return result.rows[0]?.instanceName || process.env.EVOLUTION_ADMIN_INSTANCE || null;
 }
 
-export async function sendAdminTemplateTest({ templateKey, recipient, values, adminUserId }) {
+export async function sendAdminTemplateTest({ templateKey, recipient, channel, values, adminUserId }) {
   const template = await loadTemplate(templateKey);
   if (!template) {
     const error = new Error("ADMIN_TEMPLATE_NOT_FOUND");
@@ -333,14 +368,16 @@ export async function sendAdminTemplateTest({ templateKey, recipient, values, ad
     error.code = error.message;
     throw error;
   }
+  const deliveryChannel = channel || template.channel;
+  const deliveryTemplate = { ...template, channel: deliveryChannel };
   const testValues = {
     ...values,
     ...(templateKey === ADMIN_TEMPLATE_KEYS.ACCOUNT_CREATED
       ? { temporary_password: "TEST-ONLY-NO-CREDENTIAL" } : {})
   };
-  const rendered = renderAdminTemplate(template, testValues);
-  const masked = renderAdminTemplate(template, testValues, { maskTemporaryPassword: true });
-  const provider = template.channel === "email" ? "resend" : "evolution";
+  const rendered = renderAdminTemplate(deliveryTemplate, testValues);
+  const masked = renderAdminTemplate(deliveryTemplate, testValues, { maskTemporaryPassword: true });
+  const provider = deliveryChannel === "email" ? "resend" : "evolution";
   const idempotencyKey = `admin-template-test:${templateKey}:${crypto.randomUUID()}`;
   const reserved = await query(
     `INSERT INTO admin_outbound_messages
@@ -348,7 +385,7 @@ export async function sendAdminTemplateTest({ templateKey, recipient, values, ad
         rendered_subject,rendered_body,status,idempotency_key,is_test_message,queued_at)
      VALUES ($1,'admin.template.test',$2,$3,$4,$5,$6,$7,$8,'processing',$9,true,now())
      RETURNING id`,
-    [templateKey, String(adminUserId), provider, template.channel,
+    [templateKey, String(adminUserId), provider, deliveryChannel,
       recipientHash(recipient), encryptedRecipient(recipient),
       masked.subject ? `[اختبار] ${masked.subject}` : null,
       `هذه رسالة اختبار من Renvix ولا تخص عملية فعلية.\n\n${masked.body}`,
@@ -358,11 +395,12 @@ export async function sendAdminTemplateTest({ templateKey, recipient, values, ad
   try {
     let response;
     const testBody = `هذه رسالة اختبار من Renvix ولا تخص عملية فعلية.\n\n${rendered.body}`;
-    if (template.channel === "email") {
+    if (deliveryChannel === "email") {
       response = await sendQueuedEmail({
         to: recipient,
         subject: `[اختبار] ${rendered.subject || template.name}`,
         text: testBody,
+        brandImageUrl: adminEmailLogoUrl(),
         tags: [
           { name: "template_key", value: templateKey },
           { name: "message_kind", value: "admin_test" }
@@ -412,7 +450,7 @@ async function sendEvent(event) {
   const template = await loadTemplate(templateKey);
   if (!template) return { skip: "template_missing" };
   if (!template.isActive) return { skip: "template_disabled" };
-  const resolved = await resolveEvent(event);
+  const resolved = await resolveEvent(event, template.channel);
   if (resolved.skip) return resolved;
   const rendered = renderAdminTemplate(template, resolved.variables);
   const masked = renderAdminTemplate(template, resolved.variables, { maskTemporaryPassword: true });
@@ -438,6 +476,7 @@ async function sendEvent(event) {
         to: resolved.recipient,
         subject: rendered.subject || template.name,
         text: rendered.body,
+        brandImageUrl: adminEmailLogoUrl(),
         tags: [
           { name: "template_key", value: templateKey },
           { name: "event_id", value: String(event.id).slice(0, 256) }

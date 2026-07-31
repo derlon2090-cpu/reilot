@@ -130,8 +130,17 @@ export async function POST(req) {
     }
 
     const direction = ["inbound", "outbound", "bidirectional"].includes(body.direction) ? body.direction : "bidirectional";
-    const key = createApiKey(body.environment);
     const created = await transaction(async (client) => {
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [`custom-integration:${auth.session.tenantId}`]
+      );
+      const existing = await client.query(
+        "SELECT id,name FROM custom_integrations WHERE tenant_id=$1 ORDER BY created_at LIMIT 1",
+        [auth.session.tenantId]
+      );
+      if (existing.rows[0]) return { alreadyExists: existing.rows[0] };
+      const key = createApiKey(body.environment);
       const integration = await client.query(
         `INSERT INTO custom_integrations
            (tenant_id,name,description,environment,direction,status,scopes,created_by)
@@ -155,6 +164,7 @@ export async function POST(req) {
         [auth.session.tenantId, auth.session.userId, JSON.stringify({ integrationId: integration.rows[0].id, keyPrefix: key.prefix })]
       );
       return {
+        apiKey: key.raw,
         item: integration.rows[0],
         key: {
           id: apiKey.rows[0]?.id,
@@ -166,11 +176,19 @@ export async function POST(req) {
         }
       };
     });
+    if (created.alreadyExists) {
+      return Response.json({
+        ok: false,
+        code: "custom_integration_limit_reached",
+        message: "يسمح بتكامل API / Webhook واحد فقط. يمكنك تعديل التكامل الحالي بدل إنشاء تكامل مكرر.",
+        item: created.alreadyExists
+      }, { status: 409 });
+    }
     return Response.json({
       ok: true,
       item: created.item,
       key: created.key,
-      apiKey: key.raw,
+      apiKey: created.apiKey,
       warning: "انسخ المفتاح الآن. لن يظهر كاملًا مرة أخرى."
     }, { status: 201 });
   } catch (error) {

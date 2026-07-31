@@ -55,7 +55,7 @@ function TemplatePreview({ template, rendered }) {
 
 export default function AdminTemplateEditor({ templateKey, admin }) {
   const [template, setTemplate] = useState(null);
-  const [form, setForm] = useState({ name: "", description: "", subject: "", body: "", isActive: true });
+  const [form, setForm] = useState({ name: "", description: "", channel: "email", subject: "", body: "", isActive: true });
   const [rendered, setRendered] = useState(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -72,7 +72,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
     const row = payload.templates?.find((item) => item.templateKey === templateKey);
     if (!response.ok || !row) throw new Error("تعذر تحميل القالب.");
     setTemplate(row);
-    setForm({ name: row.name, description: row.description || "", subject: row.subject || "", body: row.body, isActive: row.isActive });
+    setForm({ name: row.name, description: row.description || "", channel: row.channel, subject: row.subject || "", body: row.body, isActive: row.isActive });
     const sampleResponse = await fetch(`/api/admin/templates/${templateKey}/samples`, { cache: "no-store" });
     const samplePayload = await sampleResponse.json().catch(() => ({}));
     if (sampleResponse.ok) {
@@ -95,18 +95,18 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
     setError("");
     const response = await fetch(`/api/admin/templates/${templateKey}/preview`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ values, subject: form.subject || null, body: form.body })
+      body: JSON.stringify({ values, channel: form.channel, subject: form.subject || null, body: form.body })
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.variables?.length ? `تحقق من المتغيرات: ${payload.variables.join("، ")}` : "تعذر إنشاء المعاينة.");
     setRendered(payload.rendered);
-  }, [template, templateKey, values, form.subject, form.body]);
+  }, [template, templateKey, values, form.channel, form.subject, form.body]);
 
   useEffect(() => {
     if (!template) return;
     const timer = setTimeout(() => preview().catch((previewError) => setError(previewError.message)), 350);
     return () => clearTimeout(timer);
-  }, [template, form.body, form.subject, preview]);
+  }, [template, form.channel, form.body, form.subject, preview]);
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -115,6 +115,12 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
 
   function insertVariable(variable) {
     update("body", `${form.body}${form.body.endsWith("\n") || !form.body ? "" : " "}{{${variable}}}`);
+  }
+
+  function selectChannel(channel) {
+    update("channel", channel);
+    setRendered(null);
+    setTestRecipient("");
   }
 
   async function save() {
@@ -128,7 +134,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.variables?.length ? `راجع المتغيرات: ${payload.variables.join("، ")}` : "تعذر حفظ القالب.");
       setTemplate(payload.template);
-      setForm({ name: payload.template.name, description: payload.template.description || "", subject: payload.template.subject || "", body: payload.template.body, isActive: payload.template.isActive });
+      setForm({ name: payload.template.name, description: payload.template.description || "", channel: payload.template.channel, subject: payload.template.subject || "", body: payload.template.body, isActive: payload.template.isActive });
       setNotice(payload.message || "تم حفظ التعديلات.");
       await preview();
     } catch (saveError) {
@@ -140,7 +146,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
 
   async function sendTest() {
     if (!testRecipient.trim()) {
-      setError(template.channel === "email" ? "أدخل بريد الاختبار." : "أدخل رقم الاختبار بالصيغة الدولية.");
+      setError(form.channel === "email" ? "أدخل بريد الاختبار." : "أدخل رقم الاختبار بالصيغة الدولية.");
       return;
     }
     setBusy(true);
@@ -150,7 +156,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
       const response = await fetch(`/api/admin/templates/${templateKey}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient: testRecipient.trim(), values })
+        body: JSON.stringify({ recipient: testRecipient.trim(), channel: form.channel, values })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -177,7 +183,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
       <div><span>{admin.name || admin.email}</span><a href="/admin/templates">العودة إلى القوالب ←</a></div>
     </header>
     <section className={styles.adminEditorHeading}>
-      <div><span>{channelLabel(template.channel)}</span><h1>{template.name}</h1><p>{template.description}</p></div>
+      <div><span>{channelLabel(form.channel)}</span><h1>{template.name}</h1><p>{template.description}</p></div>
       <div><b>{template.isSystemTemplate ? "قالب نظام ثابت" : "قالب مخصص"}</b><small>الإصدار {template.version}</small></div>
     </section>
     {notice ? <div className={styles.adminSuccessMessage}>{notice}</div> : null}
@@ -186,11 +192,17 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
       <article className={styles.adminTemplateEditCard}>
         <div className={styles.adminTemplateMetaGrid}>
           <label><span>اسم القالب</span><input value={form.name} onChange={(event) => update("name", event.target.value)} /></label>
-          <label><span>قناة الإرسال</span><input value={channelLabel(template.channel)} readOnly /></label>
+          <div className={styles.adminTemplateChannelField}>
+            <span>قناة الإرسال</span>
+            <div className={styles.adminChannelChoice} role="radiogroup" aria-label="قناة الإرسال">
+              <button type="button" role="radio" aria-checked={form.channel === "email"} className={form.channel === "email" ? styles.adminChannelChoiceActive : ""} onClick={() => selectChannel("email")}>البريد</button>
+              <button type="button" role="radio" aria-checked={form.channel === "evolution_whatsapp"} className={form.channel === "evolution_whatsapp" ? styles.adminChannelChoiceActive : ""} onClick={() => selectChannel("evolution_whatsapp")}>واتساب</button>
+            </div>
+          </div>
           <label><span>الحالة</span><button type="button" className={`${styles.adminToggle} ${form.isActive ? styles.adminToggleActive : ""}`} onClick={() => update("isActive", !form.isActive)}><i />{form.isActive ? "نشط" : "معطل"}</button></label>
         </div>
         <label className={styles.adminEditorField}><span>وصف القالب</span><input value={form.description} onChange={(event) => update("description", event.target.value)} /></label>
-        {template.channel === "email" ? <label className={styles.adminEditorField}><span>عنوان البريد</span><input value={form.subject} onChange={(event) => update("subject", event.target.value)} /></label> : null}
+        {form.channel === "email" ? <label className={styles.adminEditorField}><span>عنوان البريد</span><input value={form.subject} onChange={(event) => update("subject", event.target.value)} /></label> : null}
         <div className={styles.adminRichToolbar}><button type="button">↶</button><button type="button">↷</button><b>B</b><i>I</i><u>U</u><span>☷</span><span>≡</span><span>🔗</span><span>متغيرات {"{}"}</span></div>
         <label className={styles.adminEditorField}><span>محتوى الرسالة</span><textarea value={form.body} onChange={(event) => update("body", event.target.value)} /></label>
         <div className={styles.adminVariablePanel}><div><strong>المتغيرات المتاحة</strong><small>انقر لإضافة المتغير إلى المحتوى. لا يمكن استخدام متغير غير معتمد.</small></div><div>{template.allowedVariables.map((variable) => <button key={variable} type="button" onClick={() => insertVariable(variable)}><b>{`{{${variable}}}`}</b><span>{LABELS[variable] || variable}</span></button>)}</div></div>
@@ -198,7 +210,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
         <div className={styles.adminEditorActions}><button disabled={busy} className={styles.adminPrimaryButton} onClick={save}>حفظ التعديلات</button><button disabled={busy} className={styles.adminOutlineButton} onClick={() => preview().catch((previewError) => setError(previewError.message))}>معاينة</button></div>
       </article>
       <aside className={styles.adminTemplatePreviewCard}>
-        <div><h2>معاينة الرسالة</h2><span>{channelLabel(template.channel)}</span></div>
+        <div><h2>معاينة الرسالة</h2><span>{channelLabel(form.channel)}</span></div>
         <div className={styles.adminPreviewModes}>
           <button type="button" className={previewMode === "variables" ? styles.adminPreviewModeActive : ""} onClick={() => setPreviewMode("variables")}>معاينة المتغيرات</button>
           <button type="button" className={previewMode === "real" ? styles.adminPreviewModeActive : ""} onClick={() => setPreviewMode("real")} disabled={!samples.length}>معاينة بيانات حقيقية</button>
@@ -230,18 +242,18 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
           <button type="button" aria-label="إغلاق" disabled={busy} onClick={() => setTestOpen(false)}>×</button>
         </header>
         <dl>
-          <div><dt>القناة</dt><dd>{channelLabel(template.channel)}</dd></div>
+          <div><dt>القناة</dt><dd>{channelLabel(form.channel)}</dd></div>
           <div><dt>بيانات المعاينة</dt><dd>{previewMode === "real" ? samples.find((sample) => sample.id === sampleId)?.label || "لا يوجد سجل" : "المتغيرات دون بيانات وهمية"}</dd></div>
         </dl>
         <label>
-          <span>{template.channel === "email" ? "بريد الاختبار" : "رقم الاختبار بالصيغة الدولية"}</span>
+          <span>{form.channel === "email" ? "بريد الاختبار" : "رقم الاختبار بالصيغة الدولية"}</span>
           <input
             autoFocus
             value={testRecipient}
             onChange={(event) => setTestRecipient(event.target.value)}
-            type={template.channel === "email" ? "email" : "tel"}
+            type={form.channel === "email" ? "email" : "tel"}
             dir="ltr"
-            placeholder={template.channel === "email" ? "name@example.com" : "+9665XXXXXXXX"}
+            placeholder={form.channel === "email" ? "name@example.com" : "+9665XXXXXXXX"}
           />
         </label>
         <div className={styles.adminTestFinalPreview}>

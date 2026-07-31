@@ -45,6 +45,7 @@ export async function getSession(req) {
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
        FROM sessions s
        JOIN users u ON u.id = s.user_id
+       JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
       WHERE s.token = $1 AND s.expires_at > now()
       LIMIT 1`,

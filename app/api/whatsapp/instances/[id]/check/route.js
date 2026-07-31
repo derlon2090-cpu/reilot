@@ -47,6 +47,13 @@ export async function POST(req, { params }) {
       await evolutionSetWebhook(channel.instanceName);
       await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "evolution.connected", title: "WhatsApp connected" }).catch(() => null);
     }
+    await addWhatsAppActivity({
+      tenantId: auth.session.tenantId,
+      userId: auth.session.userId,
+      type: status === "connected" ? "device.connection_test_succeeded" : "device.connection_test_pending",
+      title: status === "connected" ? "نجح اختبار اتصال الجهاز" : "لم يكتمل اتصال الجهاز بعد",
+      metadata: { deviceId: id, deviceName: updated?.deviceName || channel.deviceName || "جهاز واتساب", status, source: "user" }
+    }).catch(() => null);
     return Response.json({
       ok: true,
       instanceId: id,
@@ -60,6 +67,7 @@ export async function POST(req, { params }) {
     const errorMessage = safeErrorMessage(error);
     if (isEvolutionInstanceMissing(error)) {
       await updateChannel(id, auth.session.tenantId, { status: "disconnected", qrBase64: null, lastError: "Link session not found on the configured server" });
+      await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "device.connection_test_failed", title: "فشل اختبار اتصال الجهاز", metadata: { deviceId: id, deviceName: channel.deviceName || "جهاز واتساب", status: "disconnected", source: "user" } }).catch(() => null);
       return Response.json({
         ok: true,
         instanceId: id,
@@ -73,6 +81,7 @@ export async function POST(req, { params }) {
 
     console.error("evolution check failed", errorMessage);
     await updateChannel(id, auth.session.tenantId, { status: "error", lastError: errorMessage });
+    await addWhatsAppActivity({ tenantId: auth.session.tenantId, userId: auth.session.userId, type: "device.connection_test_failed", title: "فشل اختبار اتصال الجهاز", metadata: { deviceId: id, deviceName: channel.deviceName || "جهاز واتساب", status: "error", source: "user" } }).catch(() => null);
     const authFailed = isEvolutionAuthFailed(error);
     const timeout = isEvolutionTimeout(error);
     const unreachable = isEvolutionUnreachable(error);

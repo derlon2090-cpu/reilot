@@ -34,20 +34,28 @@ export async function PATCH(req, { params }) {
   const body = await req.json().catch(() => ({}));
   const name = String(body.name || "").trim();
   const status = String(body.status || "").toUpperCase();
+  const environment = String(body.environment || "").toLowerCase();
+  const direction = String(body.direction || "").toLowerCase();
   const scopes = body.scopes === undefined ? null : normalizeScopes(body.scopes);
   if (body.name !== undefined && !name) return Response.json({ ok: false, reason: "validation_error" }, { status: 400 });
   if (body.status !== undefined && !["ACTIVE", "PAUSED", "REVOKED"].includes(status)) {
     return Response.json({ ok: false, reason: "validation_error" }, { status: 400 });
   }
+  if (body.environment !== undefined && !["test", "live"].includes(environment)) {
+    return Response.json({ ok: false, reason: "validation_error" }, { status: 400 });
+  }
+  if (body.direction !== undefined && !["inbound", "outbound", "bidirectional"].includes(direction)) {
+    return Response.json({ ok: false, reason: "validation_error" }, { status: 400 });
+  }
   const item = await transaction(async (client) => {
     const current = await client.query(
-      "SELECT id,name,description,status,scopes FROM custom_integrations WHERE id=$1 AND tenant_id=$2 FOR UPDATE",
+      "SELECT id,name,description,status,scopes,environment,direction FROM custom_integrations WHERE id=$1 AND tenant_id=$2 FOR UPDATE",
       [integrationId, auth.session.tenantId]
     );
     if (!current.rows[0]) return null;
     const updated = await client.query(
       `UPDATE custom_integrations
-          SET name=$3,description=$4,status=$5,scopes=$6::jsonb,updated_at=now()
+          SET name=$3,description=$4,status=$5,scopes=$6::jsonb,environment=$7,direction=$8,updated_at=now()
         WHERE id=$1 AND tenant_id=$2
         RETURNING id,name,description,environment,direction,status,scopes,updated_at AS "updatedAt"`,
       [
@@ -56,7 +64,9 @@ export async function PATCH(req, { params }) {
         body.name === undefined ? current.rows[0].name : name,
         body.description === undefined ? current.rows[0].description : String(body.description || "").slice(0, 1000) || null,
         body.status === undefined ? current.rows[0].status : status,
-        JSON.stringify(scopes === null ? current.rows[0].scopes : scopes)
+        JSON.stringify(scopes === null ? current.rows[0].scopes : scopes),
+        body.environment === undefined ? current.rows[0].environment : environment,
+        body.direction === undefined ? current.rows[0].direction : direction
       ]
     );
     await client.query(

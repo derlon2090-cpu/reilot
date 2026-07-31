@@ -5,6 +5,7 @@ import { sendAdminTemplateTest } from "../../../../../../src/server/admin-templa
 
 const inputSchema = z.object({
   recipient: z.string().trim().min(5).max(320),
+  channel: z.enum(["email", "evolution_whatsapp"]).optional(),
   values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({})
 });
 
@@ -47,14 +48,15 @@ export async function POST(request, { params }) {
   );
   const template = templateResult.rows[0];
   if (!template) return Response.json({ ok: false, reason: "template_not_found" }, { status: 404 });
+  const channel = parsed.data.channel || template.channel;
 
-  const recipient = template.channel === "email"
+  const recipient = channel === "email"
     ? parsed.data.recipient.toLowerCase()
     : parsed.data.recipient.replace(/[\s()-]/g, "");
-  const recipientValid = template.channel === "email" ? validEmail(recipient) : validPhone(recipient);
+  const recipientValid = channel === "email" ? validEmail(recipient) : validPhone(recipient);
   if (!recipientValid) {
     return Response.json(
-      { ok: false, reason: template.channel === "email" ? "invalid_email" : "invalid_phone" },
+      { ok: false, reason: channel === "email" ? "invalid_email" : "invalid_phone" },
       { status: 400 }
     );
   }
@@ -63,6 +65,7 @@ export async function POST(request, { params }) {
     const result = await sendAdminTemplateTest({
       templateKey,
       recipient,
+      channel,
       values: parsed.data.values,
       adminUserId: auth.admin.adminId
     });
@@ -70,13 +73,14 @@ export async function POST(request, { params }) {
       admin: auth.admin,
       action: "admin.template.test.accepted",
       resource: templateKey,
-      metadata: { outboundId: result.outboundId, providerStatus: result.status }
+      metadata: { outboundId: result.outboundId, providerStatus: result.status, channel }
     });
     return Response.json(
       {
         ok: true,
         outboundId: result.outboundId,
         status: result.status,
+        channel,
         message: "قَبِل مزود الإرسال رسالة الاختبار، وسيُحدَّث سجل التسليم من Webhook المزود."
       },
       { status: 202, headers: { "Cache-Control": "private, no-store, max-age=0" } }

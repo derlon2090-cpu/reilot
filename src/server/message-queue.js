@@ -164,6 +164,17 @@ export async function queueOrderInformationLink({ tenantId, userId, link, method
     emailTo: method === "email" ? link.email : null,
     subject: method === "email" ? `معلومات الطلب #${link.orderNumber} - ${link.storeName}` : null,
     messageBody: text,
+    templateSnapshot: method === "email" ? {
+      type: "order_information_email_v1",
+      data: {
+        customerName: link.customerName,
+        storeName: link.storeName,
+        storeImageUrl: link.logoUrl || "",
+        orderNumber: link.orderNumber,
+        publicUrl: link.publicUrl,
+        locale: "ar"
+      }
+    } : null,
     referenceType: "order_info_link",
     referenceId: link.id,
     triggerKey: `${tenantId}:order-link:${link.id}:${method}`,

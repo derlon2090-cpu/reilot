@@ -336,7 +336,7 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
           ) : (
             <>
               {SPECIAL_ADMIN_PANELS.has(activePanel) ? (
-                <AdminSectionView panel={activePanel} data={data} stats={stats} admin={admin} />
+                <AdminSectionView panel={activePanel} data={data} stats={stats} admin={admin} onRefresh={load} />
               ) : (
                 <section className={styles.statsGrid}>
                   {panelCards.map(([label, value, helper, tone]) => (

@@ -53,9 +53,19 @@ export async function POST(req, { params }) {
   const key = createApiKey(owner.rows[0].environment);
   const item = await transaction(async (client) => {
     await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [`custom-api-key:${auth.session.tenantId}:${integrationId}`]
+    );
+    await client.query(
       `INSERT INTO custom_api_rate_limit_hits (identifier_hash,route_key)
        VALUES (encode(digest($1,'sha256'),'hex'),'api-key:create')`,
       [identifier]
+    );
+    await client.query(
+      `UPDATE custom_integration_api_keys
+          SET status='REVOKED',revoked_at=now(),updated_at=now()
+        WHERE integration_id=$1 AND tenant_id=$2 AND revoked_at IS NULL`,
+      [integrationId, auth.session.tenantId]
     );
     const inserted = await client.query(
       `INSERT INTO custom_integration_api_keys
@@ -77,7 +87,7 @@ export async function POST(req, { params }) {
     );
     await client.query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
-       VALUES ($1,$2,'api_key.created','API key created',$3::jsonb)`,
+       VALUES ($1,$2,'api_key.rotated','API key replaced',$3::jsonb)`,
       [auth.session.tenantId, auth.session.userId, JSON.stringify({ integrationId, keyId: inserted.rows[0].id, prefix: key.prefix })]
     );
     return inserted.rows[0];

@@ -38,7 +38,8 @@ describe("template rendering", () => {
         body: "مرحبًا {{اسم_العميل}}، اشتراك {{اسم_الخدمة}} ينتهي {{تاريخ_الانتهاء}}.",
         buttonLabel: "جدد الآن",
         footerText: "شكرًا لثقتك بنا",
-        themeColor: "#0EA5A8"
+        themeColor: "#0EA5A8",
+        storeImageUrl: "https://assets.example.com/store-logo.webp"
       }
     });
 
@@ -46,11 +47,20 @@ describe("template rendering", () => {
     expect(email.html).toContain("https://renvix.app/renew/1");
     expect(email.html).not.toContain("<script>alert(1)</script>");
     expect(email.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(email.html).toContain('src="https://assets.example.com/store-logo.webp"');
     expect(email.text).not.toContain("{{");
   });
 
   it("does not render non-HTTPS renewal buttons", () => {
     const email = renewalReminderEmail({ renewalLink: "javascript:alert(1)" });
     expect(email.html).not.toContain("javascript:");
+  });
+
+  it("rejects unsafe store image protocols in email branding", () => {
+    const email = renewalReminderEmail({
+      template: { storeImageUrl: "javascript:alert(1)" }
+    });
+    expect(email.html).not.toContain("javascript:");
+    expect(email.html).not.toContain("<img");
   });
 });

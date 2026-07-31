@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 test("a genuine API key stays visible after creation and can be revoked", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   await mkdir(".codex-artifacts", { recursive: true });
   const rawKey = "rvx_test_0123456789abcdef0123456789abcdef_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi0123456789";
   const prefix = "rvx_test_0123456789abcdef0123456789abcdef";
@@ -72,7 +72,8 @@ test("a genuine API key stays visible after creation and can be revoked", async 
     return route.fulfill({ json: { ok: true, items: [integration()] } });
   });
 
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".marketing-copy")).toBeVisible({ timeout: 30_000 });
   await page.evaluate(() => {
     history.pushState({}, "", "/dashboard/settings/integrations/custom-api/setup");
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -125,6 +126,12 @@ test("a genuine API key stays visible after creation and can be revoked", async 
   await page.screenshot({ path: ".codex-artifacts/notification-dropdown-position.png", fullPage: false });
   await page.locator(".notification-trigger").click();
 
+  await page.locator(".capi-overview-actions [data-action='open-custom-api-setup']").click();
+  await expect(page.locator("form[data-submit='custom-integration-update']")).toBeVisible();
+  await expect(page.locator("form[data-submit='custom-integration-update'] input[name='name']")).toHaveValue("نظام المتجر الداخلي");
+  await page.locator("form[data-submit='custom-integration-update'] [data-link='/dashboard/settings/integrations/custom-api']").click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/integrations\/custom-api$/);
+
   const secureTitle = await page.locator(".capi-secure-note b").boundingBox();
   const secureDescription = await page.locator(".capi-secure-note small").boundingBox();
   expect(secureTitle && secureDescription && secureTitle.y + secureTitle.height <= secureDescription.y + 1).toBe(true);
@@ -132,6 +139,6 @@ test("a genuine API key stays visible after creation and can be revoked", async 
 
   await page.locator(".capi-managed-key [data-action='revoke-custom-key']").click();
   await page.locator("[data-action='confirm-revoke-custom-key']").click();
-  await expect(page.locator(".capi-managed-key.is-revoked")).toBeVisible();
-  await expect(page.locator(".capi-managed-key.is-revoked")).toContainText("ملغى");
+  await expect(page.locator(".capi-managed-key")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /استبدال المفتاح الحالي/ })).toBeVisible();
 });

@@ -42,6 +42,13 @@ export async function POST(req, { params }) {
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
         [`custom-webhook-endpoints:${auth.session.tenantId}`]
       );
+      const existingEndpoint = await client.query(
+        `SELECT id,url,status,event_types AS events
+           FROM custom_integration_webhook_endpoints
+          WHERE tenant_id=$1 ORDER BY created_at LIMIT 1`,
+        [auth.session.tenantId]
+      );
+      if (existingEndpoint.rows[0]) return { alreadyExists: existingEndpoint.rows[0] };
       const entitlement = await getPlanEntitlement(auth.session.tenantId, "webhook_endpoints", client);
       if (!entitlement.enabled) {
         throw new PlanEntitlementError(
@@ -86,6 +93,14 @@ export async function POST(req, { params }) {
     const response = planEntitlementResponse(error);
     if (response) return response;
     throw error;
+  }
+  if (item?.alreadyExists) {
+    return Response.json({
+      ok: false,
+      reason: "webhook_limit_reached",
+      message: "يسمح بعنوان Webhook واحد فقط. افتح العنوان الحالي وعدّله بدل إنشاء عنوان مكرر.",
+      item: item.alreadyExists
+    }, { status: 409 });
   }
   if (!item) return Response.json({ ok: false, reason: "not_found" }, { status: 404 });
   return Response.json({ ok: true, item, signingSecret: secret, warning: "انسخ سر التوقيع الآن. لن يظهر كاملًا مرة أخرى." }, { status: 201 });

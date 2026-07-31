@@ -72,6 +72,8 @@ export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl,
   if (!slugResult.ok) return { ok: false, reason: slugResult.reason };
   const name = String(storeName || "").trim().slice(0, 120);
   if (name.length < 2) return { ok: false, reason: "invalid_store_name" };
+  const normalizedLogoUrl = String(logoUrl || "").trim().slice(0, 2000);
+  if (normalizedLogoUrl && !/^https:\/\//i.test(normalizedLogoUrl)) return { ok: false, reason: "invalid_logo_url" };
   try {
     const saved = await transaction(async (client) => {
       const result = await client.query(
@@ -85,7 +87,7 @@ export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl,
          RETURNING id, tenant_id AS "tenantId", store_name AS "storeName", slug, logo_url AS "logoUrl",
                    default_template_style AS "defaultTemplateStyle", default_theme_color AS "defaultThemeColor",
                    is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
-        [tenantId, name, slugResult.slug, logoUrl || null, normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
+        [tenantId, name, slugResult.slug, normalizedLogoUrl || null, normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
       );
       const baseUrl = appBaseUrl();
       await client.query(
