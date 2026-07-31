@@ -1,6 +1,11 @@
 export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
-  description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات."
+  description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات.",
+  icons: {
+    icon: [{ url: "/assets/renvix-mark.png", type: "image/png" }],
+    shortcut: "/assets/renvix-mark.png",
+    apple: "/assets/renvix-mark.png"
+  }
 };
 
 export default function RootLayout({ children }) {
@@ -23,7 +28,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260731-support-center-v11" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260731-support-guides-v12" />
       </head>
       <body>{children}</body>
     </html>

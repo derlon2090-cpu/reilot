@@ -14,5 +14,5 @@ export async function POST(request) {
   );
   if (Number(recent.rows[0]?.total || 0) >= 5) return Response.json({ ok: false, reason: "rate_limited" }, { status: 429 });
   const secureSession = request.headers.get("x-forwarded-proto") === "https" || process.env.NODE_ENV === "production";
-  return Response.json({ ok: true, ...(await calculateSecurityScore({ ...auth.session, secureSession, persist: true })) });
+  return Response.json({ ok: true, ...(await calculateSecurityScore({ ...auth.session, currentSessionId: auth.session.id, secureSession, persist: true })) });
 }

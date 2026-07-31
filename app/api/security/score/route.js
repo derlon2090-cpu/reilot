@@ -5,5 +5,5 @@ export async function GET(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   const secureSession = request.headers.get("x-forwarded-proto") === "https" || process.env.NODE_ENV === "production";
-  return Response.json({ ok: true, ...(await calculateSecurityScore({ ...auth.session, secureSession })) });
+  return Response.json({ ok: true, ...(await calculateSecurityScore({ ...auth.session, currentSessionId: auth.session.id, secureSession })) });
 }
