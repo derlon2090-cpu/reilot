@@ -33,7 +33,8 @@ describe("security dashboard reference implementation", () => {
 
   it("scopes the requested cyan-to-blue scrollbar to this page", () => {
     expect(styles).toContain("html:has(.security-dashboard-page)::-webkit-scrollbar-thumb");
-    expect(styles).toContain("linear-gradient(180deg,#63c8c6");
+    expect(styles).toContain("linear-gradient(180deg,#64c8c7");
+    expect(styles).toContain("background-clip: content-box");
   });
 
   it("keeps policy and session operations connected to their existing backend actions", () => {
