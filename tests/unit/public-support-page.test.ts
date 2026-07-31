@@ -15,14 +15,23 @@ describe("public support page", () => {
     expect(supportPageSource).toContain('href="/support#faq"');
   });
 
-  it("renders five actionable guides with distinct steps", () => {
-    for (const id of ["quick-start", "subscriptions", "integrations", "billing", "reports"]) {
+  it("renders five actionable guides that open dedicated articles", () => {
+    const slugs = [
+      "quick-start-guide",
+      "subscription-management-guide",
+      "integrations-settings-guide",
+      "billing-payments-guide",
+      "reports-analytics-guide"
+    ];
+    for (const [index, id] of ["quick-start", "subscriptions", "integrations", "billing", "reports"].entries()) {
       expect(supportPageSource).toContain(`id: "${id}"`);
-      expect(supportPageSource).toContain(`support-guide-${"${guide.id}"}`);
+      expect(supportPageSource).toContain(`slug: "${slugs[index]}"`);
+      expect(appSource).toContain(`slug: "${slugs[index]}"`);
     }
     expect(supportPageSource).toContain("أكمل بيانات الحساب والمتجر من الإعدادات.");
     expect(supportPageSource).toContain("حدد قناة الإرسال؛ رقم واتساب إلزامي");
     expect(supportPageSource).toContain("راجع سجل التسليم والأخطاء قبل اتخاذ إجراء.");
+    expect(supportPageSource).toContain('data-link="/blog/${guide.slug}"');
   });
 
   it("contains distinct FAQ answers instead of the old repeated placeholder", () => {
@@ -39,15 +48,23 @@ describe("public support page", () => {
     expect(appSource).toContain("payload.item?.ticketNumber");
   });
 
-  it("opens help content in-page instead of showing a fake success toast", () => {
-    expect(appSource).toContain("guide.open = true");
-    expect(appSource).toContain("guide.scrollIntoView");
+  it("restores the compact help-center layout without the expanded guides block", () => {
+    expect(supportPageSource).toContain('class="card help-center"');
+    expect(supportPageSource).not.toContain('class="card support-guides"');
+    expect(supportPageSource).not.toContain("support-guide-${guide.id}");
     expect(appSource).not.toContain("toast(`تم فتح قسم ${target.dataset.term}`)");
   });
 
-  it("keeps guide content full-width and responsive", () => {
-    expect(stylesSource).toContain(".support-guides { grid-column: 1 / -1; }");
-    expect(stylesSource).toContain(".support-guides-list { display: grid;");
-    expect(stylesSource).toContain(".support-guides-list details[open]");
+  it("adds a professional cover and complete content for every help article", () => {
+    for (const asset of ["help-quick-start.png", "help-subscriptions.png", "help-integrations.png", "help-billing.png", "help-reports.png"]) {
+      expect(appSource).toContain(`/assets/blog/${asset}`);
+    }
+    expect(appSource.match(/category: "أدلة المساعدة"/g)).toHaveLength(5);
+    expect(appSource).toContain("دليل البدء السريع في Renvix");
+    expect(appSource).toContain("إدارة الاشتراكات باحتراف");
+    expect(appSource).toContain("دليل التكاملات والإعدادات الآمنة");
+    expect(appSource).toContain("فهم الفوترة والدفع والباقات");
+    expect(appSource).toContain("قراءة التقارير والتحليلات");
+    expect(stylesSource).toContain(".article-cover");
   });
 });

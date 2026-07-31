@@ -1079,6 +1079,7 @@ function dashboardIcon(name) {
     security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     campaigns: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
     contacts: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 8v6M16 11h6"/>',
     orderLink: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><rect x="8" y="8" width="8" height="8" rx="2"/>',
@@ -1360,6 +1361,76 @@ const publicBlogPosts = [
       { heading: { ar: "تعامل مع المخاطر مبكرًا", en: "Respond to risk early" }, body: { ar: "إذا ارتفعت نسبة الفشل أو انخفض التفاعل أو زادت طلبات الإيقاف، خفّض الحجم وراجع القوائم والقوالب. لا تستأنف الأتمتة حتى يعود المؤشر إلى مستوى آمن.", en: "If failures rise, engagement falls, or opt-outs increase, reduce volume and review lists and templates. Do not resume automation until risk returns to a safe level." } }
     ],
     takeaways: { ar: ["موافقة موثقة قبل الإرسال.", "حدود وساعات هدوء ومنع تكرار.", "إيقاف تلقائي عند ارتفاع المخاطر."], en: ["Documented consent before sending.", "Limits, quiet hours, and duplicate prevention.", "Automatic pause when risk becomes high."] }
+  },
+  {
+    slug: "quick-start-guide", category: "أدلة المساعدة", image: "/assets/blog/help-quick-start.png",
+    title: { ar: "دليل البدء السريع في Renvix: من إعداد الحساب إلى أول تذكير", en: "Renvix quick-start guide: from account setup to your first reminder" },
+    excerpt: { ar: "مسار عملي يجهّز مساحة عملك وبيانات العميل والاشتراك وقناة الإرسال دون تخطي أي خطوة أساسية.", en: "A practical path to prepare your workspace, customer data, subscription, and delivery channel without missing a required step." },
+    date: { ar: "31 يوليو 2026", en: "July 31, 2026" }, minutes: { ar: "6 دقائق قراءة", en: "6 min read" },
+    lead: { ar: "ابدأ ببيانات صحيحة واتصال جاهز قبل تشغيل أي تذكير. يشرح هذا الدليل الترتيب الأفضل لإعداد الحساب وإنشاء أول اشتراك والتحقق من الرسالة قبل الإرسال.", en: "Start with accurate data and a ready connection before enabling any reminder. This guide covers the best order for setting up your account, creating the first subscription, and validating the message before sending." },
+    sections: [
+      { heading: { ar: "أكمل هوية الحساب والمتجر", en: "Complete your account and store identity" }, body: { ar: "افتح الإعدادات وراجع اسم المنشأة واسم المتجر والبريد ورقم التواصل والمنطقة الزمنية. تظهر هذه البيانات في أجزاء متعددة من المنصة، لذلك صححها من المصدر بدل تعديل كل رسالة يدويًا. امنح أعضاء الفريق الصلاحيات التي يحتاجونها فقط.", en: "Open settings and review the business name, store name, email, contact number, and time zone. These values appear across the platform, so correct them at the source instead of editing every message manually. Give team members only the permissions they need." } },
+      { heading: { ar: "أضف العميل والاشتراك ببيانات قابلة للتنفيذ", en: "Add an actionable customer and subscription record" }, body: { ar: "أنشئ سجل العميل أولًا، ثم أضف الخدمة والباقة وتاريخي البداية والنهاية والقيمة وحالة الاشتراك. راجع التاريخ والعملة قبل الحفظ؛ فالتذكيرات والتقارير تعتمد على هذه القيم لتحديد الموعد والحالة بصورة صحيحة.", en: "Create the customer record first, then add the service, plan, start and end dates, amount, and subscription status. Review dates and currency before saving because reminders and reports rely on these values for accurate scheduling and status." } },
+      { heading: { ar: "اختر قناة الإرسال الصحيحة", en: "Choose the correct delivery channel" }, body: { ar: "إذا اخترت واتساب فأدخل رقمًا صحيحًا بصيغة دولية وتأكد من اتصال التطبيق. عند اختيار البريد يصبح البريد الإلكتروني مطلوبًا، ويمكن إبقاء واتساب اختياريًا. لا تعتمد على قناة غير متصلة حتى لو كانت بيانات العميل مكتملة.", en: "For WhatsApp, enter a valid international-format number and confirm the integration is connected. When email is selected, the email address is required while WhatsApp can remain optional. Do not rely on a disconnected channel even when customer data is complete." } },
+      { heading: { ar: "راجع القالب وفعّل التذكير", en: "Review the template and enable the reminder" }, body: { ar: "عاين القالب وتأكد من ظهور اسم العميل والخدمة وتاريخ الانتهاء والرابط بالشكل المطلوب. اضبط موعد التذكير، ثم فعّل رسالة التذكير وأرسل اختبارًا إلى جهة تملكها قبل تشغيلها على العملاء. راقب أول عملية من سجل الإرسال.", en: "Preview the template and confirm the customer name, service, expiry date, and link appear correctly. Set the reminder time, enable the reminder message, and send a test to an address you control before activating customer delivery. Monitor the first event in the delivery log." } }
+    ],
+    takeaways: { ar: ["صحح بيانات الحساب من الإعدادات أولًا.", "لا تفعّل الإرسال قبل جاهزية القناة.", "اختبر القالب وراقب أول عملية إرسال."], en: ["Correct account data in settings first.", "Do not enable sending before the channel is ready.", "Test the template and monitor the first delivery."] }
+  },
+  {
+    slug: "subscription-management-guide", category: "أدلة المساعدة", image: "/assets/blog/help-subscriptions.png",
+    title: { ar: "إدارة الاشتراكات باحتراف: الإنشاء والتذكير والتجديد", en: "Professional subscription management: creation, reminders, and renewal" },
+    excerpt: { ar: "نظّم دورة الاشتراك من السجل الأول حتى التجديد، مع قواعد واضحة للقناة والموعد وحالة الإرسال.", en: "Organize the subscription lifecycle from the first record through renewal with clear channel, timing, and delivery rules." },
+    date: { ar: "31 يوليو 2026", en: "July 31, 2026" }, minutes: { ar: "7 دقائق قراءة", en: "7 min read" },
+    lead: { ar: "الاشتراك الجيد ليس تاريخ انتهاء فقط؛ بل سجل موحد يربط العميل بالخدمة والقناة والتذكيرات ونتيجة التجديد. اتبع هذه الخطوات لتحافظ على بيانات قابلة للمتابعة والقياس.", en: "A good subscription is more than an expiry date. It is one record connecting the customer, service, channel, reminders, and renewal result. Follow these steps to keep the lifecycle traceable and measurable." },
+    sections: [
+      { heading: { ar: "أنشئ سجلًا كاملًا من البداية", en: "Create a complete record from the start" }, body: { ar: "حدد العميل والخدمة والباقة والقيمة وتاريخي البداية والنهاية وحالة الاشتراك. استخدم رقم الطلب أو المرجع الداخلي عند توفره لتسهيل البحث والمطابقة، وأضف ملاحظة قصيرة فقط عندما تمنح الفريق سياقًا مفيدًا.", en: "Select the customer, service, plan, amount, start and end dates, and subscription status. Add an order number or internal reference when available for easier matching, and use notes only when they provide useful context to the team." } },
+      { heading: { ar: "اربط القناة ببيانات العميل", en: "Match the channel to customer data" }, body: { ar: "اجعل رقم واتساب إلزاميًا عندما تكون قناة الإرسال واتساب، واجعل البريد إلزاميًا عند اختيار البريد. هذه القاعدة تمنع إنشاء اشتراك يبدو مكتملًا لكنه لا يملك وجهة قابلة للإرسال. صحح البيانات من سجل العميل لتبقى موحدة.", en: "Require a WhatsApp number when WhatsApp is the delivery channel and require an email address for email delivery. This prevents subscriptions that look complete but have no usable destination. Correct details on the customer record so they remain consistent." } },
+      { heading: { ar: "اضبط التذكير حسب دورة الخدمة", en: "Schedule reminders around the service cycle" }, body: { ar: "اختر الإرسال اليدوي إذا كان الفريق يحتاج مراجعة كل رسالة، أو التلقائي إذا كانت القواعد والبيانات جاهزة. في الإرسال التلقائي حدد عدد الأيام قبل الانتهاء وفعّل رسالة التذكير. لا تضف تنبيهات متقاربة بلا حاجة.", en: "Use manual sending when the team must review every message, or automatic sending when rules and data are ready. For automatic delivery, choose the number of days before expiry and enable the reminder message. Avoid unnecessary closely spaced reminders." } },
+      { heading: { ar: "أغلق دورة التجديد بصورة صحيحة", en: "Close the renewal cycle correctly" }, body: { ar: "عند التجديد حدّث تاريخ النهاية وسجل العملية وأوقف التذكيرات القديمة حتى لا تصل رسالة بعد الدفع. راجع الحالة في قائمة الاشتراكات وسجل الإرسال، واستخدم التقارير لمعرفة الاشتراكات التي لم تتفاعل وتحتاج متابعة بشرية.", en: "After renewal, update the end date, record the action, and stop old reminders so no message is sent after payment. Review status in the subscription list and delivery log, then use reports to find subscriptions requiring human follow-up." } }
+    ],
+    takeaways: { ar: ["سجل واحد كامل لكل اشتراك.", "القناة تحدد بيانات التواصل المطلوبة.", "أوقف التذكيرات القديمة فور التجديد."], en: ["One complete record per subscription.", "The channel determines required contact data.", "Stop outdated reminders immediately after renewal."] }
+  },
+  {
+    slug: "integrations-settings-guide", category: "أدلة المساعدة", image: "/assets/blog/help-integrations.png",
+    title: { ar: "دليل التكاملات والإعدادات الآمنة في Renvix", en: "A guide to secure integrations and settings in Renvix" },
+    excerpt: { ar: "اربط التطبيقات ومفاتيح API وWebhooks بطريقة منظمة، واختبر الاتصال دون كشف الأسرار أو تعطيل العمليات الحالية.", en: "Connect apps, API keys, and webhooks methodically, then validate them without exposing secrets or disrupting current operations." },
+    date: { ar: "31 يوليو 2026", en: "July 31, 2026" }, minutes: { ar: "8 دقائق قراءة", en: "8 min read" },
+    lead: { ar: "نجاح التكامل يعتمد على اختيار المسار الصحيح وحماية بيانات الاعتماد ومراقبة الأحداث بعد التفعيل. استخدم هذا الدليل للربط والاختبار والتشغيل بأقل مخاطرة ممكنة.", en: "Integration success depends on choosing the right path, protecting credentials, and monitoring events after activation. Use this guide to connect, test, and operate with minimal risk." },
+    sections: [
+      { heading: { ar: "اختر التكامل الذي يخدم العملية", en: "Choose the integration that serves the workflow" }, body: { ar: "ابدأ من قسم تطبيقاتنا واقرأ حالة كل تكامل ومتطلباته. لا تبدأ ربط خدمة غير متاحة، وحدد مسبقًا البيانات التي ستدخل إلى Renvix والأحداث التي يجب أن تخرج منه. هذا يمنع ربطًا شكليًا بلا هدف تشغيلي واضح.", en: "Start in Our Apps and review each integration's availability and requirements. Do not begin an unavailable connection, and define the data entering Renvix and the events leaving it. This avoids integrations with no clear operational purpose." } },
+      { heading: { ar: "احمِ مفاتيح API والأسرار", en: "Protect API keys and secrets" }, body: { ar: "أنشئ مفتاحًا بصلاحيات الحد الأدنى واحفظه في متغيرات البيئة لدى نظامك؛ لا تضعه في المتصفح أو رسالة دعم. انسخ المفتاح عند إنشائه لأن القيمة الكاملة لا تظهر لاحقًا، ودوّره فور الاشتباه في تسربه.", en: "Create a least-privilege key and store it in your system's environment variables. Never place it in the browser or a support message. Copy it when created because the full value is not shown again, and rotate it immediately if exposure is suspected." } },
+      { heading: { ar: "هيئ Webhook بتوقيع موثوق", en: "Configure a securely signed webhook" }, body: { ar: "استخدم عنوان HTTPS ثابتًا وحدد الأحداث اللازمة فقط، ثم تحقق من توقيع HMAC قبل معالجة المحتوى. اجعل المعالجة قابلة لتكرار الطلب دون إنشاء سجل مكرر، وأعد رمز نجاح بسرعة ثم نفّذ العمل الثقيل في الخلفية.", en: "Use a stable HTTPS endpoint, subscribe only to required events, and verify the HMAC signature before processing payloads. Make handlers idempotent, return success quickly, and move heavy work to the background." } },
+      { heading: { ar: "اختبر وراقب قبل الاعتماد", en: "Test and monitor before relying on it" }, body: { ar: "أرسل طلبًا تجريبيًا وتأكد من الاستجابة والتوقيع وشكل البيانات. بعد التفعيل راقب سجل التسليم والأخطاء ومعدل الإعادة، وعالج السبب قبل إعادة المحاولة. احتفظ بخطة لإلغاء المفتاح أو تعطيل Webhook دون فقد البيانات.", en: "Send a test request and verify the response, signature, and payload shape. After activation, monitor delivery logs, failures, and retries, then fix the cause before retrying. Keep a plan for revoking keys or disabling webhooks without losing data." } }
+    ],
+    takeaways: { ar: ["صلاحيات محدودة لكل مفتاح.", "تحقق من التوقيع ومنع التكرار.", "راقب التسليم وجهّز خطة إلغاء آمنة."], en: ["Use limited permissions for every key.", "Verify signatures and prevent duplicates.", "Monitor delivery and keep a safe revocation plan."] }
+  },
+  {
+    slug: "billing-payments-guide", category: "أدلة المساعدة", image: "/assets/blog/help-billing.png",
+    title: { ar: "فهم الفوترة والدفع والباقات في Renvix", en: "Understanding billing, payments, and plans in Renvix" },
+    excerpt: { ar: "اعرف حدود الباقة والاستهلاك والفواتير والتجديد قبل اتخاذ أي قرار مالي أو طلب مساعدة.", en: "Understand plan limits, usage, invoices, and renewal before making a billing decision or requesting help." },
+    date: { ar: "31 يوليو 2026", en: "July 31, 2026" }, minutes: { ar: "6 دقائق قراءة", en: "6 min read" },
+    lead: { ar: "تجمع صفحة الفوترة المعلومات التي تحتاجها لفهم الباقة الحالية والاستهلاك والتجديد. راجع هذه العناصر بالترتيب قبل ترقية الخطة أو إيقاف التجديد أو التواصل مع الدعم.", en: "The billing page brings together the information needed to understand your current plan, usage, and renewal. Review these items in order before upgrading, stopping renewal, or contacting support." },
+    sections: [
+      { heading: { ar: "راجع الباقة وحدودها الفعلية", en: "Review the plan and its actual limits" }, body: { ar: "تحقق من اسم الباقة وحالتها وتاريخ الدورة والميزات المتاحة. افصل بين رصيد البريد وحدود واتساب أو أي قناة قائمة على الاستهلاك؛ فلكل قناة طريقة احتساب تظهر في صفحة الفوترة قبل الشراء أو الشحن.", en: "Check the plan name, status, billing period, and available features. Separate email credit from WhatsApp or other usage-based channels because each channel has its own calculation method shown before purchase or top-up." } },
+      { heading: { ar: "افهم متى يُحتسب الاستخدام", en: "Understand when usage is counted" }, body: { ar: "تُسجل العملية الناجحة وفق قبول مزود القناة، مع ضوابط تمنع احتساب الطلب المكرر. راجع سجل العمليات إذا لم تتطابق الأرقام، ولا تعاود الإرسال قبل التحقق من حالة المحاولة السابقة حتى لا تنشئ عملية إضافية.", en: "Successful usage is recorded when the channel provider accepts the request, with safeguards against duplicate counting. Review transaction history when totals differ, and verify the previous attempt before sending again." } },
+      { heading: { ar: "احتفظ بالفاتورة ومرجع الدفع", en: "Keep the invoice and payment reference" }, body: { ar: "بعد الدفع احتفظ برقم العملية والفاتورة وتاريخها والمبلغ والوسيلة المستخدمة. لا ترسل أرقام البطاقة الكاملة أو رمز التحقق إلى الدعم. يكفي رقم الفاتورة أو مرجع العملية لتتبع الحالة بصورة آمنة.", en: "After payment, keep the transaction reference, invoice, date, amount, and payment method. Never send full card numbers or verification codes to support. The invoice or transaction reference is enough to trace the payment safely." } },
+      { heading: { ar: "أدر التجديد والتغيير بوضوح", en: "Manage renewal and plan changes clearly" }, body: { ar: "اعرض السعر والحدود قبل تأكيد الترقية. يبدأ خفض الباقة أو إيقاف التجديد وفق الشروط الظاهرة للحساب، ولا يعني إيقاف التجديد حذف البيانات فورًا. عند وجود اختلاف أرسل طلب فوترة يتضمن المرجع والوصف دون معلومات دفع حساسة.", en: "Review price and limits before confirming an upgrade. Downgrades and renewal stops follow the terms displayed for the account, and stopping renewal does not immediately delete data. If something differs, send a billing ticket with the reference and description but no sensitive payment data." } }
+    ],
+    takeaways: { ar: ["افصل حدود كل قناة عن الأخرى.", "تحقق من الحالة قبل إعادة الدفع أو الإرسال.", "شارك مرجع العملية فقط مع الدعم."], en: ["Keep each channel's limits separate.", "Verify status before retrying payment or delivery.", "Share only the transaction reference with support."] }
+  },
+  {
+    slug: "reports-analytics-guide", category: "أدلة المساعدة", image: "/assets/blog/help-reports.png",
+    title: { ar: "قراءة التقارير والتحليلات لاتخاذ قرارات أفضل", en: "Using reports and analytics to make better decisions" },
+    excerpt: { ar: "حوّل سجلات التجديد والتسليم والاستهلاك إلى مؤشرات واضحة تقود إجراءات فريقك اليومية.", en: "Turn renewal, delivery, and usage records into clear metrics that guide your team's daily actions." },
+    date: { ar: "31 يوليو 2026", en: "July 31, 2026" }, minutes: { ar: "7 دقائق قراءة", en: "7 min read" },
+    lead: { ar: "التقرير المفيد يجيب عن سؤال محدد وينتهي بإجراء واضح. ابدأ بفترة مناسبة، ثم افصل مؤشرات القناة عن مؤشرات التجديد، وانتقل من الرقم الإجمالي إلى السجل الذي يحتاج متابعة.", en: "A useful report answers a specific question and ends with a clear action. Start with the right period, separate channel health from renewal performance, and move from totals to the records that need follow-up." },
+    sections: [
+      { heading: { ar: "حدد السؤال والفترة أولًا", en: "Define the question and period first" }, body: { ar: "قرر ما إذا كنت تقيس التجديد أو التسليم أو الاستجابة أو الإيراد، ثم اختر فترة تشمل دورة العمل كاملة. المقارنة بين فترتين متساويتين أكثر فائدة من قراءة رقم منفرد، خصوصًا عند تغير حجم العملاء أو مواسم النشاط.", en: "Decide whether you are measuring renewal, delivery, response, or revenue, then choose a period covering the full business cycle. Comparing equal periods is more useful than reading one number, especially when customer volume or seasonality changes." } },
+      { heading: { ar: "استخدم الفلاتر للوصول إلى السبب", en: "Use filters to reach the cause" }, body: { ar: "صفِّ النتائج حسب القناة والباقة والحالة والفريق عند توفرها. إذا ارتفع الفشل في قناة واحدة فابدأ بفحص الاتصال والبيانات، أما إذا انخفض التجديد مع تسليم سليم فراجع الرسالة والتوقيت وتجربة الدفع.", en: "Filter results by channel, plan, status, and team where available. If failures rise on one channel, inspect connection and data first. If renewals fall while delivery remains healthy, review message, timing, and payment experience." } },
+      { heading: { ar: "افصل التسليم عن النتيجة التجارية", en: "Separate delivery from business outcome" }, body: { ar: "نجاح تسليم الرسالة لا يعني اكتمال التجديد. تابع معدل التسليم والاستجابة والنقر والتجديد كلًا على حدة، ثم اربطها زمنيًا لمعرفة المرحلة التي يفقد عندها العميل. لا تعالج مشكلة محتوى بتغيير تقني غير ضروري.", en: "Successful delivery does not mean the subscription renewed. Track delivery, response, click, and renewal rates separately, then connect them over time to find where customers drop off. Do not treat a content problem as a technical one." } },
+      { heading: { ar: "حوّل التقرير إلى قائمة عمل", en: "Turn the report into an action list" }, body: { ar: "استخرج الاشتراكات القريبة من الانتهاء والمتعثرة وحالات الفشل المتكرر، ووزع المتابعة مع سبب واضح لكل سجل. صدّر التقرير عند الحاجة للمراجعة الداخلية، وسجل الإجراء النهائي حتى يظهر أثره في الفترة التالية.", en: "Identify subscriptions nearing expiry, stalled renewals, and repeated failures, then assign follow-up with a clear reason for each record. Export the report for internal review when needed and record the final action so its impact appears in the next period." } }
+    ],
+    takeaways: { ar: ["ابدأ بسؤال وفترة محددين.", "افصل صحة القناة عن نتيجة التجديد.", "أنه كل تقرير بإجراء ومسؤول واضح."], en: ["Start with a defined question and period.", "Separate channel health from renewal outcome.", "End every report with a clear action and owner."] }
   }
 ];
 
@@ -1422,7 +1493,7 @@ function blogPage() {
   const query = state.search.trim().toLowerCase();
   const posts = publicBlogPosts.filter((post) => (state.blogCategory === "الكل" || post.category === state.blogCategory) && (!query || `${localizedField(post.title)} ${localizedField(post.excerpt)}`.toLowerCase().includes(query)));
   const featured = posts[0];
-  return publicShell(`<main><section class="public-heading"><div class="container"><h1>المدونة</h1><p>أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.</p></div></section><section class="section section-tight"><div class="container blog-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="support-search" value="${escapeHtml(state.search)}" placeholder="ابحث في المقالات..."></div><div class="chips">${["الكل", "النصائح", "التجديدات", "التقارير", "الحماية"].map((item) => `<button class="chip ${state.blogCategory === item ? "active" : ""}" data-action="blog-category" data-category="${item}">${item}</button>`).join("")}</div></div></section>
+  return publicShell(`<main><section class="public-heading"><div class="container"><h1>المدونة</h1><p>أحدث المقالات والنصائح حول تجديد الاشتراكات، الاحتفاظ بالعملاء، والأتمتة الذكية.</p></div></section><section class="section section-tight"><div class="container blog-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="support-search" value="${escapeHtml(state.search)}" placeholder="ابحث في المقالات..."></div><div class="chips">${["الكل", "أدلة المساعدة", "النصائح", "التجديدات", "التقارير", "الحماية"].map((item) => `<button class="chip ${state.blogCategory === item ? "active" : ""}" data-action="blog-category" data-category="${item}">${item}</button>`).join("")}</div></div></section>
     <section class="section blog-section"><div class="container blog-layout"><div>${featured ? `<article class="card featured-post"><div class="blog-art"><img src="${featured.image}" alt="${escapeHtml(localizedField(featured.title))}"></div><div><span class="badge">مقال مميز</span><h2>${localizedField(featured.title)}</h2><p>${localizedField(featured.excerpt)}</p><small>${localizedField(featured.date)} · ${localizedField(featured.minutes)}</small><button class="link-button" data-link="/blog/${featured.slug}">اقرأ المقال ←</button></div></article><div class="blog-grid">${posts.slice(1).map((post) => blogCard(post)).join("")}</div>` : emptyState("لا توجد مقالات مطابقة", "جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.")}</div><aside class="blog-aside"><article class="card"><h3>أحدث المقالات</h3>${publicBlogPosts.slice(0, 4).map((post) => `<button data-link="/blog/${post.slug}"><img src="${post.image}" alt=""><strong>${localizedField(post.title)}</strong><small>${localizedField(post.date)}</small></button>`).join("")}</article><article class="card newsletter"><h3>اشترك في نشرتنا</h3><p>احصل على أحدث المقالات والنصائح مباشرة في بريدك.</p><form data-submit="newsletter"><input class="input" type="email" name="email" placeholder="بريدك الإلكتروني" required><button class="btn btn-primary">اشترك الآن</button></form></article></aside></div></section></main>`);
 }
 
@@ -1434,7 +1505,8 @@ function articlePage() {
   const post = publicBlogPosts.find((item) => `/blog/${item.slug}` === state.route);
   if (!post) return blogPage();
   const takeaways = localizedField(post.takeaways);
-  return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.")}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في Renvix", "Put these steps into practice with Renvix")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
+  const lead = post.lead ? localizedField(post.lead) : localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.");
+  return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${lead}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في Renvix", "Put these steps into practice with Renvix")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
 }
 
 // Kept temporarily as a compatibility reference while the support center uses the functional implementation below.
@@ -1456,6 +1528,7 @@ function marketingSupportPage() {
   const guides = [
     {
       id: "quick-start",
+      slug: "quick-start-guide",
       title: "البدء السريع",
       icon: "rocket",
       summary: "جهّز حسابك وأول اشتراك وتذكير بخطوات واضحة.",
@@ -1468,6 +1541,7 @@ function marketingSupportPage() {
     },
     {
       id: "subscriptions",
+      slug: "subscription-management-guide",
       title: "إدارة الاشتراكات",
       icon: "subscriptions",
       summary: "أنشئ الاشتراكات وتابع التجديدات وحالة الإرسال.",
@@ -1480,6 +1554,7 @@ function marketingSupportPage() {
     },
     {
       id: "integrations",
+      slug: "integrations-settings-guide",
       title: "التكاملات والإعدادات",
       icon: "puzzle",
       summary: "اربط القنوات والتطبيقات وتحقق من جاهزيتها بأمان.",
@@ -1492,6 +1567,7 @@ function marketingSupportPage() {
     },
     {
       id: "billing",
+      slug: "billing-payments-guide",
       title: "الفوترة والدفع",
       icon: "payments",
       summary: "تعرّف على الباقات والفواتير والاستهلاك والتجديد.",
@@ -1504,6 +1580,7 @@ function marketingSupportPage() {
     },
     {
       id: "reports",
+      slug: "reports-analytics-guide",
       title: "التقارير والتحليلات",
       icon: "barChart",
       summary: "راقب التجديد والتسليم والأداء من بيانات حسابك.",
@@ -1532,21 +1609,24 @@ function marketingSupportPage() {
     ["محادثة الدعم", "أرسل رسالة منظمة وتابع الرد عبر بريدك.", "ابدأ المحادثة", "open-chat", "chat"],
     ["طلب عبر البريد", "أنشئ تذكرة دعم تصل مباشرة إلى الفريق.", "راسلنا الآن", "open-email", "email"]
   ];
+  const guideLabelsEn = {
+    "quick-start-guide": "Read the quick start guide",
+    "subscription-management-guide": "Read the subscription management guide",
+    "integrations-settings-guide": "Read the integrations and settings guide",
+    "billing-payments-guide": "Read the billing and payments guide",
+    "reports-analytics-guide": "Read the reports and analytics guide"
+  };
   const guideButtons = visibleGuides.length
-    ? visibleGuides.map((guide) => `<button data-action="knowledge" data-article-id="${guide.id}">${dashboardIcon(guide.icon)}<span><strong>${guide.title}</strong><small>${guide.summary}</small></span><b>‹</b></button>`).join("")
+    ? visibleGuides.map((guide) => `<button data-link="/blog/${guide.slug}" aria-label="${state.language === "en" ? guideLabelsEn[guide.slug] : `اقرأ دليل ${guide.title}`}">${dashboardIcon(guide.icon)}<span><strong>${guide.title}</strong><small>${guide.summary}</small></span><b>‹</b></button>`).join("")
     : `<p class="support-empty">لا توجد أدلة مطابقة لعبارة البحث.</p>`;
   const faqItems = visibleFaqs.length
     ? visibleFaqs.map(([question, answer]) => `<details><summary>${question}</summary><p>${answer}</p></details>`).join("")
     : `<p class="support-empty">لا توجد أسئلة مطابقة لعبارة البحث.</p>`;
-  const guideDetails = visibleGuides.length
-    ? visibleGuides.map((guide) => `<details id="support-guide-${guide.id}"><summary>${dashboardIcon(guide.icon)}<span><strong>${guide.title}</strong><small>${guide.summary}</small></span></summary><ol>${guide.steps.map((step) => `<li>${step}</li>`).join("")}</ol></details>`).join("")
-    : `<p class="support-empty">جرّب البحث بكلمات أخرى أو أرسل طلبًا إلى فريق الدعم.</p>`;
   return publicShell(`<main class="support-page"><section class="section support-hero"><div class="container support-intro-row"><div class="support-intro-copy"><span class="eyebrow">نحن هنا لمساعدتك</span><h1>مركز الدعم</h1><p>ابحث في الأدلة والأسئلة، أو أنشئ طلب دعم حقيقي يصل إلى فريق Renvix وتابع الرد عبر بريدك الإلكتروني.</p></div><div class="support-cards">${cards.map(([title, body, label, action, mark]) => `<article class="card">${dashboardIcon(mark)}<h2>${title}</h2><p>${body}</p>${action === "blog" ? `<button class="btn btn-secondary" data-link="/blog">${label}</button>` : action === "faq" ? `<a class="btn btn-secondary" href="/support#faq">${label}</a>` : `<button class="btn btn-secondary" data-action="${action}">${label}</button>`}</article>`).join("")}</div></div></section>
     <section class="section support-body"><div class="container support-layout">
       <article class="card help-center" id="help-center"><h2>مركز المساعدة</h2>${guideButtons}</article>
       <article class="card faq-panel" id="faq"><h2>ابحث في مركز المساعدة</h2><input class="input" data-action="support-search" value="${escapeHtml(state.search)}" placeholder="ابحث عن حل أو سؤال..."><h2>الأسئلة الشائعة</h2>${faqItems}</article>
       <article class="card support-form-card" id="support-request"><h2>أرسل لنا طلب دعم</h2><p>سيصل الطلب إلى الرسائل والشكاوى، وسنرسل الرد إلى بريدك.</p><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" minlength="2" maxlength="120" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" maxlength="254" required></label><label class="field"><span>نوع الطلب</span><select class="select" name="type" required><option value="INQUIRY">استفسار عام</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="BILLING">الفوترة والباقات</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="ACCOUNT">الحساب وتسجيل الدخول</option><option value="COMPLAINT">شكوى</option><option value="SUGGESTION">اقتراح</option><option value="OTHER">أخرى</option></select></label><label class="field"><span>عنوان الطلب</span><input class="input" name="subject" minlength="5" maxlength="150" placeholder="اكتب عنوانًا مختصرًا وواضحًا" required></label><label class="field"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" minlength="10" maxlength="2000" placeholder="اشرح المشكلة والخطوات التي قمت بها..." required></textarea></label><button class="btn btn-primary" type="submit">إرسال الطلب</button></form></article>
-      <article class="card support-guides"><div class="support-guides-heading"><div><h2>أدلة المساعدة</h2><p>افتح الدليل المطلوب لعرض الخطوات في نفس الصفحة.</p></div><button class="btn btn-secondary" data-link="/blog">تصفح جميع المقالات</button></div><div class="support-guides-list">${guideDetails}</div></article>
     </div></section></main>`);
 }
 
@@ -2049,6 +2129,7 @@ function pageTitle(title, actions = "") {
     "إرسال معلومات الطلب": "صمم قالبًا واحدًا برابط ثابت وأضف إليه طلبات عملائك.",
     "تطبيقاتنا": "اربط متجرك بالتطبيقات الخارجية وشغّل المزامنة والأتمتة بأمان.",
     "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
+    "الحماية والأمان": "نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.",
     "التقارير": "المؤشرات وسجل النشاط والفوترة.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
   };
@@ -2691,6 +2772,7 @@ function securityMetricValue(metric = {}, risk = false) {
   if (metric.score === null || metric.score === undefined || metric.status === "not_configured" || metric.status === "insufficient_data" || metric.status === "unavailable") {
     return `<strong class="security-metric-state">${escapeHtml(metric.label || "تعذر التحقق")}</strong><small>${metric.status === "not_configured" ? "لم يتم إعداد المصدر" : metric.status === "insufficient_data" ? "يلزم توفر بيانات فعلية أكثر" : "لا تتوفر نتيجة موثوقة الآن"}</small>`;
   }
+  if (risk) return `<strong class="security-risk-label">${escapeHtml(metric.label || "غير متاح")}</strong>`;
   return `<strong>${Number(metric.score)}%</strong><span class="security-mini-status ${risk ? `risk-${securityRiskTone(metric.score)}` : securityScoreTone(metric.score)}">${escapeHtml(metric.label || "")}</span>`;
 }
 
@@ -2718,6 +2800,30 @@ function securityTime(value) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `منذ ${hours} ساعة`;
   return date.toLocaleDateString("ar-SA");
+}
+
+function securityTrendMarkup(points = [], currentScore = null) {
+  const trend = Array.isArray(points) ? points.filter((item) => Number.isFinite(Number(item?.score))).slice(-7) : [];
+  if (trend.length < 2) {
+    return `<div class="security-trend-empty">${dashboardIcon("reports")}<span>سيظهر الاتجاه الأسبوعي بعد تسجيل فحصين فعليين على الأقل.</span></div>`;
+  }
+  const width = 420;
+  const height = 70;
+  const padding = 7;
+  const step = (width - padding * 2) / Math.max(1, trend.length - 1);
+  const coords = trend.map((item, index) => ({
+    x: Math.round((padding + index * step) * 10) / 10,
+    y: Math.round((height - padding - (Math.max(0, Math.min(100, Number(item.score))) / 100) * (height - padding * 2)) * 10) / 10,
+    score: Number(item.score),
+    date: item.date
+  }));
+  const line = coords.map((item) => `${item.x},${item.y}`).join(" ");
+  const area = `${padding},${height - padding} ${line} ${width - padding},${height - padding}`;
+  const first = coords[0]?.score;
+  const last = coords.at(-1)?.score ?? Number(currentScore || 0);
+  const difference = Number.isFinite(first) ? last - first : 0;
+  const direction = difference > 0 ? `تحسن ${difference}%` : difference < 0 ? `انخفاض ${Math.abs(difference)}%` : "مستقر";
+  return `<div class="security-trend-wrap"><div class="security-trend-caption"><span>آخر 7 أيام</span><strong class="${difference < 0 ? "down" : "up"}">${escapeHtml(direction)}</strong></div><svg class="security-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="اتجاه مؤشر الحماية خلال آخر سبعة أيام"><defs><linearGradient id="securityTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27bf91" stop-opacity=".2"/><stop offset="1" stop-color="#27bf91" stop-opacity="0"/></linearGradient></defs><polygon points="${area}" fill="url(#securityTrendFill)"/><polyline points="${line}" fill="none" stroke="#25b98c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>${coords.map((item) => `<circle cx="${item.x}" cy="${item.y}" r="3" fill="#fff" stroke="#25b98c" stroke-width="2"><title>${escapeHtml(item.date)} · ${item.score}%</title></circle>`).join("")}</svg></div>`;
 }
 
 function securityEventsTable(events = []) {
@@ -2781,10 +2887,10 @@ function legacySecurityPage() {
 function securityPage() {
   const score = state.securityScore?.overall ? state.securityScore : null;
   if (state.securityScore === null) {
-    return dashboardShell(`${pageTitle("الحماية والأمان")}<p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p><div class="loading-state">جاري حساب مؤشرات الحماية من البيانات الفعلية...</div>`);
+    return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}<div class="loading-state">جاري حساب مؤشرات الحماية من البيانات الفعلية...</div></div>`);
   }
   if (state.securityScore?.error || !score) {
-    return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary" data-action="recalculate-security">إعادة الفحص</button>`)}<p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p>${emptyState("تعذر حساب مستوى الحماية", "لا نعرض درجات افتراضية. أعد الفحص لاسترجاع المؤشرات الفعلية.", "إعادة الفحص", "recalculate-security")}`);
+    return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}${emptyState("تعذر حساب مستوى الحماية", "لا نعرض درجات افتراضية. أعد الفحص لاسترجاع المؤشرات الفعلية.", "إعادة الفحص", "recalculate-security")}</div>`);
   }
 
   const overall = score.overall;
@@ -2794,7 +2900,7 @@ function securityPage() {
   const whatsapp = score.whatsapp || { healthScore: null, label: "غير مهيأ" };
   const sending = score.sending || { score: null, policies: [] };
   const risk = score.risk || { score: null, label: "غير متاح", issues: 0 };
-  const checkedLabel = score.calculatedAt ? securityTime(score.calculatedAt) : "الآن";
+  const checkedLabel = score.lastUpdatedAt || score.calculatedAt ? securityTime(score.lastUpdatedAt || score.calculatedAt) : "الآن";
   const factors = [
     { label: "جميع الأنظمة الأساسية تعمل بشكل طبيعي", ok: platform.score !== null && platform.score >= 70 },
     { label: "لا توجد تهديدات حرجة مفتوحة", ok: Number(risk.issues || 0) === 0 },
@@ -2804,13 +2910,13 @@ function securityPage() {
   const sessionItems = Array.isArray(sessions.items) ? sessions.items.slice(0, 5) : [];
   const policies = Array.isArray(sending.policies) ? sending.policies.slice(0, 5) : [];
   const alerts = Array.isArray(score.criticalIssues) ? score.criticalIssues : [];
+  const securityAlerts = Array.isArray(score.securityAlerts) ? score.securityAlerts : Array.isArray(score.events) ? score.events : [];
 
-  return dashboardShell(`${pageTitle("الحماية والأمان", `<button class="btn btn-secondary security-refresh" data-action="recalculate-security">${dashboardIcon("security")} إعادة الفحص</button>`)}
-    <p class="security-page-subtitle">نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.</p>
+  return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}
     <section class="security-reference-top">
       <article class="card security-overall-card ${securityScoreTone(overall.score)}">
         <div class="security-overall-ring ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
-        <div><h2>مؤشر الحماية العام</h2><p>أداء الحماية في وضع ${escapeHtml(overall.label)}، وجميع النتائج مأخوذة من فحص حسابك الفعلي.</p><span class="security-live-dot">تحسن ومراقبة مباشرة</span><small>آخر تحديث: ${escapeHtml(checkedLabel)}</small></div>
+        <div><h2>مؤشر الحماية العام</h2><p>أداء الحماية في وضع ${escapeHtml(overall.label)}، وجميع النتائج مأخوذة من فحص حسابك الفعلي.</p><button class="security-live-dot" data-action="recalculate-security">${dashboardIcon("refresh")} فحص وتحديث مباشر</button><small>آخر تحديث: ${escapeHtml(checkedLabel)}</small></div>
       </article>
       ${securityMetricCard("حماية المنصة", platform, "security", "جدار حماية وتهيئة النظام")}
       ${securityMetricCard("حماية الحساب", accounts, "customers", "المصادقة وسياسات الدخول")}
@@ -2825,23 +2931,23 @@ function securityPage() {
           <div class="security-overall-ring large ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
           <div class="security-factor-list">${factors.map((item) => `<div class="${item.ok ? "ok" : "attention"}"><span>${item.ok ? "✓" : "!"}</span>${escapeHtml(item.label)}</div>`).join("")}</div>
         </div>
-        <div class="security-trend" aria-label="مؤشر الحماية خلال الفحص"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        ${securityTrendMarkup(score.weeklySecurityTrend, overall.score)}
       </article>
       <article class="card security-reference-policy">
         <div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>إعدادات محسوبة لحماية عمليات الإرسال.</p></div></div>
-        <div class="security-reference-policy-list">${policies.length ? policies.map((item) => `<div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "مفعل" : "يحتاج ضبط"}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد سياسة إرسال مهيأة بعد.</div>`}</div>
+        <div class="security-reference-policy-list">${policies.length ? policies.map((item) => `<div><span class="security-policy-icon">${dashboardIcon(item.icon || "security")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "مفعل" : "يحتاج ضبط"}</span><span class="security-row-arrow">‹</span></div>`).join("") : `<div class="security-empty-row">لا توجد سياسة إرسال مهيأة بعد.</div>`}</div>
         <button class="security-safe-action" data-action="preview-safe-settings">إدارة سياسة الإرسال</button>
       </article>
       <article class="card security-reference-sessions">
         <div class="security-panel-title">${dashboardIcon("devices")}<div><h2>الجلسات النشطة</h2><p>${Number(sessions.activeSessions || 0)} جلسة فعلية مرتبطة بحسابك.</p></div></div>
-        <div class="security-reference-session-list">${sessionItems.length ? sessionItems.map((item, index) => `<div><span class="session-os">${index === 0 ? "▦" : index % 2 ? "●" : "◆"}</span><div><strong>${escapeHtml(item.device || "جهاز غير معروف")}</strong><small>${escapeHtml(item.location || "موقع غير متاح")}</small></div><time>${escapeHtml(securityTime(item.lastActivityAt))}</time></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}</div>
+        <div class="security-reference-session-list">${sessionItems.length ? sessionItems.map((item) => `<div><span class="session-os">${dashboardIcon("devices")}</span><div><strong>${escapeHtml(item.device || "جهاز غير معروف")}</strong><small>${escapeHtml(item.location || "موقع غير متاح")}</small></div><div class="security-session-meta">${item.current ? `<span class="current-session-badge">الجلسة الحالية</span>` : ""}<time>${escapeHtml(securityTime(item.lastActivityAt))}</time></div></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}</div>
         <button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button>
       </article>
     </section>
     <article class="card security-reference-alerts">
-      <div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>آخر التنبيهات والحالة الأمنية.</p></div></div>
+      <div class="security-alert-heading"><div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>آخر التنبيهات والحالة الأمنية.</p></div></div><button class="security-alert-log" data-action="security-alerts">عرض سجل التنبيهات</button></div>
       ${alerts.length ? `<div class="security-reference-alert-list">${alerts.slice(0, 4).map((item) => `<div class="${escapeHtml(item.severity || "warning")}"><span>!</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description || "راجع إعدادات الحماية.")}</small></div>`).join("")}</div>` : `<div class="security-reference-clear"><span>✓</span><div><strong>لا توجد تنبيهات حاليًا</strong><small>جميع الأنظمة آمنة ولا توجد تهديدات أو مشكلات تتطلب تدخلك.</small></div></div>`}
-    </article>`);
+    </article><span class="security-data-count" aria-hidden="true">${securityAlerts.length}</span></div>`);
 }
 
 function connectedDevicesCenterPage() {
@@ -5296,6 +5402,10 @@ async function handleAction(target) {
       appToast.error("تعذر تحديث تقييم الحماية", { description: "تم الاحتفاظ بآخر نتيجة موثوقة. حاول مرة أخرى لاحقًا.", id: "security-update-error" });
       target.disabled = false;
     }
+  }
+  if (action === "security-alerts") {
+    const alerts = Array.isArray(state.securityScore?.securityAlerts) ? state.securityScore.securityAlerts : Array.isArray(state.securityScore?.events) ? state.securityScore.events : [];
+    openModal("سجل تنبيهات الحماية", `<div class="security-alert-history">${alerts.length ? alerts.map((item) => `<article class="security-alert-history-item ${escapeHtml(item.severity || "low")}"><span>${item.severity === "critical" || item.severity === "high" ? "!" : "i"}</span><div><strong>${escapeHtml(item.title || item.type || "تنبيه أمني")}</strong><p>${escapeHtml(item.message || item.detail || "تم تسجيل الحدث الأمني.")}</p><small>${escapeHtml(securityTime(item.timestamp || item.occurredAt))} · ${item.deliveryChannels?.includes("email") ? "داخل النظام والبريد" : "داخل النظام"}</small></div>${item.actionUrl ? `<button class="btn btn-secondary" data-link="${escapeHtml(item.actionUrl)}">${escapeHtml(item.actionLabel || "عرض التفاصيل")}</button>` : ""}</article>`).join("") : `<div class="security-empty-row success">لا توجد تنبيهات أمنية مسجلة حاليًا.</div>`}</div>`, '<button class="btn btn-secondary" data-action="close-modal">إغلاق</button>');
   }
   if (action === "preview-safe-settings") {
     openModal("تطبيق الإعدادات الآمنة الموصى بها", `<div class="safe-settings-preview"><p>سيتم تطبيق التغييرات غير الحساسة التالية فقط:</p><ul><li>فاصل تلقائي لا يقل عن 300 ثانية.</li><li>Jitter بين 20 و90 ثانية.</li><li>تفعيل Warm-up والإيقاف التلقائي عند الخطر.</li><li>التأكد من وجود حدود يومية وساعية.</li><li>فحص قائمة الإيقاف قبل الإرسال.</li></ul><div class="secure-note">لن يتم تفعيل MFA أو ربط/فصل جهاز أو تغيير كلمة المرور أو حذف جلسة.</div></div>`, '<button class="btn btn-primary" data-action="apply-safe-settings">تأكيد التطبيق</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');

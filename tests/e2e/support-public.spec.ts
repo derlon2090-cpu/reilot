@@ -1,19 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-test("support center opens real guides, distinct FAQs, and the blog", async ({ page }) => {
+test("support center opens dedicated help articles and keeps distinct FAQs", async ({ page }) => {
   await page.goto("/support");
   await expect(page.getByRole("heading", { name: "مركز الدعم" })).toBeVisible();
-
-  await page.locator('[data-action="knowledge"][data-article-id="quick-start"]').click();
-  await expect(page.locator("#support-guide-quick-start")).toHaveAttribute("open", "");
-  await expect(page.locator("#support-guide-quick-start")).toContainText("أكمل بيانات الحساب والمتجر");
-
+  await expect(page.locator(".support-guides")).toHaveCount(0);
   await expect(page.locator("#faq")).toContainText("Renvix منصة لإدارة العملاء والاشتراكات");
   await expect(page.locator("#faq")).toContainText("لن يبدأ الإرسال قبل اكتمال الاتصال");
 
-  await page.locator('.support-cards [data-link="/blog"]').click();
-  await expect(page).toHaveURL(/\/blog$/);
-  await expect(page.getByRole("heading", { name: "المدونة" })).toBeVisible();
+  await page.locator('[data-link="/blog/quick-start-guide"]').click();
+  await expect(page).toHaveURL(/\/blog\/quick-start-guide$/);
+  await expect(page.getByRole("heading", { name: /دليل البدء السريع في Renvix/ })).toBeVisible();
+  await expect(page.locator(".article-cover")).toHaveAttribute("src", "/assets/blog/help-quick-start.png");
+  await expect(page.locator(".article-content")).toContainText("أكمل هوية الحساب والمتجر");
 });
 
 test("public support form sends a real ticket payload and shows its number", async ({ page }) => {

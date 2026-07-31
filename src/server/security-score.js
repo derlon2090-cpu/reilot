@@ -81,7 +81,7 @@ function deviceLabel(userAgent = "") {
 }
 
 async function loadSecurityFacts(tenantId, userId) {
-  const [accountResult, sessionsResult, channelResult, deliveryResult, safetyResult, templateResult, healthResult, issuesResult, attemptsResult, activityResult, migrationResult, webhookResult, optOutResult, securityEventsResult] = await Promise.all([
+  const [accountResult, sessionsResult, channelResult, deliveryResult, safetyResult, templateResult, healthResult, issuesResult, attemptsResult, activityResult, migrationResult, webhookResult, optOutResult, securityEventsResult, trendResult] = await Promise.all([
     query(
       `SELECT u.email, u.password_strength AS "passwordStrength", u.password_changed_at AS "passwordChangedAt",
               (SELECT count(*)::int FROM password_reset_codes pr WHERE pr.user_id = u.id AND pr.created_at > now() - interval '24 hours') AS "resetRequests24h",
@@ -141,14 +141,24 @@ async function loadSecurityFacts(tenantId, userId) {
     query(`SELECT name, applied_at AS "appliedAt" FROM schema_migrations ORDER BY applied_at DESC LIMIT 1`),
     query(`SELECT type, title, created_at AS "createdAt" FROM activity_logs WHERE tenant_id = $1 AND type LIKE 'evolution.webhook.%' ORDER BY created_at DESC LIMIT 1`, [tenantId]),
     query(`SELECT count(*)::int AS total FROM unsubscribe_list WHERE tenant_id = $1`, [tenantId]),
-    query(`SELECT category, event_type AS "eventType", severity, risk_weight AS "riskWeight", half_life_hours AS "halfLifeHours", occurred_at AS "occurredAt", metadata FROM security_events WHERE tenant_id = $1 AND (user_id = $2 OR user_id IS NULL) AND resolved_at IS NULL ORDER BY occurred_at DESC LIMIT 50`, [tenantId, userId])
+    query(`SELECT category, event_type AS "eventType", severity, risk_weight AS "riskWeight", half_life_hours AS "halfLifeHours", occurred_at AS "occurredAt", metadata FROM security_events WHERE tenant_id = $1 AND (user_id = $2 OR user_id IS NULL) AND resolved_at IS NULL ORDER BY occurred_at DESC LIMIT 50`, [tenantId, userId]),
+    query(
+      `SELECT date_trunc('day', calculated_at) AS day, round(avg(overall_score))::int AS score
+         FROM security_score_snapshots
+        WHERE tenant_id = $1 AND user_id = $2 AND calculated_at >= now() - interval '7 days'
+          AND overall_score IS NOT NULL
+        GROUP BY date_trunc('day', calculated_at)
+        ORDER BY day ASC`,
+      [tenantId, userId]
+    )
   ]);
   return {
     account: accountResult.rows[0] || {}, sessions: sessionsResult.rows, channel: channelResult.rows[0] || null,
     delivery: deliveryResult.rows[0] || {}, safety: safetyResult.rows[0] || null, templates: templateResult.rows[0] || {},
     health: healthResult.rows[0] || null, issues: issuesResult.rows, attempts: attemptsResult.rows,
     activity: activityResult.rows, migration: migrationResult.rows[0] || null, webhook: webhookResult.rows[0] || null,
-    optOuts: Number(optOutResult.rows[0]?.total || 0), securityEvents: securityEventsResult.rows
+    optOuts: Number(optOutResult.rows[0]?.total || 0), securityEvents: securityEventsResult.rows,
+    weeklyTrend: trendResult.rows
   };
 }
 
@@ -190,7 +200,7 @@ function calculateAccount(facts, secureSession) {
   return { ...metric, failed24h, recommendations };
 }
 
-function calculateSessions(facts, secureSession) {
+function calculateSessions(facts, secureSession, currentSessionId = null) {
   if (!facts.sessions.length) return { score: null, status: "insufficient_data", label: "لا توجد بيانات كافية", coverage: 0, factors: [], activeSessions: 0, suspiciousSessions: 0, items: [] };
   const oldSessions = facts.sessions.filter((item) => Date.now() - new Date(item.lastActivityAt).getTime() > 30 * 86400000).length;
   const uniqueIps = new Set(facts.sessions.map((item) => item.ipAddress).filter(Boolean)).size;
@@ -201,20 +211,22 @@ function calculateSessions(facts, secureSession) {
     factor("expiry", "انتهاء وإبطال الجلسة", 20, 20, "passed", "الجلسات المنتهية مرفوضة ويمكن إبطالها."),
     factor("anomalies", "مراجعة الجلسات القديمة", suspiciousSessions ? Math.max(0, 15 - suspiciousSessions * 5) : 15, 15, suspiciousSessions ? "review" : "passed", suspiciousSessions ? `${suspiciousSessions} إشارة تحتاج مراجعة.` : "لا توجد جلسات قديمة أو أنماط متعددة غير معتادة.")
   ];
-  return { ...metricFromFactors(factors), activeSessions: facts.sessions.length, suspiciousSessions, items: facts.sessions.slice(0, 4).map((item) => ({ id: item.id, device: deviceLabel(item.userAgent), location: maskIp(item.ipAddress), createdAt: item.createdAt, lastActivityAt: item.lastActivityAt, expiresAt: item.expiresAt })) };
+  return { ...metricFromFactors(factors), activeSessions: facts.sessions.length, suspiciousSessions, items: facts.sessions.slice(0, 5).map((item) => ({ id: item.id, device: deviceLabel(item.userAgent), location: maskIp(item.ipAddress), createdAt: item.createdAt, lastActivityAt: item.lastActivityAt, expiresAt: item.expiresAt, current: Boolean(currentSessionId && String(item.id) === String(currentSessionId)) })) };
 }
 
 function calculateSending(facts) {
   if (!facts.safety) return { score: null, status: "not_configured", label: "غير مهيأ", coverage: 0, factors: [], policies: [] };
   const policyRows = [
-    ["الفاصل الذكي بين الرسائل", Number(facts.safety.safeDelay || 0) >= 300, facts.safety.safeDelay ? `${facts.safety.safeDelay} ثانية مع Jitter` : "غير مضبوط"],
-    ["حدود الإرسال اليومية والساعة", Number(facts.safety.dailyLimit || 0) > 0 && Number(facts.safety.hourlyLimit || 0) > 0, `${facts.safety.hourlyLimit || 0} ساعي · ${facts.safety.dailyLimit || 0} يومي`],
-    ["منع الرسائل المكررة", Number(facts.safety.duplicateWindowHours || 0) > 0, `${facts.safety.duplicateWindowHours || 0} ساعة`],
-    ["الإيقاف الوقائي عند الخطر", Boolean(facts.safety.stopOnHighFailure && facts.safety.autoPauseEnabled), "يعمل تلقائيًا ولا يمكن تعطيله من هذه الصفحة"],
-    ["Warm-up تدريجي", Boolean(facts.safety.warmupEnabled), facts.safety.warmupEnabled ? "مفعّل" : "غير مفعّل"]
+    ["الفاصل الذكي بين الرسائل", Number(facts.safety.safeDelay || 0) >= 300, facts.safety.safeDelay ? `${facts.safety.safeDelay} ثانية مع نطاق عشوائي آمن` : "غير مضبوط", "clock"],
+    ["حدود الإرسال الآمنة", Number(facts.safety.dailyLimit || 0) > 0 && Number(facts.safety.hourlyLimit || 0) > 0, `${facts.safety.hourlyLimit || 0} في الساعة · ${facts.safety.dailyLimit || 0} في اليوم`, "send"],
+    ["الكشف عن الرسائل المكررة", Number(facts.safety.duplicateWindowHours || 0) > 0, `${facts.safety.duplicateWindowHours || 0} ساعة`, "reports"],
+    ["الحماية عند ارتفاع الخطر", Boolean(facts.safety.stopOnHighFailure && facts.safety.autoPauseEnabled), facts.safety.stopOnHighFailure && facts.safety.autoPauseEnabled ? "إيقاف وقائي تلقائي" : "يحتاج إلى تفعيل", "security"],
+    ["فحص القوالب قبل الإرسال", Number(facts.templates.total || 0) > 0 && Number(facts.templates.total) === Number(facts.templates.valid), Number(facts.templates.total || 0) ? `${facts.templates.valid} من ${facts.templates.total} قوالب سليمة` : "لا توجد قوالب نشطة للفحص", "template"],
+    ["الإرسال التدريجي Warm-up", Boolean(facts.safety.warmupEnabled), facts.safety.warmupEnabled ? "مفعّل" : "غير مفعّل", "whatsapp"]
   ];
-  const factors = policyRows.map(([title, active, detail], index) => factor(`policy_${index}`, title, active ? 20 : 0, 20, active ? "passed" : "review", detail));
-  return { ...metricFromFactors(factors), queued: Number(facts.delivery.pending || 0), failedLast30Days: Number(facts.delivery.failed || 0), policies: policyRows.map(([title, active, detail]) => ({ title, active, detail })) };
+  const factorWeight = 100 / policyRows.length;
+  const factors = policyRows.map(([title, active, detail], index) => factor(`policy_${index}`, title, active ? factorWeight : 0, factorWeight, active ? "passed" : "review", detail));
+  return { ...metricFromFactors(factors), queued: Number(facts.delivery.pending || 0), failedLast30Days: Number(facts.delivery.failed || 0), policies: policyRows.map(([title, active, detail, icon]) => ({ title, active, detail, icon })) };
 }
 
 function calculateWhatsapp(facts) {
@@ -269,6 +281,25 @@ function calculateAccountRisk(facts) {
 }
 
 function securityEvents(facts) {
+  const severityValue = (value) => ["info", "low", "medium", "high", "critical"].includes(String(value)) ? String(value) : value === "error" ? "high" : value === "warning" ? "medium" : "low";
+  const alertShape = ({ type, severity, status, detail, occurredAt, actionUrl = "/dashboard/security", metadata = {} }) => {
+    const level = severityValue(severity);
+    return {
+      type,
+      title: type,
+      message: detail || "راجع تفاصيل الحدث الأمني.",
+      severity: level,
+      status,
+      detail,
+      timestamp: occurredAt,
+      occurredAt,
+      actionLabel: "عرض التفاصيل",
+      actionUrl,
+      readStatus: false,
+      deliveryChannels: level === "critical" ? ["in_app", "email", "urgent"] : ["high", "medium"].includes(level) ? ["in_app", "email"] : ["in_app"],
+      metadata
+    };
+  };
   const recordedEvents = facts.securityEvents.slice(0, 15).map((item) => ({
     type: item.eventType,
     severity: item.severity,
@@ -279,7 +310,22 @@ function securityEvents(facts) {
   const attemptEvents = facts.attempts.slice(0, 10).map((item) => ({ type: item.success ? "تسجيل دخول ناجح" : "محاولة دخول فاشلة", severity: item.success ? "low" : "warning", status: item.success ? "ناجح" : "متابعة", detail: `${deviceLabel(item.userAgent)} · ${maskIp(item.ipAddress)}`, occurredAt: item.createdAt }));
   const issueEvents = facts.issues.map((item) => ({ type: item.message, severity: item.severity, status: item.status === "resolved" ? "محلول" : "مفتوح", detail: item.suggestedSolution, occurredAt: item.createdAt }));
   const auditEvents = facts.activity.slice(0, 10).map((item) => ({ type: item.title, severity: "low", status: "مسجل", detail: item.type, occurredAt: item.createdAt }));
-  return [...recordedEvents, ...attemptEvents, ...issueEvents, ...auditEvents].filter((item) => item.occurredAt).sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt)).slice(0, 15);
+  return [...recordedEvents, ...attemptEvents, ...issueEvents, ...auditEvents]
+    .filter((item) => item.occurredAt)
+    .sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt))
+    .slice(0, 15)
+    .map((item) => alertShape({ ...item, metadata: { source: item.detail || "security" } }));
+}
+
+export function buildWeeklySecurityTrend(rows = [], currentScore = null, calculatedAt = new Date().toISOString()) {
+  const points = new Map(rows
+    .filter((item) => item?.day && item?.score !== null && item?.score !== undefined)
+    .map((item) => [new Date(item.day).toISOString().slice(0, 10), bounded(item.score)]));
+  if (currentScore !== null && currentScore !== undefined) points.set(new Date(calculatedAt).toISOString().slice(0, 10), bounded(currentScore));
+  return [...points.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(-7)
+    .map(([date, score]) => ({ date, score }));
 }
 
 export function calculateWeightedScore(metrics) {
@@ -292,11 +338,11 @@ export function calculateWeightedScore(metrics) {
   };
 }
 
-export async function calculateSecurityScore({ tenantId, userId, secureSession = true, persist = false }) {
+export async function calculateSecurityScore({ tenantId, userId, currentSessionId = null, secureSession = true, persist = false }) {
   const facts = await loadSecurityFacts(tenantId, userId);
   const platform = calculatePlatform(facts, secureSession);
   const accounts = calculateAccount(facts, secureSession);
-  const sessions = calculateSessions(facts, secureSession);
+  const sessions = calculateSessions(facts, secureSession, currentSessionId);
   const whatsapp = calculateWhatsapp(facts);
   const sending = calculateSending(facts);
   const accountRiskScore = calculateAccountRisk(facts);
@@ -316,13 +362,15 @@ export async function calculateSecurityScore({ tenantId, userId, secureSession =
   if (accountRiskScore >= 60) criticalIssues.unshift({ key: "account-risk", title: "ارتفاع خطر الحساب", severity: accountRiskScore >= 80 ? "critical" : "warning", description: "رُصد نشاط دخول يحتاج إلى مراجعة الجلسات والمحاولات الأخيرة." });
   if (whatsappRiskScore >= 60) criticalIssues.unshift({ key: "whatsapp-risk", title: "ارتفاع خطر قناة واتساب", severity: whatsappRiskScore >= 80 ? "critical" : "warning", description: "أوقف الإرسال الآلي مؤقتًا وراجع جودة الاتصال ومعدلات الفشل." });
   const calculatedAt = new Date().toISOString();
+  const weeklySecurityTrend = buildWeeklySecurityTrend(facts.weeklyTrend, weighted.score, calculatedAt);
+  const events = securityEvents(facts);
   const result = {
     overall: { score: weighted.score, label: overallLabel, status: weighted.score === null ? "unavailable" : weighted.coverage < 80 ? "insufficient_data" : "available", coverage: weighted.coverage },
     platform, accounts, account: accounts, sessions, whatsapp, sending,
     risk: { score: currentRiskScore, label: riskLabel(currentRiskScore), status: currentRiskScore === null ? "unavailable" : "available", issues: criticalIssues.length },
     login: { failed24h: accounts.failed24h, recent: facts.attempts.slice(0, 5).map((item) => ({ success: item.success, occurredAt: item.createdAt, device: deviceLabel(item.userAgent), location: maskIp(item.ipAddress) })) },
-    events: securityEvents(facts), criticalIssues,
-    recommendations: recommendations.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]), calculatedAt
+    events, securityAlerts: events, criticalIssues, weeklySecurityTrend,
+    recommendations: recommendations.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]), calculatedAt, lastUpdatedAt: calculatedAt
   };
   if (persist) {
     await query(
