@@ -18,7 +18,7 @@ export default async function SpaPage({ params }) {
     <>
       <div id="app" />
       <div id="portal" />
-      <Script src="/app/app.js?v=20260731-message-activation-compact-v8" type="module" strategy="afterInteractive" />
+      <Script src="/app/app.js?v=20260731-renvix-policies-v10" type="module" strategy="afterInteractive" />
     </>
   );
 }

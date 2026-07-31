@@ -58,7 +58,7 @@ describe("custom integration navigation", () => {
     expect(source).toContain('target === "customIntegrations"');
     expect(source).toContain("const preservedItem = { ...(incomingItem || {}), ...optimisticItem, keys }");
     expect(source).toContain("keys: payload.key ? [payload.key] : []");
-    expect(source).toContain('await navigate("/dashboard/settings/integrations/custom-api/key-created")');
+    expect(source).toContain('await navigate("/dashboard/settings/integrations/custom-api/key-created", { sessionVerified: true })');
     expect(source).toContain("void syncRouteData(true)");
   });
 

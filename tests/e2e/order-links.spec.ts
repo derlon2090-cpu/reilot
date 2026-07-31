@@ -149,6 +149,16 @@ test("order information builder and public page are responsive and private", asy
   await expect(page.locator(".order-links-table-card--links")).toContainText("54981-LONG-ORDER-NUMBER");
   await expect(page.locator(".order-links-table-card--templates")).toContainText("قالب معلومات الطلب الاحترافي");
   expect(await page.locator(".order-links-table-card--links .compare").evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  const savedOrderActions = page.locator(".order-links-table-card--links .order-saved-actions .icon-action");
+  await expect(savedOrderActions).toHaveCount(7);
+  for (let index = 0; index < 7; index += 1) {
+    await expect(savedOrderActions.nth(index)).toBeVisible();
+  }
+  const tableViewportBox = await page.locator(".order-links-table-card--links .compare").boundingBox();
+  const savedActionsBox = await page.locator(".order-links-table-card--links .order-saved-actions").boundingBox();
+  expect(tableViewportBox && savedActionsBox
+    && savedActionsBox.x >= tableViewportBox.x
+    && savedActionsBox.x + savedActionsBox.width <= tableViewportBox.x + tableViewportBox.width + 1).toBe(true);
   const creationHeader = page.locator(".order-links-table-card--links th").nth(8);
   const actionsHeader = page.locator(".order-links-table-card--links th").nth(9);
   await actionsHeader.scrollIntoViewIfNeeded();
@@ -158,6 +168,15 @@ test("order information builder and public page are responsive and private", asy
     creationBox.x + creationBox.width <= actionsBox.x
     || actionsBox.x + actionsBox.width <= creationBox.x
   )).toBe(true);
+  const orderTitleAlignment = await page.locator(".order-links-page-title").evaluate((wrapper) => {
+    const wrapperBox = wrapper.getBoundingClientRect();
+    const titleBox = wrapper.querySelector("h1")!.getBoundingClientRect();
+    const style = getComputedStyle(wrapper);
+    return style.direction === "rtl"
+      && style.textAlign === "right"
+      && titleBox.right > wrapperBox.left + wrapperBox.width / 2;
+  });
+  expect(orderTitleAlignment).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
   await page.screenshot({ path: ".codex-artifacts/order-links-desktop.png", fullPage: true });

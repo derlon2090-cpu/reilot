@@ -18,9 +18,10 @@ describe("dashboard profile and support layout", () => {
   });
 
   it("keeps page headings on the RTL edge while preserving the requested column order", () => {
-    expect(styles).toContain(".capi-page-head{display:grid;justify-items:right;gap:8px;direction:rtl}");
-    expect(styles).toContain(".capi-breadcrumbs{display:flex;align-items:center;gap:8px;color:#8492a8;font-size:12px;direction:rtl}");
-    expect(styles).toContain(".capi-title-row{display:flex;align-items:flex-start;gap:12px;text-align:right;direction:rtl}");
+    expect(styles).toContain(".capi-page-head{width:100%;display:grid;justify-items:start;gap:8px;direction:rtl;text-align:right}");
+    expect(styles).toContain(".capi-breadcrumbs{width:100%;display:flex;align-items:center;justify-content:flex-start;gap:8px;color:#8492a8;font-size:12px;direction:rtl}");
+    expect(styles).toContain(".capi-title-row{width:100%;display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;text-align:right;direction:rtl}");
+    expect(styles).toContain(".order-links-page-title");
     expect(styles).toContain(".support-page-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;direction:rtl}");
     expect(styles).toContain(".support-page-heading>*{direction:rtl}");
     expect(styles).toContain(".support-main-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:18px;align-items:start;direction:ltr}");

@@ -16,7 +16,14 @@ await cp(path.join(root, "src", "locales"), path.join(publicApp, "locales"), { r
 await mkdir(path.join(root, "public", "data"), { recursive: true });
 await cp(path.join(root, "src", "data"), path.join(root, "public", "data"), { recursive: true });
 
-await rm(dist, { recursive: true, force: true });
+try {
+  await rm(dist, { recursive: true, force: true });
+} catch (error) {
+  // OneDrive may keep the generated directory itself locked after its contents
+  // are cleared. Reusing that exact output directory is safe because every
+  // canonical public asset is copied over below.
+  if (error?.code !== "EPERM") throw error;
+}
 await mkdir(dist, { recursive: true });
 
 await cp(path.join(root, "index.html"), path.join(dist, "index.html"));

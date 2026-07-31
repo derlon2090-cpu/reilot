@@ -95,6 +95,35 @@ test("a genuine API key stays visible after creation and can be revoked", async 
   await expect(page.locator(".capi-one-time-key code")).toHaveText(rawKey);
   await expect(page.locator(".capi-managed-key")).toContainText(prefix);
   await expect(page.locator(".capi-managed-key [data-action='revoke-custom-key']")).toBeVisible();
+  const apiTitleLayout = await page.locator(".capi-page-head").evaluate((header) => {
+    const headerBox = header.getBoundingClientRect();
+    const titleBox = header.querySelector("h1")!.getBoundingClientRect();
+    const style = getComputedStyle(header);
+    return {
+      header: { x: headerBox.x, width: headerBox.width },
+      title: { x: titleBox.x, width: titleBox.width, right: titleBox.right },
+      direction: style.direction,
+      textAlign: style.textAlign
+    };
+  });
+  expect(apiTitleLayout.direction === "rtl"
+    && apiTitleLayout.textAlign === "right"
+    && apiTitleLayout.title.right > apiTitleLayout.header.x + apiTitleLayout.header.width / 2).toBe(true);
+
+  await page.locator(".notification-trigger").click();
+  await expect(page.locator(".notification-dropdown")).toBeVisible();
+  const notificationBox = await page.locator(".notification-dropdown").boundingBox();
+  const dashboardBox = await page.locator(".dashboard-main").boundingBox();
+  expect(notificationBox && dashboardBox
+    && Math.abs(
+      notificationBox.x + notificationBox.width / 2
+      - (dashboardBox.x + dashboardBox.width / 2)
+    ) <= 2).toBe(true);
+  expect(notificationBox && dashboardBox
+    && notificationBox.x >= dashboardBox.x
+    && notificationBox.x + notificationBox.width <= dashboardBox.x + dashboardBox.width).toBe(true);
+  await page.screenshot({ path: ".codex-artifacts/notification-dropdown-position.png", fullPage: false });
+  await page.locator(".notification-trigger").click();
 
   const secureTitle = await page.locator(".capi-secure-note b").boundingBox();
   const secureDescription = await page.locator(".capi-secure-note small").boundingBox();
