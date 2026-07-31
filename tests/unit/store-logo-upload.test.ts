@@ -31,6 +31,7 @@ describe("store logo upload", () => {
     transactionMock.mockReset().mockImplementation(async (callback) => callback({ query: clientQueryMock }));
     ensureProfileMock.mockReset().mockResolvedValue({
       id: "profile-1",
+      slug: "test-store",
       logoUrl: "https://old.blob.vercel-storage.com/old-logo.png"
     });
   });
@@ -45,10 +46,28 @@ describe("store logo upload", () => {
     expect(payload.logoUrl).toBe("https://assets.blob.vercel-storage.com/store-logo.png");
     expect(putMock).toHaveBeenCalledOnce();
     expect(clientQueryMock).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE order_link_profiles SET logo_url"),
-      [payload.logoUrl, "tenant-1"]
+      expect.stringContaining("SET logo_url=$1"),
+      [payload.logoUrl, null, null, "tenant-1"]
     );
     expect(deleteMock).toHaveBeenCalledWith("https://old.blob.vercel-storage.com/old-logo.png");
+  });
+
+  it("stores the image durably in PostgreSQL when managed blob storage is unavailable", async () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    const data = new FormData();
+    data.append("file", new Blob([Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a])], { type: "image/png" }), "store.png");
+
+    const response = await POST(new Request("http://localhost/api/order-link/profile/logo", { method: "POST", body: data }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.storage).toBe("database");
+    expect(payload.logoUrl).toMatch(/^http:\/\/localhost:3000\/api\/public\/store-logo\/test-store\?v=/);
+    expect(putMock).not.toHaveBeenCalled();
+    expect(clientQueryMock).toHaveBeenCalledWith(
+      expect.stringContaining("logo_data=$2"),
+      [payload.logoUrl, expect.any(Buffer), "image/png", "tenant-1"]
+    );
   });
 
   it("rejects a file whose declared type does not match its bytes", async () => {
