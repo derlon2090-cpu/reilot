@@ -3257,7 +3257,6 @@ function refreshEmailTemplatePreview() {
 
 function templateCatalogItems() {
   const definitions = {
-    email_delivery: { channel: "email", name: "قالب البريد الإلكتروني", description: "قالب لإرسال تفاصيل الطلب وتأكيد الشراء عبر البريد الإلكتروني." },
     renewal_whatsapp: { channel: "whatsapp", name: "قالب رسالة التجديد - واتساب", description: "قالب لإشعار العميل بانتهاء اشتراكه وتشجيعه على التجديد عبر واتساب." }
   };
   const templates = Array.isArray(state.catalogTemplates) ? state.catalogTemplates : [];

@@ -13,7 +13,7 @@ describe("templates catalog UI", () => {
 
   it("loads the general templates, renewal email, and an approved Meta template without Salla fulfillment", () => {
     expect(appSource).toContain('loadRemotePage("catalogTemplates", "/api/templates/catalog"');
-    expect(appSource).toContain("email_delivery");
+    expect(appSource).not.toContain('email_delivery: { channel: "email", name: "قالب البريد الإلكتروني"');
     expect(appSource).toContain("renewal_whatsapp");
     expect(appSource).toContain('key: "renewal_email"');
     expect(appSource).toContain('editorKey === "renewal_email"');

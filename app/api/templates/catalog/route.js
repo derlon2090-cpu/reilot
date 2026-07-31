@@ -3,12 +3,10 @@ import { ensureDefaultTemplates, TEMPLATE_KEYS } from "../../../../src/server/de
 import { requireSession } from "../../../../src/server/session.js";
 
 const catalogKeys = [
-  TEMPLATE_KEYS.EMAIL_DELIVERY,
   TEMPLATE_KEYS.RENEWAL_WHATSAPP
 ];
 const allowedKeys = new Set(catalogKeys);
 const allowedVariables = {
-  [TEMPLATE_KEYS.EMAIL_DELIVERY]: new Set(["customer_name", "order_number", "order_portal_url", "store_name"]),
   [TEMPLATE_KEYS.RENEWAL_WHATSAPP]: new Set(["customer_name", "service_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number"])
 };
 

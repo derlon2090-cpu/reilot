@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { del, put } from "@vercel/blob";
+import { appBaseUrl } from "../../../../../src/server/app-url.js";
 import { query, transaction } from "../../../../../src/server/db.js";
 import { ensureOrderLinkProfile } from "../../../../../src/server/order-links.js";
 import { requireSession } from "../../../../../src/server/session.js";
@@ -16,12 +17,13 @@ async function removeManagedBlob(url) {
   await del(url).catch(() => null);
 }
 
+function databaseLogoUrl(profile, revision) {
+  return `${appBaseUrl()}/api/public/store-logo/${encodeURIComponent(profile.slug)}?v=${encodeURIComponent(revision)}`;
+}
+
 export async function POST(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return Response.json({ ok: false, reason: "store_logo_storage_not_configured", message: "تخزين صور المتجر غير مهيأ حاليًا." }, { status: 503 });
-  }
 
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
@@ -39,33 +41,53 @@ export async function POST(request) {
   }
 
   const profile = await ensureOrderLinkProfile(auth.session.tenantId);
-  const blob = await put(`store-logos/${auth.session.tenantId}/${crypto.randomUUID()}.${rule.ext}`, bytes, {
-    access: "public",
-    addRandomSuffix: false,
-    contentType: file.type
-  });
+  const revision = crypto.randomUUID();
+  const useBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  const blob = useBlobStorage
+    ? await put(`store-logos/${auth.session.tenantId}/${revision}.${rule.ext}`, bytes, {
+        access: "public",
+        addRandomSuffix: false,
+        contentType: file.type
+      })
+    : null;
+  const logoUrl = blob?.url || databaseLogoUrl(profile, revision);
   try {
     await transaction(async (client) => {
-      await client.query("UPDATE order_link_profiles SET logo_url=$1,updated_at=now() WHERE tenant_id=$2", [blob.url, auth.session.tenantId]);
+      await client.query(
+        `UPDATE order_link_profiles
+            SET logo_url=$1,logo_data=$2,logo_content_type=$3,logo_updated_at=now(),updated_at=now()
+          WHERE tenant_id=$4`,
+        [logoUrl, useBlobStorage ? null : bytes, useBlobStorage ? null : file.type, auth.session.tenantId]
+      );
       await client.query(
         `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
          VALUES ($1,$2,'store_logo.updated','Store logo updated',$3::jsonb)`,
-        [auth.session.tenantId, auth.session.userId, JSON.stringify({ profileId: profile.id })]
+        [auth.session.tenantId, auth.session.userId, JSON.stringify({
+          profileId: profile.id,
+          storage: useBlobStorage ? "vercel_blob" : "database"
+        })]
       );
     });
   } catch (error) {
-    await removeManagedBlob(blob.url);
+    await removeManagedBlob(blob?.url);
     throw error;
   }
   await removeManagedBlob(profile.logoUrl);
-  return Response.json({ ok: true, logoUrl: blob.url });
+  return Response.json({ ok: true, logoUrl, storage: useBlobStorage ? "vercel_blob" : "database" }, {
+    headers: { "Cache-Control": "private, no-store, max-age=0" }
+  });
 }
 
 export async function DELETE(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   const profile = await ensureOrderLinkProfile(auth.session.tenantId);
-  await query("UPDATE order_link_profiles SET logo_url=NULL,updated_at=now() WHERE tenant_id=$1", [auth.session.tenantId]);
+  await query(
+    `UPDATE order_link_profiles
+        SET logo_url=NULL,logo_data=NULL,logo_content_type=NULL,logo_updated_at=NULL,updated_at=now()
+      WHERE tenant_id=$1`,
+    [auth.session.tenantId]
+  );
   await query(
     `INSERT INTO activity_logs (tenant_id,user_id,type,title)
      VALUES ($1,$2,'store_logo.removed','Store logo removed')`,
