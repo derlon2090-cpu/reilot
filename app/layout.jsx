@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260731-renvix-policies-v10" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260731-support-center-v11" />
       </head>
       <body>{children}</body>
     </html>

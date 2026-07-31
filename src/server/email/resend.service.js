@@ -5,6 +5,7 @@ import { orderInfoLinkEmail } from "../../lib/email/templates/order-info-link.js
 import { passwordChangedEmail } from "../../lib/email/templates/password-changed.js";
 import { renewalReminderEmail } from "../../lib/email/templates/renewal-reminder.js";
 import { loginEmailOtp } from "../../lib/email/templates/login-email-otp.js";
+import { supportReplyEmail } from "../../lib/email/templates/support-reply.js";
 
 export async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes = 10, locale = "ar" }) {
   return sendEmail({ to, ...forgotPasswordCodeEmail({ code, expiresInMinutes, locale }) });
@@ -62,4 +63,12 @@ export async function sendRenewalReminderEmail({ to, ...input }) {
 
 export async function sendPasswordChangedEmail({ to, locale = "ar" }) {
   return sendEmail({ to, ...passwordChangedEmail({ locale }) });
+}
+
+export async function sendSupportReplyEmail({ to, requesterName, ticketNumber, ticketSubject, replyBody }) {
+  return sendEmail({
+    to,
+    tags: [{ name: "purpose", value: "support_reply" }],
+    ...supportReplyEmail({ requesterName, ticketNumber, ticketSubject, replyBody })
+  });
 }

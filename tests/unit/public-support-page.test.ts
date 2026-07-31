@@ -10,29 +10,44 @@ const supportPageSource = appSource.slice(
 );
 
 describe("public support page", () => {
-  it("uses a dedicated icon for every support card and help-center topic", () => {
-    expect(supportPageSource).toContain('"helpBook"');
-    expect(supportPageSource).toContain('"faq"');
-    expect(supportPageSource).toContain('"chat"');
-    expect(supportPageSource).toContain('"email"');
-    expect(supportPageSource).toContain('"البدء السريع": "rocket"');
-    expect(supportPageSource).toContain('"إدارة الاشتراكات": "subscriptions"');
-    expect(supportPageSource).toContain('"التكاملات والإعدادات": "puzzle"');
-    expect(supportPageSource).toContain('"الفوترة والدفع": "payments"');
-    expect(supportPageSource).toContain('"التقارير والتحليلات": "barChart"');
+  it("links articles to the blog and questions to the same page", () => {
+    expect(supportPageSource).toContain('data-link="/blog"');
+    expect(supportPageSource).toContain('href="/support#faq"');
   });
 
-  it("does not render the removed trust strip", () => {
-    expect(supportPageSource).not.toContain("container trust-band");
-    expect(supportPageSource).not.toContain("▢ آمن وموثوق");
-    expect(supportPageSource).not.toContain("◇ خبراء المنتجات");
-    expect(supportPageSource).not.toContain("♬ دعم على مدار الساعة");
-    expect(supportPageSource).not.toContain("◷ متوسط الرد أقل من ساعتين");
+  it("renders five actionable guides with distinct steps", () => {
+    for (const id of ["quick-start", "subscriptions", "integrations", "billing", "reports"]) {
+      expect(supportPageSource).toContain(`id: "${id}"`);
+      expect(supportPageSource).toContain(`support-guide-${"${guide.id}"}`);
+    }
+    expect(supportPageSource).toContain("أكمل بيانات الحساب والمتجر من الإعدادات.");
+    expect(supportPageSource).toContain("حدد قناة الإرسال؛ رقم واتساب إلزامي");
+    expect(supportPageSource).toContain("راجع سجل التسليم والأخطاء قبل اتخاذ إجراء.");
   });
 
-  it("keeps help-center icons in clear blue rounded tiles", () => {
-    expect(stylesSource).toContain(".help-center .line-icon { width: 44px; height: 44px; min-width: 44px;");
-    expect(stylesSource).toContain("display: block; flex: 0 0 44px;");
-    expect(stylesSource).toContain("color: #1769ed; border: 1px solid #e2edff;");
+  it("contains distinct FAQ answers instead of the old repeated placeholder", () => {
+    expect(supportPageSource).toContain("Renvix منصة لإدارة العملاء والاشتراكات");
+    expect(supportPageSource).toContain("لن يبدأ الإرسال قبل اكتمال الاتصال");
+    expect(supportPageSource).toContain("يرسل فريق الدعم الرد إلى البريد");
+    expect(supportPageSource).not.toContain("ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك");
+  });
+
+  it("posts public requests and support conversations to the real endpoint", () => {
+    expect(supportPageSource).toContain('data-submit="support-request"');
+    expect(appSource).toContain('data-submit="support-chat"');
+    expect(appSource).toContain('fetchJson("/api/public/support/tickets"');
+    expect(appSource).toContain("payload.item?.ticketNumber");
+  });
+
+  it("opens help content in-page instead of showing a fake success toast", () => {
+    expect(appSource).toContain("guide.open = true");
+    expect(appSource).toContain("guide.scrollIntoView");
+    expect(appSource).not.toContain("toast(`تم فتح قسم ${target.dataset.term}`)");
+  });
+
+  it("keeps guide content full-width and responsive", () => {
+    expect(stylesSource).toContain(".support-guides { grid-column: 1 / -1; }");
+    expect(stylesSource).toContain(".support-guides-list { display: grid;");
+    expect(stylesSource).toContain(".support-guides-list details[open]");
   });
 });
