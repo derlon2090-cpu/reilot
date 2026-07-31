@@ -32,6 +32,7 @@ async function findCredentialUser(normalizedEmail) {
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
               u.email_otp_enabled AS "emailOtpEnabled", COALESCE(tm.role, u.role) AS role, a.password
          FROM users u
+         JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
         WHERE lower(u.email) = $1 LIMIT 1`,
@@ -46,6 +47,7 @@ async function findCredentialUser(normalizedEmail) {
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
               false AS "emailOtpEnabled", COALESCE(tm.role, u.role) AS role, a.password
          FROM users u
+         JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
         WHERE lower(u.email) = $1 LIMIT 1`,

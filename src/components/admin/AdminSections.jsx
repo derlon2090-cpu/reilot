@@ -20,6 +20,9 @@ const ICONS = {
   alert: '<path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
+  wallet: '<path d="M4 7V5a2 2 0 0 1 2-2h12v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 12h5v4h-5a2 2 0 0 1 0-4Z"/>',
+  swap: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>',
   database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'
 };
 
@@ -113,6 +116,108 @@ function SimpleTable({ columns, rows, emptyTitle }) {
   </tbody></table></div>;
 }
 
+const MANAGE_CUSTOMER_ROLES = new Set(["super_admin", "operations_admin", "admin", "billing_admin"]);
+
+function TenantActions({ row, plans = [], onComplete, canManage = false }) {
+  const [action, setAction] = useState("");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [planId, setPlanId] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const tenantName = row.tenantName || row.name || "العميل";
+
+  function open(nextAction) {
+    setAction(nextAction);
+    setAmount("");
+    setNote("");
+    setConfirmation("");
+    setPlanId(plans.find((plan) => plan.name === row.planName)?.id || plans[0]?.id || "");
+    setError("");
+    setSuccess("");
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!row.tenantId) return setError("تعذر تحديد مساحة عمل العميل.");
+    setBusy(true);
+    setError("");
+    try {
+      const body = action === "add_credit"
+        ? { action, amount: Number(amount), note: note.trim() }
+        : action === "change_plan"
+          ? { action, planId }
+          : { action, confirmation: confirmation.trim() };
+      const response = await fetch(`/api/admin/tenants/${row.tenantId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const messages = {
+          confirmation_mismatch: "اكتب اسم مساحة العمل كما هو لتأكيد الإزالة.",
+          admin_tenant_cannot_be_removed: "لا يمكن إزالة مساحة عمل مرتبطة بحساب أدمن نشط.",
+          customer_removed: "هذا العميل مُزال بالفعل ولا يمكن تعديل رصيده أو باقته.",
+          plan_not_found: "الباقة المحددة غير متاحة حاليًا."
+        };
+        throw new Error(messages[payload.reason] || "تعذر تنفيذ العملية. حاول مرة أخرى.");
+      }
+      setSuccess(payload.message || "تم تنفيذ العملية بنجاح.");
+      await onComplete?.();
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canManage) return <span className={styles.adminReadOnlyLabel}>عرض فقط</span>;
+  const submitDisabled = busy || success || (action === "add_credit" && (!Number.isFinite(Number(amount)) || Number(amount) < 1))
+    || (action === "change_plan" && !planId)
+    || (action === "remove_customer" && confirmation.trim() !== tenantName);
+  return <>
+    <div className={styles.adminCustomerActions} aria-label={`إدارة ${tenantName}`}>
+      <button type="button" onClick={() => open("add_credit")} title="إضافة رصيد"><Glyph name="wallet" /><span>رصيد</span></button>
+      <button type="button" onClick={() => open("change_plan")} title="تغيير الباقة"><Glyph name="swap" /><span>الباقة</span></button>
+      <button type="button" className={styles.adminCustomerRemoveButton} onClick={() => open("remove_customer")} title="إزالة العميل"><Glyph name="trash" /><span>إزالة</span></button>
+    </div>
+    {action ? <div className={styles.adminCustomerModalBackdrop} role="presentation" onMouseDown={() => !busy && setAction("")}>
+      <section className={styles.adminCustomerModal} role="dialog" aria-modal="true" aria-labelledby="admin-customer-action-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <div>
+            <span className={`${styles.adminCustomerModalIcon} ${action === "remove_customer" ? styles.adminCustomerModalIconDanger : ""}`}><Glyph name={action === "add_credit" ? "wallet" : action === "change_plan" ? "swap" : "trash"} /></span>
+            <div><h2 id="admin-customer-action-title">{action === "add_credit" ? "إضافة رصيد العميل" : action === "change_plan" ? "تغيير باقة العميل" : "إزالة العميل"}</h2><p>{tenantName}</p></div>
+          </div>
+          <button type="button" aria-label="إغلاق" disabled={busy} onClick={() => setAction("")}>×</button>
+        </header>
+        {success ? <div className={styles.adminCustomerActionSuccess}><Glyph name="check" /><div><strong>تمت العملية بنجاح</strong><p>{success}</p></div></div> : <form onSubmit={submit}>
+          {action === "add_credit" ? <>
+            <div className={styles.adminCurrentBalance}><span>الرصيد الحالي</span><strong>{Number(row.walletBalance || 0).toLocaleString("en-US")} ر.س</strong></div>
+            <label><span>المبلغ المراد إضافته (ر.س)</span><input autoFocus type="number" min="1" max="100000" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="مثال: 100" /></label>
+            <label><span>ملاحظة العملية <small>اختياري</small></span><input value={note} maxLength={240} onChange={(event) => setNote(event.target.value)} placeholder="سبب إضافة الرصيد" /></label>
+            <p className={styles.adminCustomerActionHint}>ستُحفظ الإضافة كعملية تعديل إداري في سجل محفظة العميل وسجل التدقيق.</p>
+          </> : null}
+          {action === "change_plan" ? <>
+            <div className={styles.adminPlanChangeSummary}><div><span>الباقة الحالية</span><strong>{row.planName || "غير محددة"}</strong></div><Glyph name="swap" /><div><span>الباقة الجديدة</span><strong>{plans.find((plan) => plan.id === planId)?.name || "اختر الباقة"}</strong></div></div>
+            <label><span>اختر الباقة الجديدة</span><select autoFocus value={planId} onChange={(event) => setPlanId(event.target.value)}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} — {Number(plan.monthlyPriceSar || 0).toLocaleString("en-US")} ر.س/شهر</option>)}</select></label>
+            <p className={styles.adminCustomerActionHint}>يُحدّث هذا الخيار صلاحيات باقة Renvix فورًا، ولا ينشئ عملية خصم جديدة لدى مزود الدفع الخارجي.</p>
+          </> : null}
+          {action === "remove_customer" ? <>
+            <div className={styles.adminCustomerDangerNote}><Glyph name="alert" /><div><strong>عملية حساسة</strong><p>سيُعطّل الحساب، وتُلغى اشتراكاته النشطة وتنتهي جلساته فورًا، مع الاحتفاظ بالسجلات والفواتير لأغراض المراجعة.</p></div></div>
+            <label><span>اكتب اسم مساحة العمل للتأكيد</span><input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={tenantName} autoComplete="off" /></label>
+          </> : null}
+          {error ? <div className={styles.adminCustomerActionError}>{error}</div> : null}
+          <footer><button type="submit" disabled={submitDisabled} className={action === "remove_customer" ? styles.adminDangerButton : styles.adminPrimaryButton}>{busy ? "جارٍ التنفيذ..." : action === "remove_customer" ? "تأكيد إزالة العميل" : "حفظ وتنفيذ"}</button><button type="button" className={styles.adminOutlineButton} disabled={busy} onClick={() => setAction("")}>إلغاء</button></footer>
+        </form>}
+        {success ? <footer><button type="button" className={styles.adminPrimaryButton} onClick={() => setAction("")}>إغلاق</button></footer> : null}
+      </section>
+    </div> : null}
+  </>;
+}
+
 function TrendChart({ metrics = [], title = "اتجاه الأداء", keys = [{ key: "accepted", label: "الرسائل", color: "#2563eb" }] }) {
   const data = metrics.length ? metrics : [{ date: new Date().toISOString(), accepted: 0 }];
   const max = Math.max(1, ...data.flatMap((item) => keys.map((entry) => n(item[entry.key]))));
@@ -166,7 +271,7 @@ function Overview({ data, stats }) {
   </>;
 }
 
-function Subscriptions({ data, stats }) {
+function Subscriptions({ data, stats, admin, onRefresh }) {
   const [search, setSearch] = useState("");
   const rows = useMemo(() => (data.subscriptions || []).filter((row) => `${row.tenantName} ${row.planName} ${row.status}`.toLowerCase().includes(search.toLowerCase())), [data.subscriptions, search]);
   return <>
@@ -182,7 +287,8 @@ function Subscriptions({ data, stats }) {
       <SimpleTable emptyTitle="لا توجد اشتراكات مسجلة حتى الآن" rows={rows} columns={[
         { key: "tenantName", label: "المتجر" }, { key: "planName", label: "الباقة" }, { key: "billingCycle", label: "الدورة" },
         { key: "startsAt", label: "تاريخ البداية", render: formatDate }, { key: "expiresAt", label: "تاريخ الانتهاء", render: formatDate },
-        { key: "paymentProvider", label: "مزود الدفع" }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }
+        { key: "paymentProvider", label: "مزود الدفع" }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> },
+        { key: "actions", label: "إدارة العميل", render: (_value, row) => <TenantActions row={row} plans={data.plans || []} onComplete={onRefresh} canManage={MANAGE_CUSTOMER_ROLES.has(admin.role)} /> }
       ]} />
     </section>
   </>;
@@ -210,7 +316,7 @@ function Customers({ data, stats }) {
   </>;
 }
 
-function Stores({ data, stats }) {
+function Stores({ data, stats, admin, onRefresh }) {
   const [search, setSearch] = useState("");
   const rows = useMemo(() => (data.stores || []).filter((row) => `${row.name} ${row.domain} ${row.ownerName}`.toLowerCase().includes(search.toLowerCase())), [data.stores, search]);
   const ranked = [...(data.stores || [])].sort((a, b) => n(b.messageVolume) - n(a.messageVolume)).slice(0, 5);
@@ -228,7 +334,8 @@ function Stores({ data, stats }) {
         <SimpleTable emptyTitle="لا توجد متاجر مسجلة حتى الآن" rows={rows} columns={[
           { key: "name", label: "المتجر" }, { key: "domain", label: "النطاق" }, { key: "ownerName", label: "المالك" },
           { key: "planName", label: "الباقة" }, { key: "messageVolume", label: "حجم الرسائل", render: ar },
-          { key: "sallaStatus", label: "سلة", render: (value) => <StatusPill value={value} /> }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }
+          { key: "sallaStatus", label: "سلة", render: (value) => <StatusPill value={value} /> }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> },
+          { key: "actions", label: "إدارة العميل", render: (_value, row) => <TenantActions row={row} plans={data.plans || []} onComplete={onRefresh} canManage={MANAGE_CUSTOMER_ROLES.has(admin.role)} /> }
         ]} />
       </div>
       <article className={styles.adminRanking}><div className={styles.adminCardHead}><div><h3>أعلى المتاجر</h3><p>بحسب حجم الرسائل الحالي</p></div></div>
@@ -736,12 +843,12 @@ function Settings({ data, stats, admin }) {
 
 export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "devices", "integrations", "security", "reports", "settings"]);
 
-export default function AdminSectionView({ panel, data, stats, admin }) {
+export default function AdminSectionView({ panel, data, stats, admin, onRefresh }) {
   if (!data || !stats) return null;
   const components = {
     overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, notifications: Notifications, support: Support, templates: Templates,
     devices: Devices, integrations: Integrations, security: Security, reports: Reports, settings: Settings
   };
   const Component = components[panel];
-  return Component ? <Component data={data} stats={stats} admin={admin} /> : null;
+  return Component ? <Component data={data} stats={stats} admin={admin} onRefresh={onRefresh} /> : null;
 }

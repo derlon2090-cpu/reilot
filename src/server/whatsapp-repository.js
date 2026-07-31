@@ -29,6 +29,49 @@ export async function latestTenantChannel(tenantId) {
   return result.rows[0] || null;
 }
 
+/**
+ * Returns the real messaging devices/channels owned by a tenant. Provider
+ * secrets and QR material are deliberately excluded from this dashboard view.
+ */
+export async function tenantChannels(tenantId) {
+  const result = await query(
+    `SELECT id, provider, phone_number AS "phoneNumber", display_name AS "displayName",
+            device_name AS "deviceName", status, connection_state AS "connectionState",
+            last_health_check_at AS "lastHealthCheckAt", last_send_at AS "lastSendAt",
+            connected_at AS "connectedAt", disconnected_at AS "disconnectedAt",
+            last_error AS "lastError", daily_sent AS "messagesToday", created_at AS "createdAt",
+            updated_at AS "updatedAt"
+       FROM whatsapp_channels
+      WHERE tenant_id=$1
+      ORDER BY created_at DESC`,
+    [tenantId]
+  );
+  return result.rows.map((item, index) => ({
+    ...item,
+    isPrimary: index === 0,
+    requiresAttention: item.status === "error" || Boolean(item.lastError)
+  }));
+}
+
+export async function recentDeviceActivity(tenantId, limit = 8) {
+  const safeLimit = Math.min(20, Math.max(1, Number(limit) || 8));
+  const result = await query(
+    `SELECT id,type,title,created_at AS "createdAt",
+            metadata->>'deviceId' AS "deviceId",
+            metadata->>'deviceName' AS "deviceName",
+            metadata->>'status' AS status,
+            COALESCE(metadata->>'source', CASE WHEN user_id IS NULL THEN 'system' ELSE 'user' END) AS source
+       FROM activity_logs
+      WHERE tenant_id=$1
+        AND (type LIKE 'whatsapp.%' OR type LIKE 'evolution.%' OR type LIKE 'device.%'
+             OR type LIKE 'webhook.%' OR type LIKE 'api_key.%')
+      ORDER BY created_at DESC
+      LIMIT $2`,
+    [tenantId, safeLimit]
+  );
+  return result.rows;
+}
+
 export async function ownedChannel(id, tenantId) {
   const result = await query(
     `SELECT id, tenant_id AS "tenantId", provider, instance_name AS "instanceName", phone_number AS "phoneNumber",

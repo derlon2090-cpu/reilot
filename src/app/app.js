@@ -636,6 +636,10 @@ state.accountSettings = null;
 state.readiness = null;
 state.operationalIssues = null;
 state.whatsappHealth = null;
+state.deviceSearch = "";
+state.deviceStatusFilter = "all";
+state.deviceActivityExpanded = false;
+state.deviceBulkSyncing = false;
 state.securityScore = null;
 state.notificationTemplate = null;
 state.catalogTemplates = null;
@@ -689,6 +693,7 @@ state.orderLinkDraft = {
   manualEndDate: "",
   manualNotes: "",
   storeName: "",
+  logoUrl: "",
   slug: "",
   style: "classic",
   themeColor: "#2563EB",
@@ -909,6 +914,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) queue("securityScore", "/api/security/score", "securityScore");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
   if (state.route === "/dashboard/templates" && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
   if (state.route === "/dashboard/campaigns" && (force || state.campaignsOverview === null)) queue("campaignsOverview", "/api/campaigns", "campaignsOverview");
@@ -1507,6 +1513,28 @@ function articlePage() {
   const takeaways = localizedField(post.takeaways);
   const lead = post.lead ? localizedField(post.lead) : localizedCopy("في هذا الدليل ستجد خطوات عملية يمكنك تطبيقها مباشرة لبناء تجربة تجديد أوضح وأكثر أمانًا وقابلية للقياس.", "This guide gives you practical steps you can apply immediately to build a clearer, safer, and more measurable renewal experience.");
   return publicShell(`<main class="article-page"><section class="article-hero"><div class="container"><span class="badge">${post.category}</span><h1>${localizedField(post.title)}</h1><p>${localizedField(post.excerpt)}</p><small>${localizedField(post.date)} · ${localizedField(post.minutes)}</small></div></section><article class="container article-body"><img class="article-cover" src="${post.image}" alt="${escapeHtml(localizedField(post.title))}"><div class="article-content"><p class="article-lead">${lead}</p>${post.sections.map((section, index) => `<section><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${localizedField(section.heading)}</h2><p>${localizedField(section.body)}</p></div></section>`).join("")}<aside class="article-takeaways"><h2>${localizedCopy("خلاصة عملية", "Practical takeaways")}</h2><ul>${takeaways.map((item) => `<li>${item}</li>`).join("")}</ul></aside></div><div class="public-cta"><div><h2>${localizedCopy("طبّق هذه الخطوات في Renvix", "Put these steps into practice with Renvix")}</h2><p>${localizedCopy("ابدأ بإدارة تجديداتك من لوحة موحدة وآمنة.", "Manage renewals from one clear and secure workspace.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}</button></div></article></main>`);
+}
+
+function linkedDeviceById(deviceId) {
+  const devices = Array.isArray(state.linkedDevice?.devices) ? state.linkedDevice.devices : [];
+  return devices.find((item) => String(item.id) === String(deviceId)) || (String(state.linkedDevice?.id || "") === String(deviceId) ? state.linkedDevice : null);
+}
+
+async function refreshLinkedDevice(deviceId, { connectionTest = false } = {}) {
+  const device = linkedDeviceById(deviceId);
+  if (!device) throw new Error("تعذر العثور على الجهاز المطلوب.");
+  const provider = String(device.provider || "").toLowerCase();
+  if (["meta", "meta_cloud_api"].includes(provider)) {
+    await syncLinkedDevice();
+    return { status: device.status, provider, fromWebhook: true };
+  }
+  const payload = await fetchJson(`/api/whatsapp/instances/${encodeURIComponent(device.id)}/check`, {
+    method: "POST",
+    signal: AbortSignal.timeout(15_000),
+    timeoutMessage: connectionTest ? "استغرق فحص الاتصال وقتًا أطول من المتوقع." : "استغرقت مزامنة الجهاز وقتًا أطول من المتوقع."
+  });
+  await syncLinkedDevice();
+  return payload;
 }
 
 // Kept temporarily as a compatibility reference while the support center uses the functional implementation below.
@@ -2367,7 +2395,7 @@ function linkedAppsSection(connection, customIntegrations = []) {
       <div class="linked-app-actions"><button class="btn btn-secondary" data-action="preview-salla-connection">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-action="open-salla-settings">${dashboardIcon("settings")} تحرير</button></div>
     </article>`);
   }
-  customIntegrations.forEach((integration) => {
+  customIntegrations.slice(0, 1).forEach((integration) => {
     const ready = integration.status === "ACTIVE";
     entries.push(`<article class="linked-app-card">
       <span class="integration-logo integration-logo--api" aria-hidden="true">&lt;/&gt;</span>
@@ -3044,83 +3072,107 @@ function connectedDevicesCenterPage() {
     <section class="section section-tight health-and-safety"><article class="card table-card number-health-card"><div class="section-head"><div><h3>${t("linkedDevices.health")}</h3><p class="muted">${t("linkedDevices.safeSending")}</p></div><span class="health-score">${health ? 100 - Number(health.risk || 0) : 0}/100</span></div>${health ? `<div class="health-metrics"><span><small>${t("linkedDevices.messagesToday")}</small><strong>${health.messagesToday || 0}</strong></span><span><small>${t("linkedDevices.messagesHour")}</small><strong>${health.messagesHour || 0}</strong></span><span><small>${t("linkedDevices.failureRate")}</small><strong>${health.failureRate || 0}%</strong></span><span><small>${t("linkedDevices.unsubscribeCount")}</small><strong>${health.unsubscribeCount || 0}</strong></span><span><small>${t("linkedDevices.riskScore")}</small><strong>${health.risk || 0}/100</strong></span></div><div class="secure-note"><strong>${t("linkedDevices.smartAdvice")}:</strong> ${escapeHtml(health.advice || "")}</div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط الجهاز وافحص الاتصال لعرض مؤشرات الصحة.")}</article><article class="card table-card safe-mode-card"><h3>وضع الإرسال الآمن</h3>${stats.safeRules > 0 ? `<p><strong>${stats.safeRules}</strong> قواعد نشطة من قاعدة البيانات.</p><button class="btn btn-secondary" data-link="/dashboard/security">إدارة القواعد</button>` : emptyState("لا توجد قواعد إرسال آمن", "أضف قواعدك من صفحة الحماية.", "فتح الحماية", "/dashboard/security")}</article></section>`);
 }
 
-function devicesWorkspacePage() {
-  const device = { ...defaultLinkedDevice, ...state.linkedDevice };
-  const isMetaChannel = ["meta", "meta_cloud_api"].includes(String(device.provider || "").toLowerCase());
-  const isConnected = isMetaChannel && device.status === "connected";
-  const isPending = isMetaChannel && ["pending", "connecting", "pending_setup"].includes(device.status);
-  const accountCount = isMetaChannel ? 1 : 0;
-  const connectedCount = isConnected ? 1 : 0;
-  const pendingCount = isPending ? 1 : 0;
-  const lastCheck = device.lastCheckAt || device.lastHealthCheckAt || "";
-  const accountName = device.displayName || device.deviceName || "حساب واتساب الرسمي";
-  const phone = device.phoneNumber || "";
-  const activity = Array.isArray(device.activity) ? device.activity : [];
-  const metaConfigured = Boolean(window.__RENVIX_CONFIG__?.metaWhatsAppEnabled);
-  const requirements = [
-    ["حساب Meta Business", isConnected || isPending, isConnected || isPending ? "متصل" : "غير متصل"],
-    ["رقم واتساب رسمي", Boolean(phone), phone ? "تم التحقق" : "غير مضاف"],
-    ["صلاحيات API", isConnected, isConnected ? "مفعلة" : "غير مفعلة"],
-    ["Webhook", isConnected, isConnected ? "مفعل" : "غير مفعّل"],
-    ["حالة API", isConnected, isConnected ? "سليم" : "غير متاح"]
-  ];
-  const rows = accountCount ? [[
-    `<span class="meta-account-name">${dashboardIcon("whatsapp")}<strong>${escapeHtml(accountName)}</strong></span>`,
-    escapeHtml(phone || "غير متوفر"),
-    `<span class="status ${isConnected ? "success" : "warning"}">${isConnected ? "متصل" : "قيد الإعداد"}</span>`,
-    escapeHtml(lastCheck ? new Date(lastCheck).toLocaleString("ar-SA") : "لم تتم المزامنة بعد"),
-    Number(device.messages24h || 0).toLocaleString("ar-SA"),
-    `<div class="row-actions"><button class="btn btn-secondary" data-action="check-device-connection">متابعة</button><button class="icon-action" aria-label="المزيد">⋯</button></div>`
-  ]] : [];
+function deviceStatusView(device) {
+  if (device.requiresAttention || device.status === "error") return { key: "needs_attention", label: "يحتاج مراجعة", tone: "warning" };
+  if (["pending", "pending_qr", "pending_pairing", "connecting", "pending_setup"].includes(device.status)) return { key: "syncing", label: "قيد المزامنة", tone: "syncing" };
+  if (device.status === "connected") return { key: "connected", label: "متصل", tone: "connected" };
+  return { key: "disconnected", label: "غير متصل", tone: "disconnected" };
+}
 
-  return dashboardShell(`${pageTitle("الأجهزة", `<div class="inline-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">+ ربط حساب جديد</button><button class="btn btn-secondary" data-action="check-device-connection" ${!accountCount ? "disabled" : ""}>${dashboardIcon("reports")} مزامنة الحالة</button></div>`)}
-    <p class="page-kicker">إدارة وربط حسابات واتساب الرسمية عبر واجهة Meta Cloud API ومراقبة حالتها.</p>
-    <section class="meta-device-stats">
-      ${statGrid([
-        { title: "حالة التكامل", value: isConnected ? "سليم" : isPending ? "قيد الإعداد" : "غير مربوط", caption: isConnected ? "جميع الأنظمة تعمل بشكل طبيعي" : "اربط حساب Meta للبدء", tone: isConnected ? "success" : "neutral", icon: "security" },
-        { title: "القنوات النشطة", value: connectedCount, caption: "قنوات واتساب نشطة", tone: isConnected ? "info" : "neutral", icon: "reports" },
-        { title: "اتصالات قيد الإعداد", value: pendingCount, caption: pendingCount ? "بانتظار الإكمال" : "لا توجد اتصالات معلقة", tone: pendingCount ? "warning" : "neutral", icon: "template" },
-        { title: "الأرقام الرسمية المتصلة", value: connectedCount, caption: accountCount ? `من أصل ${accountCount}` : "لا توجد أرقام بعد", tone: isConnected ? "success" : "neutral", icon: "whatsapp" }
-      ])}
+function deviceRelativeTime(value) {
+  const time = new Date(value || 0).getTime();
+  if (!Number.isFinite(time) || time <= 0) return "لم تتم بعد";
+  const minutes = Math.max(0, Math.round((Date.now() - time) / 60_000));
+  if (minutes < 1) return "الآن";
+  if (minutes < 60) return `منذ ${minutes.toLocaleString("ar-SA")} دقيقة`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `منذ ${hours.toLocaleString("ar-SA")} ساعة`;
+  return new Date(time).toLocaleDateString("ar-SA", { day: "numeric", month: "short" });
+}
+
+function deviceProviderLabel(provider) {
+  return ["meta", "meta_cloud_api"].includes(String(provider || "").toLowerCase()) ? "واتساب الرسمي · Meta" : "واتساب الأعمال";
+}
+
+function deviceActivityPresentation(item) {
+  const type = String(item?.type || "");
+  const mapped = type.includes("failed") || type.includes("disconnect")
+    ? { tone: "error", icon: "notifications", title: "تعذر اتصال الجهاز" }
+    : type.includes("pending") || type.includes("created")
+      ? { tone: "warning", icon: "info", title: "الجهاز يحتاج متابعة" }
+      : type.includes("connected") || type.includes("succeeded")
+        ? { tone: "success", icon: "security", title: "تم تحديث اتصال الجهاز بنجاح" }
+        : { tone: "info", icon: "orderLink", title: "تم تحديث إعدادات الربط" };
+  return { ...mapped, title: /[\u0600-\u06FF]/.test(String(item?.title || "")) ? item.title : mapped.title };
+}
+
+function devicesWorkspacePage() {
+  const payload = { ...defaultLinkedDevice, ...state.linkedDevice };
+  const fallbackDevice = payload.id ? [payload] : [];
+  const devices = Array.isArray(payload.devices) ? payload.devices : fallbackDevice;
+  const search = String(state.deviceSearch || "").trim().toLocaleLowerCase("ar");
+  const filter = state.deviceStatusFilter || "all";
+  const visibleDevices = devices.filter((item) => {
+    const statusInfo = deviceStatusView(item);
+    const haystack = `${item.deviceName || ""} ${item.displayName || ""} ${item.phoneNumber || ""} ${deviceProviderLabel(item.provider)}`.toLocaleLowerCase("ar");
+    return (!search || haystack.includes(search)) && (filter === "all" || statusInfo.key === filter);
+  });
+  const total = devices.length;
+  const active = devices.filter((item) => deviceStatusView(item).key === "connected").length;
+  const syncing = devices.filter((item) => deviceStatusView(item).key === "syncing").length;
+  const attention = devices.filter((item) => ["needs_attention", "disconnected"].includes(deviceStatusView(item).key)).length;
+  const stabilityScore = total ? Math.round(((active + syncing * 0.5) / total) * 100) : 0;
+  const stabilityLabel = !total ? "غير متاح" : stabilityScore >= 90 ? "ممتاز" : stabilityScore >= 70 ? "جيد" : stabilityScore >= 50 ? "متوسط" : "يحتاج متابعة";
+  const activity = Array.isArray(payload.activity) ? payload.activity : [];
+  const activityLimit = state.deviceActivityExpanded ? 20 : 5;
+  const metaDevices = devices.filter((item) => ["meta", "meta_cloud_api"].includes(String(item.provider || "").toLowerCase()));
+  const metaConnected = metaDevices.some((item) => item.status === "connected");
+  const hasOfficialNumber = metaDevices.some((item) => Boolean(item.phoneNumber));
+  const metaConfigured = Boolean(window.__RENVIX_CONFIG__?.metaWhatsAppEnabled);
+  const hasOnlineDevice = active > 0;
+  const hasConnectionTest = devices.some((item) => Boolean(item.lastHealthCheckAt));
+  const readiness = [
+    ["حساب Meta Business متصل", metaDevices.length > 0, metaDevices.length ? "مكتمل" : "غير مكتمل"],
+    ["رقم واتساب رسمي معتمد", hasOfficialNumber, hasOfficialNumber ? "مكتمل" : "غير مكتمل"],
+    ["صلاحيات API مفعلة", metaConfigured && metaDevices.length > 0, metaConfigured ? "مكتمل" : "يحتاج متابعة"],
+    ["Webhook مكوّن بشكل صحيح", metaConnected, metaConnected ? "مكتمل" : "يحتاج متابعة"],
+    ["جهاز نشط ومشغّل", hasOnlineDevice, hasOnlineDevice ? "مكتمل" : "غير مكتمل"],
+    ["اختبار الاتصال ناجح", hasConnectionTest && hasOnlineDevice, hasConnectionTest && hasOnlineDevice ? "مكتمل" : "يحتاج متابعة"]
+  ];
+  const lastSuccessfulSync = devices.filter((item) => item.lastHealthCheckAt).sort((a, b) => new Date(b.lastHealthCheckAt) - new Date(a.lastHealthCheckAt))[0]?.lastHealthCheckAt;
+  const rows = visibleDevices.map((item) => {
+    const statusInfo = deviceStatusView(item);
+    const displayName = item.deviceName || item.displayName || "جهاز واتساب";
+    const account = item.displayName || item.phoneNumber || "حساب غير مسمى";
+    const iconName = /windows|mac|desktop|workstation|laptop/i.test(displayName) ? "reports" : "devices";
+    return `<tr>
+      <td><div class="devices-device-name"><span>${dashboardIcon(iconName)}</span><div><strong>${escapeHtml(displayName)}</strong><small>${escapeHtml(deviceProviderLabel(item.provider))}${item.isPrimary ? " · رئيسي" : ""}</small></div></div></td>
+      <td><div class="devices-account"><strong>${escapeHtml(account)}</strong><small>${escapeHtml(item.phoneNumber || deviceProviderLabel(item.provider))}</small></div></td>
+      <td><span class="device-state ${statusInfo.tone}"><i></i>${statusInfo.label}</span></td>
+      <td><span class="devices-sync-time">${escapeHtml(deviceRelativeTime(item.lastHealthCheckAt || item.updatedAt))}</span></td>
+      <td><div class="devices-row-actions"><button type="button" data-action="device-details" data-id="${item.id}">التفاصيل</button><button type="button" data-action="device-resync" data-id="${item.id}" aria-label="إعادة مزامنة ${escapeHtml(displayName)}">${dashboardIcon("reports")}</button><button type="button" data-action="device-details" data-id="${item.id}" aria-label="المزيد">•••</button></div></td>
+    </tr>`;
+  }).join("");
+
+  return dashboardShell(`<section class="devices-command-page">
+    <header class="devices-command-header"><div class="devices-command-title"><span>${dashboardIcon("devices")}</span><div><h1>الأجهزة</h1><p>إدارة أجهزتك المتصلة بمنصتك، والتحقق من حالة الاتصال ومزامنة البيانات.</p></div></div><div class="devices-header-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">${dashboardIcon("orderLink")} ربط جهاز جديد <b>+</b></button><button class="btn btn-secondary" data-action="device-sync-all" ${!total || state.deviceBulkSyncing ? "disabled" : ""}>${dashboardIcon("reports")} ${state.deviceBulkSyncing ? "جاري المزامنة..." : "مزامنة الحالة"}</button><button class="btn btn-secondary" data-action="device-connection-test" ${!total ? "disabled" : ""}>${dashboardIcon("security")} فحص الاتصال</button></div></header>
+    <section class="devices-overview-grid">
+      <article class="devices-overview-card info"><span>${dashboardIcon("devices")}</span><div><small>إجمالي الأجهزة</small><strong>${total.toLocaleString("ar-SA")}</strong><em>مرتبطة بحسابك</em></div></article>
+      <article class="devices-overview-card active"><span>${dashboardIcon("reports")}</span><div><small>الأجهزة النشطة</small><strong>${active.toLocaleString("ar-SA")}</strong><em>من أصل ${total.toLocaleString("ar-SA")} جهاز</em></div></article>
+      <article class="devices-overview-card attention"><span>${dashboardIcon("notifications")}</span><div><small>أجهزة تحتاج اهتمام</small><strong>${attention.toLocaleString("ar-SA")}</strong><em>${attention ? "تحتاج مراجعة" : "لا توجد تنبيهات"}</em></div></article>
+      <article class="devices-overview-card stability"><span>${dashboardIcon("security")}</span><div><small>مستوى الاستقرار</small><strong>${stabilityLabel}</strong><em>${total ? `${stabilityScore.toLocaleString("ar-SA")}% خلال آخر 24 ساعة` : "اربط جهازًا لبدء القياس"}</em></div></article>
     </section>
-    <section class="meta-devices-layout">
-      <div class="meta-devices-main">
-        <article class="card meta-connect-card">
-          <div class="section-head"><div><h2>${dashboardIcon("whatsapp")} ربط حساب واتساب الرسمي</h2><p>اربط حساب واتساب التجاري الرسمي الخاص بك عبر Meta Business بشكل آمن ومعتمد.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="connect-meta-whatsapp">+ ربط حساب جديد</button><button class="btn btn-secondary" data-action="check-device-connection" ${!accountCount ? "disabled" : ""}>مزامنة الحالة</button></div></div>
-          <div class="meta-setup-steps">
-            ${[
-              ["1", "اختيار الحساب التجاري", "اختر حساب Meta Business وWhatsApp Manager.", isConnected || isPending],
-              ["2", "ربط الرقم", "اختر رقم واتساب رسميًا ومعتمدًا.", Boolean(phone)],
-              ["3", "إعداد Webhook", "تسجيل Webhook واستقبال الأحداث والرسائل.", isConnected],
-              ["4", "تأكيد الحالة", "فحص الصلاحيات وتفعيل القناة في مساحة عملك.", isConnected]
-            ].map(([number, title, description, complete]) => `<div class="${complete ? "complete" : ""}"><span>${complete ? "✓" : number}</span><strong>${title}</strong><small>${description}</small><em>${complete ? "مكتمل" : "بانتظار الإعداد"}</em></div>`).join("")}
-          </div>
-          ${!metaConfigured && !accountCount ? `<div class="meta-config-note">${dashboardIcon("notifications")}<div><strong>الربط الرسمي غير مهيأ بعد</strong><p>يجب أن يضبط مسؤول المنصة بيانات تطبيق Meta وCallback الآمن قبل بدء الربط. لن تُعرض جلسات QR أو بيانات تجريبية بديلة.</p></div></div>` : ""}
-        </article>
-        <article class="card meta-accounts-card">
-          <div class="section-head"><div><h2>الحسابات المتصلة <span>${accountCount}</span></h2><p>الحسابات الرسمية المسجلة فعليًا في مساحة عملك.</p></div></div>
-          ${rows.length ? simpleTable(["الاسم المعروض", "رقم العمل", "النوع", "آخر مزامنة", "الأحداث (24 ساعة)", "الإجراءات"], rows) : emptyState("لا توجد حسابات واتساب رسمية مرتبطة", "ابدأ بربط حساب Meta Business. ستظهر الحسابات هنا بعد اكتمال التفويض والتحقق من Webhook.")}
-        </article>
-      </div>
-      <aside class="meta-devices-side">
-        <article class="card meta-requirements-card">
-          <div class="section-head"><div><h2>متطلبات ربط واتساب الرسمي</h2><p>حالة كل متطلب مأخوذة من إعداد القناة الفعلي.</p></div><span class="status ${isConnected ? "success" : "neutral"}">${isConnected ? "جاهز" : "غير مكتمل"}</span></div>
-          <div class="meta-requirements-list">${requirements.map(([label, complete, value]) => `<div><span class="${complete ? "complete" : ""}">${complete ? "✓" : "•"}</span><strong>${label}</strong><em>${value}</em></div>`).join("")}</div>
-          <button class="btn btn-secondary" data-action="connect-meta-whatsapp">فتح دليل الربط الإرشادي</button>
-        </article>
-        <article class="card meta-important-card">
-          <div class="section-head"><div><h2>${dashboardIcon("notifications")} معلومات مهمة</h2></div></div>
-          <ul>
-            <li>يجب أن يكون رقم واتساب غير مستخدم في تطبيق واتساب العادي عند بدء الربط الرسمي.</li>
-            <li>لا تُحفظ مفاتيح Meta كنص صريح داخل قاعدة البيانات أو الواجهة.</li>
-            <li>يتم التحقق من توقيع Webhook قبل قبول أي حدث.</li>
-            <li>تعتمد حالة الرسالة على تأكيد Meta الفعلي، ولا تُعرض «تم التسليم» قبل وصول الإيصال.</li>
-          </ul>
-          <button class="btn btn-link" data-action="connect-meta-whatsapp">قراءة المزيد من التعليمات</button>
-        </article>
-        ${activity.length ? `<article class="card"><h2>آخر النشاطات</h2><div class="activity-list">${activity.slice(0, 5).map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(typeof item === "string" ? item : item.title || "نشاط واتساب")}</strong><p class="muted">${escapeHtml(typeof item === "object" ? item.createdAt || "" : "")}</p></div></div>`).join("")}</div></article>` : ""}
+    <section class="devices-command-layout">
+      <aside class="devices-command-side">
+        <article class="card devices-readiness-card"><div class="devices-card-heading"><span>${dashboardIcon("orderLink")}</span><div><h2>جاهزية الربط</h2><p>تحقق من جاهزية الإعدادات للربط والاستقبال.</p></div></div><div class="devices-readiness-list">${readiness.map(([label, complete, value]) => `<div class="${complete ? "complete" : "pending"}"><span>${complete ? "✓" : ""}</span><strong>${label}</strong><em>${value}</em></div>`).join("")}</div><button class="devices-card-link" data-link="/dashboard/apps">${dashboardIcon("settings")} إدارة الإعدادات <b>‹</b></button></article>
+        <article class="card devices-important-card"><div class="devices-card-heading"><span>${dashboardIcon("info")}</span><div><h2>معلومات مهمة</h2></div></div><ul><li>تأكد من بقاء الجهاز متصلًا بالإنترنت.</li><li>تجنب تسجيل الخروج من حساب واتساب الأعمال.</li><li>عند حدوث مشاكل، أعد مزامنة الجهاز أو اختبر الاتصال.</li><li>سيتم إشعارك في حال انقطاع أي جهاز.</li></ul><button class="devices-card-link" data-link="/support">${dashboardIcon("helpBook")} قراءة المزيد من التعليمات <b>‹</b></button></article>
       </aside>
-    </section>`);
+      <div class="devices-command-main">
+        <article class="card devices-table-card-v2"><div class="devices-card-heading devices-table-heading"><span>${dashboardIcon("devices")}</span><div><h2>إدارة الأجهزة المتصلة</h2><p>قائمة بجميع الأجهزة المرتبطة بحسابك وحالة اتصالها.</p></div></div><div class="devices-table-tools"><label>${dashboardIcon("reports")}<input value="${escapeHtml(state.deviceSearch || "")}" data-action="device-search" placeholder="ابحث عن جهاز..."></label><label class="devices-filter-control">${dashboardIcon("settings")}<select data-action="device-status-filter"><option value="all" ${filter === "all" ? "selected" : ""}>تصفية: الكل</option><option value="connected" ${filter === "connected" ? "selected" : ""}>متصل</option><option value="syncing" ${filter === "syncing" ? "selected" : ""}>قيد المزامنة</option><option value="disconnected" ${filter === "disconnected" ? "selected" : ""}>غير متصل</option><option value="needs_attention" ${filter === "needs_attention" ? "selected" : ""}>يحتاج مراجعة</option></select></label></div><div class="devices-table-scroll"><table><thead><tr><th>اسم الجهاز</th><th>الحساب / القناة</th><th>حالة الاتصال</th><th>آخر مزامنة</th><th>الإجراءات</th></tr></thead><tbody>${rows || `<tr><td colspan="5"><div class="devices-empty-state">${dashboardIcon("devices")}<strong>${devices.length ? "لا توجد أجهزة مطابقة" : "لا توجد أجهزة مرتبطة حتى الآن"}</strong><p>${devices.length ? "غيّر البحث أو عامل التصفية." : "اربط أول جهاز لتظهر حالته وسجل نشاطه هنا."}</p></div></td></tr>`}</tbody></table></div><footer class="devices-table-summary">${dashboardIcon("info")}<span>إجمالي الأجهزة المتصلة الآن: <strong>${active.toLocaleString("ar-SA")} من أصل ${total.toLocaleString("ar-SA")} جهاز</strong>${lastSuccessfulSync ? ` · آخر مزامنة ناجحة: <strong>${escapeHtml(deviceRelativeTime(lastSuccessfulSync))}</strong>` : ""}</span></footer></article>
+        <article class="card devices-activity-card"><div class="devices-card-heading"><span>${dashboardIcon("template")}</span><div><h2>سجل النشاط الأخير</h2><p>آخر العمليات المرتبطة بأجهزتك.</p></div></div><div class="devices-activity-list">${activity.length ? activity.slice(0, activityLimit).map((item) => { const presentation = deviceActivityPresentation(item); return `<div class="${presentation.tone}"><span>${dashboardIcon(presentation.icon)}</span><div><strong>${escapeHtml(presentation.title)}</strong><small>${escapeHtml(item.deviceName || "تحديث على إعدادات الربط")}</small></div><time>${escapeHtml(deviceRelativeTime(item.createdAt))}</time></div>`; }).join("") : `<div class="devices-empty-activity">${dashboardIcon("template")}<strong>لا يوجد نشاط مسجل بعد</strong><p>ستظهر عمليات الربط والمزامنة وفحص الاتصال هنا.</p></div>`}</div>${activity.length > 5 ? `<button class="devices-card-link devices-activity-more" data-action="device-activity-toggle">${state.deviceActivityExpanded ? "عرض الأحدث فقط" : "عرض جميع السجلات"} <b>‹</b></button>` : ""}</article>
+      </div>
+    </section>
+  </section>`);
 }
 
 const localDefaultEmailTemplate = {
@@ -3142,6 +3194,28 @@ function templatePreviewValue(value) {
   return String(value || "");
 }
 
+function safeStoreLogoUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function storeLogoImage(value, className = "store-logo-image", alt = "صورة المتجر") {
+  const url = safeStoreLogoUrl(value);
+  return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : dashboardIcon("orderLink");
+}
+
+function storeLogoEditor(value) {
+  const url = safeStoreLogoUrl(value);
+  return `<section class="store-logo-editor">
+    <span class="store-logo-editor-preview">${storeLogoImage(url)}</span>
+    <div><strong>صورة المتجر</strong><small>تظهر في قالب البريد وصفحة معلومات الطلب.</small><div class="inline-actions"><input type="file" accept="image/png,image/jpeg,image/webp" data-action="store-logo-file" hidden><button type="button" class="btn btn-secondary" data-action="choose-store-logo">${dashboardIcon("upload")} ${url ? "استبدال الصورة" : "رفع صورة"}</button>${url ? `<button type="button" class="btn btn-ghost danger-text" data-action="remove-store-logo">حذف الصورة</button>` : ""}</div><em>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</em></div>
+  </section>`;
+}
+
 function emailTemplatePreview(template) {
   const theme = safeEmailTheme(template.themeColor);
   const storeName = templatePreviewValue(template.storeName || "{{اسم_المتجر}}");
@@ -3149,9 +3223,10 @@ function emailTemplatePreview(template) {
   const content = templatePreviewValue(template.body || localDefaultEmailTemplate.body);
   const buttonLabel = templatePreviewValue(template.buttonLabel || localDefaultEmailTemplate.buttonLabel);
   const footerText = templatePreviewValue(template.footerText || localDefaultEmailTemplate.footerText);
+  const storeLogoUrl = safeStoreLogoUrl(template.storeImageUrl || state.orderLinkProfile?.logoUrl);
   const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
   return `<div class="email-envelope" style="--email-theme:${theme}">
-    <div class="email-preview-brand"><span class="email-store-icon"><img src="/assets/renvix-mark.webp" width="327" height="342" alt="Renvix"></span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
+    <div class="email-preview-brand"><span class="email-store-icon">${storeLogoImage(storeLogoUrl, "email-store-logo", storeName)}</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
     <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">${dashboardIcon("security")} بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♥</p></div>
     <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
   </div>`;
@@ -3164,6 +3239,7 @@ function readEmailTemplateForm(form = document.querySelector("form[data-submit='
     name: data.name || "",
     channel: "email",
     storeName: data.storeName || document.querySelector("[data-email-field][name='storeName']")?.value || "",
+    storeImageUrl: state.orderLinkProfile?.logoUrl || "",
     title: data.title || document.querySelector("[data-email-field][name='title']")?.value || "",
     themeColor: safeEmailTheme(data.themeColor || state.emailThemeColor),
     body: data.body || "",
@@ -3185,7 +3261,7 @@ function templateCatalogItems() {
     renewal_whatsapp: { channel: "whatsapp", name: "قالب رسالة التجديد - واتساب", description: "قالب لإشعار العميل بانتهاء اشتراكه وتشجيعه على التجديد عبر واتساب." }
   };
   const templates = Array.isArray(state.catalogTemplates) ? state.catalogTemplates : [];
-  return Object.entries(definitions).map(([key, definition]) => {
+  const catalogItems = Object.entries(definitions).map(([key, definition]) => {
     const item = templates.find((template) => template.templateKey === key);
     return item ? {
       ...item,
@@ -3197,6 +3273,20 @@ function templateCatalogItems() {
       templateVersion: item.templateVersion || 1
     } : null;
   }).filter(Boolean);
+  const renewalTemplates = Array.isArray(state.notificationTemplate?.templates) ? state.notificationTemplate.templates : [];
+  const renewalEmail = renewalTemplates.find((template) => template.channel === "email");
+  if (renewalEmail) {
+    catalogItems.push({
+      ...renewalEmail,
+      key: "renewal_email",
+      kind: "renewal",
+      channel: "email",
+      name: "قالب رسالة التجديد - البريد الإلكتروني",
+      description: "قالب بريد احترافي لتذكير العميل بالتجديد مع هوية وصورة المتجر.",
+      templateVersion: renewalEmail.templateVersion || 1
+    });
+  }
+  return catalogItems;
 }
 
 function templateChannelLabel(channel) {
@@ -3342,6 +3432,7 @@ function templatesCatalogPage() {
     return metaTemplateEditorPage(template);
   }
   if (editorKey === "renewal_whatsapp") return renewalTemplateEditorPageV2("whatsapp");
+  if (editorKey === "renewal_email") return renewalTemplateEditorPageV2("email");
   if (editorKey === "email_delivery") return catalogTemplateEditorPage(editorKey);
 
   const loading = state.catalogTemplates === null || state.metaTemplates === null;
@@ -3464,7 +3555,7 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
   const colors = ["#0EA5A8", "#2563EB", "#7C3AED", "#22C55E", "#F97316", "#64748B"];
   const variables = ["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{days_remaining}}", "{{renewal_link}}", "{{store_name}}"];
   return dashboardShell(`${pageTitle("قالب البريد الإلكتروني للتجديد", backButton)}<p class="page-kicker">تم إعداد هذا البريد لإرسال تذكيرات التجديد للعملاء قبل انتهاء اشتراكاتهم.</p>
-    <section class="template-editor-v2 template-editor-v2-email"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">خصّص ألوان القالب وهوية المتجر.</p><div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div><label class="field"><span>اسم المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>اسم المتجر في الرسالة</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}" required></label><label class="field"><span>موضوع الرسالة</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}" required></label><div class="email-settings-hint">عنوان المرسل موثّق ولا يمكن تعديله من القالب.</div></article>
+    <section class="template-editor-v2 template-editor-v2-email"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">خصّص ألوان القالب وهوية المتجر.</p><div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div><label class="field"><span>اسم المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>اسم المتجر في الرسالة</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}" required></label><label class="field"><span>موضوع الرسالة</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}" required></label>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}<div class="email-settings-hint">عنوان المرسل موثّق ولا يمكن تعديله من القالب.</div></article>
       <article class="card template-editor-card-v2 email-editor-v2"><form data-submit="renewal-template" class="grid"><div class="template-editor-meta-v2"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "قالب البريد الإلكتروني للتجديد")}" required></label>${channelSelect}</div><div class="editor-toolbar"><button type="button">↶</button><button type="button">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>محرر الرسالة</span></div><textarea class="textarea template-editor email-content-editor" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body || "")}</textarea><div class="variables-row email-variables"><span>المتغيرات المتاحة</span>${variableButtons(variables)}</div><div class="template-meta-grid"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel || "جدد اشتراكك الآن")}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText || "شكرًا لثقتك بنا")}" required></label></div>${reminderSettings}<div class="template-editor-v2-footer"><span class="muted">عنوان المرسل ثابت: Renvix &lt;noreply@notify.renvix.app&gt;</span><div class="template-actions"><button class="btn btn-primary">حفظ القالب ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="test-template">إرسال رسالة تجريبية ${dashboardIcon("send")}</button></div></div></form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>معاينة حقيقية لمحتوى البريد المرسل.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span>الموضوع: ${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}</span></div><div data-email-preview>${emailTemplatePreview(template)}</div></article></aside></section>`);
 }
 
@@ -3502,6 +3593,7 @@ function renewalTemplateEditorPage(forcedChannel = "") {
       <article class="card template-editor-card email-template-editor"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر بريد آمن مع متغيرات معتمدة ومعاينة مطابقة للقالب المرسل.</p></div>${dashboardIcon("template")}</div>
         <form data-submit="renewal-template" class="grid">
           <div class="email-template-meta"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName)}" required></label>${channelSelect}</div>
+          ${storeLogoEditor(state.orderLinkProfile?.logoUrl)}
           <label class="field"><span>عنوان البريد</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title)}" required></label>
           <div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div>
           <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص آمن</span></div>
@@ -3544,6 +3636,7 @@ function hydrateOrderLinkDraft() {
     ...state.orderLinkDraft,
     hydrated: true,
     storeName: defaultTemplate?.storeName || profile.storeName || "",
+    logoUrl: profile.logoUrl || "",
     slug: profile.slug || "",
     style: defaultTemplate?.style || profile.defaultTemplateStyle || "classic",
     themeColor: safeOrderLinkColor(defaultTemplate?.themeColor || profile.defaultThemeColor),
@@ -3624,7 +3717,7 @@ function orderInfoPreviewCard(subscription, draft, publicData = null) {
     }).join("")}</section>`;
   }
   const order = publicData?.order || subscription;
-  const store = publicData?.store || { name: draft.storeName };
+  const store = publicData?.store || { name: draft.storeName, logoUrl: draft.logoUrl };
   const template = publicData?.template || draft;
   if (!order) return emptyState("لا توجد معاينة بعد", "اختر اشتراكًا أو أدخل معلومات الطلب يدويًا.");
   const remaining = publicData?.order?.remaining || clientRemaining(order.endDate);
@@ -3639,7 +3732,7 @@ function orderInfoPreviewCard(subscription, draft, publicData = null) {
   const subscriptionStatus = order.status === "active" ? "نشط" : order.status === "expiring_soon" ? "ينتهي قريبًا" : order.status === "expired" ? "منتهي" : order.status || "غير محدد";
   return `<article class="order-customer-card order-style-${escapeHtml(template.style || "classic")} ${order.isPlaceholder ? "is-placeholder" : ""}" style="--order-theme:${themeColor}">
     <div class="order-card-accent"></div>
-    <div class="order-card-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
+    <div class="order-card-brand"><span class="order-bag ${safeStoreLogoUrl(store.logoUrl || draft.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(store.logoUrl || draft.logoUrl, "order-store-logo", store.name || draft.storeName)}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
     <div class="order-number-row"><span>رقم الطلب</span><strong>#${escapeHtml(orderNumber)}</strong>${status(subscriptionStatus)}</div>
     <div class="order-information-grid">
       ${visible.customerName !== false ? `<div>${dashboardIcon("customers")}<span>اسم العميل</span><strong>${escapeHtml(customerName)}</strong></div>` : ""}
@@ -3662,7 +3755,7 @@ function orderLookupPreviewCard(draft) {
   const storeName = draft.storeName?.trim() || "اسم متجرك";
   return `<article class="order-lookup-preview order-style-${escapeHtml(draft.style || "classic")}" style="--order-theme:${themeColor}">
     <div class="order-lookup-accent"></div>
-    <div class="order-lookup-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(storeName)}</h2><p>مرحبًا بك في صفحة متابعة طلبك</p></div></div>
+    <div class="order-lookup-brand"><span class="order-bag ${safeStoreLogoUrl(draft.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(draft.logoUrl, "order-store-logo", storeName)}</span><div><h2>${escapeHtml(storeName)}</h2><p>مرحبًا بك في صفحة متابعة طلبك</p></div></div>
     <div class="order-lookup-content">
       <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
       <h3>أدخل رقم الطلب</h3>
@@ -3681,7 +3774,7 @@ function publicOrderLookupCard(presentation, orderNumber = "") {
   const themeColor = safeOrderLinkColor(template.themeColor);
   return `<article class="order-lookup-preview public-order-lookup-card order-style-${escapeHtml(template.style || "classic")}" style="--order-theme:${themeColor}">
     <div class="order-lookup-accent"></div>
-    <div class="order-lookup-brand"><span class="order-bag">${dashboardIcon("orderLink")}</span><div><h2>${escapeHtml(store.name || "معلومات الطلب")}</h2><p>${escapeHtml(template.headerText || "مرحبًا بك في صفحة متابعة طلبك")}</p></div></div>
+    <div class="order-lookup-brand"><span class="order-bag ${safeStoreLogoUrl(store.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(store.logoUrl, "order-store-logo", store.name || "معلومات الطلب")}</span><div><h2>${escapeHtml(store.name || "معلومات الطلب")}</h2><p>${escapeHtml(template.headerText || "مرحبًا بك في صفحة متابعة طلبك")}</p></div></div>
     <form class="order-lookup-content" data-submit="public-order-search">
       <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
       <h3>أدخل رقم الطلب</h3>
@@ -3778,6 +3871,7 @@ function orderLinksWorkspacePage() {
           <div class="order-profile-grid">
             <label class="field"><span>اسم القالب</span><input class="input" name="templateName" data-order-field="templateName" value="${escapeHtml(draft.templateName)}" placeholder="قالب معلومات الطلب"></label>
             <label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-order-field="storeName" value="${escapeHtml(draft.storeName)}" required></label>
+            <div class="order-store-logo-field">${storeLogoEditor(draft.logoUrl || profile.logoUrl)}</div>
             <label class="field"><span>رابط المتجر المخصص</span><div class="slug-input"><span>/o/</span><input class="input" name="slug" data-order-field="slug" value="${escapeHtml(draft.slug || profile.slug || "")}" pattern="[a-z0-9-]+"></div><small>حروف إنجليزية صغيرة وأرقام وشرطات فقط.</small></label>
             ${draft.sourceMode === "existing" ? `<label class="field"><span>اختيار الطلب / الاشتراك</span><select class="select" name="subscriptionId" data-order-field="subscriptionId"><option value="">اختر اشتراكًا حقيقيًا</option>${subscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customerName)} · ${escapeHtml(item.planName)}</option>`).join("")}</select></label>` : ""}
             ${draft.sourceMode !== "existing" ? `<label class="field"><span>اختيار العميل</span><select class="select" name="customerId" data-order-field="customerId"><option value="">اختر عميلًا من قاعدة البيانات</option>${customers.map((item) => `<option value="${item.id}" ${item.id === draft.customerId ? "selected" : ""}>${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ""}</option>`).join("")}</select><small>${customers.length ? "اختر العميل الذي سيظهر في صفحة الطلب." : "لا يوجد عملاء بعد. أضف العميل أولًا ثم أكمل."}</small></label>` : ""}
@@ -4404,6 +4498,7 @@ async function persistOrderLinkDraft() {
     body: JSON.stringify({
       storeName: draft.storeName,
       slug: draft.slug,
+      logoUrl: draft.logoUrl || null,
       defaultTemplateStyle: draft.style,
       defaultThemeColor: draft.themeColor,
       isActive: true
@@ -5079,6 +5174,27 @@ async function handleAction(target) {
   }
   if (action === "copy-order-number") await copyText(target.dataset.value, "تم نسخ رقم الطلب");
   if (action === "choose-avatar") document.querySelector('[data-action="avatar-file"]')?.click();
+  if (action === "choose-store-logo") {
+    document.querySelector('[data-action="store-logo-file"]')?.click();
+    return;
+  }
+  if (action === "remove-store-logo") {
+    openModal("حذف صورة المتجر", "<p>ستُزال الصورة من قالب البريد وصفحة معلومات الطلب، مع بقاء اسم المتجر وبقية الإعدادات كما هي.</p>", '<button class="btn btn-danger" data-action="confirm-remove-store-logo">حذف الصورة</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
+    return;
+  }
+  if (action === "confirm-remove-store-logo") {
+    try {
+      await fetchJson("/api/order-link/profile/logo", { method: "DELETE" });
+      closePortal();
+      state.orderLinkProfile = { ...(state.orderLinkProfile || {}), logoUrl: null };
+      state.orderLinkDraft.logoUrl = "";
+      render();
+      appToast.success("تم حذف صورة المتجر", { description: "ستُستخدم هوية المتجر النصية بدل الصورة.", id: "store-logo-removed" });
+    } catch (error) {
+      appToast.error("تعذر حذف صورة المتجر", { description: error.message || "حاول مرة أخرى بعد قليل.", id: "store-logo-remove-error" });
+    }
+    return;
+  }
   if (action === "remove-avatar") {
     return openModal("حذف صورة الحساب", "<p>ستعود أيقونة الحساب إلى الحرف الأول من اسمك.</p>", '<button class="btn btn-danger" data-action="confirm-remove-avatar">حذف الصورة</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
   }
@@ -5610,6 +5726,51 @@ async function handleAction(target) {
     state.linkedDevice = { ...state.linkedDevice, linkMethod: target.dataset.method };
     render();
   }
+  if (action === "device-details") {
+    const device = linkedDeviceById(target.dataset.id);
+    if (!device) return toast("تعذر العثور على الجهاز المطلوب.", "danger");
+    const statusInfo = deviceStatusView(device);
+    return openModal("تفاصيل الجهاز", `<div class="device-details-modal"><div class="devices-device-name"><span>${dashboardIcon("devices")}</span><div><strong>${escapeHtml(device.deviceName || device.displayName || "جهاز واتساب")}</strong><small>${escapeHtml(deviceProviderLabel(device.provider))}</small></div></div><dl><div><dt>الحساب / القناة</dt><dd>${escapeHtml(device.displayName || device.phoneNumber || "غير مسمى")}</dd></div><div><dt>حالة الاتصال</dt><dd><span class="device-state ${statusInfo.tone}"><i></i>${statusInfo.label}</span></dd></div><div><dt>آخر مزامنة</dt><dd>${escapeHtml(deviceRelativeTime(device.lastHealthCheckAt || device.updatedAt))}</dd></div><div><dt>آخر إرسال</dt><dd>${escapeHtml(deviceRelativeTime(device.lastSendAt))}</dd></div>${device.lastError ? `<div class="device-detail-warning"><dt>آخر تنبيه</dt><dd>${escapeHtml(device.lastError)}</dd></div>` : ""}</dl></div>`, `<button class="btn btn-primary" data-action="device-resync" data-id="${device.id}">إعادة المزامنة</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
+  }
+  if (action === "device-resync") {
+    try {
+      await refreshLinkedDevice(target.dataset.id);
+      closePortal();
+      toast("تمت مزامنة حالة الجهاز بنجاح.", "success");
+      render();
+    } catch (error) { toast(error.message || "تعذر مزامنة الجهاز.", "danger"); }
+    return;
+  }
+  if (action === "device-sync-all") {
+    const devices = Array.isArray(state.linkedDevice?.devices) ? state.linkedDevice.devices : [];
+    if (!devices.length) return toast("لا توجد أجهزة مرتبطة لمزامنتها.", "warning");
+    state.deviceBulkSyncing = true;
+    render();
+    const results = await Promise.allSettled(devices.map((item) => refreshLinkedDevice(item.id)));
+    state.deviceBulkSyncing = false;
+    await syncLinkedDevice();
+    const succeeded = results.filter((item) => item.status === "fulfilled").length;
+    toast(succeeded === devices.length ? "تمت مزامنة حالة جميع الأجهزة." : `اكتملت مزامنة ${succeeded.toLocaleString("ar-SA")} من ${devices.length.toLocaleString("ar-SA")} أجهزة.`, succeeded ? "success" : "danger");
+    render();
+    return;
+  }
+  if (action === "device-connection-test") {
+    const devices = Array.isArray(state.linkedDevice?.devices) ? state.linkedDevice.devices : [];
+    const candidate = devices.find((item) => item.status === "connected") || devices[0];
+    if (!candidate) return toast("اربط جهازًا أولًا لبدء فحص الاتصال.", "warning");
+    try {
+      const result = await refreshLinkedDevice(candidate.id, { connectionTest: true });
+      const connected = result.status === "connected";
+      toast(result.fromWebhook ? "تم التحقق من آخر حالة مسجلة عبر Meta Webhook." : connected ? "اختبار الاتصال ناجح والجهاز متصل." : "اكتمل الفحص والجهاز غير متصل حاليًا.", connected ? "success" : "warning");
+      render();
+    } catch (error) { toast(error.message || "فشل اختبار الاتصال.", "danger"); }
+    return;
+  }
+  if (action === "device-activity-toggle") {
+    state.deviceActivityExpanded = !state.deviceActivityExpanded;
+    render();
+    return;
+  }
   if (action === "connect-meta-whatsapp") {
     const connectUrl = window.__RENVIX_CONFIG__?.metaWhatsAppConnectUrl;
     if (connectUrl) {
@@ -6044,16 +6205,28 @@ async function handleSubmit(form, event) {
     }
     return;
   }
-  if (type === "custom-integration") {
+  if (["custom-integration", "custom-integration-update"].includes(type)) {
     const button = form.querySelector("button[type='submit']");
     const formData = new FormData(form);
     const scopes = formData.getAll("scopes");
-    setSubmitBusy(button, true, "جاري إنشاء التكامل...");
+    const updating = type === "custom-integration-update";
+    setSubmitBusy(button, true, updating ? "جاري حفظ التغييرات..." : "جاري إنشاء التكامل...");
     try {
-      const payload = await fetchJson("/api/integrations/custom", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const endpoint = updating
+        ? `/api/integrations/custom/${encodeURIComponent(form.dataset.integrationId)}`
+        : "/api/integrations/custom";
+      const payload = await fetchJson(endpoint, {
+        method: updating ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: data.name, description: data.description, environment: data.environment, direction: data.direction, scopes })
       });
+      if (updating) {
+        state.customIntegrationDraft = null;
+        state.customIntegrations = null;
+        await navigate(CUSTOM_API_BASE, { sessionVerified: true });
+        await syncRouteData(true);
+        appToast.success("تم تحديث التكامل", { description: "حُفظت التغييرات على التكامل الحالي دون إنشاء نسخة جديدة.", id: "custom-integration-updated" });
+        return;
+      }
       if (!payload.apiKey || !payload.item?.id) {
         throw new Error("تم حفظ التكامل لكن لم يصل المفتاح إلى الصفحة. أعد المحاولة قبل مغادرتها.");
       }
@@ -6098,8 +6271,8 @@ async function handleSubmit(form, event) {
       void syncRouteData(true);
       appToast.success("تم إنشاء التكامل", { description: "انسخ مفتاح API الآن؛ لن يظهر كاملًا مرة أخرى.", id: "custom-integration-created" });
     } catch (error) {
-      appToast.error("تعذر إنشاء التكامل", { description: error.message || "تحقق من الإعدادات السرية وقاعدة البيانات.", id: "custom-integration-error" });
-      setSubmitBusy(button, false, "إنشاء التكامل والمفتاح");
+      appToast.error(updating ? "تعذر تحديث التكامل" : "تعذر إنشاء التكامل", { description: error.message || "تحقق من الإعدادات السرية وقاعدة البيانات.", id: "custom-integration-error" });
+      setSubmitBusy(button, false, updating ? "حفظ التغييرات" : "إنشاء التكامل والمفتاح");
     }
     return;
   }
@@ -7183,15 +7356,14 @@ function customApiKeyManagement(item) {
     ? state.customIntegrationSecret.value
     : "";
   const activeKeys = keys.filter((key) => !key.revokedAt && String(key.status || "ACTIVE").toUpperCase() !== "REVOKED");
-  const keyRows = keys.length
+  const keyRows = activeKeys.length
     ? `<div class="capi-managed-keys">
-        <div class="capi-managed-keys-head"><strong>المفاتيح المنشأة</strong><span>${activeKeys.length} نشط</span></div>
-        ${keys.map((key) => {
-          const revoked = Boolean(key.revokedAt) || String(key.status || "").toUpperCase() === "REVOKED";
-          return `<article class="capi-managed-key ${revoked ? "is-revoked" : ""}">
+        <div class="capi-managed-keys-head"><strong>المفتاح الحالي</strong><span>واحد نشط</span></div>
+        ${activeKeys.slice(0, 1).map((key) => {
+          return `<article class="capi-managed-key">
             <div><strong>${escapeHtml(key.name || "مفتاح API")}</strong><code dir="ltr">${escapeHtml(key.prefix || item.latestKeyPrefix || "rvx_")}••••••••••••</code><small>أُنشئ ${customApiDate(key.createdAt)}</small></div>
-            <span class="status ${revoked ? "neutral" : "success"}">${revoked ? "ملغى" : "نشط"}</span>
-            ${revoked ? "" : `<button class="btn btn-danger btn-compact" data-action="revoke-custom-key" data-integration-id="${escapeHtml(item.id)}" data-key-id="${escapeHtml(key.id)}">${dashboardIcon("delete")} إلغاء المفتاح</button>`}
+            <span class="status success">نشط</span>
+            <button class="btn btn-danger btn-compact" data-action="revoke-custom-key" data-integration-id="${escapeHtml(item.id)}" data-key-id="${escapeHtml(key.id)}">${dashboardIcon("delete")} إلغاء المفتاح</button>
           </article>`;
         }).join("")}
       </div>`
@@ -7207,7 +7379,7 @@ function customApiKeyManagement(item) {
       <button class="btn btn-secondary btn-compact" data-action="dismiss-custom-secret">تم الحفظ وإخفاء المفتاح</button>
     </section>` : ""}
     ${item?.latestKeyPrefix ? `<div class="capi-resource-value"><code dir="ltr">${escapeHtml(item.latestKeyPrefix)}••••••••••••</code><span class="status success">نشط</span></div>` : ""}
-    <div class="capi-card-actions"><button class="btn btn-secondary" data-action="rotate-custom-key" data-id="${escapeHtml(item.id)}">${dashboardIcon("refresh")} إنشاء مفتاح إضافي</button></div>
+    <div class="capi-card-actions"><button class="btn btn-secondary" data-action="rotate-custom-key" data-id="${escapeHtml(item.id)}">${dashboardIcon("refresh")} استبدال المفتاح الحالي</button></div>
     ${keyRows}`;
 }
 
@@ -7233,7 +7405,7 @@ function customIntegrationPage() {
     <section class="card capi-overview-status">
       <div class="capi-status-copy"><span class="capi-status-orb ${statusClass}">${dashboardIcon(item ? "code" : "close")}</span><div><small>حالة التكامل</small><strong>${statusLabel}</strong><p>${item ? "يتم تحديث الحالة بعد طلب API أو تسليم Webhook ناجح." : "لم تقم بربط نظامك بعد. ابدأ الآن لإعداد التكامل."}</p></div></div>
       <div class="capi-overview-actions">
-        <button class="btn btn-primary" data-action="open-custom-api-setup">${dashboardIcon("settings")} إعداد التكامل</button>
+        <button class="btn btn-primary" data-action="open-custom-api-setup">${dashboardIcon("settings")} ${item ? "تعديل التكامل" : "إعداد التكامل"}</button>
         ${item && webhook.id ? `<button class="btn btn-secondary" data-action="test-custom-webhook" data-id="${escapeHtml(item.id)}" data-endpoint-id="${escapeHtml(webhook.id)}">${dashboardIcon("send")} اختبار الاتصال</button>` : `<button class="btn btn-secondary" data-action="${item ? "open-custom-api-webhook" : "open-custom-api-setup"}">${dashboardIcon("send")} اختبار الاتصال</button>`}
         <a class="btn btn-secondary" href="/docs/api" target="_blank" rel="noopener">${dashboardIcon("document")} عرض التوثيق</a>
       </div>
@@ -7266,11 +7438,11 @@ function customIntegrationPage() {
 function customIntegrationSetupPage() {
   const { payload, item } = customApiPayloadContext();
   if (payload === null) return customApiLoadingPage("إعداد التكامل الأول");
-  const draft = state.customIntegrationDraft || {};
+  const draft = { ...(item || {}), ...(state.customIntegrationDraft || {}) };
   const selectedScopes = new Set(draft.scopes || ["customers:read", "customers:write", "subscriptions:read", "messages:send"]);
   return dashboardShell(`<section class="capi-page">
-    ${customApiHeader("إعداد التكامل الأول", "أكمل إعداد التكامل المخصص عبر API وWebhook لربط نظامك الداخلي باحترافية.", "add", "إعداد التكامل")}
-    ${item ? `<section class="capi-existing-warning card">${dashboardIcon("info")} يوجد تكامل محفوظ بالفعل. إنشاء إعداد جديد سينشئ مفتاحًا مستقلًا.</section>` : ""}
+    ${customApiHeader(item ? "تعديل التكامل" : "إعداد التكامل الأول", item ? "حدّث التكامل الحالي دون إنشاء نسخة أو مفتاح مكرر." : "أكمل إعداد التكامل المخصص عبر API وWebhook لربط نظامك الداخلي باحترافية.", item ? "settings" : "add", "إعداد التكامل")}
+    ${item ? `<section class="capi-existing-warning card">${dashboardIcon("info")} يسمح بتكامل API / Webhook واحد فقط. التغييرات هنا تُحفظ على التكامل الحالي.</section>` : ""}
     <div class="capi-setup-layout">
       ${customApiBenefits(true)}
       <main>
@@ -7279,20 +7451,20 @@ function customIntegrationSetupPage() {
           <div><span>${dashboardIcon("calendar")}</span><small>الحالة الحالية</small><strong>قيد الإعداد</strong></div>
           <div><span>${dashboardIcon("code")}</span><small>عدد الصلاحيات المحددة</small><strong data-scope-count>${selectedScopes.size}</strong></div>
         </section>
-        <form class="card capi-setup-form" data-submit="custom-integration">
+        <form class="card capi-setup-form" data-submit="${item ? "custom-integration-update" : "custom-integration"}" data-integration-id="${escapeHtml(item?.id || "")}">
           <section><h2>1. معلومات التكامل</h2><div class="capi-three-fields">
             <label><span>اسم التكامل</span><input name="name" required maxlength="100" value="${escapeHtml(draft.name || "")}" placeholder="نظام المتجر الداخلي"></label>
             <label><span>البيئة</span><select name="environment"><option value="test" ${draft.environment !== "live" ? "selected" : ""}>تجريبية</option><option value="live" ${draft.environment === "live" ? "selected" : ""}>إنتاجية</option></select></label>
             <label><span>وصف اختياري</span><input name="description" maxlength="300" value="${escapeHtml(draft.description || "")}" placeholder="مزامنة العملاء والاشتراكات والرسائل"></label>
           </div>
           <div class="capi-direction"><span>اتجاه التكامل</span>
-            <label><input type="radio" name="direction" value="inbound"><i>${dashboardIcon("key")}</i><b>API فقط</b></label>
-            <label><input type="radio" name="direction" value="outbound"><i>${dashboardIcon("webhook")}</i><b>Webhook فقط</b></label>
-            <label><input type="radio" name="direction" value="bidirectional" checked><i>${dashboardIcon("webhook")}</i><b>API + Webhook</b></label>
+            <label><input type="radio" name="direction" value="inbound" ${draft.direction === "inbound" ? "checked" : ""}><i>${dashboardIcon("key")}</i><b>API فقط</b></label>
+            <label><input type="radio" name="direction" value="outbound" ${draft.direction === "outbound" ? "checked" : ""}><i>${dashboardIcon("webhook")}</i><b>Webhook فقط</b></label>
+            <label><input type="radio" name="direction" value="bidirectional" ${!["inbound", "outbound"].includes(draft.direction) ? "checked" : ""}><i>${dashboardIcon("webhook")}</i><b>API + Webhook</b></label>
           </div></section>
           <section><h2>2. الصلاحيات</h2><div class="capi-choice-grid">${CUSTOM_API_SCOPES.map(([scope,label]) => `<label class="capi-choice"><input type="checkbox" name="scopes" value="${scope}" ${selectedScopes.has(scope) ? "checked" : ""}><span><b dir="ltr">${scope}</b><small>${label}</small></span></label>`).join("")}</div></section>
           <section><h2>3. إعداد أولي لعنوان Webhook</h2><div class="capi-two-fields"><label><span>Webhook URL</span><input type="url" name="initialWebhookUrl" dir="ltr" value="${escapeHtml(draft.initialWebhookUrl || "")}" placeholder="https://example.com/webhooks/renvix"></label><label><span>وصف اختياري</span><input name="initialWebhookDescription" value="${escapeHtml(draft.initialWebhookDescription || "")}" placeholder="مثال: استقبال أحداث العملاء والاشتراكات"></label></div><p class="capi-info-strip">${dashboardIcon("info")} جميع طلبات Webhook يتم توقيعها باستخدام HMAC-SHA256 لضمان الأمان والسلامة.</p></section>
-          <footer class="capi-footer-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("security")} إنشاء التكامل والمفتاح</button><button class="btn btn-secondary" type="button" data-action="preview-custom-api-setup">${dashboardIcon("eye")} معاينة الإعداد</button><a class="btn btn-secondary" data-link="${CUSTOM_API_BASE}">إلغاء</a></footer>
+          <footer class="capi-footer-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("security")} ${item ? "حفظ التغييرات" : "إنشاء التكامل والمفتاح"}</button><button class="btn btn-secondary" type="button" data-action="preview-custom-api-setup">${dashboardIcon("eye")} معاينة الإعداد</button><a class="btn btn-secondary" data-link="${CUSTOM_API_BASE}">إلغاء</a></footer>
         </form>
       </main>
     </div>
@@ -7505,6 +7677,16 @@ document.addEventListener("input", (event) => {
   if (target.dataset.action === "pairing-phone-input") {
     state.linkedDevice.phoneInput = target.value;
   }
+  if (target.dataset.action === "device-search") {
+    state.deviceSearch = target.value;
+    render();
+    requestAnimationFrame(() => {
+      const input = document.querySelector('[data-action="device-search"]');
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+    return;
+  }
   if (target.dataset.orderField) {
     state.orderLinkDraft[target.dataset.orderField] = target.type === "checkbox" ? target.checked : target.value;
     refreshOrderLinkPreview();
@@ -7551,6 +7733,25 @@ document.addEventListener("change", (event) => {
       } catch (error) { toast(error.message || "تعذر رفع الصورة", "danger"); }
     })();
   }
+  if (target.dataset.action === "store-logo-file" && target.files?.[0]) {
+    void (async () => {
+      try {
+        const file = target.files[0];
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
+        if (file.size > 2 * 1024 * 1024) throw new Error("يجب ألا يتجاوز حجم صورة المتجر 2 ميجابايت.");
+        const formData = new FormData();
+        formData.append("file", file);
+        const payload = await fetchJson("/api/order-link/profile/logo", { method: "POST", body: formData });
+        state.orderLinkProfile = { ...(state.orderLinkProfile || {}), logoUrl: payload.logoUrl };
+        state.orderLinkDraft.logoUrl = payload.logoUrl;
+        render();
+        appToast.success("تم تحديث صورة المتجر", { description: "ظهرت الصورة في المعاينة وستُستخدم في البريد وصفحة معلومات الطلب.", id: "store-logo-updated" });
+      } catch (error) {
+        appToast.error("تعذر رفع صورة المتجر", { description: error.message || "حاول مرة أخرى بعد قليل.", id: "store-logo-upload-error" });
+      }
+    })();
+    return;
+  }
   if (target.dataset.sallaSetting && state.sallaSettingsOpen) {
     const current = state.appsOverview?.connection || {};
     if (target.type === "checkbox") current[target.dataset.sallaSetting] = target.checked;
@@ -7560,6 +7761,10 @@ document.addEventListener("change", (event) => {
   }
   if (target.dataset.action === "dashboard-filter") {
     state.filter = target.value;
+    render();
+  }
+  if (target.dataset.action === "device-status-filter") {
+    state.deviceStatusFilter = target.value || "all";
     render();
   }
   if (target.dataset.action === "notification-filter") {

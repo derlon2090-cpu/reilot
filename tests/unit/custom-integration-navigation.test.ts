@@ -23,7 +23,7 @@ describe("custom integration navigation", () => {
   it("keeps the first-integration setup on its own authenticated route", () => {
     expect(source).toContain('"/dashboard/settings/integrations/custom-api/setup"');
     expect(source).toContain("function customIntegrationSetupPage()");
-    expect(source).toContain('data-submit="custom-integration"');
+    expect(source).toContain('data-submit="${item ? "custom-integration-update" : "custom-integration"}"');
     expect(source).toContain('data-action="open-custom-api-setup"');
     expect(source).toContain('if (action === "open-custom-api-setup")');
     expect(source).not.toContain('class="card custom-api-create"');
@@ -68,5 +68,7 @@ describe("custom integration navigation", () => {
     expect(source).toContain('data-action="revoke-custom-key"');
     expect(source).toContain('action === "confirm-revoke-custom-key"');
     expect(source).toContain("/keys/${encodeURIComponent(keyId)}");
+    expect(source).toContain("استبدال المفتاح الحالي");
+    expect(source).toContain("يسمح بتكامل API / Webhook واحد فقط");
   });
 });

@@ -89,4 +89,33 @@ describe("custom integration creation route", () => {
     expect(keyInsert[1]).not.toContain(payload.apiKey);
     expect(verifyApiKeyDigest(payload.apiKey, keyInsert[1][5])).toBe(true);
   });
+
+  it("refuses a second integration after acquiring the tenant creation lock", async () => {
+    clientQueryMock.mockImplementation(async (sql) => {
+      const statement = String(sql);
+      if (statement.includes("SELECT id,name FROM custom_integrations")) {
+        return { rows: [{ id: "integration-existing", name: "التكامل الحالي" }] };
+      }
+      return { rows: [] };
+    });
+
+    const response = await POST(new Request("http://localhost/api/integrations/custom", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "تكامل مكرر",
+        environment: "test",
+        direction: "bidirectional",
+        scopes: ["customers:read"]
+      })
+    }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(payload.code).toBe("custom_integration_limit_reached");
+    expect(payload.item.id).toBe("integration-existing");
+    expect(payload.apiKey).toBeUndefined();
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("INSERT INTO custom_integrations"))).toBe(false);
+    expect(clientQueryMock.mock.calls[0][0]).toContain("pg_advisory_xact_lock");
+  });
 });

@@ -1,11 +1,19 @@
 import { requireSession } from "../../../../../src/server/session.js";
-import { addWhatsAppActivity, createChannel, evolutionInstanceName, latestTenantChannel, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
+import { addWhatsAppActivity, createChannel, evolutionInstanceName, latestTenantChannel, recentDeviceActivity, tenantChannels, withoutExpiredQr } from "../../../../../src/server/whatsapp-repository.js";
 import { assertPlanCapacity, planEntitlementResponse } from "../../../../../src/server/plan-entitlements.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
-  return Response.json({ ok: true, instance: withoutExpiredQr(await latestTenantChannel(auth.session.tenantId)) });
+  const [latest, devices, activity] = await Promise.all([
+    latestTenantChannel(auth.session.tenantId),
+    tenantChannels(auth.session.tenantId),
+    recentDeviceActivity(auth.session.tenantId)
+  ]);
+  return Response.json({
+    ok: true,
+    instance: latest ? { ...withoutExpiredQr(latest), devices, activity } : { devices, activity }
+  });
 }
 
 export async function POST(req) {

@@ -11,10 +11,13 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain("function templatesCatalogPage()");
   });
 
-  it("loads the two general templates and an approved Meta template without Salla fulfillment", () => {
+  it("loads the general templates, renewal email, and an approved Meta template without Salla fulfillment", () => {
     expect(appSource).toContain('loadRemotePage("catalogTemplates", "/api/templates/catalog"');
     expect(appSource).toContain("email_delivery");
     expect(appSource).toContain("renewal_whatsapp");
+    expect(appSource).toContain('key: "renewal_email"');
+    expect(appSource).toContain('editorKey === "renewal_email"');
+    expect(appSource).toContain("قالب رسالة التجديد - البريد الإلكتروني");
     expect(appSource).toContain("subscription_renewal_reminder");
     expect(appSource).toContain('pageTitle("قوالب عامة"');
     expect(appSource).not.toContain("سيتم إنشاء القوالب الأربعة الأساسية لمساحة العمل تلقائيًا");
@@ -33,9 +36,12 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain("function catalogTemplateEditorPage");
     expect(appSource).toContain('class="whatsapp-phone-preview"');
     expect(appSource).toContain("email-preview-v2");
+    expect(appSource).toContain("storeLogoEditor(state.orderLinkProfile?.logoUrl)");
     expect(stylesSource).toContain(".general-template-card");
     expect(stylesSource).toContain(".meta-approved-editor");
     expect(stylesSource).toContain(".template-editor-v2-whatsapp");
     expect(stylesSource).toContain(".template-editor-v2-email");
+    expect(stylesSource).toContain(".template-editor-v2-email > * { direction: rtl;");
+    expect(stylesSource).toContain(".store-logo-editor");
   });
 });

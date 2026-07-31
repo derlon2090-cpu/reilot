@@ -3,6 +3,7 @@ import { baseEmail, emailButton, escapeEmailHtml } from "./base-email.js";
 export function orderInfoLinkEmail({
   customerName,
   storeName,
+  storeImageUrl,
   orderNumber,
   publicUrl,
   locale = "ar"
@@ -20,6 +21,8 @@ export function orderInfoLinkEmail({
     preview: english ? `Order #${orderNumber}` : `معلومات الطلب #${orderNumber}`,
     locale,
     footerText: store,
+    brandName: store,
+    brandImageUrl: storeImageUrl || "",
     children: `
       <p style="margin:0 0 14px">${english ? `Hello ${safeName},` : `مرحبًا ${safeName}،`}</p>
       <p style="margin:0 0 20px">${english

@@ -30,16 +30,18 @@ export async function GET(request) {
     adminTemplates,
     integrationHealth,
     adminMessages,
-    dailyMetrics
+    dailyMetrics,
+    platformPlans
   ] = await Promise.all([
-    query("SELECT count(*)::int AS count FROM tenants"),
-    query("SELECT count(*)::int AS count FROM users"),
+    query("SELECT count(*)::int AS count FROM tenants WHERE status <> 'disabled'"),
+    query("SELECT count(*)::int AS count FROM users u JOIN tenants t ON t.id=u.tenant_id WHERE t.status <> 'disabled'"),
     query(
       `SELECT
-         count(*) FILTER (WHERE status = 'active')::int AS active,
-         count(*) FILTER (WHERE status = 'trial')::int AS trial,
+         count(*) FILTER (WHERE ps.status = 'active')::int AS active,
+         count(*) FILTER (WHERE ps.status = 'trial')::int AS trial,
          count(*)::int AS total
-       FROM platform_subscriptions`
+       FROM platform_subscriptions ps JOIN tenants t ON t.id=ps.tenant_id
+       WHERE t.status <> 'disabled'`
     ),
     query("SELECT count(*)::int AS count FROM whatsapp_channels WHERE status = 'connected'"),
     query(
@@ -87,14 +89,19 @@ export async function GET(request) {
          LEFT JOIN LATERAL (
            SELECT count(*) AS count FROM platform_subscriptions ps WHERE ps.tenant_id=t.id
          ) subscriptions ON true
+        WHERE t.status <> 'disabled'
         ORDER BY t.created_at DESC LIMIT 20`
     ),
     query(
-      `SELECT ps.id,t.name AS "tenantName",pp.name AS "planName",ps.status,ps.billing_cycle AS "billingCycle",
-              ps.current_period_start AS "startsAt",ps.current_period_end AS "expiresAt",ps.payment_provider AS "paymentProvider"
+      `SELECT ps.id,t.id AS "tenantId",t.name AS "tenantName",pp.name AS "planName",ps.status,
+              ps.billing_cycle AS "billingCycle",ps.current_period_start AS "startsAt",
+              ps.current_period_end AS "expiresAt",ps.payment_provider AS "paymentProvider",
+              COALESCE(ww.available_balance,0)::numeric AS "walletBalance"
          FROM platform_subscriptions ps
          JOIN tenants t ON t.id=ps.tenant_id
          JOIN platform_plans pp ON pp.id=ps.plan_id
+         LEFT JOIN whatsapp_wallets ww ON ww.tenant_id=t.id
+        WHERE t.status <> 'disabled'
         ORDER BY ps.created_at DESC LIMIT 20`
     ),
     query(
@@ -110,7 +117,7 @@ export async function GET(request) {
          FROM admin_users au JOIN users u ON u.id=au.user_id
         ORDER BY au.created_at DESC LIMIT 30`
     ),
-    query("SELECT count(*)::int AS count FROM stores"),
+    query("SELECT count(*)::int AS count FROM stores s JOIN tenants t ON t.id=s.tenant_id WHERE t.status <> 'disabled'"),
     query(
       `SELECT u.id,u.name,u.email,
               CASE WHEN u.phone IS NULL OR u.phone='' THEN NULL ELSE left(u.phone,4) || ' *** ' || right(u.phone,3) END AS phone,
@@ -123,15 +130,16 @@ export async function GET(request) {
            SELECT plan.name FROM platform_subscriptions ps JOIN platform_plans plan ON plan.id=ps.plan_id
             WHERE ps.tenant_id=u.tenant_id ORDER BY ps.created_at DESC LIMIT 1
          ) pp ON true
-        WHERE u.tenant_id IS NOT NULL
+        WHERE u.tenant_id IS NOT NULL AND t.status <> 'disabled'
         ORDER BY u.created_at DESC LIMIT 30`
     ),
     query(
-      `SELECT s.id,s.name,s.domain,s.created_at AS "createdAt",t.name AS "tenantName",t.status,
+      `SELECT s.id,t.id AS "tenantId",s.name,s.domain,s.created_at AS "createdAt",t.name AS "tenantName",t.status,
               owner.name AS "ownerName",owner.email AS "ownerEmail",
               ps.status AS "subscriptionStatus",pp.name AS "planName",
               ac.status AS "sallaStatus",wc.status AS "metaStatus",
-              COALESCE(usage.used_messages,0)::int AS "messageVolume"
+              COALESCE(usage.used_messages,0)::int AS "messageVolume",
+              COALESCE(ww.available_balance,0)::numeric AS "walletBalance"
          FROM stores s JOIN tenants t ON t.id=s.tenant_id
          LEFT JOIN LATERAL (SELECT u.name,u.email FROM users u WHERE u.tenant_id=t.id ORDER BY u.created_at LIMIT 1) owner ON true
          LEFT JOIN LATERAL (SELECT * FROM platform_subscriptions x WHERE x.tenant_id=t.id ORDER BY x.created_at DESC LIMIT 1) ps ON true
@@ -139,6 +147,8 @@ export async function GET(request) {
          LEFT JOIN app_connections ac ON ac.tenant_id=t.id AND ac.provider='salla'
          LEFT JOIN LATERAL (SELECT status FROM whatsapp_channels x WHERE x.tenant_id=t.id ORDER BY x.updated_at DESC LIMIT 1) wc ON true
          LEFT JOIN message_usage usage ON usage.tenant_id=t.id AND usage.month=extract(month from now())::int AND usage.year=extract(year from now())::int
+         LEFT JOIN whatsapp_wallets ww ON ww.tenant_id=t.id
+        WHERE t.status <> 'disabled'
         ORDER BY s.created_at DESC LIMIT 30`
     ),
     query(
@@ -160,6 +170,10 @@ export async function GET(request) {
               active_subscriptions_count AS "activeSubscriptions",messages_accepted AS accepted,
               messages_delivered AS delivered,messages_failed AS failed,revenue_amount AS revenue
          FROM platform_daily_metrics ORDER BY metric_date DESC LIMIT 30`
+    ),
+    query(
+      `SELECT id,name,slug,monthly_price_sar AS "monthlyPriceSar",yearly_price_sar AS "yearlyPriceSar"
+         FROM platform_plans WHERE is_active=true ORDER BY monthly_price_sar,created_at`
     )
   ]);
 
@@ -244,6 +258,7 @@ export async function GET(request) {
     customers: canCustomers ? recentCustomers.rows : [],
     stores: adminCan(auth.admin, "stores", "read") ? recentStores.rows : [],
     subscriptions: canSubscriptions ? recentSubscriptions.rows : [],
+    plans: canSubscriptions ? platformPlans.rows : [],
     channels: canDevices ? recentChannels.rows : [],
     adminUsers: auth.admin.adminRole === "super_admin" ? adminUsers.rows : [],
     provisioningJobs: canCustomers ? provisioningJobs.rows : [],

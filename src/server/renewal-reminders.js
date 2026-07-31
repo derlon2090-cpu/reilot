@@ -89,9 +89,15 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
   }
   if (!channel) return { ok: false, reason: "missing_contact_channel" };
   const template = await query(
-    `SELECT id,subject,body,name FROM renewal_message_templates
-      WHERE tenant_id=$1 AND channel=$2 AND is_active=true
-      ORDER BY is_default DESC,updated_at DESC LIMIT 1`,
+    `SELECT rmt.id,rmt.subject,rmt.body,rmt.name,
+            nt.store_name AS "storeName",nt.theme_color AS "themeColor",
+            nt.button_label AS "buttonLabel",nt.footer_text AS "footerText",
+            p.logo_url AS "storeImageUrl"
+       FROM renewal_message_templates rmt
+       LEFT JOIN notification_templates nt ON nt.id=rmt.source_template_id AND nt.tenant_id=rmt.tenant_id
+       LEFT JOIN order_link_profiles p ON p.tenant_id=rmt.tenant_id
+      WHERE rmt.tenant_id=$1 AND rmt.channel=$2 AND rmt.is_active=true
+      ORDER BY rmt.is_default DESC,rmt.updated_at DESC LIMIT 1`,
     [tenantId, channel]
   );
   if (!template.rows[0]) return { ok: false, reason: "missing_renewal_template", channel };
@@ -152,6 +158,27 @@ export async function queueSubscriptionReminder({ tenantId, subscriptionId, remi
     emailTo: context.channel === "email" ? context.destination : null,
     subject: context.subject,
     messageBody: context.body,
+    templateSnapshot: context.channel === "email" ? {
+      type: "renewal_email_v1",
+      data: {
+        customerName: context.row.customer_name,
+        serviceName: context.row.plan_name,
+        endDate: context.variables.expiry_date,
+        remainingDays: context.variables.days_remaining,
+        renewalLink: context.variables.renewal_url,
+        orderNumber: context.row.order_number,
+        storeName: context.template.storeName || context.row.store_name
+      },
+      template: {
+        storeName: context.template.storeName || context.row.store_name,
+        storeImageUrl: context.template.storeImageUrl || "",
+        title: context.subject,
+        body: context.body,
+        themeColor: context.template.themeColor || "#0EA5A8",
+        buttonLabel: context.template.buttonLabel || "جدد اشتراكك الآن",
+        footerText: context.template.footerText || "شكرًا لثقتك بنا"
+      }
+    } : null,
     referenceType: "customer_subscription",
     referenceId: subscriptionId,
     triggerKey: reminderId ? `reminder:${reminderId}` : `manual:${subscriptionId}:${Date.now()}`,

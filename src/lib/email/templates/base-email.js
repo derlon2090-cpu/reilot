@@ -15,6 +15,7 @@ export function baseEmail({
   locale = "ar",
   footerText,
   brandName = "Renvix",
+  brandImageUrl = "",
   themeColor = "#0EA5A8"
 }) {
   const english = locale === "en";
@@ -23,6 +24,11 @@ export function baseEmail({
   const safeTitle = escapeEmailHtml(title);
   const safePreview = escapeEmailHtml(preview || title);
   const safeBrand = escapeEmailHtml(brandName || "Renvix");
+  let safeBrandImage = "";
+  try {
+    const url = new URL(String(brandImageUrl || ""));
+    if (url.protocol === "https:") safeBrandImage = escapeEmailHtml(url.toString());
+  } catch {}
   const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#0EA5A8";
   const safeFooter = escapeEmailHtml(
     footerText || (english ? "Renvix - subscriptions made clearer." : "Renvix - إدارة أوضح للاشتراكات والتجديدات.")
@@ -46,6 +52,7 @@ export function baseEmail({
             </tr>
             <tr>
               <td style="padding:28px 32px 18px;text-align:${align}">
+                ${safeBrandImage ? `<img src="${safeBrandImage}" alt="${safeBrand}" width="72" height="72" style="display:block;width:72px;height:72px;margin:0 0 12px auto;border-radius:16px;object-fit:contain;background:#ffffff;border:1px solid #e8eef5">` : ""}
                 <div style="display:inline-block;color:${safeTheme};font-size:22px;font-weight:800">${safeBrand}</div>
                 <h1 style="margin:22px 0 8px;color:#0f2550;font-size:26px;line-height:1.45">${safeTitle}</h1>
               </td>

@@ -16,7 +16,7 @@ export async function POST(req, { params }) {
             l.customer_id AS "customerId", l.subscription_id AS "subscriptionId",
             c.name AS "customerName", c.email,
             COALESCE(c.whatsapp_number, c.phone) AS "phoneNumber",
-            p.store_name AS "storeName"
+            p.store_name AS "storeName", p.logo_url AS "logoUrl"
        FROM order_info_links l
        JOIN order_link_profiles p ON p.tenant_id = l.tenant_id
        LEFT JOIN customers c ON c.id = l.customer_id AND c.tenant_id = l.tenant_id

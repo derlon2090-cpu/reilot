@@ -27,14 +27,14 @@ export async function sendTestEmail({ to, locale = "ar" }) {
   return sendEmail({ to, subject, text, html });
 }
 
-export async function sendOrderInformationEmail({ to, customerName, storeName, orderNumber, publicUrl, locale = "ar" }) {
+export async function sendOrderInformationEmail({ to, customerName, storeName, storeImageUrl, orderNumber, publicUrl, locale = "ar" }) {
   return sendEmail({
     to,
-    ...orderInfoLinkEmail({ customerName, storeName, orderNumber, publicUrl, locale })
+    ...orderInfoLinkEmail({ customerName, storeName, storeImageUrl, orderNumber, publicUrl, locale })
   });
 }
 
-export async function sendQueuedEmail({ to, subject, text, templateSnapshot = null, tags = [] }) {
+export async function sendQueuedEmail({ to, subject, text, templateSnapshot = null, tags = [], brandImageUrl = "" }) {
   if (templateSnapshot?.type === "renewal_email_v1") {
     return sendEmail({
       to,
@@ -42,6 +42,12 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
         ...(templateSnapshot.data || {}),
         template: templateSnapshot.template || {}
       })
+    });
+  }
+  if (templateSnapshot?.type === "order_information_email_v1") {
+    return sendEmail({
+      to,
+      ...orderInfoLinkEmail(templateSnapshot.data || {})
     });
   }
   const safeText = escapeEmailHtml(text).replace(/\n/g, "<br>");
@@ -52,6 +58,7 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
     tags,
     html: baseEmail({
       title: subject || "إشعار من Renvix",
+      brandImageUrl,
       children: `<div style="color:#0f172a;line-height:1.9">${safeText}</div>`
     })
   });
