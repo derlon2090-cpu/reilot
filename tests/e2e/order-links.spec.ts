@@ -136,10 +136,13 @@ test("order information builder and public page are responsive and private", asy
   await openOrderLinksWorkspace(page);
 
   await expect(page.locator(".page-title h1")).toContainText("إرسال معلومات الطلب");
+  await expect(page.locator(".created-link-box input")).toHaveValue("https://renvix.app/o/tech-store?t=publictoken123");
   await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toContainText(profile.storeName);
   await page.locator("[data-order-field='storeName']").fill("متجر التقنية المتقدم");
   await expect(page.locator(".order-preview-slide.active .order-lookup-preview")).toContainText("متجر التقنية المتقدم");
   await page.locator("[data-order-field='subscriptionId']").selectOption("sub-1");
+  await expect(page.locator(".created-link-box input")).toHaveValue("https://renvix.app/o/tech-store?t=publictoken123");
+  await expect(page).toHaveURL(/templateId=template-1/);
   await page.locator("[data-action='order-preview-step'][data-direction='1']").click();
   await expect(page.locator(".order-preview-slide.active .order-customer-card")).toBeVisible();
   await expect(page.locator("#order-live-preview .order-customer-card")).toContainText("محمد السعيد");

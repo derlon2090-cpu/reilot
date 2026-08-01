@@ -15,6 +15,7 @@ import path from "node:path";
 
 const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
+const templatesRouteSource = fs.readFileSync(path.resolve(process.cwd(), "app/api/order-link/templates/route.js"), "utf8");
 
 describe("order information links", () => {
   it("accepts only unique-safe public slug syntax and blocks reserved routes", () => {
@@ -101,5 +102,17 @@ describe("order information links", () => {
     expect(stylesSource).toContain("scrollbar-gutter: stable both-edges");
     expect(stylesSource).toContain("min-width: 286px");
     expect(stylesSource).toContain(".order-links-table-card--links th:nth-child(9)");
+  });
+
+  it("restores the selected template and its stable public URL without rendering the wrong draft", () => {
+    expect(appSource).toContain('state.orderLinkProfile === null || state.orderLinkTemplates === null');
+    expect(appSource).toContain('جاري تحميل القالب والرابط المحفوظين...');
+    expect(appSource).toContain('const orderLinkTemplatePreferenceKey = "renvix.orderLink.templateId"');
+    expect(appSource).toContain('const preferredTemplateId = requestedTemplateId || rememberedTemplateId || state.orderLinkDraft.templateId || ""');
+    expect(appSource).toContain('rememberOrderLinkTemplateSelection(item.id)');
+    expect(appSource).toContain('state.orderLinkDraft.templateLinkId || state.orderLinkDraft.linkId');
+    expect(appSource).not.toContain('linkId: "", publicUrl: "", createdOrderNumber: "", createdCustomerName: ""');
+    expect(templatesRouteSource).toContain('tl.id AS "templateLinkId", tl.public_url AS "publicUrl", tl.status AS "linkStatus"');
+    expect(templatesRouteSource).toContain('LEFT JOIN order_template_links tl');
   });
 });

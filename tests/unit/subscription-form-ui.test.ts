@@ -39,6 +39,14 @@ describe("manual subscription delivery form", () => {
     expect(reminderSettingsSource).not.toContain("الاشتراك المحدد");
   });
 
+  it("loads every subscription by default and keeps reminder settings independent from list filters", () => {
+    expect(appSource).toContain('subscriptionWindow: ""');
+    expect(createRoute).toContain("const hasActiveFilters = Boolean(");
+    expect(createRoute).toContain("settingsItems: settingsListing.items");
+    expect(appSource).toContain("const settingsRows = Array.isArray(meta.settingsItems) ? meta.settingsItems : rows");
+    expect(reminderSettingsSource).toContain("settingsRows.length");
+  });
+
   it("persists a dedicated reminder activation state and blocks every delivery path when disabled", () => {
     expect(reminderSettingsSource).toContain('title: "تفعيل رسالة التذكير"');
     expect(reminderSettingsSource).toContain('inputName: "reminderEnabled"');
