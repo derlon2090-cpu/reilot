@@ -5,6 +5,7 @@ import { changePasswordSchema, profileSettingsSchema } from "../../src/server/se
 
 const root = process.cwd();
 const appSource = fs.readFileSync(path.join(root, "src/app/app.js"), "utf8");
+const stylesSource = fs.readFileSync(path.join(root, "src/styles/globals.css"), "utf8");
 
 describe("settings and admin UI contracts", () => {
   it("does not rerender the subscription window from the click handler", () => {
@@ -29,6 +30,28 @@ describe("settings and admin UI contracts", () => {
     expect(changePasswordSchema.safeParse({ currentPassword: "samePassword1", newPassword: "samePassword1", confirmPassword: "different" }).success).toBe(false);
   });
 
+  it("preserves storage and notification state while preferences are saved", () => {
+    const preferences = appSource.slice(appSource.indexOf("async function saveInterfacePreferences"), appSource.indexOf("async function showSessionsDrawer"));
+    expect(preferences).not.toContain("state.accountSettings = null");
+    expect(preferences).toContain("...state.accountSettings");
+    expect(preferences).toContain("notificationPreferenceSaving");
+    expect(preferences).toContain("applyNotificationState(previous)");
+  });
+
+  it("applies all three interface density choices to the rendered dashboard", () => {
+    expect(appSource).toContain('document.documentElement.dataset.density = state.interfaceDensity || "comfortable"');
+    expect(appSource).toContain('localStorage.setItem("renewpilot_density", state.interfaceDensity)');
+    expect(stylesSource).toContain(':root[data-density="medium"] .dashboard-shell');
+    expect(stylesSource).toContain(':root[data-density="compact"] .dashboard-shell');
+  });
+
+  it("contains complete English copy for the settings cards", () => {
+    expect(appSource).toContain('"الواجهة واللغة": "Interface & language"');
+    expect(appSource).toContain('"كثافة الواجهة": "Interface density"');
+    expect(appSource).toContain('"إشعارات التجديد والفواتير": "Renewal and billing notifications"');
+    expect(appSource).toContain('"مساحة الحساب": "Account storage"');
+  });
+
   it("promotes only an existing user and never creates credentials", () => {
     const script = fs.readFileSync(path.join(root, "scripts/promote-admin.mjs"), "utf8");
     expect(script).toContain("No existing Renvix user was found");
@@ -37,4 +60,3 @@ describe("settings and admin UI contracts", () => {
     expect(script).not.toContain("ADMIN_BOOTSTRAP_PASSWORD");
   });
 });
-

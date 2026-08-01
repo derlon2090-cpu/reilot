@@ -5395,3 +5395,50 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .support-bottom-note{display:flex;justify-content:center;align-items:center;gap:8px;padding:10px;border:1px solid #dce8fa;border-radius:10px;background:#f5f9ff;color:#6580a3;font-size:11px}
 @media(max-width:980px){.support-main-grid{grid-template-columns:1fr}.support-compose{grid-row:1}.support-page-heading{align-items:flex-start;flex-direction:column}.support-security-note{width:100%;justify-content:center}}
 @media(max-width:600px){.dashboard-support-page{gap:12px}.support-page-heading h1{font-size:22px}.support-conversations,.support-compose{padding:13px;border-radius:12px}.support-tabs{overflow:auto}.support-tabs button{min-width:78px}.support-ticket-row{grid-template-columns:36px minmax(0,1fr)}.support-ticket-row time{display:none}.support-reply-form{grid-template-columns:1fr}.support-bubble{width:90%}}
+
+/* Persisted interface density: comfortable remains the established default. */
+:root[data-density="medium"] .dashboard-shell { grid-template-columns: 226px minmax(0, 1fr); }
+:root[data-density="medium"] .sidebar { padding: 18px 14px 16px; gap: 16px; }
+:root[data-density="medium"] .side-link { min-height: 43px; padding-inline: 12px; font-size: 14px; }
+:root[data-density="medium"] .topbar { min-height: 74px; padding-inline: 24px; }
+:root[data-density="medium"] .content { padding: 22px 24px 36px; }
+:root[data-density="medium"] .settings-layout,
+:root[data-density="medium"] .dashboard-stat-grid { gap: 12px; }
+:root[data-density="medium"] .settings-panel { min-height: 210px; padding: 17px; }
+:root[data-density="medium"] .settings-panel-head { margin-bottom: 14px; }
+:root[data-density="medium"] .dashboard-main .input,
+:root[data-density="medium"] .dashboard-main .select { min-height: 42px; }
+:root[data-density="medium"] .dashboard-main .btn { min-height: 37px; }
+:root[data-density="medium"] .dashboard-main th,
+:root[data-density="medium"] .dashboard-main td { padding: 10px 11px; }
+
+:root[data-density="compact"] .dashboard-shell { grid-template-columns: 210px minmax(0, 1fr); }
+:root[data-density="compact"] .sidebar { padding: 14px 12px; gap: 12px; }
+:root[data-density="compact"] .sidebar-brand { min-height: 40px; }
+:root[data-density="compact"] .side-links { gap: 4px; }
+:root[data-density="compact"] .side-link { min-height: 38px; padding-inline: 10px; gap: 9px; font-size: 12px; }
+:root[data-density="compact"] .side-group-title { margin-block: 7px 4px; font-size: 9px; }
+:root[data-density="compact"] .topbar { min-height: 66px; padding-inline: 20px; }
+:root[data-density="compact"] .topbar .input { min-height: 40px; }
+:root[data-density="compact"] .content { padding: 18px 20px 30px; }
+:root[data-density="compact"] .dashboard-main .page-title { margin-bottom: 14px; }
+:root[data-density="compact"] .dashboard-main .page-title h1 { font-size: 22px; }
+:root[data-density="compact"] .settings-layout,
+:root[data-density="compact"] .dashboard-stat-grid { gap: 9px; }
+:root[data-density="compact"] .settings-panel { min-height: 188px; padding: 14px; }
+:root[data-density="compact"] .settings-panel-head { margin-bottom: 11px; }
+:root[data-density="compact"] .settings-profile-form,
+:root[data-density="compact"] .security-password-form { gap: 9px; }
+:root[data-density="compact"] .setting-row { min-height: 41px; padding-block: 6px; }
+:root[data-density="compact"] .dashboard-main .input,
+:root[data-density="compact"] .dashboard-main .select { min-height: 38px; padding-block: 7px; }
+:root[data-density="compact"] .dashboard-main .textarea { min-height: 76px; padding: 9px 11px; }
+:root[data-density="compact"] .dashboard-main .btn { min-height: 34px; padding-inline: 11px; font-size: 12px; }
+:root[data-density="compact"] .dashboard-main .stat-card { min-height: 94px; padding: 13px; }
+:root[data-density="compact"] .dashboard-main th,
+:root[data-density="compact"] .dashboard-main td { padding: 8px 9px; }
+
+@media (max-width: 1050px) {
+  :root[data-density="medium"] .dashboard-shell,
+  :root[data-density="compact"] .dashboard-shell { grid-template-columns: 1fr; }
+}

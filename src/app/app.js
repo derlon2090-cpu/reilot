@@ -85,7 +85,66 @@ const operationalEnglishPhrases = {
   "لا يظهر الرمز إلا بعد استلامه من خدمة الربط": "The code appears only after it is returned by the linking service",
   "لا يوجد رمز بعد": "No code yet",
   "رمز الاقتران غير مدعوم حاليا. استخدم الربط بالباركود.": "Pairing codes are not currently supported. Use QR linking.",
-  "تم إيقاف الإرسال التلقائي": "Automatic sending paused"
+  "تم إيقاف الإرسال التلقائي": "Automatic sending paused",
+  "إدارة معلومات الحساب والأمان وتفضيلات الواجهة.": "Manage account information, security, and interface preferences.",
+  "إعدادات الحساب": "Account settings",
+  "تحديث معلومات حسابك الشخصية وبيانات التواصل.": "Update your personal account and contact information.",
+  "الاسم الكامل": "Full name",
+  "اسم المتجر": "Store name",
+  "البريد الإلكتروني": "Email address",
+  "رقم الهاتف": "Phone number",
+  "لتغيير البريد، استخدم إجراء التحقق المخصص.": "Use the dedicated verification flow to change your email.",
+  "لا تملك صلاحية تعديل اسم المتجر": "You do not have permission to edit the store name",
+  "تغيير الصورة": "Change photo",
+  "حذف الصورة": "Remove photo",
+  "صورة الحساب": "Account photo",
+  "PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.": "PNG, JPG, or WebP, up to 2 MB.",
+  "حفظ التغييرات": "Save changes",
+  "جارٍ الحفظ...": "Saving...",
+  "تسجيل الخروج": "Sign out",
+  "حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.": "Keep your account secure by updating your password and protection settings.",
+  "كلمة المرور الحالية": "Current password",
+  "كلمة المرور الجديدة": "New password",
+  "تأكيد كلمة المرور": "Confirm password",
+  "تحديث كلمة المرور": "Update password",
+  "المصادقة الثنائية": "Two-factor authentication",
+  "طبقة حماية إضافية لحسابك": "An additional layer of account protection",
+  "إدارة الجلسات النشطة": "Manage active sessions",
+  "الواجهة واللغة": "Interface & language",
+  "تخصيص مظهر وكثافة ولغة الواجهة.": "Customize the interface appearance, density, and language.",
+  "اللغة": "Language",
+  "العربية": "Arabic",
+  "المظهر": "Appearance",
+  "شمسي (فاتح)": "Light",
+  "قمري (داكن)": "Dark",
+  "النظام": "System",
+  "كثافة الواجهة": "Interface density",
+  "مريحة": "Comfortable",
+  "متوسطة": "Balanced",
+  "مضغوطة": "Compact",
+  "اختر الإشعارات التي ترغب في استلامها.": "Choose the notifications you want to receive.",
+  "الإشعارات": "Notifications",
+  "إشعارات التجديد والفواتير": "Renewal and billing notifications",
+  "التنبيهات الأمنية الأساسية": "Essential security alerts",
+  "تقارير النظام والتحديثات": "System reports and updates",
+  "تنبيهات فشل الرسائل": "Message failure alerts",
+  "التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.": "Essential security alerts are always enabled to protect your account.",
+  "مساحة الحساب": "Account storage",
+  "المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.": "Actual storage used by customers, subscriptions, links, and logs.",
+  "مستخدم من حد الباقة الحالية": "used of the current plan limit",
+  "وصلت إلى حد مساحة الباقة": "You have reached your plan storage limit",
+  "أوقفت المنصة العمليات الجديدة التي تحتاج مساحة. طوّر الباقة أو احذف بيانات لا تحتاجها.": "New operations that require storage are paused. Upgrade your plan or remove data you no longer need.",
+  "لا توجد بيانات مخزنة حتى الآن.": "No stored data yet.",
+  "ترقية الباقة": "Upgrade plan",
+  "عرض حدود الباقات": "View plan limits",
+  "العملاء والاشتراكات": "Customers and subscriptions",
+  "روابط وقوالب الطلبات": "Order links and templates",
+  "الرسائل والسجلات": "Messages and logs",
+  "بيانات النظام": "System data",
+  "تم حفظ تفضيلات الواجهة": "Interface preferences saved",
+  "تعذر حفظ التفضيلات": "Unable to save preferences",
+  "تم حفظ تفضيلات الإشعارات": "Notification preferences saved",
+  "تعذر حفظ الإشعارات": "Unable to save notification preferences"
 };
 
 Object.assign(operationalEnglishPhrases, {
@@ -463,10 +522,15 @@ const storage = {
 
 function readPreference(key, legacyKey, fallback) {
   const direct = localStorage.getItem(key);
-  if (direct === "ar" || direct === "en" || direct === "light" || direct === "dark") return direct;
+  if (["ar", "en", "light", "dark", "system"].includes(direct)) return direct;
   const legacy = storage.get(legacyKey, fallback);
   localStorage.setItem(key, legacy);
   return legacy;
+}
+
+function readDensityPreference() {
+  const value = localStorage.getItem("renewpilot_density");
+  return ["comfortable", "medium", "compact"].includes(value) ? value : "comfortable";
 }
 
 function getNestedValue(object, key) {
@@ -595,6 +659,7 @@ const state = {
   sidebarOpen: false,
   theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
+  interfaceDensity: readDensityPreference(),
   profileOpen: false,
   resetStep: passwordResetSession.step,
   resetEmail: passwordResetSession.email,
@@ -607,6 +672,7 @@ const state = {
   filter: "الكل",
   search: "",
   notificationDropdownOpen: false,
+  notificationPreferenceSaving: "",
   notificationFilter: "all",
   subscriptionWindow: "7",
   subscriptionStatus: "",
@@ -758,6 +824,7 @@ function applyPreferences() {
     ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
     : state.theme;
   document.documentElement.dataset.theme = resolvedTheme;
+  document.documentElement.dataset.density = state.interfaceDensity || "comfortable";
   document.documentElement.lang = state.language;
   document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
 }
@@ -848,6 +915,15 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         : payload.items ?? payload.report ?? payload;
     if (target === "dashboardOverview" && payload.profile) cacheDashboardProfile(payload.profile);
     if (target === "accountSettings" && payload.settings) {
+      state.language = payload.settings.language === "en" ? "en" : "ar";
+      state.theme = ["light", "dark", "system"].includes(payload.settings.theme) ? payload.settings.theme : "light";
+      state.interfaceDensity = ["comfortable", "medium", "compact"].includes(payload.settings.interfaceDensity)
+        ? payload.settings.interfaceDensity
+        : "comfortable";
+      localStorage.setItem("renewpilot_locale", state.language);
+      localStorage.setItem("renewpilot_theme", state.theme);
+      localStorage.setItem("renewpilot_density", state.interfaceDensity);
+      applyPreferences();
       state.settings = {
         whatsapp: Boolean(payload.settings.notificationChannels?.whatsapp),
         email: Boolean(payload.settings.notificationChannels?.email),
@@ -4223,9 +4299,9 @@ function settingsPage() {
     <div class="settings-layout">
       <article class="card settings-panel account-photo-panel settings-account-card"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">تحديث معلومات حسابك الشخصية وبيانات التواصل.</p></div></div><div class="avatar-editor">${avatar}<div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="avatar-camera-button" data-action="choose-avatar" title="تغيير الصورة">${dashboardIcon("reports")}</button>${avatarUrl ? `<button class="btn btn-ghost danger-text" data-action="remove-avatar">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</small></div></div><form data-submit="profile-settings" class="settings-profile-form" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" value="${escapeHtml(remote.storeName || "")}" ${canEditStore ? "" : "disabled title=\"لا تملك صلاحية تعديل اسم المتجر\""}></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly title="لتغيير البريد، استخدم إجراء التحقق المخصص."></label><label class="field"><span>رقم الهاتف</span><input class="input" name="phone" dir="ltr" placeholder="+9665XXXXXXXX" value="${escapeHtml(remote.phone || "")}"></label><button class="btn btn-primary profile-save-button" disabled>حفظ التغييرات</button><button type="button" class="btn btn-danger settings-logout-button" data-action="logout-confirm">تسجيل الخروج</button></form></article>
       <article class="card settings-panel settings-security-card"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.</p></div></div><form data-submit="password" class="security-password-form"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" autocomplete="current-password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="btn btn-primary">تحديث كلمة المرور</button></form><div class="setting-row"><div><strong>المصادقة الثنائية</strong><p class="muted">طبقة حماية إضافية لحسابك</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><button class="btn btn-secondary sessions-button" data-action="manage-sessions">إدارة الجلسات النشطة</button></article>
-      <article class="card settings-panel settings-interface-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الواجهة واللغة</h2><p class="muted">تخصيص مظهر وكثافة ولغة الواجهة.</p></div></div><div class="settings-select-grid"><label class="field"><span>اللغة</span><select class="select" data-action="preference-select" data-preference="language"><option value="ar" ${state.language === "ar" ? "selected" : ""}>◉ العربية</option><option value="en" ${state.language === "en" ? "selected" : ""}>◉ English</option></select></label><label class="field"><span>المظهر</span><select class="select theme-preference-select" data-action="preference-select" data-preference="theme"><option value="light" ${state.theme === "light" ? "selected" : ""}>☀ شمسي (فاتح)</option><option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾ قمري (داكن)</option><option value="system" ${remote.theme === "system" ? "selected" : ""}>النظام</option></select></label><label class="field"><span>كثافة الواجهة</span><select class="select" data-action="preference-select" data-preference="interfaceDensity"><option value="comfortable" ${remote.interfaceDensity === "comfortable" ? "selected" : ""}>مريحة</option><option value="medium" ${remote.interfaceDensity === "medium" ? "selected" : ""}>متوسطة</option><option value="compact" ${remote.interfaceDensity === "compact" ? "selected" : ""}>مضغوطة</option></select></label></div></article>
-      <article class="card settings-panel settings-notifications-card"><div class="settings-panel-head">${dashboardIcon("notifications")}<div><h2>الإشعارات</h2><p class="muted">اختر الإشعارات التي ترغب في استلامها.</p></div></div>${notificationSettingToggle("renewalBillingNotifications", "إشعارات التجديد والفواتير", Boolean(notifications.renewalBillingNotifications))}${notificationSettingToggle("securityNotifications", "التنبيهات الأمنية الأساسية", true, true)}${notificationSettingToggle("productUpdates", "تقارير النظام والتحديثات", Boolean(notifications.productUpdates))}${notificationSettingToggle("messageFailureNotifications", "تنبيهات فشل الرسائل", Boolean(notifications.messageFailureNotifications))}<small class="security-always-note">التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.</small></article>
-      <article class="card settings-panel storage-panel ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>من ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Number(storage.progressPercent ?? Math.min(100, Number(storage.percent || 0)))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small>${storage.isLimitReached ? `<div class="storage-capacity-warning">${dashboardIcon("warning")}<div><strong>وصلت إلى حد مساحة الباقة</strong><span>أوقفت المنصة العمليات الجديدة التي تحتاج مساحة. طوّر الباقة أو احذف بيانات لا تحتاجها.</span></div></div>` : ""}<div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn ${storage.isLimitReached ? "btn-primary" : "btn-secondary"}" data-link="/dashboard/billing">${storage.isLimitReached ? "ترقية الباقة" : "عرض حدود الباقات"}</button></article>
+      <article class="card settings-panel settings-interface-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الواجهة واللغة</h2><p class="muted">تخصيص مظهر وكثافة ولغة الواجهة.</p></div></div><div class="settings-select-grid"><label class="field"><span>اللغة</span><select class="select" data-action="preference-select" data-preference="language"><option value="ar" ${state.language === "ar" ? "selected" : ""}>◉ العربية</option><option value="en" ${state.language === "en" ? "selected" : ""}>◉ English</option></select></label><label class="field"><span>المظهر</span><select class="select theme-preference-select" data-action="preference-select" data-preference="theme"><option value="light" ${state.theme === "light" ? "selected" : ""}>☀ شمسي (فاتح)</option><option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾ قمري (داكن)</option><option value="system" ${state.theme === "system" ? "selected" : ""}>النظام</option></select></label><label class="field"><span>كثافة الواجهة</span><select class="select" data-action="preference-select" data-preference="interfaceDensity"><option value="comfortable" ${state.interfaceDensity === "comfortable" ? "selected" : ""}>مريحة</option><option value="medium" ${state.interfaceDensity === "medium" ? "selected" : ""}>متوسطة</option><option value="compact" ${state.interfaceDensity === "compact" ? "selected" : ""}>مضغوطة</option></select></label></div></article>
+      <article class="card settings-panel settings-notifications-card"><div class="settings-panel-head">${dashboardIcon("notifications")}<div><h2>الإشعارات</h2><p class="muted">اختر الإشعارات التي ترغب في استلامها.</p></div></div>${notificationSettingToggle("renewalBillingNotifications", "إشعارات التجديد والفواتير", notifications.renewalBillingNotifications !== false, Boolean(state.notificationPreferenceSaving))}${notificationSettingToggle("securityNotifications", "التنبيهات الأمنية الأساسية", true, true)}${notificationSettingToggle("productUpdates", "تقارير النظام والتحديثات", notifications.productUpdates !== false, Boolean(state.notificationPreferenceSaving))}${notificationSettingToggle("messageFailureNotifications", "تنبيهات فشل الرسائل", notifications.messageFailureNotifications !== false, Boolean(state.notificationPreferenceSaving))}<small class="security-always-note">التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.</small></article>
+      <article class="card settings-panel storage-panel ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>${state.language === "en" ? "of" : "من"} ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Number(storage.progressPercent ?? Math.min(100, Number(storage.percent || 0)))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small>${storage.isLimitReached ? `<div class="storage-capacity-warning">${dashboardIcon("warning")}<div><strong>وصلت إلى حد مساحة الباقة</strong><span>أوقفت المنصة العمليات الجديدة التي تحتاج مساحة. طوّر الباقة أو احذف بيانات لا تحتاجها.</span></div></div>` : ""}<div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn ${storage.isLimitReached ? "btn-primary" : "btn-secondary"}" data-link="/dashboard/billing">${storage.isLimitReached ? "ترقية الباقة" : "عرض حدود الباقات"}</button></article>
     </div>`);
 }
 
@@ -4702,38 +4778,102 @@ async function saveProfileSettings(data, form) {
 
 async function saveInterfacePreferences(overrides = {}) {
   const remote = state.accountSettings?.settings || {};
-  const language = overrides.language || state.language;
-  const theme = overrides.theme || state.theme;
-  const interfaceDensity = overrides.interfaceDensity || remote.interfaceDensity || "comfortable";
-  await fetchJson("/api/settings/preferences", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ language, theme, interfaceDensity })
-  });
-  state.language = language;
-  state.theme = theme;
-  localStorage.setItem("renewpilot_locale", language);
-  localStorage.setItem("renewpilot_theme", theme);
-  applyPreferences();
-  state.accountSettings = null;
-  await syncRouteData(true);
+  const previous = {
+    language: state.language,
+    theme: state.theme,
+    interfaceDensity: state.interfaceDensity || remote.interfaceDensity || "comfortable"
+  };
+  const next = {
+    language: overrides.language === "en" ? "en" : overrides.language === "ar" ? "ar" : previous.language,
+    theme: ["light", "dark", "system"].includes(overrides.theme) ? overrides.theme : previous.theme,
+    interfaceDensity: ["comfortable", "medium", "compact"].includes(overrides.interfaceDensity)
+      ? overrides.interfaceDensity
+      : previous.interfaceDensity
+  };
+  const applyLocalState = (preferences) => {
+    state.language = preferences.language;
+    state.theme = preferences.theme;
+    state.interfaceDensity = preferences.interfaceDensity;
+    localStorage.setItem("renewpilot_locale", state.language);
+    localStorage.setItem("renewpilot_theme", state.theme);
+    localStorage.setItem("renewpilot_density", state.interfaceDensity);
+    if (state.accountSettings?.settings) {
+      state.accountSettings = {
+        ...state.accountSettings,
+        settings: { ...state.accountSettings.settings, ...preferences }
+      };
+    }
+    applyPreferences();
+    render();
+  };
+
+  applyLocalState(next);
+  try {
+    const payload = await fetchJson("/api/settings/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next)
+    });
+    const saved = payload.preferences || next;
+    applyLocalState({
+      language: saved.language === "en" ? "en" : "ar",
+      theme: ["light", "dark", "system"].includes(saved.theme) ? saved.theme : "light",
+      interfaceDensity: ["comfortable", "medium", "compact"].includes(saved.interfaceDensity)
+        ? saved.interfaceDensity
+        : "comfortable"
+    });
+    return saved;
+  } catch (error) {
+    if (!state.route.startsWith("/dashboard") && error.status === 401) return next;
+    if (state.route.startsWith("/dashboard")) applyLocalState(previous);
+    throw error;
+  }
 }
 
 async function saveNotificationPreference(key, checked) {
   const remote = state.accountSettings?.settings || {};
-  const current = { ...(remote.notifications || {}), [key]: checked };
-  await fetchJson("/api/settings/notifications", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      renewalBillingNotifications: Boolean(current.renewalBillingNotifications),
-      productUpdates: Boolean(current.productUpdates),
-      messageFailureNotifications: Boolean(current.messageFailureNotifications)
-    })
-  });
-  state.accountSettings = null;
-  await syncRouteData(true);
-  toast("تم حفظ تفضيلات الإشعارات");
+  const previous = {
+    renewalBillingNotifications: remote.notifications?.renewalBillingNotifications !== false,
+    securityNotifications: true,
+    productUpdates: remote.notifications?.productUpdates !== false,
+    messageFailureNotifications: remote.notifications?.messageFailureNotifications !== false
+  };
+  const next = { ...previous, [key]: checked, securityNotifications: true };
+  const applyNotificationState = (notifications) => {
+    if (state.accountSettings?.settings) {
+      state.accountSettings = {
+        ...state.accountSettings,
+        settings: {
+          ...state.accountSettings.settings,
+          notifications: { ...notifications, securityNotifications: true }
+        }
+      };
+    }
+  };
+
+  state.notificationPreferenceSaving = key;
+  applyNotificationState(next);
+  render();
+  try {
+    const payload = await fetchJson("/api/settings/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        renewalBillingNotifications: next.renewalBillingNotifications,
+        productUpdates: next.productUpdates,
+        messageFailureNotifications: next.messageFailureNotifications
+      })
+    });
+    applyNotificationState(payload.notifications || next);
+    state.notificationPreferenceSaving = "";
+    render();
+    toast("تم حفظ تفضيلات الإشعارات");
+  } catch (error) {
+    applyNotificationState(previous);
+    state.notificationPreferenceSaving = "";
+    render();
+    throw error;
+  }
 }
 
 async function showSessionsDrawer() {
@@ -5499,20 +5639,16 @@ async function handleAction(target) {
     } catch { appToast.error("تعذر فصل متجر سلة", { description: "حاول مرة أخرى بعد قليل.", id: "salla-disconnect-error" }); }
   }
   if (action === "theme") {
-    state.theme = state.theme === "dark" ? "light" : "dark";
-    localStorage.setItem("renewpilot_theme", state.theme);
-    applyPreferences();
-    toast(state.theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي");
-    render();
-    void saveInterfacePreferences({ theme: state.theme }).catch(() => null);
+    const theme = state.theme === "dark" ? "light" : "dark";
+    void saveInterfacePreferences({ theme })
+      .then(() => toast(theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي"))
+      .catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
   }
   if (action === "language") {
-    state.language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
-    localStorage.setItem("renewpilot_locale", state.language);
-    applyPreferences();
-    toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
-    render();
-    void saveInterfacePreferences({ language: state.language }).catch(() => null);
+    const language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
+    void saveInterfacePreferences({ language })
+      .then(() => toast(language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled"))
+      .catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
   }
   if (action === "profile-menu") { state.profileOpen = !state.profileOpen; render(); }
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
@@ -7818,11 +7954,6 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "preference-select") {
     const value = target.value;
     const key = target.dataset.preference;
-    if (key === "language") state.language = value === "en" ? "en" : "ar";
-    if (key === "theme") state.theme = ["light", "dark", "system"].includes(value) ? value : "light";
-    localStorage.setItem("renewpilot_locale", state.language);
-    localStorage.setItem("renewpilot_theme", state.theme);
-    applyPreferences();
     void saveInterfacePreferences({ [key]: value }).then(() => toast("تم حفظ تفضيلات الواجهة")).catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
   }
   if (target.dataset.action === "notification-preference") {
