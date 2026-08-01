@@ -1,6 +1,5 @@
-import { query, transaction } from "./db.js";
+import { query } from "./db.js";
 import { getCurrentMessageUsage } from "../lib/billing/message-quota.js";
-import { ensureWhatsappWalletWithClient, walletHealth } from "../lib/billing/whatsapp-wallet.js";
 import { getTenantStorage } from "./tenant-storage.js";
 
 function numeric(value) {
@@ -30,16 +29,11 @@ function normalizePlan(plan) {
 }
 
 export async function getWhatsappBillingUsage(tenantId) {
-  const wallet = await transaction((client) => ensureWhatsappWalletWithClient(client, tenantId));
-  const [summary, bySource, byStatus, transactions] = await Promise.all([
+  const [summary, bySource, byStatus, metaConnection] = await Promise.all([
     query(
       `SELECT count(*)::int AS "requestedCount",
               count(*) FILTER (WHERE status IN ('accepted','sent','delivered','read'))::int AS "acceptedCount",
-              count(*) FILTER (WHERE status = 'failed')::int AS "failedCount",
-              count(final_cost)::int AS "finalCostCount",
-              count(estimated_cost)::int AS "estimatedCostCount",
-              COALESCE(sum(final_cost),0) AS "finalCost",
-              COALESCE(sum(estimated_cost),0) AS "estimatedCost"
+              count(*) FILTER (WHERE status = 'failed')::int AS "failedCount"
          FROM whatsapp_usage_records
         WHERE tenant_id = $1 AND created_at >= date_trunc('month', now())`,
       [tenantId]
@@ -47,11 +41,7 @@ export async function getWhatsappBillingUsage(tenantId) {
     query(
       `SELECT usage_source AS source, count(*)::int AS count,
               count(*) FILTER (WHERE status IN ('accepted','sent','delivered','read'))::int AS successful,
-              count(*) FILTER (WHERE status = 'failed')::int AS failed,
-              count(final_cost)::int AS "finalCostCount",
-              count(estimated_cost)::int AS "estimatedCostCount",
-              COALESCE(sum(final_cost),0) AS "finalCost",
-              COALESCE(sum(estimated_cost),0) AS "estimatedCost"
+              count(*) FILTER (WHERE status = 'failed')::int AS failed
          FROM whatsapp_usage_records
         WHERE tenant_id = $1 AND created_at >= date_trunc('month', now())
         GROUP BY usage_source ORDER BY count(*) DESC`,
@@ -65,50 +55,36 @@ export async function getWhatsappBillingUsage(tenantId) {
       [tenantId]
     ),
     query(
-      `SELECT id, transaction_type AS "transactionType", amount, currency,
-              balance_before AS "balanceBefore", balance_after AS "balanceAfter",
-              status, description, created_at AS "createdAt"
-         FROM whatsapp_wallet_transactions
-        WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 20`,
+      `SELECT count(*)::int AS "totalChannels",
+              count(*) FILTER (WHERE status = 'connected')::int AS "connectedChannels",
+              max(COALESCE(last_health_check_at, updated_at, connected_at)) AS "lastSyncedAt"
+         FROM whatsapp_channels
+        WHERE tenant_id = $1 AND provider IN ('meta','meta_cloud_api')`,
       [tenantId]
     )
   ]);
   const totals = summary.rows[0] || {};
-  const normalizedWallet = {
-    id: wallet.id,
-    currency: wallet.currency,
-    availableBalance: numeric(wallet.available_balance),
-    reservedBalance: numeric(wallet.reserved_balance),
-    totalCharged: numeric(wallet.total_charged),
-    totalSpent: numeric(wallet.total_spent),
-    lowBalanceThreshold: numeric(wallet.low_balance_threshold),
-    health: walletHealth(wallet)
-  };
+  const meta = metaConnection.rows[0] || {};
+  const connectedChannels = numeric(meta.connectedChannels);
+  const totalChannels = numeric(meta.totalChannels);
   return {
     messagesThisMonth: numeric(totals.requestedCount),
     acceptedThisMonth: numeric(totals.acceptedCount),
     failedThisMonth: numeric(totals.failedCount),
-    actualCost: numeric(totals.finalCostCount) > 0 ? numeric(totals.finalCost) : null,
-    estimatedCost: numeric(totals.estimatedCostCount) > 0 ? numeric(totals.estimatedCost) : null,
-    costState: numeric(totals.finalCostCount) > 0
-      ? "final"
-      : numeric(totals.estimatedCostCount) > 0 ? "estimated" : "syncing",
-    wallet: normalizedWallet,
+    provider: "meta",
+    metaConnection: {
+      totalChannels,
+      connectedChannels,
+      status: connectedChannels > 0 ? "connected" : totalChannels > 0 ? "attention" : "not_connected",
+      lastSyncedAt: meta.lastSyncedAt || null
+    },
     bySource: bySource.rows.map((row) => ({
       source: row.source,
       count: numeric(row.count),
       successful: numeric(row.successful),
-      failed: numeric(row.failed),
-      actualCost: numeric(row.finalCostCount) > 0 ? numeric(row.finalCost) : null,
-      estimatedCost: numeric(row.estimatedCostCount) > 0 ? numeric(row.estimatedCost) : null
+      failed: numeric(row.failed)
     })),
-    byStatus: Object.fromEntries(byStatus.rows.map((row) => [row.status, numeric(row.count)])),
-    transactions: transactions.rows.map((row) => ({
-      ...row,
-      amount: numeric(row.amount),
-      balanceBefore: numeric(row.balanceBefore),
-      balanceAfter: numeric(row.balanceAfter)
-    }))
+    byStatus: Object.fromEntries(byStatus.rows.map((row) => [row.status, numeric(row.count)]))
   };
 }
 
@@ -175,12 +151,6 @@ export async function getBillingOverview(tenantId) {
     usage,
     emailUsage: usage.channels.email,
     whatsappUsage: whatsapp,
-    walletBalance: whatsapp.wallet.availableBalance,
-    paymentConfigured: Boolean(
-      process.env.MOYASAR_SECRET_KEY
-      && process.env.MOYASAR_WEBHOOK_SECRET
-      && process.env.NEXT_PUBLIC_APP_URL
-    ),
     invoices: invoices.rows.map((invoice) => ({
       ...invoice,
       amount: numeric(invoice.amount),

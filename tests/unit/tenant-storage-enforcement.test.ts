@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   getTenantStorageLimitState,
@@ -50,5 +51,17 @@ describe("tenant storage enforcement", () => {
       isOverLimit: false,
       remainingBytes: 536_576
     });
+  });
+});
+
+describe("storage limit upgrade navigation", () => {
+  const appSource = readFileSync(new URL("../../src/app/app.js", import.meta.url), "utf8");
+
+  it("closes the quota modal and opens the plans tab directly", () => {
+    expect(appSource).toContain('data-action="upgrade-storage-plan"');
+    expect(appSource).toContain('if (action === "upgrade-storage-plan")');
+    expect(appSource).toContain('state.billingTab = "plans"');
+    expect(appSource).toContain('storage.set("renvix.billing.tab", "plans")');
+    expect(appSource).toMatch(/if \(action === "upgrade-storage-plan"\)[\s\S]*?closePortal\(\);[\s\S]*?navigate\("\/dashboard\/billing"\)/);
   });
 });

@@ -9,6 +9,8 @@ export async function lockTenantCampaign(client, tenantId, campaignId) {
 
 export async function estimateCampaignAudience(client, campaign) {
   const channel = campaign.channel;
+  const audienceFilter = campaign.audience_filter && typeof campaign.audience_filter === "object" ? campaign.audience_filter : {};
+  const groupId = audienceFilter.groupId || null;
   const result = await client.query(
     `SELECT c.id AS contact_id, c.display_name, cp.id AS contact_point_id, cp.normalized_value
        FROM contacts c
@@ -19,10 +21,19 @@ export async function estimateCampaignAudience(client, campaign) {
           ORDER BY p.is_primary DESC,p.created_at LIMIT 1
        ) cp ON true
       WHERE c.tenant_id=$1 AND c.status='active'
+        AND ($3::uuid IS NULL OR EXISTS (
+          SELECT 1 FROM contact_tag_assignments cta
+           WHERE cta.tenant_id=c.tenant_id AND cta.contact_id=c.id AND cta.tag_id=$3
+        ))
       ORDER BY c.created_at`,
-    [campaign.tenant_id, channel]
+    [campaign.tenant_id, channel, groupId]
   );
-  const total = await client.query(`SELECT count(*)::int AS total FROM contacts WHERE tenant_id=$1 AND status='active'`, [campaign.tenant_id]);
+  const total = await client.query(`SELECT count(*)::int AS total FROM contacts c
+    WHERE c.tenant_id=$1 AND c.status='active'
+      AND ($2::uuid IS NULL OR EXISTS (
+        SELECT 1 FROM contact_tag_assignments cta
+         WHERE cta.tenant_id=c.tenant_id AND cta.contact_id=c.id AND cta.tag_id=$2
+      ))`, [campaign.tenant_id, groupId]);
   return { total: Number(total.rows[0]?.total || 0), eligible: result.rowCount, recipients: result.rows };
 }
 
@@ -36,8 +47,9 @@ export async function assertCampaignChannelReady(client, campaign) {
   const channel = await client.query(
     `SELECT id FROM whatsapp_channels
       WHERE tenant_id=$1 AND provider IN ('meta','meta_cloud_api') AND status='connected'
+        AND ($2::uuid IS NULL OR id=$2)
       ORDER BY connected_at DESC NULLS LAST LIMIT 1`,
-    [campaign.tenant_id]
+    [campaign.tenant_id, campaign.whatsapp_channel_id || null]
   );
   if (!channel.rowCount) {
     throw Object.assign(new Error("قناة واتساب الرسمية غير مرتبطة. اربط Meta Cloud API أولًا."), { code: "channel_not_configured" });

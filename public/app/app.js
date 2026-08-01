@@ -192,9 +192,8 @@ Object.assign(operationalEnglishPhrases, {
   "هل تحتاج إلى المزيد من الرسائل؟ اشحن رصيدك الإضافي حسب احتياجك.": "Need more messages? Add credits whenever your business needs them.",
   "رسالة": "messages",
   "شحن الآن": "Add credits",
-  "شحن رصيد واتساب": "Top up WhatsApp balance",
-  "أضف رصيدًا لاستخدام رسائل واتساب الرسمية حسب احتياجك.": "Add balance for official WhatsApp messaging whenever you need it.",
-  "رصيد واتساب": "WhatsApp balance",
+  "شحن رصيد رسائل البريد": "Add email message credit",
+  "اطلب زيادة رصيد البريد عند حاجتك دون التأثير على ربط واتساب الرسمي.": "Request additional email credit without affecting your official WhatsApp connection.",
   "نعم، يمكنك إدارة خطتك بمرونة من صفحة الفوترة، ويُحتسب استخدام البريد وواتساب كلٌ على حدة وفق الرسائل الناجحة فعليًا.": "Yes. You can manage your plan from Billing; email and WhatsApp usage are counted separately and only after successful delivery.",
   "التجربة المجانية": "Free trial",
   "لاختبار المنصة قبل الترقية": "Test the platform before upgrading",
@@ -2229,6 +2228,7 @@ function dashboardHome() {
 }
 
 function pageTitle(title, actions = "") {
+  const pageActions = title === "قوالب عامة" ? "" : actions;
   const descriptions = {
     "الرئيسية": "ملخص أعمالك الحقيقي من قاعدة البيانات.",
     "إدارة الاشتراكات": "تابع الاشتراكات والتجديدات في مكان واحد.",
@@ -2242,7 +2242,7 @@ function pageTitle(title, actions = "") {
     "التقارير": "المؤشرات وسجل النشاط والفوترة.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
   };
-  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "Renvix"}</p></div><div class="toolbar">${actions}</div></div>`;
+  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "Renvix"}</p></div><div class="toolbar">${pageActions}</div></div>`;
 }
 
 function activityList(items = []) {
@@ -2503,9 +2503,17 @@ function appsCatalogMarkup(data, connected, customIntegrations = []) {
       ${!connected && !data.configured ? `<small class="integration-config-note">الربط بانتظار تهيئة بيانات سلة الآمنة على الخادم.</small>` : ""}
     </article>
     <article class="integration-card integration-card--unavailable" aria-disabled="true">
-      <div class="integration-card-head"><span class="integration-logo integration-logo--zid" aria-hidden="true">زد</span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
+      <div class="integration-card-head"><span class="integration-logo integration-logo--zid"><svg viewBox="0 0 48 48" role="img" aria-label="شعار زد"><rect x="3" y="3" width="42" height="42" rx="12"></rect><text x="24" y="31" text-anchor="middle">زد</text></svg></span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
       <h2>زد</h2><p class="integration-subtitle">منصة التجارة الإلكترونية زد</p>
       <p class="integration-description">سيُتاح ربط زد بعد اكتمال واعتماد التكامل الرسمي، دون طلب أي بيانات منك الآن.</p>
+      <span class="integration-status unavailable"><i></i> قريبًا</span>
+      <ul class="integration-features"><li>مزامنة الطلبات تلقائيًا</li><li>إنشاء العملاء تلقائيًا</li><li>ربط المنتج بالباقة</li><li>إرسال رابط معلومات الطلب</li></ul>
+      <button class="btn btn-secondary integration-action" type="button" disabled>${dashboardIcon("security")} غير متاح حاليًا</button>
+    </article>
+    <article class="integration-card integration-card--unavailable" aria-disabled="true">
+      <div class="integration-card-head"><span class="integration-logo integration-logo--shopify"><svg viewBox="0 0 48 48" role="img" aria-label="شعار شوبيفاي"><path class="shopify-bag" d="M12 15.5h24l2.2 26H9.8z"></path><path class="shopify-handle" d="M17 17c.3-6 3-10 7-10s6.7 4 7 10"></path><text x="24" y="34" text-anchor="middle">S</text></svg></span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
+      <h2>شوبيفاي</h2><p class="integration-subtitle">منصة التجارة الإلكترونية شوبيفاي</p>
+      <p class="integration-description">سيُتاح ربط شوبيفاي بعد اكتمال واعتماد التكامل الرسمي، دون طلب أي بيانات منك الآن.</p>
       <span class="integration-status unavailable"><i></i> قريبًا</span>
       <ul class="integration-features"><li>مزامنة الطلبات تلقائيًا</li><li>إنشاء العملاء تلقائيًا</li><li>ربط المنتج بالباقة</li><li>إرسال رابط معلومات الطلب</li></ul>
       <button class="btn btn-secondary integration-action" type="button" disabled>${dashboardIcon("security")} غير متاح حاليًا</button>
@@ -2518,7 +2526,7 @@ function appsCatalogMarkup(data, connected, customIntegrations = []) {
       <ul class="integration-features"><li>تكامل مخصص عبر API</li><li>إمكانية Webhooks</li><li>إرسال واستقبال البيانات</li><li>توثيق شامل ومرن</li></ul>
       <button class="btn btn-secondary integration-action" data-link="/dashboard/settings/integrations/custom-api">${customIntegration ? "إدارة التكامل" : "إعداد التكامل"}</button>
     </article>
-    ${hasLinkedApp ? "" : `<article class="integration-empty-card">
+    ${hasLinkedApp ? "" : `<article class="integration-empty-card integration-empty-card--full">
       <div class="integration-empty-art" aria-hidden="true"><span>◇</span><i></i><i></i><i></i></div>
       <h2>لم تربط أي تطبيق بعد</h2>
       <p>اربط تطبيقاتك لبدء أتمتة الطلبات وإدارة اشتراكات عملائك بكفاءة أعلى.</p>
@@ -2767,6 +2775,67 @@ function campaignActivityMarkup(items = []) {
   return items.map((item) => `<div class="campaign-activity"><span>${dashboardIcon(item.type?.includes("queued") ? "send" : "campaigns")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${new Date(item.createdAt).toLocaleString("ar-SA")}</small></div></div>`).join("");
 }
 
+function campaignMetaTemplateBody(template) {
+  const components = Array.isArray(template?.components) ? template.components : [];
+  return components.find((component) => String(component?.type || "").toUpperCase() === "BODY")?.text || "";
+}
+
+function campaignCreateModalMarkup() {
+  const options = state.campaignsOverview?.createOptions || {};
+  const devices = Array.isArray(options.devices) ? options.devices : [];
+  const groups = Array.isArray(options.groups) ? options.groups : [];
+  const templates = Array.isArray(options.templates) ? options.templates : [];
+  const metaTemplates = Array.isArray(options.metaTemplates) ? options.metaTemplates : [];
+  const start = new Date(Date.now() + 5 * 60_000);
+  const localStart = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString();
+  const startDate = localStart.slice(0, 10);
+  const startTime = localStart.slice(11, 16);
+  const dayOptions = [[0,"الأحد"],[1,"الاثنين"],[2,"الثلاثاء"],[3,"الأربعاء"],[4,"الخميس"],[5,"الجمعة"],[6,"السبت"]];
+  const connectedDevices = devices.filter((device) => device.status === "connected");
+  const emailTemplates = templates.filter((template) => template.channel === "email");
+  return `<form data-submit="campaign-create" class="campaign-create-form">
+    <section class="campaign-form-section campaign-form-intro">
+      <div><strong>تفاصيل الحملة</strong><small>اضبط الجمهور والقناة والجدول من مكان واحد.</small></div>
+      <label class="campaign-activation"><span><b>تفعيل الحملة</b><small>تحضير الجمهور وجدولة الإرسال عند الحفظ</small></span><span class="switch-control"><input type="checkbox" name="isEnabled" checked><span></span></span></label>
+    </section>
+    <section class="campaign-form-grid">
+      <label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="مثال: عروض نهاية الشهر"></label>
+      <label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="campaign-channel"><option value="whatsapp">واتساب عبر Meta Cloud API</option><option value="email">البريد الإلكتروني عبر Resend</option></select></label>
+      <label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="600" placeholder="الغرض من الحملة"></label>
+      <label class="field"><span>اختيار المجموعة</span><select class="select" name="groupId"><option value="">كل جهات الاتصال المؤهلة</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)} (${Number(group.contactsCount || 0).toLocaleString("ar-SA")})</option>`).join("")}</select><small>تُستخدم مجموعات جهات الاتصال المحفوظة فقط.</small></label>
+      <div data-campaign-panel="whatsapp" class="campaign-channel-fields">
+        <label class="field"><span>اختيار الأجهزة</span><select class="select" name="whatsappChannelId" required><option value="">اختر جهازًا متصلًا</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا يوجد جهاز Meta متصل. اربط جهازًا قبل تفعيل الحملة.</small>`}</label>
+        <label class="field"><span>اختيار القالب</span><select class="select" name="metaTemplateId" data-action="campaign-template"><option value="">محتوى مخصص بدون قالب</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-channel-id="${escapeHtml(template.channelId)}" data-template-body="${escapeHtml(campaignMetaTemplateBody(template))}">${escapeHtml(template.name || "قالب Meta")} — ${escapeHtml(template.language || "ar")}</option>`).join("")}</select><small>تظهر قوالب Meta المعتمدة فقط.</small></label>
+      </div>
+      <div data-campaign-panel="email" class="campaign-channel-fields" hidden>
+        <label class="field"><span>اختيار القالب</span><select class="select" name="templateId" data-action="campaign-template" disabled><option value="">محتوى بريد مخصص</option>${emailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-template-body="${escapeHtml(template.body || "")}" data-template-subject="${escapeHtml(template.subject || template.name || "")}">${escapeHtml(template.name)}</option>`).join("")}</select></label>
+        <label class="field"><span>عنوان البريد</span><input class="input" name="subject" maxlength="200" placeholder="عنوان واضح للحملة" disabled></label>
+      </div>
+    </section>
+    <section class="campaign-form-section campaign-schedule-section"><div class="campaign-form-section-title"><strong>موعد الإرسال</strong><small>تُستخدم منطقة الرياض الزمنية لحماية دقة الجدولة.</small></div>
+      <div class="campaign-form-grid campaign-schedule-grid">
+        <label class="field"><span>تاريخ بدء الحملة</span><input class="input" type="date" name="startDate" min="${startDate}" value="${startDate}" required></label>
+        <label class="field"><span>توقيت بدء الحملة</span><input class="input" type="time" name="startTime" value="${startTime}" required></label>
+        <label class="field"><span>توقيت انتهاء الحملة</span><input class="input" type="time" name="endTime" value="23:00" required><small>يتوقف الإرسال بعد هذا الوقت ويُستكمل في يوم مسموح.</small></label>
+        <div class="field campaign-days-field"><span>تحديد الأيام</span><div class="campaign-days"><label class="campaign-all-days"><input type="checkbox" data-action="campaign-all-days" checked> كل الأيام</label>${dayOptions.map(([value,label]) => `<label><input type="checkbox" name="allowedDays" value="${value}" checked> ${label}</label>`).join("")}</div></div>
+      </div>
+    </section>
+    <section class="campaign-form-section"><div class="campaign-form-section-title"><strong>محتوى القالب</strong><small>استخدم <code dir="ltr">{{ مرحبا | اهلا بك | حياك }}</code> لاختيار عبارة مختلفة تلقائيًا لكل مستلم.</small></div>
+      <label class="field campaign-message-field"><textarea class="textarea" name="body" maxlength="12000" rows="7" required placeholder="{{ مرحبا | أهلاً بك | حياك }} {{customer_name}}، اكتب رسالتك هنا..."></textarea></label>
+      <div class="campaign-keywords-grid">
+        <fieldset><legend>كلمات مفتاحية من جهة الاتصال الخاصة بك</legend><label><input type="checkbox" name="contactKeywords" value="customer_name" checked> اسم العميل <code>{{customer_name}}</code></label><label><input type="checkbox" name="contactKeywords" value="company_name"> اسم الشركة <code>{{company_name}}</code></label><label><input type="checkbox" name="contactKeywords" value="first_name"> الاسم الأول <code>{{first_name}}</code></label></fieldset>
+        <label class="field"><span>كلمات مفتاحية أخرى لاستخدامها</span><textarea class="textarea" name="customKeywords" rows="4" maxlength="1200" placeholder="اكتب كل كلمة مفتاحية في سطر مستقل"></textarea><small>تُحفظ مع إعدادات الحملة لاستخدامها عند تجهيز الرسالة.</small></label>
+      </div>
+    </section>
+    <section class="campaign-form-section"><div class="campaign-form-section-title"><strong>الفاصل العشوائي بين الرسائل</strong><small>كلما زادت الفترة كان الإرسال أكثر هدوءًا وأمانًا.</small></div><div class="campaign-delay-grid">
+      <label class="field"><span>أقل وقت بين الرسالة والأخرى بالثانية</span><input class="input" name="minDelaySeconds" type="number" min="20" max="3600" value="20" required><small>الحد الأدنى الآمن هو 20 ثانية.</small></label>
+      <label class="field"><span>أقصى وقت بين الرسالة والأخرى بالثانية</span><input class="input" name="maxDelaySeconds" type="number" min="20" max="7200" value="120" required><small>تختار المنصة فترة عشوائية ضمن النطاق.</small></label>
+    </div></section>
+    <div class="campaign-safety-note">لن يتم تجاوز الجهاز أو المجموعة أو الأيام المحددة، وتُفحص أهلية الجمهور قبل تفعيل الجدولة.</div>
+    <div class="campaign-form-actions"><button class="btn btn-primary" type="submit">حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="close-modal">إلغاء</button></div>
+  </form>`;
+}
+
 function campaignsPage() {
   const data = state.campaignsOverview;
   const items = Array.isArray(data?.items) ? data.items : [];
@@ -2916,7 +2985,7 @@ function showStorageQuotaLimit(storage = null) {
   const used = Number(storage?.usedMb || 0);
   const limit = Number(storage?.limitMb || 0);
   const usageText = limit > 0 ? `${used.toLocaleString("ar-SA")} من ${limit.toLocaleString("ar-SA")} MB` : "الحد المسموح في الباقة الحالية";
-  openModal("مساحة الباقة ممتلئة", `<div class="quota-limit-modal storage-limit-modal">${dashboardIcon("billing")}<p>لا يمكن تنفيذ عملية جديدة تحتاج إلى مساحة لأن حسابك وصل إلى حد التخزين.</p><p>الاستخدام الحالي: <strong>${escapeHtml(usageText)}</strong>.</p><p>طوّر الباقة للمتابعة، أو احذف بيانات وملفات لم تعد تحتاجها ثم أعد المحاولة. عمليات الحذف وإدارة الفوترة تظل متاحة.</p><div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button><button class="btn btn-secondary" data-link="/dashboard/settings">مراجعة المساحة</button></div></div>`);
+  openModal("مساحة الباقة ممتلئة", `<div class="quota-limit-modal storage-limit-modal">${dashboardIcon("billing")}<p>لا يمكن تنفيذ عملية جديدة تحتاج إلى مساحة لأن حسابك وصل إلى حد التخزين.</p><p>الاستخدام الحالي: <strong>${escapeHtml(usageText)}</strong>.</p><p>طوّر الباقة للمتابعة، أو احذف بيانات وملفات لم تعد تحتاجها ثم أعد المحاولة. عمليات الحذف وإدارة الفوترة تظل متاحة.</p><div class="inline-actions"><button class="btn btn-primary" data-action="upgrade-storage-plan">ترقية الباقة</button><button class="btn btn-secondary" data-link="/dashboard/settings">مراجعة المساحة</button></div></div>`);
 }
 
 function securityTrendMarkup(points = [], currentScore = null) {
@@ -4190,12 +4259,6 @@ function publicSallaPage() {
   </div>`;
 }
 
-function billingAmount(value, currency = "SAR") {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return "قيد المزامنة";
-  return `${amount.toLocaleString("ar-SA", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${currency === "SAR" ? "ر.س" : escapeHtml(currency)}`;
-}
-
 function whatsappSourceLabel(source) {
   return ({
     renewal_reminder: "رسائل التجديد",
@@ -4226,31 +4289,30 @@ function billingPlanCatalog(plans, current) {
       <h3>${escapeHtml(plan.name)}</h3>
       <p class="plan-price">${plan.customPricing ? "مخصص" : formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>${plan.customPricing ? "تواصل معنا" : `/ ${state.billing === "yearly" ? "سنة" : "شهر"}`}</small></p>
       <ul class="check-list">${planFeatures.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul>
-      <p class="whatsapp-usage-note" title="رسوم واتساب الرسمية تُحسب وفق تسعير Meta والاستخدام الفعلي، وليست ضمن حد رسائل البريد.">${dashboardIcon("whatsapp")} واتساب مستقل حسب الاستخدام ورصيد المحفظة</p>
+      <p class="whatsapp-usage-note" title="تتم فوترة رسائل واتساب الرسمية مباشرة عبر Meta، ولا تبيع Renvix رصيد واتساب.">${dashboardIcon("whatsapp")} ربط واتساب الرسمي وإدارته مباشرة عبر Meta</p>
       <button class="btn ${isCurrent ? "btn-secondary" : "btn-primary"}" ${isCurrent ? "disabled" : 'data-link="/support"'}>${isCurrent ? "الخطة الحالية" : plan.customPricing ? "تواصل معنا" : "طلب الترقية"}</button>
     </article>`;
   }).join("")}</div>`;
 }
 
 function whatsappBillingCard(whatsapp = {}, expanded = false) {
-  const wallet = whatsapp.wallet || {};
-  const cost = whatsapp.costState === "final"
-    ? billingAmount(whatsapp.actualCost, wallet.currency)
-    : whatsapp.costState === "estimated"
-      ? `${billingAmount(whatsapp.estimatedCost, wallet.currency)} (تقديري)`
-      : "قيد المزامنة";
+  const meta = whatsapp.metaConnection || {};
+  const metaStatus = meta.status === "connected"
+    ? "متصل بـ Meta"
+    : meta.status === "attention" ? "يحتاج مراجعة" : "غير مربوط";
+  const metaTone = meta.status === "connected" ? "good" : meta.status === "attention" ? "low" : "empty";
   const sourceRows = Array.isArray(whatsapp.bySource) ? whatsapp.bySource : [];
   const max = Math.max(1, ...sourceRows.map((row) => Number(row.count || 0)));
   return `<article class="card channel-usage-card whatsapp-channel-card">
-    <div class="channel-usage-title"><span class="channel-usage-icon whatsapp">${dashboardIcon("whatsapp")}</span><div><h2>استخدام واتساب</h2><p>احتساب مستقل حسب الاستخدام الفعلي عبر Meta، وليس ضمن حد البريد.</p></div><span class="status success">حسب الاستخدام</span></div>
+    <div class="channel-usage-title"><span class="channel-usage-icon whatsapp">${dashboardIcon("whatsapp")}</span><div><h2>استخدام واتساب</h2><p>بيانات الاستخدام وحالة الربط متزامنة مع Meta، والفوترة تتم مباشرة من Meta.</p></div><span class="status success">إدارة Meta</span></div>
     <div class="channel-usage-summary">
       <div><span>الرسائل هذا الشهر</span><strong>${Number(whatsapp.messagesThisMonth || 0).toLocaleString("ar-SA")}</strong></div>
-      <div><span>التكلفة</span><strong>${cost}</strong></div>
-      <div><span>رصيد المحفظة</span><strong>${billingAmount(wallet.availableBalance || 0, wallet.currency)}</strong></div>
-      <div><span>الحالة</span><strong class="wallet-health ${escapeHtml(wallet.health || "empty")}">${wallet.health === "good" ? "جيد" : wallet.health === "low" ? "منخفض" : wallet.health === "critical" ? "حرج" : "يحتاج شحنًا"}</strong></div>
+      <div><span>المقبولة لدى Meta</span><strong>${Number(whatsapp.acceptedThisMonth || 0).toLocaleString("ar-SA")}</strong></div>
+      <div><span>فشل الإرسال</span><strong>${Number(whatsapp.failedThisMonth || 0).toLocaleString("ar-SA")}</strong></div>
+      <div><span>حالة الربط</span><strong class="wallet-health ${metaTone}">${metaStatus}</strong></div>
     </div>
     <button class="channel-details-toggle" data-action="toggle-whatsapp-usage">${expanded ? "إخفاء التفاصيل" : "عرض التفاصيل"} ${dashboardIcon("chevron")}</button>
-    ${expanded ? `<div class="whatsapp-usage-details"><h3>تفاصيل الاستهلاك</h3>${sourceRows.length ? sourceRows.map((row) => `<div class="usage-source-row"><span>${whatsappSourceLabel(row.source)}</span><div class="usage-source-progress"><i style="width:${Math.round(Number(row.count || 0) / max * 100)}%"></i></div><strong>${Number(row.count || 0).toLocaleString("ar-SA")} رسالة</strong><small>${row.actualCost !== null ? billingAmount(row.actualCost, wallet.currency) : row.estimatedCost !== null ? `${billingAmount(row.estimatedCost, wallet.currency)} تقديري` : "قيد المزامنة"}</small></div>`).join("") : `<p class="muted">لا يوجد استهلاك واتساب مسجل خلال هذه الدورة.</p>`}<small class="billing-safe-note">يتم الخصم فقط بعد قبول المزود للرسالة، وتتم التسوية وفق الحالة والتكلفة المسجلة فعليًا.</small></div>` : ""}
+    ${expanded ? `<div class="whatsapp-usage-details"><h3>تفاصيل الاستخدام</h3>${sourceRows.length ? sourceRows.map((row) => `<div class="usage-source-row"><span>${whatsappSourceLabel(row.source)}</span><div class="usage-source-progress"><i style="width:${Math.round(Number(row.count || 0) / max * 100)}%"></i></div><strong>${Number(row.count || 0).toLocaleString("ar-SA")} رسالة</strong><small>${Number(row.successful || 0).toLocaleString("ar-SA")} مقبولة · ${Number(row.failed || 0).toLocaleString("ar-SA")} فاشلة</small></div>`).join("") : `<p class="muted">لا يوجد استخدام واتساب مسجل خلال هذه الدورة.</p>`}<small class="billing-safe-note">تعرض Renvix سجلات الإرسال وحالة الربط فقط. الأسعار والفوترة وإدارة الرصيد تتم مباشرة داخل حساب Meta الخاص بك.</small></div>` : ""}
   </article>`;
 }
 
@@ -4262,25 +4324,19 @@ function billingInvoices(invoices = []) {
   return `<article class="card table-card billing-tab-panel"><div class="section-head"><div><h2>الفواتير</h2><p>لا تظهر إلا الفواتير الصادرة والمسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد إتمام أول عملية دفع موثقة.")}</article>`;
 }
 
-function billingTransactions(whatsapp = {}) {
-  const rows = whatsapp.transactions || [];
-  return `<article class="card table-card billing-tab-panel"><div class="section-head"><div><h2>سجل معاملات واتساب</h2><p>سجل مالي غير قابل للتخمين يوضح الشحن والحجز والخصم والاسترداد.</p></div></div>${rows.length ? simpleTable(["التاريخ", "العملية", "الوصف", "المبلغ", "الرصيد بعد العملية", "الحالة"], rows.map((row) => [
-    new Date(row.createdAt).toLocaleString("ar-SA"),
-    escapeHtml(row.transactionType),
-    escapeHtml(row.description || "—"),
-    billingAmount(row.amount, row.currency),
-    billingAmount(row.balanceAfter, row.currency),
-    status(row.status)
-  ])) : emptyState("لا توجد معاملات بعد", "ستظهر عمليات الشحن والخصم والاسترداد هنا فور تسجيلها فعليًا.")}</article>`;
-}
-
-function billingTopup(whatsapp = {}, paymentConfigured = false) {
-  const wallet = whatsapp.wallet || {};
-  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد واتساب</h2><p>${paymentConfigured ? "اختر مبلغ الشحن. لن يضاف الرصيد إلا بعد تأكيد نجاح الدفع من المزود." : "الدفع الإلكتروني غير مفعّل حاليًا في هذه البيئة."}</p></div><strong>${billingAmount(wallet.availableBalance || 0, wallet.currency)}</strong></div><div class="topup-amounts">${[50, 100, 250, 500, 1000].map((amount) => `<button class="topup-option" data-action="whatsapp-topup" data-amount="${amount}" ${paymentConfigured ? "" : "disabled"}><strong>${amount} ر.س</strong><span>${paymentConfigured ? "شحن آمن" : "غير متاح الآن"}</span></button>`).join("")}</div><div class="billing-safe-note">${dashboardIcon("security")} ${paymentConfigured ? "لا تحفظ المنصة بيانات البطاقة، ولا تضيف أي رصيد قبل استلام تأكيد دفع موثق." : "لم تتم إضافة أي رصيد، وسيُتاح الشحن بعد ربط شبكة الدفع والتحقق من Webhook."}</div></article>`;
+function emailCreditPanel(emailUsage = {}) {
+  const remaining = Math.max(0, Number(emailUsage.remaining || 0));
+  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد رسائل البريد</h2><p>رصيد البريد مرتبط بحد باقتك. اطلب زيادة الرصيد أو ترقية الباقة دون التأثير على ربط واتساب الرسمي.</p></div><strong>${remaining.toLocaleString("ar-SA")} رسالة متبقية</strong></div><div class="topup-amounts"><button class="topup-option" data-link="/dashboard/support"><strong>طلب رصيد إضافي</strong><span>يراجعه فريق الدعم</span></button><button class="topup-option" data-action="billing-tab" data-tab="plans"><strong>ترقية الباقة</strong><span>حد بريد أعلى</span></button></div><div class="billing-safe-note">${dashboardIcon("security")} لا تتم إضافة رسوم أو أرصدة وهمية. سيُوثق أي رصيد إضافي ضمن باقتك وفواتير حسابك.</div></article>`;
 }
 
 function billingWorkspacePage() {
-  const data = state.billingOverview || {};
+  if (state.billingOverview === null || state.messageUsage === null) {
+    return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">جاري تحميل بيانات خطتك واستخدامك الموثق...</p><div class="card loading-state" role="status" aria-live="polite">جاري مزامنة بيانات الفوترة</div>`);
+  }
+  if (state.billingOverview?.error || state.messageUsage?.error) {
+    return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">تعذر تحميل بيانات الفوترة الموثقة.</p>${emptyState("تعذر تحميل بيانات الفوترة", "لم نعرض قيمًا افتراضية حتى لا تظهر أرقام غير صحيحة.", "إعادة المحاولة", "billing-reload")}`);
+  }
+  const data = state.billingOverview;
   const current = data.current || {};
   const plans = data.plans || [];
   const usage = state.messageUsage && !state.messageUsage.error ? state.messageUsage : data.usage || null;
@@ -4289,30 +4345,29 @@ function billingWorkspacePage() {
   const storage = data.storage || { usedMb: 0, limitMb: 100, percent: 0 };
   const days = current.currentPeriodEnd ? Math.max(0, Math.ceil((new Date(current.currentPeriodEnd) - Date.now()) / 86400000)) : 0;
   const invoices = data.invoices || [];
-  const tab = ["overview", "plans", "whatsapp", "email", "topup", "invoices", "transactions"].includes(state.billingTab) ? state.billingTab : "overview";
+  const tab = ["overview", "plans", "whatsapp", "email", "topup", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
   const consumedEmail = Number(emailUsage.used || 0) + Number(emailUsage.reserved || 0);
   const emailLimit = Number(emailUsage.limit || 0);
   const tabs = [
     ["overview", "نظرة عامة"], ["plans", "الباقات"], ["whatsapp", "استخدام واتساب"],
-    ["email", "استخدام البريد"], ["topup", "شحن واتساب"], ["invoices", "الفواتير"], ["transactions", "المعاملات"]
+    ["email", "استخدام البريد"], ["topup", "شحن رصيد رسائل البريد"], ["invoices", "الفواتير"]
   ];
   const overview = `<section class="billing-stats-grid">
     <article class="card billing-stat"><span>${dashboardIcon("subscriptions")}</span><div><small>الخطة الحالية</small><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong><em>${escapeHtml(current.status || "trial")}</em></div></article>
     <article class="card billing-stat purple"><span>${dashboardIcon("template")}</span><div><small>الأيام المتبقية</small><strong>${days.toLocaleString("ar-SA")}</strong><em>${current.currentPeriodEnd ? `حتى ${new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA")}` : "لا توجد دورة نشطة"}</em></div></article>
     <article class="card billing-stat whatsapp"><span>${dashboardIcon("whatsapp")}</span><div><small>رسائل واتساب هذا الشهر</small><strong>${Number(whatsapp.messagesThisMonth || 0).toLocaleString("ar-SA")}</strong><em>حسب الاستخدام</em></div></article>
     <article class="card billing-stat"><span>${dashboardIcon("email")}</span><div><small>استهلاك البريد الإلكتروني</small><strong>${consumedEmail.toLocaleString("ar-SA")} / ${emailLimit.toLocaleString("ar-SA")}</strong><em>${Number(emailUsage.percentage || 0).toLocaleString("ar-SA")}% مستخدم</em></div></article>
-    <article class="card billing-stat success"><span>${dashboardIcon("billing")}</span><div><small>رصيد محفظة واتساب</small><strong>${billingAmount(whatsapp.wallet?.availableBalance || 0, whatsapp.wallet?.currency)}</strong><em>رصيد مستقل</em></div></article>
+    <article class="card billing-stat success"><span>${dashboardIcon("email")}</span><div><small>رصيد رسائل البريد</small><strong>${Math.max(0, Number(emailUsage.remaining || 0)).toLocaleString("ar-SA")}</strong><em>رسالة متبقية</em></div></article>
     <article class="card billing-stat"><span>${dashboardIcon("billing")}</span><div><small>مساحة التخزين</small><strong>${storage.usedMb} / ${storage.limitMb} MB</strong><em>${storage.percent}% مستخدم</em></div></article>
   </section>`;
   let panel = "";
-  if (tab === "overview") panel = `${overview}<section class="billing-channel-grid section">${whatsappBillingCard(whatsapp, state.whatsappUsageExpanded)}${emailBillingCard(usage)}</section><section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>حد البريد مستقل، ورسائل واتساب حسب الاستخدام في جميع الباقات.</p></div></div>${billingPlanCatalog(plans, current)}</article><aside class="billing-side">${billingTopup(whatsapp, data.paymentConfigured)}<article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>`;
-  if (tab === "plans") panel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات الشهرية تشمل المنصة والبريد، بينما واتساب الرسمي يُحسب حسب الاستخدام.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
+  if (tab === "overview") panel = `${overview}<section class="billing-channel-grid section">${whatsappBillingCard(whatsapp, state.whatsappUsageExpanded)}${emailBillingCard(usage)}</section><section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>حد البريد مرتبط بالباقة، بينما استخدام واتساب وفوترته يُداران مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article><aside class="billing-side">${emailCreditPanel(emailUsage)}<article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>`;
+  if (tab === "plans") panel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات الشهرية تشمل المنصة والبريد، بينما واتساب الرسمي يُدار ويُحاسب مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
   if (tab === "whatsapp") panel = `<section class="billing-tab-panel">${whatsappBillingCard(whatsapp, true)}</section>`;
   if (tab === "email") panel = `<section class="billing-tab-panel">${emailBillingCard(usage)}</section>`;
-  if (tab === "topup") panel = billingTopup(whatsapp, data.paymentConfigured);
+  if (tab === "topup") panel = emailCreditPanel(emailUsage);
   if (tab === "invoices") panel = billingInvoices(invoices);
-  if (tab === "transactions") panel = billingTransactions(whatsapp);
-  return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">إدارة خطتك، استخدام القنوات، الفواتير، وشحن رصيد واتساب من مكان واحد.</p>
+  return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">إدارة خطتك ورصيد البريد والفواتير، مع عرض استخدام واتساب المتزامن من Meta.</p>
     <nav class="billing-tabs" aria-label="أقسام الفوترة">${tabs.map(([key, label]) => `<button class="${tab === key ? "active" : ""}" data-action="billing-tab" data-tab="${key}">${label}</button>`).join("")}</nav>${panel}`);
 }
 
@@ -5006,32 +5061,15 @@ async function handleAction(target) {
     storage.set("renvix.billing.tab", state.billingTab);
     return render();
   }
+  if (action === "upgrade-storage-plan") {
+    state.billingTab = "plans";
+    storage.set("renvix.billing.tab", "plans");
+    closePortal();
+    return navigate("/dashboard/billing");
+  }
   if (action === "toggle-whatsapp-usage") {
     state.whatsappUsageExpanded = !state.whatsappUsageExpanded;
     return render();
-  }
-  if (action === "whatsapp-topup") {
-    const amount = Number(target.dataset.amount || 0);
-    return openModal("تأكيد شحن رصيد واتساب", `<div class="topup-confirmation">${dashboardIcon("billing")}<p>سيتم إنشاء طلب دفع بقيمة <strong>${amount.toLocaleString("ar-SA")} ر.س</strong>.</p><p class="muted">لن يضاف الرصيد إلى المحفظة إلا بعد تأكيد الدفع من المزود.</p><button class="btn btn-primary" data-action="confirm-whatsapp-topup" data-amount="${amount}">متابعة إلى الدفع</button></div>`);
-  }
-  if (action === "confirm-whatsapp-topup") {
-    target.disabled = true;
-    try {
-      const payment = await fetchJson("/api/billing/whatsapp/top-up", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Number(target.dataset.amount || 0) })
-      });
-      if (!payment.checkoutUrl) throw new Error("لم يُرجع مزود الدفع رابطًا صالحًا.");
-      window.location.assign(payment.checkoutUrl);
-      return;
-    } catch (error) {
-      toast(error.message || "تعذر إنشاء طلب الشحن. لم تتم إضافة أي رصيد.", "danger");
-    } finally {
-      target.disabled = false;
-      closePortal();
-    }
-    return;
   }
   if (action === "meta-template-create") {
     const integrations = Array.isArray(state.metaTemplates?.integrations) ? state.metaTemplates.integrations : [];
@@ -5102,7 +5140,7 @@ async function handleAction(target) {
   if (action === "campaign-reload") { state.campaignsOverview=null; syncRouteData(true); return render(); }
   if (action === "contacts-reload") { state.contactsOverview=null; state.contactStatistics=null; syncRouteData(true); return render(); }
   if (action === "campaign-create") {
-    return openModal("إنشاء حملة جديدة", `<form data-submit="campaign-create" class="grid campaign-create-form"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="مثال: عروض نهاية الشهر"></label><label class="field"><span>قناة الإرسال</span><select class="select" name="channel"><option value="whatsapp">واتساب عبر Meta Cloud API</option><option value="email">البريد الإلكتروني عبر Resend</option></select></label><label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="600" placeholder="الغرض من الحملة"></label><label class="field"><span>عنوان البريد (للبريد فقط)</span><input class="input" name="subject" maxlength="200"></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea" name="body" maxlength="12000" rows="7" required placeholder="مرحبًا {{customer_name}}..."></textarea></label><div class="campaign-safety-note">لن يبدأ الإرسال عند الحفظ. تُنشأ الحملة كمسودة ثم تُفحص أهلية الجمهور قبل الجدولة.</div><button class="btn btn-primary" type="submit">حفظ المسودة</button></form>`);
+    return openModal("إنشاء حملة جديدة", campaignCreateModalMarkup());
   }
   if (action === "contact-create") {
     return openModal("إضافة جهة اتصال", `<form data-submit="contact-create" class="grid"><label class="field"><span>الاسم</span><input class="input" name="displayName" maxlength="160"></label><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" inputmode="tel" placeholder="+966 5X XXX XXXX"></label><label class="field"><span>الشركة (اختياري)</span><input class="input" name="companyName" maxlength="160"></label><label class="field"><span>الموافقة على التواصل</span><select class="select" name="consentStatus"><option value="unknown">غير محددة</option><option value="granted">موافق</option><option value="revoked">سحب الموافقة</option></select></label><button class="btn btn-primary">حفظ جهة الاتصال</button></form>`);
@@ -5371,6 +5409,12 @@ async function handleAction(target) {
   if (action === "choose-store-logo") {
     document.querySelector('[data-action="store-logo-file"]')?.click();
     return;
+  }
+  if (action === "billing-reload") {
+    state.billingOverview = null;
+    state.messageUsage = null;
+    render();
+    return syncRouteData(true);
   }
   if (action === "remove-store-logo") {
     openModal("حذف صورة المتجر", "<p>ستُزال الصورة من قالب البريد وصفحة معلومات الطلب، مع بقاء اسم المتجر وبقية الإعدادات كما هي.</p>", '<button class="btn btn-danger" data-action="confirm-remove-store-logo">حذف الصورة</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
@@ -6596,9 +6640,26 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "campaign-create") {
+    const allowedDays = [...new FormData(form).getAll("allowedDays")].map(Number);
+    const contactKeywords = [...new FormData(form).getAll("contactKeywords")].map(String);
+    const customKeywords = String(data.customKeywords || "").split(/\r?\n|،|,/).map((item) => item.trim()).filter(Boolean);
+    const minDelaySeconds = Number(data.minDelaySeconds || 20);
+    const maxDelaySeconds = Number(data.maxDelaySeconds || 120);
+    if (!allowedDays.length) return toast("اختر يومًا واحدًا على الأقل لتشغيل الحملة.", "warning");
+    if (maxDelaySeconds < minDelaySeconds) return toast("أقصى وقت بين الرسائل يجب أن يكون أكبر من أقل وقت أو مساويًا له.", "warning");
+    const scheduledDate = new Date(`${data.startDate}T${data.startTime}`);
+    if (Number.isNaN(scheduledDate.getTime())) return toast("تحقق من تاريخ ووقت بدء الحملة.", "warning");
     try {
-      await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:data.name,channel:data.channel,description:data.description||null,subject:data.subject||null,body:data.body,scheduleMode:"manual"}) });
-      closePortal(); state.campaignsOverview=null; await syncRouteData(true); toast("تم حفظ الحملة كمسودة. افحص الجمهور قبل بدء الإرسال.");
+      await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        name:data.name,channel:data.channel,description:data.description||null,subject:data.subject||null,body:data.body,
+        whatsappChannelId:data.channel === "whatsapp" ? data.whatsappChannelId || null : null,
+        metaTemplateId:data.channel === "whatsapp" ? data.metaTemplateId || null : null,
+        templateId:data.channel === "email" ? data.templateId || null : null,groupId:data.groupId||null,
+        isEnabled:Boolean(form.elements.isEnabled?.checked),scheduledFor:scheduledDate.toISOString(),endTime:data.endTime,
+        timezone:Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Riyadh",allowedDays,minDelaySeconds,maxDelaySeconds,
+        contactKeywords,customKeywords
+      }) });
+      closePortal(); state.campaignsOverview=null; await syncRouteData(true); toast(form.elements.isEnabled?.checked ? "تم إنشاء الحملة وتفعيل جدولها بنجاح." : "تم حفظ الحملة كمسودة غير مفعلة.");
     } catch(error){toast(error.message||"تعذر إنشاء الحملة","danger");}
     return;
   }
@@ -7900,6 +7961,33 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "campaign-channel") {
+    const form = target.closest("form");
+    form?.querySelectorAll("[data-campaign-panel]").forEach((panel) => {
+      const active = panel.dataset.campaignPanel === target.value;
+      panel.toggleAttribute("hidden", !active);
+      panel.querySelectorAll("input,select,textarea").forEach((control) => { control.disabled = !active; });
+    });
+    return;
+  }
+  if (target.dataset.action === "campaign-template") {
+    const form = target.closest("form");
+    const selected = target.selectedOptions?.[0];
+    const body = form?.elements.body;
+    const subject = form?.elements.subject;
+    if (body && selected?.dataset.templateBody) body.value = selected.dataset.templateBody;
+    if (subject && selected?.dataset.templateSubject) subject.value = selected.dataset.templateSubject;
+    return;
+  }
+  if (target.dataset.action === "campaign-all-days") {
+    target.closest(".campaign-days")?.querySelectorAll('input[name="allowedDays"]').forEach((input) => { input.checked = target.checked; });
+    return;
+  }
+  if (target.name === "allowedDays") {
+    const days = [...(target.closest(".campaign-days")?.querySelectorAll('input[name="allowedDays"]') || [])];
+    const all = target.closest(".campaign-days")?.querySelector('[data-action="campaign-all-days"]');
+    if (all) all.checked = days.length > 0 && days.every((input) => input.checked);
+  }
   if (target.dataset.sallaChannelChoice !== undefined) {
     const form = target.closest("form");
     form?.querySelectorAll("[data-channel-panel]").forEach((panel) => {
