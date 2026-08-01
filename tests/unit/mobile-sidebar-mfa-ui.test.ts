@@ -16,12 +16,26 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps the MFA switch tied to persisted server state", () => {
+    const settingsStart = appSource.indexOf("function settingsPage");
+    const settingsEnd = appSource.indexOf("function settingToggle", settingsStart);
+    const settingsPage = appSource.slice(settingsStart, settingsEnd);
+    expect(settingsPage).toContain("if (state.accountSettings === null)");
+    expect(settingsPage.indexOf("if (state.accountSettings === null)")).toBeLessThan(settingsPage.indexOf("const remote = state.accountSettings.settings"));
+    expect(settingsPage).not.toContain("state.dashboardOverview?.profile");
+    expect(settingsPage).toContain("settings-loading-grid");
     expect(appSource).toContain("const enabled = Boolean(state.accountSettings?.settings?.mfaEnabled)");
     expect(appSource).toContain("target.checked = enabled");
     expect(appSource).toContain("state.mfaSetupPending = true");
     expect(appSource).toContain('method: "DELETE"');
     expect(setupRoute).toContain("mfa_pending_secret_encrypted = NULL");
     expect(setupRoute).toContain("AND mfa_enabled = false");
+  });
+
+  it("uses the supplied original Zid artwork without redrawing the mark", () => {
+    expect(appSource).toContain('<img src="/assets/zid-logo-original.webp" alt="شعار زد الأصلي">');
+    expect(appSource).not.toContain('<text x="24" y="31" text-anchor="middle">زد</text>');
+    expect(stylesSource).toContain(".integration-logo--zid img");
+    expect(fs.existsSync(path.join(root, "public/assets/zid-logo-original.webp"))).toBe(true);
   });
 
   it("includes a dedicated server-backed MFA login step", () => {
