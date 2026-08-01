@@ -242,14 +242,23 @@ export async function getSallaAutomationTemplate({ tenantId, userId, templateKey
   const payload = await listSallaAutomationTemplates({ tenantId, userId });
   if (!payload.available) return payload;
   const item = payload.items.find((template) => template.templateKey === templateKey);
-  const [statuses, metaTemplates] = await Promise.all([
+  const [statuses, metaTemplates, storeProfile] = await Promise.all([
     query(`SELECT external_status_id AS id,status_slug AS slug,status_name AS name,is_custom AS "isCustom"
              FROM salla_order_statuses WHERE tenant_id=$1 AND is_active=true ORDER BY status_name`, [tenantId]),
     query(`SELECT id,template_name AS name,display_name AS "displayName",language,local_status AS status
              FROM meta_message_templates
-            WHERE tenant_id=$1 AND local_status='approved' AND deleted_at IS NULL ORDER BY updated_at DESC`, [tenantId])
+            WHERE tenant_id=$1 AND local_status='approved' AND deleted_at IS NULL ORDER BY updated_at DESC`, [tenantId]),
+    query(`SELECT store_name AS "storeName",logo_url AS "logoUrl",
+                  logo_border_radius AS "logoBorderRadius"
+             FROM order_link_profiles WHERE tenant_id=$1 LIMIT 1`, [tenantId])
   ]);
-  return { ...payload, item, statuses: statuses.rows, metaTemplates: metaTemplates.rows };
+  return {
+    ...payload,
+    item,
+    statuses: statuses.rows,
+    metaTemplates: metaTemplates.rows,
+    storeProfile: storeProfile.rows[0] || { storeName: payload.integration?.storeName || "", logoUrl: null, logoBorderRadius: 16 }
+  };
 }
 
 export async function saveSallaAutomationTemplate({ tenantId, userId, templateKey, input }) {
@@ -507,6 +516,12 @@ export async function processSallaTemplateEvent(payload) {
     [tenantId, normalized.eventName, normalized.statusId, normalized.statusSlug]
   );
   if (!candidates.rows.length) return { status: "skipped", reason: "template_disabled_or_unmapped" };
+  const brandProfileResult = await query(
+    `SELECT store_name AS "storeName",logo_url AS "logoUrl",logo_border_radius AS "logoBorderRadius"
+       FROM order_link_profiles WHERE tenant_id=$1 LIMIT 1`,
+    [tenantId]
+  );
+  const brandProfile = brandProfileResult.rows[0] || {};
   const data = payload?.data || {};
   let queued = 0;
   for (const template of candidates.rows) {
@@ -614,13 +629,18 @@ export async function processSallaTemplateEvent(payload) {
       tenantId,
       whatsappChannelId: template.delivery_channel === "whatsapp" ? channel.rows[0]?.id : null,
       templateId: null,
-      templateSnapshot: template.whatsapp_template_id ? {
+      templateSnapshot: template.delivery_channel === "whatsapp" ? {
         provider: "meta",
         metaTemplateId: template.whatsapp_template_id,
         sallaTemplateKey: template.template_key
       } : {
         provider: "resend",
-        sallaTemplateKey: template.template_key
+        sallaTemplateKey: template.template_key,
+        branding: {
+          brandName: variables.store_name || brandProfile.storeName || "Renvix",
+          logoUrl: brandProfile.logoUrl || "",
+          logoBorderRadius: Number(brandProfile.logoBorderRadius ?? 16)
+        }
       },
       channelType: template.delivery_channel,
       messageType: "salla_template",
@@ -676,7 +696,7 @@ export async function processSallaTemplateEvent(payload) {
             tenantId,
             whatsappChannelId: template.delivery_channel === "whatsapp" ? channel.rows[0]?.id : null,
             templateId: null,
-            templateSnapshot: template.whatsapp_template_id ? {
+            templateSnapshot: template.delivery_channel === "whatsapp" ? {
               provider: "meta",
               metaTemplateId: template.whatsapp_template_id,
               sallaTemplateKey: template.template_key,
@@ -684,7 +704,12 @@ export async function processSallaTemplateEvent(payload) {
             } : {
               provider: "resend",
               sallaTemplateKey: template.template_key,
-              abandonedCartMessageIndex: messageIndex
+              abandonedCartMessageIndex: messageIndex,
+              branding: {
+                brandName: variables.store_name || brandProfile.storeName || "Renvix",
+                logoUrl: brandProfile.logoUrl || "",
+                logoBorderRadius: Number(brandProfile.logoBorderRadius ?? 16)
+              }
             },
             channelType: template.delivery_channel,
             messageType: "salla_template",
