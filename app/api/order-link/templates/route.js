@@ -10,8 +10,11 @@ export async function GET(req) {
             t.header_text AS "headerText", t.footer_text AS "footerText",
             t.additional_notes AS "additionalNotes", t.visible_fields AS "visibleFields",
             t.is_default AS "isDefault", t.is_active AS "isActive",
+            tl.id AS "templateLinkId", tl.public_url AS "publicUrl", tl.status AS "linkStatus",
             t.created_at AS "createdAt", t.updated_at AS "updatedAt"
        FROM order_info_templates t
+       LEFT JOIN order_template_links tl
+         ON tl.template_id = t.id AND tl.tenant_id = t.tenant_id
       WHERE t.tenant_id = $1 AND t.template_key='order_information_salla'
         AND t.template_group='order_information' ORDER BY t.updated_at DESC LIMIT 1`,
     [auth.session.tenantId]

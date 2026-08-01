@@ -674,7 +674,7 @@ const state = {
   notificationDropdownOpen: false,
   notificationPreferenceSaving: "",
   notificationFilter: "all",
-  subscriptionWindow: "7",
+  subscriptionWindow: "",
   subscriptionStatus: "",
   subscriptionPlanId: "",
   subscriptionChannel: "",
@@ -746,6 +746,7 @@ state.publicSallaPageKey = "";
 state.orderLinkPreviewSlide = 0;
 state.orderLinkCreating = false;
 state.orderLinkDraft = {
+  hydrated: false,
   templateId: "",
   templateName: "",
   sourceMode: "existing",
@@ -2661,9 +2662,10 @@ function subscriptionsPage() {
   const tabs = [["list","قائمة الاشتراكات"],["settings","إعدادات التذكير"],["templates","قوالب الرسائل"],["log","سجل الإرسال"]];
   const upcoming = meta.upcoming || [];
   const sendLog = meta.sendLog || [];
+  const settingsRows = Array.isArray(meta.settingsItems) ? meta.settingsItems : rows;
   const listSection = `<section class="subscription-workspace"><article class="card table-card subscription-list-card"><div class="section-head"><div><h2>قائمة الاشتراكات <span>(${Number(meta.total || 0).toLocaleString("ar-SA")})</span></h2><p class="muted">الطلبات المدفوعة المرتبطة بباقات Renvix فقط.</p></div></div>${content}<div class="subscription-pagination"><span>صفحة ${Number(meta.page||1)} من ${Math.max(1,Math.ceil(Number(meta.total||0)/Number(meta.limit||20)))}</span><div><button class="btn btn-secondary" data-action="subscription-page" data-page="${Math.max(1,Number(meta.page||1)-1)}" ${Number(meta.page||1)<=1?"disabled":""}>السابق</button><button class="btn btn-secondary" data-action="subscription-page" data-page="${Number(meta.page||1)+1}" ${Number(meta.page||1)*Number(meta.limit||20)>=Number(meta.total||0)?"disabled":""}>التالي</button></div></div></article><aside class="subscription-side-column"><article class="card subscription-upcoming"><div class="section-head"><h2>التجديدات القادمة</h2><button data-action="clear-subscription-filters">عرض الكل</button></div>${upcoming.length?upcoming.map((item)=>`<button class="upcoming-renewal-row" data-action="subscription-edit-db" data-id="${item.id}"><span><strong>${escapeHtml(item.customerName)}</strong><small>${escapeHtml(item.planName)}</small></span><b>${new Date(item.endDate).toLocaleDateString("ar-SA",{day:"numeric",month:"short"})}</b></button>`).join(""):`<div class="security-empty-row">لا توجد تجديدات قادمة.</div>`}</article></aside></section>`;
-  const settingsRow = rows[0] || {};
-  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد قناة التذكير وطريقة التشغيل والموعد من مكان واحد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${rows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form">${messageActivationCard({
+  const settingsRow = settingsRows[0] || {};
+  const settingsSection = `<article class="card section subscription-settings-panel"><div class="section-head"><div><h2>إعدادات إرسال تذكير التجديد</h2><p class="muted">حدد قناة التذكير وطريقة التشغيل والموعد من مكان واحد. الإرسال التلقائي يعمل من Worker دون فتح الصفحة.</p></div><span class="delivery-secure-badge">إرسال آمن</span></div>${settingsRows.length ? `<form data-submit="subscription-settings" data-id="${escapeHtml(settingsRow.id || "")}" class="subscription-settings-form">${messageActivationCard({
     title: "تفعيل رسالة التذكير",
     description: "عند تفعيلها، يُرسل تذكير التجديد وفق القناة والموعد المحددين. عند الإيقاف تُلغى التذكيرات المجدولة ولا يمكن إرسالها يدويًا.",
     enabled: settingsRow.reminderEnabled !== false,
@@ -3720,12 +3722,38 @@ function todayDateInputValue() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
+const orderLinkTemplatePreferenceKey = "renvix.orderLink.templateId";
+
+function rememberedOrderLinkTemplateId() {
+  try {
+    return localStorage.getItem(orderLinkTemplatePreferenceKey) || "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberOrderLinkTemplateSelection(templateId) {
+  const value = String(templateId || "").trim();
+  try {
+    if (value) localStorage.setItem(orderLinkTemplatePreferenceKey, value);
+    else localStorage.removeItem(orderLinkTemplatePreferenceKey);
+  } catch {}
+  if (location.pathname !== "/dashboard/order-links") return;
+  const url = new URL(location.href);
+  if (value) url.searchParams.set("templateId", value);
+  else url.searchParams.delete("templateId");
+  history.replaceState({}, "", `${url.pathname}${url.search}`);
+  state.query = new URLSearchParams(url.search);
+}
+
 function hydrateOrderLinkDraft() {
   const profile = state.orderLinkProfile;
-  if (!profile || profile.error || state.orderLinkDraft.hydrated) return;
+  if (profile === null || state.orderLinkTemplates === null || profile?.error || state.orderLinkDraft.hydrated) return;
   const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
   const requestedTemplateId = state.query.get("templateId") || "";
-  const defaultTemplate = templates.find((item) => item.id === requestedTemplateId) || templates.find((item) => item.isDefault) || templates[0];
+  const rememberedTemplateId = rememberedOrderLinkTemplateId();
+  const preferredTemplateId = requestedTemplateId || rememberedTemplateId || state.orderLinkDraft.templateId || "";
+  const defaultTemplate = templates.find((item) => item.id === preferredTemplateId) || templates.find((item) => item.isDefault) || templates[0];
   state.orderLinkDraft = {
     ...state.orderLinkDraft,
     hydrated: true,
@@ -3746,6 +3774,7 @@ function hydrateOrderLinkDraft() {
     visibleFields: { ...state.orderLinkDraft.visibleFields, ...(defaultTemplate?.visibleFields || {}) },
     isDefault: defaultTemplate?.isDefault ?? true
   };
+  if (defaultTemplate?.id) rememberOrderLinkTemplateSelection(defaultTemplate.id);
 }
 
 function clientRemaining(endDate) {
@@ -3902,6 +3931,9 @@ function orderLinkPreviewSlides(subscription, draft) {
 }
 
 function orderLinksWorkspacePage() {
+  if (state.orderLinkProfile === null || state.orderLinkTemplates === null) {
+    return dashboardShell(`<div class="order-links-page-title">${pageTitle("إرسال معلومات الطلب")}</div><section class="card section loading-state order-links-workspace-loading">جاري تحميل القالب والرابط المحفوظين...</section>`);
+  }
   hydrateOrderLinkDraft();
   const profile = state.orderLinkProfile || {};
   const templates = Array.isArray(state.orderLinkTemplates) ? state.orderLinkTemplates : [];
@@ -4623,9 +4655,10 @@ async function persistOrderLinkDraft() {
     ...state.orderLinkDraft,
     templateId: templatePayload.item.id,
     templateName: templatePayload.item.name,
-    templateLinkId: "",
+    templateLinkId: state.orderLinkDraft.templateLinkId || templatePayload.item.templateLinkId || "",
     publicUrl: state.orderLinkDraft.publicUrl || ""
   };
+  rememberOrderLinkTemplateSelection(templatePayload.item.id);
   state.orderLinkTemplates = null;
   syncRouteData();
   return templatePayload.item;
@@ -4733,9 +4766,9 @@ async function createCurrentOrderLink(trigger) {
 }
 
 async function ensureCurrentTemplateLink(trigger) {
-  if (state.orderLinkDraft.publicUrl && state.orderLinkDraft.linkId) {
+  if (state.orderLinkDraft.publicUrl && (state.orderLinkDraft.templateLinkId || state.orderLinkDraft.linkId)) {
     return {
-      id: state.orderLinkDraft.linkId,
+      id: state.orderLinkDraft.templateLinkId || state.orderLinkDraft.linkId,
       publicUrl: state.orderLinkDraft.publicUrl
     };
   }
@@ -5775,6 +5808,7 @@ async function handleAction(target) {
       templateLinkId: action === "duplicate-order-template" ? "" : (item.templateLinkId || ""),
       linkId: ""
     };
+    if (action === "load-order-template") rememberOrderLinkTemplateSelection(item.id);
     render();
     toast(action === "duplicate-order-template" ? "تم تجهيز نسخة جديدة من القالب" : "تم تحميل القالب للتعديل");
   }
@@ -5785,7 +5819,11 @@ async function handleAction(target) {
     try {
       await fetchJson(`/api/order-link/templates/${target.dataset.id}`, { method: "DELETE" });
       closePortal();
-      if (state.orderLinkDraft.templateId === target.dataset.id) state.orderLinkDraft.templateId = "";
+      if (state.orderLinkDraft.templateId === target.dataset.id) {
+        state.orderLinkDraft.templateId = "";
+        state.orderLinkDraft.hydrated = false;
+        rememberOrderLinkTemplateSelection("");
+      }
       state.orderLinkTemplates = null; state.orderLinks = null; syncRouteData(true);
       toast("تم حذف القالب");
     } catch (error) { toast(error.message || "تعذر حذف القالب", "danger"); }
@@ -5862,7 +5900,7 @@ async function handleAction(target) {
       await fetchJson(`/api/order-link/${target.dataset.id}`, { method: "DELETE" });
       closePortal();
       if (state.orderLinkDraft.linkId === target.dataset.id) {
-        state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", publicUrl: "" };
+        state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", createdOrderNumber: "", createdCustomerName: "" };
       }
       state.orderLinks = null;
       syncRouteData(true);
@@ -7990,7 +8028,7 @@ document.addEventListener("change", (event) => {
       }
       render();
     } else if (target.dataset.orderField === "subscriptionId") {
-      state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", publicUrl: "", createdOrderNumber: "", createdCustomerName: "" };
+      state.orderLinkDraft = { ...state.orderLinkDraft, linkId: "", createdOrderNumber: "", createdCustomerName: "" };
       render();
     }
     else refreshOrderLinkPreview();

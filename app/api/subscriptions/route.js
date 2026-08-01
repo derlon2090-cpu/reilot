@@ -41,11 +41,18 @@ export async function GET(req) {
     page: Number(url.searchParams.get("page") || 1),
     limit: Number(url.searchParams.get("limit") || 20)
   };
-  const [listing, meta] = await Promise.all([
-    listSubscriptionOperations(auth.session.tenantId, options),
+  const listingPromise = listSubscriptionOperations(auth.session.tenantId, options);
+  const hasActiveFilters = Boolean(options.search || options.status || options.planId || options.channel
+    || options.renewalWindow || options.source || options.reminderStatus || options.dateFrom || options.dateTo);
+  const settingsListingPromise = hasActiveFilters
+    ? listSubscriptionOperations(auth.session.tenantId, { page: 1, limit: 100 })
+    : listingPromise;
+  const [listing, settingsListing, meta] = await Promise.all([
+    listingPromise,
+    settingsListingPromise,
     subscriptionOperationsSummary(auth.session.tenantId)
   ]);
-  return Response.json({ ok: true, ...listing, ...meta });
+  return Response.json({ ok: true, ...listing, settingsItems: settingsListing.items, ...meta });
 }
 
 const allowedStatuses = new Set(["active", "expiring_soon", "expired", "renewed", "paused", "cancelled"]);
