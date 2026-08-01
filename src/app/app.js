@@ -2532,7 +2532,7 @@ function appsCatalogMarkup(data, connected, customIntegrations = []) {
       ${!connected && !data.configured ? `<small class="integration-config-note">الربط بانتظار تهيئة بيانات سلة الآمنة على الخادم.</small>` : ""}
     </article>
     <article class="integration-card integration-card--unavailable" aria-disabled="true">
-      <div class="integration-card-head"><span class="integration-logo integration-logo--zid"><svg viewBox="0 0 48 48" role="img" aria-label="شعار زد"><rect x="3" y="3" width="42" height="42" rx="12"></rect><text x="24" y="31" text-anchor="middle">زد</text></svg></span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
+      <div class="integration-card-head"><span class="integration-logo integration-logo--zid" aria-label="شعار زد"><img src="/assets/zid-logo-original.webp" alt="شعار زد الأصلي"></span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
       <h2>زد</h2><p class="integration-subtitle">منصة التجارة الإلكترونية زد</p>
       <p class="integration-description">سيُتاح ربط زد بعد اكتمال واعتماد التكامل الرسمي، دون طلب أي بيانات منك الآن.</p>
       <span class="integration-status unavailable"><i></i> قريبًا</span>
@@ -4401,8 +4401,20 @@ function billingWorkspacePage() {
 }
 
 function settingsPage() {
-  const remote = state.accountSettings?.settings || state.dashboardOverview?.profile || {};
-  const storage = state.accountSettings?.storage || { usedMb: 0, limitMb: 100, percent: 0, breakdown: [] };
+  if (state.accountSettings === null) {
+    return dashboardShell(`${pageTitle("الإعدادات")}
+      <p class="page-kicker">إدارة معلومات الحساب والأمان وتفضيلات الواجهة.</p>
+      <div class="settings-loading-grid" role="status" aria-live="polite" aria-label="جاري تحميل إعدادات الحساب">
+        ${Array.from({ length: 4 }, () => `<article class="card settings-loading-card"><span class="settings-loading-icon"></span><div><i></i><b></b><b></b><b></b></div></article>`).join("")}
+      </div>`);
+  }
+  if (state.accountSettings?.error) {
+    return dashboardShell(`${pageTitle("الإعدادات")}
+      <p class="page-kicker">إدارة معلومات الحساب والأمان وتفضيلات الواجهة.</p>
+      ${emptyState("تعذر تحميل إعدادات الحساب", escapeHtml(state.accountSettings.error), "إعادة المحاولة", "reload-settings")}`);
+  }
+  const remote = state.accountSettings.settings || {};
+  const storage = state.accountSettings.storage || { usedMb: 0, limitMb: 100, percent: 0, breakdown: [] };
   const notifications = remote.notifications || {};
   const avatarUrl = remote.avatarUrl || remote.image;
   const fullName = remote.fullName || remote.name || "";
@@ -5486,6 +5498,7 @@ async function handleAction(target) {
     } catch { appToast.error("تعذر حذف الصورة", { description: "حاول مرة أخرى بعد قليل.", id: "avatar-remove-error" }); }
   }
   if (action === "reload-apps") { state.appsOverview = null; syncRouteData(true); }
+  if (action === "reload-settings") { state.accountSettings = null; render(); syncRouteData(true); }
   if (action === "reload-custom-integrations") { state.customIntegrations = null; syncRouteData(true); }
   if (action === "reload-order-links") { state.orderLinks = null; syncRouteData(true); render(); }
   if (action === "open-custom-api-setup") {
