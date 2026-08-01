@@ -17,11 +17,17 @@ describe("applications catalog", () => {
     expect(appSource).toContain("تحرير");
   });
 
-  it("shows Zid as a disabled unavailable integration", () => {
+  it("shows Zid and Shopify in Arabic as matching unavailable integrations", () => {
     expect(appSource).toContain("integration-card--unavailable");
     expect(appSource).toContain("غير متاح حاليًا");
     expect(appSource).toContain('aria-disabled="true"');
+    expect(appSource).toContain('aria-label="شعار زد"');
+    expect(appSource).toContain('aria-label="شعار شوبيفاي"');
+    expect(appSource).toContain("<h2>شوبيفاي</h2>");
+    expect(appSource).toContain("integration-logo--shopify");
     expect(styles).toContain(".integration-card--unavailable");
+    expect(styles).toContain(".integration-logo--shopify");
+    expect(styles).toContain(".integration-empty-card--full");
   });
 
   it("includes custom integrations in the account applications response", () => {

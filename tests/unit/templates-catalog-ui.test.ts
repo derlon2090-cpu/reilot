@@ -20,6 +20,7 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain("قالب رسالة التجديد - البريد الإلكتروني");
     expect(appSource).toContain("subscription_renewal_reminder");
     expect(appSource).toContain('pageTitle("قوالب عامة"');
+    expect(appSource).toContain('const pageActions = title === "قوالب عامة" ? "" : actions');
     expect(appSource).not.toContain("سيتم إنشاء القوالب الأربعة الأساسية لمساحة العمل تلقائيًا");
     expect(appSource).not.toContain('key: `order_${item.id}`');
     expect(appSource).not.toContain("const fakeTemplates");
