@@ -57,6 +57,7 @@ describe("order information links", () => {
       storeName: "متجر التقنية",
       storeSlug: "tech-store",
       logoUrl: null,
+      logoBorderRadius: 24,
       supportPhone: "966500000000",
       orderNumber: "54981",
       customerName: "محمد",
@@ -76,10 +77,19 @@ describe("order information links", () => {
     });
 
     expect(payload.order.maskedPhone).toBeNull();
+    expect(payload.store.logoBorderRadius).toBe(24);
     expect(payload).not.toHaveProperty("tenantId");
     expect(payload).not.toHaveProperty("customerId");
     expect(payload).not.toHaveProperty("subscriptionId");
     expect(payload.order).not.toHaveProperty("email");
+  });
+
+  it("removes the fixed logo frame and exposes a real persisted corner control", () => {
+    expect(appSource).toContain('name="logoBorderRadius" data-order-field="logoBorderRadius"');
+    expect(appSource).toContain("logoBorderRadius: safeStoreLogoRadius(draft.logoBorderRadius)");
+    expect(stylesSource).toContain(".store-logo-editor-preview.has-image { overflow: visible; border: 0;");
+    expect(stylesSource).toContain(".order-bag.has-store-logo { overflow: visible; padding: 0; border: 0;");
+    expect(stylesSource).toContain("border-radius: var(--store-logo-radius, 16px)");
   });
 
   it("keeps saved template orders visible during loading and after creation", () => {

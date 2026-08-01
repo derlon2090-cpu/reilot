@@ -170,6 +170,7 @@ export async function queueOrderInformationLink({ tenantId, userId, link, method
         customerName: link.customerName,
         storeName: link.storeName,
         storeImageUrl: link.logoUrl || "",
+        storeImageRadius: Number(link.logoBorderRadius ?? 16),
         orderNumber: link.orderNumber,
         publicUrl: link.publicUrl,
         locale: "ar"

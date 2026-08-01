@@ -267,12 +267,13 @@ export async function POST(req) {
 
   try {
     const branding = await query(
-      "SELECT logo_url AS \"storeImageUrl\" FROM order_link_profiles WHERE tenant_id=$1 LIMIT 1",
+      "SELECT logo_url AS \"storeImageUrl\",logo_border_radius AS \"storeImageRadius\" FROM order_link_profiles WHERE tenant_id=$1 LIMIT 1",
       [auth.session.tenantId]
     );
     const testTemplate = {
       ...template,
       storeImageUrl: branding.rows[0]?.storeImageUrl || "",
+      storeImageRadius: Number(branding.rows[0]?.storeImageRadius ?? 16),
       title: `[اختبار Renvix] ${template.title}`,
       body: `هذه رسالة اختبار من Renvix ولا تخص اشتراكًا فعليًا.\n\n${template.body}`
     };

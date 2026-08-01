@@ -1,5 +1,6 @@
 import { query } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
+import { getTenantStorageLimitState, requestNeedsStorageCapacity, storageLimitResponse } from "./tenant-storage.js";
 
 export const SESSION_COOKIE = "renewpilot_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 14;
@@ -56,9 +57,14 @@ export async function getSession(req) {
 
 export async function requireSession(req) {
   const session = await getSession(req);
-  return session
-    ? { ok: true, session }
-    : { ok: false, response: Response.json({ ok: false, message: "Authentication required" }, { status: 401 }) };
+  if (!session) {
+    return { ok: false, response: Response.json({ ok: false, message: "Authentication required" }, { status: 401 }) };
+  }
+  if (requestNeedsStorageCapacity(req)) {
+    const storage = await getTenantStorageLimitState(session.tenantId);
+    if (storage.isLimitReached) return { ok: false, response: storageLimitResponse(storage) };
+  }
+  return { ok: true, session };
 }
 
 export async function destroySession(req) {

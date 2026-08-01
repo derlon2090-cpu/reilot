@@ -4,6 +4,7 @@ export function orderInfoLinkEmail({
   customerName,
   storeName,
   storeImageUrl,
+  storeImageRadius,
   orderNumber,
   publicUrl,
   locale = "ar"
@@ -23,6 +24,7 @@ export function orderInfoLinkEmail({
     footerText: store,
     brandName: store,
     brandImageUrl: storeImageUrl || "",
+    brandImageRadius: storeImageRadius,
     children: `
       <p style="margin:0 0 14px">${english ? `Hello ${safeName},` : `مرحبًا ${safeName}،`}</p>
       <p style="margin:0 0 20px">${english

@@ -11,6 +11,7 @@ import {
   reserveUsage,
   requirePlanEntitlement
 } from "./plan-entitlements.js";
+import { getTenantStorageLimitState, requestNeedsStorageCapacity } from "./tenant-storage.js";
 
 export const CUSTOM_SCOPES = new Set([
   "customers:read", "customers:write",
@@ -223,6 +224,18 @@ export async function authenticateCustomApi(req, requiredScope) {
   let generalUsageReserved = false;
   let writeUsageReserved = false;
   try {
+    if (isWriteRequest && requestNeedsStorageCapacity(req)) {
+      const storage = await getTenantStorageLimitState(auth.tenantId);
+      if (storage.isLimitReached) {
+        return {
+          ok: false,
+          status: 403,
+          code: "storage_limit_reached",
+          requestId,
+          details: { storage, upgrade_required: true, deletion_allowed: true }
+        };
+      }
+    }
     await requirePlanEntitlement(auth.tenantId, "api_access");
     await reserveUsage({ tenantId: auth.tenantId, featureKey: "api_requests_monthly", amount: 1 });
     generalUsageReserved = true;
@@ -296,6 +309,7 @@ export function customApiError(auth, message, details) {
     rate_limit_exceeded: "تم تجاوز الحد المسموح للطلبات. حاول لاحقًا.",
     validation_error: "بعض البيانات المرسلة غير صحيحة.",
     resource_not_found: "المورد غير موجود.",
+    storage_limit_reached: "مساحة الباقة ممتلئة. طوّر الباقة أو احذف بيانات لم تعد تحتاجها ثم أعد المحاولة.",
     idempotency_conflict: "تم استخدام مفتاح منع التكرار مع طلب مختلف."
   };
   return Response.json({

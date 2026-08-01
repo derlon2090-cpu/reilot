@@ -18,6 +18,7 @@ export async function GET(req, { params }) {
     const result = await query(
       `SELECT tl.status AS "linkStatus", tl.expires_at AS "expiresAt",
               p.store_name AS "storeName", p.slug AS "storeSlug", p.logo_url AS "logoUrl",
+              p.logo_border_radius AS "logoBorderRadius",
               COALESCE(t.style, p.default_template_style) AS "templateStyle",
               COALESCE(t.theme_color, p.default_theme_color) AS "themeColor",
               t.header_text AS "headerText", t.footer_text AS "footerText"
@@ -40,7 +41,7 @@ export async function GET(req, { params }) {
     return noStore({
       ok: true,
       presentation: {
-        store: { name: row.storeName, slug: row.storeSlug, logoUrl: row.logoUrl || null },
+        store: { name: row.storeName, slug: row.storeSlug, logoUrl: row.logoUrl || null, logoBorderRadius: Number(row.logoBorderRadius ?? 16) },
         template: {
           style: normalizeOrderLinkStyle(row.templateStyle),
           themeColor: normalizeOrderLinkColor(row.themeColor),

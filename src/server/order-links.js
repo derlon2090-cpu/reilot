@@ -20,14 +20,21 @@ function profileRow(row) {
   if (!row) return null;
   return {
     ...row,
+    logoBorderRadius: normalizeLogoBorderRadius(row.logoBorderRadius),
     defaultTemplateStyle: normalizeOrderLinkStyle(row.defaultTemplateStyle),
     defaultThemeColor: normalizeOrderLinkColor(row.defaultThemeColor)
   };
 }
 
+function normalizeLogoBorderRadius(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(50, Math.max(0, Math.round(parsed))) : 16;
+}
+
 export async function ensureOrderLinkProfile(tenantId) {
   const existing = await query(
     `SELECT id, tenant_id AS "tenantId", store_name AS "storeName", slug, logo_url AS "logoUrl",
+            logo_border_radius AS "logoBorderRadius",
             default_template_style AS "defaultTemplateStyle", default_theme_color AS "defaultThemeColor",
             is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"
        FROM order_link_profiles WHERE tenant_id = $1 LIMIT 1`,
@@ -55,6 +62,7 @@ export async function ensureOrderLinkProfile(tenantId) {
          VALUES ($1, $2, $3)
          ON CONFLICT (tenant_id) DO UPDATE SET updated_at = order_link_profiles.updated_at
          RETURNING id, tenant_id AS "tenantId", store_name AS "storeName", slug, logo_url AS "logoUrl",
+                   logo_border_radius AS "logoBorderRadius",
                    default_template_style AS "defaultTemplateStyle", default_theme_color AS "defaultThemeColor",
                    is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
         [tenantId, storeName, slugCandidate]
@@ -67,7 +75,7 @@ export async function ensureOrderLinkProfile(tenantId) {
   throw new Error("Unable to allocate a unique store slug");
 }
 
-export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl, defaultTemplateStyle, defaultThemeColor, isActive = true }) {
+export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl, logoBorderRadius, defaultTemplateStyle, defaultThemeColor, isActive = true }) {
   const slugResult = validateOrderSlug(slug);
   if (!slugResult.ok) return { ok: false, reason: slugResult.reason };
   const name = String(storeName || "").trim().slice(0, 120);
@@ -78,16 +86,18 @@ export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl,
     const saved = await transaction(async (client) => {
       const result = await client.query(
         `INSERT INTO order_link_profiles (
-           tenant_id, store_name, slug, logo_url, default_template_style, default_theme_color, is_active
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+           tenant_id, store_name, slug, logo_url, logo_border_radius, default_template_style, default_theme_color, is_active
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (tenant_id) DO UPDATE SET
            store_name = EXCLUDED.store_name, slug = EXCLUDED.slug, logo_url = EXCLUDED.logo_url,
+           logo_border_radius = EXCLUDED.logo_border_radius,
            default_template_style = EXCLUDED.default_template_style,
            default_theme_color = EXCLUDED.default_theme_color, is_active = EXCLUDED.is_active, updated_at = now()
          RETURNING id, tenant_id AS "tenantId", store_name AS "storeName", slug, logo_url AS "logoUrl",
+                   logo_border_radius AS "logoBorderRadius",
                    default_template_style AS "defaultTemplateStyle", default_theme_color AS "defaultThemeColor",
                    is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
-        [tenantId, name, slugResult.slug, normalizedLogoUrl || null, normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
+        [tenantId, name, slugResult.slug, normalizedLogoUrl || null, normalizeLogoBorderRadius(logoBorderRadius), normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
       );
       const baseUrl = appBaseUrl();
       await client.query(
@@ -269,6 +279,7 @@ export function publicOrderPayload(row) {
       name: row.storeName,
       slug: row.storeSlug,
       logoUrl: row.logoUrl || null,
+      logoBorderRadius: normalizeLogoBorderRadius(row.logoBorderRadius),
       supportPhone: row.supportPhone || null
     },
     order: {
