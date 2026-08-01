@@ -5474,3 +5474,18 @@ input[type="password"]::-webkit-textfield-decoration-container {
   :root[data-density="medium"] .dashboard-shell,
   :root[data-density="compact"] .dashboard-shell { grid-template-columns: 1fr; }
 }
+
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 980px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    border: 0;
+    padding: 0;
+    background: rgba(15, 23, 42, .18);
+    -webkit-tap-highlight-color: transparent;
+  }
+}

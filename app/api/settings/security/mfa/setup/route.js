@@ -18,3 +18,14 @@ export async function POST(request) {
   );
   return Response.json({ ok: true, secret, qrCode: await mfaQrCode({ email: auth.session.email, secret }) });
 }
+
+export async function DELETE(request) {
+  const auth = await requireSession(request);
+  if (!auth.ok) return auth.response;
+  await query(
+    `UPDATE users SET mfa_pending_secret_encrypted = NULL, updated_at = now()
+      WHERE id = $1 AND tenant_id = $2 AND mfa_enabled = false`,
+    [auth.session.userId, auth.session.tenantId]
+  );
+  return Response.json({ ok: true });
+}

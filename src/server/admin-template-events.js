@@ -6,6 +6,7 @@ import { evolutionSendText } from "./evolution-client.js";
 import { encryptSecret } from "../lib/encryption.js";
 import { hashPassword } from "./password.js";
 import { normalizeSubscriptionPhone } from "../lib/subscription-lifecycle.js";
+import { generateTemporaryPassword } from "./temporary-credentials.js";
 
 export const ADMIN_TEMPLATE_KEYS = Object.freeze({
   ACCOUNT_CREATED: "admin_account_created",
@@ -33,10 +34,6 @@ const PERMANENT_FAILURE_CODES = new Set([
   "customer_blocked",
   "permanent_provider_rejection"
 ]);
-
-function workerTemporaryPassword() {
-  return `Rv!${crypto.randomBytes(18).toString("base64url")}9a`;
-}
 
 function safeFailure(error) {
   const code = String(error?.code || "ADMIN_MESSAGE_SEND_FAILED").slice(0, 80);
@@ -112,7 +109,7 @@ async function loadTemplate(templateKey) {
   return result.rows[0] || null;
 }
 
-async function resolveAccountEvent(event, channel) {
+export async function resolveAccountEvent(event, channel) {
   const jobId = event.payload_refs?.provisioningJobId || event.aggregate_id;
   const result = await query(
     `SELECT apj.id,apj.user_id AS "userId",apj.tenant_id AS "tenantId",
@@ -136,7 +133,7 @@ async function resolveAccountEvent(event, channel) {
   if (!row) return { skip: "account_not_fully_provisioned" };
   const recipient = channelRecipient(channel, { email: row.email, phone: row.phone });
   if (!recipient) return { skip: missingRecipientReason(channel) };
-  const temporaryPassword = workerTemporaryPassword();
+  const temporaryPassword = generateTemporaryPassword();
   await transaction(async (client) => {
     await client.query(
       `UPDATE accounts SET password=$1,updated_at=now()

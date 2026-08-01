@@ -6,6 +6,7 @@ import {
   challengeCookie,
   readCookie
 } from "../../../../src/server/email-otp.js";
+import { mfaChallengeCookie } from "../../../../src/server/login-mfa.js";
 
 export async function POST(req) {
   try {
@@ -22,6 +23,20 @@ export async function POST(req) {
       locale: body.locale === "en" ? "en" : "ar"
     });
     if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: result.status });
+    if (result.requiresMfa) {
+      return Response.json(
+        {
+          ok: true,
+          requiresMfa: true,
+          expiresAt: result.challenge.expiresAt,
+          attemptsRemaining: 5
+        },
+        {
+          status: 202,
+          headers: { "Set-Cookie": mfaChallengeCookie(result.challenge.challengeCookie) }
+        }
+      );
+    }
     if (result.requiresEmailOtp) {
       return Response.json(
         {

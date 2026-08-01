@@ -10,10 +10,11 @@ describe("Salla account provisioning security", () => {
   });
 
   it("creates strong temporary passwords without predictable reuse", () => {
-    const first = generateTemporaryPassword();
-    const second = generateTemporaryPassword();
-    expect(first).not.toBe(second);
-    expect(first.length).toBeGreaterThanOrEqual(20);
-    expect(isStrongPassword(first)).toBe(true);
+    const passwords = Array.from({ length: 100 }, () => generateTemporaryPassword());
+    expect(new Set(passwords).size).toBe(passwords.length);
+    for (const password of passwords) {
+      expect(password.length).toBeGreaterThanOrEqual(20);
+      expect(isStrongPassword(password)).toBe(true);
+    }
   });
 });

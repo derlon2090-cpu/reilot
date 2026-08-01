@@ -1,17 +1,13 @@
 import crypto from "node:crypto";
 import { hashPassword } from "./password.js";
 import { query, transaction } from "./db.js";
-import { normalizeEmail, isStrongPassword } from "./security.js";
+import { normalizeEmail } from "./security.js";
 import { classifyPasswordStrength } from "./security-score.js";
 import { ensureDefaultTemplates } from "./default-templates.js";
 import { enqueueAdminDomainEvent } from "./admin-template-events.js";
+import { generateTemporaryPassword } from "./temporary-credentials.js";
 
-export function generateTemporaryPassword() {
-  let password = "";
-  do password = `Rv!${crypto.randomBytes(18).toString("base64url")}9a`;
-  while (password.length < 20 || !isStrongPassword(password));
-  return password;
-}
+export { generateTemporaryPassword } from "./temporary-credentials.js";
 
 export function normalizeCustomerEmail(email) {
   const value = normalizeEmail(email || "");
