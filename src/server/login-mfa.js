@@ -1,0 +1,181 @@
+import crypto from "node:crypto";
+import { query, transaction } from "./db.js";
+import { createSession } from "./session.js";
+import { decryptMfaSecret, verifyTotp } from "./mfa.js";
+import { sha256 } from "./security.js";
+
+export const MFA_LOGIN_CHALLENGE_COOKIE = "renvix_mfa_login_challenge";
+const MFA_LOGIN_TTL_SECONDS = 5 * 60;
+
+function challengeKey() {
+  const value = process.env.MFA_CHALLENGE_KEY || process.env.MFA_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
+  if (!value || value.length < 24) throw new Error("MFA challenge key is missing or too short");
+  return value;
+}
+
+function secureCookieEnabled() {
+  const publicUrl = process.env.APP_URL || process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+  return process.env.COOKIE_SECURE !== "false"
+    && (process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production" || publicUrl.startsWith("https://"));
+}
+
+function cookie(value, maxAge) {
+  const secure = secureCookieEnabled() ? "; Secure" : "";
+  return `${MFA_LOGIN_CHALLENGE_COOKIE}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}; HttpOnly${secure}`;
+}
+
+function signChallengeId(id) {
+  const signature = crypto.createHmac("sha256", challengeKey()).update(`mfa-login:${id}`).digest("base64url");
+  return `${id}.${signature}`;
+}
+
+function parseChallengeId(rawValue) {
+  const [id, signature] = String(rawValue || "").split(".");
+  if (!/^[0-9a-f-]{36}$/i.test(id || "") || !signature) return null;
+  const expected = crypto.createHmac("sha256", challengeKey()).update(`mfa-login:${id}`).digest();
+  let supplied;
+  try { supplied = Buffer.from(signature, "base64url"); } catch { return null; }
+  return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied) ? id : null;
+}
+
+export function mfaChallengeCookie(value) {
+  return cookie(value, MFA_LOGIN_TTL_SECONDS);
+}
+
+export function clearMfaChallengeCookie() {
+  return cookie("", 0);
+}
+
+export function readMfaChallengeCookie(request) {
+  const header = request.headers.get("cookie") || "";
+  const entry = header.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith(`${MFA_LOGIN_CHALLENGE_COOKIE}=`));
+  return entry ? decodeURIComponent(entry.slice(MFA_LOGIN_CHALLENGE_COOKIE.length + 1)) : "";
+}
+
+export async function createMfaLoginChallenge({ user, ipAddress, userAgent }) {
+  const row = await transaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`mfa-login:${user.id}`]);
+    await client.query(
+      `UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now()
+        WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL`,
+      [user.id]
+    );
+    const inserted = await client.query(
+      `INSERT INTO auth_mfa_login_challenges
+         (user_id,tenant_id,expires_at,ip_hash,user_agent_hash)
+       VALUES ($1,$2,now() + interval '5 minutes',$3,$4)
+       RETURNING id,expires_at AS "expiresAt"`,
+      [user.id, user.tenantId, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null]
+    );
+    await client.query(
+      `INSERT INTO activity_logs (tenant_id,user_id,type,title)
+       VALUES ($1,$2,'auth.mfa.requested','Authenticator verification requested')`,
+      [user.tenantId, user.id]
+    );
+    return inserted.rows[0];
+  });
+  return { challengeCookie: signChallengeId(row.id), expiresAt: row.expiresAt };
+}
+
+export async function getMfaLoginStatus(rawCookie) {
+  const id = parseChallengeId(rawCookie);
+  if (!id) return { ok: false, reason: "challenge_invalid" };
+  const result = await query(
+    `SELECT expires_at AS "expiresAt",attempts,max_attempts AS "maxAttempts",consumed_at AS "consumedAt",
+            invalidated_at AS "invalidatedAt"
+       FROM auth_mfa_login_challenges WHERE id=$1 LIMIT 1`,
+    [id]
+  );
+  const row = result.rows[0];
+  if (!row || row.consumedAt || row.invalidatedAt) return { ok: false, reason: "challenge_invalid" };
+  if (new Date(row.expiresAt) <= new Date()) return { ok: false, reason: "challenge_expired" };
+  return {
+    ok: true,
+    expiresAt: row.expiresAt,
+    attemptsRemaining: Math.max(0, Number(row.maxAttempts) - Number(row.attempts))
+  };
+}
+
+function normalizeRecoveryCode(value) {
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent }) {
+  const challengeId = parseChallengeId(rawCookie);
+  const normalizedCode = String(code || "").trim();
+  if (!challengeId || !normalizedCode) return { ok: false, status: 400, reason: "invalid_code" };
+
+  return transaction(async (client) => {
+    const result = await client.query(
+      `SELECT c.*,u.email,u.name,u.must_change_password AS "mustChangePassword",
+              u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
+              COALESCE(u.mfa_recovery_hashes,'[]'::jsonb) AS "recoveryHashes",
+              COALESCE(tm.role,u.role) AS role
+         FROM auth_mfa_login_challenges c
+         JOIN users u ON u.id=c.user_id
+         LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=u.tenant_id
+        WHERE c.id=$1 FOR UPDATE OF c`,
+      [challengeId]
+    );
+    const row = result.rows[0];
+    if (!row || row.consumed_at || row.invalidated_at || !row.mfaEnabled || !row.mfaSecret) {
+      return { ok: false, status: 401, reason: "challenge_invalid" };
+    }
+    if (new Date(row.expires_at) <= new Date()) {
+      await client.query("UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now() WHERE id=$1", [challengeId]);
+      return { ok: false, status: 410, reason: "challenge_expired" };
+    }
+    if (Number(row.attempts) >= Number(row.max_attempts)) {
+      await client.query("UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now() WHERE id=$1", [challengeId]);
+      return { ok: false, status: 429, reason: "attempts_exceeded" };
+    }
+
+    const secret = decryptMfaSecret(row.mfaSecret);
+    const totpValid = verifyTotp(secret, normalizedCode);
+    const recoveryHash = sha256(normalizeRecoveryCode(normalizedCode));
+    const recoveryHashes = Array.isArray(row.recoveryHashes) ? row.recoveryHashes : [];
+    const recoveryIndex = recoveryHashes.indexOf(recoveryHash);
+    const valid = totpValid || recoveryIndex >= 0;
+    if (!valid) {
+      const attempts = Number(row.attempts) + 1;
+      await client.query(
+        `UPDATE auth_mfa_login_challenges SET attempts=$2,
+                invalidated_at=CASE WHEN $2>=max_attempts THEN now() ELSE invalidated_at END,updated_at=now()
+          WHERE id=$1`,
+        [challengeId, attempts]
+      );
+      return {
+        ok: false,
+        status: attempts >= Number(row.max_attempts) ? 429 : 401,
+        reason: attempts >= Number(row.max_attempts) ? "attempts_exceeded" : "invalid_code",
+        attemptsRemaining: Math.max(0, Number(row.max_attempts) - attempts)
+      };
+    }
+
+    if (recoveryIndex >= 0) {
+      recoveryHashes.splice(recoveryIndex, 1);
+      await client.query("UPDATE users SET mfa_recovery_hashes=$2::jsonb,updated_at=now() WHERE id=$1", [row.user_id, JSON.stringify(recoveryHashes)]);
+    }
+    await client.query("UPDATE auth_mfa_login_challenges SET consumed_at=now(),updated_at=now() WHERE id=$1", [challengeId]);
+    const session = await createSession(client, { userId: row.user_id, ipAddress, userAgent });
+    await client.query(
+      `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
+       VALUES ($1,$2,'auth.mfa.verified','Authenticator verification completed',$3::jsonb)`,
+      [row.tenant_id, row.user_id, JSON.stringify({ recoveryCodeUsed: recoveryIndex >= 0 })]
+    );
+    return {
+      ok: true,
+      status: 200,
+      session,
+      user: {
+        id: row.user_id,
+        tenantId: row.tenant_id,
+        email: row.email,
+        name: row.name,
+        role: row.role,
+        mustChangePassword: row.mustChangePassword
+      }
+    };
+  });
+}

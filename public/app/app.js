@@ -664,6 +664,9 @@ const state = {
   resetEmail: passwordResetSession.email,
   emailOtpStatus: null,
   emailOtpLoading: false,
+  mfaLoginStatus: null,
+  mfaLoginLoading: false,
+  mfaSetupPending: false,
   billing: storage.get("renewpilot.billing", "monthly"),
   billingTab: storage.get("renvix.billing.tab", "overview"),
   whatsappUsageExpanded: false,
@@ -1924,6 +1927,31 @@ function emailOtpPage() {
   </section><footer class="email-otp-footer"><span>© 2026 Renvix.</span><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">الشروط والأحكام</button><button data-link="/contact">اتصل بنا</button><span>جميع الحقوق محفوظة</span></footer></main>`;
 }
 
+function mfaLoginPage() {
+  const statusData = state.mfaLoginStatus;
+  if (statusData?.error) {
+    return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق الثنائي</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></section></main>`;
+  }
+  return `<main class="auth-light-page" dir="rtl"><header class="auth-light-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق ثنائي آمن</span></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام. يمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual"><div class="mail-visual">${stackedLogo()}</div><h2>المصادقة الثنائية تحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي تفعيل المفتاح من الواجهة.</p></aside></section>${publicFooter()}</main>`;
+}
+
+async function loadMfaLoginStatus(force = false) {
+  if (state.mfaLoginLoading || (state.mfaLoginStatus && !force)) return;
+  state.mfaLoginLoading = true;
+  try {
+    const response = await fetch("/api/auth/mfa/status", { credentials: "include", cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    state.mfaLoginStatus = response.ok && payload.ok
+      ? payload
+      : { error: payload.reason === "challenge_expired" ? "انتهت صلاحية طلب التحقق. سجّل الدخول مرة أخرى." : "طلب التحقق غير صالح أو انتهت صلاحيته." };
+  } catch {
+    state.mfaLoginStatus = { error: "تعذر الاتصال بخدمة التحقق. حاول مرة أخرى بعد قليل." };
+  } finally {
+    state.mfaLoginLoading = false;
+    if (state.route === "/auth/verify-mfa") render();
+  }
+}
+
 async function loadEmailOtpStatus(force = false) {
   if (state.emailOtpLoading || (state.emailOtpStatus && !force)) return;
   state.emailOtpLoading = true;
@@ -2127,6 +2155,7 @@ function dashboardShell(content) {
       <nav class="side-links">${links}</nav>
       <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
     </aside>
+    ${state.sidebarOpen ? `<button class="sidebar-backdrop" data-action="close-sidebar" aria-label="إغلاق القائمة"></button>` : ""}
     <main class="dashboard-main">
       <header class="topbar">
         <div class="topbar-tools">
@@ -4424,6 +4453,10 @@ function openDrawer(title, body) {
 
 function closePortal() {
   portal.innerHTML = "";
+  if (state.mfaSetupPending) {
+    state.mfaSetupPending = false;
+    void fetch("/api/settings/security/mfa/setup", { method: "DELETE", credentials: "include" }).catch(() => null);
+  }
 }
 
 function toastIcon(type) {
@@ -4976,6 +5009,7 @@ async function showSessionsDrawer() {
 async function startMfaSetup() {
   try {
     const payload = await fetchJson("/api/settings/security/mfa/setup", { method: "POST" });
+    state.mfaSetupPending = true;
     openModal("تفعيل المصادقة الثنائية", `<form data-submit="mfa-verify" class="grid"><p>امسح الرمز عبر تطبيق المصادقة، ثم أدخل الرمز المكوّن من 6 أرقام.</p><img class="mfa-qr" src="${escapeHtml(payload.qrCode)}" alt="رمز إعداد المصادقة الثنائية"><code class="mfa-secret">${escapeHtml(payload.secret)}</code><label class="field"><span>رمز التطبيق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><button class="btn btn-primary">تأكيد التفعيل</button></form>`);
   } catch (error) { toast(error.message || "تعذر بدء إعداد المصادقة الثنائية", "danger"); render(); }
 }
@@ -5357,11 +5391,17 @@ async function handleAction(target) {
   }
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
+  if (action === "close-sidebar") { state.sidebarOpen = false; render(); return; }
   if (action === "template-catalog-channel" && target.tagName !== "SELECT") { state.templateCatalogChannel = target.dataset.channel || "all"; render(); }
   if (action === "preview-catalog-template") document.querySelector(".template-preview-v2")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (action === "close-modal") closePortal();
   if (action === "email-otp-cancel") {
     state.emailOtpStatus = null;
+    void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
+    return navigate("/login");
+  }
+  if (action === "mfa-login-cancel") {
+    state.mfaLoginStatus = null;
     void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
     return navigate("/login");
   }
@@ -6358,7 +6398,9 @@ async function handleAction(target) {
     catch (error) { toast(error.message || "تعذر إنهاء الجلسات", "danger"); }
   }
   if (action === "mfa-toggle") {
-    if (target.checked) await startMfaSetup();
+    const enabled = Boolean(state.accountSettings?.settings?.mfaEnabled);
+    target.checked = enabled;
+    if (!enabled) await startMfaSetup();
     else openModal("إيقاف المصادقة الثنائية", `<form data-submit="mfa-disable" class="grid"><p>أكد هويتك بكلمة المرور أو رمز تطبيق المصادقة.</p><label class="field"><span>كلمة المرور</span><input class="input" name="password" type="password"></label><label class="field"><span>رمز التطبيق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6"></label><button class="btn btn-danger">إيقاف المصادقة الثنائية</button></form>`);
   }
   if (action === "remove-unsubscribe") {
@@ -6881,6 +6923,22 @@ async function handleSubmit(form, event) {
         body: JSON.stringify({ ...data, locale: state.language })
       });
       const payload = await response.json().catch(() => null);
+      if (response.ok && payload?.ok === true && payload?.requiresMfa === true) {
+        state.mfaLoginStatus = {
+          ok: true,
+          expiresAt: payload.expiresAt,
+          attemptsRemaining: payload.attemptsRemaining
+        };
+        setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
+        history.pushState({}, "", "/auth/verify-mfa");
+        render();
+        requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]')?.focus());
+        appToast.info("أدخل رمز تطبيق المصادقة", {
+          description: "تم التحقق من كلمة المرور. أكمل تسجيل الدخول برمز المصادقة الثنائية.",
+          id: "mfa-login-required"
+        });
+        return;
+      }
       if (response.ok && payload?.ok === true && payload?.requiresEmailOtp === true) {
         state.emailOtpStatus = {
           ok: true,
@@ -6919,6 +6977,37 @@ async function handleSubmit(form, event) {
     clearCachedDashboardProfile();
     appToast.success("تم تسجيل الدخول بنجاح", { description: "مرحبًا بك في Renvix، جاري تحويلك إلى لوحة التحكم.", id: "login-success", duration: 1800 });
     setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 650);
+    return;
+  }
+  if (type === "mfa-login") {
+    const code = String(data.code || "").trim();
+    if (!/^\d{6}$/.test(code) && !/^[A-Za-z0-9-]{8,32}$/.test(code)) {
+      return appToast.warning("أدخل رمز تحقق صالحًا", { description: "اكتب الرمز المكوّن من 6 أرقام أو أحد رموز الاسترداد.", id: "mfa-login-invalid-format" });
+    }
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري التحقق...");
+    try {
+      const response = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        setSubmitBusy(button, false, "تحقق وسجّل الدخول");
+        if (payload.reason === "attempts_exceeded") return appToast.error("تم إيقاف طلب التحقق", { description: "تجاوزت عدد المحاولات المسموح. سجّل الدخول من جديد.", id: "mfa-login-attempts" });
+        if (payload.reason === "challenge_expired" || payload.reason === "challenge_invalid") return appToast.error("انتهت صلاحية طلب التحقق", { description: "سجّل الدخول من جديد لبدء طلب آمن آخر.", id: "mfa-login-expired" });
+        return appToast.error("رمز المصادقة غير صحيح", { description: `تحقق من الرمز الحالي وحاول مرة أخرى${Number.isFinite(Number(payload.attemptsRemaining)) ? ` — المتبقي ${payload.attemptsRemaining}` : ""}.`, id: "mfa-login-code-error" });
+      }
+      state.mfaLoginStatus = null;
+      clearCachedDashboardProfile();
+      if (!await enterDashboardAfterSessionVerification()) throw new Error("session_invalid");
+      appToast.success("تم تسجيل الدخول بأمان", { description: "تم التحقق من المصادقة الثنائية بنجاح.", id: "mfa-login-success" });
+    } catch (error) {
+      setSubmitBusy(button, false, "تحقق وسجّل الدخول");
+      if (error?.message !== "session_invalid") appToast.error("تعذر إكمال التحقق", { description: "تحقق من اتصالك ثم حاول مرة أخرى.", id: "mfa-login-network-error" });
+    }
     return;
   }
   if (type === "email-otp") {
@@ -7366,6 +7455,7 @@ async function handleSubmit(form, event) {
   if (type === "mfa-verify") {
     try {
       const payload = await fetchJson("/api/settings/security/mfa/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: data.code }) });
+      state.mfaSetupPending = false;
       openModal("رموز الاسترداد", `<div class="grid"><p>احفظ هذه الرموز في مكان آمن. لن تظهر مرة أخرى.</p><div class="recovery-code-grid">${payload.recoveryCodes.map((code) => `<code>${escapeHtml(code)}</code>`).join("")}</div><button class="btn btn-primary" data-action="close-modal">حفظت الرموز</button></div>`);
       state.accountSettings = null; state.securityScore = null; await syncRouteData(true);
       appToast.success("تم التحقق من هويتك", { description: "تم تفعيل المصادقة الثنائية ورفع حماية حسابك.", id: "mfa-enabled" });
@@ -7521,6 +7611,7 @@ function render() {
     "/forgot-password": forgotPublicPage,
     "/reset-password": forgotPublicPage,
     "/auth/verify-email": emailOtpPage,
+    "/auth/verify-mfa": mfaLoginPage,
     "/privacy": policyPage,
     "/terms": policyPage,
     "/refund-policy": policyPage,
@@ -7543,6 +7634,10 @@ function render() {
       updateEmailOtpCountdown();
       document.querySelector('[data-otp-digit="0"]:not([disabled])')?.focus();
     });
+  }
+  if (state.route === "/auth/verify-mfa") {
+    if (!state.mfaLoginStatus) queueMicrotask(() => loadMfaLoginStatus());
+    requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]:not([disabled])')?.focus());
   }
 }
 

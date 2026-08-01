@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
+import { processSallaProvisioningPurchase } from "./salla-provisioning.js";
 import { decryptSecret, encryptSecret } from "../lib/encryption.js";
 import { normalizeOptionalEmail, validateOptionalEmail } from "../lib/customerValidation.js";
 import { normalizeSallaOrder, normalizeSallaSubscriptionRules, resolveSallaSubscriptionRule } from "../lib/salla.js";
@@ -613,6 +614,7 @@ export async function runSallaWebhookWorker() {
   for (const item of claimed) {
     try {
       await processSallaEvent(item.payload, { sendNotifications: true });
+      await processSallaProvisioningPurchase(item.payload);
       const { processSallaTemplateEvent } = await import("./salla-templates.js");
       await processSallaTemplateEvent(item.payload);
       await query("UPDATE webhook_events SET processing_status='completed',processed_at=now(),error_message=NULL,updated_at=now() WHERE id=$1", [item.id]);

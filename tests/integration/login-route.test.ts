@@ -66,6 +66,30 @@ describe("POST /api/auth/login", () => {
     expect(JSON.stringify(body)).not.toContain("signed-challenge");
   });
 
+  it("creates only the temporary MFA cookie when authenticator verification is required", async () => {
+    process.env.MFA_CHALLENGE_KEY = "test-mfa-challenge-key-with-32-characters";
+    vi.mocked(loginAccount).mockResolvedValue({
+      ok: true,
+      status: 202,
+      requiresMfa: true,
+      challenge: {
+        challengeCookie: "signed-mfa-challenge",
+        expiresAt: new Date("2026-08-01T12:05:00.000Z")
+      }
+    });
+
+    const response = await POST(loginRequest("Test@12345"));
+    const body = await response.json();
+    const cookie = response.headers.get("set-cookie") || "";
+
+    expect(response.status).toBe(202);
+    expect(body.requiresMfa).toBe(true);
+    expect(cookie).toContain("renvix_mfa_login_challenge=");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).not.toContain("renewpilot_session=");
+    expect(JSON.stringify(body)).not.toContain("signed-mfa-challenge");
+  });
+
   it("returns 400 without a cookie for malformed JSON", async () => {
     const response = await POST(new Request("http://localhost/api/auth/login", {
       method: "POST",
