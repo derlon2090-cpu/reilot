@@ -50,6 +50,9 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
       ...orderInfoLinkEmail(templateSnapshot.data || {})
     });
   }
+  const branding = templateSnapshot?.branding && typeof templateSnapshot.branding === "object"
+    ? templateSnapshot.branding
+    : {};
   const safeText = escapeEmailHtml(text).replace(/\n/g, "<br>");
   return sendEmail({
     to,
@@ -58,7 +61,9 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
     tags,
     html: baseEmail({
       title: subject || "إشعار من Renvix",
-      brandImageUrl,
+      brandName: branding.brandName || "Renvix",
+      brandImageUrl: branding.logoUrl || brandImageUrl,
+      brandImageRadius: Number(branding.logoBorderRadius ?? 16),
       children: `<div style="color:#0f172a;line-height:1.9">${safeText}</div>`
     })
   });

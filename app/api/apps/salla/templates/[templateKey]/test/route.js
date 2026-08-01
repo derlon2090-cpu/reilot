@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
       tenantId: auth.session.tenantId,
       whatsappChannelId: channel.rows[0]?.id || null,
       templateId: null,
-      templateSnapshot: item.whatsappTemplateId ? {
+      templateSnapshot: item.channel === "whatsapp" ? {
         provider: "meta",
         metaTemplateId: item.whatsappTemplateId,
         sallaTemplateKey: item.templateKey,
@@ -41,7 +41,12 @@ export async function POST(request, { params }) {
       } : {
         provider: "resend",
         sallaTemplateKey: item.templateKey,
-        test: true
+        test: true,
+        branding: {
+          brandName: payload.storeProfile?.storeName || payload.integration?.storeName || "Renvix",
+          logoUrl: payload.storeProfile?.logoUrl || "",
+          logoBorderRadius: Number(payload.storeProfile?.logoBorderRadius ?? 16)
+        }
       },
       channelType: item.channel,
       messageType: "salla_template_test",
