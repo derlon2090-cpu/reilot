@@ -18,7 +18,7 @@ export async function GET(req, { params }) {
     `SELECT l.id, l.tenant_id AS "tenantId", l.status AS "orderStatus", l.expires_at AS "orderExpiresAt",
             tl.id AS "templateLinkId", tl.status AS "linkStatus", tl.expires_at AS "expiresAt",
             l.order_number AS "orderNumber", p.store_name AS "storeName", p.slug AS "storeSlug",
-            p.logo_url AS "logoUrl", st.support_phone AS "supportPhone",
+            p.logo_url AS "logoUrl", p.logo_border_radius AS "logoBorderRadius", st.support_phone AS "supportPhone",
             s.id AS "legacySubscriptionId", s.plan_name AS "planName", s.service_name AS "serviceName",
             s.start_date AS "startDate", s.end_date AS "endDate", s.status AS "subscriptionStatus",
             c.name AS "customerName", COALESCE(c.whatsapp_number, c.phone) AS "phoneNumber",

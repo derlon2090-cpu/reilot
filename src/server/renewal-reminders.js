@@ -92,7 +92,7 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
     `SELECT rmt.id,rmt.subject,rmt.body,rmt.name,
             nt.store_name AS "storeName",nt.theme_color AS "themeColor",
             nt.button_label AS "buttonLabel",nt.footer_text AS "footerText",
-            p.logo_url AS "storeImageUrl"
+            p.logo_url AS "storeImageUrl",p.logo_border_radius AS "storeImageRadius"
        FROM renewal_message_templates rmt
        LEFT JOIN notification_templates nt ON nt.id=rmt.source_template_id AND nt.tenant_id=rmt.tenant_id
        LEFT JOIN order_link_profiles p ON p.tenant_id=rmt.tenant_id
@@ -172,6 +172,7 @@ export async function queueSubscriptionReminder({ tenantId, subscriptionId, remi
       template: {
         storeName: context.template.storeName || context.row.store_name,
         storeImageUrl: context.template.storeImageUrl || "",
+        storeImageRadius: Number(context.template.storeImageRadius ?? 16),
         title: context.subject,
         body: context.body,
         themeColor: context.template.themeColor || "#0EA5A8",

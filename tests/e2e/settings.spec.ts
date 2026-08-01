@@ -14,6 +14,12 @@ test("settings cards keep the required RTL order and interface preferences persi
   await expect(cards.nth(3)).toContainText("الإشعارات");
   const language = page.locator("select[data-preference='language']");
   await language.selectOption("en");
+  await expect(page.locator(".settings-interface-card")).toContainText("Interface & language");
+  await expect(page.locator(".settings-notifications-card")).toContainText("Renewal and billing notifications");
+  const density = page.locator("select[data-preference='interfaceDensity']");
+  await density.selectOption("compact");
+  await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+  await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
 });

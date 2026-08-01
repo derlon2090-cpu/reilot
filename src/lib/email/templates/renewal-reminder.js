@@ -61,6 +61,7 @@ export function renewalReminderEmail({
         footerText: storeName || "Renvix",
         brandName: storeName || "Renvix",
         brandImageUrl: template.storeImageUrl || "",
+        brandImageRadius: template.storeImageRadius,
         children: `${paragraphs(`Hello ${name},\n\nYour ${service} subscription is approaching its renewal date${endDate ? ` on ${endDate}` : ""}.`)}${link ? `<p style="margin:24px 0">${emailButton({ href: link, label: "Renew subscription" })}</p>` : ""}`
       })
     };
@@ -93,6 +94,7 @@ export function renewalReminderEmail({
     footerText,
     brandName: resolved.storeName,
     brandImageUrl: resolved.storeImageUrl || "",
+    brandImageRadius: resolved.storeImageRadius,
     themeColor: resolved.themeColor,
     children: `${paragraphs(body)}${renewalUrl && buttonLabel ? `<p style="margin:24px 0;text-align:center">${emailButton({ href: renewalUrl, label: buttonLabel, themeColor: resolved.themeColor })}</p>` : ""}<p style="margin:20px 0 0;color:#64748b">${escapeEmailHtml(footerText)}</p>`
   });

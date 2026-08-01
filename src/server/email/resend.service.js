@@ -27,10 +27,10 @@ export async function sendTestEmail({ to, locale = "ar" }) {
   return sendEmail({ to, subject, text, html });
 }
 
-export async function sendOrderInformationEmail({ to, customerName, storeName, storeImageUrl, orderNumber, publicUrl, locale = "ar" }) {
+export async function sendOrderInformationEmail({ to, customerName, storeName, storeImageUrl, storeImageRadius, orderNumber, publicUrl, locale = "ar" }) {
   return sendEmail({
     to,
-    ...orderInfoLinkEmail({ customerName, storeName, storeImageUrl, orderNumber, publicUrl, locale })
+    ...orderInfoLinkEmail({ customerName, storeName, storeImageUrl, storeImageRadius, orderNumber, publicUrl, locale })
   });
 }
 

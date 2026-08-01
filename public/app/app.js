@@ -85,7 +85,66 @@ const operationalEnglishPhrases = {
   "لا يظهر الرمز إلا بعد استلامه من خدمة الربط": "The code appears only after it is returned by the linking service",
   "لا يوجد رمز بعد": "No code yet",
   "رمز الاقتران غير مدعوم حاليا. استخدم الربط بالباركود.": "Pairing codes are not currently supported. Use QR linking.",
-  "تم إيقاف الإرسال التلقائي": "Automatic sending paused"
+  "تم إيقاف الإرسال التلقائي": "Automatic sending paused",
+  "إدارة معلومات الحساب والأمان وتفضيلات الواجهة.": "Manage account information, security, and interface preferences.",
+  "إعدادات الحساب": "Account settings",
+  "تحديث معلومات حسابك الشخصية وبيانات التواصل.": "Update your personal account and contact information.",
+  "الاسم الكامل": "Full name",
+  "اسم المتجر": "Store name",
+  "البريد الإلكتروني": "Email address",
+  "رقم الهاتف": "Phone number",
+  "لتغيير البريد، استخدم إجراء التحقق المخصص.": "Use the dedicated verification flow to change your email.",
+  "لا تملك صلاحية تعديل اسم المتجر": "You do not have permission to edit the store name",
+  "تغيير الصورة": "Change photo",
+  "حذف الصورة": "Remove photo",
+  "صورة الحساب": "Account photo",
+  "PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.": "PNG, JPG, or WebP, up to 2 MB.",
+  "حفظ التغييرات": "Save changes",
+  "جارٍ الحفظ...": "Saving...",
+  "تسجيل الخروج": "Sign out",
+  "حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.": "Keep your account secure by updating your password and protection settings.",
+  "كلمة المرور الحالية": "Current password",
+  "كلمة المرور الجديدة": "New password",
+  "تأكيد كلمة المرور": "Confirm password",
+  "تحديث كلمة المرور": "Update password",
+  "المصادقة الثنائية": "Two-factor authentication",
+  "طبقة حماية إضافية لحسابك": "An additional layer of account protection",
+  "إدارة الجلسات النشطة": "Manage active sessions",
+  "الواجهة واللغة": "Interface & language",
+  "تخصيص مظهر وكثافة ولغة الواجهة.": "Customize the interface appearance, density, and language.",
+  "اللغة": "Language",
+  "العربية": "Arabic",
+  "المظهر": "Appearance",
+  "شمسي (فاتح)": "Light",
+  "قمري (داكن)": "Dark",
+  "النظام": "System",
+  "كثافة الواجهة": "Interface density",
+  "مريحة": "Comfortable",
+  "متوسطة": "Balanced",
+  "مضغوطة": "Compact",
+  "اختر الإشعارات التي ترغب في استلامها.": "Choose the notifications you want to receive.",
+  "الإشعارات": "Notifications",
+  "إشعارات التجديد والفواتير": "Renewal and billing notifications",
+  "التنبيهات الأمنية الأساسية": "Essential security alerts",
+  "تقارير النظام والتحديثات": "System reports and updates",
+  "تنبيهات فشل الرسائل": "Message failure alerts",
+  "التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.": "Essential security alerts are always enabled to protect your account.",
+  "مساحة الحساب": "Account storage",
+  "المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.": "Actual storage used by customers, subscriptions, links, and logs.",
+  "مستخدم من حد الباقة الحالية": "used of the current plan limit",
+  "وصلت إلى حد مساحة الباقة": "You have reached your plan storage limit",
+  "أوقفت المنصة العمليات الجديدة التي تحتاج مساحة. طوّر الباقة أو احذف بيانات لا تحتاجها.": "New operations that require storage are paused. Upgrade your plan or remove data you no longer need.",
+  "لا توجد بيانات مخزنة حتى الآن.": "No stored data yet.",
+  "ترقية الباقة": "Upgrade plan",
+  "عرض حدود الباقات": "View plan limits",
+  "العملاء والاشتراكات": "Customers and subscriptions",
+  "روابط وقوالب الطلبات": "Order links and templates",
+  "الرسائل والسجلات": "Messages and logs",
+  "بيانات النظام": "System data",
+  "تم حفظ تفضيلات الواجهة": "Interface preferences saved",
+  "تعذر حفظ التفضيلات": "Unable to save preferences",
+  "تم حفظ تفضيلات الإشعارات": "Notification preferences saved",
+  "تعذر حفظ الإشعارات": "Unable to save notification preferences"
 };
 
 Object.assign(operationalEnglishPhrases, {
@@ -463,10 +522,15 @@ const storage = {
 
 function readPreference(key, legacyKey, fallback) {
   const direct = localStorage.getItem(key);
-  if (direct === "ar" || direct === "en" || direct === "light" || direct === "dark") return direct;
+  if (["ar", "en", "light", "dark", "system"].includes(direct)) return direct;
   const legacy = storage.get(legacyKey, fallback);
   localStorage.setItem(key, legacy);
   return legacy;
+}
+
+function readDensityPreference() {
+  const value = localStorage.getItem("renewpilot_density");
+  return ["comfortable", "medium", "compact"].includes(value) ? value : "comfortable";
 }
 
 function getNestedValue(object, key) {
@@ -595,6 +659,7 @@ const state = {
   sidebarOpen: false,
   theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
+  interfaceDensity: readDensityPreference(),
   profileOpen: false,
   resetStep: passwordResetSession.step,
   resetEmail: passwordResetSession.email,
@@ -607,6 +672,7 @@ const state = {
   filter: "الكل",
   search: "",
   notificationDropdownOpen: false,
+  notificationPreferenceSaving: "",
   notificationFilter: "all",
   subscriptionWindow: "7",
   subscriptionStatus: "",
@@ -694,6 +760,7 @@ state.orderLinkDraft = {
   manualNotes: "",
   storeName: "",
   logoUrl: "",
+  logoBorderRadius: 16,
   slug: "",
   style: "classic",
   themeColor: "#2563EB",
@@ -757,6 +824,7 @@ function applyPreferences() {
     ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
     : state.theme;
   document.documentElement.dataset.theme = resolvedTheme;
+  document.documentElement.dataset.density = state.interfaceDensity || "comfortable";
   document.documentElement.lang = state.language;
   document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
 }
@@ -784,6 +852,9 @@ async function fetchJson(url, options = {}) {
     }
   }
   if (!response.ok) {
+    if (payload.reason === "storage_limit_reached" || payload.error?.code === "storage_limit_reached") {
+      queueMicrotask(() => showStorageQuotaLimit(payload.storage || payload.error?.details?.storage));
+    }
     const serverMessage = typeof payload.error === "object" ? payload.error?.message : payload.error;
     const error = new Error(payload.message || serverMessage || "تعذر إكمال الطلب.");
     error.status = response.status;
@@ -844,6 +915,15 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         : payload.items ?? payload.report ?? payload;
     if (target === "dashboardOverview" && payload.profile) cacheDashboardProfile(payload.profile);
     if (target === "accountSettings" && payload.settings) {
+      state.language = payload.settings.language === "en" ? "en" : "ar";
+      state.theme = ["light", "dark", "system"].includes(payload.settings.theme) ? payload.settings.theme : "light";
+      state.interfaceDensity = ["comfortable", "medium", "compact"].includes(payload.settings.interfaceDensity)
+        ? payload.settings.interfaceDensity
+        : "comfortable";
+      localStorage.setItem("renewpilot_locale", state.language);
+      localStorage.setItem("renewpilot_theme", state.theme);
+      localStorage.setItem("renewpilot_density", state.interfaceDensity);
+      applyPreferences();
       state.settings = {
         whatsapp: Boolean(payload.settings.notificationChannels?.whatsapp),
         email: Boolean(payload.settings.notificationChannels?.email),
@@ -2830,6 +2910,13 @@ function securityTime(value) {
   return date.toLocaleDateString("ar-SA");
 }
 
+function showStorageQuotaLimit(storage = null) {
+  const used = Number(storage?.usedMb || 0);
+  const limit = Number(storage?.limitMb || 0);
+  const usageText = limit > 0 ? `${used.toLocaleString("ar-SA")} من ${limit.toLocaleString("ar-SA")} MB` : "الحد المسموح في الباقة الحالية";
+  openModal("مساحة الباقة ممتلئة", `<div class="quota-limit-modal storage-limit-modal">${dashboardIcon("billing")}<p>لا يمكن تنفيذ عملية جديدة تحتاج إلى مساحة لأن حسابك وصل إلى حد التخزين.</p><p>الاستخدام الحالي: <strong>${escapeHtml(usageText)}</strong>.</p><p>طوّر الباقة للمتابعة، أو احذف بيانات وملفات لم تعد تحتاجها ثم أعد المحاولة. عمليات الحذف وإدارة الفوترة تظل متاحة.</p><div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button><button class="btn btn-secondary" data-link="/dashboard/settings">مراجعة المساحة</button></div></div>`);
+}
+
 function securityTrendMarkup(points = [], currentScore = null) {
   const trend = Array.isArray(points) ? points.filter((item) => Number.isFinite(Number(item?.score))).slice(-7) : [];
   if (trend.length < 2) {
@@ -3203,16 +3290,22 @@ function safeStoreLogoUrl(value) {
   }
 }
 
-function storeLogoImage(value, className = "store-logo-image", alt = "صورة المتجر") {
-  const url = safeStoreLogoUrl(value);
-  return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : dashboardIcon("orderLink");
+function safeStoreLogoRadius(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(50, Math.max(0, Math.round(parsed))) : 16;
 }
 
-function storeLogoEditor(value) {
+function storeLogoImage(value, className = "store-logo-image", alt = "صورة المتجر", radius = 16) {
   const url = safeStoreLogoUrl(value);
+  return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" style="--store-logo-radius:${safeStoreLogoRadius(radius)}px">` : dashboardIcon("orderLink");
+}
+
+function storeLogoEditor(value, radius = 16) {
+  const url = safeStoreLogoUrl(value);
+  const safeRadius = safeStoreLogoRadius(radius);
   return `<section class="store-logo-editor">
-    <span class="store-logo-editor-preview">${storeLogoImage(url)}</span>
-    <div><strong>صورة المتجر</strong><small>تظهر في قالب البريد وصفحة معلومات الطلب.</small><div class="inline-actions"><input type="file" accept="image/png,image/jpeg,image/webp" data-action="store-logo-file" hidden><button type="button" class="btn btn-secondary" data-action="choose-store-logo">${dashboardIcon("upload")} ${url ? "استبدال الصورة" : "رفع صورة"}</button>${url ? `<button type="button" class="btn btn-ghost danger-text" data-action="remove-store-logo">حذف الصورة</button>` : ""}</div><em>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</em></div>
+    <span class="store-logo-editor-preview ${url ? "has-image" : ""}">${storeLogoImage(url, "store-logo-image", "صورة المتجر", safeRadius)}</span>
+    <div class="store-logo-editor-content"><strong>صورة المتجر</strong><small>تظهر في قالب البريد وصفحة معلومات الطلب.</small><div class="inline-actions"><input type="file" accept="image/png,image/jpeg,image/webp" data-action="store-logo-file" hidden><button type="button" class="btn btn-secondary" data-action="choose-store-logo">${dashboardIcon("upload")} ${url ? "استبدال الصورة" : "رفع صورة"}</button>${url ? `<button type="button" class="btn btn-ghost danger-text" data-action="remove-store-logo">حذف الصورة</button>` : ""}</div><em>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</em>${url ? `<label class="store-logo-radius-control"><span>حواف الصورة <output data-logo-radius-output>${safeRadius}px</output></span><input type="range" min="0" max="50" step="1" value="${safeRadius}" name="logoBorderRadius" data-order-field="logoBorderRadius" aria-label="ضبط حواف صورة المتجر"><small>اسحب للتحكم من حواف مستقيمة إلى دائرية.</small></label>` : ""}</div>
   </section>`;
 }
 
@@ -3224,9 +3317,10 @@ function emailTemplatePreview(template) {
   const buttonLabel = templatePreviewValue(template.buttonLabel || localDefaultEmailTemplate.buttonLabel);
   const footerText = templatePreviewValue(template.footerText || localDefaultEmailTemplate.footerText);
   const storeLogoUrl = safeStoreLogoUrl(template.storeImageUrl || state.orderLinkProfile?.logoUrl);
+  const storeLogoRadius = safeStoreLogoRadius(template.logoBorderRadius ?? state.orderLinkProfile?.logoBorderRadius);
   const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
   return `<div class="email-envelope" style="--email-theme:${theme}">
-    <div class="email-preview-brand"><span class="email-store-icon">${storeLogoImage(storeLogoUrl, "email-store-logo", storeName)}</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
+    <div class="email-preview-brand"><span class="email-store-icon ${storeLogoUrl ? "has-store-logo" : ""}">${storeLogoImage(storeLogoUrl, "email-store-logo", storeName, storeLogoRadius)}</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
     <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">${dashboardIcon("security")} بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♥</p></div>
     <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
   </div>`;
@@ -3240,6 +3334,7 @@ function readEmailTemplateForm(form = document.querySelector("form[data-submit='
     channel: "email",
     storeName: data.storeName || document.querySelector("[data-email-field][name='storeName']")?.value || "",
     storeImageUrl: state.orderLinkProfile?.logoUrl || "",
+    logoBorderRadius: safeStoreLogoRadius(state.orderLinkDraft.logoBorderRadius ?? state.orderLinkProfile?.logoBorderRadius),
     title: data.title || document.querySelector("[data-email-field][name='title']")?.value || "",
     themeColor: safeEmailTheme(data.themeColor || state.emailThemeColor),
     body: data.body || "",
@@ -3636,6 +3731,7 @@ function hydrateOrderLinkDraft() {
     hydrated: true,
     storeName: defaultTemplate?.storeName || profile.storeName || "",
     logoUrl: profile.logoUrl || "",
+    logoBorderRadius: safeStoreLogoRadius(profile.logoBorderRadius),
     slug: profile.slug || "",
     style: defaultTemplate?.style || profile.defaultTemplateStyle || "classic",
     themeColor: safeOrderLinkColor(defaultTemplate?.themeColor || profile.defaultThemeColor),
@@ -3729,9 +3825,10 @@ function orderInfoPreviewCard(subscription, draft, publicData = null) {
   const startDate = order.startDate ? new Date(order.startDate).toLocaleDateString("ar-SA") : "";
   const endDate = order.endDate ? new Date(order.endDate).toLocaleDateString("ar-SA") : "";
   const subscriptionStatus = order.status === "active" ? "نشط" : order.status === "expiring_soon" ? "ينتهي قريبًا" : order.status === "expired" ? "منتهي" : order.status || "غير محدد";
+  const storeLogoRadius = safeStoreLogoRadius(store.logoBorderRadius ?? draft.logoBorderRadius);
   return `<article class="order-customer-card order-style-${escapeHtml(template.style || "classic")} ${order.isPlaceholder ? "is-placeholder" : ""}" style="--order-theme:${themeColor}">
     <div class="order-card-accent"></div>
-    <div class="order-card-brand"><span class="order-bag ${safeStoreLogoUrl(store.logoUrl || draft.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(store.logoUrl || draft.logoUrl, "order-store-logo", store.name || draft.storeName)}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
+    <div class="order-card-brand"><span class="order-bag ${safeStoreLogoUrl(store.logoUrl || draft.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(store.logoUrl || draft.logoUrl, "order-store-logo", store.name || draft.storeName, storeLogoRadius)}</span><div><h2>${escapeHtml(store.name || draft.storeName || "المتجر")}</h2><p>${escapeHtml(template.headerText || "معلومات طلبك")}</p></div></div>
     <div class="order-number-row"><span>رقم الطلب</span><strong>#${escapeHtml(orderNumber)}</strong>${status(subscriptionStatus)}</div>
     <div class="order-information-grid">
       ${visible.customerName !== false ? `<div>${dashboardIcon("customers")}<span>اسم العميل</span><strong>${escapeHtml(customerName)}</strong></div>` : ""}
@@ -3754,7 +3851,7 @@ function orderLookupPreviewCard(draft) {
   const storeName = draft.storeName?.trim() || "اسم متجرك";
   return `<article class="order-lookup-preview order-style-${escapeHtml(draft.style || "classic")}" style="--order-theme:${themeColor}">
     <div class="order-lookup-accent"></div>
-    <div class="order-lookup-brand"><span class="order-bag ${safeStoreLogoUrl(draft.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(draft.logoUrl, "order-store-logo", storeName)}</span><div><h2>${escapeHtml(storeName)}</h2><p>مرحبًا بك في صفحة متابعة طلبك</p></div></div>
+    <div class="order-lookup-brand"><span class="order-bag ${safeStoreLogoUrl(draft.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(draft.logoUrl, "order-store-logo", storeName, draft.logoBorderRadius)}</span><div><h2>${escapeHtml(storeName)}</h2><p>مرحبًا بك في صفحة متابعة طلبك</p></div></div>
     <div class="order-lookup-content">
       <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
       <h3>أدخل رقم الطلب</h3>
@@ -3773,7 +3870,7 @@ function publicOrderLookupCard(presentation, orderNumber = "") {
   const themeColor = safeOrderLinkColor(template.themeColor);
   return `<article class="order-lookup-preview public-order-lookup-card order-style-${escapeHtml(template.style || "classic")}" style="--order-theme:${themeColor}">
     <div class="order-lookup-accent"></div>
-    <div class="order-lookup-brand"><span class="order-bag ${safeStoreLogoUrl(store.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(store.logoUrl, "order-store-logo", store.name || "معلومات الطلب")}</span><div><h2>${escapeHtml(store.name || "معلومات الطلب")}</h2><p>${escapeHtml(template.headerText || "مرحبًا بك في صفحة متابعة طلبك")}</p></div></div>
+    <div class="order-lookup-brand"><span class="order-bag ${safeStoreLogoUrl(store.logoUrl) ? "has-store-logo" : ""}">${storeLogoImage(store.logoUrl, "order-store-logo", store.name || "معلومات الطلب", store.logoBorderRadius)}</span><div><h2>${escapeHtml(store.name || "معلومات الطلب")}</h2><p>${escapeHtml(template.headerText || "مرحبًا بك في صفحة متابعة طلبك")}</p></div></div>
     <form class="order-lookup-content" data-submit="public-order-search">
       <span class="order-lookup-icon">${dashboardIcon("subscriptions")}</span>
       <h3>أدخل رقم الطلب</h3>
@@ -3870,7 +3967,7 @@ function orderLinksWorkspacePage() {
           <div class="order-profile-grid">
             <label class="field"><span>اسم القالب</span><input class="input" name="templateName" data-order-field="templateName" value="${escapeHtml(draft.templateName)}" placeholder="قالب معلومات الطلب"></label>
             <label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-order-field="storeName" value="${escapeHtml(draft.storeName)}" required></label>
-            <div class="order-store-logo-field">${storeLogoEditor(draft.logoUrl || profile.logoUrl)}</div>
+            <div class="order-store-logo-field">${storeLogoEditor(draft.logoUrl || profile.logoUrl, draft.logoBorderRadius ?? profile.logoBorderRadius)}</div>
             <label class="field"><span>رابط المتجر المخصص</span><div class="slug-input"><span>/o/</span><input class="input" name="slug" data-order-field="slug" value="${escapeHtml(draft.slug || profile.slug || "")}" pattern="[a-z0-9-]+"></div><small>حروف إنجليزية صغيرة وأرقام وشرطات فقط.</small></label>
             ${draft.sourceMode === "existing" ? `<label class="field"><span>اختيار الطلب / الاشتراك</span><select class="select" name="subscriptionId" data-order-field="subscriptionId"><option value="">اختر اشتراكًا حقيقيًا</option>${subscriptions.map((item) => `<option value="${item.id}" ${item.id === draft.subscriptionId ? "selected" : ""}>#${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customerName)} · ${escapeHtml(item.planName)}</option>`).join("")}</select></label>` : ""}
             ${draft.sourceMode !== "existing" ? `<label class="field"><span>اختيار العميل</span><select class="select" name="customerId" data-order-field="customerId"><option value="">اختر عميلًا من قاعدة البيانات</option>${customers.map((item) => `<option value="${item.id}" ${item.id === draft.customerId ? "selected" : ""}>${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ""}</option>`).join("")}</select><small>${customers.length ? "اختر العميل الذي سيظهر في صفحة الطلب." : "لا يوجد عملاء بعد. أضف العميل أولًا ثم أكمل."}</small></label>` : ""}
@@ -4202,9 +4299,9 @@ function settingsPage() {
     <div class="settings-layout">
       <article class="card settings-panel account-photo-panel settings-account-card"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">تحديث معلومات حسابك الشخصية وبيانات التواصل.</p></div></div><div class="avatar-editor">${avatar}<div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="avatar-camera-button" data-action="choose-avatar" title="تغيير الصورة">${dashboardIcon("reports")}</button>${avatarUrl ? `<button class="btn btn-ghost danger-text" data-action="remove-avatar">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</small></div></div><form data-submit="profile-settings" class="settings-profile-form" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" value="${escapeHtml(remote.storeName || "")}" ${canEditStore ? "" : "disabled title=\"لا تملك صلاحية تعديل اسم المتجر\""}></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly title="لتغيير البريد، استخدم إجراء التحقق المخصص."></label><label class="field"><span>رقم الهاتف</span><input class="input" name="phone" dir="ltr" placeholder="+9665XXXXXXXX" value="${escapeHtml(remote.phone || "")}"></label><button class="btn btn-primary profile-save-button" disabled>حفظ التغييرات</button><button type="button" class="btn btn-danger settings-logout-button" data-action="logout-confirm">تسجيل الخروج</button></form></article>
       <article class="card settings-panel settings-security-card"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.</p></div></div><form data-submit="password" class="security-password-form"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" autocomplete="current-password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="btn btn-primary">تحديث كلمة المرور</button></form><div class="setting-row"><div><strong>المصادقة الثنائية</strong><p class="muted">طبقة حماية إضافية لحسابك</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><button class="btn btn-secondary sessions-button" data-action="manage-sessions">إدارة الجلسات النشطة</button></article>
-      <article class="card settings-panel settings-interface-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الواجهة واللغة</h2><p class="muted">تخصيص مظهر وكثافة ولغة الواجهة.</p></div></div><div class="settings-select-grid"><label class="field"><span>اللغة</span><select class="select" data-action="preference-select" data-preference="language"><option value="ar" ${state.language === "ar" ? "selected" : ""}>◉ العربية</option><option value="en" ${state.language === "en" ? "selected" : ""}>◉ English</option></select></label><label class="field"><span>المظهر</span><select class="select theme-preference-select" data-action="preference-select" data-preference="theme"><option value="light" ${state.theme === "light" ? "selected" : ""}>☀ شمسي (فاتح)</option><option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾ قمري (داكن)</option><option value="system" ${remote.theme === "system" ? "selected" : ""}>النظام</option></select></label><label class="field"><span>كثافة الواجهة</span><select class="select" data-action="preference-select" data-preference="interfaceDensity"><option value="comfortable" ${remote.interfaceDensity === "comfortable" ? "selected" : ""}>مريحة</option><option value="medium" ${remote.interfaceDensity === "medium" ? "selected" : ""}>متوسطة</option><option value="compact" ${remote.interfaceDensity === "compact" ? "selected" : ""}>مضغوطة</option></select></label></div></article>
-      <article class="card settings-panel settings-notifications-card"><div class="settings-panel-head">${dashboardIcon("notifications")}<div><h2>الإشعارات</h2><p class="muted">اختر الإشعارات التي ترغب في استلامها.</p></div></div>${notificationSettingToggle("renewalBillingNotifications", "إشعارات التجديد والفواتير", Boolean(notifications.renewalBillingNotifications))}${notificationSettingToggle("securityNotifications", "التنبيهات الأمنية الأساسية", true, true)}${notificationSettingToggle("productUpdates", "تقارير النظام والتحديثات", Boolean(notifications.productUpdates))}${notificationSettingToggle("messageFailureNotifications", "تنبيهات فشل الرسائل", Boolean(notifications.messageFailureNotifications))}<small class="security-always-note">التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.</small></article>
-      <article class="card settings-panel storage-panel"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>من ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Math.min(100, Number(storage.percent || 0))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small><div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">عرض حدود الباقات</button></article>
+      <article class="card settings-panel settings-interface-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الواجهة واللغة</h2><p class="muted">تخصيص مظهر وكثافة ولغة الواجهة.</p></div></div><div class="settings-select-grid"><label class="field"><span>اللغة</span><select class="select" data-action="preference-select" data-preference="language"><option value="ar" ${state.language === "ar" ? "selected" : ""}>◉ العربية</option><option value="en" ${state.language === "en" ? "selected" : ""}>◉ English</option></select></label><label class="field"><span>المظهر</span><select class="select theme-preference-select" data-action="preference-select" data-preference="theme"><option value="light" ${state.theme === "light" ? "selected" : ""}>☀ شمسي (فاتح)</option><option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾ قمري (داكن)</option><option value="system" ${state.theme === "system" ? "selected" : ""}>النظام</option></select></label><label class="field"><span>كثافة الواجهة</span><select class="select" data-action="preference-select" data-preference="interfaceDensity"><option value="comfortable" ${state.interfaceDensity === "comfortable" ? "selected" : ""}>مريحة</option><option value="medium" ${state.interfaceDensity === "medium" ? "selected" : ""}>متوسطة</option><option value="compact" ${state.interfaceDensity === "compact" ? "selected" : ""}>مضغوطة</option></select></label></div></article>
+      <article class="card settings-panel settings-notifications-card"><div class="settings-panel-head">${dashboardIcon("notifications")}<div><h2>الإشعارات</h2><p class="muted">اختر الإشعارات التي ترغب في استلامها.</p></div></div>${notificationSettingToggle("renewalBillingNotifications", "إشعارات التجديد والفواتير", notifications.renewalBillingNotifications !== false, Boolean(state.notificationPreferenceSaving))}${notificationSettingToggle("securityNotifications", "التنبيهات الأمنية الأساسية", true, true)}${notificationSettingToggle("productUpdates", "تقارير النظام والتحديثات", notifications.productUpdates !== false, Boolean(state.notificationPreferenceSaving))}${notificationSettingToggle("messageFailureNotifications", "تنبيهات فشل الرسائل", notifications.messageFailureNotifications !== false, Boolean(state.notificationPreferenceSaving))}<small class="security-always-note">التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.</small></article>
+      <article class="card settings-panel storage-panel ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>${state.language === "en" ? "of" : "من"} ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Number(storage.progressPercent ?? Math.min(100, Number(storage.percent || 0)))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small>${storage.isLimitReached ? `<div class="storage-capacity-warning">${dashboardIcon("warning")}<div><strong>وصلت إلى حد مساحة الباقة</strong><span>أوقفت المنصة العمليات الجديدة التي تحتاج مساحة. طوّر الباقة أو احذف بيانات لا تحتاجها.</span></div></div>` : ""}<div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn ${storage.isLimitReached ? "btn-primary" : "btn-secondary"}" data-link="/dashboard/billing">${storage.isLimitReached ? "ترقية الباقة" : "عرض حدود الباقات"}</button></article>
     </div>`);
 }
 
@@ -4498,6 +4595,7 @@ async function persistOrderLinkDraft() {
       storeName: draft.storeName,
       slug: draft.slug,
       logoUrl: draft.logoUrl || null,
+      logoBorderRadius: safeStoreLogoRadius(draft.logoBorderRadius),
       defaultTemplateStyle: draft.style,
       defaultThemeColor: draft.themeColor,
       isActive: true
@@ -4680,38 +4778,102 @@ async function saveProfileSettings(data, form) {
 
 async function saveInterfacePreferences(overrides = {}) {
   const remote = state.accountSettings?.settings || {};
-  const language = overrides.language || state.language;
-  const theme = overrides.theme || state.theme;
-  const interfaceDensity = overrides.interfaceDensity || remote.interfaceDensity || "comfortable";
-  await fetchJson("/api/settings/preferences", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ language, theme, interfaceDensity })
-  });
-  state.language = language;
-  state.theme = theme;
-  localStorage.setItem("renewpilot_locale", language);
-  localStorage.setItem("renewpilot_theme", theme);
-  applyPreferences();
-  state.accountSettings = null;
-  await syncRouteData(true);
+  const previous = {
+    language: state.language,
+    theme: state.theme,
+    interfaceDensity: state.interfaceDensity || remote.interfaceDensity || "comfortable"
+  };
+  const next = {
+    language: overrides.language === "en" ? "en" : overrides.language === "ar" ? "ar" : previous.language,
+    theme: ["light", "dark", "system"].includes(overrides.theme) ? overrides.theme : previous.theme,
+    interfaceDensity: ["comfortable", "medium", "compact"].includes(overrides.interfaceDensity)
+      ? overrides.interfaceDensity
+      : previous.interfaceDensity
+  };
+  const applyLocalState = (preferences) => {
+    state.language = preferences.language;
+    state.theme = preferences.theme;
+    state.interfaceDensity = preferences.interfaceDensity;
+    localStorage.setItem("renewpilot_locale", state.language);
+    localStorage.setItem("renewpilot_theme", state.theme);
+    localStorage.setItem("renewpilot_density", state.interfaceDensity);
+    if (state.accountSettings?.settings) {
+      state.accountSettings = {
+        ...state.accountSettings,
+        settings: { ...state.accountSettings.settings, ...preferences }
+      };
+    }
+    applyPreferences();
+    render();
+  };
+
+  applyLocalState(next);
+  try {
+    const payload = await fetchJson("/api/settings/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next)
+    });
+    const saved = payload.preferences || next;
+    applyLocalState({
+      language: saved.language === "en" ? "en" : "ar",
+      theme: ["light", "dark", "system"].includes(saved.theme) ? saved.theme : "light",
+      interfaceDensity: ["comfortable", "medium", "compact"].includes(saved.interfaceDensity)
+        ? saved.interfaceDensity
+        : "comfortable"
+    });
+    return saved;
+  } catch (error) {
+    if (!state.route.startsWith("/dashboard") && error.status === 401) return next;
+    if (state.route.startsWith("/dashboard")) applyLocalState(previous);
+    throw error;
+  }
 }
 
 async function saveNotificationPreference(key, checked) {
   const remote = state.accountSettings?.settings || {};
-  const current = { ...(remote.notifications || {}), [key]: checked };
-  await fetchJson("/api/settings/notifications", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      renewalBillingNotifications: Boolean(current.renewalBillingNotifications),
-      productUpdates: Boolean(current.productUpdates),
-      messageFailureNotifications: Boolean(current.messageFailureNotifications)
-    })
-  });
-  state.accountSettings = null;
-  await syncRouteData(true);
-  toast("تم حفظ تفضيلات الإشعارات");
+  const previous = {
+    renewalBillingNotifications: remote.notifications?.renewalBillingNotifications !== false,
+    securityNotifications: true,
+    productUpdates: remote.notifications?.productUpdates !== false,
+    messageFailureNotifications: remote.notifications?.messageFailureNotifications !== false
+  };
+  const next = { ...previous, [key]: checked, securityNotifications: true };
+  const applyNotificationState = (notifications) => {
+    if (state.accountSettings?.settings) {
+      state.accountSettings = {
+        ...state.accountSettings,
+        settings: {
+          ...state.accountSettings.settings,
+          notifications: { ...notifications, securityNotifications: true }
+        }
+      };
+    }
+  };
+
+  state.notificationPreferenceSaving = key;
+  applyNotificationState(next);
+  render();
+  try {
+    const payload = await fetchJson("/api/settings/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        renewalBillingNotifications: next.renewalBillingNotifications,
+        productUpdates: next.productUpdates,
+        messageFailureNotifications: next.messageFailureNotifications
+      })
+    });
+    applyNotificationState(payload.notifications || next);
+    state.notificationPreferenceSaving = "";
+    render();
+    toast("تم حفظ تفضيلات الإشعارات");
+  } catch (error) {
+    applyNotificationState(previous);
+    state.notificationPreferenceSaving = "";
+    render();
+    throw error;
+  }
 }
 
 async function showSessionsDrawer() {
@@ -5477,20 +5639,16 @@ async function handleAction(target) {
     } catch { appToast.error("تعذر فصل متجر سلة", { description: "حاول مرة أخرى بعد قليل.", id: "salla-disconnect-error" }); }
   }
   if (action === "theme") {
-    state.theme = state.theme === "dark" ? "light" : "dark";
-    localStorage.setItem("renewpilot_theme", state.theme);
-    applyPreferences();
-    toast(state.theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي");
-    render();
-    void saveInterfacePreferences({ theme: state.theme }).catch(() => null);
+    const theme = state.theme === "dark" ? "light" : "dark";
+    void saveInterfacePreferences({ theme })
+      .then(() => toast(theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي"))
+      .catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
   }
   if (action === "language") {
-    state.language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
-    localStorage.setItem("renewpilot_locale", state.language);
-    applyPreferences();
-    toast(state.language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled");
-    render();
-    void saveInterfacePreferences({ language: state.language }).catch(() => null);
+    const language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
+    void saveInterfacePreferences({ language })
+      .then(() => toast(language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled"))
+      .catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
   }
   if (action === "profile-menu") { state.profileOpen = !state.profileOpen; render(); }
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
@@ -7687,7 +7845,13 @@ document.addEventListener("input", (event) => {
     return;
   }
   if (target.dataset.orderField) {
-    state.orderLinkDraft[target.dataset.orderField] = target.type === "checkbox" ? target.checked : target.value;
+    const value = target.type === "checkbox" ? target.checked : target.dataset.orderField === "logoBorderRadius" ? safeStoreLogoRadius(target.value) : target.value;
+    state.orderLinkDraft[target.dataset.orderField] = value;
+    if (target.dataset.orderField === "logoBorderRadius") {
+      const output = target.closest(".store-logo-radius-control")?.querySelector("[data-logo-radius-output]");
+      if (output) output.textContent = `${value}px`;
+      target.closest(".store-logo-editor")?.querySelector(".store-logo-editor-preview img")?.style.setProperty("--store-logo-radius", `${value}px`);
+    }
     refreshOrderLinkPreview();
   }
   if (target.dataset.orderNote !== undefined) {
@@ -7790,11 +7954,6 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "preference-select") {
     const value = target.value;
     const key = target.dataset.preference;
-    if (key === "language") state.language = value === "en" ? "en" : "ar";
-    if (key === "theme") state.theme = ["light", "dark", "system"].includes(value) ? value : "light";
-    localStorage.setItem("renewpilot_locale", state.language);
-    localStorage.setItem("renewpilot_theme", state.theme);
-    applyPreferences();
     void saveInterfacePreferences({ [key]: value }).then(() => toast("تم حفظ تفضيلات الواجهة")).catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
   }
   if (target.dataset.action === "notification-preference") {

@@ -47,7 +47,8 @@ export async function GET(req, { params }) {
   const orderResult = await query(`SELECT l.id,l.tenant_id AS "tenantId",l.subscription_id AS "legacySubscriptionId",
     l.external_order_id AS "externalOrderId",l.order_number AS "orderNumber",l.status AS "linkStatus",
     l.expires_at AS "linkExpiresAt",c.name AS "customerName",COALESCE(c.whatsapp_number,c.phone) AS "phoneNumber",
-    p.store_name AS "storeName",p.slug AS "storeSlug",p.logo_url AS "logoUrl",ten.timezone,
+    p.store_name AS "storeName",p.slug AS "storeSlug",p.logo_url AS "logoUrl",
+    p.logo_border_radius AS "logoBorderRadius",ten.timezone,
     st.support_phone AS "supportPhone",t.name AS "templateName",COALESCE(t.style,p.default_template_style) AS "templateStyle",
     COALESCE(t.theme_color,p.default_theme_color) AS "themeColor",t.header_text AS "headerText",
     t.footer_text AS "footerText",COALESCE(t.additional_notes,'[]'::jsonb) AS "additionalNotes",
@@ -98,7 +99,7 @@ export async function GET(req, { params }) {
   }
   return response({ ok: true, data: {
     serverNow: serverNow.toISOString(),
-    store: { name: order.storeName, slug: order.storeSlug, logoUrl: order.logoUrl, supportPhone: order.supportPhone, timezone: order.timezone || "Asia/Riyadh" },
+    store: { name: order.storeName, slug: order.storeSlug, logoUrl: order.logoUrl, logoBorderRadius: Number(order.logoBorderRadius ?? 16), supportPhone: order.supportPhone, timezone: order.timezone || "Asia/Riyadh" },
     order: { orderNumber: order.orderNumber, customerName: order.customerName, maskedPhone: maskPublicPhone(order.phoneNumber) },
     template: { name: order.templateName, style: order.templateStyle, themeColor: order.themeColor,
       headerText: order.headerText, footerText: order.footerText, additionalNotes: order.additionalNotes, visibleFields: order.visibleFields },
