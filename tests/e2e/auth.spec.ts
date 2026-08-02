@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { hasLiveCredentials, liveEmail, livePassword } from "./helpers/live-auth";
+import { stageArtifactPath } from "./helpers/stage-output";
 
 test.skip(!hasLiveCredentials, "requires a real authenticated test account");
 
@@ -31,7 +32,7 @@ test("@critical authentication rejects random and wrong credentials before allow
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator(".toast.danger")).toBeVisible();
   await expect(submit).toBeEnabled();
-  await page.screenshot({ path: "test-results/critical-random-login.png", fullPage: true });
+  await page.screenshot({ path: stageArtifactPath("critical-random-login.png"), fullPage: true });
 
   await page.locator("input[name='email']").fill(liveEmail);
   await page.locator("input[name='password']").fill("Wrong@999");

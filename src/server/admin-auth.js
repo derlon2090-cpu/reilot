@@ -87,7 +87,10 @@ export function requestIp(req) {
 }
 
 export async function getAdminContext(req) {
-  const session = await getSession(req);
+  // Platform administrators must remain able to reach the control plane even
+  // when their customer tenant is disabled. Regular user sessions still keep
+  // the active-tenant restriction in getSession's default path.
+  const session = await getSession(req, { allowInactiveTenant: true });
   if (!session) return null;
 
   const result = await query(

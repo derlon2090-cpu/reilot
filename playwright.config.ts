@@ -1,7 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
+import path from "node:path";
+
+const outputDir = process.env.PLAYWRIGHT_OUTPUT_DIR
+  || path.join(os.tmpdir(), "renvix-salla-stage-playwright");
 
 export default defineConfig({
   testDir: "tests/e2e",
+  outputDir,
   workers: 1,
   timeout: 30000,
   expect: { timeout: 5000 },

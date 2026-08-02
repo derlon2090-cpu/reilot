@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
+import { stageArtifactPath } from "./helpers/stage-output";
 
 test.skip(!hasLiveCredentials || process.env.E2E_LIVE_WHATSAPP !== "1", "requires live Evolution API verification");
 
@@ -25,7 +26,7 @@ test("@critical linked devices renders a real QR and a real pairing result or ex
   await expect(qrImage).toBeVisible();
   expect(await qrImage.evaluate((image: HTMLImageElement) => image.naturalWidth > 0 && image.naturalHeight > 0)).toBe(true);
   await expect(page.getByText("الباركود جاهز للمسح")).toBeVisible();
-  await page.screenshot({ path: "test-results/critical-whatsapp-qr.png", fullPage: true });
+  await page.screenshot({ path: stageArtifactPath("critical-whatsapp-qr.png"), fullPage: true });
 
   await page.locator("[data-action='device-link-method'][data-method='pairing']").click();
   await page.locator("[data-action='pairing-phone-input']").fill("966 556 915 980");
@@ -42,7 +43,7 @@ test("@critical linked devices renders a real QR and a real pairing result or ex
     await expect(page.locator("[data-pairing-error]")).toBeVisible();
     await expect(page.locator("[data-pairing-error]")).not.toHaveText("");
   }
-  await page.screenshot({ path: "test-results/critical-pairing-result.png", fullPage: true });
+  await page.screenshot({ path: stageArtifactPath("critical-pairing-result.png"), fullPage: true });
 
   const instanceId = createPayload.instance?.id;
   if (instanceId) await page.request.delete(`/api/whatsapp/instances/${instanceId}`);

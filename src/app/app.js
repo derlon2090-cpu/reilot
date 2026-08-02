@@ -2370,7 +2370,8 @@ function sallaTemplateIcon(item) {
   const iconMap = {
     cart: "subscriptions", clock: "template", settings: "settings", check: "security",
     plane: "orderLink", truck: "devices", package: "apps", return: "subscriptions",
-    refund: "billing", invoice: "template"
+    refund: "billing", invoice: "template", download: "orderLink", star: "reports",
+    cancel: "close"
   };
   return dashboardIcon(iconMap[item.icon] || "template");
 }
@@ -2396,16 +2397,19 @@ function messageActivationCard({
 
 function sallaTemplateActivationTitle(item) {
   const labels = {
-    salla_abandoned_cart: "تفعيل رسالة السلة المتروكة",
-    salla_order_under_review: "تفعيل رسالة تحت المراجعة",
-    salla_order_processing: "تفعيل رسالة قيد التنفيذ",
-    salla_order_completed: "تفعيل رسالة تم التنفيذ",
-    salla_order_shipped: "تفعيل رسالة تم الشحن",
-    salla_order_out_for_delivery: "تفعيل رسالة جاري التوصيل",
-    salla_order_delivered: "تفعيل رسالة تم التوصيل",
-    salla_order_return_pending: "تفعيل رسالة قيد الاسترجاع",
-    salla_order_returned: "تفعيل رسالة الاسترجاع",
-    salla_invoice_ready: "تفعيل رسالة الفاتورة"
+    digital_product_delivery: "تفعيل رسالة إرسال المنتجات الرقمية",
+    processing: "تفعيل رسالة قيد التنفيذ",
+    under_review: "تفعيل رسالة تحت المراجعة",
+    delivered: "تفعيل رسالة تم التوصيل",
+    out_for_delivery: "تفعيل رسالة جاري التوصيل",
+    completed: "تفعيل رسالة تم التنفيذ",
+    review_request: "تفعيل رسالة طلب التقييم",
+    abandoned_cart: "تفعيل رسالة السلة المتروكة",
+    cancelled: "تفعيل رسالة إلغاء الطلب",
+    return_in_progress: "تفعيل رسالة قيد الاسترجاع",
+    returned: "تفعيل رسالة استلام المرتجع",
+    shipped: "تفعيل رسالة تم الشحن",
+    salla_invoice_ready: "تفعيل رسالة رابط الفاتورة"
   };
   return labels[item.templateKey] || `تفعيل رسالة ${item.name}`;
 }
@@ -2424,37 +2428,44 @@ function sallaAutomationTemplatesPage() {
       </section>`);
   }
   const items = Array.isArray(payload.items) ? payload.items : [];
-  const cards = items.map((item) => `<article class="card salla-template-card ${item.templateKey === "salla_order_completed" ? "featured" : ""}">
+  const cards = items.map((item) => `<article class="card salla-template-card ${item.templateKey === "completed" ? "featured" : ""}">
     <div class="salla-template-card-head">
       <span class="salla-template-card-icon">${sallaTemplateIcon(item)}</span>
       <div><span class="salla-chip">سلة</span><h2>${escapeHtml(item.name)}</h2></div>
     </div>
     <p>${escapeHtml(item.description)}</p>
-    ${item.templateKey === "salla_order_completed" ? `<div class="salla-mode-chips"><span>واتساب</span><span>صفحة آمنة</span></div>` : ""}
+    ${item.templateKey === "completed" ? `<div class="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div>` : ""}
     <span class="status ${item.isEnabled ? "success" : "neutral"}">${item.isEnabled ? "نشط" : "غير مفعل"} <i></i></span>
     <footer><small>آخر تحديث: ${item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "—"}</small><div><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("template")} تحرير</button></div></footer>
   </article>`).join("");
-  return dashboardShell(`${pageTitle("قوالب سلة", `<button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة حالات سلة</button><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة للتطبيقات</button>`)}
-    <p class="page-kicker">إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة؛ كل قالب سجل مستقل ولا يتكرر عند الحفظ أو إعادة الربط.</p>
-    <section class="inline-notice info salla-templates-notice">${dashboardIcon("info")}<span>هذه القوالب تعمل بعد أحداث سلة الموثقة فقط. الإرسال يتم عبر Queue ولا يظهر النجاح قبل قبول مزود القناة.</span></section>
+  return dashboardShell(`<div class="salla-templates-page-head">${pageTitle("قوالب سلة", `<button class="btn btn-primary" data-link="/dashboard/apps/salla/templates/${escapeHtml(items[0]?.templateKey || "processing")}">${dashboardIcon("template")} تخصيص قالب</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/salla_invoice_ready">${dashboardIcon("billing")} رابط الفاتورة</button><button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة الحالات</button>`)}<span class="salla-chip">سلة</span></div>
+    <p class="page-kicker">إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة. فعّل القالب وخصص محتواه والقناة بسهولة.</p>
+    <section class="inline-notice info salla-templates-notice">${dashboardIcon("info")}<span>هذه قوالب خاصة بمتجرك فقط. يتم إرسال الرسائل عبر القناة المختارة لكل قالب بعد وصول حدث موثق من سلة.</span></section>
     <section class="salla-templates-grid">${cards}</section>`);
 }
 
 function sallaTemplatePreviewPanel(item, storeProfile = {}) {
-  const body = escapeHtml(item.messageBody || "").replace(/\n/g, "<br>");
   const isEmail = item.channel === "email";
+  const activeContent = isEmail ? (item.emailTextContent || item.messageBody) : (item.whatsappContent || item.messageBody);
+  const body = escapeHtml(activeContent || "").replace(/\n/g, "<br>");
   const logoUrl = storeProfile.logoUrl || "";
   const logoRadius = Math.max(0, Math.min(50, Number(storeProfile.logoBorderRadius ?? 16)));
   const emailLogo = logoUrl
     ? `<span class="salla-email-store-logo"><img src="${escapeHtml(logoUrl)}" alt="شعار ${escapeHtml(storeProfile.storeName || "المتجر")}" style="--salla-logo-radius:${logoRadius}px"></span>`
     : `<span class="salla-email-store-logo is-empty">${dashboardIcon("apps")}</span>`;
   return `<aside class="card salla-template-live-preview">
-    <div class="section-head"><div><h2>معاينة الرسالة</h2><p>معاينة فقط — لن يتم إرسال أي رسالة.</p></div>${dashboardIcon("eye")}</div>
+    <div class="section-head"><div><h2 data-salla-preview-title>${isEmail ? "معاينة البريد" : "معاينة واتساب"}</h2><p>معاينة موحدة وآمنة — لن يتم إرسال أي رسالة.</p></div>${dashboardIcon(isEmail ? "template" : "eye")}</div>
     <div class="${isEmail ? "salla-email-preview" : "salla-whatsapp-preview"}" data-salla-preview-frame>
-      <div class="salla-whatsapp-preview-head" data-salla-preview-head="whatsapp" ${isEmail ? "hidden" : ""}>${brandLogo("dashboard")}<div><strong>Renvix</strong><small>حساب أعمال</small></div></div>
-      <div class="salla-email-preview-head" data-salla-preview-head="email" ${isEmail ? "" : "hidden"}>${emailLogo}<div><small>${escapeHtml(storeProfile.storeName || "شعار المتجر")}</small><strong data-salla-email-subject>${escapeHtml(item.emailSubject || "عنوان الرسالة")}</strong></div></div>
-      <div class="salla-preview-message">${body}</div>
-      <small data-salla-preview-caption>${isEmail ? "معاينة بريد إلكتروني" : "10:30 ص ✓✓"}</small>
+      <div class="salla-whatsapp-preview-canvas" data-salla-preview-head="whatsapp" ${isEmail ? "hidden" : ""}>
+        <div class="salla-whatsapp-bubble"><div class="salla-preview-message" data-salla-preview-message>${body}</div><button type="button" tabindex="-1" class="salla-preview-cta">${dashboardIcon("orderLink")} <span>${escapeHtml(item.previewAction || "عرض التفاصيل")}</span></button><small>11:30 ص ✓✓</small></div>
+      </div>
+      <div class="salla-email-preview-canvas" data-salla-preview-head="email" ${isEmail ? "" : "hidden"}>
+        <div class="salla-email-preview-head">${emailLogo}<div><small>${escapeHtml(storeProfile.storeName || "متجري")}</small><strong data-salla-email-subject>${escapeHtml(item.emailSubject || "عنوان الرسالة")}</strong></div></div>
+        <div class="salla-email-hero">${dashboardIcon("template")}<strong>${escapeHtml(item.name || "تحديث طلبك")}</strong></div>
+        <div class="salla-preview-message" data-salla-preview-message>${body}</div>
+        <button type="button" tabindex="-1" class="salla-preview-cta primary"><span>${escapeHtml(item.previewAction || "عرض التفاصيل")}</span></button>
+        <footer>هذه رسالة آلية آمنة من ${escapeHtml(storeProfile.storeName || "متجرك")}</footer>
+      </div>
     </div>
     ${item.lastFailureAt ? `<div class="inline-notice danger"><strong>آخر خطأ</strong><span>${escapeHtml(item.lastFailureCode || "provider_failed")}</span></div>` : ""}
   </aside>`;
@@ -2474,10 +2485,12 @@ function refreshSallaTemplatePreview(form, { logoUrl = "" } = {}) {
   });
   const subject = document.querySelector("[data-salla-email-subject]");
   if (subject) subject.textContent = form.elements.emailSubject?.value || "عنوان الرسالة";
-  const body = document.querySelector(".salla-preview-message");
-  if (body) body.innerHTML = escapeHtml(form.elements.messageBody?.value || "اكتب محتوى الرسالة ليظهر هنا.").replace(/\n/g, "<br>");
-  const caption = document.querySelector("[data-salla-preview-caption]");
-  if (caption) caption.textContent = isEmail ? "معاينة بريد إلكتروني" : "10:30 ص ✓✓";
+  const content = isEmail ? form.elements.emailTextContent?.value : form.elements.whatsappContent?.value;
+  document.querySelectorAll("[data-salla-preview-message]").forEach((body) => {
+    body.innerHTML = escapeHtml(content || "اكتب محتوى الرسالة ليظهر هنا.").replace(/\n/g, "<br>");
+  });
+  const title = document.querySelector("[data-salla-preview-title]");
+  if (title) title.textContent = isEmail ? "معاينة البريد" : "معاينة واتساب";
   if (logoUrl) {
     const logoShell = document.querySelector(".salla-email-store-logo");
     const logoEditor = form.querySelector(".salla-email-logo-preview");
@@ -2501,14 +2514,18 @@ function sallaAutomationTemplateEditorPage() {
   const statuses = Array.isArray(payload.statuses) ? payload.statuses : [];
   const metaTemplates = Array.isArray(payload.metaTemplates) ? payload.metaTemplates : [];
   const settings = item.settings || {};
-  const statusField = item.requiresStatusMapping ? `<label class="field"><span>حالة سلة التي تشغّل القالب</span><select class="select" name="mappedStatusId" required><option value="">اختيار الحالة</option>${statuses.map((statusItem) => `<option value="${escapeHtml(statusItem.id)}" data-slug="${escapeHtml(statusItem.slug || "")}" data-name="${escapeHtml(statusItem.name)}" ${statusItem.id === item.mappedStatusId ? "selected" : ""}>${escapeHtml(statusItem.name)}${statusItem.isCustom ? " — مخصصة" : ""}</option>`).join("")}</select><small>${statuses.length ? "المطابقة تعتمد على المعرّف أو slug، وليس الاسم العربي وحده." : "زامن حالات سلة أولًا؛ لا يمكن التفعيل قبل المطابقة."}</small></label>` : "";
-  const metaPanel = `<section class="salla-channel-panel" data-channel-panel="whatsapp" ${item.channel === "whatsapp" ? "" : "hidden"}><label class="field"><span>قالب Meta المعتمد</span><select class="select" name="whatsappTemplateId"><option value="">اختر قالبًا معتمدًا</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === item.whatsappTemplateId ? "selected" : ""}>${escapeHtml(template.displayName || template.name)} — ${escapeHtml(template.language)}</option>`).join("")}</select><small>لا يمكن تفعيل الإرسال التلقائي قبل اعتماد القالب في Meta.</small></label></section>`;
-  const emailPanel = `<section class="salla-channel-panel" data-channel-panel="email" ${item.channel === "email" ? "" : "hidden"}><label class="field"><span>عنوان البريد</span><input class="input" name="emailSubject" value="${escapeHtml(item.emailSubject || "")}" placeholder="تحديث طلبك رقم {{order_number}}"></label><div class="salla-email-logo-editor"><div class="salla-email-logo-preview">${storeProfile.logoUrl ? `<img src="${escapeHtml(storeProfile.logoUrl)}" alt="شعار المتجر الحالي">` : dashboardIcon("apps")}</div><div><strong>شعار المتجر في البريد</strong><p>يُستخدم الشعار نفسه في جميع قوالب سلة المرسلة عبر البريد.</p><input type="file" accept="image/png,image/jpeg,image/webp" data-action="salla-email-logo-file" hidden><button class="btn btn-secondary" type="button" data-action="choose-salla-email-logo">${dashboardIcon("upload")} ${storeProfile.logoUrl ? "تغيير الشعار" : "إضافة شعار المتجر"}</button><small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</small></div></div></section>`;
-  const abandoned = item.templateKey === "salla_abandoned_cart" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>تسلسل التذكير</h2><p>تُلغى الرسائل المؤجلة عند تحوّل السلة إلى طلب.</p></div>${dashboardIcon("clock")}</div><div class="form-grid three">${(settings.delaysMinutes || [30,1440,4320]).map((minutes,index) => `<label class="field"><span>الرسالة ${index + 1} — بعد كم دقيقة</span><input class="input" type="number" min="5" max="43200" name="delay${index + 1}" value="${Number(minutes)}"></label>`).join("")}</div><label class="setting-line"><span><strong>إيقاف التسلسل عند إتمام الشراء</strong><small>منع أي تذكير بعد وصول طلب حقيقي.</small></span><input type="checkbox" name="stopOnConversion" ${settings.stopOnConversion !== false ? "checked" : ""}></label></section>` : "";
-  const completed = item.templateKey === "salla_order_completed" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>طريقة تسليم الطلب</h2><p>اختر وضعًا واحدًا فقط؛ لا تُعرض إعدادات الوضعين معًا.</p></div>${dashboardIcon("orderLink")}</div><div class="segmented"><label><input type="radio" name="completedDeliveryMode" value="whatsapp_message" ${settings.completedDeliveryMode !== "secure_order_page" ? "checked" : ""}><span>رسالة واتساب</span></label><label><input type="radio" name="completedDeliveryMode" value="secure_order_page" ${settings.completedDeliveryMode === "secure_order_page" ? "checked" : ""}><span>صفحة معلومات الطلب</span></label></div><label class="setting-line"><span><strong>إظهار مدة الاشتراك</strong><small>تُحسب من expiresAt الحقيقي عند فتح الصفحة، ولا تُخزن كرقم متناقص.</small></span><input type="checkbox" name="showSubscriptionDuration" ${settings.showSubscriptionDuration !== false ? "checked" : ""}></label></section>` : "";
-  const invoice = item.templateKey === "salla_invoice_ready" ? `<section class="card salla-special-settings"><div class="section-head"><div><h2>صفحة الفاتورة الآمنة</h2><p>الأرقام للقراءة فقط وتأتي من فاتورة سلة الحقيقية.</p></div>${dashboardIcon("billing")}</div><label class="field"><span>حدث الإرسال</span><select class="select" name="invoiceTrigger"><option value="invoice.created" ${settings.invoiceTrigger !== "after_completed" ? "selected" : ""}>عند إنشاء الفاتورة</option><option value="after_completed" ${settings.invoiceTrigger === "after_completed" ? "selected" : ""}>بعد اكتمال الطلب وانتظار جاهزية الفاتورة</option></select></label></section>` : "";
-  return dashboardShell(`${pageTitle(item.name, `<button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`)}
+  const selectedChannel = item.channel || "whatsapp";
+  const statusField = item.requiresStatusMapping ? `<label class="field"><span>حالة سلة التي تشغّل القالب</span><select class="select" name="mappedStatusId" required><option value="">اختيار الحالة</option>${statuses.map((statusItem) => `<option value="${escapeHtml(statusItem.id)}" data-slug="${escapeHtml(statusItem.slug || "")}" data-name="${escapeHtml(statusItem.name)}" ${statusItem.id === item.mappedStatusId ? "selected" : ""}>${escapeHtml(statusItem.name)}${statusItem.isCustom ? " — مخصصة" : ""}</option>`).join("")}</select><small>${statuses.length ? "تتم المطابقة بمعرّف الحالة وslug، وليس بالنص العربي." : "زامن حالات سلة أولًا قبل التفعيل."}</small></label>` : `<label class="field"><span>حدث التشغيل</span><input class="input" value="${escapeHtml(item.eventName || item.triggerType)}" disabled></label>`;
+  const variables = `<div class="variables-row"><strong>المتغيرات المتاحة</strong>${item.variables.map((variable) => `<button type="button" class="chip" data-action="insert-salla-variable" data-variable="{{${escapeHtml(variable)}}}">{{${escapeHtml(variable)}}}</button>`).join("")}</div>`;
+  const metaPanel = `<section class="salla-channel-panel" data-channel-panel="whatsapp" ${selectedChannel === "whatsapp" ? "" : "hidden"}><label class="field"><span>قالب Meta المعتمد</span><select class="select" name="whatsappTemplateId"><option value="">اختر قالبًا معتمدًا</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === item.whatsappTemplateId ? "selected" : ""}>${escapeHtml(template.displayName || template.name)} — ${escapeHtml(template.language)}</option>`).join("")}</select><small>لا يُفعّل الإرسال الفعلي قبل اختيار قالب Meta معتمد.</small></label><label class="field"><span>محتوى رسالة واتساب</span><textarea class="textarea salla-template-message-editor" name="whatsappContent">${escapeHtml(item.whatsappContent || item.messageBody || "")}</textarea></label>${variables}</section>`;
+  const emailPanel = `<section class="salla-channel-panel" data-channel-panel="email" ${selectedChannel === "email" ? "" : "hidden"}><label class="field"><span>عنوان البريد</span><input class="input" name="emailSubject" value="${escapeHtml(item.emailSubject || "")}" placeholder="تحديث طلبك رقم {{order_number}}"></label><label class="field"><span>محتوى البريد</span><textarea class="textarea salla-template-message-editor" name="emailTextContent">${escapeHtml(item.emailTextContent || item.messageBody || "")}</textarea></label>${variables}<div class="salla-email-logo-editor"><div class="salla-email-logo-preview">${storeProfile.logoUrl ? `<img src="${escapeHtml(storeProfile.logoUrl)}" alt="شعار المتجر الحالي">` : dashboardIcon("apps")}</div><div><strong>صورة متجر موحدة للبريد</strong><p>تظهر صورة متجرك داخل المعاينة الموحدة وتُستخدم بأمان في رسائل بريد قوالب سلة.</p><input type="file" accept="image/png,image/jpeg,image/webp" data-action="salla-email-logo-file" hidden><button class="btn btn-secondary" type="button" data-action="choose-salla-email-logo">${dashboardIcon("upload")} ${storeProfile.logoUrl ? "استبدال الصورة" : "إضافة صورة المتجر"}</button><small>PNG أو JPG أو WebP حقيقي، بحد أقصى 2 ميجابايت.</small></div></div></section>`;
+  const abandoned = item.templateKey === "abandoned_cart" ? `<section class="salla-special-settings"><div class="section-head"><div><h2>إعدادات التذكير</h2><p>يُلغى التسلسل تلقائيًا فور وصول طلب حقيقي.</p></div>${dashboardIcon("clock")}</div><div class="form-grid three">${(settings.delaysMinutes || [30,1440,4320]).map((minutes,index) => `<label class="field"><span>التذكير ${index + 1} — بعد كم دقيقة</span><input class="input" type="number" min="5" max="43200" name="delay${index + 1}" value="${Number(minutes)}"></label>`).join("")}</div><label class="setting-line"><span><strong>إيقاف التذكير عند إتمام الشراء</strong><small>يمنع إرسال أي رسالة مؤجلة بعد التحويل إلى طلب.</small></span><input type="checkbox" name="stopOnConversion" ${settings.stopOnConversion !== false ? "checked" : ""}></label></section>` : "";
+  const completed = item.templateKey === "completed" ? `<section class="salla-special-settings"><div class="section-head"><div><h2>رابط معلومات الطلب</h2><p>يتم إنشاء رابط سري مستقل للطلب، وتظهر رسالة واتساب ومعها زر فتح الصفحة.</p></div>${dashboardIcon("orderLink")}</div><input type="hidden" name="completedDeliveryMode" value="secure_order_page"><label class="setting-line"><span><strong>إظهار مدة الاشتراك</strong><small>تُحسب لحظيًا من بيانات الاشتراك الحقيقية عند فتح الرابط.</small></span><input type="checkbox" name="showSubscriptionDuration" ${settings.showSubscriptionDuration !== false ? "checked" : ""}></label></section>` : "";
+  const review = item.templateKey === "review_request" ? `<section class="salla-special-settings"><div class="section-head"><div><h2>توقيت طلب التقييم</h2><p>يُلغى الطلب المؤجل تلقائيًا إذا ألغي الطلب أو بدأ استرجاعه.</p></div>${dashboardIcon("clock")}</div><label class="field"><span>الإرسال بعد التسليم — بالدقائق</span><input class="input" type="number" min="5" max="43200" name="reviewDelayMinutes" value="${Number(item.reviewDelayMinutes || settings.reviewDelayMinutes || 1440)}"></label></section>` : "";
+  const invoice = item.templateKey === "salla_invoice_ready" ? `<section class="salla-special-settings"><div class="section-head"><div><h2>رابط الفاتورة الآمن</h2><p>محتوى الرسالة والمعاينة يعرضان رابطًا فقط؛ وتُقرأ بيانات الفاتورة الحقيقية من سلة داخل الصفحة الآمنة.</p></div>${dashboardIcon("billing")}</div><input type="hidden" name="invoiceTrigger" value="invoice.created"></section>` : "";
+  return dashboardShell(`${pageTitle(item.name, `<button class="btn btn-primary" type="submit" form="salla-template-editor-form">${dashboardIcon("save")} حفظ التعديلات</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`)}
     <p class="page-kicker">${escapeHtml(item.description)}</p>
+    <section class="inline-notice info salla-template-editor-notice">${dashboardIcon("info")}<span>سيؤثر الحفظ على الرسائل المستقبلية فقط. لا يتم إرسال أي رسالة من المعاينة.</span></section>
     ${messageActivationCard({
       title: sallaTemplateActivationTitle(item),
       description: `عند تفعيلها، تُرسل هذه الرسالة بعد وصول حدث ${item.name} المطابق من سلة. عند الإيقاف لن تُرسل الرسالة.`,
@@ -2518,14 +2535,14 @@ function sallaAutomationTemplateEditorPage() {
       key: item.templateKey
     })}
     <section class="salla-template-editor-layout">
-      <form class="grid" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
+      <form id="salla-template-editor-form" class="grid" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
         <article class="card salla-template-form-card">
-          <div class="form-grid two"><label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-salla-channel-choice><option value="">اختر القناة</option><option value="whatsapp" ${item.channel === "whatsapp" ? "selected" : ""}>واتساب الرسمي</option><option value="email" ${item.channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>${statusField || `<label class="field"><span>حدث التشغيل</span><input class="input" value="${escapeHtml(item.eventName || item.triggerType)}" disabled></label>`}</div>
+          <div class="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div>${dashboardIcon("template")}</div>
+          <div class="form-grid two"><label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(item.name)}" disabled></label>${statusField}</div>
+          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label></fieldset>
           ${metaPanel}${emailPanel}
-          <label class="field"><span>محتوى الرسالة</span><textarea class="textarea salla-template-message-editor" name="messageBody" required>${escapeHtml(item.messageBody || "")}</textarea></label>
-          <div class="variables-row"><strong>المتغيرات المتاحة</strong>${item.variables.map((variable) => `<button type="button" class="chip" data-action="insert-salla-variable" data-variable="{{${escapeHtml(variable)}}}">{{${escapeHtml(variable)}}}</button>`).join("")}</div>
+          ${abandoned}${completed}${review}${invoice}
         </article>
-        ${abandoned}${completed}${invoice}
         <div class="salla-editor-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button><button class="btn btn-secondary" type="button" data-action="preview-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} تحديث المعاينة</button><button class="btn btn-secondary" type="button" data-action="test-salla-template" data-salla-test-button data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("orderLink")} إرسال اختبار</button></div>
       </form>
       ${sallaTemplatePreviewPanel(item, storeProfile)}
@@ -5295,7 +5312,9 @@ async function handleAction(target) {
     return;
   }
   if (action === "insert-salla-variable") {
-    const textarea = target.closest("form")?.elements.messageBody;
+    const form = target.closest("form");
+    const channel = form?.elements.channel?.value || "whatsapp";
+    const textarea = channel === "email" ? form?.elements.emailTextContent : form?.elements.whatsappContent;
     if (!textarea) return;
     const value = target.dataset.variable || "";
     const start = textarea.selectionStart ?? textarea.value.length;
@@ -6679,7 +6698,7 @@ async function handleSubmit(form, event) {
         completedDeliveryMode: data.completedDeliveryMode,
         showSubscriptionDuration: Boolean(form.elements.showSubscriptionDuration?.checked)
       } : {}),
-      ...(form.elements.invoiceTrigger ? { invoiceTrigger: data.invoiceTrigger } : {})
+      ...(form.elements.reviewDelayMinutes ? { reviewDelayMinutes: Number(data.reviewDelayMinutes || 1440) } : {})
     };
     const button = form.querySelector("button[type='submit']");
     setSubmitBusy(button, true, "جاري حفظ القالب...");
@@ -6691,7 +6710,9 @@ async function handleSubmit(form, event) {
           channel: data.channel || null,
           whatsappTemplateId: data.whatsappTemplateId || null,
           emailSubject: data.emailSubject || null,
-          messageBody: data.messageBody,
+          whatsappContent: data.whatsappContent,
+          emailTextContent: data.emailTextContent,
+          emailHtmlContent: data.emailTextContent,
           mappedStatusId: data.mappedStatusId || null,
           mappedStatusSlug: selectedStatus?.dataset.slug || null,
           mappedStatusName: selectedStatus?.dataset.name || null,
@@ -7986,7 +8007,7 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("input", (event) => {
   const target = event.target;
   const sallaTemplateForm = target.closest?.('form[data-submit="salla-automation-template"]');
-  if (sallaTemplateForm && ["messageBody", "emailSubject"].includes(target.name)) {
+  if (sallaTemplateForm && ["whatsappContent", "emailTextContent", "emailSubject"].includes(target.name)) {
     refreshSallaTemplatePreview(sallaTemplateForm);
   }
   if (target.matches?.("[data-otp-digit]")) {

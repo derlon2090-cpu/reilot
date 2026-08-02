@@ -45,6 +45,8 @@ export default function AdminLoginForm() {
       const response = await fetch("/api/admin/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
         body: JSON.stringify({ email, password, rememberMe })
       });
       const data = await response.json().catch(() => ({}));
@@ -58,8 +60,16 @@ export default function AdminLoginForm() {
         else showToast("error", "تعذر الوصول إلى لوحة الأدمن", "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول.");
         return;
       }
+      const sessionResponse = await fetch("/api/admin/me", {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+      if (!sessionResponse.ok) {
+        showToast("error", "تعذر تثبيت جلسة الأدمن", "تم التحقق من بيانات الدخول، لكن تعذر تثبيت الجلسة الآمنة. حدّث الصفحة ثم حاول مرة أخرى.", true);
+        return;
+      }
       showToast("success", "تم تسجيل دخول الأدمن بنجاح", "تم التحقق من صلاحياتك، جاري فتح مركز التحكم.");
-      window.setTimeout(() => window.location.assign(data.redirectUrl || "/admin"), 850);
+      window.setTimeout(() => window.location.replace(data.redirectUrl || "/admin"), 250);
     } catch {
       showToast("error", "تعذر الاتصال بالخادم", "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.");
     } finally {

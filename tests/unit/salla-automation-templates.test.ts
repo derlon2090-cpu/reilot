@@ -5,8 +5,10 @@ import {
   SALLA_TEMPLATE_DEFINITIONS,
   SALLA_TEMPLATE_KEYS,
   normalizeSallaTemplateEvent,
+  paidDigitalDelivery,
   previewSallaAutomationTemplate,
-  renderSallaTemplate
+  renderSallaTemplate,
+  resolveSallaChannelContent
 } from "../../src/server/salla-templates.js";
 
 const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
@@ -18,17 +20,17 @@ const testRouteSource = fs.readFileSync(path.resolve(process.cwd(), "app/api/app
 describe("Salla automation templates", () => {
   it("defines exactly one immutable record key for every required template", () => {
     const keys = SALLA_TEMPLATE_DEFINITIONS.map((item) => item.key);
-    expect(keys).toHaveLength(10);
-    expect(new Set(keys).size).toBe(10);
+    expect(keys).toHaveLength(12);
+    expect(new Set(keys).size).toBe(12);
     expect(keys).toEqual(expect.arrayContaining(Object.values(SALLA_TEMPLATE_KEYS)));
   });
 
-  it("keeps completed and invoice templates independent", () => {
+  it("keeps completion as a secure order-link message and preserves the invoice link path", () => {
     const completed = SALLA_TEMPLATE_DEFINITIONS.find((item) => item.key === SALLA_TEMPLATE_KEYS.COMPLETED);
-    const invoice = SALLA_TEMPLATE_DEFINITIONS.find((item) => item.key === SALLA_TEMPLATE_KEYS.INVOICE_READY);
     expect(completed?.triggerType).toBe("order_status");
-    expect(invoice?.triggerType).toBe("invoice_event");
-    expect(invoice?.eventName).toBe("invoice.created");
+    expect(completed?.body).toContain("{{order_url}}");
+    expect(serverSource).toContain('key: "salla_invoice_ready"');
+    expect(serverSource).toContain('? "invoice"');
   });
 
   it("normalizes tenant-neutral identifiers from a Salla event", () => {
@@ -91,7 +93,7 @@ describe("Salla automation templates", () => {
     expect(serverSource).toContain('delivery_channel AS channel');
     expect(serverSource).toContain('WHERE tenant_id=$1 AND template_key=$2');
     expect(serverSource).toContain('delivery_channel=$3');
-    expect(appSource).toContain('name="channel" data-salla-channel-choice');
+    expect(appSource).toContain('name="channel" value="email" data-salla-channel-choice');
   });
 
   it("updates the preview immediately when a template channel changes", () => {
@@ -99,6 +101,57 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('data-salla-preview-head="whatsapp"');
     expect(appSource).toContain('data-salla-preview-head="email"');
     expect(appSource).toContain("refreshSallaTemplatePreview(form)");
+  });
+
+  it("persists independent content for WhatsApp and email", () => {
+    expect(serverSource).toContain('whatsapp_content AS "whatsappContent"');
+    expect(serverSource).toContain('email_text_content AS "emailTextContent"');
+    expect(serverSource).toContain("whatsapp_content=$11");
+    expect(serverSource).toContain("email_text_content=$12");
+    expect(appSource).toContain('name="whatsappContent"');
+    expect(appSource).toContain('name="emailTextContent"');
+  });
+
+  it("requires paid digital content and rejects stale status events", () => {
+    expect(serverSource).toContain("paidDigitalDelivery");
+    expect(serverSource).toContain("digital.links.length");
+    expect(serverSource).toContain("claimSallaEventWatermark");
+    expect(serverSource).toContain("latest_event_at<=EXCLUDED.latest_event_at");
+  });
+
+  it.each([
+    ["unpaid", { payment: { status: "pending" }, urls: { digital_content: "https://cdn.example.test/file" } }, false, 1],
+    ["processing", { payment: { status: "processing" }, urls: { digital_content: "https://cdn.example.test/file" } }, false, 1],
+    ["missing link", { payment: { status: "paid" } }, true, 0],
+    ["insecure link", { payment: { status: "paid" }, urls: { digital_content: "http://cdn.example.test/file" } }, true, 0],
+    ["paid HTTPS", { payment: { status: "paid" }, urls: { digital_content: "https://cdn.example.test/file" } }, true, 1]
+  ])("evaluates digital delivery guard: %s", (_name, payload, paid, linkCount) => {
+    const result = paidDigitalDelivery(payload);
+    expect(result.paid).toBe(paid);
+    expect(result.links).toHaveLength(linkCount);
+  });
+
+  it("keeps the opposite channel content when the selected channel changes", () => {
+    const switchedToEmail = resolveSallaChannelContent({
+      channel: "email",
+      input: { messageBody: "new email" },
+      previous: {
+        whatsappContent: "saved whatsapp",
+        emailTextContent: "old email",
+        emailHtmlContent: "saved html"
+      },
+      definition: { body: "default" }
+    });
+    expect(switchedToEmail).toEqual({
+      whatsappContent: "saved whatsapp",
+      emailTextContent: "new email",
+      emailHtmlContent: "saved html"
+    });
+  });
+
+  it("cancels delayed review requests when an order is cancelled or returned", () => {
+    expect(serverSource).toContain("review_request_no_longer_valid");
+    expect(serverSource).toContain("review_request_cancelled");
   });
 
   it("uses the saved store logo in every Salla email, including test deliveries", () => {

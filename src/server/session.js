@@ -38,15 +38,16 @@ export async function createSession(client, { userId, ipAddress, userAgent, maxA
   return { token: rawToken, expiresAt };
 }
 
-export async function getSession(req) {
+export async function getSession(req, { allowInactiveTenant = false } = {}) {
   const rawToken = cookieValue(req, SESSION_COOKIE);
   if (!rawToken) return null;
+  const tenantStatusFilter = allowInactiveTenant ? "" : "AND t.status <> 'disabled'";
   const result = await query(
     `SELECT s.id, s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.must_change_password AS "mustChangePassword",
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
        FROM sessions s
        JOIN users u ON u.id = s.user_id
-       JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
+       JOIN tenants t ON t.id = u.tenant_id ${tenantStatusFilter}
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
       WHERE s.token = $1 AND s.expires_at > now()
       LIMIT 1`,

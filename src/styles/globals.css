@@ -4868,18 +4868,20 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-lock-logo img{width:54px;height:54px;object-fit:contain}
 .salla-templates-notice{display:flex;align-items:center;gap:12px;margin:16px 0 24px}
 .salla-templates-notice svg{width:22px;height:22px;color:#1677ff;flex:0 0 auto}
-.salla-templates-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
-.salla-template-card{min-height:254px;padding:22px;display:flex;flex-direction:column;gap:14px;border-color:#dce7f7;box-shadow:0 10px 30px rgba(30,64,175,.05)}
+.salla-templates-page-head{display:flex;align-items:center;gap:12px}.salla-templates-page-head>.salla-chip{margin-inline-start:auto}
+.salla-templates-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.salla-template-card{min-height:238px;padding:18px;display:flex;flex-direction:column;gap:12px;border-color:#dce7f7;box-shadow:0 10px 30px rgba(30,64,175,.05)}
 .salla-template-card.featured{border-color:#6d9dff;box-shadow:0 14px 34px rgba(37,99,235,.11)}
 .salla-template-card-head{display:flex;align-items:flex-start;gap:14px}
 .salla-template-card-head>div{min-width:0;flex:1}
-.salla-template-card-head h2{font-size:20px;margin:7px 0 0;color:#0b2149}
-.salla-template-card-icon{width:52px;height:52px;border-radius:14px;background:#eef5ff;color:#1768ff;display:grid;place-items:center}
-.salla-template-card:nth-child(3n+1) .salla-template-card-icon{background:#e9f9f1;color:#17a65a}
-.salla-template-card:nth-child(3n+2) .salla-template-card-icon{background:#fff3e8;color:#f48b20}
+.salla-template-card-head h2{font-size:17px;margin:7px 0 0;color:#0b2149}
+.salla-template-card-icon{width:48px;height:48px;border-radius:13px;background:#eef5ff;color:#1768ff;display:grid;place-items:center}
+.salla-template-card:nth-child(4n+1) .salla-template-card-icon{background:#e9f9f1;color:#17a65a}
+.salla-template-card:nth-child(4n+2) .salla-template-card-icon{background:#fff3e8;color:#f48b20}
+.salla-template-card:nth-child(4n+3) .salla-template-card-icon{background:#f2ecff;color:#7c3aed}
 .salla-template-card-icon svg{width:27px;height:27px}
 .salla-chip{display:inline-flex;padding:4px 10px;border-radius:9px;background:#e4f8fb;color:#008aa1;font-size:12px;font-weight:800}
-.salla-template-card>p{margin:0;color:#6b7d9d;line-height:1.8;min-height:58px}
+.salla-template-card>p{margin:0;color:#6b7d9d;font-size:12px;line-height:1.75;min-height:54px}
 .salla-template-card>.status{align-self:flex-start}
 .salla-template-card>.status i{width:7px;height:7px;border-radius:50%;background:currentColor;margin-inline-start:5px}
 .salla-mode-chips{display:flex;gap:8px}
@@ -4888,7 +4890,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-card footer>div{display:flex;gap:8px}
 .salla-template-card footer .btn{min-height:36px;padding:7px 12px}
 .salla-template-card footer svg{width:17px;height:17px}
-.salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(330px,.8fr);gap:22px;align-items:start;direction:rtl}
+.salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:start;direction:rtl}
 .salla-template-editor-layout>*{direction:rtl}
 .salla-template-form-card{padding:24px}
 .salla-template-enable{padding:17px 20px;margin:18px 0;display:flex;align-items:center;justify-content:space-between}
@@ -4929,6 +4931,11 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .switch-button.active span{background:#1677ff}
 .switch-button.active span:after{inset-inline-start:19px}
 .salla-channel-panel{padding:16px;border:1px solid #dfE8f5;border-radius:14px;background:#fbfdff}
+.salla-channel-choice{margin:16px 0;padding:0;border:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.salla-channel-choice legend{width:100%;margin-bottom:8px;color:#18365f;font-size:12px;font-weight:800}
+.salla-channel-choice label{display:block;cursor:pointer}.salla-channel-choice input{position:absolute;opacity:0;pointer-events:none}
+.salla-channel-choice span{min-height:46px;padding:11px 14px;display:flex;align-items:center;justify-content:center;gap:9px;color:#536b8d;border:1px solid #dce6f3;border-radius:10px;background:#fff;font-size:12px;font-weight:750;transition:.18s ease}
+.salla-channel-choice svg{width:18px;height:18px}.salla-channel-choice input:checked+span{color:#1768ff;border-color:#4f88ff;background:#f5f9ff;box-shadow:0 0 0 2px rgba(23,104,255,.08)}
 .salla-email-logo-editor{margin-top:14px;padding:14px;display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:14px;border:1px solid #e2eaf5;border-radius:13px;background:#fff}
 .salla-email-logo-editor strong,.salla-email-logo-editor p,.salla-email-logo-editor small{display:block;margin:0}
 .salla-email-logo-editor p{margin:4px 0 10px;color:#71829f;font-size:11px;line-height:1.65}
@@ -4937,22 +4944,25 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-email-logo-preview img,.salla-email-store-logo img{width:100%;height:100%;display:block;object-fit:contain;border-radius:var(--salla-logo-radius,14px)}
 .salla-email-logo-preview svg,.salla-email-store-logo svg{width:27px;height:27px}
 .salla-email-store-logo{width:48px;height:48px;flex:0 0 48px;border-radius:12px}
-.salla-template-message-editor{min-height:310px;line-height:1.85;font-size:15px;direction:rtl}
-.salla-special-settings{padding:20px}
+.salla-template-message-editor{min-height:220px;line-height:1.85;font-size:14px;direction:rtl}
+.salla-special-settings{margin-top:18px;padding-top:18px;border-top:1px solid #e3eaf4}
 .salla-special-settings .setting-line{border-top:1px solid #e7eef8;margin-top:15px;padding-top:15px}
 .salla-editor-actions{display:flex;gap:10px;flex-wrap:wrap}
-.salla-template-live-preview{position:sticky;top:92px;padding:20px}
-.salla-whatsapp-preview{padding:18px;background:#efe9df;border-radius:18px}
-.salla-whatsapp-preview-head,.salla-email-preview-head{display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border-radius:14px 14px 0 0}
-.salla-whatsapp-preview-head .brand-logo,.salla-email-preview-head .brand-logo{max-width:94px;max-height:32px}
-.salla-whatsapp-preview-head strong,.salla-whatsapp-preview-head small,.salla-email-preview-head strong,.salla-email-preview-head small{display:block}
+.salla-template-live-preview{position:sticky;top:92px;padding:18px;overflow:hidden}
+.salla-whatsapp-preview,.salla-email-preview{padding:0;border:1px solid #dfe8f4;border-radius:16px;background:#fff;overflow:hidden}
+.salla-whatsapp-preview-canvas{min-height:470px;padding:34px 24px;display:grid;align-items:center;background:#f5efe6;background-image:radial-gradient(circle at 15% 20%,rgba(255,255,255,.68) 0 2px,transparent 3px),radial-gradient(circle at 80% 60%,rgba(213,199,178,.38) 0 2px,transparent 3px);background-size:31px 31px}
+.salla-whatsapp-bubble{padding:22px 20px 12px;border-radius:17px 17px 5px 17px;background:#fff;box-shadow:0 10px 28px rgba(68,55,38,.09)}
+.salla-email-preview-canvas{min-height:470px;padding:0 18px 18px;background:#fff}
+.salla-email-preview-head{display:flex;align-items:center;gap:10px;padding:16px 4px;background:#fff;border-bottom:1px solid #e8eef6}
+.salla-email-preview-head strong,.salla-email-preview-head small{display:block}
 .salla-email-preview-head>div{min-width:0;display:grid;gap:3px}
 .salla-email-preview-head small{color:#7b8aa4;font-size:10px}
 .salla-email-preview-head strong{overflow:hidden;color:#102342;text-overflow:ellipsis;white-space:nowrap}
-.salla-preview-message{background:#e7ffdE;border:1px solid #c9edc6;border-radius:14px 4px 14px 14px;padding:18px;line-height:1.9;color:#102342;min-height:230px}
-.salla-email-preview{padding:16px;border:1px solid #dfe8f4;border-radius:18px;background:#f7faff}
-.salla-email-preview .salla-preview-message{background:#fff;border-color:#e1e9f4;border-radius:0 0 14px 14px}
-.salla-template-live-preview>div>small{display:block;text-align:end;color:#7b8aa4;padding:8px}
+.salla-email-hero{min-height:120px;margin:0 -18px 18px;padding:22px;display:grid;place-items:center;align-content:center;gap:8px;color:#1768ff;background:linear-gradient(135deg,#eef8ff,#e6f4ff 52%,#effcfb);text-align:center}.salla-email-hero svg{width:42px;height:42px}.salla-email-hero strong{color:#0d2d59;font-size:18px}
+.salla-preview-message{color:#102342;line-height:1.95;font-size:13px;white-space:normal}
+.salla-whatsapp-bubble .salla-preview-message{min-height:190px}.salla-whatsapp-bubble>small{display:block;margin-top:8px;color:#8b99ad;font-size:10px;text-align:left}
+.salla-preview-cta{width:100%;min-height:42px;margin-top:15px;padding:9px 12px;display:flex;align-items:center;justify-content:center;gap:8px;color:#0f9b5c;border:1px solid #8bd8b4;border-radius:10px;background:#f0fcf6;font:inherit;font-size:12px;font-weight:800;pointer-events:none}.salla-preview-cta svg{width:17px;height:17px}.salla-preview-cta.primary{color:#fff;border-color:#1768ff;background:linear-gradient(135deg,#0caec1,#2459f4)}
+.salla-email-preview-canvas>footer{margin-top:18px;padding-top:14px;color:#8291a7;border-top:1px solid #e8eef6;font-size:10px;text-align:center}
 .salla-editor-actions svg{width:18px;height:18px}
 @media (max-width:1100px){
   .salla-templates-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
