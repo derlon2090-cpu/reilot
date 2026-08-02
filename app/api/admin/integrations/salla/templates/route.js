@@ -1,0 +1,45 @@
+import { z } from "zod";
+import { auditAdmin, requireAdminPermission } from "../../../../../../src/server/admin-auth.js";
+import { listSallaAdminCatalog, saveSallaAdminTemplate } from "../../../../../../src/server/salla-admin-catalog.js";
+
+export const dynamic = "force-dynamic";
+
+const inputSchema = z.object({
+  templateKey: z.string().trim().min(1).max(100),
+  channel: z.enum(["whatsapp", "email"]),
+  subject: z.string().trim().max(300).optional().nullable(),
+  body: z.string().trim().min(1).max(10000)
+});
+
+export async function GET(request) {
+  const auth = await requireAdminPermission(request, "integrations", "read");
+  if (!auth.ok) return auth.response;
+  const items = await listSallaAdminCatalog();
+  return Response.json({ ok: true, items, previewOnly: false }, {
+    headers: { "Cache-Control": "private, no-store, max-age=0" }
+  });
+}
+
+export async function PUT(request) {
+  const auth = await requireAdminPermission(request, "integrations", "update");
+  if (!auth.ok) return auth.response;
+  const parsed = inputSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) {
+    return Response.json({ ok: false, reason: "validation_error", errors: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+  if (parsed.data.channel === "email" && !parsed.data.subject) {
+    return Response.json({ ok: false, reason: "email_subject_required" }, { status: 400 });
+  }
+  const saved = await saveSallaAdminTemplate({ adminId: auth.admin.adminId, ...parsed.data });
+  if (!saved) return Response.json({ ok: false, reason: "template_not_found" }, { status: 404 });
+  await auditAdmin(request, {
+    admin: auth.admin,
+    action: "admin.salla.default_template.updated",
+    resource: parsed.data.templateKey,
+    metadata: { channel: parsed.data.channel }
+  });
+  const items = await listSallaAdminCatalog();
+  return Response.json({ ok: true, items, message: "تم حفظ الإعداد الافتراضي للقناة المحددة." }, {
+    headers: { "Cache-Control": "private, no-store, max-age=0" }
+  });
+}

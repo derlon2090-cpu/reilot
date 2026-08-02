@@ -556,18 +556,37 @@ const PROVIDER_INFO = {
   redis: ["Queue / Redis", "طوابير المهام والرسائل", "database"]
 };
 
+function PlatformAppLogo({ provider }) {
+  if (provider === "salla") return <span className={styles.adminPlatformAppLogo}><img src="/assets/salla-logo.svg" alt="سلة" /></span>;
+  if (provider === "zid") return <span className={`${styles.adminPlatformAppLogo} ${styles.adminPlatformAppLogoZid}`}><img src="/assets/zid-logo-original.webp" alt="زد" /></span>;
+  return <span className={styles.adminPlatformAppLogo}><svg viewBox="0 0 48 48" role="img" aria-label="شوبيفاي"><path className={styles.shopifyBag} d="M12 15.5h24l2.2 26H9.8z" /><path className={styles.shopifyHandle} d="M17 17c.3-6 3-10 7-10s6.7 4 7 10" /><text x="24" y="34" textAnchor="middle">S</text></svg></span>;
+}
+
 function Integrations({ data }) {
   const rows = data.integrationHealth || [];
+  const catalog = [
+    { provider: "salla", name: "سلة", description: "مزامنة الطلبات والعملاء والمنتجات وتشغيل قوالب الرسائل المرتبطة بالأحداث الموثقة.", features: ["12 قالبًا", "واتساب", "بريد إلكتروني"], available: true },
+    { provider: "zid", name: "زد", description: "منصة التجارة الإلكترونية زد. سيُتاح الربط بعد اكتمال واعتماد التكامل الرسمي.", features: ["تكامل رسمي", "قريبًا"], available: false },
+    { provider: "shopify", name: "شوبيفاي", description: "منصة شوبيفاي للتجارة الإلكترونية. التكامل معروض في الكتالوج وغير متاح للربط حاليًا.", features: ["تكامل رسمي", "قريبًا"], available: false }
+  ];
   return <>
     <KpiGrid items={[
-      { label: "التطبيقات المسجلة", value: ar(rows.length), helper: "فحص تكامل حقيقي", icon: "link", tone: "green" },
+      { label: "التطبيقات المسجلة", value: ar(catalog.length), helper: "كتالوج تطبيقات المنصة", icon: "link", tone: "green" },
       { label: "التكاملات النشطة", value: ar(rows.filter((row) => row.status === "healthy").length), helper: "سليمة حاليًا", icon: "chart", tone: "violet" },
       { label: "أخطاء المزامنة", value: ar(rows.reduce((sum, row) => sum + n(row.errorCount), 0)), helper: "من سجلات الفحص", icon: "alert", tone: "red" },
       { label: "آخر مزامنة", value: rows.length ? formatDate(rows.map((row) => row.lastCheckedAt).filter(Boolean).sort().at(-1)) : "—", helper: "آخر فحص مسجل", icon: "clock", tone: "green" }
     ]} />
-    <section className={styles.adminSurface}>
-      <div className={styles.adminActionRow}><button className={styles.adminOutlineButton}>إضافة تطبيق جديد +</button></div>
-      {!rows.length ? <Empty title="لا توجد تكاملات مفحوصة" description="ستظهر التكاملات بعد تشغيل فحص الصحة أو تهيئة المزود." /> : <div className={styles.adminIntegrationGrid}>{rows.map((row) => {
+    <section className={`${styles.adminSurface} ${styles.adminPlatformCatalog}`}>
+      <div className={styles.adminPlatformCatalogHeader}><div><h2>كتالوج تطبيقات Renvix</h2><p>يظهر الكتالوج دائمًا للأدمن، بينما يبقى ظهور واجهة سلة للمستخدم مرتبطًا باكتمال الربط.</p></div><span>3 تطبيقات</span></div>
+      <div className={styles.adminIntegrationGrid}>{catalog.map((app) => <article key={app.provider} className={`${styles.adminPlatformAppCard} ${app.available ? "" : styles.adminPlatformAppCardDisabled}`}>
+        <div className={styles.adminPlatformAppTop}><PlatformAppLogo provider={app.provider} /><span className={`${styles.adminPlatformAppStatus} ${app.available ? "" : styles.adminPlatformAppStatusLocked}`}>{app.available ? "متاح للأدمن" : "غير متاح حاليًا"}</span></div>
+        <h3>{app.name}</h3><p>{app.description}</p><div className={styles.adminPlatformAppFeatures}>{app.features.map((feature) => <span key={feature}>{feature}</span>)}</div>
+        <footer className={styles.adminPlatformAppFooter}><small>{app.available ? "لا يحتاج ربطًا للمعاينة الإدارية" : "الربط مقفل للمستخدم والأدمن"}</small>{app.available ? <a href="/admin/integrations/salla">معاينة وتحرير</a> : <button type="button" disabled>غير متاح</button>}</footer>
+      </article>)}</div>
+    </section>
+    <section className={`${styles.adminSurface} ${styles.adminHealthSection}`}>
+      <div className={styles.adminPlatformCatalogHeader}><div><h2>صحة اتصالات المنصة</h2><p>نتائج الفحص الفعلية منفصلة عن كتالوج التطبيقات، ودون عرض أسرار أو مفاتيح.</p></div></div>
+      {!rows.length ? <Empty title="لا توجد نتائج فحص مسجلة" description="لا يؤثر ذلك في معاينة التطبيقات الإدارية أعلاه." /> : <div className={styles.adminIntegrationGrid}>{rows.map((row) => {
         const info = PROVIDER_INFO[row.provider] || [row.provider, "تكامل منصة مسجل", "link"];
         return <article key={row.provider}><div className={styles.adminIntegrationHead}><span><Glyph name={info[2]} /></span><div><h3>{info[0]}</h3><p>{info[1]}</p></div><StatusPill value={row.status} /></div><div className={styles.adminIntegrationMeta}><span>زمن الاستجابة <b>{row.responseTimeMs == null ? "—" : `${row.responseTimeMs}ms`}</b></span><span>آخر فحص <b>{formatDate(row.lastCheckedAt)}</b></span></div><div className={styles.adminIntegrationActions}><button>فتح الإعدادات</button><button>اختبار الاتصال</button><button>عرض السجل</button></div></article>;
       })}</div>}

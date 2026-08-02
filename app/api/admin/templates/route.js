@@ -11,8 +11,9 @@ export async function GET(request) {
             allowed_variables AS "allowedVariables",required_variables AS "requiredVariables",
             is_system_template AS "isSystemTemplate",is_active AS "isActive",version,
             created_at AS "createdAt",updated_at AS "updatedAt"
-       FROM admin_message_templates ORDER BY created_at`
+       FROM admin_message_templates
+      WHERE template_key NOT LIKE 'platform_salla_default_%'
+      ORDER BY created_at`
   );
   return Response.json({ ok: true, templates: result.rows }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }
-

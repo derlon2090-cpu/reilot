@@ -269,8 +269,21 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
       if (!access.available) return { ok: false, reason: "salla_not_connected" };
       id = access.connection.id;
     }
+    const defaultKeys = definitions.flatMap((definition) => [
+      `platform_salla_default_${definition.key}_whatsapp`,
+      `platform_salla_default_${definition.key}_email`
+    ]);
+    const platformDefaults = await client.query(
+      `SELECT template_key AS "templateKey",subject,body
+         FROM admin_message_templates
+        WHERE template_key=ANY($1::text[])`,
+      [defaultKeys]
+    );
+    const defaultsByKey = new Map(platformDefaults.rows.map((row) => [row.templateKey, row]));
     for (const definition of [...definitions, legacyInvoiceDefinition]) {
       const legacyKey = legacyTemplateKeys[definition.key] || null;
+      const whatsappDefault = defaultsByKey.get(`platform_salla_default_${definition.key}_whatsapp`);
+      const emailDefault = defaultsByKey.get(`platform_salla_default_${definition.key}_email`);
       await client.query(
         `INSERT INTO tenant_salla_templates (
            tenant_id,salla_integration_id,template_key,is_enabled,trigger_type,salla_event_name,
@@ -283,8 +296,8 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
                 legacy.delivery_channel,legacy.whatsapp_template_id,
                 COALESCE(legacy.email_subject,$7),COALESCE(legacy.message_body,$6),
                 COALESCE(legacy.whatsapp_content,legacy.message_body,$6),
-                COALESCE(legacy.email_text_content,legacy.message_body,$6),
-                COALESCE(legacy.email_html_content,legacy.message_body,$6),
+                COALESCE(legacy.email_text_content,legacy.message_body,$10),
+                COALESCE(legacy.email_html_content,legacy.message_body,$10),
                 COALESCE(legacy.settings,$8::jsonb),
                 COALESCE(legacy.review_delay_minutes,($8::jsonb->>'reviewDelayMinutes')::integer,1440)
            FROM (SELECT 1) seed
@@ -299,7 +312,10 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
            email_html_content=COALESCE(tenant_salla_templates.email_html_content,EXCLUDED.email_html_content),
            updated_at=tenant_salla_templates.updated_at`,
         [tenantId, id, definition.key, definition.triggerType, definition.eventName || null,
-          definition.body, definition.emailSubject || null, JSON.stringify(definition.settings || {}), legacyKey]
+          whatsappDefault?.body || definition.body,
+          emailDefault?.subject || definition.emailSubject || null,
+          JSON.stringify(definition.settings || {}), legacyKey,
+          emailDefault?.body || definition.body]
       );
     }
     return { ok: true };

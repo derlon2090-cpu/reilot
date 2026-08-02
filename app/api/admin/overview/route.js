@@ -153,7 +153,9 @@ export async function GET(request) {
     ),
     query(
       `SELECT id,template_key AS "templateKey",name,description,channel,is_active AS "isActive",version,
-              updated_at AS "updatedAt" FROM admin_message_templates ORDER BY created_at`
+              updated_at AS "updatedAt" FROM admin_message_templates
+        WHERE template_key NOT LIKE 'platform_salla_default_%'
+        ORDER BY created_at`
     ),
     query(
       `SELECT provider,status,response_time_ms AS "responseTimeMs",last_checked_at AS "lastCheckedAt",
