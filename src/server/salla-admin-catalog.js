@@ -19,6 +19,7 @@ export function mergeSallaAdminCatalog(rows = []) {
       icon: definition.icon,
       previewAction: definition.previewAction,
       variables: definition.variables,
+      isEnabled: true,
       whatsappContent: whatsapp?.body || definition.body,
       emailTextContent: email?.body || definition.body,
       emailSubject: email?.subject || definition.emailSubject || definition.name,

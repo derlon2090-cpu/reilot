@@ -3,73 +3,78 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./AdminPortal.module.css";
 
-const PREVIEW_VALUES = {
-  customer_name: "اسم العميل",
-  order_number: "#12345",
-  store_name: "متجري",
-  product_name: "المنتج الرقمي",
-  activation_code: "••••-••••",
-  delivery_date: "تاريخ التسليم",
-  digital_content_url: "رابط آمن للمنتج",
-  estimated_completion: "قريبًا",
-  order_url: "رابط الطلب الآمن",
-  delivered_at: "تاريخ التسليم",
-  support_url: "رابط الدعم",
-  review_url: "رابط التقييم",
-  shipping_company: "شركة الشحن",
-  tracking_number: "TRK-12345",
-  tracking_url: "رابط تتبع الشحنة",
-  delivery_note: "ملاحظة التوصيل",
-  service_name: "الخدمة",
-  completed_at: "تاريخ التنفيذ",
-  rating_url: "رابط التقييم",
-  cart_total: "199 ر.س",
-  currency: "ر.س",
-  items_count: "2",
-  cart_items: "منتجات السلة",
-  checkout_url: "رابط إكمال الطلب",
-  cancellation_reason: "سبب الإلغاء",
-  return_number: "RET-12345",
-  return_status: "قيد المعالجة",
-  return_url: "رابط الاسترجاع",
-  refund_amount: "199 ر.س",
-  refund_method: "وسيلة الدفع",
-  refund_type: "استرجاع كامل",
-  refund_summary: "تفاصيل المبلغ المرجع"
-};
+function DashboardIcon({ name }) {
+  const paths = {
+    eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" /></>,
+    template: <><path d="M6 2h9l4 4v16H6z" /><path d="M14 2v5h5M9 12h6M9 16h6" /></>,
+    info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7h.01" /></>,
+    save: <><path d="M5 3h12l2 2v16H5z" /><path d="M8 3v6h8V3M8 21v-7h8v7" /></>,
+    send: <><path d="m3 11 18-8-8 18-2-8-8-2Z" /><path d="m11 13 5-5" /></>,
+    apps: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
+    arrow: <><path d="M19 12H5M11 6l-6 6 6 6" /></>,
+    action: <><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1" /><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1" /></>
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name] || paths.template}</svg>;
+}
 
-function renderPreview(content) {
-  return String(content || "").replace(/{{\s*([a-z][a-z0-9_]*)\s*}}/gi, (_match, variable) => PREVIEW_VALUES[variable] || `{{${variable}}}`);
+function templateIconName(item) {
+  const map = {
+    cart: "apps",
+    clock: "template",
+    settings: "template",
+    check: "save",
+    plane: "send",
+    truck: "send",
+    package: "apps",
+    return: "action",
+    refund: "action",
+    invoice: "template",
+    download: "action",
+    star: "eye",
+    cancel: "action"
+  };
+  return map[item.icon] || "template";
 }
 
 function SallaLogo() {
-  return <span className={styles.adminSallaLogo}><img src="/assets/salla-logo.svg" alt="سلة" /></span>;
+  return <span className="salla-email-store-logo"><img src="/assets/salla-logo.svg" alt="سلة" /></span>;
 }
 
-function TemplatePreview({ item, channel, form }) {
-  const body = renderPreview(form.body);
-  if (channel === "email") {
-    return <article className={styles.adminSallaEmailPreview}>
-      <header><SallaLogo /><div><strong>متجري</strong><span>رسالة آلية آمنة من المتجر</span></div></header>
-      <div className={styles.adminSallaEmailHero}><span>✓</span><strong>{form.subject || item.name}</strong></div>
-      <div className={styles.adminSallaPreviewBody}>{body}</div>
-      <button type="button">{item.previewAction}</button>
-      <footer>هذه معاينة إدارية فقط — لن تُرسل أي رسالة.</footer>
-    </article>;
-  }
-  return <div className={styles.adminSallaWhatsappPreview}>
-    <div className={styles.adminSallaWhatsappTop}><span>‹</span><SallaLogo /><div><strong>متجري</strong><small>حساب تجاري</small></div></div>
-    <div className={styles.adminSallaWhatsappCanvas}>
-      <article><div className={styles.adminSallaPreviewBody}>{body}</div><button type="button">{item.previewAction}</button><small>11:30 ✓✓</small></article>
+function TemplatePreview({ item, channel, draft, logoUrl }) {
+  const isEmail = channel === "email";
+  const body = isEmail ? draft.emailTextContent : draft.whatsappContent;
+  return <aside className="card salla-template-live-preview">
+    <div className="section-head">
+      <div><h2>{isEmail ? "معاينة البريد" : "معاينة واتساب"}</h2><p>معاينة موحدة وآمنة — لن يتم إرسال أي رسالة.</p></div>
+      <DashboardIcon name={isEmail ? "template" : "eye"} />
     </div>
-  </div>;
+    <div className={isEmail ? "salla-email-preview" : "salla-whatsapp-preview"}>
+      {!isEmail ? <div className="salla-whatsapp-preview-canvas">
+        <div className="salla-whatsapp-bubble">
+          <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
+          <button type="button" tabIndex={-1} className="salla-preview-cta"><DashboardIcon name="action" /><span>{item.previewAction || "عرض التفاصيل"}</span></button>
+          <small>11:30 ص ✓✓</small>
+        </div>
+      </div> : <div className="salla-email-preview-canvas">
+        <div className="salla-email-preview-head">
+          {logoUrl ? <span className="salla-email-store-logo"><img src={logoUrl} alt="شعار المتجر في المعاينة" /></span> : <SallaLogo />}
+          <div><small>متجري</small><strong>{draft.emailSubject || "عنوان الرسالة"}</strong></div>
+        </div>
+        <div className="salla-email-hero"><DashboardIcon name="template" /><strong>{item.name}</strong></div>
+        <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
+        <button type="button" tabIndex={-1} className="salla-preview-cta primary"><span>{item.previewAction || "عرض التفاصيل"}</span></button>
+        <footer>هذه رسالة آلية آمنة من متجرك</footer>
+      </div>}
+    </div>
+  </aside>;
 }
 
 export default function AdminSallaCatalog({ admin }) {
   const [items, setItems] = useState([]);
   const [selectedKey, setSelectedKey] = useState("");
   const [channel, setChannel] = useState("whatsapp");
-  const [form, setForm] = useState({ subject: "", body: "" });
+  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "" });
+  const [logoUrl, setLogoUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -82,26 +87,22 @@ export default function AdminSallaCatalog({ admin }) {
   }, []);
 
   useEffect(() => { load().catch((loadError) => setError(loadError.message)); }, [load]);
+  useEffect(() => () => { if (logoUrl.startsWith("blob:")) URL.revokeObjectURL(logoUrl); }, [logoUrl]);
 
   const selected = useMemo(() => items.find((item) => item.templateKey === selectedKey) || null, [items, selectedKey]);
 
   const openEditor = (item) => {
     setSelectedKey(item.templateKey);
     setChannel("whatsapp");
-    setForm({ subject: item.emailSubject || "", body: item.whatsappContent || "" });
+    setDraft({
+      emailSubject: item.emailSubject || "",
+      emailTextContent: item.emailTextContent || "",
+      whatsappContent: item.whatsappContent || ""
+    });
+    setLogoUrl("");
     setNotice("");
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const changeChannel = (nextChannel) => {
-    if (!selected) return;
-    setChannel(nextChannel);
-    setForm({
-      subject: selected.emailSubject || "",
-      body: nextChannel === "email" ? selected.emailTextContent : selected.whatsappContent
-    });
-    setNotice("");
   };
 
   const save = async (event) => {
@@ -114,7 +115,12 @@ export default function AdminSallaCatalog({ admin }) {
       const response = await fetch("/api/admin/integrations/salla/templates", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateKey: selected.templateKey, channel, subject: form.subject || null, body: form.body })
+        body: JSON.stringify({
+          templateKey: selected.templateKey,
+          channel,
+          subject: channel === "email" ? draft.emailSubject : null,
+          body: channel === "email" ? draft.emailTextContent : draft.whatsappContent
+        })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.reason === "email_subject_required" ? "عنوان البريد مطلوب." : "تعذر حفظ القالب.");
@@ -127,31 +133,74 @@ export default function AdminSallaCatalog({ admin }) {
     }
   };
 
-  return <main className={styles.adminSallaWorkspace} dir="rtl">
-    <header className={styles.adminSallaPageHeader}>
-      <div><div className={styles.adminSallaBreadcrumb}><a href="/admin/integrations">تطبيقات المنصة</a><span>‹</span><span>سلة</span></div><div className={styles.adminSallaTitle}><SallaLogo /><div><h1>{selected ? selected.name : "قوالب سلة"}</h1><p>{selected ? selected.description : "معاينة وتحرير الواجهة الافتراضية التي تظهر للمستخدم بعد ربط متجر سلة."}</p></div></div></div>
-      <a className={styles.adminSallaBack} href="/admin/integrations">العودة إلى التطبيقات</a>
-    </header>
-    <section className={styles.adminSallaSafetyNotice}><span>i</span><p><strong>وضع إدارة المنصة</strong>هذه المعاينة متاحة للأدمن دون ربط متجر. لا تُعرض رموز وصول ولا تُرسل رسائل أو Webhooks.</p><small>{admin.role}</small></section>
+  const addVariable = (variable) => {
+    const field = channel === "email" ? "emailTextContent" : "whatsappContent";
+    setDraft((current) => ({ ...current, [field]: `${current[field]}${current[field] ? " " : ""}{{${variable}}}` }));
+  };
+
+  const selectPreviewLogo = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+      setError("اختر صورة PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت.");
+      return;
+    }
+    setLogoUrl(URL.createObjectURL(file));
+    setError("");
+  };
+
+  return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
+    <div className="salla-templates-page-head">
+      <div className="page-title">
+        <div><h1>{selected ? selected.name : "قوالب سلة"}</h1><p className="muted">{selected ? selected.description : "إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة، بنفس الواجهة التي تظهر للمستخدم بعد الربط."}</p></div>
+        <div className="toolbar">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
+      </div>
+      <span className="salla-chip">سلة</span>
+    </div>
+
+    <section className="inline-notice info salla-templates-notice"><DashboardIcon name="info" /><span><strong>وضع إدارة المنصة:</strong> الواجهة مطابقة لواجهة العميل، ومتاحة دون ربط متجر. المعاينة لا ترسل رسائل أو Webhooks، والحفظ يغيّر القيم الافتراضية للروابط الجديدة فقط.</span></section>
+    <p className={styles.adminSallaAdminIdentity}>جلسة الأدمن: {admin.role}</p>
     {error ? <div className={styles.adminSallaError}>{error}</div> : null}
     {notice ? <div className={styles.adminSallaSuccess}>{notice}</div> : null}
+
     {!selected ? <>
-      <section className={styles.adminSallaCatalogIntro}><div><h2>واجهة قوالب سلة للمستخدم</h2><p>تظهر هذه القوالب للمستخدم بعد اكتمال الربط. تعديل الأدمن يغيّر القيمة الافتراضية للقناة المحددة للروابط الجديدة فقط، ولا يستبدل تخصيصات المتاجر الحالية.</p></div><span>{items.length || 12} قالبًا</span></section>
-      {!items.length && !error ? <div className={styles.adminSallaLoading}>جارٍ تحميل القوالب...</div> : <section className={styles.adminSallaTemplateGrid}>{items.map((item, index) => <article key={item.templateKey} className={styles.adminSallaTemplateCard}>
-        <div className={styles.adminSallaTemplateCardHead}><span className={styles.adminSallaTemplateIcon}>{index + 1}</span><span className={styles.adminSallaBadge}>سلة</span></div>
-        <h3>{item.name}</h3><p>{item.description}</p><span className={styles.adminSallaChannels}><i>واتساب</i><i>بريد إلكتروني</i></span>
-        <footer><small>{item.updatedAt ? `آخر تعديل ${new Date(item.updatedAt).toLocaleDateString("ar-SA")}` : "الإعداد الافتراضي"}</small><button type="button" onClick={() => openEditor(item)}>معاينة وتحرير</button></footer>
+      {!items.length && !error ? <div className={styles.adminSallaLoading}>جارٍ تحميل القوالب...</div> : <section className="salla-templates-grid">{items.map((item) => <article key={item.templateKey} className={`card salla-template-card ${item.templateKey === "completed" ? "featured" : ""}`}>
+        <div className="salla-template-card-head">
+          <span className="salla-template-card-icon"><DashboardIcon name={templateIconName(item)} /></span>
+          <div><span className="salla-chip">سلة</span><h2>{item.name}</h2></div>
+        </div>
+        <p>{item.description}</p>
+        {item.templateKey === "completed" ? <div className="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div> : null}
+        <span className="status success">نشط <i /></span>
+        <footer><small>آخر تحديث: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "—"}</small><div><button className="btn btn-secondary" type="button" onClick={() => openEditor(item)}><DashboardIcon name="eye" /> معاينة</button><button className="btn btn-secondary" type="button" onClick={() => openEditor(item)}><DashboardIcon name="template" /> تحرير</button></div></footer>
       </article>)}</section>}
-    </> : <section className={styles.adminSallaEditorLayout}>
-      <form className={styles.adminSallaEditorForm} onSubmit={save}>
-        <div className={styles.adminSallaEditorHead}><div><h2>بيانات القالب</h2><p>تحرير افتراضي آمن للقناة المحددة.</p></div><button type="button" onClick={() => setSelectedKey("")}>كل القوالب</button></div>
-        <fieldset className={styles.adminSallaChannelChoice}><legend>قناة الإرسال</legend><button type="button" className={channel === "whatsapp" ? styles.adminSallaChannelActive : ""} onClick={() => changeChannel("whatsapp")}><span>◉</span> واتساب</button><button type="button" className={channel === "email" ? styles.adminSallaChannelActive : ""} onClick={() => changeChannel("email")}><span>✉</span> بريد إلكتروني</button></fieldset>
-        {channel === "email" ? <label className={styles.adminSallaField}><span>عنوان البريد</span><input value={form.subject} onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))} maxLength={300} required /></label> : null}
-        <label className={styles.adminSallaField}><span>محتوى الرسالة</span><textarea value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} maxLength={10000} required /></label>
-        <div className={styles.adminSallaVariables}><strong>المتغيرات المتاحة</strong><div>{selected.variables.map((variable) => <button key={variable} type="button" onClick={() => setForm((current) => ({ ...current, body: `${current.body}${current.body ? " " : ""}{{${variable}}}` }))}>{`{{${variable}}}`}</button>)}</div></div>
-        <div className={styles.adminSallaEditorActions}><button type="submit" disabled={busy}>{busy ? "جارٍ الحفظ..." : "حفظ الإعداد الافتراضي"}</button><button type="button" onClick={() => setSelectedKey("")}>إلغاء</button></div>
-      </form>
-      <aside className={styles.adminSallaPreviewColumn}><div><h2>{channel === "email" ? "معاينة البريد" : "معاينة واتساب"}</h2><p>تتغير المعاينة مباشرة حسب القناة والمحتوى.</p></div><TemplatePreview item={selected} channel={channel} form={form} /></aside>
-    </section>}
+    </> : <>
+      <section className="message-activation-card card">
+        <div className="message-activation-copy"><span className="message-activation-icon"><DashboardIcon name="send" /></span><span><strong>تفعيل رسالة {selected.name}</strong><small>هذه هي بطاقة التفعيل نفسها التي تظهر للمستخدم؛ التفعيل الفعلي يبقى خاصًا بكل متجر مرتبط.</small></span></div>
+        <div className="message-activation-control"><label className="message-activation-switch"><input type="checkbox" checked readOnly aria-label={`تفعيل رسالة ${selected.name}`} /><span /></label><span className="message-activation-status"><i /><b className="message-activation-status-on">مفعل</b><b className="message-activation-status-off">متوقف</b></span></div>
+      </section>
+
+      <section className="salla-template-editor-layout">
+        <form className="grid" onSubmit={save}>
+          <article className="card salla-template-form-card">
+            <div className="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div><DashboardIcon name="template" /></div>
+            <div className="form-grid two"><label className="field"><span>اسم القالب</span><input className="input" value={selected.name} disabled /></label><label className="field"><span>حدث التشغيل</span><input className="input" value={selected.templateKey} disabled dir="ltr" /></label></div>
+            <fieldset className="salla-channel-choice"><legend>قناة الإرسال</legend>
+              <label><input type="radio" name="channel" value="email" checked={channel === "email"} onChange={() => setChannel("email")} /><span><DashboardIcon name="template" /> بريد إلكتروني</span></label>
+              <label><input type="radio" name="channel" value="whatsapp" checked={channel === "whatsapp"} onChange={() => setChannel("whatsapp")} /><span><DashboardIcon name="send" /> واتساب</span></label>
+            </fieldset>
+
+            {channel === "whatsapp" ? <section className="salla-channel-panel"><label className="field"><span>محتوى رسالة واتساب</span><textarea className="textarea salla-template-message-editor" value={draft.whatsappContent} onChange={(event) => setDraft((current) => ({ ...current, whatsappContent: event.target.value }))} maxLength={10000} required /></label><div className="variables-row"><strong>المتغيرات المتاحة</strong>{selected.variables.map((variable) => <button key={variable} type="button" className="chip" onClick={() => addVariable(variable)}>{`{{${variable}}}`}</button>)}</div></section> : <section className="salla-channel-panel">
+              <label className="field"><span>عنوان البريد</span><input className="input" value={draft.emailSubject} onChange={(event) => setDraft((current) => ({ ...current, emailSubject: event.target.value }))} maxLength={300} required /></label>
+              <label className="field"><span>محتوى البريد</span><textarea className="textarea salla-template-message-editor" value={draft.emailTextContent} onChange={(event) => setDraft((current) => ({ ...current, emailTextContent: event.target.value }))} maxLength={10000} required /></label>
+              <div className="variables-row"><strong>المتغيرات المتاحة</strong>{selected.variables.map((variable) => <button key={variable} type="button" className="chip" onClick={() => addVariable(variable)}>{`{{${variable}}}`}</button>)}</div>
+              <div className="salla-email-logo-editor"><div className="salla-email-logo-preview">{logoUrl ? <img src={logoUrl} alt="شعار المتجر في المعاينة" /> : <DashboardIcon name="apps" />}</div><div><strong>صورة متجر موحدة للبريد</strong><p>نفس خيار العميل. الصورة المختارة هنا للمعاينة الإدارية فقط؛ كل متجر يحفظ شعاره الخاص عند الربط.</p><label className="btn btn-secondary">إضافة صورة المتجر<input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectPreviewLogo} hidden /></label><small>PNG أو JPG أو WebP حقيقي، بحد أقصى 2 ميجابايت.</small></div></div>
+            </section>}
+          </article>
+          <div className="salla-editor-actions"><button className="btn btn-primary" type="submit" disabled={busy}><DashboardIcon name="save" /> {busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button><button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button></div>
+        </form>
+        <TemplatePreview item={selected} channel={channel} draft={draft} logoUrl={logoUrl} />
+      </section>
+    </>}
   </main>;
 }

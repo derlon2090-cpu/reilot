@@ -1651,6 +1651,7 @@
 .adminSallaError, .adminSallaSuccess { margin: 0 0 16px; padding: 11px 14px; border-radius: 10px; font-size: 11px; }
 .adminSallaError { color: #a23030; border: 1px solid #facccc; background: #fff1f1; }
 .adminSallaSuccess { color: #12724f; border: 1px solid #bfead6; background: #edfbf4; }
+.adminSallaAdminIdentity { margin: -14px 0 16px; color: #7b8da7; font-size: 10px; }
 
 .adminSallaCatalogIntro { margin-bottom: 16px; padding: 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 1px solid #e0e7f0; border-radius: 14px; background: #fff; }
 .adminSallaCatalogIntro h2 { margin: 0 0 6px; font-size: 18px; }
