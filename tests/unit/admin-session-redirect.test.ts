@@ -19,14 +19,16 @@ describe("admin session redirect", () => {
       headers: { cookie: "renewpilot_session=ordinary-token" }
     }));
 
-    expect(queryMock.mock.calls[0][0]).toContain("AND t.status <> 'disabled'");
+    expect(queryMock.mock.calls[0][0]).toContain("JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'");
+    expect(queryMock.mock.calls[0][0]).not.toContain("LEFT JOIN tenants t");
   });
 
-  it("allows the admin control plane to validate its session independently", async () => {
+  it("allows the admin control plane to validate sessions without a customer tenant", async () => {
     await getSession(new Request("https://renvix.app/admin", {
       headers: { cookie: "renewpilot_session=admin-token" }
     }), { allowInactiveTenant: true });
 
+    expect(queryMock.mock.calls[0][0]).toContain("LEFT JOIN tenants t ON t.id = u.tenant_id");
     expect(queryMock.mock.calls[0][0]).not.toContain("AND t.status <> 'disabled'");
     const adminAuthSource = readFileSync(resolve("src/server/admin-auth.js"), "utf8");
     expect(adminAuthSource).toContain("getSession(req, { allowInactiveTenant: true })");
