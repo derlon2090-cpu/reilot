@@ -22,6 +22,7 @@ function safeSnapshot(pageType, source = {}) {
   const customer = source.customer || order.customer || {};
   const store = source.store || source.merchant || {};
   const items = Array.isArray(source.items) ? source.items : Array.isArray(order.items) ? order.items : [];
+  const digitalDelivery = Array.isArray(source.digitalDelivery) ? source.digitalDelivery : [];
   return {
     pageType,
     store: {
@@ -50,6 +51,20 @@ function safeSnapshot(pageType, source = {}) {
       paymentMethod: String(invoice.payment_method || source.payment_method || "").slice(0, 160),
       paymentStatus: String(invoice.payment_status || source.payment_status || "").slice(0, 160)
     } : null,
+    digital: pageType === "digital" ? {
+      title: String(source.pageTitle || "منتجاتك الرقمية جاهزة").slice(0, 160),
+      content: String(source.pageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.").slice(0, 5000),
+      showCountdown: source.showCountdown !== false,
+      assets: digitalDelivery.slice(0, 100).map((asset) => ({
+        name: String(asset.name || "منتج رقمي").slice(0, 240),
+        url: String(asset.url || "").slice(0, 2000),
+        code: String(asset.code || "").slice(0, 500),
+        email: String(asset.email || "").slice(0, 320),
+        password: String(asset.password || "").slice(0, 500),
+        expiresAt: asset.expiresAt || (Number(asset.durationSeconds || 0) > 0 ? new Date(Date.now() + Number(asset.durationSeconds) * 1000).toISOString() : null),
+        durationSeconds: Math.max(0, Math.min(31_536_000, Number(asset.durationSeconds || 0)))
+      }))
+    } : null,
     items: items.slice(0, 100).map((item) => ({
       name: String(item.name || item.product?.name || "").slice(0, 240),
       quantity: Number(item.quantity || 1),
@@ -68,7 +83,7 @@ export async function getOrCreateSallaPublicPage({
   branding = {},
   expiresInDays = 365
 }) {
-  if (!["order", "invoice"].includes(pageType) || !externalEntityId) {
+  if (!["order", "invoice", "digital"].includes(pageType) || !externalEntityId) {
     return { ok: false, reason: "invalid_page_identity" };
   }
   return transaction(async (client) => {
@@ -98,7 +113,7 @@ export async function getOrCreateSallaPublicPage({
       };
     }
     const token = randomToken(32);
-    const publicId = `${pageType === "invoice" ? "sinv" : "sord"}_${randomToken(9)}`;
+    const publicId = `${pageType === "invoice" ? "sinv" : pageType === "digital" ? "sdig" : "sord"}_${randomToken(9)}`;
     const days = Math.min(3650, Math.max(1, Number(expiresInDays) || 365));
     const inserted = await client.query(
       `INSERT INTO salla_public_pages (
@@ -129,7 +144,7 @@ export async function getOrCreateSallaPublicPage({
 }
 
 export async function resolveSallaPublicPage(publicId, token) {
-  if (!/^(sord|sinv)_[A-Za-z0-9_-]+$/.test(String(publicId || "")) || String(token || "").length < 32) {
+  if (!/^(sord|sinv|sdig)_[A-Za-z0-9_-]+$/.test(String(publicId || "")) || String(token || "").length < 32) {
     return { ok: false, reason: "invalid_link" };
   }
   const found = await query(

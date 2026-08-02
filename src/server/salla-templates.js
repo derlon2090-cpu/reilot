@@ -206,6 +206,8 @@ function apiError(message, code = "SALLA_TEMPLATE_ERROR", status = 400) {
 
 function cleanSettings(input, current = {}) {
   const settings = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const cleanLabel = (value, fallback, max = 80) => String(value ?? fallback ?? "").trim().slice(0, max);
+  const cleanContent = (value, fallback, max = 5000) => String(value ?? fallback ?? "").trim().slice(0, max);
   const delays = Array.isArray(settings.delaysMinutes)
     ? settings.delaysMinutes.slice(0, 3).map((item) => Math.max(5, Math.min(43200, Number(item) || 30)))
     : current.delaysMinutes;
@@ -216,7 +218,22 @@ function cleanSettings(input, current = {}) {
     completedDeliveryMode: ["whatsapp_message", "secure_order_page"].includes(settings.completedDeliveryMode)
       ? settings.completedDeliveryMode : current.completedDeliveryMode,
     reviewDelayMinutes: Math.max(5, Math.min(43200, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
-    themeColor: /^#[0-9A-F]{6}$/i.test(settings.themeColor || "") ? settings.themeColor : (current.themeColor || "#2563EB")
+    themeColor: /^#[0-9A-F]{6}$/i.test(settings.themeColor || "") ? settings.themeColor : (current.themeColor || "#2563EB"),
+    buttonEnabled: settings.buttonEnabled == null ? current.buttonEnabled !== false : Boolean(settings.buttonEnabled),
+    buttonLabel: cleanLabel(settings.buttonLabel, current.buttonLabel, 80),
+    secureLinkEnabled: settings.secureLinkEnabled == null ? current.secureLinkEnabled !== false : Boolean(settings.secureLinkEnabled),
+    linkPageTitle: cleanLabel(settings.linkPageTitle, current.linkPageTitle, 160),
+    linkPageContent: cleanContent(settings.linkPageContent, current.linkPageContent, 5000),
+    showCountdown: settings.showCountdown == null ? current.showCountdown !== false : Boolean(settings.showCountdown),
+    linkExpiresInDays: Math.max(1, Math.min(3650, Number(settings.linkExpiresInDays ?? current.linkExpiresInDays) || 365)),
+    branding: {
+      ...(current.branding && typeof current.branding === "object" ? current.branding : {}),
+      ...(settings.branding && typeof settings.branding === "object" ? settings.branding : {}),
+      themeColor: /^#[0-9A-F]{6}$/i.test(settings.branding?.themeColor || "")
+        ? settings.branding.themeColor
+        : (/^#[0-9A-F]{6}$/i.test(current.branding?.themeColor || "") ? current.branding.themeColor : "#2563EB"),
+      logoUrl: safePublicHttpsUrl(settings.branding?.logoUrl || current.branding?.logoUrl || "")
+    }
   };
 }
 
@@ -224,18 +241,20 @@ function rowPayload(row) {
   const definition = definitionMap.get(row.templateKey);
   const whatsappContent = row.whatsappContent || row.messageBody || definition?.body || "";
   const emailTextContent = row.emailTextContent || row.messageBody || definition?.body || "";
+  const settings = row.settings || {};
   return {
     ...row,
     name: definition?.name || row.templateKey,
     description: definition?.description || "",
     icon: definition?.icon || "template",
     variables: definition?.variables || [],
-    previewAction: definition?.previewAction || "عرض التفاصيل",
+    previewAction: settings.buttonLabel || definition?.previewAction || "عرض التفاصيل",
+    buttonEnabled: settings.buttonEnabled !== false,
     whatsappContent,
     emailTextContent,
     emailHtmlContent: row.emailHtmlContent || emailTextContent,
     messageBody: row.channel === "email" ? emailTextContent : whatsappContent,
-    settings: row.settings || {},
+    settings,
     requiresStatusMapping: definition?.triggerType === "order_status"
   };
 }
@@ -274,7 +293,7 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
       `platform_salla_default_${definition.key}_email`
     ]);
     const platformDefaults = await client.query(
-      `SELECT template_key AS "templateKey",subject,body
+      `SELECT template_key AS "templateKey",subject,body,settings
          FROM admin_message_templates
         WHERE template_key=ANY($1::text[])`,
       [defaultKeys]
@@ -314,7 +333,7 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
         [tenantId, id, definition.key, definition.triggerType, definition.eventName || null,
           whatsappDefault?.body || definition.body,
           emailDefault?.subject || definition.emailSubject || null,
-          JSON.stringify(definition.settings || {}), legacyKey,
+          JSON.stringify({ ...(definition.settings || {}), ...(whatsappDefault?.settings || {}), ...(emailDefault?.settings || {}) }), legacyKey,
           emailDefault?.body || definition.body]
       );
     }
@@ -480,13 +499,17 @@ export async function validateSallaAutomationTemplate({ tenantId, userId, templa
 }
 
 export async function setSallaAutomationTemplateEnabled({ tenantId, userId, templateKey, enabled }) {
+  const access = await transaction((client) => sallaAccess(client, tenantId, userId));
+  if (!access.available) throw apiError("تكامل سلة غير متصل.", "SALLA_NOT_CONNECTED", 409);
+  if (!access.roleAllowed) throw apiError("لا تملك الصلاحية.", "FORBIDDEN", 403);
   if (enabled) {
+    await query(
+      `UPDATE tenant_salla_templates SET delivery_channel=COALESCE(delivery_channel,'whatsapp'),updated_at=now()
+        WHERE tenant_id=$1 AND template_key=$2`,
+      [tenantId, templateKey]
+    );
     const validation = await validateSallaAutomationTemplate({ tenantId, userId, templateKey });
     if (!validation.ok) return validation;
-  } else {
-    const access = await transaction((client) => sallaAccess(client, tenantId, userId));
-    if (!access.available) throw apiError("تكامل سلة غير متصل.", "SALLA_NOT_CONNECTED", 409);
-    if (!access.roleAllowed) throw apiError("لا تملك الصلاحية.", "FORBIDDEN", 403);
   }
   const result = await query(
     `UPDATE tenant_salla_templates SET is_enabled=$3,updated_at=now()
@@ -663,8 +686,21 @@ export function paidDigitalDelivery(data = {}) {
   const paid = data.payment?.paid === true || data.paid === true || ["paid", "success", "succeeded", "completed"].includes(status);
   const raw = data.urls?.digital_content || data.order?.urls?.digital_content || [];
   const entries = Array.isArray(raw) ? raw : [raw];
-  const links = entries.map((item) => safePublicHttpsUrl(typeof item === "string" ? item : item?.url || item?.link)).filter(Boolean);
-  return { paid, links };
+  const assets = entries.map((item, index) => {
+    const value = typeof item === "string" ? { url: item } : (item || {});
+    const url = safePublicHttpsUrl(value.url || value.link);
+    if (!url) return null;
+    return {
+      name: String(value.name || value.product_name || data.items?.[index]?.name || data.order?.items?.[index]?.name || `المنتج الرقمي ${index + 1}`).slice(0, 240),
+      url,
+      code: String(value.code || value.activation_code || "").slice(0, 500),
+      email: String(value.email || value.username || "").slice(0, 320),
+      password: String(value.password || value.passcode || "").slice(0, 500),
+      expiresAt: value.expires_at || value.expiresAt || null,
+      durationSeconds: Math.max(0, Math.min(31_536_000, Number(value.duration_seconds || value.durationSeconds || 0)))
+    };
+  }).filter(Boolean);
+  return { paid, links: assets.map((item) => item.url), assets };
 }
 
 async function claimSallaEventWatermark({ tenantId, templateKey, externalEntityId, occurredAt, externalEventId }) {
@@ -756,8 +792,10 @@ export async function processSallaTemplateEvent(payload) {
   let queued = 0;
   for (const template of candidates.rows) {
     if (!template.delivery_channel) continue;
+    let digitalDelivery = null;
     if (template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY) {
       const digital = paidDigitalDelivery(data);
+      digitalDelivery = digital;
       if (!digital.paid || !digital.links.length) continue;
     }
     if (template.template_key === SALLA_TEMPLATE_KEYS.REVIEW_REQUEST
@@ -817,7 +855,7 @@ export async function processSallaTemplateEvent(payload) {
       items_count: data.items?.length || "",
       cart_items: Array.isArray(data.items) ? data.items.map((item) => item.name).filter(Boolean).join("، ") : "",
       checkout_url: data.checkout_url || data.url || "",
-      digital_content_url: paidDigitalDelivery(data).links[0] || "",
+      digital_content_url: digitalDelivery?.links[0] || "",
       product_name: data.items?.[0]?.name || data.order?.items?.[0]?.name || data.product?.name || "",
       activation_code: data.items?.[0]?.code || data.activation_code || "",
       delivery_date: data.delivery_date || data.shipment?.delivery_date || "",
@@ -838,12 +876,21 @@ export async function processSallaTemplateEvent(payload) {
     };
     const pageType = template.template_key === legacyInvoiceDefinition.key
       ? "invoice"
+      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled !== false
+        ? "digital"
       : template.template_key === SALLA_TEMPLATE_KEYS.COMPLETED
         ? "order"
         : null;
     let publicPage = null;
     if (pageType) {
       const externalEntityId = pageType === "invoice" ? normalized.invoiceId : normalized.orderId;
+      const pageBranding = {
+        ...(template.settings?.branding || {}),
+        brandName: variables.store_name || brandProfile.storeName || "Renvix",
+        logoUrl: template.settings?.branding?.logoUrl || brandProfile.logoUrl || "",
+        logoBorderRadius: Number(template.settings?.branding?.logoBorderRadius ?? brandProfile.logoBorderRadius ?? 16),
+        themeColor: template.settings?.themeColor || template.settings?.branding?.themeColor || "#2563EB"
+      };
       publicPage = await getOrCreateSallaPublicPage({
         tenantId,
         templateId: template.id,
@@ -853,9 +900,13 @@ export async function processSallaTemplateEvent(payload) {
           ...data,
           order: data.order || (normalized.orderId ? { id: normalized.orderId } : {}),
           invoice: data.invoice || (normalized.invoiceId ? { id: normalized.invoiceId } : {}),
-          branding: template.settings?.branding || {}
+          branding: pageBranding,
+          digitalDelivery: digitalDelivery?.assets || [],
+          pageTitle: template.settings?.linkPageTitle || "منتجاتك الرقمية جاهزة",
+          pageContent: template.settings?.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.",
+          showCountdown: template.settings?.showCountdown !== false
         },
-        branding: template.settings?.branding || {},
+        branding: pageBranding,
         expiresInDays: template.settings?.linkExpiresInDays || 365
       });
       if (!publicPage.ok) {
@@ -869,6 +920,7 @@ export async function processSallaTemplateEvent(payload) {
         continue;
       }
       if (pageType === "invoice") variables.invoice_url = publicPage.url;
+      else if (pageType === "digital") variables.digital_content_url = publicPage.url;
       else variables.order_url = publicPage.url;
       await query(
         `UPDATE salla_template_deliveries

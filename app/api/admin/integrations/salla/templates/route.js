@@ -8,7 +8,16 @@ const inputSchema = z.object({
   templateKey: z.string().trim().min(1).max(100),
   channel: z.enum(["whatsapp", "email"]),
   subject: z.string().trim().max(300).optional().nullable(),
-  body: z.string().trim().min(1).max(10000)
+  body: z.string().trim().min(1).max(10000),
+  settings: z.object({
+    buttonEnabled: z.boolean().optional(),
+    buttonLabel: z.string().trim().max(80).optional(),
+    secureLinkEnabled: z.boolean().optional(),
+    linkPageTitle: z.string().trim().max(160).optional(),
+    linkPageContent: z.string().trim().max(5000).optional(),
+    showCountdown: z.boolean().optional(),
+    themeColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional()
+  }).optional()
 });
 
 export async function GET(request) {

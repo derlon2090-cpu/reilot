@@ -131,6 +131,30 @@ describe("Salla automation templates", () => {
     expect(result.links).toHaveLength(linkCount);
   });
 
+  it("normalizes digital credentials without exposing insecure links", () => {
+    const result = paidDigitalDelivery({
+      payment: { status: "paid" },
+      urls: { digital_content: [
+        { url: "https://cdn.example.test/license", name: "ترخيص", code: "CODE-1" },
+        { url: "https://cdn.example.test/account", email: "buyer@example.test", password: "secret", duration_seconds: 3600 }
+      ] }
+    });
+    expect(result.assets).toEqual([
+      expect.objectContaining({ name: "ترخيص", code: "CODE-1", email: "" }),
+      expect.objectContaining({ email: "buyer@example.test", password: "secret", durationSeconds: 3600 })
+    ]);
+    expect(result.links).toHaveLength(2);
+  });
+
+  it("persists CTA and secure digital-link controls and defaults first activation to WhatsApp", () => {
+    expect(appSource).toContain('name="buttonEnabled"');
+    expect(appSource).toContain('name="buttonLabel"');
+    expect(appSource).toContain('name="secureLinkEnabled"');
+    expect(serverSource).toContain("delivery_channel=COALESCE(delivery_channel,'whatsapp')");
+    expect(serverSource).toContain('? "digital"');
+    expect(styles).toContain(".salla-template-form-card>.section-head>svg");
+  });
+
   it("keeps the opposite channel content when the selected channel changes", () => {
     const switchedToEmail = resolveSallaChannelContent({
       channel: "email",

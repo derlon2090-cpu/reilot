@@ -26,4 +26,11 @@ describe("Salla admin application catalog", () => {
     expect(platformSallaTemplateKey("completed", "whatsapp")).toBe("platform_salla_default_completed_whatsapp");
     expect(platformSallaTemplateKey("completed", "email")).toBe("platform_salla_default_completed_email");
   });
+
+  it("merges safe presentation settings for the admin and future tenant defaults", () => {
+    const [item] = mergeSallaAdminCatalog([
+      { templateKey: platformSallaTemplateKey("digital_product_delivery", "whatsapp"), body: "رسالة", settings: { buttonEnabled: false, buttonLabel: "فتح الترخيص", secureLinkEnabled: true } }
+    ]);
+    expect(item.settings).toMatchObject({ buttonEnabled: false, buttonLabel: "فتح الترخيص", secureLinkEnabled: true });
+  });
 });

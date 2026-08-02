@@ -52,7 +52,7 @@ function TemplatePreview({ item, channel, draft, logoUrl }) {
       {!isEmail ? <div className="salla-whatsapp-preview-canvas">
         <div className="salla-whatsapp-bubble">
           <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
-          <button type="button" tabIndex={-1} className="salla-preview-cta"><DashboardIcon name="action" /><span>{item.previewAction || "عرض التفاصيل"}</span></button>
+          {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta"><DashboardIcon name="action" /><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
           <small>11:30 ص ✓✓</small>
         </div>
       </div> : <div className="salla-email-preview-canvas">
@@ -62,10 +62,11 @@ function TemplatePreview({ item, channel, draft, logoUrl }) {
         </div>
         <div className="salla-email-hero"><DashboardIcon name="template" /><strong>{item.name}</strong></div>
         <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
-        <button type="button" tabIndex={-1} className="salla-preview-cta primary"><span>{item.previewAction || "عرض التفاصيل"}</span></button>
+        {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta primary"><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
         <footer>هذه رسالة آلية آمنة من متجرك</footer>
       </div>}
     </div>
+    {item.templateKey === "digital_product_delivery" && draft.secureLinkEnabled ? <section className="salla-digital-link-preview" style={{ "--salla-link-theme": draft.themeColor || "#2563EB" }}><div className="salla-digital-link-head">{logoUrl ? <img src={logoUrl} alt="شعار المتجر" /> : <DashboardIcon name="action" />}<div><small>الرابط الخاص بالطلب #10025</small><strong>{draft.linkPageTitle || "منتجاتك الرقمية جاهزة"}</strong></div></div><p>{draft.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article>{draft.showCountdown ? <div className="salla-digital-countdown">متاح لمدة <strong>23:59:59</strong></div> : null}<small>يُنشأ الرابط لكل طلب وتُرتب بيانات الاعتماد تلقائيًا.</small></section> : null}
   </aside>;
 }
 
@@ -73,7 +74,7 @@ export default function AdminSallaCatalog({ admin }) {
   const [items, setItems] = useState([]);
   const [selectedKey, setSelectedKey] = useState("");
   const [channel, setChannel] = useState("whatsapp");
-  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "" });
+  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#2563EB" });
   const [logoUrl, setLogoUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -97,7 +98,14 @@ export default function AdminSallaCatalog({ admin }) {
     setDraft({
       emailSubject: item.emailSubject || "",
       emailTextContent: item.emailTextContent || "",
-      whatsappContent: item.whatsappContent || ""
+      whatsappContent: item.whatsappContent || "",
+      buttonEnabled: item.settings?.buttonEnabled !== false,
+      buttonLabel: item.settings?.buttonLabel || item.previewAction || "عرض التفاصيل",
+      secureLinkEnabled: item.settings?.secureLinkEnabled !== false,
+      linkPageTitle: item.settings?.linkPageTitle || "منتجاتك الرقمية جاهزة",
+      linkPageContent: item.settings?.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.",
+      showCountdown: item.settings?.showCountdown !== false,
+      themeColor: item.settings?.themeColor || item.settings?.branding?.themeColor || "#2563EB"
     });
     setLogoUrl("");
     setNotice("");
@@ -119,7 +127,8 @@ export default function AdminSallaCatalog({ admin }) {
           templateKey: selected.templateKey,
           channel,
           subject: channel === "email" ? draft.emailSubject : null,
-          body: channel === "email" ? draft.emailTextContent : draft.whatsappContent
+          body: channel === "email" ? draft.emailTextContent : draft.whatsappContent,
+          settings: { buttonEnabled: draft.buttonEnabled, buttonLabel: draft.buttonLabel, secureLinkEnabled: draft.secureLinkEnabled, linkPageTitle: draft.linkPageTitle, linkPageContent: draft.linkPageContent, showCountdown: draft.showCountdown, themeColor: draft.themeColor }
         })
       });
       const payload = await response.json().catch(() => ({}));
@@ -150,10 +159,11 @@ export default function AdminSallaCatalog({ admin }) {
   };
 
   return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
+    {selected ? <div className="salla-template-editor-top"><button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button><button className="btn btn-primary" type="submit" form="admin-salla-template-form"><DashboardIcon name="save" /> حفظ التعديلات</button></div> : null}
     <div className="salla-templates-page-head">
       <div className="page-title">
         <div><h1>{selected ? selected.name : "قوالب سلة"}</h1><p className="muted">{selected ? selected.description : "إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة، بنفس الواجهة التي تظهر للمستخدم بعد الربط."}</p></div>
-        <div className="toolbar">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
+        <div className="toolbar">{selected ? null : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
       </div>
       <span className="salla-chip">سلة</span>
     </div>
@@ -181,7 +191,7 @@ export default function AdminSallaCatalog({ admin }) {
       </section>
 
       <section className="salla-template-editor-layout">
-        <form className="grid" onSubmit={save}>
+        <form id="admin-salla-template-form" className="grid" onSubmit={save}>
           <article className="card salla-template-form-card">
             <div className="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div><DashboardIcon name="template" /></div>
             <div className="form-grid two"><label className="field"><span>اسم القالب</span><input className="input" value={selected.name} disabled /></label><label className="field"><span>حدث التشغيل</span><input className="input" value={selected.templateKey} disabled dir="ltr" /></label></div>
@@ -190,12 +200,13 @@ export default function AdminSallaCatalog({ admin }) {
               <label><input type="radio" name="channel" value="whatsapp" checked={channel === "whatsapp"} onChange={() => setChannel("whatsapp")} /><span><DashboardIcon name="send" /> واتساب</span></label>
             </fieldset>
 
-            {channel === "whatsapp" ? <section className="salla-channel-panel"><label className="field"><span>محتوى رسالة واتساب</span><textarea className="textarea salla-template-message-editor" value={draft.whatsappContent} onChange={(event) => setDraft((current) => ({ ...current, whatsappContent: event.target.value }))} maxLength={10000} required /></label><div className="variables-row"><strong>المتغيرات المتاحة</strong>{selected.variables.map((variable) => <button key={variable} type="button" className="chip" onClick={() => addVariable(variable)}>{`{{${variable}}}`}</button>)}</div></section> : <section className="salla-channel-panel">
+            {channel === "whatsapp" ? <section className="salla-channel-panel"><label className="field"><span>محتوى رسالة واتساب</span><textarea className="textarea salla-template-message-editor" value={draft.whatsappContent} onChange={(event) => setDraft((current) => ({ ...current, whatsappContent: event.target.value }))} maxLength={10000} required /></label><div className="variables-row"><strong>المتغيرات المتاحة</strong>{selected.variables.map((variable) => <button key={variable} type="button" className="chip" onClick={() => addVariable(variable)}>{`{{${variable}}}`}</button>)}</div><div className="salla-action-settings"><label className="setting-line"><span><strong>إظهار زر الإجراء</strong><small>يمكن إخفاؤه دون حذف النص.</small></span><input type="checkbox" checked={draft.buttonEnabled} onChange={(event) => setDraft((current) => ({ ...current, buttonEnabled: event.target.checked }))} /></label><label className="field"><span>نص الزر</span><input className="input" maxLength={80} value={draft.buttonLabel} onChange={(event) => setDraft((current) => ({ ...current, buttonLabel: event.target.value }))} /></label></div></section> : <section className="salla-channel-panel">
               <label className="field"><span>عنوان البريد</span><input className="input" value={draft.emailSubject} onChange={(event) => setDraft((current) => ({ ...current, emailSubject: event.target.value }))} maxLength={300} required /></label>
               <label className="field"><span>محتوى البريد</span><textarea className="textarea salla-template-message-editor" value={draft.emailTextContent} onChange={(event) => setDraft((current) => ({ ...current, emailTextContent: event.target.value }))} maxLength={10000} required /></label>
               <div className="variables-row"><strong>المتغيرات المتاحة</strong>{selected.variables.map((variable) => <button key={variable} type="button" className="chip" onClick={() => addVariable(variable)}>{`{{${variable}}}`}</button>)}</div>
               <div className="salla-email-logo-editor"><div className="salla-email-logo-preview">{logoUrl ? <img src={logoUrl} alt="شعار المتجر في المعاينة" /> : <DashboardIcon name="apps" />}</div><div><strong>صورة متجر موحدة للبريد</strong><p>نفس خيار العميل. الصورة المختارة هنا للمعاينة الإدارية فقط؛ كل متجر يحفظ شعاره الخاص عند الربط.</p><label className="btn btn-secondary">إضافة صورة المتجر<input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectPreviewLogo} hidden /></label><small>PNG أو JPG أو WebP حقيقي، بحد أقصى 2 ميجابايت.</small></div></div>
             </section>}
+            {selected.templateKey === "digital_product_delivery" ? <section className="salla-special-settings salla-digital-settings"><div className="section-head"><div><h2>صفحة تسليم المنتج الرقمي</h2><p>رابط آمن مستقل لكل طلب، مع ترتيب تلقائي للكود أو البريد وكلمة المرور.</p></div><DashboardIcon name="action" /></div><label className="setting-line"><span><strong>إرفاق رابط التسليم الآمن</strong><small>عند إيقافه تظهر معاينة القناة فقط.</small></span><input type="checkbox" checked={draft.secureLinkEnabled} onChange={(event) => setDraft((current) => ({ ...current, secureLinkEnabled: event.target.checked }))} /></label><div className="form-grid two"><label className="field"><span>عنوان صفحة الرابط</span><input className="input" maxLength={160} value={draft.linkPageTitle} onChange={(event) => setDraft((current) => ({ ...current, linkPageTitle: event.target.value }))} /></label><label className="field"><span>لون الصفحة</span><input className="input salla-theme-color" type="color" value={draft.themeColor} onChange={(event) => setDraft((current) => ({ ...current, themeColor: event.target.value }))} /></label></div><label className="field"><span>محتوى صفحة الرابط</span><textarea className="textarea" maxLength={5000} value={draft.linkPageContent} onChange={(event) => setDraft((current) => ({ ...current, linkPageContent: event.target.value }))} /></label><div className="salla-digital-branding"><div><strong>شعار صفحة الرابط</strong><small>للمعاينة الإدارية فقط؛ يحتفظ كل متجر بشعاره الخاص.</small></div><label className="btn btn-secondary">{logoUrl ? "تغيير شعار المعاينة" : "إضافة شعار للمعاينة"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectPreviewLogo} hidden /></label></div><label className="setting-line"><span><strong>إظهار العد التنازلي</strong><small>يظهر عند توفر مدة موثقة للمنتج.</small></span><input type="checkbox" checked={draft.showCountdown} onChange={(event) => setDraft((current) => ({ ...current, showCountdown: event.target.checked }))} /></label></section> : null}
           </article>
           <div className="salla-editor-actions"><button className="btn btn-primary" type="submit" disabled={busy}><DashboardIcon name="save" /> {busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button><button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button></div>
         </form>
