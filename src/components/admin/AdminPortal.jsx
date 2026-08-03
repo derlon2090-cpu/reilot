@@ -36,7 +36,7 @@ const PANEL_COPY = {
   customers: ["العملاء", "حسابات مستخدمي Renvix ومساحات العمل المرتبطة بهم."],
   stores: ["المتاجر", "المتاجر ومساحات العمل والتكاملات المرتبطة بها."],
   provisioning: ["تفعيل حسابات سلة", "طلبات إنشاء الحسابات الناتجة عن منتجات سلة المربوطة فقط."],
-  devices: ["الأجهزة", "متابعة القنوات المتصلة وحالتها التشغيلية."],
+  devices: ["الأجهزة", "إدارة أجهزة واتساب الإدارية المرتبطة عبر Evolution ومتابعة الاتصال والإرسال."],
   security: ["الحماية والأمان", "مركز الأمان الشامل لحماية المنصة والبيانات والمستخدمين."],
   reports: ["التقارير", "مؤشرات الإرسال والتسليم والعمليات المسجلة."],
   roles: ["الأدوار والصلاحيات", "إدارة الأدوار والصلاحيات والتحكم في الوصول."],
@@ -327,7 +327,7 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
               <h1>{panelCopy[0]}</h1>
               <p>{panelCopy[1]}</p>
             </div>
-            <button className={styles.refreshButton} onClick={load}>تحديث البيانات</button>
+            {activePanel === "devices" ? null : <button className={styles.refreshButton} onClick={load}>تحديث البيانات</button>}
           </div>
 
           {error ? <div className={styles.error}>{error}</div> : null}

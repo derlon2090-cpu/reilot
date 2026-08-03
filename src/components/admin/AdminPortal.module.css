@@ -2366,7 +2366,196 @@
   .adminReportsGrid .adminChartCard:first-child { grid-column: 1 / -1; }
 }
 
+.adminDevicesToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.adminDevicesToolbar button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adminDevicesToolbar svg { width: 18px; height: 18px; }
+
+.adminDeviceKpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.adminDeviceKpis > article {
+  min-height: 122px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #e2eaf4;
+  border-radius: 15px;
+}
+
+.adminDeviceKpis > article > span {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 15px;
+}
+
+.adminDeviceKpis svg { width: 25px; height: 25px; }
+.adminDeviceKpis .adminDeviceKpiGreen { color: #0f9f6e; background: #ecfdf5; }
+.adminDeviceKpis .adminDeviceKpiOrange { color: #e78316; background: #fff7ed; }
+.adminDeviceKpis small { display: block; color: #71819d; font-weight: 700; }
+.adminDeviceKpis strong { display: block; margin: 4px 0 2px; color: #092452; font-size: 28px; line-height: 1; }
+.adminDeviceKpis p { margin: 0; color: #8a98ae; font-size: 12px; }
+
+.adminDevicesSurface { padding: 0; overflow: visible; }
+
+.adminDeviceFilters {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.6fr) minmax(160px, .55fr) minmax(160px, .6fr) auto;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid #e7edf5;
+}
+
+.adminDeviceFilters select,
+.adminDeviceSearch,
+.adminDeviceForm input,
+.adminDeviceForm select,
+.adminPairingCodePanel input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d9e4f1;
+  border-radius: 10px;
+  background: #fff;
+  color: #102a54;
+  font: inherit;
+}
+
+.adminDeviceFilters select,
+.adminDeviceForm input,
+.adminDeviceForm select,
+.adminPairingCodePanel input { padding: 0 13px; }
+
+.adminDeviceSearch {
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.adminDeviceSearch svg { width: 17px; height: 17px; color: #7890b0; }
+.adminDeviceSearch input { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; color: #102a54; }
+.adminDeviceNotice,
+.adminDeviceError { margin: 12px 16px 0; padding: 11px 13px; border-radius: 9px; font-size: 13px; font-weight: 700; }
+.adminDeviceNotice { color: #075985; background: #eff8ff; border: 1px solid #cde9ff; }
+.adminDeviceError { color: #b42318; background: #fff5f5; border: 1px solid #ffd5d2; }
+.adminDeviceLoading { min-height: 220px; display: grid; place-items: center; color: #71819d; font-weight: 700; }
+
+.adminDevicesTableWrap { overflow-x: auto; }
+.adminDevicesTableWrap table { width: 100%; min-width: 980px; border-collapse: collapse; }
+.adminDevicesTableWrap th { padding: 13px 14px; color: #64748b; background: #f8fafc; font-size: 12px; text-align: right; white-space: nowrap; }
+.adminDevicesTableWrap td { padding: 13px 14px; border-top: 1px solid #edf1f6; color: #183258; font-size: 13px; vertical-align: middle; }
+.adminDeviceName { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.adminDeviceName > span { width: 34px; height: 34px; display: grid; place-items: center; color: #2563eb; background: #eff6ff; border-radius: 9px; }
+.adminDeviceName svg { width: 18px; height: 18px; }
+.adminDeviceName strong,.adminDeviceName small,.adminDeviceCellHint { display: block; }
+.adminDeviceName small,.adminDeviceCellHint { margin-top: 3px; color: #8a98ae; font-size: 11px; }
+.adminDeviceRelative { font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+.adminDeviceStatus { width: max-content; display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 999px; color: #9a6512; background: #fff8e8; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.adminDeviceStatus i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.adminDeviceStatus_connected { color: #067647; background: #ecfdf3; }
+.adminDeviceStatus_disconnected,.adminDeviceStatus_logged_out { color: #b42318; background: #fff1f0; }
+.adminDeviceStatus_error { color: #b42318; background: #fff1f0; }
+.adminDeviceStatus_connecting { color: #175cd3; background: #eff8ff; }
+.adminDeviceStatus_disabled { color: #475467; background: #f2f4f7; }
+
+.adminDeviceActions { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.adminDeviceActions > button,.adminDeviceActions > div > button,.adminDevicePagination button { min-height: 34px; padding: 0 11px; border: 1px solid #d9e4f1; border-radius: 8px; background: #fff; color: #163765; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.adminDeviceActions > div { position: relative; }
+.adminDeviceMenu { position: absolute; z-index: 12; top: calc(100% + 6px); left: 0; width: 170px; padding: 6px; display: grid; gap: 2px; background: #fff; border: 1px solid #dbe5f0; border-radius: 10px; box-shadow: 0 12px 28px rgba(15, 40, 80, .13); }
+.adminDeviceMenu button { padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: #183258; text-align: right; font: inherit; font-size: 12px; cursor: pointer; }
+.adminDeviceMenu button:hover { background: #f3f7fc; }
+.adminDeviceMenu .adminDeviceDanger { color: #d92d20; }
+.adminDevicePagination { padding: 13px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e7edf5; color: #71819d; font-size: 12px; }
+.adminDevicePagination > div { display: flex; gap: 8px; }
+.adminDevicePagination button:disabled { opacity: .45; cursor: not-allowed; }
+
+.adminDeviceDrawerOverlay { position: fixed; z-index: 80; inset: 0; display: flex; justify-content: flex-start; background: rgba(8, 24, 51, .34); backdrop-filter: blur(2px); }
+.adminDeviceDrawer { width: min(520px, 94vw); height: 100%; background: #fff; box-shadow: 14px 0 40px rgba(8, 24, 51, .18); overflow-y: auto; animation: adminDeviceDrawerIn .2s ease-out; }
+@keyframes adminDeviceDrawerIn { from { transform: translateX(-30px); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
+.adminDeviceDrawer > header { position: sticky; z-index: 2; top: 0; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.96); border-bottom: 1px solid #e4ebf4; backdrop-filter: blur(8px); }
+.adminDeviceDrawer > header > div { display: flex; align-items: center; gap: 11px; }
+.adminDeviceDrawer > header > div > span { width: 42px; height: 42px; display: grid; place-items: center; color: #2563eb; background: #eff6ff; border-radius: 12px; }
+.adminDeviceDrawer > header svg { width: 21px; height: 21px; }
+.adminDeviceDrawer h2 { margin: 0; color: #0b2956; font-size: 20px; }
+.adminDeviceDrawer header p { margin: 3px 0 0; color: #8492a8; font-size: 11px; }
+.adminDeviceDrawer > header > button { width: 36px; height: 36px; border: 0; border-radius: 9px; background: #f4f7fb; color: #5b6f8e; font-size: 24px; cursor: pointer; }
+.adminDeviceDrawerBody { padding: 20px; }
+.adminDeviceForm { display: grid; gap: 17px; }
+.adminDeviceForm label,.adminPairingCodePanel label { display: grid; gap: 7px; color: #183258; font-size: 13px; font-weight: 800; }
+.adminDeviceForm h3 { margin: 0; color: #0b2956; }
+.adminDeviceFormActions { display: flex; gap: 10px; }
+.adminDeviceFormActions button { flex: 1; }
+.adminPairingChoice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.adminPairingChoice button { min-height: 130px; padding: 15px; display: grid; place-items: center; gap: 5px; border: 1px solid #dbe5f0; border-radius: 13px; background: #fff; color: #183258; font: inherit; cursor: pointer; }
+.adminPairingChoice svg { width: 25px; height: 25px; color: #2563eb; }
+.adminPairingChoice small { color: #8492a8; font-size: 11px; }
+.adminPairingChoice .adminPairingChoiceActive { color: #175cd3; background: #f3f8ff; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.08); }
+
+.adminDeviceDetails { display: grid; gap: 16px; }
+.adminDeviceDetails section { padding: 16px; border: 1px solid #e0e9f3; border-radius: 13px; }
+.adminDeviceDetails h3 { margin: 0 0 13px; color: #0b2956; font-size: 15px; }
+.adminDeviceDetails dl { margin: 0; display: grid; gap: 10px; }
+.adminDeviceDetails dl > div { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 9px; border-bottom: 1px solid #edf1f6; }
+.adminDeviceDetails dt { color: #7a8aa2; font-size: 12px; }
+.adminDeviceDetails dd { margin: 0; color: #17345f; font-size: 12px; font-weight: 800; text-align: left; }
+.adminDeviceMetricGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.adminDeviceMetricGrid > div { padding: 12px; background: #f7faff; border-radius: 9px; }
+.adminDeviceMetricGrid strong,.adminDeviceMetricGrid span { display: block; }
+.adminDeviceMetricGrid strong { color: #0b2956; font-size: 17px; }
+.adminDeviceMetricGrid span { margin-top: 3px; color: #8492a8; font-size: 11px; }
+.adminDeviceActivity { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.adminDeviceActivity li { display: flex; gap: 9px; align-items: center; }
+.adminDeviceActivity li > span { width: 30px; height: 30px; display: grid; place-items: center; color: #0f9f6e; background: #ecfdf5; border-radius: 50%; }
+.adminDeviceActivity svg { width: 15px; height: 15px; }
+.adminDeviceActivity strong,.adminDeviceActivity small { display: block; }
+.adminDeviceActivity strong { color: #17345f; font-size: 12px; }
+.adminDeviceActivity small,.adminDeviceMuted { color: #8492a8; font-size: 11px; }
+
+.adminPairingPanel { display: grid; gap: 16px; }
+.adminPairingTabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; background: #f2f6fb; border-radius: 10px; }
+.adminPairingTabs button { min-height: 38px; border: 0; border-radius: 8px; background: transparent; color: #667895; font: inherit; font-weight: 800; cursor: pointer; }
+.adminPairingTabs .adminPairingTabActive { color: #175cd3; background: #fff; box-shadow: 0 2px 7px rgba(30,60,100,.08); }
+.adminQrPanel,.adminPairingCodePanel { display: grid; gap: 14px; }
+.adminQrPanel > img { width: min(320px, 100%); aspect-ratio: 1; margin: 0 auto; padding: 12px; object-fit: contain; border: 1px solid #dce6f1; border-radius: 14px; }
+.adminQrPanel > strong { color: #667895; text-align: center; font-size: 12px; }
+.adminQrPlaceholder { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 10px; color: #7b8ba3; background: #f8fbff; border: 1px dashed #cddaea; border-radius: 14px; }
+.adminQrPlaceholder svg { width: 44px; height: 44px; color: #3b82f6; }
+.adminPairingCode { padding: 18px; display: grid; place-items: center; gap: 9px; background: #f7faff; border: 1px solid #d9e5f3; border-radius: 12px; }
+.adminPairingCode code { color: #0c3773; font-size: clamp(23px,5vw,32px); font-weight: 900; letter-spacing: .12em; }
+.adminPairingCode button { border: 0; background: transparent; color: #2563eb; font: inherit; font-weight: 800; cursor: pointer; }
+.adminPairingCode small { color: #7b8ba3; }
+.adminDeviceConnected { min-height: 300px; display: grid; place-items: center; align-content: center; gap: 10px; color: #087a50; text-align: center; }
+.adminDeviceConnected > span { width: 70px; height: 70px; display: grid; place-items: center; background: #ecfdf5; border-radius: 50%; }
+.adminDeviceConnected svg { width: 36px; height: 36px; }
+.adminDeviceConnected p { margin: 0; color: #71819d; font-size: 12px; }
+
 @media (max-width: 1040px) {
+  .adminDeviceFilters { grid-template-columns: minmax(240px, 1fr) 1fr 1fr; }
+  .adminDeviceFilters .adminResetButton { grid-column: 1 / -1; width: max-content; }
   .adminSallaTemplateGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .adminTwoColumn { grid-template-columns: 1fr; }
   .adminRanking { margin-top: 0; }
@@ -2381,6 +2570,11 @@
 }
 
 @media (max-width: 820px) {
+  .adminDeviceKpis { grid-template-columns: 1fr; }
+  .adminDeviceKpis > article { min-height: 104px; }
+  .adminDeviceFilters { grid-template-columns: 1fr 1fr; }
+  .adminDeviceSearch { grid-column: 1 / -1; }
+  .adminDevicesTableWrap { margin-inline: 0; }
   .adminSallaWorkspace { padding: 20px 14px 40px; }
   .adminSallaPageHeader { align-items: stretch; flex-direction: column; }
   .adminSallaBack { justify-content: center; }
@@ -2405,6 +2599,14 @@
 }
 
 @media (max-width: 560px) {
+  .adminDevicesToolbar { align-items: stretch; flex-direction: column; }
+  .adminDevicesToolbar button { justify-content: center; }
+  .adminDeviceFilters { grid-template-columns: 1fr; }
+  .adminDeviceSearch,.adminDeviceFilters .adminResetButton { grid-column: auto; width: 100%; }
+  .adminDeviceDrawer { width: 100vw; }
+  .adminDeviceDrawerBody { padding: 15px; }
+  .adminPairingChoice { grid-template-columns: 1fr; }
+  .adminDeviceMetricGrid { grid-template-columns: 1fr; }
   .adminSallaTitle { align-items: flex-start; }
   .adminSallaTitle h1 { font-size: 24px; }
   .adminSallaCatalogIntro { align-items: flex-start; flex-direction: column; }

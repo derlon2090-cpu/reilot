@@ -7,14 +7,15 @@ const ROLE_PERMISSIONS = {
   operations_admin: {
     overview: ["read"], subscriptions: ["read", "update"], customers: ["read", "update"],
     stores: ["read", "update"], notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
-    templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"], devices: ["read", "update"],
+    templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"],
+    devices: ["read", "update", "create", "pair", "reconnect", "logout", "delete", "view_metrics", "view_phone"],
     integrations: ["read", "update"], support: ["read", "reply", "update", "assign", "close"], reports: ["read", "export"], audit: ["read"]
   },
   admin: {
     overview: ["read"],
     subscriptions: ["read", "update"],
     customers: ["read", "update"],
-    devices: ["read", "update"],
+    devices: ["read", "update", "create", "pair", "reconnect", "logout", "delete", "view_metrics", "view_phone"],
     security: ["read"],
     reports: ["read", "export"],
     stores: ["read", "update"],
@@ -31,7 +32,7 @@ const ROLE_PERMISSIONS = {
   support_admin: {
     overview: ["read"],
     customers: ["read"],
-    devices: ["read", "update"],
+    devices: ["read", "update", "pair", "reconnect", "view_metrics"],
     support: ["read", "reply", "update", "assign", "close"],
     audit: ["read"]
   },
@@ -43,24 +44,24 @@ const ROLE_PERMISSIONS = {
   },
   security_admin: {
     overview: ["read"],
-    devices: ["read", "update"],
+    devices: ["read", "update", "pair", "reconnect", "logout", "view_metrics"],
     security: ["read", "update"],
     audit: ["read"]
   },
   security_auditor: {
-    overview: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
+    overview: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"],
     reports: ["read"], audit: ["read"]
   },
   read_only: {
     overview: ["read"], subscriptions: ["read"], customers: ["read"], stores: ["read"], campaigns: ["read"], contacts: ["read"],
-    templates: ["read"], notifications: ["read"], devices: ["read"], integrations: ["read"], security: ["read"],
+    templates: ["read"], notifications: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"],
     reports: ["read"], billing: ["read"], settings: ["read"], support: ["read"], audit: ["read"]
   },
   viewer: {
     overview: ["read"],
     subscriptions: ["read"],
     customers: ["read"],
-    devices: ["read"],
+    devices: ["read", "view_metrics"],
     security: ["read"],
     reports: ["read"],
     support: ["read"],

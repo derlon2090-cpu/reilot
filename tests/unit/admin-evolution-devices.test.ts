@@ -1,0 +1,99 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  adminDeviceStatusLabel,
+  deviceMessageMetrics,
+  isAdminPairingExpired,
+  maskAdminDevicePhone,
+  normalizeAdminDeviceStatus
+} from "../../src/server/admin-evolution-devices.js";
+import { EvolutionAdminAdapter } from "../../src/server/admin-evolution-provider.js";
+
+describe("admin Evolution device presentation", () => {
+  it.each([
+    ["open", "connected", "متصل"],
+    ["pending_qr", "pending_pairing", "بانتظار الاقتران"],
+    ["close", "disconnected", "غير متصل"],
+    ["risk_hold", "error", "يحتاج متابعة"]
+  ])("localizes %s without exposing the raw state", (raw, normalized, label) => {
+    expect(normalizeAdminDeviceStatus(raw)).toBe(normalized);
+    expect(adminDeviceStatusLabel(raw)).toBe(label);
+  });
+
+  it("does not display a false 0% success rate when there are no messages", () => {
+    expect(deviceMessageMetrics()).toEqual({ sent: 0, delivered: 0, failed: 0, today: 0, successRate: null });
+  });
+
+  it("calculates delivery metrics from actual attempts", () => {
+    expect(deviceMessageMetrics({ sent: 18, delivered: 15, failed: 2, today: 4 })).toEqual({ sent: 18, delivered: 15, failed: 2, today: 4, successRate: 90 });
+  });
+
+  it("masks phone numbers unless the administrator has the explicit permission", () => {
+    expect(maskAdminDevicePhone("966512345678", false)).toBe("+9665••••678");
+    expect(maskAdminDevicePhone("966512345678", true)).toBe("+966512345678");
+  });
+
+  it("expires pairing material at the requested time", () => {
+    expect(isAdminPairingExpired("2026-08-03T10:00:00.000Z", Date.parse("2026-08-03T10:00:01.000Z"))).toBe(true);
+    expect(isAdminPairingExpired("2026-08-03T10:01:00.000Z", Date.parse("2026-08-03T10:00:01.000Z"))).toBe(false);
+  });
+
+  it("keeps the admin page limited to three KPIs and on-demand pairing", () => {
+    const source = readFileSync(resolve("src/components/admin/AdminSections.jsx"), "utf8");
+    expect(source).toContain("adminDeviceKpis");
+    expect(source).toContain("إجمالي الأجهزة");
+    expect(source).toContain("الأجهزة المتصلة");
+    expect(source).toContain("تحتاج متابعة");
+    expect(source).not.toContain("الإدارة المركزية عبر Evolution Admin");
+    expect(source).not.toContain("ربط المستخدمين عبر Meta Cloud API");
+    expect(source).toContain('runAction(selected, "qr")');
+    expect(source).toContain('runAction(selected, "pairing_code"');
+  });
+
+  it("does not persist QR images or pairing codes in the admin device service", () => {
+    const source = readFileSync(resolve("src/server/admin-evolution-devices.js"), "utf8");
+    expect(source).not.toMatch(/qr_code_cache\s*=\s*\$|pairing_code\s*=\s*\$/);
+    expect(source).toContain("qrBase64: null");
+  });
+});
+
+describe("EvolutionAdminAdapter pairing", () => {
+  beforeEach(() => {
+    process.env.EVOLUTION_ADMIN_API_URL = "https://evolution.test";
+    process.env.EVOLUTION_ADMIN_API_KEY = "test-key";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.EVOLUTION_ADMIN_API_URL;
+    delete process.env.EVOLUTION_ADMIN_API_KEY;
+  });
+
+  it("generates an ephemeral QR image from provider pairing text", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ qrcode: { code: "pairing-payload-that-is-long-enough-for-a-secure-qr-code-123456789" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await new EvolutionAdminAdapter().getQrCode({ instanceName: "admin_device_01" });
+    expect(result.qrCode).toMatch(/^data:image\/png;base64,/);
+    expect(result.expiresIn).toBe(60);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/instance/connect/admin_device_01"), expect.objectContaining({ headers: expect.objectContaining({ apikey: "test-key" }) }));
+  });
+
+  it("extracts a pairing code without logging or persisting it", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ pairingCode: "A8K3-7M2Q" }), { status: 200 })));
+    const result = await new EvolutionAdminAdapter().generatePairingCode({ instanceName: "admin_device_01", phoneNumber: "966512345678" });
+    expect(result).toEqual({ pairingCode: "A8K3-7M2Q", expiresIn: 60 });
+  });
+
+  it("refreshes the connection state from Evolution without generating pairing material", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ instance: { state: "open" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await new EvolutionAdminAdapter().getConnectionState({ instanceName: "admin_device_01" });
+    expect(result).toEqual({ instance: { state: "open" } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://evolution.test/instance/connectionState/admin_device_01",
+      expect.objectContaining({ headers: expect.objectContaining({ apikey: "test-key" }) })
+    );
+  });
+});

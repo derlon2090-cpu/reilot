@@ -520,29 +520,245 @@ function Notifications() {
   </>;
 }
 
-function Devices({ data, stats }) {
+const ADMIN_DEVICE_STATUS_OPTIONS = [
+  ["", "كل الحالات"], ["connected", "متصل"], ["pending", "بانتظار الاقتران"],
+  ["disconnected", "غير متصل"], ["needs_attention", "يحتاج متابعة"]
+];
+
+function relativeAdminTime(value) {
+  if (!value) return "لا توجد مزامنة";
+  const elapsed = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(elapsed) || elapsed < 0) return formatDate(value, true);
+  const minutes = Math.floor(elapsed / 60000);
+  if (minutes < 1) return "الآن";
+  if (minutes < 60) return `منذ ${ar(minutes)} دقيقة`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `منذ ${ar(hours)} ساعة`;
+  return `منذ ${ar(Math.floor(hours / 24))} يوم`;
+}
+
+async function adminDeviceRequest(url, options) {
+  const response = await fetch(url, { cache: "no-store", ...options });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(payload.message || payload.reason || "device_request_failed"), { status: response.status, reason: payload.reason });
+  return payload;
+}
+
+function AdminDeviceStatus({ device }) {
+  return <span className={`${styles.adminDeviceStatus} ${styles[`adminDeviceStatus_${device.status}`] || ""}`}><i />{device.statusLabel}</span>;
+}
+
+function Devices() {
+  const [payload, setPayload] = useState({ devices: [], stores: [], stats: { total: 0, connected: 0, attention: 0, messagesToday: 0 }, pagination: { page: 1, pageSize: 20, total: 0 } });
   const [search, setSearch] = useState("");
-  const rows = useMemo(() => (data.channels || []).filter((row) => `${row.displayName} ${row.phoneNumber} ${row.tenantName}`.toLowerCase().includes(search.toLowerCase())), [data.channels, search]);
+  const [status, setStatus] = useState("");
+  const [storeId, setStoreId] = useState("");
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [drawer, setDrawer] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [menuId, setMenuId] = useState("");
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
+  const [pairingTab, setPairingTab] = useState("qr");
+  const [pairing, setPairing] = useState({ qrCode: "", pairingCode: "", expiresAt: 0 });
+  const [pairingPhone, setPairingPhone] = useState("");
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [createStep, setCreateStep] = useState(1);
+  const [createForm, setCreateForm] = useState({ displayName: "", storeId: "", phoneNumber: "", method: "qr" });
+
+  const loadDevices = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      if (search.trim()) params.set("search", search.trim());
+      if (status) params.set("status", status);
+      if (storeId) params.set("storeId", storeId);
+      const result = await adminDeviceRequest(`/api/admin/devices?${params}`);
+      setPayload(result);
+    } catch {
+      setError("تعذر تحميل أجهزة Evolution الإدارية حاليًا.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, status, storeId]);
+
+  useEffect(() => {
+    const timer = setTimeout(loadDevices, search ? 280 : 0);
+    return () => clearTimeout(timer);
+  }, [loadDevices, search]);
+
+  useEffect(() => {
+    if (!pairing.expiresAt) return undefined;
+    const update = () => setSecondsLeft(Math.max(0, Math.ceil((pairing.expiresAt - Date.now()) / 1000)));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [pairing.expiresAt]);
+
+  async function openDetails(device) {
+    setDrawer("details");
+    setSelected(device);
+    setBusy("details");
+    try {
+      const result = await adminDeviceRequest(`/api/admin/devices/${encodeURIComponent(device.id)}`);
+      setSelected(result.device);
+    } catch {
+      setNotice("تعذر تحميل تفاصيل الجهاز.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function openPairing(device, tab = "qr") {
+    setSelected(device);
+    setPairingTab(tab);
+    setPairing({ qrCode: "", pairingCode: "", expiresAt: 0 });
+    setPairingPhone("");
+    setDrawer("pairing");
+  }
+
+  async function runAction(device, action, extra = {}) {
+    setBusy(action);
+    setNotice("");
+    try {
+      const result = await adminDeviceRequest(`/api/admin/devices/${encodeURIComponent(device.id)}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra })
+      });
+      if (action === "qr") setPairing({ qrCode: result.qrCode, pairingCode: "", expiresAt: Date.now() + Number(result.expiresIn || 60) * 1000 });
+      if (action === "pairing_code") setPairing({ qrCode: "", pairingCode: result.pairingCode, expiresAt: Date.now() + Number(result.expiresIn || 60) * 1000 });
+      if (["refresh", "reconnect", "logout"].includes(action)) {
+        setNotice(action === "refresh" ? "تم تحديث حالة الجهاز." : action === "logout" ? "تم تسجيل الخروج من الجهاز." : "بدأت إعادة اتصال الجهاز.");
+        await loadDevices();
+      }
+      return result;
+    } catch (actionError) {
+      setNotice(actionError.reason === "rate_limited" ? "تم بلوغ حد المحاولات المؤقت. حاول لاحقًا." : "تعذر تنفيذ العملية. تحقق من إعداد Evolution وحالة الاتصال.");
+      return null;
+    } finally {
+      setBusy("");
+      setMenuId("");
+    }
+  }
+
+  async function createDevice() {
+    setBusy("create");
+    setNotice("");
+    try {
+      const result = await adminDeviceRequest("/api/admin/devices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm)
+      });
+      setSelected(result.device);
+      setPairingTab(createForm.method);
+      setPairingPhone(createForm.phoneNumber);
+      setDrawer("pairing");
+      setCreateStep(1);
+      setCreateForm({ displayName: "", storeId: "", phoneNumber: "", method: "qr" });
+      await loadDevices();
+    } catch {
+      setNotice("تعذر إنشاء الجهاز. تحقق من إعداد Evolution وعدم تكرار الجلسة.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function deleteDevice(device) {
+    if (!window.confirm(`سيتم حذف الجهاز «${device.displayName}» وجلسة Evolution نهائيًا. هل تريد المتابعة؟`)) return;
+    setBusy("delete");
+    try {
+      await adminDeviceRequest(`/api/admin/devices/${encodeURIComponent(device.id)}`, { method: "DELETE" });
+      setNotice("تم حذف الجهاز والجلسة المرتبطة به.");
+      setDrawer("");
+      await loadDevices();
+    } catch {
+      setNotice("تعذر حذف الجهاز.");
+    } finally {
+      setBusy("");
+      setMenuId("");
+    }
+  }
+
+  const hasFilters = Boolean(search || status || storeId);
+  const pages = Math.max(1, Math.ceil(payload.pagination.total / payload.pagination.pageSize));
   return <>
-    <div className={styles.adminBannerGrid}>
-      <div className={`${styles.adminModeBanner} ${styles.adminModeGreen}`}><span><Glyph name="database" /></span><div><strong>الإدارة المركزية عبر Evolution Admin</strong><p>قنوات المنصة الإدارية معزولة عن قنوات المستخدمين النهائيين.</p></div></div>
-      <div className={styles.adminModeBanner}><span><Glyph name="link" /></span><div><strong>ربط المستخدمين عبر Meta Cloud API</strong><p>تتم إدارة قنوات كل مساحة عمل من لوحة المستخدم الخاصة بها.</p></div></div>
+    <div className={styles.adminDevicesToolbar}>
+      <button type="button" className={styles.adminPrimaryButton} onClick={() => { setDrawer("create"); setCreateStep(1); setNotice(""); }}><Glyph name="device" /> إضافة جهاز</button>
+      <button type="button" className={styles.adminOutlineButton} onClick={loadDevices} disabled={loading}><Glyph name="refresh" /> تحديث الحالات</button>
     </div>
-    <KpiGrid items={[
-      { label: "حالة الاتصال", value: stats.connectedChannels ? "متصل" : "لا توجد قناة", helper: "من القنوات المسجلة", icon: "chart", tone: "green" },
-      { label: "التنبيهات", value: ar(stats.risks.high + stats.risks.critical), helper: "تحتاج متابعة", icon: "bell", tone: "orange" },
-      { label: "القنوات المتصلة", value: ar(stats.connectedChannels), helper: "قناة فعالة", icon: "users", tone: "violet" },
-      { label: "الأرقام المرتبطة", value: ar((data.channels || []).filter((row) => row.phoneNumber).length), helper: "رقم محفوظ", icon: "device", tone: "green" }
-    ]} />
-    <section className={styles.adminSurface}>
-      <div className={styles.adminActionRow}><button className={styles.adminPrimaryButton}>إضافة قناة جديدة +</button></div>
-      <SearchFilters value={search} onChange={setSearch} searchPlaceholder="بحث في الأجهزة..." placeholders={["كل الحالات", "كل المتاجر"]} />
-      <SimpleTable emptyTitle="لا توجد أجهزة أو قنوات مسجلة" rows={rows} columns={[
-        { key: "displayName", label: "اسم القناة" }, { key: "phoneNumber", label: "رقم الهاتف" }, { key: "tenantName", label: "المتجر المرتبط" },
-        { key: "healthScore", label: "درجة الصحة", render: (value) => value == null ? "—" : `${value}%` },
-        { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "lastCheckAt", label: "آخر مزامنة", render: formatDate }
-      ]} />
+
+    <section className={styles.adminDeviceKpis} aria-label="مؤشرات الأجهزة">
+      <article><span><Glyph name="device" /></span><div><small>إجمالي الأجهزة</small><strong>{ar(payload.stats.total)}</strong><p>{ar(payload.stats.messagesToday)} رسالة اليوم</p></div></article>
+      <article><span className={styles.adminDeviceKpiGreen}><Glyph name="check" /></span><div><small>الأجهزة المتصلة</small><strong>{ar(payload.stats.connected)}</strong><p>جاهزة للإرسال</p></div></article>
+      <article><span className={styles.adminDeviceKpiOrange}><Glyph name="alert" /></span><div><small>تحتاج متابعة</small><strong>{ar(payload.stats.attention)}</strong><p>اقتران أو اتصال مطلوب</p></div></article>
     </section>
+
+    <section className={`${styles.adminSurface} ${styles.adminDevicesSurface}`}>
+      <div className={styles.adminDeviceFilters}>
+        <label className={styles.adminDeviceSearch}><Glyph name="chart" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="ابحث باسم الجهاز، المتجر أو رقم الهاتف..." /></label>
+        <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} aria-label="تصفية حسب الحالة">{ADMIN_DEVICE_STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <select value={storeId} onChange={(event) => { setStoreId(event.target.value); setPage(1); }} aria-label="تصفية حسب المتجر"><option value="">جميع المتاجر</option>{payload.stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select>
+        {hasFilters ? <button type="button" className={styles.adminResetButton} onClick={() => { setSearch(""); setStatus(""); setStoreId(""); setPage(1); }}><Glyph name="refresh" /> مسح الفلاتر</button> : null}
+      </div>
+      {notice ? <div className={styles.adminDeviceNotice}>{notice}</div> : null}
+      {error ? <div className={styles.adminDeviceError}>{error}</div> : null}
+      {loading ? <div className={styles.adminDeviceLoading}>جارٍ تحميل الأجهزة...</div> : !payload.devices.length ? <Empty title="لا توجد أجهزة Evolution إدارية" description="أضف جهازًا جديدًا ثم أنشئ رمز QR أو رمز اقتران عند الحاجة." /> : <div className={styles.adminDevicesTableWrap}><table><thead><tr><th>الجهاز</th><th>المتجر المرتبط</th><th>رقم واتساب</th><th>الحالة</th><th>آخر ظهور</th><th>الرسائل</th><th>الإجراءات</th></tr></thead><tbody>{payload.devices.map((device) => <tr key={device.id}>
+        <td><div className={styles.adminDeviceName}><span><Glyph name="device" /></span><div><strong>{device.displayName}</strong><small dir="ltr">{device.instanceName}</small></div></div></td>
+        <td>{device.storeName}</td><td dir="ltr">{device.phoneNumber}</td><td><AdminDeviceStatus device={device} /></td>
+        <td><strong className={styles.adminDeviceRelative}>{relativeAdminTime(device.lastSeenAt)}</strong></td>
+        <td><strong>{ar(device.metrics.sent)}</strong><small className={styles.adminDeviceCellHint}>{ar(device.metrics.today)} اليوم</small></td>
+        <td><div className={styles.adminDeviceActions}><button type="button" onClick={() => openDetails(device)}>التفاصيل</button><div><button type="button" aria-label="المزيد من الإجراءات" onClick={() => setMenuId(menuId === device.id ? "" : device.id)}>•••</button>{menuId === device.id ? <div className={styles.adminDeviceMenu}>
+          <button type="button" onClick={() => runAction(device, "refresh")}>تحديث الحالة</button>
+          <button type="button" onClick={() => runAction(device, "reconnect")}>إعادة الاتصال</button>
+          <button type="button" onClick={() => openPairing(device)}>تجديد الاقتران</button>
+          <button type="button" onClick={() => runAction(device, "logout")}>تسجيل الخروج</button>
+          <button type="button" className={styles.adminDeviceDanger} onClick={() => deleteDevice(device)}>حذف الجهاز</button>
+        </div> : null}</div></div></td>
+      </tr>)}</tbody></table></div>}
+      {payload.pagination.total > payload.pagination.pageSize ? <div className={styles.adminDevicePagination}><span>صفحة {ar(page)} من {ar(pages)}</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>السابق</button><button type="button" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>التالي</button></div></div> : null}
+    </section>
+
+    {drawer ? <div className={styles.adminDeviceDrawerOverlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setDrawer(""); }}><aside className={styles.adminDeviceDrawer} aria-label={drawer === "create" ? "إضافة جهاز" : drawer === "pairing" ? "اقتران الجهاز" : "تفاصيل الجهاز"}>
+      <header><div><span><Glyph name={drawer === "pairing" ? "link" : "device"} /></span><div><h2>{drawer === "create" ? "إضافة جهاز جديد" : drawer === "pairing" ? "ربط جهاز واتساب" : selected?.displayName}</h2><p>{drawer === "create" ? `الخطوة ${createStep} من 2` : selected?.instanceName}</p></div></div><button type="button" aria-label="إغلاق" onClick={() => setDrawer("")}>×</button></header>
+      <div className={styles.adminDeviceDrawerBody}>
+        {drawer === "create" ? <>
+          {createStep === 1 ? <div className={styles.adminDeviceForm}>
+            <label>اسم الجهاز<input value={createForm.displayName} onChange={(event) => setCreateForm((value) => ({ ...value, displayName: event.target.value }))} placeholder="مثال: جهاز الدعم الرئيسي" /></label>
+            <label>المتجر<select value={createForm.storeId} onChange={(event) => setCreateForm((value) => ({ ...value, storeId: event.target.value }))}><option value="">اختر المتجر</option>{payload.stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
+            <label>رقم واتساب (اختياري)<input dir="ltr" inputMode="tel" value={createForm.phoneNumber} onChange={(event) => setCreateForm((value) => ({ ...value, phoneNumber: event.target.value.replace(/\D/g, "") }))} placeholder="9665XXXXXXXX" /></label>
+            <button type="button" className={styles.adminPrimaryButton} disabled={!createForm.displayName.trim() || !createForm.storeId} onClick={() => setCreateStep(2)}>التالي</button>
+          </div> : <div className={styles.adminDeviceForm}>
+            <h3>اختر طريقة الربط</h3><div className={styles.adminPairingChoice}><button type="button" className={createForm.method === "qr" ? styles.adminPairingChoiceActive : ""} onClick={() => setCreateForm((value) => ({ ...value, method: "qr" }))}><Glyph name="chart" /><strong>رمز QR</strong><small>مسح الرمز من واتساب</small></button><button type="button" className={createForm.method === "code" ? styles.adminPairingChoiceActive : ""} onClick={() => setCreateForm((value) => ({ ...value, method: "code" }))}><Glyph name="link" /><strong>رمز اقتران</strong><small>ربط باستخدام رقم الهاتف</small></button></div>
+            {notice ? <div className={styles.adminDeviceError}>{notice}</div> : null}<div className={styles.adminDeviceFormActions}><button type="button" className={styles.adminOutlineButton} onClick={() => setCreateStep(1)}>السابق</button><button type="button" className={styles.adminPrimaryButton} disabled={busy === "create" || (createForm.method === "code" && !/^\d{8,15}$/.test(createForm.phoneNumber))} onClick={createDevice}>{busy === "create" ? "جارٍ الإنشاء..." : "إنشاء وبدء الربط"}</button></div>
+          </div>}
+        </> : null}
+
+        {drawer === "details" && selected ? <div className={styles.adminDeviceDetails}>
+          {busy === "details" ? <div className={styles.adminDeviceLoading}>جارٍ تحميل التفاصيل...</div> : <>
+            <section><h3>معلومات الجهاز</h3><dl><div><dt>اسم الجلسة</dt><dd dir="ltr">{selected.instanceName}</dd></div><div><dt>المتجر</dt><dd>{selected.storeName}</dd></div><div><dt>رقم واتساب</dt><dd dir="ltr">{selected.phoneNumber}</dd></div><div><dt>الحالة</dt><dd><AdminDeviceStatus device={selected} /></dd></div><div><dt>المنصة</dt><dd>{selected.platform}</dd></div><div><dt>آخر ظهور</dt><dd>{relativeAdminTime(selected.lastSeenAt)}</dd></div><div><dt>Webhook</dt><dd>{selected.webhookStatus}</dd></div><div><dt>API</dt><dd>{selected.apiStatus}</dd></div></dl></section>
+            <section><h3>الإرسال</h3><div className={styles.adminDeviceMetricGrid}><div><strong>{ar(selected.metrics?.sent)}</strong><span>إجمالي المرسل</span></div><div><strong>{ar(selected.metrics?.today)}</strong><span>اليوم</span></div><div><strong>{ar(selected.metrics?.delivered)}</strong><span>تم التسليم</span></div><div><strong>{selected.metrics?.successRate == null ? "لا توجد بيانات" : `${selected.metrics.successRate}%`}</strong><span>نسبة النجاح</span></div></div></section>
+            <section><h3>آخر النشاطات</h3>{selected.activity?.length ? <ul className={styles.adminDeviceActivity}>{selected.activity.map((item) => <li key={item.id}><span><Glyph name="check" /></span><div><strong>{item.title}</strong><small>{relativeAdminTime(item.createdAt)}</small></div></li>)}</ul> : <p className={styles.adminDeviceMuted}>لا توجد نشاطات مسجلة لهذا الجهاز.</p>}</section>
+          </>}
+        </div> : null}
+
+        {drawer === "pairing" && selected ? <div className={styles.adminPairingPanel}>
+          {selected.status === "connected" ? <div className={styles.adminDeviceConnected}><span><Glyph name="check" /></span><strong>الجهاز متصل</strong><p>لا حاجة لعرض رمز اقتران طالما أن الجلسة نشطة.</p></div> : <>
+            <div className={styles.adminPairingTabs}><button type="button" className={pairingTab === "qr" ? styles.adminPairingTabActive : ""} onClick={() => { setPairingTab("qr"); setPairing({ qrCode: "", pairingCode: "", expiresAt: 0 }); }}>رمز QR</button><button type="button" className={pairingTab === "code" ? styles.adminPairingTabActive : ""} onClick={() => { setPairingTab("code"); setPairing({ qrCode: "", pairingCode: "", expiresAt: 0 }); }}>رمز الاقتران</button></div>
+            {pairingTab === "qr" ? <div className={styles.adminQrPanel}>{pairing.qrCode && secondsLeft > 0 ? <><img src={pairing.qrCode} alt="رمز QR لربط جهاز واتساب" /><strong>ينتهي الرمز خلال {ar(secondsLeft)} ثانية</strong></> : <div className={styles.adminQrPlaceholder}><Glyph name="chart" /><strong>{pairing.qrCode ? "انتهت صلاحية الرمز" : "أنشئ رمزًا عند الاستعداد للمسح"}</strong></div>}<button type="button" className={styles.adminPrimaryButton} disabled={busy === "qr"} onClick={() => runAction(selected, "qr")}><Glyph name="refresh" /> {pairing.qrCode ? "تحديث رمز QR" : "إنشاء رمز QR"}</button></div> : <div className={styles.adminPairingCodePanel}>
+              <label>رقم واتساب بصيغة دولية<input dir="ltr" inputMode="tel" value={pairingPhone} onChange={(event) => setPairingPhone(event.target.value.replace(/\D/g, ""))} placeholder="9665XXXXXXXX" /></label>
+              {pairing.pairingCode && secondsLeft > 0 ? <div className={styles.adminPairingCode}><code dir="ltr">{pairing.pairingCode}</code><button type="button" onClick={() => navigator.clipboard.writeText(pairing.pairingCode)}>نسخ</button><small>ينتهي خلال {ar(secondsLeft)} ثانية</small></div> : null}
+              <button type="button" className={styles.adminPrimaryButton} disabled={busy === "pairing_code" || !/^\d{8,15}$/.test(pairingPhone)} onClick={() => runAction(selected, "pairing_code", { phoneNumber: pairingPhone })}><Glyph name="refresh" /> {pairing.pairingCode ? "تجديد رمز الاقتران" : "إنشاء رمز الاقتران"}</button>
+            </div>}
+            {notice ? <div className={styles.adminDeviceError}>{notice}</div> : null}
+          </>}
+        </div> : null}
+      </div>
+    </aside></div> : null}
   </>;
 }
 
