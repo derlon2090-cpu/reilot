@@ -155,6 +155,16 @@ describe("Salla automation templates", () => {
     expect(styles).toContain(".salla-template-form-card>.section-head>svg");
   });
 
+  it("keeps one save action and presents compact, readable editor controls", () => {
+    expect(appSource).toContain("تفعيل زر الإجراء");
+    expect(appSource).toContain("نص زر الإجراء");
+    expect(appSource).not.toContain('form="salla-template-editor-form"');
+    expect(appSource).toContain('<div class="salla-editor-actions"><button class="btn btn-primary" type="submit">');
+    expect(styles).toContain(".salla-channel-panel>.variables-row{margin-top:18px");
+    expect(styles).toContain(".salla-special-settings>.section-head>svg{width:24px!important;height:24px!important");
+    expect(styles).toContain(".salla-action-settings .setting-line>span{min-width:0;display:grid;gap:5px}");
+  });
+
   it("keeps the opposite channel content when the selected channel changes", () => {
     const switchedToEmail = resolveSallaChannelContent({
       channel: "email",
