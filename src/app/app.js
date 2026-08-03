@@ -673,6 +673,7 @@ const state = {
   reportPeriod: "6",
   filter: "الكل",
   search: "",
+  globalSearch: "",
   notificationDropdownOpen: false,
   notificationPreferenceSaving: "",
   notificationFilter: "all",
@@ -821,6 +822,214 @@ const dashboardAliases = {
   "/dashboard/readiness": "/dashboard/security",
   "/dashboard/issues": "/dashboard/security"
 };
+
+const dashboardQuickSearchItems = [
+  {
+    route: "/dashboard",
+    icon: "home",
+    ar: "الرئيسية",
+    en: "Dashboard",
+    descriptionAr: "نظرة عامة وإحصائيات الحساب والإجراءات السريعة",
+    descriptionEn: "Account overview, statistics and quick actions",
+    keywords: ["لوحة التحكم", "نظرة عامة", "احصائيات", "إحصائيات", "ملخص", "الرئيسيه", "home", "overview", "statistics", "stats"]
+  },
+  {
+    route: "/dashboard/subscriptions",
+    icon: "subscriptions",
+    ar: "الاشتراكات والتجديدات",
+    en: "Subscriptions & renewals",
+    descriptionAr: "إدارة الاشتراكات ومواعيد التجديد والتذكيرات",
+    descriptionEn: "Subscriptions, renewal dates and reminders",
+    keywords: ["اشتراك", "اشتراكات", "تجديد", "تجديدات", "تذكير", "تذكيرات", "الباقات", "باقة العميل", "renewal", "reminder", "plans"]
+  },
+  {
+    route: "/dashboard/customers",
+    icon: "customers",
+    ar: "العملاء",
+    en: "Customers",
+    descriptionAr: "بيانات العملاء والمشتركين وإدارة الحسابات",
+    descriptionEn: "Customer records, subscribers and accounts",
+    keywords: ["عميل", "عملاء", "مشترك", "مشتركين", "المستخدمين", "customer", "customers", "client", "clients", "subscriber"]
+  },
+  {
+    route: "/dashboard/order-links",
+    icon: "orderLink",
+    ar: "إرسال معلومات الطلب",
+    en: "Order information",
+    descriptionAr: "روابط الطلبات وصفحات عرض معلومات العميل",
+    descriptionEn: "Order links and customer order pages",
+    keywords: ["معلومات الطلب", "ارسال الطلب", "إرسال الطلب", "رابط الطلب", "روابط الطلب", "طلبات", "order information", "order link", "order links"]
+  },
+  {
+    route: "/dashboard/templates",
+    icon: "template",
+    ar: "القوالب العامة",
+    en: "General templates",
+    descriptionAr: "قوالب الرسائل والبريد وواتساب",
+    descriptionEn: "Message, email and WhatsApp templates",
+    keywords: ["قالب", "قوالب", "رسالة", "رسائل", "واتساب", "بريد", "template", "templates", "message", "email", "whatsapp"]
+  },
+  {
+    route: "/dashboard/campaigns",
+    icon: "campaigns",
+    ar: "الحملات",
+    en: "Campaigns",
+    descriptionAr: "إنشاء الحملات والإعلانات وجدولة الإرسال",
+    descriptionEn: "Create campaigns, broadcasts and schedules",
+    keywords: ["حملة", "حملات", "اعلان", "إعلان", "إعلانات", "ارسال جماعي", "إرسال جماعي", "campaign", "campaigns", "broadcast", "bulk", "marketing"]
+  },
+  {
+    route: "/dashboard/contacts",
+    icon: "contacts",
+    ar: "جهات الاتصال",
+    en: "Contacts",
+    descriptionAr: "دليل الأرقام والمجموعات وجهات الاتصال",
+    descriptionEn: "Contacts, phone book and groups",
+    keywords: ["جهة اتصال", "جهات", "اتصال", "ارقام", "أرقام", "دليل", "مجموعات", "contact", "contacts", "phone book", "groups", "audience"]
+  },
+  {
+    route: "/dashboard/devices",
+    icon: "devices",
+    ar: "الأجهزة",
+    en: "Devices",
+    descriptionAr: "ربط الأجهزة وفحص اتصال واتساب والمزامنة",
+    descriptionEn: "Linked devices, WhatsApp connection and sync",
+    keywords: ["جهاز", "اجهزة", "أجهزة", "ربط واتساب", "باركود", "رمز QR", "مزامنة", "device", "devices", "linked", "connection", "qr", "sync"]
+  },
+  {
+    route: "/dashboard/apps",
+    icon: "apps",
+    ar: "التطبيقات والتكاملات",
+    en: "Apps & integrations",
+    descriptionAr: "سلة وزد وشوبيفاي والتطبيقات المرتبطة",
+    descriptionEn: "Salla, Zid, Shopify and connected apps",
+    keywords: ["تطبيقاتنا", "تطبيق", "تكامل", "تكاملات", "سلة", "زد", "شوبيفاي", "shopify", "salla", "zid", "apps", "integrations"]
+  },
+  {
+    route: "/dashboard/apps/salla/templates",
+    icon: "template",
+    ar: "قوالب سلة",
+    en: "Salla templates",
+    descriptionAr: "قوالب حالات الطلب والشحن والتوصيل والمنتجات الرقمية",
+    descriptionEn: "Order, shipping, delivery and digital product templates",
+    keywords: ["قوالب سلة", "رسائل سلة", "منتج رقمي", "منتجات رقمية", "تم الشحن", "تم التوصيل", "طلب ملغي", "salla templates", "digital products", "shipping", "delivery"]
+  },
+  {
+    route: "/dashboard/settings/integrations/custom-api",
+    icon: "apps",
+    ar: "API و Webhook",
+    en: "API & Webhook",
+    descriptionAr: "إدارة التكامل المخصص والمفاتيح وعناوين Webhook",
+    descriptionEn: "Custom integration, API keys and webhooks",
+    keywords: ["api", "webhook", "ويب هوك", "مفتاح api", "مفتاح واجهة", "تكامل مخصص", "واجهة برمجة", "developer", "integration key"]
+  },
+  {
+    route: "/dashboard/notifications",
+    icon: "notifications",
+    ar: "الإشعارات والتنبيهات",
+    en: "Notifications & alerts",
+    descriptionAr: "الإشعارات والردود والتنبيهات داخل المنصة",
+    descriptionEn: "Platform notifications, replies and alerts",
+    keywords: ["اشعارات", "إشعارات", "تنبيهات", "تنبيه", "ردود", "الردود", "notification", "notifications", "alerts", "replies"]
+  },
+  {
+    route: "/dashboard/security",
+    icon: "security",
+    ar: "الحماية والأمان",
+    en: "Security & safety",
+    descriptionAr: "الجلسات والتحقق الثنائي وحماية الحساب",
+    descriptionEn: "Sessions, two-factor authentication and account security",
+    keywords: ["حماية", "امان", "أمان", "جلسات", "جلسة", "تحقق ثنائي", "مصادقة ثنائية", "كلمة المرور", "mfa", "2fa", "security", "sessions", "password"]
+  },
+  {
+    route: "/dashboard/reports",
+    icon: "reports",
+    ar: "التقارير والتحليلات",
+    en: "Reports & analytics",
+    descriptionAr: "تقارير الأداء والإرسال والنشاطات",
+    descriptionEn: "Performance, delivery and activity reports",
+    keywords: ["تقرير", "تقارير", "تحليل", "تحليلات", "اداء", "أداء", "سجل النشاط", "احصائيات", "reports", "analytics", "performance", "activity"]
+  },
+  {
+    route: "/dashboard/billing",
+    icon: "billing",
+    ar: "الفوترة والباقات",
+    en: "Billing & plans",
+    descriptionAr: "الخطة الحالية والترقية والدفع وحدود الاستخدام",
+    descriptionEn: "Current plan, upgrades, payments and usage limits",
+    keywords: ["فوترة", "فاتورة", "فواتير", "باقة", "باقات", "ترقية", "دفع", "رصيد", "حد الاستخدام", "billing", "plans", "upgrade", "payment", "usage"]
+  },
+  {
+    route: "/dashboard/settings",
+    icon: "settings",
+    ar: "الإعدادات",
+    en: "Settings",
+    descriptionAr: "الحساب والملف الشخصي واللغة والمظهر والتفضيلات",
+    descriptionEn: "Account, profile, language, theme and preferences",
+    keywords: ["اعدادات", "إعدادات", "حساب", "الملف الشخصي", "اسم المتجر", "لغة", "انجليزي", "إنجليزي", "مظهر", "كثافة", "settings", "account", "profile", "language", "theme", "preferences"]
+  },
+  {
+    route: "/dashboard/support",
+    icon: "support",
+    ar: "الدعم والمساعدة",
+    en: "Help & support",
+    descriptionAr: "طلبات الدعم والشكاوى والمحادثات والأسئلة",
+    descriptionEn: "Support tickets, complaints, chats and help",
+    keywords: ["دعم", "مساعدة", "تذكرة", "شكوى", "شكاوى", "مشكلة", "محادثة", "اسئلة", "أسئلة", "support", "help", "ticket", "complaint", "chat", "faq"]
+  }
+];
+
+function normalizeDashboardQuickSearch(value) {
+  return String(value || "")
+    .toLocaleLowerCase("ar")
+    .normalize("NFKD")
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[إأآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, " ")
+    .trim();
+}
+
+function dashboardQuickSearchMatches(query) {
+  const normalizedQuery = normalizeDashboardQuickSearch(query);
+  if (!normalizedQuery) return [];
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  return dashboardQuickSearchItems
+    .map((item, index) => {
+      const label = state.language === "ar" ? item.ar : item.en;
+      const normalizedLabel = normalizeDashboardQuickSearch(label);
+      const haystack = normalizeDashboardQuickSearch([item.ar, item.en, item.descriptionAr, item.descriptionEn, ...item.keywords].join(" "));
+      if (!tokens.every((token) => haystack.includes(token))) return null;
+      const score = normalizedLabel === normalizedQuery ? 0 : normalizedLabel.startsWith(normalizedQuery) ? 1 : haystack.includes(normalizedQuery) ? 2 : 3;
+      return { ...item, index, score };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .slice(0, 8);
+}
+
+function dashboardQuickSearchResultsMarkup(query) {
+  const normalizedQuery = normalizeDashboardQuickSearch(query);
+  if (!normalizedQuery) return "";
+  const matches = dashboardQuickSearchMatches(query);
+  if (!matches.length) {
+    return `<div class="dashboard-quick-search-empty" role="status">${dashboardIcon("reports")}<span><strong>${state.language === "ar" ? "لا توجد نتائج مطابقة" : "No matching results"}</strong><small>${state.language === "ar" ? "جرّب اسم القسم أو مرادفًا مثل: اشتراك، سلة، فاتورة، دعم." : "Try a section or keyword such as subscriptions, Salla, billing or support."}</small></span></div>`;
+  }
+  return matches.map((item, index) => {
+    const label = state.language === "ar" ? item.ar : item.en;
+    const description = state.language === "ar" ? item.descriptionAr : item.descriptionEn;
+    return `<button type="button" class="dashboard-quick-search-result" role="option" data-global-search-result="${index}" data-link="${escapeHtml(item.route)}">${dashboardIcon(item.icon)}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span><b aria-hidden="true">‹</b></button>`;
+  }).join("");
+}
+
+function refreshDashboardQuickSearch(input) {
+  const results = input?.closest(".dashboard-search")?.querySelector("[data-global-search-results]");
+  if (!results) return;
+  const markup = dashboardQuickSearchResultsMarkup(input.value);
+  results.innerHTML = markup;
+  results.hidden = !markup;
+  input.setAttribute("aria-expanded", markup ? "true" : "false");
+}
 
 function applyPreferences() {
   const resolvedTheme = state.theme === "system"
@@ -1093,6 +1302,7 @@ async function navigate(to, { sessionVerified = false } = {}) {
   state.sidebarOpen = false;
   state.profileOpen = false;
   state.notificationDropdownOpen = false;
+  state.globalSearch = "";
   state.search = "";
   state.filter = "الكل";
   render();
@@ -1108,6 +1318,7 @@ async function enterDashboardAfterSessionVerification() {
   state.navOpen = false;
   state.sidebarOpen = false;
   state.profileOpen = false;
+  state.globalSearch = "";
   state.search = "";
   render();
   if (state.mustChangePassword) appToast.warning("غيّر كلمة المرور المؤقتة", { description: "لحماية حسابك، يجب تعيين كلمة مرور جديدة قبل استخدام المنصة.", id: "must-change-password", persistent: true });
@@ -1923,7 +2134,7 @@ function emailOtpPage() {
   const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" pattern="[0-9٠-٩۰-۹]*" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
   return `<main class="email-otp-page" dir="rtl"><section class="email-otp-shell">
     <aside class="email-otp-visual"><div class="email-otp-brand">${stackedLogo()}</div><div class="email-otp-envelope-art" aria-hidden="true"><span class="email-otp-code-card"><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b></span><span class="email-otp-envelope"></span><span class="email-otp-art-shield">${dashboardIcon("security")}</span></div><h2>تحقق آمن · دخول موثوق.</h2><p>نرسل رمز تحقق فريدًا إلى بريدك الإلكتروني لضمان أمان حسابك وحماية بياناتك.</p><div class="email-otp-safety-card"><h3>${dashboardIcon("security")} حالة الأمان</h3><div><span>نوع التحقق</span><strong>${dashboardIcon("email")} OTP عبر البريد</strong></div><div><span>آخر طلب رمز</span><strong>${dashboardIcon("clock")} الآن</strong></div><div><span>الجهاز</span><strong>${dashboardIcon("devices")} غير موثوق بعد</strong></div></div></aside>
-    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 30 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
+    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 15 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
   </section><footer class="email-otp-footer"><span>© 2026 Renvix.</span><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">الشروط والأحكام</button><button data-link="/contact">اتصل بنا</button><span>جميع الحقوق محفوظة</span></footer></main>`;
 }
 
@@ -1932,7 +2143,7 @@ function mfaLoginPage() {
   if (statusData?.error) {
     return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق الثنائي</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></section></main>`;
   }
-  return `<main class="auth-light-page" dir="rtl"><header class="auth-light-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق ثنائي آمن</span></header><section class="reset-light-shell"><article class="card reset-light-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام. يمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual"><div class="mail-visual">${stackedLogo()}</div><h2>المصادقة الثنائية تحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي تفعيل المفتاح من الواجهة.</p></aside></section>${publicFooter()}</main>`;
+  return `<main class="auth-light-page mfa-login-page" dir="rtl"><header class="auth-light-header mfa-login-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق ثنائي آمن</span></header><section class="reset-light-shell mfa-login-shell"><article class="card reset-light-panel mfa-login-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام. يمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual"><div class="mail-visual">${stackedLogo()}</div><h2>المصادقة الثنائية تحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي تفعيل المفتاح من الواجهة.</p></aside></section>${publicFooter()}</main>`;
 }
 
 async function loadMfaLoginStatus(force = false) {
@@ -2160,7 +2371,7 @@ function dashboardShell(content) {
       <header class="topbar">
         <div class="topbar-tools">
           <button class="btn btn-secondary icon-btn mobile-side-toggle" data-action="toggle-sidebar">☰</button>
-          <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${state.search}"></div>
+          <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="dashboard-quick-search-results" aria-expanded="${state.globalSearch ? "true" : "false"}" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${escapeHtml(state.globalSearch)}"><div id="dashboard-quick-search-results" class="dashboard-quick-search-results" role="listbox" data-global-search-results ${state.globalSearch ? "" : "hidden"}>${dashboardQuickSearchResultsMarkup(state.globalSearch)}</div></div>
         </div>
         <div class="topbar-tools topbar-account-tools">
           <button class="profile-trigger compact-profile-trigger" data-action="profile-menu">${profileAvatar}<span>${profileLabel}</span><span class="profile-caret">⌄</span></button>
@@ -8020,6 +8231,11 @@ function bindQrImageState() {
 }
 
 document.addEventListener("click", (event) => {
+  if (!event.target.closest(".dashboard-search")) {
+    const quickSearchResults = document.querySelector("[data-global-search-results]");
+    if (quickSearchResults) quickSearchResults.hidden = true;
+    document.querySelector('[data-action="global-search"]')?.setAttribute("aria-expanded", "false");
+  }
   const link = event.target.closest("[data-link]");
   if (link) {
     event.preventDefault();
@@ -8040,6 +8256,30 @@ document.addEventListener("submit", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && portal.innerHTML) closePortal();
+  const globalSearch = event.target.closest?.('[data-action="global-search"]');
+  if (globalSearch) {
+    const matches = dashboardQuickSearchMatches(globalSearch.value);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      state.globalSearch = "";
+      globalSearch.value = "";
+      refreshDashboardQuickSearch(globalSearch);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      const firstResult = globalSearch.closest(".dashboard-search")?.querySelector("[data-global-search-result]");
+      if (firstResult) {
+        event.preventDefault();
+        firstResult.focus();
+      }
+      return;
+    }
+    if (event.key === "Enter" && matches[0]) {
+      event.preventDefault();
+      void navigate(matches[0].route);
+      return;
+    }
+  }
   const target = event.target.closest?.("[data-otp-digit]");
   if (!target) return;
   const index = Number(target.dataset.otpDigit);
@@ -8146,12 +8386,17 @@ document.addEventListener("input", (event) => {
     if (drafts[index]) drafts[index][target.dataset.sallaRuleField] = target.dataset.sallaRuleField === "durationDays" ? Number(target.value) : target.value;
     state.sallaRuleDrafts = drafts;
   }
-  if (target.dataset.action === "dashboard-search" || target.dataset.action === "global-search" || target.dataset.action === "support-search" || target.dataset.action === "notification-search") {
+  if (target.dataset.action === "global-search") {
+    state.globalSearch = target.value;
+    refreshDashboardQuickSearch(target);
+    return;
+  }
+  if (target.dataset.action === "dashboard-search" || target.dataset.action === "support-search" || target.dataset.action === "notification-search") {
     state.search = target.value;
     if (state.route === "/dashboard/subscriptions" && target.dataset.action === "dashboard-search") {
       clearTimeout(state.subscriptionSearchTimer);
       state.subscriptionSearchTimer = setTimeout(() => { state.subscriptionPage=1; state.dbSubscriptions=null; syncRouteData(true); render(); }, 350);
-    } else if (target.dataset.action !== "global-search") render();
+    } else render();
   }
   if (target.dataset.action === "pairing-phone-input") {
     state.linkedDevice.phoneInput = target.value;
@@ -8180,6 +8425,11 @@ document.addEventListener("input", (event) => {
     state.orderLinkDraft.additionalNotes[Number(target.dataset.orderNote)] = target.value;
     refreshOrderLinkPreview();
   }
+});
+
+document.addEventListener("focusin", (event) => {
+  const globalSearch = event.target.closest?.('[data-action="global-search"]');
+  if (globalSearch) refreshDashboardQuickSearch(globalSearch);
 });
 
 document.addEventListener("change", (event) => {

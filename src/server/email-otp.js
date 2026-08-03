@@ -8,7 +8,7 @@ export const EMAIL_OTP_CHALLENGE_COOKIE = "renvix_email_otp_challenge";
 export const TRUSTED_DEVICE_COOKIE = "renvix_trusted_device";
 export const EMAIL_OTP_TTL_SECONDS = 5 * 60;
 export const EMAIL_OTP_RESEND_SECONDS = 60;
-export const TRUSTED_DEVICE_AGE_SECONDS = 30 * 24 * 60 * 60;
+export const TRUSTED_DEVICE_AGE_SECONDS = 15 * 24 * 60 * 60;
 
 function otpPepper() {
   const value = process.env.EMAIL_OTP_PEPPER;
@@ -355,7 +355,7 @@ export async function verifyEmailOtp({
       await client.query(
         `INSERT INTO auth_trusted_devices
            (user_id, tenant_id, token_digest, label, user_agent_hash, ip_hash, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now() + interval '30 days')`,
+         VALUES ($1, $2, $3, $4, $5, $6, now() + interval '15 days')`,
         [row.user_id, row.tenant_id, sha256(trustedToken), String(userAgent || "Trusted device").slice(0, 120),
           userAgent ? sha256(userAgent) : null, ipAddress ? sha256(ipAddress) : null]
       );

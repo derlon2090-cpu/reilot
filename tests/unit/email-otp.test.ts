@@ -37,4 +37,16 @@ describe("email OTP security helpers", () => {
     expect(source).toContain("FOR UPDATE OF c");
     expect(source).not.toMatch(/LEFT JOIN tenant_members[\s\S]*?WHERE c\.id = \$1 FOR UPDATE`/);
   });
+
+  it("trusts a remembered device for exactly fifteen days", async () => {
+    const { TRUSTED_DEVICE_AGE_SECONDS, trustedDeviceCookie } = await import("../../src/server/email-otp.js");
+    const source = await readFile(new URL("../../src/server/email-otp.js", import.meta.url), "utf8");
+    const appSource = await readFile(new URL("../../src/app/app.js", import.meta.url), "utf8");
+    expect(TRUSTED_DEVICE_AGE_SECONDS).toBe(15 * 24 * 60 * 60);
+    expect(trustedDeviceCookie("trusted-token")).toContain(`Max-Age=${15 * 24 * 60 * 60}`);
+    expect(source).toContain("now() + interval '15 days'");
+    expect(source).not.toContain("now() + interval '30 days'");
+    expect(appSource).toContain("تذكّر هذا الجهاز لمدة 15 يومًا");
+    expect(appSource).not.toContain("تذكّر هذا الجهاز لمدة 30 يومًا");
+  });
 });

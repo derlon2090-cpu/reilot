@@ -775,6 +775,14 @@ tbody tr:hover { background: #fbfeff; }
 :root[data-theme="dark"] .drawer,
 :root[data-theme="dark"] .menu-pop { background: rgba(12,24,40,.94); }
 :root[data-theme="dark"] .topbar { background: rgba(7,17,31,.86); }
+:root[data-theme="dark"] .dashboard-quick-search-results { border-color: var(--border); background: rgba(11, 23, 40, .98); box-shadow: 0 20px 48px rgba(0, 0, 0, .34); }
+:root[data-theme="dark"] .dashboard-quick-search-result { color: var(--text); }
+:root[data-theme="dark"] .dashboard-quick-search-result + .dashboard-quick-search-result { border-block-start-color: var(--border); }
+:root[data-theme="dark"] .dashboard-quick-search-result:hover,
+:root[data-theme="dark"] .dashboard-quick-search-result:focus-visible { color: #7cb4ff; background: #112743; }
+:root[data-theme="dark"] .dashboard-quick-search-result > .line-icon { color: #7cb4ff; background: #142d4b; }
+:root[data-theme="dark"] .dashboard-quick-search-result small,
+:root[data-theme="dark"] .dashboard-quick-search-empty small { color: var(--text-muted); }
 :root[data-theme="dark"] .input,
 :root[data-theme="dark"] .select,
 :root[data-theme="dark"] .textarea,
@@ -1427,6 +1435,60 @@ html:has(.security-dashboard-page)::-webkit-scrollbar-thumb:active { background:
 .topbar .dashboard-search { width: min(560px, 43vw); }
 .topbar .input { min-height: 48px; border-radius: 8px; border-color: #dfe5ee; background: #fff; }
 .topbar .search-icon { color: #7890b3; }
+.dashboard-quick-search-results {
+  position: absolute;
+  inset-block-start: calc(100% + 9px);
+  inset-inline: 0;
+  z-index: 40;
+  max-height: min(480px, calc(100vh - 130px));
+  overflow-y: auto;
+  padding: 7px;
+  border: 1px solid #dce6f2;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 20px 48px rgba(31, 55, 88, .16), 0 4px 12px rgba(31, 55, 88, .06);
+  backdrop-filter: blur(18px);
+}
+.dashboard-quick-search-results[hidden] { display: none; }
+.dashboard-quick-search-result {
+  width: 100%;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  color: #17345d;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease, transform .16s ease;
+}
+.dashboard-quick-search-result + .dashboard-quick-search-result { border-block-start: 1px solid #edf2f8; border-start-start-radius: 0; border-start-end-radius: 0; }
+.dashboard-quick-search-result:hover,
+.dashboard-quick-search-result:focus-visible { color: #1769ff; background: #f1f6ff; outline: none; }
+.dashboard-quick-search-result > .line-icon {
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  border-radius: 10px;
+  color: #1769ff;
+  background: #edf4ff;
+}
+.dashboard-quick-search-result > span { min-width: 0; display: grid; gap: 3px; }
+.dashboard-quick-search-result strong,
+.dashboard-quick-search-result small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-quick-search-result strong { font-size: .88rem; }
+.dashboard-quick-search-result small { color: #7285a0; font-size: .72rem; font-weight: 500; }
+.dashboard-quick-search-result > b { color: #8da0ba; font-size: 1.15rem; transform: scaleX(-1); }
+[dir="ltr"] .dashboard-quick-search-result > b { transform: none; }
+.dashboard-quick-search-empty { min-height: 88px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px; color: #526b8e; text-align: start; }
+.dashboard-quick-search-empty > .line-icon { width: 32px; height: 32px; padding: 7px; border-radius: 9px; color: #7191ba; background: #f1f5fa; }
+.dashboard-quick-search-empty span { display: grid; gap: 4px; }
+.dashboard-quick-search-empty small { color: #8191a7; font-size: .72rem; line-height: 1.5; }
 .topbar .icon-btn { width: 42px; min-width: 42px; height: 42px; color: #47658f; }
 .topbar .icon-btn .line-icon { width: 20px; height: 20px; }
 .plan-badge { min-height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 8px; color: #0a8195; background: #eaf9fb; font-size: 12px; font-weight: 800; white-space: nowrap; }
@@ -3239,6 +3301,57 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   .blog-aside { grid-template-columns: 1fr 1fr; }
   .support-heading { text-align: center; }
   .support-heading .container { padding-right: 0; }
+}
+
+/* The MFA challenge keeps both cards balanced on iPad without affecting desktop. */
+.mfa-login-page { min-height: 100dvh; overflow-x: clip; }
+.mfa-login-shell > * { min-width: 0; }
+.mfa-login-panel,
+.mfa-login-visual { min-height: 100%; }
+.mfa-login-panel h1 { text-wrap: balance; }
+.mfa-login-panel .auth-form { width: 100%; }
+
+@media (min-width: 941px) and (max-width: 1366px) and (pointer: coarse) {
+  .mfa-login-header {
+    min-height: 74px;
+    padding-block: max(8px, env(safe-area-inset-top)) 8px;
+    box-sizing: border-box;
+  }
+  .mfa-login-header .brand-logo-image { width: 158px; max-height: 50px; object-fit: contain; }
+  .mfa-login-shell {
+    width: min(1120px, calc(100% - 40px));
+    min-height: calc(100dvh - 204px);
+    margin: 24px auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .mfa-login-panel,
+  .mfa-login-visual { padding: clamp(28px, 3.1vw, 38px); }
+  .mfa-login-panel .reset-lock { width: 76px; height: 76px; margin-bottom: 17px; }
+  .mfa-login-panel .reset-lock .line-icon { width: 32px; height: 32px; }
+  .mfa-login-panel h1 { margin-bottom: 7px; font-size: clamp(27px, 2.7vw, 32px); line-height: 1.35; }
+  .mfa-login-panel > p { font-size: 14px; line-height: 1.85; }
+  .mfa-login-panel form { margin: 18px 0; gap: 11px; }
+  .mfa-login-panel .input,
+  .mfa-login-panel .btn { min-height: 48px; }
+  .mfa-login-visual .mail-visual { width: 240px; height: 178px; margin-bottom: 18px; }
+  .mfa-login-visual .mail-visual img { width: 172px; max-height: 92px; object-fit: contain; }
+  .mfa-login-visual h2 { margin: 8px 0; font-size: 25px; }
+  .mfa-login-visual > p { max-width: 430px; margin: 0; font-size: 14px; line-height: 1.85; }
+  .mfa-login-page .public-footer { min-height: 64px; }
+  .mfa-login-page .public-footer-inner { min-height: 64px; }
+}
+
+@media (min-width: 641px) and (max-width: 940px) and (pointer: coarse) {
+  .mfa-login-header { min-height: 72px; padding-block: max(7px, env(safe-area-inset-top)) 7px; box-sizing: border-box; }
+  .mfa-login-header .brand-logo-image { width: 150px; max-height: 48px; object-fit: contain; }
+  .mfa-login-shell { width: min(720px, calc(100% - 32px)); min-height: 0; margin: 20px auto; overflow: hidden; }
+  .mfa-login-panel,
+  .mfa-login-visual { min-height: auto; padding: 30px; }
+  .mfa-login-panel .reset-lock { width: 72px; height: 72px; margin-bottom: 16px; }
+  .mfa-login-panel h1 { font-size: 29px; line-height: 1.4; }
+  .mfa-login-visual .mail-visual { width: 220px; height: 165px; margin-bottom: 15px; }
+  .mfa-login-visual .mail-visual img { width: 160px; max-height: 86px; object-fit: contain; }
 }
 
 @media (max-width: 1180px) {

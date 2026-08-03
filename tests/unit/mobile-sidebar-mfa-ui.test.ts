@@ -43,4 +43,15 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('fetch("/api/auth/mfa/verify"');
     expect(appSource).toContain("payload?.requiresMfa === true");
   });
+
+  it("keeps the MFA challenge balanced at iPad landscape and portrait sizes", () => {
+    expect(appSource).toContain('class="auth-light-page mfa-login-page"');
+    expect(appSource).toContain('class="reset-light-shell mfa-login-shell"');
+    expect(appSource).toContain('class="card reset-light-panel mfa-login-panel"');
+    expect(appSource).toContain('class="card reset-light-visual mfa-login-visual"');
+    expect(stylesSource).toContain("@media (min-width: 941px) and (max-width: 1366px) and (pointer: coarse)");
+    expect(stylesSource).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
+    expect(stylesSource).toContain("min-height: calc(100dvh - 204px);");
+    expect(stylesSource).toContain("@media (min-width: 641px) and (max-width: 940px) and (pointer: coarse)");
+  });
 });
