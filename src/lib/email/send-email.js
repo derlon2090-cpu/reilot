@@ -1,4 +1,4 @@
-import { createResendClient, getEmailConfig } from "./resend.js";
+import { createResendClient, resolveVerifiedEmailConfig } from "./resend.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -10,7 +10,7 @@ export async function sendEmail({ to, subject, html, text, tags = [] }) {
     throw new Error("Email HTML and text bodies are required");
   }
 
-  const { from, supportEmail } = getEmailConfig();
+  const { from, supportEmail } = await resolveVerifiedEmailConfig();
   const resend = createResendClient();
   const result = await resend.emails.send({
     from,
@@ -22,6 +22,11 @@ export async function sendEmail({ to, subject, html, text, tags = [] }) {
     tags: Array.isArray(tags) ? tags.slice(0, 10) : []
   });
 
-  if (result.error) throw new Error(result.error.message || "Email delivery failed");
+  if (result.error) {
+    const error = new Error(result.error.message || "Email delivery failed");
+    error.code = "EMAIL_DELIVERY_UNAVAILABLE";
+    error.providerCode = result.error.name || result.error.statusCode || null;
+    throw error;
+  }
   return result.data;
 }

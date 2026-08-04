@@ -12,6 +12,9 @@ export function classifyAuthFailure(error) {
   }
   if (stage === "session_creation") return { reason: "auth_session_error", status: 503, stage, code };
   if (code === "AUTH_CONFIGURATION_ERROR") return { reason: "auth_configuration_error", status: 503, stage, code };
+  if (["EMAIL_DELIVERY_UNAVAILABLE", "EMAIL_PROVIDER_ERROR", "EMAIL_CONFIGURATION_ERROR"].includes(code)) {
+    return { reason: "email_otp_unavailable", status: 503, stage, code };
+  }
   return { reason: "server_error", status: 500, stage, code };
 }
 

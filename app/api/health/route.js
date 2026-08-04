@@ -2,6 +2,7 @@ import { databaseHealth } from "../../../src/server/db.js";
 import { evolutionHealth } from "../../../src/server/evolution-client.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
 import { authSchemaHealth } from "../../../src/server/auth-schema-readiness.js";
+import { resendProviderHealth } from "../../../src/lib/email/resend.js";
 
 export async function GET() {
   const policy = {
@@ -28,7 +29,7 @@ export async function GET() {
     resend: {
       configured: resendReady,
       required: emailOtpRequired,
-      ok: !emailOtpRequired || resendReady,
+      ok: false,
       fromConfigured: true
     },
     emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
@@ -41,6 +42,10 @@ export async function GET() {
     checks.database = { ok: false, error: safeErrorMessage(error) };
     checks.authSchema = { ok: false, error: safeErrorMessage(error) };
   }
+  if (resendReady) {
+    checks.resend = { ...checks.resend, ...(await resendProviderHealth()) };
+  }
+  checks.emailOtp.ok = !emailOtpRequired || (checks.resend.ok && otpPepperReady);
   if (checks.evolution.configured) {
     try {
       checks.evolution = { configured: true, ...(await evolutionHealth()) };

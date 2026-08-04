@@ -4,6 +4,9 @@ import { sessionCookie } from "../../../../src/server/session.js";
 import { challengeCookie } from "../../../../src/server/email-otp-v2.js";
 
 function registrationFailure(error) {
+  if (["EMAIL_DELIVERY_UNAVAILABLE", "EMAIL_PROVIDER_ERROR", "EMAIL_CONFIGURATION_ERROR"].includes(error?.code)) {
+    return { reason: "email_otp_unavailable", status: 503 };
+  }
   if (error?.code === "23505") return { reason: "email_exists", status: 409 };
   if (["42P01", "42703"].includes(error?.code)) return { reason: "database_schema_missing", status: 503 };
   if (["08000", "08001", "08003", "08004", "08006", "08007", "08P01", "28P01", "3D000"].includes(error?.code)) {

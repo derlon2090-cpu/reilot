@@ -7494,12 +7494,14 @@ async function handleSubmit(form, event) {
           email_exists: "البريد الإلكتروني مستخدم مسبقًا.",
           invalid_email: "صيغة البريد الإلكتروني غير صحيحة.",
           weak_password: "كلمة المرور لا تحقق شروط الأمان.",
+          email_otp_unavailable: "تعذر إرسال رمز التحقق إلى بريدك حاليًا. يجري فحص خدمة البريد؛ حاول بعد قليل.",
           database_unavailable: "تعذر الاتصال بقاعدة البيانات، حاول لاحقًا.",
           database_schema_missing: "تعذر إنشاء مساحة العمل، حاول لاحقًا."
         } : {
           email_exists: "This email is already in use.",
           invalid_email: "The email address is invalid.",
           weak_password: "The password does not meet the security requirements.",
+          email_otp_unavailable: "The verification email could not be sent right now. Please try again shortly.",
           database_unavailable: "The database is currently unavailable. Please try again later.",
           database_schema_missing: "The workspace could not be created. Please try again later."
         };
