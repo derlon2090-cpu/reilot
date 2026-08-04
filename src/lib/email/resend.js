@@ -7,7 +7,7 @@ const CONSUMER_EMAIL_DOMAINS = new Set([
   "yahoo.com"
 ]);
 
-export const RENVIX_FROM_EMAIL = "Renvix <noreply@notify.renvix.app>";
+export const RENVIX_FROM_EMAIL = "Renvix <noreply@renvix.app>";
 export const RENVIX_REPLY_TO_EMAIL = "support@renvix.app";
 const RENVIX_EMAIL_ROOT_DOMAIN = "renvix.app";
 const DOMAIN_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -32,6 +32,10 @@ function configuredFromAddress() {
     error.code = "EMAIL_CONFIGURATION_ERROR";
     throw error;
   }
+  // `notify.renvix.app` was used by the old example before that subdomain
+  // existed in DNS. Keep deployments carrying the legacy value operational
+  // by moving only that exact identity to the configured root-domain sender.
+  if (extractAddress(configured).endsWith("@notify.renvix.app")) return RENVIX_FROM_EMAIL;
   return configured;
 }
 
@@ -134,6 +138,15 @@ export async function resendProviderHealth({ force = false } = {}) {
       verifiedRenvixDomainAvailable: verified.length > 0
     };
   } catch (error) {
+    if (error?.providerCode === "restricted_api_key" || /permission|restricted/i.test(error?.message || "")) {
+      return {
+        ok: true,
+        providerReachable: true,
+        senderDomain: configuredDomain,
+        senderDomainStatus: "inspection_restricted",
+        verifiedRenvixDomainAvailable: null
+      };
+    }
     return {
       ok: false,
       providerReachable: false,

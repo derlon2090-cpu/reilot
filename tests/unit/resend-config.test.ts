@@ -33,6 +33,13 @@ describe("Resend sender configuration", () => {
     expect(getEmailConfig().from).toBe("Renvix Login <otp@renvix.app>");
   });
 
+  it("replaces the legacy non-existent notify sender with the root identity", () => {
+    process.env.EMAIL_PROVIDER = "resend";
+    process.env.RESEND_API_KEY = "re_test_only";
+    process.env.RESEND_FROM_EMAIL = "Renvix <noreply@notify.renvix.app>";
+    expect(getEmailConfig().from).toBe("Renvix <noreply@renvix.app>");
+  });
+
   it("rejects a configured sender outside the Renvix domain", () => {
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "re_test_only";
