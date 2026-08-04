@@ -4,6 +4,7 @@ import { normalizeOptionalEmail, validateOptionalEmail } from "../lib/customerVa
 import { calculateSmartDelaySeconds, riskDisposition, scheduleDelivery } from "../lib/deliveryScheduling.js";
 import { PLAN_MESSAGE_LIMIT_REACHED, reserveMessageQuotaWithClient } from "../lib/billing/message-quota.js";
 import { query, transaction } from "./db.js";
+import { evolutionDelayedSchedule, validateEvolutionMessage } from "./evolution-sending-policy.js";
 
 function digest(parts) {
   return crypto.createHash("sha256").update(parts.map((part) => String(part ?? "")).join("|")).digest("hex");
@@ -75,43 +76,82 @@ export async function enqueueMessage({
   try {
     return await transaction(async (client) => {
     const context = await client.query(
-      `SELECT ss.*, wc.status AS channel_status, wc.risk_score, wc.health_score, wc.connected_at,
-              wc.sending_paused_until, wc.auto_sending_enabled
+      `SELECT ss.*, wc.provider AS channel_provider, wc.status AS channel_status, wc.risk_score, wc.health_score, wc.connected_at,
+              wc.sending_paused_until, wc.auto_sending_enabled,
+              esp.enabled AS evolution_policy_enabled,esp.base_delay_seconds AS evolution_base_delay_seconds,
+              esp.jitter_min_seconds AS evolution_jitter_min_seconds,esp.jitter_max_seconds AS evolution_jitter_max_seconds,
+              esp.hourly_limit AS evolution_hourly_limit,esp.daily_limit AS evolution_daily_limit,
+              esp.duplicate_window_seconds AS evolution_duplicate_window_seconds,
+              esp.block_unsafe_links AS evolution_block_unsafe_links,esp.validate_templates AS evolution_validate_templates
          FROM (SELECT $1::uuid AS tenant_id) tenant
          LEFT JOIN sending_schedule_settings ss ON ss.tenant_id = tenant.tenant_id
-         LEFT JOIN whatsapp_channels wc ON wc.id = $2 AND wc.tenant_id = tenant.tenant_id`,
+         LEFT JOIN whatsapp_channels wc ON wc.id = $2 AND wc.tenant_id = tenant.tenant_id
+         LEFT JOIN evolution_sending_policies esp ON esp.evolution_device_id=wc.id`,
       [tenantId, whatsappChannelId]
     );
     const row = context.rows[0] || {};
+    const isEvolutionAdmin = channelType === "whatsapp" && ["evolution", "evolution_admin"].includes(row.channel_provider);
     if (channelType === "whatsapp") {
       if (!whatsappChannelId) return { ok: false, reason: "whatsapp_not_connected" };
       if (enforceConnected && row.channel_status !== "connected") return { ok: false, reason: "whatsapp_not_connected" };
-      if (sourceMode !== "manual" && row.auto_sending_enabled === false) return { ok: false, reason: "automatic_sending_paused" };
-      if (row.sending_paused_until && new Date(row.sending_paused_until) > new Date()) {
-        return { ok: false, reason: "sending_temporarily_paused", retryAt: row.sending_paused_until };
+      if (isEvolutionAdmin) {
+        if (sourceMode !== "manual" && row.auto_sending_enabled === false) return { ok: false, reason: "automatic_sending_paused" };
+        if (row.sending_paused_until && new Date(row.sending_paused_until) > new Date()) {
+          return { ok: false, reason: "sending_temporarily_paused", retryAt: row.sending_paused_until };
+        }
+        const disposition = riskDisposition(row.risk_score);
+        if (disposition.action === "hold") return { ok: false, reason: "critical_risk" };
+        if (row.evolution_policy_enabled !== true) return { ok: false, reason: "evolution_policy_disabled" };
+        const validation = validateEvolutionMessage({
+          destination: normalizedDestination,
+          messageBody,
+          policy: { blockUnsafeLinks: row.evolution_block_unsafe_links, validateTemplates: row.evolution_validate_templates }
+        });
+        if (!validation.ok) return validation;
+        const counts = await client.query(
+          `SELECT count(*) FILTER (WHERE created_at>now()-interval '1 hour')::int AS hourly,
+                  count(*) FILTER (WHERE created_at>now()-interval '1 day')::int AS daily
+             FROM message_queue
+            WHERE whatsapp_channel_id=$1 AND status IN ('pending','processing','sent')`,
+          [whatsappChannelId]
+        );
+        if (Number(counts.rows[0]?.hourly || 0) >= Number(row.evolution_hourly_limit || 20)) return { ok: false, reason: "evolution_hourly_limit" };
+        if (Number(counts.rows[0]?.daily || 0) >= Number(row.evolution_daily_limit || 100)) return { ok: false, reason: "evolution_daily_limit" };
       }
-      const disposition = riskDisposition(row.risk_score);
-      if (disposition.action === "hold") return { ok: false, reason: "critical_risk" };
     }
     const settings = scheduleSettings(row);
-    const delay = calculateSmartDelaySeconds({
-      channelType,
-      sourceMode,
-      messageType,
-      riskScore: row.risk_score,
-      healthScore: row.health_score,
-      connectedAt: row.connected_at,
-      settings
-    });
-    const scheduledFor = scheduleDelivery({ channelType, delaySeconds: delay.delaySeconds, settings });
+    const isMetaOfficial = channelType === "whatsapp" && ["meta", "meta_cloud", "meta_cloud_api"].includes(row.channel_provider);
+    const evolutionSchedule = isEvolutionAdmin ? evolutionDelayedSchedule({
+      baseDelaySeconds: row.evolution_base_delay_seconds,
+      jitterMinSeconds: row.evolution_jitter_min_seconds,
+      jitterMaxSeconds: row.evolution_jitter_max_seconds
+    }) : null;
+    const delay = isMetaOfficial
+      ? { delaySeconds: 0, delayReason: "meta_provider_queue" }
+      : isEvolutionAdmin
+        ? { delaySeconds: evolutionSchedule.delaySeconds, delayReason: "evolution_device_policy" }
+      : calculateSmartDelaySeconds({
+        channelType,
+        sourceMode,
+        messageType,
+        riskScore: row.risk_score,
+        healthScore: row.health_score,
+        connectedAt: row.connected_at,
+        settings
+      });
+    const scheduledFor = isMetaOfficial
+      ? new Date()
+      : isEvolutionAdmin
+        ? evolutionSchedule.scheduledFor
+      : scheduleDelivery({ channelType, delaySeconds: delay.delaySeconds, settings });
     const dedupeHash = digest([tenantId, channelType, messageType, normalizedDestination, referenceType, referenceId, messageBody]);
     const duplicate = await client.query(
       `SELECT id FROM message_queue
         WHERE tenant_id = $1 AND dedupe_hash = $2
           AND status IN ('pending', 'processing', 'sent')
-          AND created_at > now() - interval '24 hours'
+          AND created_at > now() - make_interval(secs => $3::int)
         LIMIT 1`,
-      [tenantId, dedupeHash]
+      [tenantId, dedupeHash, isEvolutionAdmin ? Number(row.evolution_duplicate_window_seconds || 86400) : 86400]
     );
     if (duplicate.rows[0]) return { ok: false, reason: "duplicate_message", queueId: duplicate.rows[0].id };
     const quota = await reserveMessageQuotaWithClient(client, {

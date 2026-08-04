@@ -1,50 +1,50 @@
 import { expect, test } from "@playwright/test";
-import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
-import { stageArtifactPath } from "./helpers/stage-output";
 
-test.skip(!hasLiveCredentials || process.env.E2E_LIVE_WHATSAPP !== "1", "requires live Evolution API verification");
+test("user devices expose official Meta state without Evolution QR or pairing controls", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: { ok: true, user: { id: "user-1", role: "owner", mustChangePassword: false } } }));
+  await page.route("**/api/dashboard/overview", (route) => route.fulfill({ json: { ok: true, stats: {}, profile: {} } }));
+  await page.route("**/api/billing/message-usage", (route) => route.fulfill({ json: { ok: true, used: 0, limit: 100 } }));
+  await page.route("**/api/notifications**", (route) => route.fulfill({ json: { ok: true, items: [], unreadCount: 0 } }));
+  await page.route("**/api/whatsapp/health", (route) => route.fulfill({ json: { ok: true, connected: true, health: { status: "good" } } }));
+  await page.route("**/api/whatsapp/instances/create", (route) => route.fulfill({
+    json: {
+      ok: true,
+      instance: {
+        id: "meta-1",
+        provider: "meta_cloud_api",
+        deviceName: "حساب Meta الرسمي",
+        displayName: "Renvix Store",
+        phoneNumber: "966500000001",
+        status: "connected",
+        isPrimary: true,
+        devices: [{
+          id: "meta-1",
+          provider: "meta_cloud_api",
+          deviceName: "حساب Meta الرسمي",
+          displayName: "Renvix Store",
+          phoneNumber: "966500000001",
+          status: "connected",
+          isPrimary: true
+        }]
+      }
+    }
+  }));
 
-test("@critical linked devices renders a real QR and a real pairing result or explicit error", async ({ page }) => {
-  await loginWithLiveCredentials(page);
-  await page.goto("/dashboard/linked-devices");
-  await expect(page.locator("[data-action='device-link-method'][data-method='qr']")).toBeVisible();
-  await expect(page.locator(".qr-real")).toHaveCount(0);
-  await expect(page.getByText("الباركود جاهز للمسح")).toHaveCount(0);
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".marketing-copy")).toBeVisible({ timeout: 30_000 });
+  await page.evaluate(() => {
+    const link = document.createElement("button");
+    link.dataset.link = "/dashboard/devices";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  });
 
-  const createResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/whatsapp/instances/create") && response.request().method() === "POST");
-  const qrResponsePromise = page.waitForResponse((response) => /\/api\/whatsapp\/instances\/[^/]+\/qr$/.test(new URL(response.url()).pathname));
-  await page.locator("[data-action='create-device-qr']").first().click();
-  const createResponse = await createResponsePromise;
-  const qrResponse = await qrResponsePromise;
-  expect(createResponse.status()).toBeLessThan(300);
-  expect(qrResponse.status()).toBe(200);
-
-  const createPayload = await createResponse.json();
-  const qrPayload = await qrResponse.json();
-  expect(qrPayload.qrBase64).toMatch(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/);
-  const qrImage = page.locator(".qr-real").first();
-  await expect(qrImage).toBeVisible();
-  expect(await qrImage.evaluate((image: HTMLImageElement) => image.naturalWidth > 0 && image.naturalHeight > 0)).toBe(true);
-  await expect(page.getByText("الباركود جاهز للمسح")).toBeVisible();
-  await page.screenshot({ path: stageArtifactPath("critical-whatsapp-qr.png"), fullPage: true });
-
-  await page.locator("[data-action='device-link-method'][data-method='pairing']").click();
-  await page.locator("[data-action='pairing-phone-input']").fill("966 556 915 980");
-  const pairingResponsePromise = page.waitForResponse((response) => /\/api\/whatsapp\/instances\/[^/]+\/pairing-code$/.test(new URL(response.url()).pathname));
-  await page.locator("[data-action='create-pairing-code']").click();
-  const pairingResponse = await pairingResponsePromise;
-  const pairingPayload = await pairingResponse.json();
-
-  if (pairingResponse.ok()) {
-    expect(pairingPayload.pairingCode).toBeTruthy();
-    await expect(page.getByText(pairingPayload.pairingCode, { exact: true })).toBeVisible();
-  } else {
-    expect([501, 502]).toContain(pairingResponse.status());
-    await expect(page.locator("[data-pairing-error]")).toBeVisible();
-    await expect(page.locator("[data-pairing-error]")).not.toHaveText("");
-  }
-  await page.screenshot({ path: stageArtifactPath("critical-pairing-result.png"), fullPage: true });
-
-  const instanceId = createPayload.instance?.id;
-  if (instanceId) await page.request.delete(`/api/whatsapp/instances/${instanceId}`);
+  await expect(page.getByRole("heading", { name: "الأجهزة", exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-action='create-device-qr']")).toHaveCount(0);
+  await expect(page.locator("[data-action='device-link-method'][data-method='qr']")).toHaveCount(0);
+  await expect(page.locator("[data-action='device-link-method'][data-method='pairing']")).toHaveCount(0);
+  await expect(page.locator("[data-action='create-pairing-code']")).toHaveCount(0);
+  await expect(page.locator(".qr-real, .qr-float, .pair-code")).toHaveCount(0);
+  await expect(page.getByText(/واتساب الرسمي · Meta/).first()).toBeVisible();
 });

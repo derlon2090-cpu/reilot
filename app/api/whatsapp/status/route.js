@@ -1,4 +1,3 @@
-import { POST as checkConnection } from "../instances/[id]/check/route.js";
 import { requireSession } from "../../../../src/server/session.js";
 import { latestTenantChannel } from "../../../../src/server/whatsapp-repository.js";
 
@@ -9,5 +8,11 @@ export async function GET(req) {
   if (!channel) {
     return Response.json({ ok: true, status: "disconnected", providerState: "no_channel", code: "WHATSAPP_CHANNEL_REQUIRED" });
   }
-  return checkConnection(req, { params: Promise.resolve({ id: channel.id }) });
+  return Response.json({
+    ok: true,
+    status: channel.status || "disconnected",
+    provider: channel.provider,
+    providerState: "official_meta_webhook",
+    lastHealthCheckAt: channel.lastHealthCheckAt || null
+  }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

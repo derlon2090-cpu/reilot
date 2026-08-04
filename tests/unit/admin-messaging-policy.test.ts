@@ -4,10 +4,10 @@ import { ADMIN_TEMPLATE_KEYS, EVENT_TEMPLATE_MAP } from "../../src/server/admin-
 
 describe("admin messaging provider isolation", () => {
   it("keeps Evolution in the platform scope and Meta in the tenant scope", () => {
-    expect(assertProviderAllowed({ scope: "platform_admin", provider: "evolution" })).toBe(true);
+    expect(assertProviderAllowed({ scope: "platform_admin", provider: "evolution_admin" })).toBe(true);
     expect(assertProviderAllowed({ scope: "tenant", provider: "meta_cloud_api" })).toBe(true);
     expect(() => assertProviderAllowed({ scope: "platform_admin", provider: "meta_cloud_api" })).toThrow("ADMIN_PROVIDER_NOT_ALLOWED");
-    expect(() => assertProviderAllowed({ scope: "tenant", provider: "evolution" })).toThrow("TENANT_PROVIDER_NOT_ALLOWED");
+    expect(() => assertProviderAllowed({ scope: "tenant", provider: "evolution_admin" })).toThrow("TENANT_PROVIDER_NOT_ALLOWED");
   });
 
   it("rejects unknown variables and uses one renderer for previews", () => {

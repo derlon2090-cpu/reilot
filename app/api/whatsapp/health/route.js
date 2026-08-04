@@ -11,7 +11,9 @@ export async function GET(req) {
             wc.warmup_day AS "warmupDay",
             wc.risk_score AS "storedRiskScore",
             (SELECT count(*)::int FROM unsubscribe_list ul WHERE ul.tenant_id = wc.tenant_id AND ul.unsubscribed_at >= current_date) AS "unsubscribeCount"
-       FROM whatsapp_channels wc WHERE wc.tenant_id = $1 ORDER BY wc.created_at DESC LIMIT 1`,
+       FROM whatsapp_channels wc
+      WHERE wc.tenant_id = $1 AND wc.provider IN ('meta','meta_cloud','meta_cloud_api')
+      ORDER BY wc.created_at DESC LIMIT 1`,
     [auth.session.tenantId]
   );
   const channel = result.rows[0];

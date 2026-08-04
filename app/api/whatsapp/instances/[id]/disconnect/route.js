@@ -3,10 +3,12 @@ import { evolutionLogout } from "../../../../../../src/server/evolution-client.j
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { ownedChannel } from "../../../../../../src/server/whatsapp-repository.js";
+import { evolutionUnavailableToUsers } from "../../../../../../src/server/user-evolution-guard.js";
 import { transaction } from "../../../../../../src/server/db.js";
 import { enqueueAdminDomainEvent } from "../../../../../../src/server/admin-template-events.js";
 
 export async function POST(req, { params }) {
+  return evolutionUnavailableToUsers(req);
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;

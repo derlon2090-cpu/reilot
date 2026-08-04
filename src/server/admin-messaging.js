@@ -4,7 +4,7 @@ export const MESSAGING_SCOPES = Object.freeze({
 });
 
 export const MESSAGING_PROVIDERS = Object.freeze({
-  EVOLUTION: "evolution",
+  EVOLUTION: "evolution_admin",
   META: "meta_cloud_api",
   RESEND: "resend"
 });
@@ -64,4 +64,3 @@ export function renderAdminTemplate(template, values, { maskTemporaryPassword = 
   });
   return { subject: template.subject ? replace(template.subject) : null, body: replace(template.body) };
 }
-

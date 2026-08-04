@@ -346,7 +346,7 @@ async function resolveEvent(event, channel) {
 async function platformEvolutionInstance() {
   const result = await query(
     `SELECT external_channel_id AS "instanceName" FROM platform_messaging_channels
-      WHERE provider='evolution' AND messaging_scope='platform_admin' AND status='connected'
+      WHERE provider='evolution_admin' AND messaging_scope='platform_admin' AND status='connected'
         AND external_channel_id IS NOT NULL
       ORDER BY updated_at DESC LIMIT 1`
   );
@@ -374,7 +374,7 @@ export async function sendAdminTemplateTest({ templateKey, recipient, channel, v
   };
   const rendered = renderAdminTemplate(deliveryTemplate, testValues);
   const masked = renderAdminTemplate(deliveryTemplate, testValues, { maskTemporaryPassword: true });
-  const provider = deliveryChannel === "email" ? "resend" : "evolution";
+  const provider = deliveryChannel === "email" ? "resend" : "evolution_admin";
   const idempotencyKey = `admin-template-test:${templateKey}:${crypto.randomUUID()}`;
   const reserved = await query(
     `INSERT INTO admin_outbound_messages
@@ -452,7 +452,7 @@ async function sendEvent(event) {
   const rendered = renderAdminTemplate(template, resolved.variables);
   const masked = renderAdminTemplate(template, resolved.variables, { maskTemporaryPassword: true });
   const deliveryChannel = resolved.channel || template.channel;
-  const provider = deliveryChannel === "email" ? "resend" : "evolution";
+  const provider = deliveryChannel === "email" ? "resend" : "evolution_admin";
   const outboundKey = `${event.idempotency_key}:${template.version}`;
   const reserved = await query(
     `INSERT INTO admin_outbound_messages

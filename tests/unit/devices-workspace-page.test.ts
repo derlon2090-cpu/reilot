@@ -34,7 +34,8 @@ describe("devices command center", () => {
       expect(appSource).toContain(`data-action="${action}"`);
     }
     expect(appSource).toContain("refreshLinkedDevice");
-    expect(appSource).toContain("/api/whatsapp/instances/${encodeURIComponent(device.id)}/check");
+    expect(appSource).toContain('["meta", "meta_cloud", "meta_cloud_api"].includes(provider)');
+    expect(appSource).not.toContain("/api/whatsapp/instances/${encodeURIComponent(device.id)}/check");
   });
 
   it("keeps overview cards clean without colored edge strips", () => {

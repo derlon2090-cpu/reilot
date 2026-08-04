@@ -23,7 +23,9 @@ export async function latestTenantChannel(tenantId) {
             connected_at AS "connectedAt", disconnected_at AS "disconnectedAt",
             last_qr_generated_at AS "lastQrGeneratedAt", last_pairing_code_generated_at AS "lastPairingCodeGeneratedAt",
             last_health_check_at AS "lastHealthCheckAt", last_error AS "lastError", risk_score AS "riskScore"
-       FROM whatsapp_channels WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`,
+       FROM whatsapp_channels
+      WHERE tenant_id = $1 AND provider IN ('meta', 'meta_cloud', 'meta_cloud_api')
+      ORDER BY created_at DESC LIMIT 1`,
     [tenantId]
   );
   return result.rows[0] || null;
@@ -42,7 +44,7 @@ export async function tenantChannels(tenantId) {
             last_error AS "lastError", daily_sent AS "messagesToday", created_at AS "createdAt",
             updated_at AS "updatedAt"
        FROM whatsapp_channels
-      WHERE tenant_id=$1
+      WHERE tenant_id=$1 AND provider IN ('meta', 'meta_cloud', 'meta_cloud_api')
       ORDER BY created_at DESC`,
     [tenantId]
   );
@@ -63,7 +65,7 @@ export async function recentDeviceActivity(tenantId, limit = 8) {
             COALESCE(metadata->>'source', CASE WHEN user_id IS NULL THEN 'system' ELSE 'user' END) AS source
        FROM activity_logs
       WHERE tenant_id=$1
-        AND (type LIKE 'whatsapp.%' OR type LIKE 'evolution.%' OR type LIKE 'device.%'
+        AND (type LIKE 'whatsapp.%' OR type LIKE 'device.%'
              OR type LIKE 'webhook.%' OR type LIKE 'api_key.%')
       ORDER BY created_at DESC
       LIMIT $2`,
@@ -76,27 +78,36 @@ export async function ownedChannel(id, tenantId) {
   const result = await query(
     `SELECT id, tenant_id AS "tenantId", provider, instance_name AS "instanceName", phone_number AS "phoneNumber",
             display_name AS "displayName", device_name AS "deviceName", status, qr_code_cache AS "qrBase64", risk_score AS "riskScore"
-       FROM whatsapp_channels WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+       FROM whatsapp_channels
+      WHERE id = $1 AND tenant_id = $2
+        AND provider IN ('meta', 'meta_cloud', 'meta_cloud_api')
+      LIMIT 1`,
     [id, tenantId]
   );
   return result.rows[0] || null;
 }
 
-export async function createChannel({ tenantId, instanceName, providerToken, qrBase64 }) {
+export async function createChannel({ tenantId, instanceName, providerToken, qrBase64, provider = "evolution_admin" }) {
+  if (!['evolution_admin'].includes(provider)) {
+    throw Object.assign(new Error("Unsupported administrative channel provider"), { code: "unsupported_provider" });
+  }
   const encrypted = encryptSecret(providerToken || randomToken(32), process.env.ENCRYPTION_KEY);
   const status = qrBase64 ? "pending_qr" : "not_connected";
   const result = await query(
     `INSERT INTO whatsapp_channels (tenant_id, provider, channel_id, instance_name, channel_token_encrypted, status, qr_code_cache, last_qr_generated_at, warmup_started_at)
-     VALUES ($1, 'evolution', $2, $2, $3, $4, $5, CASE WHEN $5::text IS NOT NULL THEN now() END, now())
+     VALUES ($1, $6, $2, $2, $3, $4, $5, CASE WHEN $5::text IS NOT NULL THEN now() END, now())
      RETURNING id, tenant_id AS "tenantId", instance_name AS "instanceName", status`,
-    [tenantId, instanceName, encrypted, status, qrBase64 || null]
+    [tenantId, instanceName, encrypted, status, qrBase64 || null, provider]
   );
   return result.rows[0];
 }
 
 export async function updateChannel(id, tenantId, patch) {
   const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
-  if (!entries.length) return ownedChannel(id, tenantId);
+  if (!entries.length) {
+    const result = await query("SELECT id,tenant_id AS \"tenantId\",provider,instance_name AS \"instanceName\",status FROM whatsapp_channels WHERE id=$1 AND tenant_id=$2 LIMIT 1", [id, tenantId]);
+    return result.rows[0] || null;
+  }
   const names = {
     status: "status",
     qrBase64: "qr_code_cache",
@@ -113,7 +124,8 @@ export async function updateChannel(id, tenantId, patch) {
   if (patch.status === "connected") sets.push("connected_at = COALESCE(connected_at, now())");
   if (patch.status === "disconnected") sets.push("disconnected_at = now()", "last_disconnect_at = now()");
   await query(`UPDATE whatsapp_channels SET ${sets.join(", ")} WHERE id = $1 AND tenant_id = $2`, [id, tenantId, ...entries.map(([, value]) => value)]);
-  return ownedChannel(id, tenantId);
+  const result = await query("SELECT id,tenant_id AS \"tenantId\",provider,instance_name AS \"instanceName\",status FROM whatsapp_channels WHERE id=$1 AND tenant_id=$2 LIMIT 1", [id, tenantId]);
+  return result.rows[0] || null;
 }
 
 export async function deleteChannel(id, tenantId) {

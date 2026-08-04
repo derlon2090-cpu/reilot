@@ -9,6 +9,8 @@ const ROLE_PERMISSIONS = {
     stores: ["read", "update"], notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
     templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"],
     devices: ["read", "update", "create", "pair", "reconnect", "logout", "delete", "view_metrics", "view_phone"],
+    "evolution.devices": ["view", "create", "pair", "reconnect", "logout", "delete"],
+    "evolution.metrics": ["view"],
     integrations: ["read", "update"], support: ["read", "reply", "update", "assign", "close"], reports: ["read", "export"], audit: ["read"]
   },
   admin: {
@@ -16,6 +18,8 @@ const ROLE_PERMISSIONS = {
     subscriptions: ["read", "update"],
     customers: ["read", "update"],
     devices: ["read", "update", "create", "pair", "reconnect", "logout", "delete", "view_metrics", "view_phone"],
+    "evolution.devices": ["view", "create", "pair", "reconnect", "logout", "delete"],
+    "evolution.metrics": ["view"],
     security: ["read"],
     reports: ["read", "export"],
     stores: ["read", "update"],
@@ -33,6 +37,8 @@ const ROLE_PERMISSIONS = {
     overview: ["read"],
     customers: ["read"],
     devices: ["read", "update", "pair", "reconnect", "view_metrics"],
+    "evolution.devices": ["view", "pair", "reconnect"],
+    "evolution.metrics": ["view"],
     support: ["read", "reply", "update", "assign", "close"],
     audit: ["read"]
   },
@@ -45,16 +51,20 @@ const ROLE_PERMISSIONS = {
   security_admin: {
     overview: ["read"],
     devices: ["read", "update", "pair", "reconnect", "logout", "view_metrics"],
+    "evolution.devices": ["view", "pair", "manage_policy", "reconnect", "logout"],
+    "evolution.metrics": ["view"],
     security: ["read", "update"],
     audit: ["read"]
   },
   security_auditor: {
     overview: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"],
+    "evolution.devices": ["view"], "evolution.metrics": ["view"],
     reports: ["read"], audit: ["read"]
   },
   read_only: {
     overview: ["read"], subscriptions: ["read"], customers: ["read"], stores: ["read"], campaigns: ["read"], contacts: ["read"],
     templates: ["read"], notifications: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"],
+    "evolution.devices": ["view"], "evolution.metrics": ["view"],
     reports: ["read"], billing: ["read"], settings: ["read"], support: ["read"], audit: ["read"]
   },
   viewer: {
@@ -62,6 +72,7 @@ const ROLE_PERMISSIONS = {
     subscriptions: ["read"],
     customers: ["read"],
     devices: ["read", "view_metrics"],
+    "evolution.devices": ["view"], "evolution.metrics": ["view"],
     security: ["read"],
     reports: ["read"],
     support: ["read"],

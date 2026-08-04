@@ -565,6 +565,8 @@ function Devices() {
   const [pairing, setPairing] = useState({ qrCode: "", pairingCode: "", expiresAt: 0 });
   const [pairingPhone, setPairingPhone] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [detailsTab, setDetailsTab] = useState("details");
+  const [policyForm, setPolicyForm] = useState(null);
   const [createStep, setCreateStep] = useState(1);
   const [createForm, setCreateForm] = useState({ displayName: "", storeId: "", phoneNumber: "", method: "qr" });
 
@@ -576,7 +578,7 @@ function Devices() {
       if (search.trim()) params.set("search", search.trim());
       if (status) params.set("status", status);
       if (storeId) params.set("storeId", storeId);
-      const result = await adminDeviceRequest(`/api/admin/devices?${params}`);
+      const result = await adminDeviceRequest(`/api/admin/evolution/devices?${params}`);
       setPayload(result);
     } catch {
       setError("تعذر تحميل أجهزة Evolution الإدارية حاليًا.");
@@ -600,11 +602,13 @@ function Devices() {
 
   async function openDetails(device) {
     setDrawer("details");
+    setDetailsTab("details");
     setSelected(device);
     setBusy("details");
     try {
-      const result = await adminDeviceRequest(`/api/admin/devices/${encodeURIComponent(device.id)}`);
+      const result = await adminDeviceRequest(`/api/admin/evolution/devices/${encodeURIComponent(device.id)}`);
       setSelected(result.device);
+      setPolicyForm(result.device.policy || null);
     } catch {
       setNotice("تعذر تحميل تفاصيل الجهاز.");
     } finally {
@@ -624,7 +628,7 @@ function Devices() {
     setBusy(action);
     setNotice("");
     try {
-      const result = await adminDeviceRequest(`/api/admin/devices/${encodeURIComponent(device.id)}/action`, {
+      const result = await adminDeviceRequest(`/api/admin/evolution/devices/${encodeURIComponent(device.id)}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra })
@@ -649,7 +653,7 @@ function Devices() {
     setBusy("create");
     setNotice("");
     try {
-      const result = await adminDeviceRequest("/api/admin/devices", {
+      const result = await adminDeviceRequest("/api/admin/evolution/devices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm)
@@ -672,7 +676,7 @@ function Devices() {
     if (!window.confirm(`سيتم حذف الجهاز «${device.displayName}» وجلسة Evolution نهائيًا. هل تريد المتابعة؟`)) return;
     setBusy("delete");
     try {
-      await adminDeviceRequest(`/api/admin/devices/${encodeURIComponent(device.id)}`, { method: "DELETE" });
+      await adminDeviceRequest(`/api/admin/evolution/devices/${encodeURIComponent(device.id)}`, { method: "DELETE" });
       setNotice("تم حذف الجهاز والجلسة المرتبطة به.");
       setDrawer("");
       await loadDevices();
@@ -681,6 +685,26 @@ function Devices() {
     } finally {
       setBusy("");
       setMenuId("");
+    }
+  }
+
+  async function savePolicy() {
+    if (!selected?.id || !policyForm) return;
+    setBusy("policy");
+    setNotice("");
+    try {
+      const result = await adminDeviceRequest(`/api/admin/evolution/devices/${encodeURIComponent(selected.id)}/sending-policy`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(policyForm)
+      });
+      setPolicyForm(result.policy);
+      setSelected((value) => ({ ...value, policy: result.policy }));
+      setNotice("تم حفظ سياسة حماية الإرسال لهذا الجهاز فقط.");
+    } catch (policyError) {
+      setNotice(policyError.status === 403 ? "لا تملك صلاحية إدارة سياسة الإرسال." : "تعذر حفظ سياسة الإرسال. راجع القيم وحاول مجددًا.");
+    } finally {
+      setBusy("");
     }
   }
 
@@ -739,11 +763,19 @@ function Devices() {
         </> : null}
 
         {drawer === "details" && selected ? <div className={styles.adminDeviceDetails}>
-          {busy === "details" ? <div className={styles.adminDeviceLoading}>جارٍ تحميل التفاصيل...</div> : <>
-            <section><h3>معلومات الجهاز</h3><dl><div><dt>اسم الجلسة</dt><dd dir="ltr">{selected.instanceName}</dd></div><div><dt>المتجر</dt><dd>{selected.storeName}</dd></div><div><dt>رقم واتساب</dt><dd dir="ltr">{selected.phoneNumber}</dd></div><div><dt>الحالة</dt><dd><AdminDeviceStatus device={selected} /></dd></div><div><dt>المنصة</dt><dd>{selected.platform}</dd></div><div><dt>آخر ظهور</dt><dd>{relativeAdminTime(selected.lastSeenAt)}</dd></div><div><dt>Webhook</dt><dd>{selected.webhookStatus}</dd></div><div><dt>API</dt><dd>{selected.apiStatus}</dd></div></dl></section>
+          <nav className={styles.adminDeviceDetailsTabs} aria-label="أقسام تفاصيل الجهاز"><button type="button" className={detailsTab === "details" ? styles.adminDeviceDetailsTabActive : ""} onClick={() => setDetailsTab("details")}>تفاصيل الجهاز</button><button type="button" className={detailsTab === "policy" ? styles.adminDeviceDetailsTabActive : ""} onClick={() => setDetailsTab("policy")}>حماية الإرسال</button></nav>
+          {busy === "details" ? <div className={styles.adminDeviceLoading}>جارٍ تحميل التفاصيل...</div> : detailsTab === "details" ? <>
+            <section><h3>معلومات الجهاز</h3><dl><div><dt>اسم الجلسة</dt><dd dir="ltr">{selected.instanceName}</dd></div><div><dt>المتجر</dt><dd>{selected.storeName}</dd></div><div><dt>رقم واتساب</dt><dd dir="ltr">{selected.phoneNumber}</dd></div><div><dt>الحالة</dt><dd><AdminDeviceStatus device={selected} /></dd></div><div><dt>المزود</dt><dd>evolution_admin</dd></div><div><dt>آخر ظهور</dt><dd>{relativeAdminTime(selected.lastSeenAt)}</dd></div><div><dt>Webhook</dt><dd>{selected.webhookStatus}</dd></div><div><dt>API</dt><dd>{selected.apiStatus}</dd></div></dl></section>
             <section><h3>الإرسال</h3><div className={styles.adminDeviceMetricGrid}><div><strong>{ar(selected.metrics?.sent)}</strong><span>إجمالي المرسل</span></div><div><strong>{ar(selected.metrics?.today)}</strong><span>اليوم</span></div><div><strong>{ar(selected.metrics?.delivered)}</strong><span>تم التسليم</span></div><div><strong>{selected.metrics?.successRate == null ? "لا توجد بيانات" : `${selected.metrics.successRate}%`}</strong><span>نسبة النجاح</span></div></div></section>
+            <section><h3>مستوى الخطر</h3><div className={styles.adminEvolutionRisk}><strong>{selected.risk?.riskLevel || "low"}</strong><span>{selected.risk?.score ?? 0}/100</span><small>{selected.risk?.action === "pause_device" ? "الجهاز متوقف وقائيًا" : selected.risk?.action === "hold_batches" ? "الدفعات الجديدة موقوفة للمراجعة" : selected.risk?.action === "reduce_rate" ? "تم تخفيض معدل الإرسال" : "الإرسال يعمل ضمن السياسة"}</small></div></section>
             <section><h3>آخر النشاطات</h3>{selected.activity?.length ? <ul className={styles.adminDeviceActivity}>{selected.activity.map((item) => <li key={item.id}><span><Glyph name="check" /></span><div><strong>{item.title}</strong><small>{relativeAdminTime(item.createdAt)}</small></div></li>)}</ul> : <p className={styles.adminDeviceMuted}>لا توجد نشاطات مسجلة لهذا الجهاز.</p>}</section>
-          </>}
+          </> : policyForm ? <section className={styles.adminEvolutionPolicy}><header><div><h3>حماية إرسال Evolution</h3><p>سياسات داخلية لتنظيم الإرسال عبر الجهاز الإداري وحمايته من الانقطاع أو الحظر.</p></div><label className={styles.adminPolicySwitch}><input type="checkbox" checked={policyForm.enabled} onChange={(event) => setPolicyForm((value) => ({ ...value, enabled: event.target.checked }))} /><span>{policyForm.enabled ? "مفعلة" : "متوقفة"}</span></label></header>
+            <fieldset><legend>الفاصل بين الرسائل</legend><div className={styles.adminPolicyGrid}><label>القيمة الأساسية بالثواني<input type="number" min="1" max="86400" value={policyForm.baseDelaySeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, baseDelaySeconds: Number(event.target.value) }))} /></label><label>أقل نطاق عشوائي<input type="number" min="0" max="86400" value={policyForm.jitterMinSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, jitterMinSeconds: Number(event.target.value) }))} /></label><label>أعلى نطاق عشوائي<input type="number" min="0" max="86400" value={policyForm.jitterMaxSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, jitterMaxSeconds: Number(event.target.value) }))} /></label></div><small>يُحجز الموعد داخل Queue مؤجلة دون تنفيذ sleep داخل الطلب.</small></fieldset>
+            <fieldset><legend>حدود الإرسال</legend><div className={styles.adminPolicyGrid}><label>الحد في الساعة<input type="number" min="1" value={policyForm.hourlyLimit} onChange={(event) => setPolicyForm((value) => ({ ...value, hourlyLimit: Number(event.target.value) }))} /></label><label>الحد اليومي<input type="number" min="1" value={policyForm.dailyLimit} onChange={(event) => setPolicyForm((value) => ({ ...value, dailyLimit: Number(event.target.value) }))} /></label><label>حد الدفعة<input type="number" min="1" value={policyForm.batchLimit} onChange={(event) => setPolicyForm((value) => ({ ...value, batchLimit: Number(event.target.value) }))} /></label><label>فترة التهدئة بالثواني<input type="number" min="0" value={policyForm.cooldownSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, cooldownSeconds: Number(event.target.value) }))} /></label></div></fieldset>
+            <fieldset><legend>منع التكرار</legend><label>نافذة منع الرسالة نفسها لنفس المستلم بالثواني<input type="number" min="0" value={policyForm.duplicateWindowSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, duplicateWindowSeconds: Number(event.target.value) }))} /></label><small>يعتمد المفتاح على المستلم وبصمة المحتوى والجهاز الإداري.</small></fieldset>
+            <fieldset><legend>الحماية والفحص</legend><div className={styles.adminPolicyChecks}>{[["stopOnHighRisk", "إيقاف مؤقت عند ارتفاع الخطر"], ["reduceOnMediumRisk", "تخفيض سرعة الإرسال عند الخطر المتوسط"], ["blockNewCampaignsOnHighRisk", "منع الحملات الجديدة عند الخطر المرتفع"], ["notifyAdminOnRisk", "تنبيه الأدمن"], ["pauseOnDisconnect", "إيقاف الإرسال عند انقطاع الجهاز"], ["validateTemplates", "فحص الرسائل والمتغيرات"], ["blockUnsafeLinks", "منع الروابط غير الآمنة"]].map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(policyForm[key])} onChange={(event) => setPolicyForm((value) => ({ ...value, [key]: event.target.checked }))} />{label}</label>)}</div></fieldset>
+            <button type="button" className={styles.adminPrimaryButton} disabled={busy === "policy"} onClick={savePolicy}>{busy === "policy" ? "جارٍ الحفظ..." : "حفظ سياسة الجهاز"}</button>
+          </section> : <div className={styles.adminDeviceLoading}>لا توجد سياسة مهيأة لهذا الجهاز.</div>}
         </div> : null}
 
         {drawer === "pairing" && selected ? <div className={styles.adminPairingPanel}>
@@ -766,6 +798,7 @@ const PROVIDER_INFO = {
   meta: ["Meta Cloud API", "ربط واتساب الرسمي لمتاجر المستخدمين", "link"],
   meta_cloud_api: ["Meta Cloud API", "ربط واتساب الرسمي لمتاجر المستخدمين", "link"],
   evolution: ["Evolution Admin", "قناة واتساب الإدارية المركزية", "device"],
+  evolution_admin: ["Evolution Admin", "قناة واتساب الإدارية المركزية والمعزولة عن حسابات المتاجر", "device"],
   resend: ["Resend", "إرسال البريد الإلكتروني للرسائل والتنبيهات", "mail"],
   salla: ["سلة", "مزامنة الطلبات والعملاء والمنتجات", "store"],
   database: ["PostgreSQL", "قاعدة بيانات المنصة", "database"],

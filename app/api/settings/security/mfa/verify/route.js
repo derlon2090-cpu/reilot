@@ -12,7 +12,14 @@ export async function POST(request) {
   );
   if (!result.rows[0]?.secret) return Response.json({ ok: false, reason: "setup_required" }, { status: 400 });
   const secret = decryptMfaSecret(result.rows[0].secret);
-  if (!verifyTotp(secret, body.code)) return Response.json({ ok: false, reason: "invalid_code", message: "رمز التحقق غير صحيح." }, { status: 400 });
+  if (!verifyTotp(secret, body.code)) {
+    await query(
+      `INSERT INTO activity_logs (tenant_id, user_id, type, title)
+       VALUES ($1, $2, 'mfa.setup_failed', 'OTP setup verification failed')`,
+      [auth.session.tenantId, auth.session.userId]
+    );
+    return Response.json({ ok: false, reason: "invalid_code", message: "الرمز غير صحيح أو انتهت صلاحيته." }, { status: 400 });
+  }
   const recovery = createRecoveryCodes();
   await query(
     `UPDATE users SET mfa_enabled = true, mfa_secret_encrypted = mfa_pending_secret_encrypted,

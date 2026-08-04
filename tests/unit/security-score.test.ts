@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWeeklySecurityTrend, calculateWeightedScore, classifyPasswordStrength, decayedWeight, riskLabel, securityLabel } from "../../src/server/security-score.js";
+import { buildWeeklySecurityTrend, calculateBlockedSummary, calculateSendingSummary, calculateWeightedScore, classifyPasswordStrength, decayedWeight, riskLabel, securityLabel, securitySummaryLabel } from "../../src/server/security-score.js";
 
 describe("dynamic security score helpers", () => {
   it("uses the documented score labels without calling an unchecked state complete", () => {
@@ -33,6 +33,23 @@ describe("dynamic security score helpers", () => {
   it("ignores unavailable metrics and reports real coverage", () => {
     expect(calculateWeightedScore([{ score: 80, weight: 30 }, { score: null, weight: 20 }])).toEqual({ score: 80, coverage: 60 });
     expect(calculateWeightedScore([{ score: null, weight: 100 }])).toEqual({ score: null, coverage: 0 });
+  });
+
+  it("does not invent a sending percentage when no messages exist", () => {
+    expect(calculateSendingSummary({})).toEqual({ available: false, successRate: null, successful: 0, comparison: null, periodDays: 30 });
+    expect(calculateSendingSummary({ attemptedCurrent: 100, successfulCurrent: 98, attemptedPrevious: 100, successfulPrevious: 95 })).toMatchObject({ available: true, successRate: 98, comparison: 3 });
+  });
+
+  it("summarizes blocked attempts from the seven-day facts", () => {
+    expect(calculateBlockedSummary({ blockedLogins: 2, rejectedApi: 3, preventedDuplicates: 4, rateLimited: 1 })).toEqual({ blockedLogins: 2, rejectedApi: 3, preventedDuplicates: 4, rateLimited: 1, total: 10, periodDays: 7 });
+  });
+
+  it("uses the requested user-facing protection labels", () => {
+    expect(securitySummaryLabel(95)).toBe("ممتاز");
+    expect(securitySummaryLabel(75)).toBe("جيد");
+    expect(securitySummaryLabel(55)).toBe("يحتاج تحسين");
+    expect(securitySummaryLabel(40)).toBe("مرتفع الخطورة");
+    expect(securitySummaryLabel(null)).toBe("البيانات غير مكتملة");
   });
 
   it("builds the weekly chart only from stored score snapshots and the current calculation", () => {

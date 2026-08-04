@@ -14,6 +14,7 @@ import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
 import { addWhatsAppActivity, ownedChannel, updateChannel } from "../../../../../../src/server/whatsapp-repository.js";
+import { evolutionUnavailableToUsers } from "../../../../../../src/server/user-evolution-guard.js";
 
 function providerState(body) {
   return body?.instance?.state || body?.state || body?.data?.instance?.state || null;
@@ -32,6 +33,7 @@ function linkFailure(error) {
 }
 
 export async function POST(req, { params }) {
+  return evolutionUnavailableToUsers(req);
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const body = await req.json().catch(() => ({}));

@@ -12,15 +12,19 @@ describe("security dashboard reference implementation", () => {
     expect(appSource).toContain('class="security-dashboard-page"');
   });
 
-  it("renders the six reference overview cards", () => {
-    for (const title of ["مؤشر الحماية العام", "حماية المنصة", "حماية الحساب", "أمان الإرسال", "صحة واتساب", "مستوى الخطر"]) {
+  it("renders exactly the four requested summary concepts", () => {
+    for (const title of ["مؤشر الحماية العام", "عمليات الإرسال الآمنة", "محاولات تم منعها", "تنبيهات تحتاج متابعة"]) {
       expect(appSource).toContain(title);
     }
+    expect(styles).toContain("grid-template-columns: repeat(4,minmax(0,1fr))");
   });
 
-  it("renders real trend, policy, sessions, and alerts sections", () => {
-    expect(appSource).toContain("securityTrendMarkup(score.weeklySecurityTrend");
-    expect(appSource).toContain("إدارة سياسة الإرسال");
+  it("renders the three main cards and one footer banner", () => {
+    expect(appSource).toContain("مركز الحماية الذكي");
+    expect(appSource).toContain("جلسات الدخول الأخيرة");
+    expect(appSource).toContain("أحدث التنبيهات الأمنية");
+    expect(appSource).toContain("حماية حسابك أولوية");
+    expect(appSource).toContain("دخول الحساب OTP");
     expect(appSource).toContain("الجلسة الحالية");
     expect(appSource).toContain('data-action="security-alerts"');
   });
@@ -37,10 +41,10 @@ describe("security dashboard reference implementation", () => {
     expect(styles).toContain("background-clip: content-box");
   });
 
-  it("keeps policy and session operations connected to their existing backend actions", () => {
-    expect(appSource).toContain('data-action="preview-safe-settings"');
+  it("keeps account protection and session operations connected to backend actions", () => {
+    expect(appSource).toContain('data-link="/dashboard/settings?section=security"');
     expect(appSource).toContain('data-action="manage-sessions"');
-    expect(appSource).toContain('/api/security/apply-recommended');
+    expect(appSource).toContain('data-action="security-alerts"');
     expect(appSource).toContain('/api/security/recalculate');
   });
 
@@ -52,8 +56,14 @@ describe("security dashboard reference implementation", () => {
   });
 
   it("provides responsive desktop, tablet, and mobile layouts", () => {
-    expect(styles).toContain("@media (max-width: 1180px)");
-    expect(styles).toContain("@media (max-width: 820px)");
-    expect(styles).toContain("@media (max-width: 520px)");
+    expect(styles).toContain("@media (max-width: 1100px)");
+    expect(styles).toContain("@media (max-width: 620px)");
+  });
+
+  it("does not expose the former manual sending-policy controls in the active page", () => {
+    const pageBody = appSource.slice(appSource.indexOf("function securityPage()"), appSource.indexOf("function connectedDevicesCenterPage()"));
+    expect(pageBody).not.toContain("سياسة الإرسال الآمن");
+    expect(pageBody).not.toContain("الفاصل الذكي بين الرسائل");
+    expect(pageBody).not.toContain("Meta Cloud API");
   });
 });

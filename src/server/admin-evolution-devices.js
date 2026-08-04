@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { adminCan } from "./admin-auth.js";
 import { query } from "./db.js";
 import { evolutionAdminAdapter } from "./admin-evolution-provider.js";
+import { calculateEvolutionRisk, getEvolutionSendingPolicy } from "./evolution-sending-policy.js";
 import { createChannel, deleteChannel, evolutionInstanceName, updateChannel } from "./whatsapp-repository.js";
 
 export const ADMIN_DEVICE_STATUS_LABELS = Object.freeze({
@@ -75,7 +76,7 @@ export async function listAdminEvolutionDevices({ admin, search = "", status = "
   const safePageNumber = safePage(page, 1, 100000);
   const safePageSize = [10, 20].includes(Number(pageSize)) ? Number(pageSize) : 20;
   const values = [];
-  let where = "WHERE wc.provider = 'evolution'";
+  let where = "WHERE wc.provider IN ('evolution_admin','evolution')";
   if (search) {
     values.push(`%${String(search).trim().slice(0, 120)}%`);
     where += ` AND (wc.display_name ILIKE $${values.length} OR wc.device_name ILIKE $${values.length} OR wc.instance_name ILIKE $${values.length} OR wc.phone_number ILIKE $${values.length} OR t.name ILIKE $${values.length} OR COALESCE(s.name,'') ILIKE $${values.length})`;
@@ -137,7 +138,7 @@ export async function listAdminEvolutionDevices({ admin, search = "", status = "
             count(*) FILTER (WHERE status='connected')::int AS connected,
             count(*) FILTER (WHERE status IN ('not_connected','pending_qr','pending_pairing','expired','disconnected','error','risk_hold'))::int AS attention,
             COALESCE(sum(daily_sent),0)::int AS messages_today
-       FROM whatsapp_channels WHERE provider='evolution'`
+       FROM whatsapp_channels WHERE provider IN ('evolution_admin','evolution')`
   );
   const stores = await query("SELECT id,name FROM stores ORDER BY name LIMIT 500");
   return {
@@ -159,7 +160,7 @@ export async function getAdminEvolutionDevice(deviceId, { admin }) {
     `SELECT wc.*,t.name AS tenant_name,s.id AS store_id,s.name AS store_name
        FROM whatsapp_channels wc JOIN tenants t ON t.id=wc.tenant_id
        LEFT JOIN LATERAL (SELECT id,name FROM stores WHERE tenant_id=wc.tenant_id ORDER BY created_at LIMIT 1) s ON true
-      WHERE wc.id=$1 AND wc.provider='evolution' LIMIT 1`,
+      WHERE wc.id=$1 AND wc.provider IN ('evolution_admin','evolution') LIMIT 1`,
     [deviceId]
   );
   const row = result.rows[0];
@@ -178,6 +179,13 @@ export async function getAdminEvolutionDevice(deviceId, { admin }) {
       ORDER BY created_at DESC LIMIT 5`,
     [row.tenant_id, deviceId, row.instance_name]
   );
+  const risk = calculateEvolutionRisk({
+    failureRate: row.failure_rate,
+    status: normalizeAdminDeviceStatus(row.status),
+    webhookHealthy: !row.last_error,
+    disconnects24h: row.disconnected_at && new Date(row.disconnected_at) > new Date(Date.now() - 86400000) ? 1 : 0
+  });
+  const policy = await getEvolutionSendingPolicy(deviceId);
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -195,6 +203,9 @@ export async function getAdminEvolutionDevice(deviceId, { admin }) {
     lastSeenAt: row.last_health_check_at || row.last_send_at || row.updated_at,
     webhookStatus: row.last_error ? "يحتاج متابعة" : "مهيأ",
     apiStatus: row.connection_state || "—",
+    provider: "evolution_admin",
+    risk,
+    policy,
     metrics: deviceMessageMetrics(metricResult.rows[0]),
     activity: activity.rows
   };
@@ -208,7 +219,7 @@ export async function createAdminEvolutionDevice({ storeId, displayName, phoneNu
   await evolutionAdminAdapter.createInstance({ instanceName, phoneNumber, idempotencyKey });
   let channel;
   try {
-    channel = await createChannel({ tenantId: store.rows[0].tenant_id, instanceName, providerToken: null, qrBase64: null });
+    channel = await createChannel({ tenantId: store.rows[0].tenant_id, instanceName, providerToken: null, qrBase64: null, provider: "evolution_admin" });
     await updateChannel(channel.id, store.rows[0].tenant_id, {
       displayName: String(displayName || "جهاز واتساب الإداري").trim().slice(0, 100),
       deviceName: String(displayName || "جهاز واتساب الإداري").trim().slice(0, 100),

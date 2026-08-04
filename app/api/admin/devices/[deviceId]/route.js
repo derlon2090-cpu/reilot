@@ -6,7 +6,7 @@ import { safeErrorMessage } from "../../../../../src/server/security.js";
 export const dynamic = "force-dynamic";
 
 export async function GET(request, { params }) {
-  const auth = await requireAdminPermission(request, "devices", "read");
+  const auth = await requireAdminPermission(request, "evolution.devices", "view");
   if (!auth.ok) return auth.response;
   const { deviceId } = await params;
   const device = await getAdminEvolutionDevice(deviceId, { admin: auth.admin });
@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
 
 export async function DELETE(request, { params }) {
   if (!sameOriginRequest(request)) return Response.json({ ok: false, reason: "invalid_origin" }, { status: 403 });
-  const auth = await requireAdminPermission(request, "devices", "delete");
+  const auth = await requireAdminPermission(request, "evolution.devices", "delete");
   if (!auth.ok) return auth.response;
   const { deviceId } = await params;
   try {

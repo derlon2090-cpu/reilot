@@ -2,7 +2,7 @@ import { assertProviderAllowed } from "./admin-messaging.js";
 import { extractEvolutionPairingCode, extractEvolutionQr } from "./evolution-client.js";
 
 function configuration() {
-  assertProviderAllowed({ scope: "platform_admin", provider: "evolution" });
+  assertProviderAllowed({ scope: "platform_admin", provider: "evolution_admin" });
   const baseUrl = String(process.env.EVOLUTION_ADMIN_API_URL || "").replace(/\/$/, "");
   const apiKey = String(process.env.EVOLUTION_ADMIN_API_KEY || "");
   const instanceName = String(process.env.EVOLUTION_ADMIN_INSTANCE || "");

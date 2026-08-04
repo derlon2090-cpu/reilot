@@ -274,6 +274,27 @@ async function callMetaMessagesApi(config, payload) {
   return result;
 }
 
+export async function sendMetaTextMessage({ channelId, to, text }) {
+  const result = await query(
+    `SELECT id,provider,status,phone_number_id,channel_token_encrypted
+       FROM whatsapp_channels
+      WHERE id=$1 AND provider IN ('meta','meta_cloud','meta_cloud_api') LIMIT 1`,
+    [channelId]
+  );
+  const channel = result.rows[0];
+  if (!channel || channel.status !== "connected") {
+    throw Object.assign(new Error("قناة Meta الرسمية غير متصلة حاليًا."), { code: "META_NOT_CONNECTED", status: 409 });
+  }
+  const recipient = normalizeRecipient(to).replace(/^\+/, "");
+  return callMetaMessagesApi(graphConfiguration(channel), {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: recipient,
+    type: "text",
+    text: { preview_url: false, body: String(text || "").trim() }
+  });
+}
+
 export async function sendInteractiveMessage({
   tenantId, userId, messageId, recipient, idempotencyKey, isTest = false
 }) {

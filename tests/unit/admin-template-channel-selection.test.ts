@@ -31,7 +31,7 @@ describe("admin template channel selection", () => {
     expect(updateRouteSource).toContain("channel=$4");
     expect(testRouteSource).toContain("channel,");
     expect(deliverySource).toContain("const deliveryChannel = channel || template.channel;");
-    expect(deliverySource).toContain("const provider = deliveryChannel === \"email\" ? \"resend\" : \"evolution\";");
+    expect(deliverySource).toContain("const provider = deliveryChannel === \"email\" ? \"resend\" : \"evolution_admin\";");
   });
 
   it("resolves actual recipients according to the saved channel", () => {

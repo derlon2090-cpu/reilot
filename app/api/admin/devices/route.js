@@ -7,7 +7,7 @@ import { safeErrorMessage } from "../../../../src/server/security.js";
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
-  const auth = await requireAdminPermission(request, "devices", "read");
+  const auth = await requireAdminPermission(request, "evolution.devices", "view");
   if (!auth.ok) return auth.response;
   const url = new URL(request.url);
   try {
@@ -27,7 +27,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   if (!sameOriginRequest(request)) return Response.json({ ok: false, reason: "invalid_origin" }, { status: 403 });
-  const auth = await requireAdminPermission(request, "devices", "create");
+  const auth = await requireAdminPermission(request, "evolution.devices", "create");
   if (!auth.ok) return auth.response;
   const recent = await query(
     `SELECT count(*)::int AS count FROM admin_audit_logs

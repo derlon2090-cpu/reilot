@@ -3,7 +3,12 @@ import { mkdir } from "node:fs/promises";
 
 const score = {
   ok: true,
-  overall: { score: 92, label: "قوية", status: "available", coverage: 100 },
+  overall: { score: 92, label: "ممتاز", status: "available", coverage: 100, confidence: "high" },
+  negativeSignals: [],
+  safeSending: { available: true, successRate: 98, successful: 124, comparison: 2, periodDays: 30 },
+  blockedAttempts: { total: 7, blockedLogins: 3, rejectedApi: 2, preventedDuplicates: 1, rateLimited: 1, periodDays: 7 },
+  alertSummary: { openCount: 1, highestSeverity: "medium" },
+  accountProtection: { otpStatus: "enabled", otpEnabled: true, activeSessions: 2, openAlerts: 1, encryption: { status: "automatic" }, unusualActivityMonitoring: { status: "automatic" } },
   platform: { score: 98, label: "ممتازة", status: "available", coverage: 100 },
   accounts: { score: 97, label: "ممتازة", status: "available", coverage: 100 },
   sessions: {
@@ -11,8 +16,8 @@ const score = {
     label: "ممتازة",
     activeSessions: 2,
     items: [
-      { id: "session-current", device: "Chrome · كمبيوتر", location: "192.168.*.*", lastActivityAt: "2026-07-31T12:00:00.000Z", current: true },
-      { id: "session-mobile", device: "Safari · جوال", location: "10.10.*.*", lastActivityAt: "2026-07-31T10:00:00.000Z", current: false }
+      { id: "session-current", browser: "Chrome", system: "Windows", device: "كمبيوتر", location: "192.168.*.*", lastActivityAt: "2026-07-31T12:00:00.000Z", current: true, trustLevel: "trusted" },
+      { id: "session-mobile", browser: "Safari", system: "iOS", device: "جوال", location: "10.10.*.*", lastActivityAt: "2026-07-31T10:00:00.000Z", current: false, trustLevel: "new" }
     ]
   },
   whatsapp: { healthScore: 100, score: 100, label: "ممتازة", status: "available", coverage: 100 },
@@ -39,7 +44,7 @@ const score = {
     { date: "2026-07-30", score: 91 },
     { date: "2026-07-31", score: 92 }
   ],
-  securityAlerts: [{ title: "تم تسجيل دخول جديد", message: "تم تسجيل دخول موثوق إلى الحساب.", severity: "info", occurredAt: "2026-07-31T12:00:00.000Z", actionLabel: "عرض التفاصيل", actionUrl: "/dashboard/security", deliveryChannels: ["in_app"] }],
+  securityAlerts: [{ title: "تم تسجيل دخول جديد", message: "تم تسجيل دخول موثوق إلى الحساب.", severity: "medium", occurredAt: "2026-07-31T12:00:00.000Z", actionLabel: "عرض التفاصيل", actionUrl: "/dashboard/security", deliveryChannels: ["in_app"] }],
   criticalIssues: [],
   calculatedAt: "2026-07-31T12:00:00.000Z",
   lastUpdatedAt: "2026-07-31T12:00:00.000Z"
@@ -64,19 +69,20 @@ test("security dashboard matches the RTL reference and keeps its actions functio
   });
 
   await expect(page.getByRole("heading", { name: "الحماية والأمان", exact: true })).toBeVisible();
-  await expect(page.locator(".security-reference-top > article")).toHaveCount(6);
-  await expect(page.locator(".security-trend-chart")).toBeVisible();
+  await expect(page.locator(".security-summary-grid > article")).toHaveCount(4);
+  await expect(page.locator(".security-main-grid > article")).toHaveCount(3);
   await expect(page.getByText("الجلسة الحالية", { exact: true })).toBeVisible();
-  await expect(page.locator(".security-reference-policy-list > div")).toHaveCount(5);
+  await expect(page.locator(".security-protection-list > div")).toHaveCount(4);
 
-  await page.getByRole("button", { name: "عرض سجل التنبيهات" }).click();
-  await expect(page.getByRole("heading", { name: "سجل تنبيهات الحماية" })).toBeVisible();
-  await expect(page.getByText("تم تسجيل دخول جديد", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "عرض جميع التنبيهات" }).click();
+  const alertsDialog = page.getByRole("dialog");
+  await expect(alertsDialog.getByRole("heading", { name: "سجل تنبيهات الحماية" })).toBeVisible();
+  await expect(alertsDialog.getByText("تم تسجيل دخول جديد", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "إغلاق", exact: true }).click();
 
-  await page.getByRole("button", { name: "إدارة سياسة الإرسال" }).click();
-  await expect(page.getByRole("heading", { name: "تطبيق الإعدادات الآمنة الموصى بها" })).toBeVisible();
-  await page.getByRole("button", { name: "إلغاء", exact: true }).click();
+  await page.getByRole("button", { name: "إدارة الجلسات" }).click();
+  await expect(page.getByRole("heading", { name: "إدارة الجلسات النشطة", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "إغلاق", exact: true }).click();
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: ".codex-artifacts/security-dashboard-reference.png" });

@@ -10,8 +10,7 @@ test("devices command center matches the RTL reference and keeps real actions us
   await page.route("**/api/whatsapp/health", (route) => route.fulfill({ json: { ok: true, connected: true, health: { status: "good" } } }));
 
   const devices = [
-    { id: "device-1", provider: "meta_cloud_api", deviceName: "حساب المتجر الرئيسي", displayName: "Renvix Store", phoneNumber: "966500000001", status: "connected", lastHealthCheckAt: "2026-07-31T16:00:00.000Z", updatedAt: "2026-07-31T16:00:00.000Z", isPrimary: true, requiresAttention: false },
-    { id: "device-2", provider: "evolution", deviceName: "جهاز خدمة العملاء", displayName: "Support", phoneNumber: "966500000002", status: "error", lastHealthCheckAt: "2026-07-31T15:00:00.000Z", updatedAt: "2026-07-31T15:00:00.000Z", lastError: "تعذر الاتصال", requiresAttention: true }
+    { id: "device-1", provider: "meta_cloud_api", deviceName: "حساب المتجر الرئيسي", displayName: "Renvix Store", phoneNumber: "966500000001", status: "connected", lastHealthCheckAt: "2026-07-31T16:00:00.000Z", updatedAt: "2026-07-31T16:00:00.000Z", isPrimary: true, requiresAttention: false }
   ];
   await page.route("**/api/whatsapp/instances/create", (route) => route.fulfill({
     json: {
@@ -26,8 +25,6 @@ test("devices command center matches the RTL reference and keeps real actions us
       }
     }
   }));
-  await page.route("**/api/whatsapp/instances/device-2/check", (route) => route.fulfill({ json: { ok: true, status: "connected", checkedAt: new Date().toISOString() } }));
-
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".marketing-copy")).toBeVisible({ timeout: 30_000 });
   await page.evaluate(() => {
@@ -40,7 +37,7 @@ test("devices command center matches the RTL reference and keeps real actions us
 
   await expect(page.getByRole("heading", { name: "الأجهزة", exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".devices-overview-card")).toHaveCount(4);
-  await expect(page.locator(".devices-table-scroll tbody tr")).toHaveCount(2);
+  await expect(page.locator(".devices-table-scroll tbody tr")).toHaveCount(1);
   await expect(page.locator(".devices-readiness-card")).toBeVisible();
   await expect(page.locator(".devices-activity-card")).toContainText("نجح اختبار اتصال الجهاز");
 
@@ -52,7 +49,7 @@ test("devices command center matches the RTL reference and keeps real actions us
   await page.screenshot({ path: ".codex-artifacts/devices-command-center.png", fullPage: true });
 
   await page.locator('[data-action="device-search"]').evaluate((input: HTMLInputElement) => {
-    input.value = "خدمة العملاء";
+    input.value = "Renvix Store";
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await expect(page.locator(".devices-table-scroll tbody tr")).toHaveCount(1);

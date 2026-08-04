@@ -2,8 +2,10 @@ import { evolutionDelete, isEvolutionInstanceMissing } from "../../../../../src/
 import { requireSession } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
 import { addWhatsAppActivity, deleteChannel, ownedChannel } from "../../../../../src/server/whatsapp-repository.js";
+import { evolutionUnavailableToUsers } from "../../../../../src/server/user-evolution-guard.js";
 
 export async function DELETE(req, { params }) {
+  return evolutionUnavailableToUsers(req);
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;

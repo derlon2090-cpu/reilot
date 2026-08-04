@@ -4,6 +4,7 @@ import { evolutionSendText, isEvolutionTimeout } from "../../../../../../src/ser
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { addWhatsAppActivity, ownedChannel } from "../../../../../../src/server/whatsapp-repository.js";
+import { evolutionUnavailableToUsers } from "../../../../../../src/server/user-evolution-guard.js";
 import { query, transaction } from "../../../../../../src/server/db.js";
 import { recordOperationalIssue, resolveOperationalIssues } from "../../../../../../src/server/operations.js";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../../../../../../src/lib/billing/message-quota.js";
 
 export async function POST(req, { params }) {
+  return evolutionUnavailableToUsers(req);
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const body = await req.json().catch(() => ({}));

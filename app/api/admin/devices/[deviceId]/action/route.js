@@ -4,7 +4,7 @@ import { query } from "../../../../../../src/server/db.js";
 import { sameOriginRequest } from "../../../../../../src/server/platform-notifications.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 
-const PERMISSIONS = { qr: "pair", pairing_code: "pair", refresh: "read", reconnect: "reconnect", logout: "logout" };
+const PERMISSIONS = { qr: "pair", pairing_code: "pair", refresh: "view", reconnect: "reconnect", logout: "logout" };
 const LIMITS = { qr: 10, pairing_code: 10, refresh: 30, reconnect: 8, logout: 4 };
 
 export async function POST(request, { params }) {
@@ -12,7 +12,7 @@ export async function POST(request, { params }) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
   if (!PERMISSIONS[action]) return Response.json({ ok: false, reason: "unsupported_action" }, { status: 400 });
-  const auth = await requireAdminPermission(request, "devices", PERMISSIONS[action]);
+  const auth = await requireAdminPermission(request, "evolution.devices", PERMISSIONS[action]);
   if (!auth.ok) return auth.response;
   const { deviceId } = await params;
   const recent = await query(

@@ -10,12 +10,14 @@ import {
 import { requireSession } from "../../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { addWhatsAppActivity, ownedChannel, updateChannel } from "../../../../../../src/server/whatsapp-repository.js";
+import { evolutionUnavailableToUsers } from "../../../../../../src/server/user-evolution-guard.js";
 
 function stateFrom(body) {
   return body?.instance?.state || body?.state || body?.data?.instance?.state || "disconnected";
 }
 
 export async function POST(req, { params }) {
+  return evolutionUnavailableToUsers(req);
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;

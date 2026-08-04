@@ -15,6 +15,7 @@ import { enqueueMessage } from "./message-queue.js";
 import { safeErrorMessage } from "./security.js";
 import { runDueSubscriptionReminders } from "./renewal-reminders.js";
 import { runPlatformNotificationWorker } from "./platform-notifications.js";
+import { sendMetaTextMessage } from "./meta-interactive-service.js";
 
 export async function runRenewalReminders() {
   return runDueSubscriptionReminders();
@@ -130,7 +131,7 @@ async function markSent(item, providerMessageId) {
         [item.tenant_id, item.customer_id, item.email_to, item.subject || "إشعار من Renvix", item.message_body, providerMessageId]
       );
     }
-    if (item.channel_type === "whatsapp") {
+    if (item.channel_type === "whatsapp" && ["evolution", "evolution_admin"].includes(item.whatsapp_provider)) {
       await client.query(
         `UPDATE whatsapp_channels
             SET daily_sent = daily_sent + 1, hourly_sent = hourly_sent + 1,
@@ -285,7 +286,7 @@ async function enqueueFallback(item) {
 export async function runMessageRetry() {
   const items = await transaction(async (client) => {
     const locked = await client.query(
-      `SELECT mq.*, wc.instance_name, wc.risk_score
+      `SELECT mq.*, wc.instance_name, wc.provider AS whatsapp_provider, wc.risk_score
          FROM message_queue mq
          LEFT JOIN whatsapp_channels wc ON wc.id = mq.whatsapp_channel_id
         WHERE mq.status = 'pending' AND mq.scheduled_for <= now()
@@ -362,7 +363,9 @@ export async function runMessageRetry() {
     try {
       let provider;
       if (item.channel_type === "whatsapp") {
-        provider = await evolutionSendText(item.instance_name, item.destination, item.message_body);
+        provider = ["meta", "meta_cloud", "meta_cloud_api"].includes(item.whatsapp_provider)
+          ? await sendMetaTextMessage({ channelId: item.whatsapp_channel_id, to: item.destination, text: item.message_body })
+          : await evolutionSendText(item.instance_name, item.destination, item.message_body);
       } else if (item.channel_type === "email") {
         provider = await sendQueuedEmail({
           to: item.email_to,
@@ -393,6 +396,7 @@ export async function runWhatsAppHealthCheck() {
             (SELECT count(*) FROM unsubscribe_list ul WHERE ul.tenant_id = wc.tenant_id) AS unsubscribe_count
        FROM whatsapp_channels wc
        LEFT JOIN whatsapp_safety_settings ws ON ws.tenant_id = wc.tenant_id
+      WHERE wc.provider IN ('evolution','evolution_admin')
       ORDER BY wc.created_at`
   );
   let connected = 0;

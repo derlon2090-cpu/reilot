@@ -80,10 +80,20 @@ function deviceLabel(userAgent = "") {
   return `${browser} · ${device}`;
 }
 
+function deviceDetails(userAgent = "") {
+  const value = String(userAgent || "");
+  const browser = /Edg/i.test(value) ? "Edge" : /Chrome/i.test(value) ? "Chrome" : /Firefox/i.test(value) ? "Firefox" : /Safari/i.test(value) ? "Safari" : "متصفح غير معروف";
+  const system = /Windows/i.test(value) ? "Windows" : /Android/i.test(value) ? "Android" : /iPhone|iPad|iOS/i.test(value) ? "iOS / iPadOS" : /Mac OS|Macintosh/i.test(value) ? "macOS" : /Linux/i.test(value) ? "Linux" : "نظام غير معروف";
+  const device = /iPad|Tablet/i.test(value) ? "جهاز لوحي" : /Mobile|Android|iPhone/i.test(value) ? "جوال" : "كمبيوتر";
+  return { browser, system, device };
+}
+
 async function loadSecurityFacts(tenantId, userId) {
-  const [accountResult, sessionsResult, channelResult, deliveryResult, safetyResult, templateResult, healthResult, issuesResult, attemptsResult, activityResult, migrationResult, webhookResult, optOutResult, securityEventsResult, trendResult] = await Promise.all([
+  const [accountResult, sessionsResult, channelResult, deliveryResult, safetyResult, templateResult, healthResult, issuesResult, attemptsResult, activityResult, migrationResult, webhookResult, optOutResult, securityEventsResult, trendResult, sendingSummaryResult, blockedSummaryResult] = await Promise.all([
     query(
-      `SELECT u.email, u.password_strength AS "passwordStrength", u.password_changed_at AS "passwordChangedAt",
+      `SELECT u.email, u.mfa_enabled AS "mfaEnabled", (u.mfa_pending_secret_encrypted IS NOT NULL) AS "mfaPending",
+              u.updated_at AS "mfaUpdatedAt", jsonb_array_length(COALESCE(u.mfa_recovery_hashes, '[]'::jsonb)) AS "recoveryCodesRemaining",
+              u.password_strength AS "passwordStrength", u.password_changed_at AS "passwordChangedAt",
               (SELECT count(*)::int FROM password_reset_codes pr WHERE pr.user_id = u.id AND pr.created_at > now() - interval '24 hours') AS "resetRequests24h",
               (SELECT count(*)::int FROM activity_logs al WHERE al.user_id = u.id AND al.tenant_id = u.tenant_id AND al.created_at > now() - interval '30 days') AS "auditEvents30d"
          FROM users u WHERE u.id = $1 AND u.tenant_id = $2 LIMIT 1`,
@@ -96,13 +106,15 @@ async function loadSecurityFacts(tenantId, userId) {
       [userId]
     ),
     query(
-      `SELECT wc.id, wc.device_name AS "deviceName", wc.status, wc.connection_state AS "connectionState",
+      `SELECT wc.id, wc.device_name AS "deviceName", wc.status, wc.connection_state AS "connectionState", wc.waba_id AS "wabaId",
               wc.phone_number AS "phoneNumber", wc.connected_at AS "connectedAt", wc.last_health_check_at AS "lastHealthCheckAt",
               wc.last_successful_send_at AS "lastSuccessfulSendAt", wc.last_failed_send_at AS "lastFailedSendAt",
               wc.risk_score AS "riskScore", wc.risk_hold_at AS "riskHoldAt", wc.failure_rate AS "storedFailureRate",
               wc.warmup_day AS "warmupDay", wc.auto_sending_enabled AS "autoSendingEnabled",
               (SELECT count(*)::int FROM whatsapp_health_checks wh WHERE wh.whatsapp_channel_id = wc.id AND wh.checked_at > now() - interval '24 hours' AND wh.connection_state NOT IN ('open', 'connected')) AS "disconnects24h"
-         FROM whatsapp_channels wc WHERE wc.tenant_id = $1 ORDER BY wc.created_at DESC LIMIT 1`,
+         FROM whatsapp_channels wc
+        WHERE wc.tenant_id = $1 AND wc.provider IN ('meta','meta_cloud','meta_cloud_api')
+        ORDER BY wc.created_at DESC LIMIT 1`,
       [tenantId]
     ),
     query(
@@ -150,6 +162,27 @@ async function loadSecurityFacts(tenantId, userId) {
         GROUP BY date_trunc('day', calculated_at)
         ORDER BY day ASC`,
       [tenantId, userId]
+    ),
+    query(
+      `SELECT count(*) FILTER (WHERE created_at >= now() - interval '30 days')::int AS "attemptedCurrent",
+              count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status IN ('sent','delivered','read'))::int AS "successfulCurrent",
+              count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status = 'failed')::int AS "failedCurrent",
+              count(*) FILTER (WHERE created_at >= now() - interval '60 days' AND created_at < now() - interval '30 days')::int AS "attemptedPrevious",
+              count(*) FILTER (WHERE created_at >= now() - interval '60 days' AND created_at < now() - interval '30 days' AND status IN ('sent','delivered','read'))::int AS "successfulPrevious"
+         FROM message_queue WHERE tenant_id = $1`,
+      [tenantId]
+    ),
+    query(
+      `SELECT
+         (SELECT count(*)::int FROM login_attempts
+           WHERE lower(email) = (SELECT lower(email) FROM users WHERE id = $1 AND tenant_id = $2)
+             AND success = false AND created_at >= now() - interval '7 days') AS "blockedLogins",
+         count(*) FILTER (WHERE occurred_at >= now() - interval '7 days' AND event_type ILIKE '%api%')::int AS "rejectedApi",
+         count(*) FILTER (WHERE occurred_at >= now() - interval '7 days' AND (event_type ILIKE '%duplicate%' OR event_type ILIKE '%idempot%'))::int AS "preventedDuplicates",
+         count(*) FILTER (WHERE occurred_at >= now() - interval '7 days' AND (event_type ILIKE '%rate%' OR event_type ILIKE '%limit%'))::int AS "rateLimited"
+       FROM security_events
+       WHERE tenant_id = $2 AND (user_id = $1 OR user_id IS NULL)`,
+      [userId, tenantId]
     )
   ]);
   return {
@@ -158,7 +191,8 @@ async function loadSecurityFacts(tenantId, userId) {
     health: healthResult.rows[0] || null, issues: issuesResult.rows, attempts: attemptsResult.rows,
     activity: activityResult.rows, migration: migrationResult.rows[0] || null, webhook: webhookResult.rows[0] || null,
     optOuts: Number(optOutResult.rows[0]?.total || 0), securityEvents: securityEventsResult.rows,
-    weeklyTrend: trendResult.rows
+    weeklyTrend: trendResult.rows, sendingSummary: sendingSummaryResult.rows[0] || {},
+    blockedSummary: blockedSummaryResult.rows[0] || {}
   };
 }
 
@@ -211,7 +245,13 @@ function calculateSessions(facts, secureSession, currentSessionId = null) {
     factor("expiry", "انتهاء وإبطال الجلسة", 20, 20, "passed", "الجلسات المنتهية مرفوضة ويمكن إبطالها."),
     factor("anomalies", "مراجعة الجلسات القديمة", suspiciousSessions ? Math.max(0, 15 - suspiciousSessions * 5) : 15, 15, suspiciousSessions ? "review" : "passed", suspiciousSessions ? `${suspiciousSessions} إشارة تحتاج مراجعة.` : "لا توجد جلسات قديمة أو أنماط متعددة غير معتادة.")
   ];
-  return { ...metricFromFactors(factors), activeSessions: facts.sessions.length, suspiciousSessions, items: facts.sessions.slice(0, 5).map((item) => ({ id: item.id, device: deviceLabel(item.userAgent), location: maskIp(item.ipAddress), createdAt: item.createdAt, lastActivityAt: item.lastActivityAt, expiresAt: item.expiresAt, current: Boolean(currentSessionId && String(item.id) === String(currentSessionId)) })) };
+  return { ...metricFromFactors(factors), activeSessions: facts.sessions.length, suspiciousSessions, items: facts.sessions.slice(0, 5).map((item, index) => {
+    const details = deviceDetails(item.userAgent);
+    const current = Boolean(currentSessionId && String(item.id) === String(currentSessionId));
+    const ageHours = Math.max(0, (Date.now() - new Date(item.createdAt).getTime()) / 3600000);
+    const trustLevel = current || (index === 0 && ageHours > 24) ? "trusted" : ageHours <= 24 ? "new" : "review";
+    return { id: item.id, device: deviceLabel(item.userAgent), ...details, location: maskIp(item.ipAddress), maskedIp: maskIp(item.ipAddress), createdAt: item.createdAt, lastActivityAt: item.lastActivityAt, expiresAt: item.expiresAt, current, trustLevel };
+  }) };
 }
 
 function calculateSending(facts) {
@@ -338,6 +378,40 @@ export function calculateWeightedScore(metrics) {
   };
 }
 
+export function securitySummaryLabel(score) {
+  if (score === null || score === undefined) return "البيانات غير مكتملة";
+  if (score >= 90) return "ممتاز";
+  if (score >= 70) return "جيد";
+  if (score >= 50) return "يحتاج تحسين";
+  return "مرتفع الخطورة";
+}
+
+export function calculateSendingSummary(summary = {}) {
+  const attempted = Number(summary.attemptedCurrent || 0);
+  const successful = Number(summary.successfulCurrent || 0);
+  const previousAttempted = Number(summary.attemptedPrevious || 0);
+  const previousSuccessful = Number(summary.successfulPrevious || 0);
+  if (!attempted) return { available: false, successRate: null, successful: 0, comparison: null, periodDays: 30 };
+  const successRate = bounded(successful / attempted * 100);
+  const previousRate = previousAttempted ? bounded(previousSuccessful / previousAttempted * 100) : null;
+  return {
+    available: true,
+    successRate,
+    successful,
+    attempted,
+    comparison: previousRate === null ? null : successRate - previousRate,
+    periodDays: 30
+  };
+}
+
+export function calculateBlockedSummary(summary = {}) {
+  const blockedLogins = Number(summary.blockedLogins || 0);
+  const rejectedApi = Number(summary.rejectedApi || 0);
+  const preventedDuplicates = Number(summary.preventedDuplicates || 0);
+  const rateLimited = Number(summary.rateLimited || 0);
+  return { blockedLogins, rejectedApi, preventedDuplicates, rateLimited, total: blockedLogins + rejectedApi + preventedDuplicates + rateLimited, periodDays: 7 };
+}
+
 export async function calculateSecurityScore({ tenantId, userId, currentSessionId = null, secureSession = true, persist = false }) {
   const facts = await loadSecurityFacts(tenantId, userId);
   const platform = calculatePlatform(facts, secureSession);
@@ -351,8 +425,7 @@ export async function calculateSecurityScore({ tenantId, userId, currentSessionI
   const openCritical = facts.issues.filter((item) => item.status === "open" && ["critical", "error"].includes(item.severity)).length;
   const currentRiskScore = riskValues.length ? bounded(Math.max(...riskValues) + Math.min(20, openCritical * 5)) : null;
   const weighted = calculateWeightedScore([
-    { score: platform.score, weight: 30 }, { score: accounts.score, weight: 25 }, { score: sessions.score, weight: 15 },
-    { score: whatsapp.healthScore, weight: 20 }, { score: sending.score, weight: 10 }
+    { score: platform.score, weight: 40 }, { score: accounts.score, weight: 35 }, { score: sessions.score, weight: 25 }
   ]);
   const overallLabel = weighted.score === null ? "تعذر التحقق" : weighted.coverage < 80 ? "تقييم جزئي" : securityLabel(weighted.score);
   const recommendations = [...(accounts.recommendations || [])];
@@ -360,17 +433,54 @@ export async function calculateSecurityScore({ tenantId, userId, currentSessionI
   if (facts.channel && whatsapp.status === "insufficient_data") recommendations.push(recommendation("collect_whatsapp_data", "أكمل عينة الإرسال", "يلزم 20 رسالة فعلية على الأقل لحساب نجاح الإرسال بصورة موثوقة.", 0, "medium", "/dashboard/reports"));
   const criticalIssues = facts.issues.filter((item) => item.status === "open").slice(0, 6).map((item) => ({ key: item.id, title: item.message, severity: item.severity, description: item.suggestedSolution }));
   if (accountRiskScore >= 60) criticalIssues.unshift({ key: "account-risk", title: "ارتفاع خطر الحساب", severity: accountRiskScore >= 80 ? "critical" : "warning", description: "رُصد نشاط دخول يحتاج إلى مراجعة الجلسات والمحاولات الأخيرة." });
-  if (whatsappRiskScore >= 60) criticalIssues.unshift({ key: "whatsapp-risk", title: "ارتفاع خطر قناة واتساب", severity: whatsappRiskScore >= 80 ? "critical" : "warning", description: "أوقف الإرسال الآلي مؤقتًا وراجع جودة الاتصال ومعدلات الفشل." });
+  const metaConnectionStatus = !facts.channel
+    ? "not_connected"
+    : facts.channel.status === "connected" && facts.channel.wabaId
+      ? "connected_official"
+      : ["expired", "error", "disconnected"].includes(facts.channel.status)
+        ? "reauthorization_required"
+        : "setup_required";
   const calculatedAt = new Date().toISOString();
   const weeklySecurityTrend = buildWeeklySecurityTrend(facts.weeklyTrend, weighted.score, calculatedAt);
   const events = securityEvents(facts);
+  const safeSending = calculateSendingSummary(facts.sendingSummary);
+  const blockedAttempts = calculateBlockedSummary(facts.blockedSummary);
+  const openAlerts = events.filter((item) => ["medium", "high", "critical"].includes(item.severity));
+  const highestAlertSeverity = ["critical", "high", "medium"].find((severity) => openAlerts.some((item) => item.severity === severity)) || null;
+  const scoreConfidence = weighted.coverage >= 90 ? "high" : weighted.coverage >= 70 ? "medium" : "low";
+  const otpStatus = facts.account?.mfaEnabled === true ? "enabled" : facts.account?.mfaPending ? "pending" : "disabled";
+  const encryptionAvailable = Boolean(process.env.MFA_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY);
   const result = {
-    overall: { score: weighted.score, label: overallLabel, status: weighted.score === null ? "unavailable" : weighted.coverage < 80 ? "insufficient_data" : "available", coverage: weighted.coverage },
-    platform, accounts, account: accounts, sessions, whatsapp, sending,
+    overall: { score: weighted.score, label: securitySummaryLabel(weighted.score), status: weighted.score === null ? "unavailable" : weighted.coverage < 80 ? "insufficient_data" : "available", coverage: weighted.coverage, confidence: scoreConfidence },
+    overallScore: weighted.score,
+    scoreLabel: securitySummaryLabel(weighted.score),
+    scoreConfidence,
+    components: { account: accounts.score, sessions: sessions.score, sending: sending.score, platform: platform.score },
+    positiveSignals: [platform, accounts, sessions].flatMap((metric) => metric.factors || []).filter((item) => item.state === "passed").map((item) => item.title).slice(0, 8),
+    negativeSignals: [platform, accounts, sessions].flatMap((metric) => metric.factors || []).filter((item) => ["review", "critical", "missing"].includes(item.state)).map((item) => item.title).slice(0, 8),
+    platform, accounts, account: accounts, sessions,
+    accountProtection: {
+      otpEnabled: facts.account?.mfaEnabled === true,
+      otpStatus,
+      otpEnabledAt: facts.account?.mfaEnabled ? facts.account?.mfaUpdatedAt || null : null,
+      recoveryCodesRemaining: Number(facts.account?.recoveryCodesRemaining || 0),
+      activeSessions: sessions.activeSessions || 0,
+      lastDevice: sessions.items?.[0]?.device || null,
+      openAlerts: openAlerts.length,
+      loginAlertsEnabled: true,
+      encryption: { status: encryptionAvailable ? "automatic" : "unavailable" },
+      unusualActivityMonitoring: { status: "automatic", recentSignals: Number(facts.securityEvents?.length || 0) },
+      meta: { status: metaConnectionStatus, wabaId: facts.channel?.wabaId || null }
+    },
+    safeSending,
+    blockedAttempts,
+    alertSummary: { openCount: openAlerts.length, highestSeverity: highestAlertSeverity },
     risk: { score: currentRiskScore, label: riskLabel(currentRiskScore), status: currentRiskScore === null ? "unavailable" : "available", issues: criticalIssues.length },
     login: { failed24h: accounts.failed24h, recent: facts.attempts.slice(0, 5).map((item) => ({ success: item.success, occurredAt: item.createdAt, device: deviceLabel(item.userAgent), location: maskIp(item.ipAddress) })) },
     events, securityAlerts: events, criticalIssues, weeklySecurityTrend,
-    recommendations: recommendations.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]), calculatedAt, lastUpdatedAt: calculatedAt
+    recommendations: recommendations.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]),
+    recommendedActions: recommendations.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]),
+    calculatedAt, lastUpdatedAt: calculatedAt
   };
   if (persist) {
     await query(

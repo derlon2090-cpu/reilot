@@ -107,7 +107,7 @@ const operationalEnglishPhrases = {
   "كلمة المرور الجديدة": "New password",
   "تأكيد كلمة المرور": "Confirm password",
   "تحديث كلمة المرور": "Update password",
-  "المصادقة الثنائية": "Two-factor authentication",
+  "دخول الحساب OTP": "Account sign-in OTP",
   "طبقة حماية إضافية لحسابك": "An additional layer of account protection",
   "إدارة الجلسات النشطة": "Manage active sessions",
   "الواجهة واللغة": "Interface & language",
@@ -1818,17 +1818,11 @@ async function refreshLinkedDevice(deviceId, { connectionTest = false } = {}) {
   const device = linkedDeviceById(deviceId);
   if (!device) throw new Error("تعذر العثور على الجهاز المطلوب.");
   const provider = String(device.provider || "").toLowerCase();
-  if (["meta", "meta_cloud_api"].includes(provider)) {
+  if (["meta", "meta_cloud", "meta_cloud_api"].includes(provider)) {
     await syncLinkedDevice();
-    return { status: device.status, provider, fromWebhook: true };
+    return { status: device.status, provider, fromWebhook: true, connectionTest };
   }
-  const payload = await fetchJson(`/api/whatsapp/instances/${encodeURIComponent(device.id)}/check`, {
-    method: "POST",
-    signal: AbortSignal.timeout(15_000),
-    timeoutMessage: connectionTest ? "استغرق فحص الاتصال وقتًا أطول من المتوقع." : "استغرقت مزامنة الجهاز وقتًا أطول من المتوقع."
-  });
-  await syncLinkedDevice();
-  return payload;
+  throw new Error("هذه القناة ليست اتصال Meta Cloud API رسميًا.");
 }
 
 // Kept temporarily as a compatibility reference while the support center uses the functional implementation below.
@@ -2143,7 +2137,7 @@ function mfaLoginPage() {
   if (statusData?.error) {
     return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق الثنائي</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></section></main>`;
   }
-  return `<main class="auth-light-page mfa-login-page" dir="rtl"><header class="auth-light-header mfa-login-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق ثنائي آمن</span></header><section class="reset-light-shell mfa-login-shell"><article class="card reset-light-panel mfa-login-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام. يمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual"><div class="mail-visual">${stackedLogo()}</div><h2>المصادقة الثنائية تحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي تفعيل المفتاح من الواجهة.</p></aside></section>${publicFooter()}</main>`;
+  return `<main class="auth-light-page mfa-login-page" dir="rtl"><header class="auth-light-header mfa-login-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} دخول OTP آمن</span></header><section class="reset-light-shell mfa-login-shell"><article class="card reset-light-panel mfa-login-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام. يمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual"><div class="mail-visual">${stackedLogo()}</div><h2>دخول الحساب OTP يحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي إنشاء المفتاح من الواجهة.</p></aside></section>${publicFooter()}</main>`;
 }
 
 async function loadMfaLoginStatus(force = false) {
@@ -3372,7 +3366,7 @@ function legacySecurityPage() {
           </div>
         </section>
         <section class="security-center-middle">
-          <article class="card security-policy-card"><div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>تساعد على تقليل الضغط والمخاطر، ولا تضمن عدم تقييد القناة من مقدم الخدمة.</p></div></div><div class="security-policy-body"><div class="security-shield-art">${dashboardIcon("security")}<span>حماية تلقائية</span></div><div class="security-policy-list">${(sending.policies || []).length ? sending.policies.map((item) => `<div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "نشط" : "يحتاج ضبط"}</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></div>`).join("") : `<div class="security-empty-row">لم يتم إعداد سياسة الإرسال بعد.</div>`}</div></div><button class="security-safe-action" data-action="preview-safe-settings">تطبيق الإعدادات الآمنة الموصى بها</button></article>
+          <article class="card security-policy-card"><div class="security-panel-title">${dashboardIcon("security")}<div><h2>مركز حماية الحساب</h2><p>تحكم في وسائل حماية حسابك، جلسات الدخول والتنبيهات الأمنية.</p></div></div></article>
           <div class="security-activity-column">
             <article class="card security-compact-panel"><div class="security-panel-title">${dashboardIcon("devices")}<h2>الجلسات النشطة</h2></div><div class="security-panel-summary"><strong>${Number(sessions.activeSessions || 0)}</strong><span>جلسة حالية فعلية</span></div>${(sessions.items || []).length ? sessions.items.slice(0, 2).map((item) => `<div class="security-activity-line"><span>✓</span><div><strong>${escapeHtml(item.device)}</strong><small>${escapeHtml(item.location)} · ${escapeHtml(securityTime(item.lastActivityAt))}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}<button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button></article>
             <article class="card security-compact-panel"><div class="security-panel-title">${dashboardIcon("customers")}<h2>محاولات الدخول</h2></div><div class="security-panel-summary"><strong>${Number(score.login?.failed24h || 0)}</strong><span>محاولة فاشلة خلال 24 ساعة</span></div>${(score.login?.recent || []).length ? score.login.recent.slice(0, 2).map((item) => `<div class="security-activity-line ${item.success ? "success" : "warning"}"><span>${item.success ? "✓" : "!"}</span><div><strong>${item.success ? "تسجيل دخول ناجح" : "محاولة غير ناجحة"}</strong><small>${escapeHtml(item.device)} · ${escapeHtml(securityTime(item.occurredAt))}</small></div></div>`).join("") : `<div class="security-empty-row">لا توجد محاولات دخول مسجلة.</div>`}</article>
@@ -3386,70 +3380,58 @@ function legacySecurityPage() {
     <article class="card table-card section security-optout-card"><div class="section-head"><div><h2>قائمة إيقاف الرسائل</h2><p class="muted">الأرقام الفعلية التي يمنع النظام الإرسال إليها قبل إدراج أي رسالة.</p></div><div class="inline-actions"><button class="btn btn-primary" data-action="add-unsubscribe">إضافة رقم</button><button class="btn btn-secondary" data-action="import-unsubscribes">استيراد قائمة</button></div></div>${listContent}</article>`);
 }
 
+function securityTrustLabel(level) {
+  return level === "trusted" ? "موثوق" : level === "new" ? "جديد" : "يحتاج مراجعة";
+}
+
+function securitySeverityLabel(level) {
+  return ({ info: "معلومة", low: "منخفض", medium: "متوسط", high: "عالٍ", critical: "حرج" })[level] || "منخفض";
+}
+
 function securityPage() {
-  const score = state.securityScore?.overall ? state.securityScore : null;
   if (state.securityScore === null) {
-    return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}<div class="loading-state">جاري حساب مؤشرات الحماية من البيانات الفعلية...</div></div>`);
+    return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}<div class="security-page-skeleton" aria-label="جاري التحقق">${Array.from({ length: 4 }, () => `<span></span>`).join("")}</div></div>`);
   }
+  const score = state.securityScore?.overall ? state.securityScore : null;
   if (state.securityScore?.error || !score) {
-    return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}${emptyState("تعذر حساب مستوى الحماية", "لا نعرض درجات افتراضية. أعد الفحص لاسترجاع المؤشرات الفعلية.", "إعادة الفحص", "recalculate-security")}</div>`);
+    return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}${emptyState("تعذر التحقق من الحماية", "حافظنا على آخر حالة صحيحة ولم نعرض أرقامًا افتراضية. أعد الفحص لاسترجاع البيانات الفعلية.", "إعادة الفحص", "recalculate-security")}</div>`);
   }
 
-  const overall = score.overall;
-  const platform = score.platform || { score: null, label: "غير متاح" };
-  const accounts = score.accounts || score.account || { score: null, label: "غير متاح" };
-  const sessions = score.sessions || { score: null, activeSessions: 0, items: [] };
-  const whatsapp = score.whatsapp || { healthScore: null, label: "غير مهيأ" };
-  const sending = score.sending || { score: null, policies: [] };
-  const risk = score.risk || { score: null, label: "غير متاح", issues: 0 };
-  const checkedLabel = score.lastUpdatedAt || score.calculatedAt ? securityTime(score.lastUpdatedAt || score.calculatedAt) : "الآن";
-  const factors = [
-    { label: "جميع الأنظمة الأساسية تعمل بشكل طبيعي", ok: platform.score !== null && platform.score >= 70 },
-    { label: "لا توجد تهديدات حرجة مفتوحة", ok: Number(risk.issues || 0) === 0 },
-    { label: "سياسات الحماية مطبقة", ok: sending.score !== null && sending.score >= 70 },
-    { label: "تم تنفيذ فحص حديث", ok: Boolean(score.calculatedAt) }
-  ];
+  const overall = score.overall || { score: null, label: "البيانات غير مكتملة", confidence: "low" };
+  const safeSending = score.safeSending || { available: false, successRate: null, successful: 0, comparison: null, periodDays: 30 };
+  const blocked = score.blockedAttempts || { total: 0, periodDays: 7 };
+  const alertSummary = score.alertSummary || { openCount: 0, highestSeverity: null };
+  const sessions = score.sessions || { activeSessions: 0, items: [] };
+  const protection = score.accountProtection || { otpStatus: "disabled", activeSessions: 0, openAlerts: 0, encryption: { status: "unavailable" }, unusualActivityMonitoring: { status: "automatic" } };
   const sessionItems = Array.isArray(sessions.items) ? sessions.items.slice(0, 5) : [];
-  const policies = Array.isArray(sending.policies) ? sending.policies.slice(0, 5) : [];
-  const alerts = Array.isArray(score.criticalIssues) ? score.criticalIssues : [];
-  const securityAlerts = Array.isArray(score.securityAlerts) ? score.securityAlerts : Array.isArray(score.events) ? score.events : [];
+  const alerts = (Array.isArray(score.securityAlerts) ? score.securityAlerts : []).filter((item) => item?.title).slice(0, 5);
+  const overallAvailable = overall.score !== null && overall.score !== undefined && overall.status === "available";
+  const otpState = protection.otpStatus === "enabled" ? { label: "مفعّل ومحمي", tone: "success", action: "إدارة OTP" } : protection.otpStatus === "pending" ? { label: "الإعداد غير مكتمل", tone: "warning", action: "إكمال التفعيل" } : { label: "غير مفعّل", tone: "warning", action: "تفعيل دخول OTP" };
+  const sendingComparison = safeSending.comparison === null || safeSending.comparison === undefined ? "لا تتوفر مقارنة سابقة" : safeSending.comparison > 0 ? `تحسن ${safeSending.comparison}% عن الفترة السابقة` : safeSending.comparison < 0 ? `انخفاض ${Math.abs(safeSending.comparison)}% عن الفترة السابقة` : "مستقر مقارنة بالفترة السابقة";
 
   return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}
-    <section class="security-reference-top">
-      <article class="card security-overall-card ${securityScoreTone(overall.score)}">
-        <div class="security-overall-ring ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
-        <div><h2>مؤشر الحماية العام</h2><p>أداء الحماية في وضع ${escapeHtml(overall.label)}، وجميع النتائج مأخوذة من فحص حسابك الفعلي.</p><button class="security-live-dot" data-action="recalculate-security">${dashboardIcon("refresh")} فحص وتحديث مباشر</button><small>آخر تحديث: ${escapeHtml(checkedLabel)}</small></div>
-      </article>
-      ${securityMetricCard("حماية المنصة", platform, "security", "جدار حماية وتهيئة النظام")}
-      ${securityMetricCard("حماية الحساب", accounts, "customers", "المصادقة وسياسات الدخول")}
-      ${securityMetricCard("أمان الإرسال", sending, "send", "مراقبة الرسائل والقنوات")}
-      ${securityMetricCard("صحة واتساب", { ...whatsapp, score: whatsapp.healthScore }, "whatsapp", "حالة الاتصال الفعلية")}
-      ${securityMetricCard("مستوى الخطر", risk, "warning", `${Number(risk.issues || 0)} تنبيهات مفتوحة`, true)}
+    <section class="security-summary-grid" aria-label="ملخص الحماية">
+      <article class="card security-summary-card"><div class="security-summary-heading"><span class="security-summary-icon">${dashboardIcon("security")}</span><span>مؤشر الحماية العام</span></div><strong class="security-summary-value">${overallAvailable ? `${Number(overall.score)}%` : "—"}</strong><span class="security-status-badge ${overallAvailable ? securityScoreTone(overall.score) : "neutral"}">${overallAvailable ? escapeHtml(overall.label) : "البيانات غير مكتملة"}</span>${overallAvailable ? `<div class="security-summary-progress"><span style="width:${Number(overall.score)}%"></span></div>` : ""}<small>${overallAvailable ? escapeHtml((score.negativeSignals || [])[0] || "يعتمد على حماية الحساب والجلسات والمنصة.") : `الثقة في النتيجة: ${overall.confidence === "medium" ? "متوسطة" : "منخفضة"}`}</small></article>
+      <article class="card security-summary-card"><div class="security-summary-heading"><span class="security-summary-icon">${dashboardIcon("send")}</span><span>عمليات الإرسال الآمنة</span></div>${safeSending.available ? `<strong class="security-summary-value">${Number(safeSending.successRate)}%</strong><span class="security-summary-caption">${Number(safeSending.successful)} رسالة ناجحة خلال ${Number(safeSending.periodDays)} يومًا</span><small>${escapeHtml(sendingComparison)}</small>` : `<strong class="security-summary-empty">لا توجد بيانات إرسال بعد</strong><small>سيظهر المؤشر بعد تنفيذ أول عملية إرسال فعلية.</small>`}</article>
+      <article class="card security-summary-card"><div class="security-summary-heading"><span class="security-summary-icon">${dashboardIcon("warning")}</span><span>محاولات تم منعها</span></div><strong class="security-summary-value">${Number(blocked.total || 0)}</strong><span class="security-summary-caption">خلال آخر ${Number(blocked.periodDays || 7)} أيام</span><small>دخول مرفوض وطلبات API وتكرار وتجاوز حدود.</small></article>
+      <article class="card security-summary-card"><div class="security-summary-heading"><span class="security-summary-icon">${dashboardIcon("notifications")}</span><span>تنبيهات تحتاج متابعة</span></div>${Number(alertSummary.openCount || 0) ? `<strong class="security-summary-value">${Number(alertSummary.openCount)}</strong><span class="security-status-badge ${escapeHtml(alertSummary.highestSeverity || "medium")}">${escapeHtml(securitySeverityLabel(alertSummary.highestSeverity))}</span><button class="security-summary-action" data-action="security-alerts">عرض التنبيهات</button>` : `<strong class="security-summary-empty">لا توجد تنبيهات مفتوحة</strong><button class="security-summary-action" data-action="security-alerts">عرض التنبيهات</button>`}</article>
     </section>
-    <section class="security-reference-middle">
-      <article class="card security-reference-general">
-        <div class="security-panel-title">${dashboardIcon("security")}<h2>مؤشر الحماية العام</h2></div>
-        <div class="security-general-content">
-          <div class="security-overall-ring large ${overall.score === null ? "empty" : ""}" style="--security-progress:${Number(overall.score || 0) * 3.6}deg"><div><strong>${overall.score === null ? "—" : `${Number(overall.score)}%`}</strong><span>${escapeHtml(overall.label)}</span>${dashboardIcon("security")}</div></div>
-          <div class="security-factor-list">${factors.map((item) => `<div class="${item.ok ? "ok" : "attention"}"><span>${item.ok ? "✓" : "!"}</span>${escapeHtml(item.label)}</div>`).join("")}</div>
-        </div>
-        ${securityTrendMarkup(score.weeklySecurityTrend, overall.score)}
-      </article>
-      <article class="card security-reference-policy">
-        <div class="security-panel-title">${dashboardIcon("security")}<div><h2>سياسة الإرسال الآمن</h2><p>إعدادات محسوبة لحماية عمليات الإرسال.</p></div></div>
-        <div class="security-reference-policy-list">${policies.length ? policies.map((item) => `<div><span class="security-policy-icon">${dashboardIcon(item.icon || "security")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || "")}</small></div><span class="policy-indicator ${item.active ? "active" : "inactive"}">${item.active ? "مفعل" : "يحتاج ضبط"}</span><span class="security-row-arrow">‹</span></div>`).join("") : `<div class="security-empty-row">لا توجد سياسة إرسال مهيأة بعد.</div>`}</div>
-        <button class="security-safe-action" data-action="preview-safe-settings">إدارة سياسة الإرسال</button>
-      </article>
-      <article class="card security-reference-sessions">
-        <div class="security-panel-title">${dashboardIcon("devices")}<div><h2>الجلسات النشطة</h2><p>${Number(sessions.activeSessions || 0)} جلسة فعلية مرتبطة بحسابك.</p></div></div>
-        <div class="security-reference-session-list">${sessionItems.length ? sessionItems.map((item) => `<div><span class="session-os">${dashboardIcon("devices")}</span><div><strong>${escapeHtml(item.device || "جهاز غير معروف")}</strong><small>${escapeHtml(item.location || "موقع غير متاح")}</small></div><div class="security-session-meta">${item.current ? `<span class="current-session-badge">الجلسة الحالية</span>` : ""}<time>${escapeHtml(securityTime(item.lastActivityAt))}</time></div></div>`).join("") : `<div class="security-empty-row">لا توجد جلسات سارية.</div>`}</div>
-        <button class="security-panel-link" data-action="manage-sessions">عرض جميع الجلسات</button>
-      </article>
+
+    <section class="security-main-grid">
+      <article class="card security-main-card security-smart-center"><div class="security-main-heading"><span class="security-main-icon">${dashboardIcon("security")}</span><div><h2>مركز الحماية الذكي</h2><p>إعدادات وإجراءات لحماية حسابك وبيانات منصتك.</p></div></div><div class="security-protection-list">
+        <div><span>${dashboardIcon("security")}</span><div><strong>دخول الحساب OTP</strong><small>اطلب رمزًا مؤقتًا عند تسجيل الدخول لحماية حسابك من الوصول غير المصرح.</small></div><em class="${otpState.tone}">${otpState.label}</em><button data-link="/dashboard/settings?section=security">${otpState.action}</button></div>
+        <div><span>${dashboardIcon("devices")}</span><div><strong>حماية الجلسات</strong><small>${Number(protection.activeSessions || 0)} جلسة نشطة تخضع للانتهاء والإبطال الآمن.</small></div><em class="success">يعمل تلقائيًا</em><button data-action="manage-sessions">إدارة الجلسات</button></div>
+        <div><span>${dashboardIcon("security")}</span><div><strong>تشفير البيانات الحساسة</strong><small>تُحمى أسرار الدخول على الخادم ولا تظهر بعد اكتمال الإعداد.</small></div><em class="${protection.encryption?.status === "automatic" ? "success" : "neutral"}">${protection.encryption?.status === "automatic" ? "يعمل تلقائيًا" : "غير متاح"}</em><button data-link="/dashboard/settings?section=security">عرض الإعدادات</button></div>
+        <div><span>${dashboardIcon("reports")}</span><div><strong>مراقبة الأنشطة غير المعتادة</strong><small>مراجعة مستمرة للجلسات ومحاولات الدخول والتنبيهات المهمة.</small></div><em class="success">يعمل تلقائيًا</em><button data-action="security-alerts">عرض النشاط</button></div>
+      </div></article>
+
+      <article class="card security-main-card"><div class="security-main-heading"><span class="security-main-icon">${dashboardIcon("devices")}</span><div><h2>جلسات الدخول الأخيرة</h2><p>آخر خمس جلسات مرتبطة بحسابك.</p></div></div><div class="security-session-list">${sessionItems.length ? sessionItems.map((item) => `<div><span class="security-session-device">${dashboardIcon("devices")}</span><div><strong>${escapeHtml(`${item.browser || "متصفح"} · ${item.system || "نظام غير معروف"}`)}</strong><small>${escapeHtml(item.device || "جهاز غير معروف")} · ${escapeHtml(item.location || item.maskedIp || "موقع غير متاح")}</small></div><div class="security-session-state">${item.current ? `<b>الجلسة الحالية</b>` : `<b class="${escapeHtml(item.trustLevel || "review")}">${escapeHtml(securityTrustLabel(item.trustLevel))}</b>`}<time>${escapeHtml(securityTime(item.lastActivityAt))}</time></div></div>`).join("") : `<div class="security-empty-row">لا توجد بيانات جلسات متاحة.</div>`}</div><button class="security-main-link" data-action="manage-sessions">عرض جميع الجلسات</button></article>
+
+      <article class="card security-main-card"><div class="security-main-heading"><span class="security-main-icon">${dashboardIcon("notifications")}</span><div><h2>أحدث التنبيهات الأمنية</h2><p>أحدث الأحداث التي تستحق المراجعة.</p></div></div><div class="security-latest-alerts">${alerts.length ? alerts.map((item) => `<div><span class="security-alert-level ${escapeHtml(item.severity || "low")}">${escapeHtml(securitySeverityLabel(item.severity))}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.message || item.detail || "راجع تفاصيل الحدث الأمني.")}</small></div><time>${escapeHtml(securityTime(item.timestamp || item.occurredAt))}</time></div>`).join("") : `<div class="security-empty-row">لا توجد تنبيهات مفتوحة.</div>`}</div><button class="security-main-link" data-action="security-alerts">عرض جميع التنبيهات</button></article>
     </section>
-    <article class="card security-reference-alerts">
-      <div class="security-alert-heading"><div class="security-panel-title">${dashboardIcon("notifications")}<div><h2>تنبيهات الحماية</h2><p>آخر التنبيهات والحالة الأمنية.</p></div></div><button class="security-alert-log" data-action="security-alerts">عرض سجل التنبيهات</button></div>
-      ${alerts.length ? `<div class="security-reference-alert-list">${alerts.slice(0, 4).map((item) => `<div class="${escapeHtml(item.severity || "warning")}"><span>!</span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description || "راجع إعدادات الحماية.")}</small></div>`).join("")}</div>` : `<div class="security-reference-clear"><span>✓</span><div><strong>لا توجد تنبيهات حاليًا</strong><small>جميع الأنظمة آمنة ولا توجد تهديدات أو مشكلات تتطلب تدخلك.</small></div></div>`}
-    </article><span class="security-data-count" aria-hidden="true">${securityAlerts.length}</span></div>`);
+
+    <section class="card security-footer-banner"><div><h2>حماية حسابك أولوية</h2><p>تعمل أنظمة Renvix على مراقبة حسابك وعمليات الإرسال باستمرار، وسنبلغك عند وجود إجراء يتطلب تدخلك.</p></div><button class="btn btn-secondary" data-link="/dashboard/settings?section=security">مركز الأمان</button></section>
+    <span class="security-data-count" aria-hidden="true">${alerts.length}</span></div>`);
 }
 
 function connectedDevicesCenterPage() {
@@ -3565,7 +3547,7 @@ function deviceRelativeTime(value) {
 }
 
 function deviceProviderLabel(provider) {
-  return ["meta", "meta_cloud_api"].includes(String(provider || "").toLowerCase()) ? "واتساب الرسمي · Meta" : "واتساب الأعمال";
+  return ["meta", "meta_cloud", "meta_cloud_api"].includes(String(provider || "").toLowerCase()) ? "واتساب الرسمي · Meta" : "قناة غير متاحة للمستخدم";
 }
 
 function deviceActivityPresentation(item) {
@@ -3599,7 +3581,7 @@ function devicesWorkspacePage() {
   const stabilityLabel = !total ? "غير متاح" : stabilityScore >= 90 ? "ممتاز" : stabilityScore >= 70 ? "جيد" : stabilityScore >= 50 ? "متوسط" : "يحتاج متابعة";
   const activity = Array.isArray(payload.activity) ? payload.activity : [];
   const activityLimit = state.deviceActivityExpanded ? 20 : 5;
-  const metaDevices = devices.filter((item) => ["meta", "meta_cloud_api"].includes(String(item.provider || "").toLowerCase()));
+  const metaDevices = devices.filter((item) => ["meta", "meta_cloud", "meta_cloud_api"].includes(String(item.provider || "").toLowerCase()));
   const metaConnected = metaDevices.some((item) => item.status === "connected");
   const hasOfficialNumber = metaDevices.some((item) => Boolean(item.phoneNumber));
   const metaConfigured = Boolean(window.__RENVIX_CONFIG__?.metaWhatsAppEnabled);
@@ -4733,7 +4715,7 @@ function settingsPage() {
     <p class="page-kicker">إدارة معلومات الحساب والأمان وتفضيلات الواجهة.</p>
     <div class="settings-layout">
       <article class="card settings-panel account-photo-panel settings-account-card"><div class="settings-panel-head">${dashboardIcon("customers")}<div><h2>إعدادات الحساب</h2><p class="muted">تحديث معلومات حسابك الشخصية وبيانات التواصل.</p></div></div><div class="avatar-editor">${avatar}<div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="avatar-camera-button" data-action="choose-avatar" title="تغيير الصورة">${dashboardIcon("reports")}</button>${avatarUrl ? `<button class="btn btn-ghost danger-text" data-action="remove-avatar">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت.</small></div></div><form data-submit="profile-settings" class="settings-profile-form" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" value="${escapeHtml(remote.storeName || "")}" ${canEditStore ? "" : "disabled title=\"لا تملك صلاحية تعديل اسم المتجر\""}></label><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly title="لتغيير البريد، استخدم إجراء التحقق المخصص."></label><label class="field"><span>رقم الهاتف</span><input class="input" name="phone" dir="ltr" placeholder="+9665XXXXXXXX" value="${escapeHtml(remote.phone || "")}"></label><button class="btn btn-primary profile-save-button" disabled>حفظ التغييرات</button><button type="button" class="btn btn-danger settings-logout-button" data-action="logout-confirm">تسجيل الخروج</button></form></article>
-      <article class="card settings-panel settings-security-card"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.</p></div></div><form data-submit="password" class="security-password-form"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" autocomplete="current-password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="btn btn-primary">تحديث كلمة المرور</button></form><div class="setting-row"><div><strong>المصادقة الثنائية</strong><p class="muted">طبقة حماية إضافية لحسابك</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><button class="btn btn-secondary sessions-button" data-action="manage-sessions">إدارة الجلسات النشطة</button></article>
+      <article class="card settings-panel settings-security-card"><div class="settings-panel-head">${dashboardIcon("security")}<div><h2>الأمان</h2><p class="muted">حافظ على أمان حسابك بتحديث كلمة المرور وإعدادات الحماية.</p></div></div><form data-submit="password" class="security-password-form"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" autocomplete="current-password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="btn btn-primary">تحديث كلمة المرور</button></form><div class="setting-row"><div><strong>دخول الحساب OTP</strong><p class="muted">رمز مؤقت عند تسجيل الدخول لحماية حسابك</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><button class="btn btn-secondary sessions-button" data-action="manage-sessions">إدارة الجلسات النشطة</button></article>
       <article class="card settings-panel settings-interface-card"><div class="settings-panel-head">${dashboardIcon("settings")}<div><h2>الواجهة واللغة</h2><p class="muted">تخصيص مظهر وكثافة ولغة الواجهة.</p></div></div><div class="settings-select-grid"><label class="field"><span>اللغة</span><select class="select" data-action="preference-select" data-preference="language"><option value="ar" ${state.language === "ar" ? "selected" : ""}>◉ العربية</option><option value="en" ${state.language === "en" ? "selected" : ""}>◉ English</option></select></label><label class="field"><span>المظهر</span><select class="select theme-preference-select" data-action="preference-select" data-preference="theme"><option value="light" ${state.theme === "light" ? "selected" : ""}>☀ شمسي (فاتح)</option><option value="dark" ${state.theme === "dark" ? "selected" : ""}>☾ قمري (داكن)</option><option value="system" ${state.theme === "system" ? "selected" : ""}>النظام</option></select></label><label class="field"><span>كثافة الواجهة</span><select class="select" data-action="preference-select" data-preference="interfaceDensity"><option value="comfortable" ${state.interfaceDensity === "comfortable" ? "selected" : ""}>مريحة</option><option value="medium" ${state.interfaceDensity === "medium" ? "selected" : ""}>متوسطة</option><option value="compact" ${state.interfaceDensity === "compact" ? "selected" : ""}>مضغوطة</option></select></label></div></article>
       <article class="card settings-panel settings-notifications-card"><div class="settings-panel-head">${dashboardIcon("notifications")}<div><h2>الإشعارات</h2><p class="muted">اختر الإشعارات التي ترغب في استلامها.</p></div></div>${notificationSettingToggle("renewalBillingNotifications", "إشعارات التجديد والفواتير", notifications.renewalBillingNotifications !== false, Boolean(state.notificationPreferenceSaving))}${notificationSettingToggle("securityNotifications", "التنبيهات الأمنية الأساسية", true, true)}${notificationSettingToggle("productUpdates", "تقارير النظام والتحديثات", notifications.productUpdates !== false, Boolean(state.notificationPreferenceSaving))}${notificationSettingToggle("messageFailureNotifications", "تنبيهات فشل الرسائل", notifications.messageFailureNotifications !== false, Boolean(state.notificationPreferenceSaving))}<small class="security-always-note">التنبيهات الأمنية الأساسية مفعلة دائمًا لحماية حسابك.</small></article>
       <article class="card settings-panel storage-panel ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-panel-head">${dashboardIcon("billing")}<div><h2>مساحة الحساب</h2><p class="muted">المساحة الفعلية لبيانات عملائك واشتراكاتك وروابطك وسجلاتك.</p></div></div><div class="storage-summary"><strong>${storage.usedMb} MB</strong><span>${state.language === "en" ? "of" : "من"} ${storage.limitMb} MB</span></div><div class="storage-progress"><i style="width:${Number(storage.progressPercent ?? Math.min(100, Number(storage.percent || 0)))}%"></i></div><small>${storage.percent}% مستخدم من حد الباقة الحالية</small>${storage.isLimitReached ? `<div class="storage-capacity-warning">${dashboardIcon("warning")}<div><strong>وصلت إلى حد مساحة الباقة</strong><span>أوقفت المنصة العمليات الجديدة التي تحتاج مساحة. طوّر الباقة أو احذف بيانات لا تحتاجها.</span></div></div>` : ""}<div class="storage-breakdown">${storage.breakdown?.length ? storage.breakdown.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${item.mb} MB</strong></div>`).join("") : `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn ${storage.isLimitReached ? "btn-primary" : "btn-secondary"}" data-link="/dashboard/billing">${storage.isLimitReached ? "ترقية الباقة" : "عرض حدود الباقات"}</button></article>
@@ -4764,7 +4746,7 @@ function openModal(title, body, foot = "") {
 
 function openDrawer(title, body) {
   portal.innerHTML = `<div class="drawer-overlay" data-action="close-modal"><aside class="drawer">
-    <header class="modal-head"><h2>${title}</h2><button class="btn btn-ghost icon-btn" data-action="close-modal">×</button></header>
+    <header class="modal-head"><h2>${title}</h2><button class="btn btn-ghost icon-btn" type="button" data-action="close-modal" aria-label="إغلاق" title="إغلاق">×</button></header>
     <div class="modal-body">${body}</div>
   </aside></div>`;
   localizeElement(portal);
@@ -5325,12 +5307,16 @@ async function showSessionsDrawer() {
   } catch (error) { openDrawer("إدارة الجلسات النشطة", `<div class="empty-state"><strong>تعذر تحميل الجلسات</strong><p>${escapeHtml(error.message)}</p></div>`); }
 }
 
-async function startMfaSetup() {
+function startMfaSetup() {
+  openModal("تفعيل دخول الحساب OTP", `<form data-submit="mfa-setup-start" class="grid"><div class="security-setup-step"><span>1</span><div><strong>تأكيد هويتك</strong><small>أدخل كلمة المرور الحالية قبل إنشاء مفتاح المصادقة.</small></div></div><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" autocomplete="current-password" required autofocus></label><button class="btn btn-primary">متابعة</button></form>`);
+}
+
+async function requestMfaSetup(currentPassword) {
   try {
-    const payload = await fetchJson("/api/settings/security/mfa/setup", { method: "POST" });
+    const payload = await fetchJson("/api/settings/security/mfa/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword }) });
     state.mfaSetupPending = true;
-    openModal("تفعيل المصادقة الثنائية", `<form data-submit="mfa-verify" class="grid"><p>امسح الرمز عبر تطبيق المصادقة، ثم أدخل الرمز المكوّن من 6 أرقام.</p><img class="mfa-qr" src="${escapeHtml(payload.qrCode)}" alt="رمز إعداد المصادقة الثنائية"><code class="mfa-secret">${escapeHtml(payload.secret)}</code><label class="field"><span>رمز التطبيق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><button class="btn btn-primary">تأكيد التفعيل</button></form>`);
-  } catch (error) { toast(error.message || "تعذر بدء إعداد المصادقة الثنائية", "danger"); render(); }
+    openModal("اربط تطبيق المصادقة", `<form data-submit="mfa-verify" class="grid"><div class="security-setup-step"><span>2</span><div><strong>اربط تطبيق المصادقة</strong><small>امسح الرمز ثم أدخل الرمز الحالي المكوّن من 6 أرقام.</small></div></div><img class="mfa-qr" src="${escapeHtml(payload.qrCode)}" alt="رمز إعداد دخول الحساب OTP"><div class="mfa-manual-key"><span>المفتاح اليدوي</span><code class="mfa-secret">${escapeHtml(payload.secret)}</code></div><label class="field"><span>رمز OTP</span><input class="input code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button class="btn btn-primary">تأكيد التفعيل</button></form>`);
+  } catch (error) { toast(error.message || "تعذر بدء إعداد دخول الحساب OTP", "danger"); }
 }
 
 async function saveSallaSettings() {
@@ -5717,6 +5703,20 @@ async function handleAction(target) {
   if (action === "template-catalog-channel" && target.tagName !== "SELECT") { state.templateCatalogChannel = target.dataset.channel || "all"; render(); }
   if (action === "preview-catalog-template") document.querySelector(".template-preview-v2")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (action === "close-modal") closePortal();
+  if (action === "copy-recovery-codes") {
+    const codes = Array.from(portal.querySelectorAll(".recovery-code-grid code")).map((item) => item.textContent.trim()).filter(Boolean);
+    if (!codes.length) return toast("لا توجد رموز متاحة للنسخ", "warning");
+    try { await navigator.clipboard.writeText(codes.join("\n")); toast("تم نسخ رموز الاسترداد"); }
+    catch { toast("تعذر النسخ التلقائي. انسخ الرموز يدويًا.", "warning"); }
+  }
+  if (action === "download-recovery-codes") {
+    const codes = Array.from(portal.querySelectorAll(".recovery-code-grid code")).map((item) => item.textContent.trim()).filter(Boolean);
+    if (!codes.length) return toast("لا توجد رموز متاحة للتنزيل", "warning");
+    const url = URL.createObjectURL(new Blob([`Renvix - رموز استرداد دخول الحساب OTP\n\n${codes.join("\n")}\n`], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "renvix-otp-recovery-codes.txt"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
   if (action === "email-otp-cancel") {
     state.emailOtpStatus = null;
     void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
@@ -6119,23 +6119,6 @@ async function handleAction(target) {
   if (action === "security-alerts") {
     const alerts = Array.isArray(state.securityScore?.securityAlerts) ? state.securityScore.securityAlerts : Array.isArray(state.securityScore?.events) ? state.securityScore.events : [];
     openModal("سجل تنبيهات الحماية", `<div class="security-alert-history">${alerts.length ? alerts.map((item) => `<article class="security-alert-history-item ${escapeHtml(item.severity || "low")}"><span>${item.severity === "critical" || item.severity === "high" ? "!" : "i"}</span><div><strong>${escapeHtml(item.title || item.type || "تنبيه أمني")}</strong><p>${escapeHtml(item.message || item.detail || "تم تسجيل الحدث الأمني.")}</p><small>${escapeHtml(securityTime(item.timestamp || item.occurredAt))} · ${item.deliveryChannels?.includes("email") ? "داخل النظام والبريد" : "داخل النظام"}</small></div>${item.actionUrl ? `<button class="btn btn-secondary" data-link="${escapeHtml(item.actionUrl)}">${escapeHtml(item.actionLabel || "عرض التفاصيل")}</button>` : ""}</article>`).join("") : `<div class="security-empty-row success">لا توجد تنبيهات أمنية مسجلة حاليًا.</div>`}</div>`, '<button class="btn btn-secondary" data-action="close-modal">إغلاق</button>');
-  }
-  if (action === "preview-safe-settings") {
-    openModal("تطبيق الإعدادات الآمنة الموصى بها", `<div class="safe-settings-preview"><p>سيتم تطبيق التغييرات غير الحساسة التالية فقط:</p><ul><li>فاصل تلقائي لا يقل عن 300 ثانية.</li><li>Jitter بين 20 و90 ثانية.</li><li>تفعيل Warm-up والإيقاف التلقائي عند الخطر.</li><li>التأكد من وجود حدود يومية وساعية.</li><li>فحص قائمة الإيقاف قبل الإرسال.</li></ul><div class="secure-note">لن يتم تفعيل MFA أو ربط/فصل جهاز أو تغيير كلمة المرور أو حذف جلسة.</div></div>`, '<button class="btn btn-primary" data-action="apply-safe-settings">تأكيد التطبيق</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>');
-  }
-  if (action === "apply-safe-settings") {
-    target.disabled = true;
-    try {
-      await fetchJson("/api/security/apply-recommended", { method: "POST" });
-      closePortal();
-      const payload = await fetchJson("/api/security/recalculate", { method: "POST" });
-      state.securityScore = payload;
-      appToast.success("تم تطبيق الإعدادات الآمنة", { description: "حُدّث الفاصل والحدود والتدرج والإيقاف التلقائي.", id: "safe-settings-applied" });
-      render();
-    } catch {
-      target.disabled = false;
-      appToast.error("تعذر حفظ إعدادات الحماية", { description: "لم تُطبّق تغييرات حساسة. حاول مرة أخرى.", id: "safe-settings-error" });
-    }
   }
   if (action === "order-style") {
     state.orderLinkDraft.style = target.dataset.value;
@@ -6708,8 +6691,8 @@ async function handleAction(target) {
   }
   if (action === "import-unsubscribes") openModal("استيراد قائمة الإيقاف", `<form data-submit="unsubscribe-import" class="grid"><label class="field"><span>رقم في كل سطر</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="9665XXXXXXXX"></textarea></label><button class="btn btn-primary">استيراد القائمة</button></form>`);
   if (action === "policy-details" || action === "review-risks") {
-    const health = state.whatsappHealth?.health;
-    openDrawer("سياسة الإرسال الآمن", health ? `<div class="grid"><div class="risk-summary"><strong>${Number(health.risk || 0)}</strong><span>/100</span></div><p>${escapeHtml(health.advice || "")}</p><p class="muted">عدد قواعد الإرسال النشطة: ${overviewStats().safeRules}</p></div>` : emptyState("لا توجد نتيجة فحص بعد", "اربط جهازًا أولًا لعرض تفاصيل السياسة."));
+    await navigate("/dashboard/security");
+    toast("تم فتح مركز حماية الحساب", "info");
   }
   if (action === "manage-sessions") await showSessionsDrawer();
   if (action === "revoke-session") {
@@ -6724,7 +6707,7 @@ async function handleAction(target) {
     const enabled = Boolean(state.accountSettings?.settings?.mfaEnabled);
     target.checked = enabled;
     if (!enabled) await startMfaSetup();
-    else openModal("إيقاف المصادقة الثنائية", `<form data-submit="mfa-disable" class="grid"><p>أكد هويتك بكلمة المرور أو رمز تطبيق المصادقة.</p><label class="field"><span>كلمة المرور</span><input class="input" name="password" type="password"></label><label class="field"><span>رمز التطبيق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6"></label><button class="btn btn-danger">إيقاف المصادقة الثنائية</button></form>`);
+    else openModal("إيقاف دخول الحساب OTP", `<form data-submit="mfa-disable" class="grid"><p>أكد هويتك بكلمة المرور الحالية ورمز OTP أو أحد رموز الاسترداد.</p><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="password" type="password" autocomplete="current-password" required></label><label class="field"><span>رمز OTP أو رمز الاسترداد</span><input class="input code-input" name="code" autocomplete="one-time-code" required></label><div class="notice warning">سيؤدي الإيقاف إلى إبطال تحديات الدخول المفتوحة وإنهاء الجلسات الأخرى.</div><button class="btn btn-danger">تأكيد إيقاف دخول OTP</button></form>`);
   }
   if (action === "remove-unsubscribe") {
     try { await fetchJson(`/api/unsubscribes?id=${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" }); state.unsubscribes = null; state.dashboardOverview = null; await syncRouteData(true); toast("تم حذف الرقم"); }
@@ -7269,7 +7252,7 @@ async function handleSubmit(form, event) {
         render();
         requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]')?.focus());
         appToast.info("أدخل رمز تطبيق المصادقة", {
-          description: "تم التحقق من كلمة المرور. أكمل تسجيل الدخول برمز المصادقة الثنائية.",
+          description: "تم التحقق من كلمة المرور. أكمل تسجيل الدخول برمز OTP.",
           id: "mfa-login-required"
         });
         return;
@@ -7338,7 +7321,7 @@ async function handleSubmit(form, event) {
       state.mfaLoginStatus = null;
       clearCachedDashboardProfile();
       if (!await enterDashboardAfterSessionVerification()) throw new Error("session_invalid");
-      appToast.success("تم تسجيل الدخول بأمان", { description: "تم التحقق من المصادقة الثنائية بنجاح.", id: "mfa-login-success" });
+      appToast.success("تم تسجيل الدخول بأمان", { description: "تم التحقق من رمز دخول الحساب OTP بنجاح.", id: "mfa-login-success" });
     } catch (error) {
       setSubmitBusy(button, false, "تحقق وسجّل الدخول");
       if (error?.message !== "session_invalid") appToast.error("تعذر إكمال التحقق", { description: "تحقق من اتصالك ثم حاول مرة أخرى.", id: "mfa-login-network-error" });
@@ -7787,21 +7770,30 @@ async function handleSubmit(form, event) {
     await saveProfileSettings(data, form);
     return;
   }
+  if (type === "mfa-setup-start") {
+    await requestMfaSetup(data.currentPassword);
+    return;
+  }
   if (type === "mfa-verify") {
     try {
       const payload = await fetchJson("/api/settings/security/mfa/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: data.code }) });
       state.mfaSetupPending = false;
-      openModal("رموز الاسترداد", `<div class="grid"><p>احفظ هذه الرموز في مكان آمن. لن تظهر مرة أخرى.</p><div class="recovery-code-grid">${payload.recoveryCodes.map((code) => `<code>${escapeHtml(code)}</code>`).join("")}</div><button class="btn btn-primary" data-action="close-modal">حفظت الرموز</button></div>`);
+      openModal("احفظ رموز الاسترداد", `<form data-submit="mfa-finish" class="grid"><div class="security-setup-step"><span>3</span><div><strong>احفظ رموز الاسترداد</strong><small>تظهر هذه الرموز مرة واحدة فقط، ويُستخدم كل رمز مرة واحدة.</small></div></div><div class="recovery-code-grid">${payload.recoveryCodes.map((code) => `<code>${escapeHtml(code)}</code>`).join("")}</div><div class="inline-actions"><button class="btn btn-secondary" type="button" data-action="copy-recovery-codes">نسخ الرموز</button><button class="btn btn-secondary" type="button" data-action="download-recovery-codes">تنزيل ملف نصي</button></div><label class="setting-row"><span>حفظت رموز الاسترداد في مكان آمن</span><input type="checkbox" name="confirmed" required></label><button class="btn btn-primary">إنهاء</button></form>`);
       state.accountSettings = null; state.securityScore = null; await syncRouteData(true);
-      appToast.success("تم التحقق من هويتك", { description: "تم تفعيل المصادقة الثنائية ورفع حماية حسابك.", id: "mfa-enabled" });
-    } catch { appToast.error("رمز المصادقة غير صحيح", { description: "تحقق من الرمز الحالي في تطبيق المصادقة.", id: "mfa-invalid" }); }
+      appToast.success("تم التحقق من هويتك", { description: "تم تفعيل دخول الحساب OTP ورفع حماية حسابك.", id: "mfa-enabled" });
+    } catch { appToast.error("رمز OTP غير صحيح", { description: "الرمز غير صحيح أو انتهت صلاحيته.", id: "mfa-invalid" }); }
+    return;
+  }
+  if (type === "mfa-finish") {
+    closePortal();
+    toast("تم حفظ إعداد دخول الحساب OTP", "success");
     return;
   }
   if (type === "mfa-disable") {
     try {
       await fetchJson("/api/settings/security/mfa/disable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: data.password || "", code: data.code || "" }) });
-      closePortal(); state.accountSettings = null; await syncRouteData(true); toast("تم إيقاف المصادقة الثنائية");
-    } catch (error) { toast(error.message || "تعذر إيقاف المصادقة الثنائية", "danger"); }
+      closePortal(); state.accountSettings = null; state.securityScore = null; await syncRouteData(true); toast("تم إيقاف دخول الحساب OTP");
+    } catch (error) { toast(error.message || "تعذر إيقاف دخول الحساب OTP", "danger"); }
     return;
   }
   if (type === "customer-import") {

@@ -6,6 +6,7 @@ const root = process.cwd();
 const appSource = fs.readFileSync(path.join(root, "src/app/app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(root, "src/styles/globals.css"), "utf8");
 const setupRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mfa/setup/route.js"), "utf8");
+const disableRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mfa/disable/route.js"), "utf8");
 
 describe("mobile sidebar and MFA UI contracts", () => {
   it("closes the mobile sidebar through a real outside backdrop", () => {
@@ -29,6 +30,15 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('method: "DELETE"');
     expect(setupRoute).toContain("mfa_pending_secret_encrypted = NULL");
     expect(setupRoute).toContain("AND mfa_enabled = false");
+    expect(setupRoute).toContain("verifyPassword(body.currentPassword");
+    expect(appSource).toContain('data-submit="mfa-setup-start"');
+  });
+
+  it("requires both the current password and an OTP or recovery code before disabling OTP", () => {
+    expect(disableRoute).toContain("passwordValid && (otpValid || recoveryValid)");
+    expect(disableRoute).toContain("UPDATE auth_mfa_login_challenges");
+    expect(disableRoute).toContain("DELETE FROM sessions WHERE user_id = $1 AND id <> $2");
+    expect(appSource).toContain("كلمة المرور الحالية ورمز OTP أو أحد رموز الاسترداد");
   });
 
   it("uses the supplied original Zid artwork without redrawing the mark", () => {
