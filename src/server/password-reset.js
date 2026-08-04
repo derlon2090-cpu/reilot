@@ -150,7 +150,7 @@ export async function resetPassword({ email, code, password }) {
               to_regclass('auth_email_otp_challenges') AS otp_challenges`
     );
     if (optionalAuthTables.rows[0]?.trusted_devices) {
-      await client.query("UPDATE auth_trusted_devices SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [reset.userId]);
+      await client.query("UPDATE auth_trusted_devices SET revoked_at = now(), revoke_reason = 'password_reset', updated_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [reset.userId]);
     }
     if (optionalAuthTables.rows[0]?.otp_challenges) {
       await client.query("UPDATE auth_email_otp_challenges SET invalidated_at = now(), updated_at = now() WHERE user_id = $1 AND consumed_at IS NULL AND invalidated_at IS NULL", [reset.userId]);

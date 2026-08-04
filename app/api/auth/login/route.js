@@ -1,11 +1,7 @@
 import { loginAccount } from "../../../../src/server/auth-actions.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, safeErrorStack } from "../../../../src/server/security.js";
 import { sessionCookie } from "../../../../src/server/session.js";
-import {
-  TRUSTED_DEVICE_COOKIE,
-  challengeCookie,
-  readCookie
-} from "../../../../src/server/email-otp.js";
+import { challengeCookie, readTrustedBrowserCookie } from "../../../../src/server/email-otp-v2.js";
 import { mfaChallengeCookie } from "../../../../src/server/login-mfa.js";
 
 export function classifyAuthFailure(error) {
@@ -30,7 +26,7 @@ export async function POST(req) {
       password: body.password,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
       userAgent: req.headers.get("user-agent"),
-      trustedDeviceToken: readCookie(req, TRUSTED_DEVICE_COOKIE),
+      trustedDeviceToken: readTrustedBrowserCookie(req),
       locale: body.locale === "en" ? "en" : "ar"
     });
     if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: result.status });

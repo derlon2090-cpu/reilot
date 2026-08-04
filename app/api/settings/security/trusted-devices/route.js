@@ -1,13 +1,13 @@
 import { requireSession } from "../../../../../src/server/session.js";
 import { query, transaction } from "../../../../../src/server/db.js";
-import { TRUSTED_DEVICE_COOKIE, clearTrustedDeviceCookie, readCookie } from "../../../../../src/server/email-otp.js";
-import { sha256 } from "../../../../../src/server/security.js";
+import { clearTrustedDeviceCookie, readTrustedBrowserCookie, hashBrowserToken } from "../../../../../src/server/email-otp-v2.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
-  const currentDigest = readCookie(req, TRUSTED_DEVICE_COOKIE)
-    ? sha256(readCookie(req, TRUSTED_DEVICE_COOKIE))
+  const currentToken = readTrustedBrowserCookie(req);
+  const currentDigest = currentToken
+    ? hashBrowserToken(currentToken)
     : null;
   const result = await query(
     `SELECT id,label,last_used_at AS "lastUsedAt",expires_at AS "expiresAt",
@@ -27,7 +27,7 @@ export async function DELETE(req) {
   const deviceId = body.deviceId ? String(body.deviceId) : null;
   const result = await transaction(async (client) => {
     const updated = await client.query(
-      `UPDATE auth_trusted_devices SET revoked_at=now()
+      `UPDATE auth_trusted_devices SET revoked_at=now(),revoke_reason='user_revoked',updated_at=now()
         WHERE user_id=$1 AND tenant_id=$2 AND revoked_at IS NULL
           AND ($3::uuid IS NULL OR id=$3::uuid)
         RETURNING id,token_digest AS "tokenDigest"`,
@@ -40,8 +40,8 @@ export async function DELETE(req) {
     );
     return updated.rows;
   });
-  const current = readCookie(req, TRUSTED_DEVICE_COOKIE);
-  const revokedCurrent = current && result.some((item) => item.tokenDigest === sha256(current));
+  const current = readTrustedBrowserCookie(req);
+  const revokedCurrent = current && result.some((item) => item.tokenDigest === hashBrowserToken(current));
   return Response.json({ ok: true, revoked: result.length }, {
     headers: revokedCurrent || !deviceId ? { "Set-Cookie": clearTrustedDeviceCookie() } : undefined
   });

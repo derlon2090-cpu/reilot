@@ -72,7 +72,7 @@ test("security dashboard matches the RTL reference and keeps its actions functio
   await expect(page.locator(".security-summary-grid > article")).toHaveCount(4);
   await expect(page.locator(".security-main-grid > article")).toHaveCount(3);
   await expect(page.getByText("الجلسة الحالية", { exact: true })).toBeVisible();
-  await expect(page.locator(".security-protection-list > div")).toHaveCount(4);
+  await expect(page.locator(".security-protection-list > div")).toHaveCount(5);
 
   await page.getByRole("button", { name: "عرض جميع التنبيهات" }).click();
   const alertsDialog = page.getByRole("dialog");

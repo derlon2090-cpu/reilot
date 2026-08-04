@@ -1,0 +1,35 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../src/server/db.js", () => ({ databaseHealth: async () => ({ ok: true }) }));
+vi.mock("../../src/server/evolution-client.js", () => ({ evolutionHealth: async () => ({ ok: true }) }));
+import { GET } from "../../app/api/health/route.js";
+
+const keys = ["AUTH_SECOND_FACTOR_REQUIRED", "EMAIL_SIGNUP_OTP_REQUIRED", "EMAIL_OTP_FALLBACK_ENABLED", "TRUSTED_BROWSER_ENABLED", "TRUSTED_BROWSER_HOURS", "EMAIL_OTP_ENFORCE_ALL", "EMAIL_OTP_PEPPER", "RESEND_API_KEY", "EVOLUTION_API_URL", "EVOLUTION_API_KEY"];
+
+describe("authentication readiness", () => {
+  beforeEach(() => {
+    for (const key of keys) delete process.env[key];
+    Object.assign(process.env, {
+      AUTH_SECOND_FACTOR_REQUIRED: "true", EMAIL_SIGNUP_OTP_REQUIRED: "true", EMAIL_OTP_FALLBACK_ENABLED: "true",
+      TRUSTED_BROWSER_ENABLED: "true", TRUSTED_BROWSER_HOURS: "48", EMAIL_OTP_ENFORCE_ALL: "false",
+      EMAIL_OTP_PEPPER: "test-email-otp-pepper-that-is-long-enough"
+    });
+  });
+  afterEach(() => { for (const key of keys) delete process.env[key]; });
+
+  it("fails readiness when signup/fallback email delivery is unavailable", async () => {
+    const response = await GET();
+    const body = await response.json();
+    expect(response.status).toBe(503);
+    expect(body.checks.emailOtp).toMatchObject({ required: true, ok: false });
+  });
+
+  it("accepts the exact unified-factor policy when Resend and pepper are configured", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    const response = await GET();
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.checks.authPolicy).toMatchObject({ ok: true, trustedBrowserHours: 48, emailOtpEnforceAllDisabled: true });
+    expect(body.checks.emailOtp.ok).toBe(true);
+  });
+});

@@ -3,12 +3,33 @@ import { evolutionHealth } from "../../../src/server/evolution-client.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
 
 export async function GET() {
+  const policy = {
+    secondFactorRequired: process.env.AUTH_SECOND_FACTOR_REQUIRED === "true",
+    signupEmailOtpRequired: process.env.EMAIL_SIGNUP_OTP_REQUIRED === "true",
+    emailFallbackEnabled: process.env.EMAIL_OTP_FALLBACK_ENABLED === "true",
+    trustedBrowserEnabled: process.env.TRUSTED_BROWSER_ENABLED === "true",
+    trustedBrowserHours: Number.parseInt(process.env.TRUSTED_BROWSER_HOURS || "0", 10),
+    emailOtpEnforceAllDisabled: process.env.EMAIL_OTP_ENFORCE_ALL !== "true"
+  };
+  const emailOtpRequired = true;
+  const otpPepperReady = (process.env.EMAIL_OTP_PEPPER?.trim().length || 0) >= 24;
+  const resendReady = Boolean(process.env.RESEND_API_KEY?.trim());
+  const authPolicyReady = policy.secondFactorRequired
+    && policy.signupEmailOtpRequired
+    && policy.emailFallbackEnabled
+    && policy.trustedBrowserEnabled
+    && policy.trustedBrowserHours === 48
+    && policy.emailOtpEnforceAllDisabled;
   const checks = {
     database: { ok: false },
+    authPolicy: { ...policy, ok: authPolicyReady },
     resend: {
-      configured: Boolean(process.env.RESEND_API_KEY),
+      configured: resendReady,
+      required: emailOtpRequired,
+      ok: !emailOtpRequired || resendReady,
       fromConfigured: true
     },
+    emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
     evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false }
   };
   try {
@@ -23,7 +44,7 @@ export async function GET() {
       checks.evolution = { configured: true, ok: false, error: safeErrorMessage(error) };
     }
   }
-  const ok = checks.database.ok && (!checks.evolution.configured || checks.evolution.ok);
+  const ok = checks.database.ok && checks.authPolicy.ok && checks.emailOtp.ok && (!checks.evolution.configured || checks.evolution.ok);
   return Response.json({
     ok,
     service: "renewpilot-ai",

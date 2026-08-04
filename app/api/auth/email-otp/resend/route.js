@@ -2,7 +2,7 @@ import {
   EMAIL_OTP_CHALLENGE_COOKIE,
   readCookie,
   resendEmailOtp
-} from "../../../../../src/server/email-otp.js";
+} from "../../../../../src/server/email-otp-v2.js";
 
 export async function POST(req) {
   try {

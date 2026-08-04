@@ -3,13 +3,15 @@ import { decryptMfaSecret, verifyTotp } from "../../../../../../src/server/mfa.j
 import { verifyPassword } from "../../../../../../src/server/password.js";
 import { sha256 } from "../../../../../../src/server/security.js";
 import { requireSession } from "../../../../../../src/server/session.js";
+import { revokeAllUserBrowsers } from "../../../../../../src/server/trusted-browser.js";
+import { sendQueuedEmail } from "../../../../../../src/server/email/resend.service.js";
 
 export async function POST(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   const body = await request.json().catch(() => ({}));
   const result = await query(
-    `SELECT u.mfa_secret_encrypted AS secret,
+    `SELECT u.email,u.mfa_secret_encrypted AS secret,
             COALESCE(u.mfa_recovery_hashes, '[]'::jsonb) AS "recoveryHashes",
             a.password
        FROM users u JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
@@ -26,7 +28,8 @@ export async function POST(request) {
   if (!authorized) return Response.json({ ok: false, reason: "verification_failed", message: "تعذر التحقق من هويتك." }, { status: 400 });
   await query(
     `UPDATE users SET mfa_enabled = false, mfa_secret_encrypted = NULL,
-       mfa_pending_secret_encrypted = NULL, mfa_recovery_hashes = '[]'::jsonb, updated_at = now()
+       mfa_pending_secret_encrypted = NULL, mfa_recovery_hashes = '[]'::jsonb,
+       mfa_last_verified_step = NULL, updated_at = now()
      WHERE id = $1 AND tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
   );
@@ -40,10 +43,19 @@ export async function POST(request) {
     `DELETE FROM sessions WHERE user_id = $1 AND id <> $2`,
     [auth.session.userId, auth.session.id]
   );
+  await revokeAllUserBrowsers(auth.session.userId, "totp_disabled");
   await query(
     `INSERT INTO activity_logs (tenant_id, user_id, type, title)
      VALUES ($1, $2, 'mfa.disabled', 'Multi-factor authentication disabled')`,
     [auth.session.tenantId, auth.session.userId]
   );
+  if (record.email) {
+    await sendQueuedEmail({
+      to: record.email,
+      subject: "تم تعطيل التحقق بخطوتين في حسابك",
+      text: "تم تعطيل تطبيق المصادقة وإلغاء رموز الاسترداد والمتصفحات الموثوقة والجلسات الأخرى. إذا لم تنفذ هذا الإجراء، غيّر كلمة المرور وتواصل مع دعم Renvix فورًا.",
+      tags: [{ name: "purpose", value: "totp_disabled_alert" }]
+    }).catch(() => null);
+  }
   return Response.json({ ok: true });
 }

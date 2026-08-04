@@ -4,6 +4,9 @@ import { query, transaction } from "../../../../../src/server/db.js";
 import { verifyPassword } from "../../../../../src/server/password.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { createSession, destroySession, sessionCookie } from "../../../../../src/server/session.js";
+import { createMfaLoginChallenge, mfaChallengeCookie } from "../../../../../src/server/login-mfa.js";
+import { createLoginEmailOtpChallenge, challengeCookie, readTrustedBrowserCookie } from "../../../../../src/server/email-otp-v2.js";
+import { resolveSecondFactor } from "../../../../../src/server/second-factor-router.js";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني أو اسم المستخدم.").refine(
@@ -33,9 +36,10 @@ export async function POST(request) {
   }
 
   const result = await query(
-    `SELECT u.id AS "userId", u.name, u.email, a.password,
+    `SELECT u.id AS "userId", u.tenant_id AS "tenantId", u.name, u.email, a.password,
             au.id AS "adminId", au.role AS "adminRole", au.status,
-            au.mfa_enabled AS "mfaEnabled", au.expires_at AS "expiresAt"
+            u.mfa_enabled AS "mfaEnabled", u.mfa_secret_encrypted AS "mfaSecret",
+            au.expires_at AS "expiresAt"
        FROM users u
        JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
        LEFT JOIN admin_users au ON au.user_id = u.id
@@ -50,9 +54,10 @@ export async function POST(request) {
   const expired = Boolean(admin?.expiresAt && new Date(admin.expiresAt).getTime() <= Date.now());
   const valid = passwordValid && admin?.adminId && admin.status === "active" && !expired && allowedRole;
 
-  await query(
+  const loginAttempt = await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id`,
     [identifier, sha256(identifier), ip || null, request.headers.get("user-agent")?.slice(0, 500) || null, Boolean(valid), valid ? null : "invalid_admin_credentials"]
   );
 
@@ -73,9 +78,33 @@ export async function POST(request) {
     return Response.json({ ok: false, reason: "invalid_credentials", message: "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول إلى لوحة الأدمن." }, { status: 401 });
   }
 
-  if (admin.mfaEnabled) {
-    await auditAdmin(request, { admin, action: "admin.login.failed", resource: "admin_portal", status: "denied", metadata: { reason: "mfa_required" } });
-    return Response.json({ ok: false, reason: "mfa_required", message: "يتطلب هذا الحساب إكمال المصادقة الثنائية." }, { status: 403 });
+  const factor = await resolveSecondFactor({
+    user: { id: admin.userId, mfaEnabled: admin.mfaEnabled, mfaSecret: admin.mfaSecret },
+    rawBrowserToken: readTrustedBrowserCookie(request),
+    riskDetected: Number(failures.rows[0]?.count || 0) >= 3
+  });
+  if (factor.method === "totp") {
+    const challenge = await createMfaLoginChallenge({
+      user: { id: admin.userId, tenantId: admin.tenantId }, ipAddress: ip,
+      userAgent: request.headers.get("user-agent"), targetPath: "/admin",
+      loginAttemptId: loginAttempt.rows[0]?.id
+    });
+    return Response.json({ ok: true, requiresMfa: true, expiresAt: challenge.expiresAt }, {
+      status: 202, headers: { "Set-Cookie": mfaChallengeCookie(challenge.challengeCookie) }
+    });
+  }
+  if (factor.method === "email_otp") {
+    const challenge = await createLoginEmailOtpChallenge({
+      user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
+      ipAddress: ip, userAgent: request.headers.get("user-agent"), purpose: "admin_login",
+      loginAttemptId: loginAttempt.rows[0]?.id
+    });
+    return Response.json({ ok: true, requiresEmailOtp: true, maskedEmail: challenge.maskedEmail, expiresAt: challenge.expiresAt, resendAt: challenge.resendAt }, {
+      status: 202, headers: { "Set-Cookie": challengeCookie(challenge.challengeCookie) }
+    });
+  }
+  if (factor.method === "unavailable") {
+    return Response.json({ ok: false, reason: "second_factor_unavailable" }, { status: 503 });
   }
 
   await destroySession(request);

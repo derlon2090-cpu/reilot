@@ -60,6 +60,16 @@ export default function AdminLoginForm() {
         else showToast("error", "تعذر الوصول إلى لوحة الأدمن", "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول.");
         return;
       }
+      if (data.requiresMfa === true) {
+        showToast("info", "التحقق بخطوتين مطلوب", "أدخل رمز تطبيق المصادقة لإكمال دخول الأدمن.");
+        window.setTimeout(() => window.location.replace("/auth/verify-mfa"), 250);
+        return;
+      }
+      if (data.requiresEmailOtp === true) {
+        showToast("info", "تحقق من بريدك الإلكتروني", "أرسلنا رمزًا إلى البريد المسجل لإكمال دخول الأدمن.");
+        window.setTimeout(() => window.location.replace("/auth/verify-email"), 250);
+        return;
+      }
       const sessionResponse = await fetch("/api/admin/me", {
         credentials: "same-origin",
         cache: "no-store"

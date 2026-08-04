@@ -1,5 +1,5 @@
 import { clearSessionCookie, destroySession } from "../../../../src/server/session.js";
-import { clearChallengeCookie } from "../../../../src/server/email-otp.js";
+import { clearChallengeCookie } from "../../../../src/server/email-otp-v2.js";
 import { clearMfaChallengeCookie } from "../../../../src/server/login-mfa.js";
 
 export async function POST(req) {

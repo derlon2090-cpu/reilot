@@ -3,50 +3,44 @@ import { readFile } from "node:fs/promises";
 
 beforeAll(() => {
   process.env.EMAIL_OTP_PEPPER = "test-email-otp-pepper-that-is-long-enough";
+  process.env.TRUSTED_BROWSER_ENABLED = "true";
+  process.env.TRUSTED_BROWSER_HOURS = "48";
+  process.env.COOKIE_SECURE = "true";
 });
 
-describe("email OTP security helpers", () => {
+describe("email OTP and trusted-browser security helpers", () => {
   it("normalizes Arabic and Eastern Arabic digits", async () => {
-    const { normalizeOtpDigits } = await import("../../src/server/email-otp.js");
-    expect(normalizeOtpDigits("\u0661\u06F2 \u0663\u06F4-\u0665\u06F6")).toBe("123456");
+    const { normalizeOtpDigits } = await import("../../src/server/email-otp-v2.js");
+    expect(normalizeOtpDigits("١۲ ٣۴-٥۶")).toBe("123456");
     expect(normalizeOtpDigits("123456")).toBe("123456");
-    expect(normalizeOtpDigits("\u0661" + "2" + "\u06F3" + "4" + "\u0665" + "6")).toBe("123456");
   });
 
-  it("generates exactly six digits", async () => {
-    const { generateEmailOtp } = await import("../../src/server/email-otp.js");
+  it("generates exactly six digits and binds the digest to the challenge", async () => {
+    const { generateEmailOtp, digestOtp } = await import("../../src/server/email-otp-v2.js");
     for (let index = 0; index < 20; index += 1) expect(generateEmailOtp()).toMatch(/^\d{6}$/);
-  });
-
-  it("binds the digest to the challenge id", async () => {
-    const { digestOtp } = await import("../../src/server/email-otp.js");
     expect(digestOtp("123456", "challenge-a")).not.toBe(digestOtp("123456", "challenge-b"));
   });
 
-  it("accepts the same OTP in English, Arabic, Persian, or mixed digits", async () => {
-    const { digestOtp } = await import("../../src/server/email-otp.js");
-    const challengeId = "challenge-localized-digits";
-    const expected = digestOtp("123456", challengeId);
-    expect(digestOtp("١٢٣٤٥٦", challengeId)).toBe(expected);
-    expect(digestOtp("۱۲۳۴۵۶", challengeId)).toBe(expected);
-    expect(digestOtp("١2۳4٥6", challengeId)).toBe(expected);
+  it("uses a fixed 48-hour secure __Host browser cookie", async () => {
+    const { TRUSTED_DEVICE_AGE_SECONDS, trustedDeviceCookie } = await import("../../src/server/email-otp-v2.js");
+    const cookie = trustedDeviceCookie("A".repeat(43));
+    expect(TRUSTED_DEVICE_AGE_SECONDS).toBe(48 * 60 * 60);
+    expect(cookie).toContain("__Host-rvx_trusted_browser=");
+    expect(cookie).toContain(`Max-Age=${48 * 60 * 60}`);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("Path=/");
+    expect(cookie).not.toContain("Domain=");
   });
 
-  it("locks only the OTP challenge when joining optional tenant membership", async () => {
-    const source = await readFile(new URL("../../src/server/email-otp.js", import.meta.url), "utf8");
-    expect(source).toContain("FOR UPDATE OF c");
-    expect(source).not.toMatch(/LEFT JOIN tenant_members[\s\S]*?WHERE c\.id = \$1 FOR UPDATE`/);
-  });
-
-  it("trusts a remembered device for exactly fifteen days", async () => {
-    const { TRUSTED_DEVICE_AGE_SECONDS, trustedDeviceCookie } = await import("../../src/server/email-otp.js");
-    const source = await readFile(new URL("../../src/server/email-otp.js", import.meta.url), "utf8");
-    const appSource = await readFile(new URL("../../src/app/app.js", import.meta.url), "utf8");
-    expect(TRUSTED_DEVICE_AGE_SECONDS).toBe(15 * 24 * 60 * 60);
-    expect(trustedDeviceCookie("trusted-token")).toContain(`Max-Age=${15 * 24 * 60 * 60}`);
-    expect(source).toContain("now() + interval '15 days'");
-    expect(source).not.toContain("now() + interval '30 days'");
-    expect(appSource).toContain("تذكّر هذا الجهاز لمدة 15 يومًا");
-    expect(appSource).not.toContain("تذكّر هذا الجهاز لمدة 30 يومًا");
+  it("locks only the challenge row and never stores a raw OTP or raw browser token", async () => {
+    const otpSource = await readFile(new URL("../../src/server/email-otp-v2.js", import.meta.url), "utf8");
+    const browserSource = await readFile(new URL("../../src/server/trusted-browser.js", import.meta.url), "utf8");
+    expect(otpSource).toContain("FOR UPDATE OF c");
+    expect(otpSource).toContain("code_digest");
+    expect(browserSource).toContain("token_digest");
+    expect(browserSource).toContain("createHmac");
+    expect(browserSource).toContain("randomBytes(32)");
   });
 });

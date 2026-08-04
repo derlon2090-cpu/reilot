@@ -4,9 +4,10 @@ import {
   EMAIL_OTP_CHALLENGE_COOKIE,
   clearChallengeCookie,
   readCookie,
+  readTrustedBrowserCookie,
   trustedDeviceCookie,
   verifyEmailOtp
-} from "../../../../../src/server/email-otp.js";
+} from "../../../../../src/server/email-otp-v2.js";
 
 export async function POST(req) {
   try {
@@ -17,9 +18,9 @@ export async function POST(req) {
     const result = await verifyEmailOtp({
       rawCookie: readCookie(req, EMAIL_OTP_CHALLENGE_COOKIE),
       code: body.code,
-      rememberDevice: body.rememberDevice === true,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
-      userAgent: req.headers.get("user-agent")
+      userAgent: req.headers.get("user-agent"),
+      existingBrowserToken: readTrustedBrowserCookie(req)
     });
     if (!result.ok) {
       return Response.json(
@@ -31,7 +32,7 @@ export async function POST(req) {
     headers.append("Set-Cookie", sessionCookie(result.session.token));
     headers.append("Set-Cookie", clearChallengeCookie());
     if (result.trustedToken) headers.append("Set-Cookie", trustedDeviceCookie(result.trustedToken));
-    return Response.json({ ok: true, user: result.user }, { headers });
+    return Response.json({ ok: true, user: result.user, redirectUrl: result.redirectUrl, trustedUntil: result.trustedUntil }, { headers });
   } catch (error) {
     console.error("email OTP verification failed", safeErrorMessage(error));
     return Response.json({ ok: false, reason: "server_error" }, { status: 500 });

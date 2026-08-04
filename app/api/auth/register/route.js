@@ -1,6 +1,7 @@
 import { registerAccount } from "../../../../src/server/auth-actions.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
 import { sessionCookie } from "../../../../src/server/session.js";
+import { challengeCookie } from "../../../../src/server/email-otp-v2.js";
 
 function registrationFailure(error) {
   if (error?.code === "23505") return { reason: "email_exists", status: 409 };
@@ -25,6 +26,18 @@ export async function POST(req) {
       userAgent: req.headers.get("user-agent")
     });
     if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: result.status });
+    if (result.requiresEmailOtp) {
+      return Response.json({
+        ok: true,
+        requiresEmailOtp: true,
+        maskedEmail: result.challenge.maskedEmail,
+        expiresAt: result.challenge.expiresAt,
+        resendAt: result.challenge.resendAt
+      }, {
+        status: 202,
+        headers: { "Set-Cookie": challengeCookie(result.challenge.challengeCookie) }
+      });
+    }
     return Response.json({ ok: true, user: result.user }, { status: 201, headers: { "Set-Cookie": sessionCookie(result.session.token) } });
   } catch (error) {
     const failure = registrationFailure(error);

@@ -5,13 +5,15 @@ const {
   transactionMock,
   createSessionMock,
   decryptMfaSecretMock,
-  verifyTotpMock
+  matchingTotpCounterMock,
+  trustBrowserForUserMock
 } = vi.hoisted(() => ({
   queryMock: vi.fn(),
   transactionMock: vi.fn(),
   createSessionMock: vi.fn(),
   decryptMfaSecretMock: vi.fn(),
-  verifyTotpMock: vi.fn()
+  matchingTotpCounterMock: vi.fn(),
+  trustBrowserForUserMock: vi.fn()
 }));
 
 vi.mock("../../src/server/db.js", () => ({
@@ -21,8 +23,9 @@ vi.mock("../../src/server/db.js", () => ({
 vi.mock("../../src/server/session.js", () => ({ createSession: createSessionMock }));
 vi.mock("../../src/server/mfa.js", () => ({
   decryptMfaSecret: decryptMfaSecretMock,
-  verifyTotp: verifyTotpMock
+  matchingTotpCounter: matchingTotpCounterMock
 }));
+vi.mock("../../src/server/trusted-browser.js", () => ({ trustBrowserForUser: trustBrowserForUserMock }));
 
 import { createMfaLoginChallenge, verifyMfaLogin } from "../../src/server/login-mfa.js";
 import { sha256 } from "../../src/server/security.js";
@@ -58,6 +61,7 @@ function verificationRow(overrides = {}) {
     mfaEnabled: true,
     mfaSecret: "encrypted-secret",
     recoveryHashes: [],
+    lastVerifiedStep: null,
     attempts: 0,
     max_attempts: 5,
     expires_at: new Date(Date.now() + 300_000),
@@ -74,7 +78,8 @@ describe("MFA login challenge", () => {
     transactionMock.mockReset();
     createSessionMock.mockReset();
     decryptMfaSecretMock.mockReset().mockReturnValue("TOTPSECRET");
-    verifyTotpMock.mockReset();
+    matchingTotpCounterMock.mockReset();
+    trustBrowserForUserMock.mockReset().mockResolvedValue({ rawToken: "trusted-token", expiresAt: new Date(Date.now() + 172_800_000) });
     createSessionMock.mockResolvedValue({ token: "session-token" });
   });
 
@@ -86,12 +91,13 @@ describe("MFA login challenge", () => {
       return { rows: [], rowCount: 1 };
     });
     transactionMock.mockImplementationOnce(async (callback: (client: ReturnType<typeof createClient>) => unknown) => callback(client));
-    verifyTotpMock.mockReturnValue(true);
+    matchingTotpCounterMock.mockReturnValue(12345);
 
     const result = await verifyMfaLogin({ rawCookie, code: "123456", ipAddress: "127.0.0.1", userAgent: "iPad" });
 
     expect(result.ok).toBe(true);
     expect(createSessionMock).toHaveBeenCalledOnce();
+    expect(trustBrowserForUserMock).toHaveBeenCalledOnce();
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("consumed_at=now()"),
       [challengeId]
@@ -106,7 +112,7 @@ describe("MFA login challenge", () => {
       return { rows: [], rowCount: 1 };
     });
     transactionMock.mockImplementationOnce(async (callback: (client: ReturnType<typeof createClient>) => unknown) => callback(client));
-    verifyTotpMock.mockReturnValue(false);
+    matchingTotpCounterMock.mockReturnValue(null);
 
     const result = await verifyMfaLogin({ rawCookie, code: "000000", ipAddress: "127.0.0.1", userAgent: "iPad" });
 
@@ -124,7 +130,7 @@ describe("MFA login challenge", () => {
       return { rows: [], rowCount: 1 };
     });
     transactionMock.mockImplementationOnce(async (callback: (client: ReturnType<typeof createClient>) => unknown) => callback(client));
-    verifyTotpMock.mockReturnValue(false);
+    matchingTotpCounterMock.mockReturnValue(null);
 
     const result = await verifyMfaLogin({ rawCookie, code: recoveryCode, ipAddress: "127.0.0.1", userAgent: "iPad" });
 
@@ -143,6 +149,20 @@ describe("MFA login challenge", () => {
 
     expect(result).toMatchObject({ ok: false, reason: "invalid_code" });
     expect(transactionMock).not.toHaveBeenCalled();
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects reuse of the same TOTP time step", async () => {
+    const rawCookie = await signedChallenge();
+    const client = createClient();
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT c.*")) return { rows: [verificationRow({ lastVerifiedStep: 12345 })] };
+      return { rows: [], rowCount: 1 };
+    });
+    transactionMock.mockImplementationOnce(async (callback: (client: ReturnType<typeof createClient>) => unknown) => callback(client));
+    matchingTotpCounterMock.mockReturnValue(12345);
+    const result = await verifyMfaLogin({ rawCookie, code: "123456", ipAddress: "127.0.0.1", userAgent: "iPad" });
+    expect(result).toMatchObject({ ok: false, reason: "invalid_code" });
     expect(createSessionMock).not.toHaveBeenCalled();
   });
 });

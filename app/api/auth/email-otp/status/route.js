@@ -3,7 +3,7 @@ import {
   clearChallengeCookie,
   getEmailOtpStatus,
   readCookie
-} from "../../../../../src/server/email-otp.js";
+} from "../../../../../src/server/email-otp-v2.js";
 
 export async function GET(req) {
   try {

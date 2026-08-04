@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { createSession } from "./session.js";
-import { decryptMfaSecret, verifyTotp } from "./mfa.js";
+import { decryptMfaSecret, matchingTotpCounter } from "./mfa.js";
 import { sha256 } from "./security.js";
+import { trustBrowserForUser } from "./trusted-browser.js";
 
 export const MFA_LOGIN_CHALLENGE_COOKIE = "renvix_mfa_login_challenge";
 const MFA_LOGIN_TTL_SECONDS = 5 * 60;
@@ -53,7 +54,7 @@ export function readMfaChallengeCookie(request) {
   return entry ? decodeURIComponent(entry.slice(MFA_LOGIN_CHALLENGE_COOKIE.length + 1)) : "";
 }
 
-export async function createMfaLoginChallenge({ user, ipAddress, userAgent }) {
+export async function createMfaLoginChallenge({ user, ipAddress, userAgent, targetPath = "/dashboard", loginAttemptId = null }) {
   const row = await transaction(async (client) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`mfa-login:${user.id}`]);
     await client.query(
@@ -61,12 +62,18 @@ export async function createMfaLoginChallenge({ user, ipAddress, userAgent }) {
         WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL`,
       [user.id]
     );
+    await client.query(
+      `UPDATE auth_email_otp_challenges SET invalidated_at=now(),updated_at=now()
+        WHERE user_id=$1 AND purpose IN ('login','admin_login')
+          AND consumed_at IS NULL AND invalidated_at IS NULL`,
+      [user.id]
+    );
     const inserted = await client.query(
       `INSERT INTO auth_mfa_login_challenges
-         (user_id,tenant_id,expires_at,ip_hash,user_agent_hash)
-       VALUES ($1,$2,now() + interval '5 minutes',$3,$4)
+         (user_id,tenant_id,expires_at,ip_hash,user_agent_hash,target_path,login_attempt_id)
+       VALUES ($1,$2,now() + interval '5 minutes',$3,$4,$5,$6)
        RETURNING id,expires_at AS "expiresAt"`,
-      [user.id, user.tenantId, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null]
+      [user.id, user.tenantId, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null, targetPath === "/admin" ? "/admin" : "/dashboard", loginAttemptId]
     );
     await client.query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title)
@@ -101,7 +108,7 @@ function normalizeRecoveryCode(value) {
   return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
-export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent }) {
+export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent, existingBrowserToken = "" }) {
   const challengeId = parseChallengeId(rawCookie);
   const normalizedCode = String(code || "").trim();
   if (!challengeId || !normalizedCode) return { ok: false, status: 400, reason: "invalid_code" };
@@ -111,6 +118,7 @@ export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent }) 
       `SELECT c.*,u.email,u.name,u.must_change_password AS "mustChangePassword",
               u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
               COALESCE(u.mfa_recovery_hashes,'[]'::jsonb) AS "recoveryHashes",
+              u.mfa_last_verified_step AS "lastVerifiedStep",
               COALESCE(tm.role,u.role) AS role
          FROM auth_mfa_login_challenges c
          JOIN users u ON u.id=c.user_id
@@ -132,7 +140,8 @@ export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent }) 
     }
 
     const secret = decryptMfaSecret(row.mfaSecret);
-    const totpValid = verifyTotp(secret, normalizedCode);
+    const totpCounter = matchingTotpCounter(secret, normalizedCode);
+    const totpValid = totpCounter !== null && (row.lastVerifiedStep == null || totpCounter > Number(row.lastVerifiedStep));
     const recoveryHash = sha256(normalizeRecoveryCode(normalizedCode));
     const recoveryHashes = Array.isArray(row.recoveryHashes) ? row.recoveryHashes : [];
     const recoveryIndex = recoveryHashes.indexOf(recoveryHash);
@@ -157,7 +166,23 @@ export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent }) 
       recoveryHashes.splice(recoveryIndex, 1);
       await client.query("UPDATE users SET mfa_recovery_hashes=$2::jsonb,updated_at=now() WHERE id=$1", [row.user_id, JSON.stringify(recoveryHashes)]);
     }
+    if (totpValid) {
+      const updated = await client.query(
+        `UPDATE users SET mfa_last_verified_step=$2,updated_at=now()
+          WHERE id=$1 AND (mfa_last_verified_step IS NULL OR mfa_last_verified_step < $2)`,
+        [row.user_id, totpCounter]
+      );
+      if (updated.rowCount !== 1) return { ok: false, status: 409, reason: "code_already_used" };
+    }
     await client.query("UPDATE auth_mfa_login_challenges SET consumed_at=now(),updated_at=now() WHERE id=$1", [challengeId]);
+    const browser = await trustBrowserForUser({
+      userId: row.user_id,
+      tenantId: row.tenant_id,
+      rawToken: existingBrowserToken,
+      ipAddress,
+      userAgent,
+      client
+    });
     const session = await createSession(client, { userId: row.user_id, ipAddress, userAgent });
     await client.query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
@@ -168,6 +193,9 @@ export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent }) 
       ok: true,
       status: 200,
       session,
+      trustedToken: browser.rawToken,
+      trustedUntil: browser.expiresAt,
+      redirectUrl: row.target_path === "/admin" ? "/admin" : "/dashboard",
       user: {
         id: row.user_id,
         tenantId: row.tenant_id,

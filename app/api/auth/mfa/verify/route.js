@@ -5,6 +5,7 @@ import {
   readMfaChallengeCookie,
   verifyMfaLogin
 } from "../../../../../src/server/login-mfa.js";
+import { readTrustedBrowserCookie, trustedBrowserCookie } from "../../../../../src/server/email-otp-v2.js";
 
 export async function POST(request) {
   try {
@@ -13,7 +14,8 @@ export async function POST(request) {
       rawCookie: readMfaChallengeCookie(request),
       code: body.code,
       ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
-      userAgent: request.headers.get("user-agent")
+      userAgent: request.headers.get("user-agent"),
+      existingBrowserToken: readTrustedBrowserCookie(request)
     });
     if (!result.ok) {
       return Response.json(
@@ -24,7 +26,8 @@ export async function POST(request) {
     const headers = new Headers();
     headers.append("Set-Cookie", sessionCookie(result.session.token));
     headers.append("Set-Cookie", clearMfaChallengeCookie());
-    return Response.json({ ok: true, user: result.user }, { headers });
+    if (result.trustedToken) headers.append("Set-Cookie", trustedBrowserCookie(result.trustedToken));
+    return Response.json({ ok: true, user: result.user, redirectUrl: result.redirectUrl, trustedUntil: result.trustedUntil }, { headers });
   } catch (error) {
     console.error("MFA login verification failed", safeErrorMessage(error));
     return Response.json({ ok: false, reason: "server_error" }, { status: 500 });

@@ -40,9 +40,14 @@ export function createMfaSecret() {
 }
 
 export function verifyTotp(secret, code, now = Date.now()) {
-  if (!/^\d{6}$/.test(String(code || ""))) return false;
+  return matchingTotpCounter(secret, code, now) !== null;
+}
+
+export function matchingTotpCounter(secret, code, now = Date.now()) {
+  if (!/^\d{6}$/.test(String(code || ""))) return null;
   const counter = Math.floor(now / 30_000);
-  return [-1, 0, 1].some((offset) => hotp(secret, counter + offset) === String(code));
+  const offset = [-1, 0, 1].find((candidate) => hotp(secret, counter + candidate) === String(code));
+  return offset === undefined ? null : counter + offset;
 }
 
 export function encryptMfaSecret(secret) {
@@ -64,4 +69,3 @@ export function createRecoveryCodes(count = 8) {
   const codes = Array.from({ length: count }, () => `${randomToken(4).slice(0, 5).toUpperCase()}-${randomToken(4).slice(0, 5).toUpperCase()}`);
   return { codes, hashes: codes.map((code) => sha256(code)) };
 }
-

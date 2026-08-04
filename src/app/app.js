@@ -710,6 +710,7 @@ state.deviceStatusFilter = "all";
 state.deviceActivityExpanded = false;
 state.deviceBulkSyncing = false;
 state.securityScore = null;
+state.trustedBrowsers = null;
 state.notificationTemplate = null;
 state.catalogTemplates = null;
 state.metaTemplates = null;
@@ -1204,6 +1205,7 @@ function syncRouteData(force = false) {
   }
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) queue("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) queue("securityScore", "/api/security/score", "securityScore");
+  if (state.route === "/dashboard/security" && (force || state.trustedBrowsers === null)) queue("trustedBrowsers", "/api/settings/security/trusted-devices", "trustedBrowsers");
   if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
   if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
@@ -2125,10 +2127,11 @@ function emailOtpPage() {
     return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-link="/login">العودة إلى تسجيل الدخول</button></section></main>`;
   }
   const maskedEmail = statusData?.maskedEmail || "جارٍ التحقق من طلب تسجيل الدخول...";
+  const signupVerification = statusData?.purpose === "signup";
   const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" pattern="[0-9٠-٩۰-۹]*" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
   return `<main class="email-otp-page" dir="rtl"><section class="email-otp-shell">
     <aside class="email-otp-visual"><div class="email-otp-brand">${stackedLogo()}</div><div class="email-otp-envelope-art" aria-hidden="true"><span class="email-otp-code-card"><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b></span><span class="email-otp-envelope"></span><span class="email-otp-art-shield">${dashboardIcon("security")}</span></div><h2>تحقق آمن · دخول موثوق.</h2><p>نرسل رمز تحقق فريدًا إلى بريدك الإلكتروني لضمان أمان حسابك وحماية بياناتك.</p><div class="email-otp-safety-card"><h3>${dashboardIcon("security")} حالة الأمان</h3><div><span>نوع التحقق</span><strong>${dashboardIcon("email")} OTP عبر البريد</strong></div><div><span>آخر طلب رمز</span><strong>${dashboardIcon("clock")} الآن</strong></div><div><span>الجهاز</span><strong>${dashboardIcon("devices")} غير موثوق بعد</strong></div></div></aside>
-    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>التحقق عبر البريد الإلكتروني</h1><p>أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لإكمال تسجيل الدخول.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><label class="email-otp-remember"><input type="checkbox" name="rememberDevice" checked> تذكّر هذا الجهاز لمدة 15 يومًا</label><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وتسجيل الدخول ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
+    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><h1>تحقق من بريدك الإلكتروني</h1><p>أرسلنا رمز تحقق إلى بريدك الإلكتروني المسجل${signupVerification ? " لتوثيق البريد وإكمال إنشاء الحساب" : " لإكمال تسجيل الدخول"}.</p><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><p class="email-otp-remember">بعد نجاح التحقق سيُوثق هذا المتصفح لمدة 48 ساعة ثابتة.</p><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق ومتابعة ←</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div><ol class="email-otp-steps"><li class="done"><b>1</b><div><strong>إدخال البريد<br>وكلمة المرور</strong><small>مكتمل</small></div></li><li class="active"><b>2</b><div><strong>التحقق عبر البريد</strong><small>الخطوة الحالية</small></div></li><li><b>3</b><div><strong>الدخول إلى<br>لوحة التحكم</strong></div></li></ol></div></article>
   </section><footer class="email-otp-footer"><span>© 2026 Renvix.</span><button data-link="/privacy">سياسة الخصوصية</button><button data-link="/terms">الشروط والأحكام</button><button data-link="/contact">اتصل بنا</button><span>جميع الحقوق محفوظة</span></footer></main>`;
 }
 
@@ -2137,7 +2140,7 @@ function mfaLoginPage() {
   if (statusData?.error) {
     return `<main class="email-otp-page"><section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق الثنائي</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></section></main>`;
   }
-  return `<main class="auth-light-page mfa-login-page" dir="rtl"><header class="auth-light-header mfa-login-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} دخول OTP آمن</span></header><section class="reset-light-shell mfa-login-shell"><article class="card reset-light-panel mfa-login-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام. يمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual"><div class="mail-visual">${stackedLogo()}</div><h2>دخول الحساب OTP يحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي إنشاء المفتاح من الواجهة.</p></aside></section>${publicFooter()}</main>`;
+  return `<main class="auth-light-page mfa-login-page" dir="rtl"><header class="auth-light-header mfa-login-header">${logo()}<span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق بخطوتين</span></header><section class="reset-light-shell mfa-login-shell"><article class="card reset-light-panel mfa-login-panel"><span class="reset-lock">${dashboardIcon("security")}</span><h1>التحقق بخطوتين</h1><p>أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة لإكمال تسجيل الدخول.</p><form data-submit="mfa-login" class="grid auth-form" novalidate><label class="field"><span data-mfa-code-label>رمز تطبيق المصادقة</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="000000" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق ومتابعة</button><button class="btn btn-secondary" type="button" data-action="mfa-login-recovery">استخدام رمز استرداد</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual"><div class="mail-visual">${stackedLogo()}</div><h2>تطبيق المصادقة يحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولن يُطلب رمز البريد في عملية الدخول نفسها.</p></aside></section>${publicFooter()}</main>`;
 }
 
 async function loadMfaLoginStatus(force = false) {
@@ -3402,6 +3405,7 @@ function securityPage() {
   const alertSummary = score.alertSummary || { openCount: 0, highestSeverity: null };
   const sessions = score.sessions || { activeSessions: 0, items: [] };
   const protection = score.accountProtection || { otpStatus: "disabled", activeSessions: 0, openAlerts: 0, encryption: { status: "unavailable" }, unusualActivityMonitoring: { status: "automatic" } };
+  const trustedBrowsers = Array.isArray(state.trustedBrowsers?.items) ? state.trustedBrowsers.items : [];
   const sessionItems = Array.isArray(sessions.items) ? sessions.items.slice(0, 5) : [];
   const alerts = (Array.isArray(score.securityAlerts) ? score.securityAlerts : []).filter((item) => item?.title).slice(0, 5);
   const overallAvailable = overall.score !== null && overall.score !== undefined && overall.status === "available";
@@ -3420,6 +3424,7 @@ function securityPage() {
       <article class="card security-main-card security-smart-center"><div class="security-main-heading"><span class="security-main-icon">${dashboardIcon("security")}</span><div><h2>مركز الحماية الذكي</h2><p>إعدادات وإجراءات لحماية حسابك وبيانات منصتك.</p></div></div><div class="security-protection-list">
         <div><span>${dashboardIcon("security")}</span><div><strong>دخول الحساب OTP</strong><small>اطلب رمزًا مؤقتًا عند تسجيل الدخول لحماية حسابك من الوصول غير المصرح.</small></div><em class="${otpState.tone}">${otpState.label}</em><button data-link="/dashboard/settings?section=security">${otpState.action}</button></div>
         <div><span>${dashboardIcon("devices")}</span><div><strong>حماية الجلسات</strong><small>${Number(protection.activeSessions || 0)} جلسة نشطة تخضع للانتهاء والإبطال الآمن.</small></div><em class="success">يعمل تلقائيًا</em><button data-action="manage-sessions">إدارة الجلسات</button></div>
+        <div><span>${dashboardIcon("devices")}</span><div><strong>المتصفحات الموثوقة</strong><small>${trustedBrowsers.length ? `${trustedBrowsers.length} متصفح موثوق لمدة لا تتجاوز 48 ساعة.` : "لا توجد متصفحات موثوقة نشطة."}</small></div><em class="${trustedBrowsers.length ? "success" : "neutral"}">${trustedBrowsers.length ? "موثق" : "لا يوجد"}</em><button data-action="manage-trusted-browsers">إدارة الثقة</button></div>
         <div><span>${dashboardIcon("security")}</span><div><strong>تشفير البيانات الحساسة</strong><small>تُحمى أسرار الدخول على الخادم ولا تظهر بعد اكتمال الإعداد.</small></div><em class="${protection.encryption?.status === "automatic" ? "success" : "neutral"}">${protection.encryption?.status === "automatic" ? "يعمل تلقائيًا" : "غير متاح"}</em><button data-link="/dashboard/settings?section=security">عرض الإعدادات</button></div>
         <div><span>${dashboardIcon("reports")}</span><div><strong>مراقبة الأنشطة غير المعتادة</strong><small>مراجعة مستمرة للجلسات ومحاولات الدخول والتنبيهات المهمة.</small></div><em class="success">يعمل تلقائيًا</em><button data-action="security-alerts">عرض النشاط</button></div>
       </div></article>
@@ -5773,6 +5778,20 @@ async function handleAction(target) {
     void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
     return navigate("/login");
   }
+  if (action === "mfa-login-recovery") {
+    const form = document.querySelector('[data-submit="mfa-login"]');
+    const input = form?.querySelector('input[name="code"]');
+    const label = form?.querySelector('[data-mfa-code-label]');
+    if (input) {
+      input.value = "";
+      input.placeholder = "XXXX-XXXX-XXXX";
+      input.inputMode = "text";
+      input.focus();
+    }
+    if (label) label.textContent = "رمز الاسترداد";
+    appToast.info("استخدم رمز استرداد غير مستخدم", { description: "يُقبل الرمز مرة واحدة فقط، ولا يؤدي استخدامه إلى تعطيل تطبيق المصادقة.", id: "mfa-recovery-mode" });
+    return;
+  }
   if (action === "email-otp-help") {
     return appToast.info("تحقق من مجلد البريد غير الهام", {
       description: "ابحث عن رسالة من Renvix، وتأكد من أن البريد الظاهر في صفحة التحقق هو بريد حسابك.",
@@ -6165,6 +6184,30 @@ async function handleAction(target) {
   if (action === "security-alerts") {
     const alerts = Array.isArray(state.securityScore?.securityAlerts) ? state.securityScore.securityAlerts : Array.isArray(state.securityScore?.events) ? state.securityScore.events : [];
     openModal("سجل تنبيهات الحماية", `<div class="security-alert-history">${alerts.length ? alerts.map((item) => `<article class="security-alert-history-item ${escapeHtml(item.severity || "low")}"><span>${item.severity === "critical" || item.severity === "high" ? "!" : "i"}</span><div><strong>${escapeHtml(item.title || item.type || "تنبيه أمني")}</strong><p>${escapeHtml(item.message || item.detail || "تم تسجيل الحدث الأمني.")}</p><small>${escapeHtml(securityTime(item.timestamp || item.occurredAt))} · ${item.deliveryChannels?.includes("email") ? "داخل النظام والبريد" : "داخل النظام"}</small></div>${item.actionUrl ? `<button class="btn btn-secondary" data-link="${escapeHtml(item.actionUrl)}">${escapeHtml(item.actionLabel || "عرض التفاصيل")}</button>` : ""}</article>`).join("") : `<div class="security-empty-row success">لا توجد تنبيهات أمنية مسجلة حاليًا.</div>`}</div>`, '<button class="btn btn-secondary" data-action="close-modal">إغلاق</button>');
+  }
+  if (action === "manage-trusted-browsers") {
+    const items = Array.isArray(state.trustedBrowsers?.items) ? state.trustedBrowsers.items : [];
+    const content = items.length
+      ? `<div class="security-alert-history">${items.map((item) => `<article class="security-alert-history-item low"><span>${dashboardIcon("devices")}</span><div><strong>${escapeHtml(item.label || "متصفح موثوق")}${item.isCurrent ? " · الحالي" : ""}</strong><p>موثوق حتى ${escapeHtml(new Date(item.expiresAt).toLocaleString("ar-SA"))}</p></div><button class="btn btn-secondary" data-action="revoke-trusted-browser" data-id="${escapeHtml(item.id)}">إزالة الثقة</button></article>`).join("")}</div>`
+      : `<div class="security-empty-row">لا توجد متصفحات موثوقة نشطة.</div>`;
+    openModal("المتصفحات الموثوقة", content, items.length ? '<button class="btn btn-danger" data-action="revoke-all-trusted-browsers">إزالة الثقة من الجميع</button><button class="btn btn-secondary" data-action="close-modal">إغلاق</button>' : '<button class="btn btn-secondary" data-action="close-modal">إغلاق</button>');
+    return;
+  }
+  if (action === "revoke-trusted-browser" || action === "revoke-all-trusted-browsers") {
+    try {
+      await fetchJson("/api/settings/security/trusted-devices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: action === "revoke-trusted-browser" ? target.dataset.id : null })
+      });
+      state.trustedBrowsers = null;
+      closePortal();
+      await syncRouteData(true);
+      appToast.success("تمت إزالة الثقة", { description: "سيُطلب عامل التحقق المناسب عند الدخول التالي من المتصفح المحدد.", id: "trusted-browser-revoked" });
+    } catch (error) {
+      appToast.error("تعذر إزالة الثقة", { description: error.message || "حاول مرة أخرى.", id: "trusted-browser-revoke-error" });
+    }
+    return;
   }
   if (action === "order-style") {
     state.orderLinkDraft.style = target.dataset.value;
@@ -7369,6 +7412,10 @@ async function handleSubmit(form, event) {
       }
       state.mfaLoginStatus = null;
       clearCachedDashboardProfile();
+      if (payload.redirectUrl === "/admin") {
+        window.location.replace("/admin");
+        return;
+      }
       if (!await enterDashboardAfterSessionVerification()) throw new Error("session_invalid");
       appToast.success("تم تسجيل الدخول بأمان", { description: "تم التحقق من رمز دخول الحساب OTP بنجاح.", id: "mfa-login-success" });
     } catch (error) {
@@ -7392,7 +7439,7 @@ async function handleSubmit(form, event) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, rememberDevice: Boolean(form.elements.rememberDevice?.checked) })
+        body: JSON.stringify({ code })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
@@ -7408,6 +7455,10 @@ async function handleSubmit(form, event) {
       }
       state.emailOtpStatus = null;
       clearCachedDashboardProfile();
+      if (payload.redirectUrl === "/admin") {
+        window.location.replace("/admin");
+        return;
+      }
       appToast.success("تم التحقق وتسجيل الدخول", {
         description: "مرحبًا بك في Renvix، جاري تحويلك إلى لوحة التحكم.",
         id: "email-otp-success",
@@ -7453,6 +7504,21 @@ async function handleSubmit(form, event) {
           database_schema_missing: "The workspace could not be created. Please try again later."
         };
         return toast(messages[payload?.reason] || t("common.serverError"), "danger");
+      }
+      if (payload?.ok === true && payload?.requiresEmailOtp === true) {
+        state.emailOtpStatus = {
+          ok: true,
+          purpose: "signup",
+          maskedEmail: payload.maskedEmail,
+          expiresAt: payload.expiresAt,
+          resendAt: payload.resendAt,
+          attemptsRemaining: 5
+        };
+        history.pushState({}, "", "/auth/verify-email");
+        render();
+        requestAnimationFrame(() => document.querySelector('[data-otp-digit="0"]')?.focus());
+        appToast.info("أرسلنا رمز توثيق البريد", { description: "أدخل الرمز لإكمال إنشاء الحساب بأمان.", id: "signup-email-otp" });
+        return;
       }
       if (!payload?.ok || !payload.user?.id || !await enterDashboardAfterSessionVerification()) {
         return toast(state.language === "ar" ? "تعذر إنشاء الجلسة، حاول تسجيل الدخول." : "The session could not be created. Please sign in.", "danger");

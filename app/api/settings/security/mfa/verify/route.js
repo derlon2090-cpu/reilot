@@ -1,6 +1,7 @@
 import { query } from "../../../../../../src/server/db.js";
 import { createRecoveryCodes, decryptMfaSecret, verifyTotp } from "../../../../../../src/server/mfa.js";
 import { requireSession } from "../../../../../../src/server/session.js";
+import { revokeAllUserBrowsers } from "../../../../../../src/server/trusted-browser.js";
 
 export async function POST(request) {
   const auth = await requireSession(request);
@@ -23,7 +24,8 @@ export async function POST(request) {
   const recovery = createRecoveryCodes();
   await query(
     `UPDATE users SET mfa_enabled = true, mfa_secret_encrypted = mfa_pending_secret_encrypted,
-       mfa_pending_secret_encrypted = NULL, mfa_recovery_hashes = $1::jsonb, updated_at = now()
+       mfa_pending_secret_encrypted = NULL, mfa_recovery_hashes = $1::jsonb,
+       mfa_last_verified_step = NULL, updated_at = now()
      WHERE id = $2 AND tenant_id = $3`,
     [JSON.stringify(recovery.hashes), auth.session.userId, auth.session.tenantId]
   );
@@ -32,5 +34,6 @@ export async function POST(request) {
      VALUES ($1, $2, 'mfa.enabled', 'Multi-factor authentication enabled')`,
     [auth.session.tenantId, auth.session.userId]
   );
+  await revokeAllUserBrowsers(auth.session.userId, "totp_enabled");
   return Response.json({ ok: true, recoveryCodes: recovery.codes });
 }
