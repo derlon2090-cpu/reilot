@@ -112,11 +112,18 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('name="emailTextContent"');
   });
 
-  it("requires paid digital content and rejects stale status events", () => {
-    expect(serverSource).toContain("paidDigitalDelivery");
-    expect(serverSource).toContain("digital.links.length");
+  it("requires a real completed transition and rejects stale status events", () => {
+    expect(serverSource).toContain("claimCompletedTransition");
+    expect(serverSource).toContain("recordObservedOrderStatus");
+    expect(serverSource).toContain("not_a_new_transition");
+    expect(serverSource).toContain("extractTrustedDeliveryContent");
     expect(serverSource).toContain("claimSallaEventWatermark");
     expect(serverSource).toContain("latest_event_at<=EXCLUDED.latest_event_at");
+  });
+
+  it("fetches the dedicated order-items endpoint when order details omit items", () => {
+    expect(serverSource).toContain("/orders/${encodeURIComponent(orderId)}/items");
+    expect(serverSource).toContain("Array.isArray(detail?.items) && detail.items.length");
   });
 
   it.each([
@@ -149,7 +156,8 @@ describe("Salla automation templates", () => {
   it("persists CTA and secure digital-link controls and defaults first activation to WhatsApp", () => {
     expect(appSource).toContain('name="buttonEnabled"');
     expect(appSource).toContain('name="buttonLabel"');
-    expect(appSource).toContain('name="secureLinkEnabled"');
+    expect(appSource).toContain('name="secureLinkEnabled" value="true"');
+    expect(appSource).toContain("عرض مدة المنتج");
     expect(serverSource).toContain("delivery_channel=COALESCE(delivery_channel,'whatsapp')");
     expect(serverSource).toContain('? "digital"');
     expect(styles).toContain(".salla-template-form-card>.section-head>svg");

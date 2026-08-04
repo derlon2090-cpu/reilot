@@ -18,13 +18,9 @@ function emailOtpDeliveryConfigured() {
 }
 
 function emailOtpRequired(user) {
-  // Email OTP is a platform security boundary. It is enforced by default and
-  // can only be relaxed explicitly for a controlled recovery deployment.
-  // The browser never decides whether the second factor is required.
-  if (process.env.EMAIL_OTP_ENFORCE_ALL === "false") {
-    return Boolean(user?.emailOtpEnabled);
-  }
-  return true;
+  // A missing setting means disabled. Deployments that deliberately require
+  // email OTP for every user must opt in explicitly on the server.
+  return process.env.EMAIL_OTP_ENFORCE_ALL === "true" || user?.emailOtpEnabled === true;
 }
 
 async function findCredentialUser(normalizedEmail) {
@@ -32,6 +28,7 @@ async function findCredentialUser(normalizedEmail) {
     return await query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
               u.email_otp_enabled AS "emailOtpEnabled", u.mfa_enabled AS "mfaEnabled",
+              u.mfa_secret_encrypted AS "mfaSecret",
               COALESCE(tm.role, u.role) AS role, a.password
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
@@ -47,7 +44,8 @@ async function findCredentialUser(normalizedEmail) {
     if (!isEmailOtpSchemaUnavailable(error)) throw error;
     return query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
-              false AS "emailOtpEnabled", false AS "mfaEnabled", COALESCE(tm.role, u.role) AS role, a.password
+              false AS "emailOtpEnabled", false AS "mfaEnabled", NULL::text AS "mfaSecret",
+              COALESCE(tm.role, u.role) AS role, a.password
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
@@ -79,7 +77,7 @@ export async function registerAccount({ name, companyName, email, password, ipAd
     const tenantId = tenant.rows[0].id;
     const user = await client.query(
       `INSERT INTO users (tenant_id, name, email, role, password_strength, password_changed_at, email_otp_enabled)
-       VALUES ($1, $2, $3, 'owner', $4, now(), true) RETURNING id, name, email`,
+       VALUES ($1, $2, $3, 'owner', $4, now(), false) RETURNING id, name, email`,
       [tenantId, String(name).trim(), normalized, classifyPasswordStrength(password, normalized)]
     );
     const userId = user.rows[0].id;
@@ -111,6 +109,8 @@ export async function registerAccount({ name, companyName, email, password, ipAd
 }
 
 export async function loginAccount({ email, password, ipAddress, userAgent, trustedDeviceToken = "", locale = "ar" }) {
+  let authStage = "rate_limit";
+  try {
   const normalized = normalizeEmail(email);
   const attempts = await query(
     `SELECT count(*)::int AS count FROM login_attempts
@@ -119,9 +119,12 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   );
   if (attempts.rows[0].count >= 10) return { ok: false, status: 429, reason: "rate_limited" };
 
+  authStage = "credential_lookup";
   const result = await findCredentialUser(normalized);
   const user = result.rows[0];
+  authStage = "password_verification";
   const valid = user ? await verifyPassword(password, user.password) : false;
+  authStage = "login_attempt_audit";
   await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
      VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -142,7 +145,8 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     return { ok: false, status: 401, reason: "invalid_credentials" };
   }
 
-  if (user.mfaEnabled) {
+  if (user.mfaEnabled && user.mfaSecret) {
+    authStage = "mfa_challenge";
     const challenge = await createMfaLoginChallenge({ user, ipAddress, userAgent });
     return {
       ok: true,
@@ -153,6 +157,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   }
 
   const requiresEmailOtp = emailOtpRequired(user);
+  authStage = "trusted_device_lookup";
   const trusted = requiresEmailOtp
     ? await isTrustedDevice({ userId: user.id, rawToken: trustedDeviceToken })
     : false;
@@ -160,6 +165,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     if (!emailOtpDeliveryConfigured()) {
       return { ok: false, status: 503, reason: "email_otp_unavailable" };
     }
+    authStage = "email_otp_challenge";
     const challenge = await createLoginEmailOtpChallenge({
       user,
       ipAddress,
@@ -181,7 +187,8 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     };
   }
 
-  return transaction(async (client) => {
+  authStage = "session_creation";
+  return await transaction(async (client) => {
     const session = await createSession(client, { userId: user.id, ipAddress, userAgent });
     await client.query(
       "INSERT INTO activity_logs (tenant_id, user_id, type, title) VALUES ($1, $2, 'auth.login', 'User signed in')",
@@ -197,6 +204,11 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     delete safeUser.password;
     delete safeUser.emailOtpEnabled;
     delete safeUser.mfaEnabled;
+    delete safeUser.mfaSecret;
     return { ok: true, status: 200, user: safeUser, session };
   });
+  } catch (error) {
+    if (error && typeof error === "object" && !error.authStage) error.authStage = authStage;
+    throw error;
+  }
 }

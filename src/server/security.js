@@ -30,3 +30,12 @@ export function safeErrorMessage(error) {
     .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[database-redacted]")
     .slice(0, 500);
 }
+
+export function safeErrorStack(error) {
+  const stack = error instanceof Error ? String(error.stack || error.message) : "Unknown error";
+  return stack
+    .replace(/re_[A-Za-z0-9_-]+/g, "[redacted]")
+    .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[database-redacted]")
+    .replace(/(password|secret|token|cookie|authorization)=?[^\s,;]+/gi, "$1=[redacted]")
+    .slice(0, 4000);
+}

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/auth-actions.js", () => ({ loginAccount: vi.fn() }));
 
-import { POST } from "../../app/api/auth/login/route.js";
+import { POST, classifyAuthFailure } from "../../app/api/auth/login/route.js";
 import { loginAccount } from "../../src/server/auth-actions.js";
 
 function loginRequest(password: string) {
@@ -113,5 +113,13 @@ describe("POST /api/auth/login", () => {
     expect(response.status).toBe(503);
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(await response.json()).toEqual({ ok: false, reason: "email_otp_unavailable" });
+  });
+
+  it.each([
+    ["42P01", "credential_lookup", 503, "auth_database_error"],
+    ["", "session_creation", 503, "auth_session_error"],
+    ["AUTH_CONFIGURATION_ERROR", "email_otp_challenge", 503, "auth_configuration_error"]
+  ])("classifies internal authentication failures without exposing server details", (code, stage, status, reason) => {
+    expect(classifyAuthFailure({ code, authStage: stage })).toEqual({ code, stage, status, reason });
   });
 });

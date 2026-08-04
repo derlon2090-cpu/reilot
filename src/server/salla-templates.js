@@ -2,7 +2,15 @@ import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { getSallaAccessToken } from "./salla-app.js";
 import { enqueueMessage } from "./message-queue.js";
-import { getOrCreateSallaPublicPage } from "./salla-public-pages.js";
+import { getOrCreateSallaPublicPage, revokeSallaPublicPages } from "./salla-public-pages.js";
+import { createInAppNotification } from "./in-app-notifications.js";
+import {
+  classifyAmbiguousDeliveryContent,
+  deliveryContentHash,
+  extractTrustedDeliveryContent,
+  parseSmartDeliveryContent
+} from "./smart-delivery-content.js";
+import { durationWindow, resolveProductDurationWithDeepSeek } from "./product-duration-resolver.js";
 
 export const SALLA_TEMPLATE_KEYS = Object.freeze({
   DIGITAL_PRODUCT_DELIVERY: "digital_product_delivery",
@@ -23,14 +31,20 @@ const definitions = [
   {
     key: SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY,
     name: "إرسال المنتجات الرقمية",
-    description: "إرسال رابط المنتج الرقمي للعميل بعد تأكيد الدفع ووجود رابط تسليم موثوق.",
-    triggerType: "event",
-    eventName: "order.payment.updated",
+    description: "إنشاء صفحة تسليم آمنة من الحقل المعتمد عند انتقال الطلب فعليًا إلى تم التنفيذ.",
+    triggerType: "order_status",
+    suggestedSlugs: ["completed", "fulfilled"],
     icon: "download",
     previewAction: "استلام المنتج",
-    variables: ["customer_name", "order_number", "product_name", "activation_code", "delivery_date", "digital_content_url", "store_name"],
-    body: "مرحبًا {{customer_name}} 👋\n\nشكرًا لطلبك رقم {{order_number}}.\nتم تأكيد الدفع، وأصبح منتجك الرقمي جاهزًا للاستلام.\n\nالمنتج: {{product_name}}\nكود التفعيل: {{activation_code}}\nتاريخ التسليم: {{delivery_date}}\n\nاستلم منتجك من الرابط الآمن:\n{{digital_content_url}}",
-    emailSubject: "تفاصيل منتجك الرقمي جاهزة للاستلام"
+    variables: ["customer_name", "order_number", "product_name", "digital_content_url", "store_name", "duration_days"],
+    body: "مرحبًا {{customer_name}} 👋\n\nأصبحت معلومات تسليم طلبك رقم {{order_number}} جاهزة.\nلأمان بياناتك، اعرضها من الرابط الآمن التالي فقط:\n{{digital_content_url}}",
+    emailSubject: "تفاصيل منتجك الرقمي جاهزة للاستلام",
+    settings: {
+      secureLinkEnabled: true,
+      showDuration: false,
+      linkPageTitle: "منتجاتك الرقمية جاهزة",
+      linkPageContent: "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."
+    }
   },
   {
     key: SALLA_TEMPLATE_KEYS.PROCESSING,
@@ -225,6 +239,7 @@ function cleanSettings(input, current = {}) {
     linkPageTitle: cleanLabel(settings.linkPageTitle, current.linkPageTitle, 160),
     linkPageContent: cleanContent(settings.linkPageContent, current.linkPageContent, 5000),
     showCountdown: settings.showCountdown == null ? current.showCountdown !== false : Boolean(settings.showCountdown),
+    showDuration: settings.showDuration == null ? current.showDuration === true : Boolean(settings.showDuration),
     linkExpiresInDays: Math.max(1, Math.min(3650, Number(settings.linkExpiresInDays ?? current.linkExpiresInDays) || 365)),
     branding: {
       ...(current.branding && typeof current.branding === "object" ? current.branding : {}),
@@ -335,6 +350,20 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
           emailDefault?.subject || definition.emailSubject || null,
           JSON.stringify({ ...(definition.settings || {}), ...(whatsappDefault?.settings || {}), ...(emailDefault?.settings || {}) }), legacyKey,
           emailDefault?.body || definition.body]
+      );
+    }
+    const store = await client.query(
+      `SELECT provider_store_id AS "storeId" FROM app_connections
+        WHERE id=$1 AND tenant_id=$2 AND provider='salla' LIMIT 1`,
+      [id, tenantId]
+    );
+    if (store.rows[0]?.storeId) {
+      await client.query(
+        `INSERT INTO salla_delivery_source_configs (
+           tenant_id,salla_integration_id,store_id,source_type,source_field_key,enabled
+         ) VALUES ($1,$2,$3,'item_custom_field','renvix_delivery_content',true)
+         ON CONFLICT (tenant_id,store_id) DO NOTHING`,
+        [tenantId, id, String(store.rows[0].storeId)]
       );
     }
     return { ok: true };
@@ -653,6 +682,8 @@ export function normalizeSallaTemplateEvent(payload) {
     returnId: String(data?.return?.id || data?.return_id || "").trim() || null,
     statusId: String(data?.status?.id || data?.status_id || "").trim() || null,
     statusSlug: String(data?.status?.slug || data?.status_slug || "").trim() || null,
+    previousStatusId: String(data?.previous_status?.id || data?.old_status?.id || data?.previous_status_id || "").trim() || null,
+    previousStatusSlug: String(data?.previous_status?.slug || data?.old_status?.slug || data?.previous_status_slug || "").trim() || null,
     occurredAt: new Date(payload?.created_at || data?.created_at || Date.now())
   };
 }
@@ -703,6 +734,119 @@ export function paidDigitalDelivery(data = {}) {
   return { paid, links: assets.map((item) => item.url), assets };
 }
 
+function statusMatches(statusId, statusSlug, mappedId, mappedSlug) {
+  return (mappedId && String(statusId || "") === String(mappedId))
+    || (mappedSlug && String(statusSlug || "").toLowerCase() === String(mappedSlug).toLowerCase());
+}
+
+async function claimCompletedTransition({ tenantId, storeId, orderId, currentStatusId, currentStatusSlug,
+  previousStatusId, previousStatusSlug, mappedStatusId, mappedStatusSlug, occurredAt, externalEventId }) {
+  return transaction(async (client) => {
+    const existing = await client.query(
+      `SELECT current_status_id AS "statusId",current_status_slug AS "statusSlug",latest_event_at AS "latestEventAt"
+         FROM salla_order_transition_state
+        WHERE tenant_id=$1 AND store_id=$2 AND external_order_id=$3 FOR UPDATE`,
+      [tenantId, storeId, orderId]
+    );
+    const state = existing.rows[0];
+    if (state?.latestEventAt && new Date(state.latestEventAt) > occurredAt) return { claimed: false, reason: "stale_event" };
+    const previousId = state?.statusId || previousStatusId || null;
+    const previousSlug = state?.statusSlug || previousStatusSlug || null;
+    const isCompleted = statusMatches(currentStatusId, currentStatusSlug, mappedStatusId, mappedStatusSlug);
+    const wasCompleted = statusMatches(previousId, previousSlug, mappedStatusId, mappedStatusSlug);
+    const transitioned = isCompleted && !wasCompleted && Boolean(previousId || previousSlug);
+    await client.query(
+      `INSERT INTO salla_order_transition_state (
+         tenant_id,store_id,external_order_id,current_status_id,current_status_slug,completed_at,latest_event_at,latest_event_id
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (tenant_id,store_id,external_order_id) DO UPDATE SET
+         current_status_id=EXCLUDED.current_status_id,current_status_slug=EXCLUDED.current_status_slug,
+         completed_at=COALESCE(salla_order_transition_state.completed_at,EXCLUDED.completed_at),
+         latest_event_at=EXCLUDED.latest_event_at,latest_event_id=EXCLUDED.latest_event_id,updated_at=now()`,
+      [tenantId, storeId, orderId, currentStatusId, currentStatusSlug, transitioned ? occurredAt : null, occurredAt, externalEventId]
+    );
+    return { claimed: transitioned, reason: transitioned ? null : (isCompleted ? "not_a_new_transition" : "not_completed"), completedAt: transitioned ? occurredAt : null };
+  });
+}
+
+async function fetchSallaOrderDetails(connection, orderId, fallback) {
+  if (!orderId) return fallback;
+  try {
+    const token = await getSallaAccessToken(connection);
+    const base = (process.env.SALLA_API_BASE_URL || "https://api.salla.dev/admin/v2").replace(/\/$/, "");
+    const headers = { authorization: `Bearer ${token}`, accept: "application/json" };
+    const response = await fetch(`${base}/orders/${encodeURIComponent(orderId)}`, { headers });
+    const result = await response.json().catch(() => ({}));
+    const detail = response.ok && result?.data ? result.data : fallback;
+    if (Array.isArray(detail?.items) && detail.items.length) return detail;
+    const itemsResponse = await fetch(`${base}/orders/${encodeURIComponent(orderId)}/items`, { headers });
+    const itemsResult = await itemsResponse.json().catch(() => ({}));
+    const items = Array.isArray(itemsResult?.data)
+      ? itemsResult.data
+      : Array.isArray(itemsResult?.data?.items) ? itemsResult.data.items : [];
+    return itemsResponse.ok && items.length ? { ...detail, items } : detail;
+  } catch {
+    return fallback;
+  }
+}
+
+async function recordObservedOrderStatus({ tenantId, storeId, orderId, statusId, statusSlug, occurredAt, externalEventId }) {
+  if (!orderId || (!statusId && !statusSlug)) return;
+  await query(
+    `INSERT INTO salla_order_transition_state (
+       tenant_id,store_id,external_order_id,current_status_id,current_status_slug,latest_event_at,latest_event_id
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (tenant_id,store_id,external_order_id) DO UPDATE SET
+       current_status_id=EXCLUDED.current_status_id,current_status_slug=EXCLUDED.current_status_slug,
+       latest_event_at=EXCLUDED.latest_event_at,latest_event_id=EXCLUDED.latest_event_id,updated_at=now()
+     WHERE salla_order_transition_state.latest_event_at<=EXCLUDED.latest_event_at`,
+    [tenantId, storeId, orderId, statusId, statusSlug, occurredAt, externalEventId]
+  );
+}
+
+async function buildSmartDigitalAssets({ order, sourceConfig, showDuration, completedAt }) {
+  const sources = extractTrustedDeliveryContent(order, sourceConfig);
+  const assets = [];
+  for (const source of sources) {
+    const parsed = await classifyAmbiguousDeliveryContent(
+      parseSmartDeliveryContent(source.content, { productName: source.productName })
+    );
+    const item = (order.items || []).find((entry, index) => String(entry.id || entry.product_id || index + 1) === source.orderItemId) || {};
+    const duration = showDuration ? await resolveProductDurationWithDeepSeek({
+      deliveryContent: source.content,
+      itemOptions: Array.isArray(item.options) ? item.options : [],
+      itemTitleSnapshot: source.productName,
+      currentProductTitle: item.product?.name,
+      productDescription: item.product?.description
+    }) : { visible: false, source: "unknown", durationDays: null, lifetime: false };
+    const window = durationWindow(duration, completedAt);
+    assets.push({
+      orderItemId: source.orderItemId,
+      productId: String(item.product_id || item.product?.id || ""),
+      sku: String(item.sku || item.product?.sku || ""),
+      name: parsed.title,
+      fields: parsed.fields.map((entry) => {
+        const clean = { ...entry };
+        delete clean.sourceLine;
+        return clean;
+      }),
+      instructions: parsed.instructions,
+      classificationSource: parsed.classificationSource || "local",
+      sourceContentHash: deliveryContentHash(source.content),
+      parserVersion: parsed.parserVersion || "local-v1",
+      modelVersion: parsed.classificationSource === "deepseek" ? "deepseek-v4-flash" : null,
+      showDuration: duration.visible === true,
+      durationDays: duration.visible ? duration.durationDays : null,
+      durationSource: duration.source,
+      durationConfidence: duration.classificationSource === "deepseek" ? 0.8 : (duration.visible ? 1 : null),
+      lifetime: duration.visible && duration.lifetime,
+      startsAt: duration.visible ? window.startsAt.toISOString() : null,
+      expiresAt: window.expiresAt?.toISOString() || null
+    });
+  }
+  return assets;
+}
+
 async function claimSallaEventWatermark({ tenantId, templateKey, externalEntityId, occurredAt, externalEventId }) {
   if (!externalEntityId || !(occurredAt instanceof Date) || Number.isNaN(occurredAt.getTime())) return true;
   const result = await query(
@@ -722,13 +866,33 @@ export async function processSallaTemplateEvent(payload) {
   const normalized = normalizeSallaTemplateEvent(payload);
   if (!normalized.storeId) return { status: "ignored", reason: "store_missing" };
   const connection = await query(
-    `SELECT id,tenant_id FROM app_connections
+    `SELECT id,tenant_id,provider_store_id,access_token_encrypted,refresh_token_encrypted,token_expires_at FROM app_connections
       WHERE provider='salla' AND provider_store_id=$1 AND status IN ('connected','ready') LIMIT 1`,
     [normalized.storeId]
   );
   if (!connection.rows[0]) return { status: "ignored", reason: "connection_missing" };
   const tenantId = connection.rows[0].tenant_id;
   await ensureSallaAutomationTemplates(tenantId, connection.rows[0].id);
+  if (normalized.orderId && (normalized.statusId || normalized.statusSlug)) {
+    const digitalMapping = await query(
+      `SELECT mapped_status_id AS "statusId",mapped_status_slug AS "statusSlug"
+         FROM tenant_salla_templates
+        WHERE tenant_id=$1 AND template_key=$2 LIMIT 1`,
+      [tenantId, SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY]
+    );
+    const mapping = digitalMapping.rows[0];
+    if (mapping && !statusMatches(normalized.statusId, normalized.statusSlug, mapping.statusId, mapping.statusSlug)) {
+      await recordObservedOrderStatus({
+        tenantId,
+        storeId: normalized.storeId,
+        orderId: normalized.orderId,
+        statusId: normalized.statusId,
+        statusSlug: normalized.statusSlug,
+        occurredAt: normalized.occurredAt,
+        externalEventId: normalized.externalEventId
+      });
+    }
+  }
   if (normalized.orderId && ["order.cancelled", "order.refunded", "order.return.created", "order.return.updated"].includes(normalized.eventName)) {
     await transaction(async (client) => {
       await client.query(
@@ -743,7 +907,25 @@ export async function processSallaTemplateEvent(payload) {
           WHERE tenant_id=$1 AND external_order_id=$2 AND template_key=$3 AND status='queued'`,
         [tenantId, normalized.orderId, SALLA_TEMPLATE_KEYS.REVIEW_REQUEST]
       );
+      await client.query(
+        `UPDATE salla_digital_entitlements SET status='revoked',duration_status='revoked',revoked_at=now(),revoke_reason=$3,updated_at=now()
+          WHERE tenant_id=$1 AND external_order_id=$2 AND status='active'`,
+        [tenantId, normalized.orderId, normalized.eventName]
+      );
+      await client.query(
+        `UPDATE message_queue queue SET status='cancelled',last_error='digital_delivery_revoked',updated_at=now()
+          FROM salla_template_deliveries delivery
+         WHERE delivery.message_queue_id=queue.id AND delivery.tenant_id=$1
+           AND delivery.external_order_id=$2 AND delivery.template_key=$3 AND queue.status='pending'`,
+        [tenantId, normalized.orderId, SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY]
+      );
+      await client.query(
+        `UPDATE salla_template_deliveries SET status='skipped',failure_code='digital_delivery_revoked',updated_at=now()
+          WHERE tenant_id=$1 AND external_order_id=$2 AND template_key=$3 AND status='queued'`,
+        [tenantId, normalized.orderId, SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY]
+      );
     });
+    await revokeSallaPublicPages({ tenantId, storeId: normalized.storeId, externalEntityId: normalized.orderId, reason: normalized.eventName });
   }
   if (normalized.cartId && normalized.orderId && normalized.eventName.startsWith("order.")) {
     await transaction(async (client) => {
@@ -788,16 +970,78 @@ export async function processSallaTemplateEvent(payload) {
     [tenantId]
   );
   const brandProfile = brandProfileResult.rows[0] || {};
-  const data = payload?.data || {};
+  const webhookData = payload?.data || {};
   let queued = 0;
   for (const template of candidates.rows) {
     if (!template.delivery_channel) continue;
     let digitalDelivery = null;
     if (template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY) {
-      const digital = paidDigitalDelivery(data);
-      digitalDelivery = digital;
-      if (!digital.paid || !digital.links.length) continue;
+      const transition = await claimCompletedTransition({
+        tenantId,
+        storeId: normalized.storeId,
+        orderId: normalized.orderId,
+        currentStatusId: normalized.statusId,
+        currentStatusSlug: normalized.statusSlug,
+        previousStatusId: normalized.previousStatusId,
+        previousStatusSlug: normalized.previousStatusSlug,
+        mappedStatusId: template.mapped_status_id,
+        mappedStatusSlug: template.mapped_status_slug,
+        occurredAt: normalized.occurredAt,
+        externalEventId: normalized.externalEventId
+      });
+      if (!transition.claimed) continue;
+      const order = await fetchSallaOrderDetails(connection.rows[0], normalized.orderId, webhookData);
+      const sourceConfigResult = await query(
+        `SELECT source_type AS "sourceType",source_field_key AS "sourceFieldKey",enabled
+           FROM salla_delivery_source_configs
+          WHERE tenant_id=$1 AND store_id=$2 LIMIT 1`,
+        [tenantId, normalized.storeId]
+      );
+      const assets = await buildSmartDigitalAssets({
+        order,
+        sourceConfig: sourceConfigResult.rows[0],
+        showDuration: template.settings?.showDuration === true,
+        completedAt: transition.completedAt
+      });
+      if (!assets.length) {
+        await createInAppNotification({
+          tenantId,
+          type: "missing_delivery_content",
+          title: "معلومات التسليم غير موجودة",
+          message: `لم يُعثر على معلومات التسليم المعتمدة للطلب ${normalized.orderId}. لم تُرسل أي رسالة.`,
+          priority: "high",
+          actionUrl: "/dashboard/apps/salla/templates/digital_product_delivery",
+          metadata: { orderId: normalized.orderId, storeId: normalized.storeId },
+          dedupeKey: `missing-delivery:${tenantId}:${normalized.orderId}`
+        }).catch(() => null);
+        await query(
+          `INSERT INTO activity_logs (tenant_id,type,title,metadata)
+           VALUES ($1,'salla.delivery.missing','Salla delivery content missing',$2::jsonb)`,
+          [tenantId, JSON.stringify({ orderId: normalized.orderId, storeId: normalized.storeId, code: "missing_delivery_content" })]
+        );
+        continue;
+      }
+      digitalDelivery = { assets, links: [] };
+      for (const asset of assets) {
+        await query(
+          `INSERT INTO salla_digital_entitlements (
+             tenant_id,store_id,external_order_id,external_order_item_id,product_id,sku,product_name,
+             show_duration,duration_type,duration_days,lifetime,duration_source,duration_matched_text_hash,
+             duration_confidence,duration_status,parser_version,model_version,starts_at,expires_at,period_history
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb)
+           ON CONFLICT (tenant_id,store_id,external_order_id,external_order_item_id) DO NOTHING`,
+          [tenantId, normalized.storeId, normalized.orderId, asset.orderItemId, asset.productId || null,
+            asset.sku || null, asset.name, asset.showDuration, asset.lifetime ? "lifetime" : asset.durationDays ? "fixed" : "unknown",
+            asset.durationDays, asset.lifetime, asset.durationSource, asset.sourceContentHash, asset.durationConfidence,
+            asset.lifetime ? "lifetime" : asset.durationDays ? "active" : "unknown", asset.parserVersion,
+            asset.modelVersion, asset.startsAt || transition.completedAt, asset.expiresAt,
+            JSON.stringify([{ startsAt: asset.startsAt, expiresAt: asset.expiresAt, durationDays: asset.durationDays, source: asset.durationSource }])]
+        );
+      }
     }
+    const data = template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY
+      ? await fetchSallaOrderDetails(connection.rows[0], normalized.orderId, webhookData)
+      : webhookData;
     if (template.template_key === SALLA_TEMPLATE_KEYS.REVIEW_REQUEST
       && !safePublicHttpsUrl(data.urls?.rating || data.order?.urls?.rating || data.rating_url)) continue;
     if (template.template_key === SALLA_TEMPLATE_KEYS.RETURNED) {
@@ -824,7 +1068,10 @@ export async function processSallaTemplateEvent(payload) {
       );
     }
     const transition = normalized.externalEventId || `${normalized.statusId || normalized.statusSlug || normalized.eventName}:${normalized.occurredAt.toISOString()}`;
-    const idempotencyKey = template.trigger_type === "abandoned_cart"
+    const digitalItemKey = digitalDelivery?.assets?.map((item) => item.orderItemId).sort().join(",") || "order";
+    const idempotencyKey = template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY
+      ? `salla:digital:${tenantId}:${normalized.storeId}:${normalized.orderId}:${digitalItemKey}:${normalized.occurredAt.toISOString()}:${template.delivery_channel}`
+      : template.trigger_type === "abandoned_cart"
       ? `salla:cart:${tenantId}:${normalized.cartId}:1`
       : template.trigger_type === "invoice_event"
         ? `salla:invoice:${tenantId}:${normalized.invoiceId}`
@@ -838,12 +1085,13 @@ export async function processSallaTemplateEvent(payload) {
     const inserted = await query(
       `INSERT INTO salla_template_deliveries (
          tenant_id,template_id,template_key,external_event_id,external_order_id,external_cart_id,
-         external_invoice_id,external_return_id,channel,recipient_hash,idempotency_key,status
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'queued')
+         external_invoice_id,external_return_id,channel,recipient_hash,idempotency_key,status,completed_transition_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'queued',$12)
        ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`,
       [tenantId, template.id, template.template_key, normalized.externalEventId,
         normalized.orderId, normalized.cartId, normalized.invoiceId, normalized.returnId,
-        template.delivery_channel, recipientHash, idempotencyKey]
+        template.delivery_channel, recipientHash, idempotencyKey,
+        template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY ? normalized.occurredAt : null]
     );
     if (!inserted.rows[0]) continue;
     const variables = {
@@ -857,7 +1105,7 @@ export async function processSallaTemplateEvent(payload) {
       checkout_url: data.checkout_url || data.url || "",
       digital_content_url: digitalDelivery?.links[0] || "",
       product_name: data.items?.[0]?.name || data.order?.items?.[0]?.name || data.product?.name || "",
-      activation_code: data.items?.[0]?.code || data.activation_code || "",
+      activation_code: "",
       delivery_date: data.delivery_date || data.shipment?.delivery_date || "",
       rating_url: safePublicHttpsUrl(data.urls?.rating || data.order?.urls?.rating || data.rating_url),
       cancellation_reason: data.reason || data.cancellation_reason || data.status?.note || "غير محدد",
@@ -876,7 +1124,7 @@ export async function processSallaTemplateEvent(payload) {
     };
     const pageType = template.template_key === legacyInvoiceDefinition.key
       ? "invoice"
-      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled !== false
+      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY
         ? "digital"
       : template.template_key === SALLA_TEMPLATE_KEYS.COMPLETED
         ? "order"
@@ -893,6 +1141,7 @@ export async function processSallaTemplateEvent(payload) {
       };
       publicPage = await getOrCreateSallaPublicPage({
         tenantId,
+        storeId: normalized.storeId,
         templateId: template.id,
         pageType,
         externalEntityId,
@@ -904,7 +1153,8 @@ export async function processSallaTemplateEvent(payload) {
           digitalDelivery: digitalDelivery?.assets || [],
           pageTitle: template.settings?.linkPageTitle || "منتجاتك الرقمية جاهزة",
           pageContent: template.settings?.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.",
-          showCountdown: template.settings?.showCountdown !== false
+          showDuration: template.settings?.showDuration === true,
+          maxViews: template.settings?.maxViews || 100
         },
         branding: pageBranding,
         expiresInDays: template.settings?.linkExpiresInDays || 365
@@ -957,9 +1207,11 @@ export async function processSallaTemplateEvent(payload) {
       emailTo: template.delivery_channel === "email" ? recipient : null,
       subject: template.email_subject ? renderSallaTemplate(template.email_subject, variables) : null,
       messageBody: renderSallaTemplate(
-        template.delivery_channel === "email"
-          ? (template.email_text_content || template.message_body)
-          : (template.whatsapp_content || template.message_body),
+        template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY
+          ? "مرحبًا {{customer_name}} 👋\n\nأصبحت معلومات تسليم طلبك رقم {{order_number}} جاهزة.\nلأمان بياناتك، اعرضها من الرابط الآمن التالي فقط:\n{{digital_content_url}}"
+          : template.delivery_channel === "email"
+            ? (template.email_text_content || template.message_body)
+            : (template.whatsapp_content || template.message_body),
         variables
       ),
       referenceType: "salla_template_delivery",

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   transaction: vi.fn(),
   verifyPassword: vi.fn(),
+  createSession: vi.fn(),
   createMfaLoginChallenge: vi.fn(),
   createLoginEmailOtpChallenge: vi.fn(),
   isTrustedDevice: vi.fn()
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../src/server/db.js", () => ({ query: mocks.query, transaction: mocks.transaction }));
 vi.mock("../../src/server/password.js", () => ({ hashPassword: vi.fn(), verifyPassword: mocks.verifyPassword }));
-vi.mock("../../src/server/session.js", () => ({ createSession: vi.fn() }));
+vi.mock("../../src/server/session.js", () => ({ createSession: mocks.createSession }));
 vi.mock("../../src/server/email-otp.js", () => ({
   createLoginEmailOtpChallenge: mocks.createLoginEmailOtpChallenge,
   isTrustedDevice: mocks.isTrustedDevice
@@ -31,6 +32,8 @@ describe("credential login MFA precedence", () => {
     });
     mocks.createLoginEmailOtpChallenge.mockReset();
     mocks.isTrustedDevice.mockReset();
+    mocks.createSession.mockReset().mockResolvedValue({ token: "session-token" });
+    mocks.transaction.mockImplementation(async (callback) => callback({ query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }) }));
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes("FROM login_attempts")) return { rows: [{ count: 0 }] };
       if (sql.includes("FROM users u") && sql.includes("JOIN accounts")) {
@@ -44,6 +47,7 @@ describe("credential login MFA precedence", () => {
             password: "hash",
             emailOtpEnabled: true,
             mfaEnabled: true,
+            mfaSecret: "encrypted-secret",
             mustChangePassword: false
           }]
         };
@@ -69,5 +73,39 @@ describe("credential login MFA precedence", () => {
     expect(mocks.isTrustedDevice).not.toHaveBeenCalled();
     expect(mocks.createLoginEmailOtpChallenge).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("treats an incomplete MFA flag without a secret as disabled", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM login_attempts")) return { rows: [{ count: 0 }] };
+      if (sql.includes("FROM users u") && sql.includes("JOIN accounts")) {
+        return {
+          rows: [{
+            id: "user-pending",
+            tenantId: "tenant-1",
+            name: "Owner",
+            email: "pending@example.com",
+            role: "owner",
+            password: "hash",
+            emailOtpEnabled: false,
+            mfaEnabled: true,
+            mfaSecret: null,
+            mustChangePassword: false
+          }]
+        };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+
+    const result = await loginAccount({
+      email: "pending@example.com",
+      password: "CorrectPassword1!",
+      ipAddress: "127.0.0.1",
+      userAgent: "iPad"
+    });
+
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(mocks.createMfaLoginChallenge).not.toHaveBeenCalled();
+    expect(mocks.createSession).toHaveBeenCalled();
   });
 });

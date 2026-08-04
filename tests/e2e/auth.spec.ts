@@ -30,7 +30,7 @@ test("@critical authentication rejects random and wrong credentials before allow
   await submit.click();
   expect((await randomUiResponse).status()).toBe(401);
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.locator(".toast.danger")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: /تعذر تسجيل الدخول|Sign-in failed/i })).toBeVisible();
   await expect(submit).toBeEnabled();
   await page.screenshot({ path: stageArtifactPath("critical-random-login.png"), fullPage: true });
 

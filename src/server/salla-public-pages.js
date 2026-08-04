@@ -54,15 +54,14 @@ function safeSnapshot(pageType, source = {}) {
     digital: pageType === "digital" ? {
       title: String(source.pageTitle || "منتجاتك الرقمية جاهزة").slice(0, 160),
       content: String(source.pageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.").slice(0, 5000),
-      showCountdown: source.showCountdown !== false,
+      showDuration: source.showDuration === true,
       assets: digitalDelivery.slice(0, 100).map((asset) => ({
+        orderItemId: String(asset.orderItemId || "").slice(0, 160),
         name: String(asset.name || "منتج رقمي").slice(0, 240),
-        url: String(asset.url || "").slice(0, 2000),
-        code: String(asset.code || "").slice(0, 500),
-        email: String(asset.email || "").slice(0, 320),
-        password: String(asset.password || "").slice(0, 500),
-        expiresAt: asset.expiresAt || (Number(asset.durationSeconds || 0) > 0 ? new Date(Date.now() + Number(asset.durationSeconds) * 1000).toISOString() : null),
-        durationSeconds: Math.max(0, Math.min(31_536_000, Number(asset.durationSeconds || 0)))
+        durationDays: Number(asset.durationDays || 0) || null,
+        lifetime: asset.lifetime === true,
+        startsAt: asset.startsAt || null,
+        expiresAt: asset.expiresAt || null
       }))
     } : null,
     items: items.slice(0, 100).map((item) => ({
@@ -76,6 +75,7 @@ function safeSnapshot(pageType, source = {}) {
 
 export async function getOrCreateSallaPublicPage({
   tenantId,
+  storeId = null,
   templateId,
   pageType,
   externalEntityId,
@@ -90,7 +90,7 @@ export async function getOrCreateSallaPublicPage({
     const lockKey = `salla-public-page:${tenantId}:${pageType}:${externalEntityId}`;
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [lockKey]);
     const existing = await client.query(
-      `SELECT id,public_id AS "publicId",token_ciphertext AS "tokenCiphertext"
+      `SELECT id,public_id AS "publicId"
          FROM salla_public_pages
         WHERE tenant_id=$1 AND page_type=$2 AND external_entity_id=$3
           AND status='active' AND invalidated_at IS NULL
@@ -99,11 +99,18 @@ export async function getOrCreateSallaPublicPage({
       [tenantId, pageType, String(externalEntityId)]
     );
     if (existing.rows[0]) {
-      const token = decryptSecret(existing.rows[0].tokenCiphertext, encryptionKey());
+      // Rotate the raw token whenever a link is issued again. Only its hash is
+      // persisted, so an old link cannot be recovered from the database.
+      const token = randomToken(32);
+      const securePayload = pageType === "digital"
+        ? encryptSecret(JSON.stringify({ assets: Array.isArray(source?.digitalDelivery) ? source.digitalDelivery : [] }), encryptionKey())
+        : null;
       await client.query(
-        `UPDATE salla_public_pages SET payload_snapshot=$2::jsonb,branding=$3::jsonb,updated_at=now()
+        `UPDATE salla_public_pages SET payload_snapshot=$2::jsonb,branding=$3::jsonb,
+             store_id=COALESCE($4,store_id),secure_payload_ciphertext=COALESCE($5,secure_payload_ciphertext),
+             token_hash=$6,token_ciphertext=NULL,updated_at=now()
           WHERE id=$1`,
-        [existing.rows[0].id, JSON.stringify(safeSnapshot(pageType, source)), JSON.stringify(branding || {})]
+        [existing.rows[0].id, JSON.stringify(safeSnapshot(pageType, source)), JSON.stringify(branding || {}), storeId, securePayload, sha256(token)]
       );
       return {
         ok: true,
@@ -113,13 +120,13 @@ export async function getOrCreateSallaPublicPage({
       };
     }
     const token = randomToken(32);
-    const publicId = `${pageType === "invoice" ? "sinv" : pageType === "digital" ? "sdig" : "sord"}_${randomToken(9)}`;
+    const publicId = `${pageType === "invoice" ? "sinv" : pageType === "digital" ? "sdig" : "sord"}_${randomToken(16)}`;
     const days = Math.min(3650, Math.max(1, Number(expiresInDays) || 365));
     const inserted = await client.query(
       `INSERT INTO salla_public_pages (
          tenant_id,template_id,page_type,external_entity_id,public_id,token_hash,token_ciphertext,
-         payload_snapshot,branding,expires_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,now()+($10::text||' days')::interval)
+         payload_snapshot,branding,expires_at,store_id,secure_payload_ciphertext,max_views
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,now()+($10::text||' days')::interval,$11,$12,$13)
        RETURNING id`,
       [
         tenantId,
@@ -128,10 +135,15 @@ export async function getOrCreateSallaPublicPage({
         String(externalEntityId),
         publicId,
         sha256(token),
-        encryptSecret(token, encryptionKey()),
+        null,
         JSON.stringify(safeSnapshot(pageType, source)),
         JSON.stringify(branding || {}),
-        String(days)
+        String(days),
+        storeId,
+        pageType === "digital"
+          ? encryptSecret(JSON.stringify({ assets: Array.isArray(source?.digitalDelivery) ? source.digitalDelivery : [] }), encryptionKey())
+          : null,
+        Math.max(1, Math.min(10000, Number(source?.maxViews) || 100))
       ]
     );
     return {
@@ -147,17 +159,43 @@ export async function resolveSallaPublicPage(publicId, token) {
   if (!/^(sord|sinv|sdig)_[A-Za-z0-9_-]+$/.test(String(publicId || "")) || String(token || "").length < 32) {
     return { ok: false, reason: "invalid_link" };
   }
-  const found = await query(
-    `SELECT id,tenant_id AS "tenantId",page_type AS "pageType",
-            external_entity_id AS "externalEntityId",payload_snapshot AS snapshot,
-            branding,status,expires_at AS "expiresAt",invalidated_at AS "invalidatedAt"
-       FROM salla_public_pages
-      WHERE public_id=$1 AND token_hash=$2 LIMIT 1`,
-    [String(publicId), sha256(token)]
-  );
-  const item = found.rows[0];
-  if (!item || item.status !== "active" || item.invalidatedAt) return { ok: false, reason: "invalid_link" };
-  if (item.expiresAt && new Date(item.expiresAt) <= new Date()) return { ok: false, reason: "expired" };
+  const item = await transaction(async (client) => {
+    const found = await client.query(
+      `SELECT id,tenant_id AS "tenantId",store_id AS "storeId",page_type AS "pageType",
+              external_entity_id AS "externalEntityId",payload_snapshot AS snapshot,
+              secure_payload_ciphertext AS "securePayloadCiphertext",branding,status,
+              expires_at AS "expiresAt",invalidated_at AS "invalidatedAt",revoked_at AS "revokedAt",
+              max_views AS "maxViews",view_count AS "viewCount"
+         FROM salla_public_pages
+        WHERE public_id=$1 AND token_hash=$2 LIMIT 1 FOR UPDATE`,
+      [String(publicId), sha256(token)]
+    );
+    const row = found.rows[0];
+    if (!row || row.status !== "active" || row.invalidatedAt || row.revokedAt) return row;
+    if (row.expiresAt && new Date(row.expiresAt) <= new Date()) return { ...row, expired: true };
+    if (Number(row.viewCount || 0) >= Number(row.maxViews || 100)) return { ...row, viewLimitReached: true };
+    await client.query(
+      `UPDATE salla_public_pages SET view_count=view_count+1,first_viewed_at=COALESCE(first_viewed_at,now()),
+         last_viewed_at=now(),updated_at=now() WHERE id=$1`,
+      [row.id]
+    );
+    return row;
+  });
+  if (!item) return { ok: false, reason: "invalid_link" };
+  if (item.revokedAt) return { ok: false, reason: "revoked" };
+  if (item.status !== "active" || item.invalidatedAt) return { ok: false, reason: "invalid_link" };
+  if (item.expired) return { ok: false, reason: "expired" };
+  if (item.viewLimitReached) return { ok: false, reason: "view_limit_reached" };
+
+  if (item.pageType === "digital" && item.securePayloadCiphertext) {
+    try {
+      const secure = JSON.parse(decryptSecret(item.securePayloadCiphertext, encryptionKey()));
+      const metadata = Array.isArray(item.snapshot?.digital?.assets) ? item.snapshot.digital.assets : [];
+      item.snapshot.digital.assets = (secure.assets || []).map((asset, index) => ({ ...metadata[index], ...asset }));
+    } catch {
+      return { ok: false, reason: "invalid_link" };
+    }
+  }
 
   let subscriptions = [];
   if (item.pageType === "order") {
@@ -175,5 +213,26 @@ export async function resolveSallaPublicPage(publicId, token) {
       remainingDays: Math.max(0, Math.ceil((new Date(subscription.expiresAt).getTime() - Date.now()) / 86_400_000))
     }));
   }
-  return { ok: true, data: { ...item, subscriptions } };
+  return {
+    ok: true,
+    data: {
+      pageType: item.pageType,
+      externalEntityId: item.externalEntityId,
+      snapshot: item.snapshot,
+      branding: item.branding,
+      expiresAt: item.expiresAt,
+      subscriptions
+    }
+  };
+}
+
+export async function revokeSallaPublicPages({ tenantId, storeId, externalEntityId, reason }) {
+  const result = await query(
+    `UPDATE salla_public_pages SET status='invalidated',invalidated_at=now(),revoked_at=now(),
+       revoke_reason=$4,updated_at=now()
+     WHERE tenant_id=$1 AND ($2::text IS NULL OR store_id=$2) AND external_entity_id=$3
+       AND status='active' RETURNING id`,
+    [tenantId, storeId || null, String(externalEntityId), String(reason || "order_revoked").slice(0, 160)]
+  );
+  return result.rowCount;
 }
