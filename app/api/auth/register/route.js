@@ -14,7 +14,10 @@ function registrationFailure(error) {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
+    }
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
     const result = await registerAccount({

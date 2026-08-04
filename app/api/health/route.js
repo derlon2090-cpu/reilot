@@ -1,6 +1,7 @@
 import { databaseHealth } from "../../../src/server/db.js";
 import { evolutionHealth } from "../../../src/server/evolution-client.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
+import { authSchemaHealth } from "../../../src/server/auth-schema-readiness.js";
 
 export async function GET() {
   const policy = {
@@ -22,6 +23,7 @@ export async function GET() {
     && policy.emailOtpEnforceAllDisabled;
   const checks = {
     database: { ok: false },
+    authSchema: { ok: false },
     authPolicy: { ...policy, ok: authPolicyReady },
     resend: {
       configured: resendReady,
@@ -34,8 +36,10 @@ export async function GET() {
   };
   try {
     checks.database = await databaseHealth();
+    checks.authSchema = await authSchemaHealth();
   } catch (error) {
     checks.database = { ok: false, error: safeErrorMessage(error) };
+    checks.authSchema = { ok: false, error: safeErrorMessage(error) };
   }
   if (checks.evolution.configured) {
     try {
@@ -44,7 +48,7 @@ export async function GET() {
       checks.evolution = { configured: true, ok: false, error: safeErrorMessage(error) };
     }
   }
-  const ok = checks.database.ok && checks.authPolicy.ok && checks.emailOtp.ok && (!checks.evolution.configured || checks.evolution.ok);
+  const ok = checks.database.ok && checks.authSchema.ok && checks.authPolicy.ok && checks.emailOtp.ok && (!checks.evolution.configured || checks.evolution.ok);
   return Response.json({
     ok,
     service: "renewpilot-ai",

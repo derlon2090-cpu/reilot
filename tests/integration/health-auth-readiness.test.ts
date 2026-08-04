@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/db.js", () => ({ databaseHealth: async () => ({ ok: true }) }));
+vi.mock("../../src/server/auth-schema-readiness.js", () => ({ authSchemaHealth: async () => ({ ok: true, migrationApplied: true }) }));
 vi.mock("../../src/server/evolution-client.js", () => ({ evolutionHealth: async () => ({ ok: true }) }));
 import { GET } from "../../app/api/health/route.js";
 
@@ -30,6 +31,7 @@ describe("authentication readiness", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.checks.authPolicy).toMatchObject({ ok: true, trustedBrowserHours: 48, emailOtpEnforceAllDisabled: true });
+    expect(body.checks.authSchema).toMatchObject({ ok: true, migrationApplied: true });
     expect(body.checks.emailOtp.ok).toBe(true);
   });
 });

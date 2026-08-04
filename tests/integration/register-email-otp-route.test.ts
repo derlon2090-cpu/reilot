@@ -29,4 +29,15 @@ describe("POST /api/auth/register pending email verification", () => {
     expect(cookie).not.toContain("renewpilot_session=");
     expect(JSON.stringify(body)).not.toContain("signed-signup");
   });
+
+  it("returns a validation error instead of a server error for malformed JSON", async () => {
+    const response = await POST(new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{invalid-json"
+    }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ ok: false, reason: "invalid_request" });
+    expect(registerAccount).not.toHaveBeenCalled();
+  });
 });
