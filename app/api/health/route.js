@@ -1,5 +1,5 @@
 import { databaseHealth } from "../../../src/server/db.js";
-import { evolutionHealth } from "../../../src/server/evolution-client.js";
+import { evolutionEndpointProfile, evolutionHealth } from "../../../src/server/evolution-client.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
 import { authSchemaHealth } from "../../../src/server/auth-schema-readiness.js";
 import { resendProviderHealth } from "../../../src/lib/email/resend.js";
@@ -33,7 +33,7 @@ export async function GET() {
       fromConfigured: true
     },
     emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
-    evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false }
+    evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false, endpoint: evolutionEndpointProfile() }
   };
   try {
     checks.database = await databaseHealth();
@@ -48,9 +48,9 @@ export async function GET() {
   checks.emailOtp.ok = !emailOtpRequired || (checks.resend.ok && otpPepperReady);
   if (checks.evolution.configured) {
     try {
-      checks.evolution = { configured: true, ...(await evolutionHealth()) };
+      checks.evolution = { configured: true, endpoint: evolutionEndpointProfile(), ...(await evolutionHealth()) };
     } catch (error) {
-      checks.evolution = { configured: true, ok: false, error: safeErrorMessage(error) };
+      checks.evolution = { configured: true, ok: false, endpoint: evolutionEndpointProfile(), errorCode: error?.code || "EVOLUTION_ERROR", error: safeErrorMessage(error) };
     }
   }
   const ok = checks.database.ok && checks.authSchema.ok && checks.authPolicy.ok && checks.emailOtp.ok && (!checks.evolution.configured || checks.evolution.ok);

@@ -140,11 +140,12 @@ export async function resendProviderHealth({ force = false } = {}) {
   } catch (error) {
     if (error?.providerCode === "restricted_api_key" || /permission|restricted/i.test(error?.message || "")) {
       return {
-        ok: true,
+        ok: false,
         providerReachable: true,
         senderDomain: configuredDomain,
         senderDomainStatus: "inspection_restricted",
-        verifiedRenvixDomainAvailable: null
+        verifiedRenvixDomainAvailable: null,
+        deliveryProbeRequired: true
       };
     }
     return {

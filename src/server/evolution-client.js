@@ -7,6 +7,21 @@ function config() {
   if (!apiKey) throw new Error("EVOLUTION_API_KEY is missing");
   return { baseUrl, apiKey };
 }
+
+export function evolutionEndpointProfile(value = process.env.EVOLUTION_API_URL) {
+  try {
+    const url = new URL(String(value || ""));
+    const host = url.hostname.toLowerCase();
+    const privateIpv4 = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+    const internalName = host === "localhost" || host === "evolution-api" || (!host.includes(".") && !host.includes(":"));
+    return {
+      kind: internalName ? "container_internal" : privateIpv4 ? "private_network" : url.protocol === "https:" ? "public_https" : "public_insecure_http",
+      secure: url.protocol === "https:"
+    };
+  } catch {
+    return { kind: "invalid", secure: false };
+  }
+}
 async function request(path, init = {}) {
   const { baseUrl, apiKey } = config();
   const { timeoutMs = 15_000, ...fetchInit } = init;

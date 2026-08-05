@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { evolutionConnect, evolutionRecreateInstance, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionConnect, evolutionEndpointProfile, evolutionRecreateInstance, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
+  it("classifies hosted and internal Evolution endpoints without exposing the host", () => {
+    expect(evolutionEndpointProfile("http://evolution-api:8080")).toEqual({ kind: "container_internal", secure: false });
+    expect(evolutionEndpointProfile("http://127.0.0.1:8080")).toEqual({ kind: "private_network", secure: false });
+    expect(evolutionEndpointProfile("https://evolution.renvix.app")).toEqual({ kind: "public_https", secure: true });
+  });
+
   it("accepts only sufficiently sized PNG or JPEG payloads", () => {
     const png = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
