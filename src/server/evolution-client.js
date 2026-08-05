@@ -1,10 +1,18 @@
 import QRCode from "qrcode";
 
 function config() {
-  const baseUrl = String(process.env.EVOLUTION_API_URL || "").replace(/\/$/, "");
+  const baseUrl = String(process.env.EVOLUTION_API_URL || "").trim().replace(/\/$/, "");
   const apiKey = process.env.EVOLUTION_API_KEY;
   if (!baseUrl) throw new Error("EVOLUTION_API_URL is missing");
   if (!apiKey) throw new Error("EVOLUTION_API_KEY is missing");
+  try {
+    const parsed = new URL(baseUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("unsupported protocol");
+  } catch {
+    const error = new Error("EVOLUTION_API_URL is invalid");
+    error.code = "EVOLUTION_CONFIGURATION_ERROR";
+    throw error;
+  }
   return { baseUrl, apiKey };
 }
 

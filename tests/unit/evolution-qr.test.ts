@@ -9,6 +9,19 @@ describe("normalizeEvolutionQr", () => {
     expect(evolutionEndpointProfile("https://evolution.renvix.app")).toEqual({ kind: "public_https", secure: true });
   });
 
+  it("rejects an Evolution endpoint without a valid URL scheme", async () => {
+    const previousKey = process.env.EVOLUTION_API_KEY;
+    const previousUrl = process.env.EVOLUTION_API_URL;
+    process.env.EVOLUTION_API_KEY = "test-key";
+    process.env.EVOLUTION_API_URL = "evolution-api:8080";
+    try {
+      await expect(evolutionConnect("rp_test")).rejects.toMatchObject({ code: "EVOLUTION_CONFIGURATION_ERROR" });
+    } finally {
+      if (previousKey === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EVOLUTION_API_URL; else process.env.EVOLUTION_API_URL = previousUrl;
+    }
+  });
+
   it("accepts only sufficiently sized PNG or JPEG payloads", () => {
     const png = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
