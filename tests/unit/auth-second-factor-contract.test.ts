@@ -14,7 +14,8 @@ describe("unified second-factor contract", () => {
   it("keeps one UI per factor and directs successful TOTP straight to the dashboard", async () => {
     const source = await readFile(new URL("../../src/app/app.js", import.meta.url), "utf8");
     const mfaPage = source.slice(source.indexOf("function mfaLoginPage"), source.indexOf("async function loadMfaLoginStatus"));
-    expect(mfaPage).toContain("التحقق بخطوتين");
+    expect(mfaPage).toContain("أدخل رمز تطبيق المصادقة");
+    expect(mfaPage).toContain("auth-suite-mfa");
     expect(mfaPage).toContain("استخدام رمز استرداد");
     expect(mfaPage).not.toContain("إعادة إرسال الرمز");
     expect(source).toContain('if (!await enterDashboardAfterSessionVerification())');

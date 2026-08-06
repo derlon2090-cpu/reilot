@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/db.js", () => ({ databaseHealth: async () => ({ ok: true }) }));
 vi.mock("../../src/server/auth-schema-readiness.js", () => ({ authSchemaHealth: async () => ({ ok: true, migrationApplied: true }) }));
-vi.mock("../../src/server/evolution-client.js", () => ({ evolutionHealth: async () => ({ ok: true }) }));
+vi.mock("../../src/server/evolution-client.js", () => ({
+  evolutionHealth: async () => ({ ok: true }),
+  evolutionEndpointProfile: () => "test-profile"
+}));
+vi.mock("../../src/lib/email/resend.js", () => ({
+  resendProviderHealth: async () => ({ ok: true, providerReachable: true })
+}));
 import { GET } from "../../app/api/health/route.js";
 
 const keys = ["AUTH_SECOND_FACTOR_REQUIRED", "EMAIL_SIGNUP_OTP_REQUIRED", "EMAIL_OTP_FALLBACK_ENABLED", "TRUSTED_BROWSER_ENABLED", "TRUSTED_BROWSER_HOURS", "EMAIL_OTP_ENFORCE_ALL", "EMAIL_OTP_PEPPER", "RESEND_API_KEY", "EVOLUTION_API_URL", "EVOLUTION_API_KEY"];

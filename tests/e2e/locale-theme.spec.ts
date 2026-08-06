@@ -46,7 +46,7 @@ test("validation, dialog text, and toasts follow the selected language", async (
     localStorage.setItem("renewpilot_theme", "light");
   });
   await page.goto("/login");
-  await page.getByRole("button", { name: "Sign in →" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByText("Please enter your email address.")).toBeVisible();
 
   if (!hasLiveCredentials) return;

@@ -55,13 +55,27 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps the MFA challenge balanced at iPad landscape and portrait sizes", () => {
-    expect(appSource).toContain('class="auth-light-page mfa-login-page"');
-    expect(appSource).toContain('class="reset-light-shell mfa-login-shell"');
-    expect(appSource).toContain('class="card reset-light-panel mfa-login-panel"');
-    expect(appSource).toContain('class="card reset-light-visual mfa-login-visual"');
+    expect(appSource).toContain('class="auth-light-page mfa-login-page auth-suite-page"');
+    expect(appSource).toContain('class="reset-light-shell mfa-login-shell auth-suite-shell auth-suite-mfa"');
+    expect(appSource).toContain('class="card reset-light-panel mfa-login-panel auth-suite-panel"');
+    expect(appSource).toContain('class="card reset-light-visual mfa-login-visual auth-suite-visual auth-suite-mfa-visual"');
+    expect(stylesSource).toContain(".auth-suite-mfa");
     expect(stylesSource).toContain("@media (min-width: 941px) and (max-width: 1366px) and (pointer: coarse)");
     expect(stylesSource).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
     expect(stylesSource).toContain("min-height: calc(100dvh - 204px);");
     expect(stylesSource).toContain("@media (min-width: 641px) and (max-width: 940px) and (pointer: coarse)");
+  });
+
+  it("keeps every public authentication form paired with its own responsive illustration", () => {
+    for (const kind of ["login", "register", "emailOtp", "mfa", "reset"]) {
+      expect(appSource).toContain(`authScene("${kind}")`);
+    }
+    expect(appSource).toContain('class="auth-suite-scene auth-suite-scene--${kind}"');
+    expect(appSource).toContain("فعّل حسابك بثقة");
+    expect(appSource).toContain("حالة التفعيل");
+    expect(appSource).toContain("authFeatureStrip()");
+    expect(stylesSource).toContain(".auth-suite-feature-strip");
+    expect(stylesSource).toContain(".auth-suite-scene");
+    expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
   });
 });

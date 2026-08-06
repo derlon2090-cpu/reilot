@@ -14,14 +14,16 @@ describe("email integration", () => {
     expect(resend.send.mock.calls[0][0]).not.toHaveProperty("RESEND_API_KEY");
   });
 
-  it("keeps the approved Renvix sender and reply-to fixed on the server", () => {
+  it("rejects unapproved senders and keeps the approved Renvix sender and reply-to fixed on the server", () => {
     const previousKey = process.env.RESEND_API_KEY;
     const previousFrom = process.env.RESEND_FROM_EMAIL;
     process.env.RESEND_API_KEY = "test-server-key";
     process.env.RESEND_FROM_EMAIL = "Attacker <attacker@example.com>";
     try {
+      expect(() => getEmailConfig()).toThrow("RESEND_FROM_EMAIL must use renvix.app or a Renvix subdomain");
+      process.env.RESEND_FROM_EMAIL = "Renvix <noreply@notify.renvix.app>";
       const config = getEmailConfig();
-      expect(config.from).toBe("Renvix <noreply@notify.renvix.app>");
+      expect(config.from).toBe("Renvix <noreply@renvix.app>");
       expect(config.supportEmail).toBe("support@renvix.app");
     } finally {
       if (previousKey === undefined) delete process.env.RESEND_API_KEY;
