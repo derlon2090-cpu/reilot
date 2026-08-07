@@ -55,7 +55,8 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps the MFA challenge balanced at iPad landscape and portrait sizes", () => {
-    expect(appSource).toContain('class="auth-light-page mfa-login-page auth-suite-page"');
+    expect(appSource).toContain('"auth-light-page mfa-login-page"');
+    expect(appSource).toContain('function authSuiteFrame');
     expect(appSource).toContain('class="reset-light-shell mfa-login-shell auth-suite-shell auth-suite-mfa"');
     expect(appSource).toContain('class="card reset-light-panel mfa-login-panel auth-suite-panel"');
     expect(appSource).toContain('class="card reset-light-visual mfa-login-visual auth-suite-visual auth-suite-mfa-visual"');
@@ -77,5 +78,37 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-suite-feature-strip");
     expect(stylesSource).toContain(".auth-suite-scene");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
+  });
+
+  it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
+    expect(appSource).toContain('class="auth-recovery-icon"');
+    expect(appSource).toContain('function authIntroIcon');
+    expect(appSource).toContain('auth-intro-symbol--${kind}');
+    expect(appSource).toContain("623 841");
+    expect(appSource).toContain("7F3K-R9D2-4M8Q");
+    expect(appSource).not.toContain('<ol class="email-otp-steps">');
+    expect(stylesSource).toContain("inset-inline:auto;");
+    expect(stylesSource).toContain("left:8px;");
+    expect(stylesSource).toContain(".auth-suite-shell.register{min-height:640px}");
+    expect(stylesSource).toContain(".auth-suite-otp .email-otp-content{width:min(100%,500px)");
+  });
+
+  it("renders authentication as a standalone responsive model with isolated display settings", () => {
+    const authStart = appSource.indexOf("function authDisplaySettings");
+    const authEnd = appSource.indexOf("function normalizeEmailOtpCode", authStart);
+    const authPages = appSource.slice(authStart, authEnd);
+    expect(authPages).toContain('class="auth-display-settings');
+    expect(authPages).toContain('data-action="auth-display-language"');
+    expect(authPages).toContain('data-action="auth-display-theme"');
+    expect(authPages).toContain('data-auth-language="${language}"');
+    expect(authPages).toContain('data-auth-theme="${theme}"');
+    expect(authPages).not.toContain("auth-light-header");
+    expect(authPages).not.toContain("publicFooter()");
+    expect(appSource).toContain('localStorage.setItem("renvix.auth.language"');
+    expect(appSource).toContain('localStorage.setItem("renvix.auth.theme"');
+    expect(stylesSource).toContain(".auth-display-settings{position:fixed");
+    expect(stylesSource).toContain("@media (max-width:820px)");
+    expect(stylesSource).toContain(".auth-suite-otp>.email-otp-visual{display:none}");
+    expect(stylesSource).toContain(".auth-display-settings{position:absolute;");
   });
 });
