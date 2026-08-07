@@ -9,6 +9,20 @@ const setupRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mf
 const disableRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mfa/disable/route.js"), "utf8");
 
 describe("mobile sidebar and MFA UI contracts", () => {
+  it("renders the public navigation as five icon-led links with a focused mobile drawer", () => {
+    expect(appSource).toContain('const navIcons = ["publicHome", "publicFeatures", "publicPlans", "publicBlog", "support"]');
+    expect(appSource).toContain('class="public-nav-icon"');
+    expect(appSource).toContain('dashboardIcon("menu")');
+    expect(appSource).toContain('dashboardIcon("close")');
+    expect(appSource).toContain('class="public-nav-preferences"');
+    expect(appSource).toContain('class="public-auth-actions"');
+    expect(appSource).not.toContain('data-link="/partners"');
+    expect(stylesSource).toContain("Public navigation: icon-led desktop/tablet bar and focused mobile drawer");
+    expect(stylesSource).toContain('grid-template-areas: "brand actions" "links links"');
+    expect(stylesSource).toContain('grid-template-areas: "brand menu" "links links" "actions actions"');
+    expect(stylesSource).toContain(".public-site .nav-link.active .public-nav-icon");
+  });
+
   it("closes the mobile sidebar through a real outside backdrop", () => {
     expect(appSource).toContain('class="sidebar-backdrop" data-action="close-sidebar"');
     expect(appSource).toContain('action === "close-sidebar"');
@@ -110,5 +124,18 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("@media (max-width:820px)");
     expect(stylesSource).toContain(".auth-suite-otp>.email-otp-visual{display:none}");
     expect(stylesSource).toContain(".auth-display-settings{position:absolute;");
+  });
+
+  it("keeps the compact display controller and mobile authentication identity in sync", () => {
+    expect(appSource).toContain('class="auth-display-close-icon"');
+    expect(appSource).toContain('class="auth-display-sliders-icon"');
+    expect(appSource).toContain("function authMobileMark");
+    expect(appSource).toContain("function authMobileScene");
+    expect(appSource).toContain('/assets/renvix-mark.webp');
+    expect(stylesSource).toContain("/* Final compact authentication presentation */");
+    expect(stylesSource).toContain(".auth-display-settings.is-open .auth-display-trigger");
+    expect(stylesSource).toContain(".auth-display-trigger .auth-display-close-icon");
+    expect(stylesSource).toContain(".auth-mobile-brand");
+    expect(stylesSource).toContain(".auth-mobile-scene");
   });
 });

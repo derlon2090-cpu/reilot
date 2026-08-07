@@ -669,8 +669,8 @@ const state = {
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
   interfaceDensity: readDensityPreference(),
   authDisplayOpen: false,
-  authDisplayLanguage: readAuthDisplayPreference("language", "ar", ["ar", "en"]),
-  authDisplayTheme: readAuthDisplayPreference("theme", "light", ["light", "dark"]),
+  authDisplayLanguage: readAuthDisplayPreference("language", readPreference("renewpilot_locale", "renewpilot.language", "ar"), ["ar", "en"]),
+  authDisplayTheme: readAuthDisplayPreference("theme", readPreference("renewpilot_theme", "renewpilot.theme", "light"), ["light", "dark"]),
   profileOpen: false,
   resetStep: passwordResetSession.step,
   resetEmail: passwordResetSession.email,
@@ -1387,6 +1387,10 @@ function stackedLogo() {
 function dashboardIcon(name) {
   const paths = {
     home: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    publicHome: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/>',
+    publicFeatures: '<path d="m12 3 1.55 4.7L18 9.4l-3.65 2.8L15.55 17 12 14.3 8.45 17l1.2-4.8L6 9.4l4.45-1.7Z"/>',
+    publicPlans: '<path d="m12 2 8 4.5v11L12 22l-8-4.5v-11Z"/><path d="m4 6.5 8 4.5 8-4.5M12 11v11"/>',
+    publicBlog: '<path d="M6 3h10l3 3v15H6z"/><path d="M15 3v4h4M9 11h7M9 15h7"/>',
     subscriptions: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 15h4"/>',
     customers: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
     devices: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
@@ -1442,7 +1446,8 @@ function dashboardIcon(name) {
     passwordReset: '<path d="M20 11a8 8 0 1 0 1 4"/><path d="M20 4v7h-7"/><rect x="8" y="10" width="8" height="8" rx="2"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/>',
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
     "eye-off": '<path d="m3 3 18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.1 3.8M6.2 6.2C3.6 8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 3.2-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
-    close: '<path d="m6 6 12 12M18 6 6 18"/>'
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>'
   };
   return `<svg class="line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.home}</svg>`;
 }
@@ -1465,21 +1470,28 @@ function ensurePasswordToggles() {
 }
 
 function publicNavbar() {
-  const links = routes.map(([path, key]) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}">${t(key)}</button>`).join("");
-  const themeIcon = state.theme === "dark" ? "☾" : "☼";
+  const navIcons = ["publicHome", "publicFeatures", "publicPlans", "publicBlog", "support"];
+  const links = routes.map(([path, key], index) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}" aria-current="${state.route === path ? "page" : "false"}"><span class="public-nav-icon">${dashboardIcon(navIcons[index])}</span><span>${t(key)}</span></button>`).join("");
   return `<nav class="public-nav ${state.navOpen ? "open" : ""}">
     <div class="container nav-inner">
       ${logo()}
-      <div class="nav-links">${links}</div>
+      <div class="nav-links" aria-label="${state.language === "en" ? "Primary navigation" : "التنقل الرئيسي"}">${links}</div>
       <div class="nav-actions">
-        <button class="btn btn-ghost icon-btn public-theme" data-action="theme" title="${t("settings.theme")}">${themeIcon}</button>
-        <button class="locale-link ${state.language === "ar" ? "active" : ""}" data-action="language" data-language="ar">AR</button>
-        <span class="locale-divider">|</span>
-        <button class="locale-link ${state.language === "en" ? "active" : ""}" data-action="language" data-language="en">EN</button>
-        <button class="btn btn-primary" data-link="/register">${t("auth.createAccount")} ${dashboardIcon("customers")}</button>
-        <button class="btn btn-secondary" data-link="/login">${t("auth.loginTitle")} ${dashboardIcon("customers")}</button>
+        <div class="public-nav-preferences">
+          <span class="public-nav-preference-label">${state.language === "en" ? "Language" : "اللغة"}</span>
+          <div class="public-language-switch" role="group" aria-label="${state.language === "en" ? "Language" : "اللغة"}">
+            <button class="locale-link ${state.language === "ar" ? "active" : ""}" data-action="language" data-language="ar">${state.language === "en" ? "AR" : "عربي"}</button>
+            <button class="locale-link ${state.language === "en" ? "active" : ""}" data-action="language" data-language="en">EN</button>
+          </div>
+          <span class="public-nav-preference-label">${state.language === "en" ? "Theme" : "المظهر"}</span>
+          <button class="public-theme" data-action="theme" title="${t("settings.theme")}">${state.theme === "dark" ? dashboardIcon("moon") : dashboardIcon("sun")}<span>${state.theme === "dark" ? (state.language === "en" ? "Dark" : "داكن") : (state.language === "en" ? "Light" : "فاتح")}</span></button>
+        </div>
+        <div class="public-auth-actions">
+          <button class="btn btn-secondary" data-link="/login">${t("auth.loginTitle")}</button>
+          <button class="btn btn-primary" data-link="/register">${t("auth.createAccount")} ${dashboardIcon("rocket")}</button>
+        </div>
       </div>
-      <button class="btn btn-secondary icon-btn mobile-menu" data-action="toggle-public-nav" aria-label="القائمة">☰</button>
+      <button class="mobile-menu ${state.navOpen ? "is-open" : ""}" data-action="toggle-public-nav" aria-label="${state.navOpen ? (state.language === "en" ? "Close menu" : "إغلاق القائمة") : (state.language === "en" ? "Open menu" : "فتح القائمة")}" aria-expanded="${state.navOpen ? "true" : "false"}">${state.navOpen ? dashboardIcon("close") : dashboardIcon("menu")}</button>
     </div>
   </nav>`;
 }
@@ -2129,7 +2141,9 @@ function authDisplaySettings() {
   const dark = state.authDisplayTheme === "dark";
   return `<div class="auth-display-settings ${state.authDisplayOpen ? "is-open" : ""}">
     <button class="auth-display-trigger" type="button" data-action="auth-display-toggle" aria-expanded="${state.authDisplayOpen ? "true" : "false"}" aria-label="${arabic ? "إعدادات العرض" : "Display settings"}">
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M14 22h22M46 22h4M14 42h4M28 42h22" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><circle cx="41" cy="22" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="23" cy="42" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/></svg>
+      ${state.authDisplayOpen
+        ? '<svg class="auth-display-close-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="m15 15 18 18M33 15 15 33" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>'
+        : '<svg class="auth-display-sliders-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M14 22h22M46 22h4M14 42h4M28 42h22" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><circle cx="41" cy="22" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="23" cy="42" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/></svg>'}
     </button>
     <section class="auth-display-popover" ${state.authDisplayOpen ? "" : "hidden"} aria-label="${arabic ? "إعدادات عرض نموذج المصادقة" : "Authentication display settings"}">
       <div class="auth-display-heading"><strong>${arabic ? "إعدادات العرض" : "Display settings"}</strong><small>${arabic ? "خصّص هذا النموذج فقط" : "Customize this form only"}</small></div>
@@ -2147,10 +2161,18 @@ function authSuiteFrame(content, pageClass = "auth-light-page") {
   return `<main class="${pageClass} auth-suite-page" dir="${language === "ar" ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}">${content}${authDisplaySettings()}</main>`;
 }
 
+function authMobileMark() {
+  return '<div class="auth-mobile-brand" aria-hidden="true"><img src="/assets/renvix-mark.webp" width="256" height="256" alt=""></div>';
+}
+
+function authMobileScene(kind) {
+  return `<div class="auth-mobile-scene" aria-hidden="true">${authScene(kind)}</div>`;
+}
+
 function authPublicPage() {
   const isRegister = state.route === "/register";
   return authSuiteFrame(`<section class="auth-light-shell auth-suite-shell ${isRegister ? "register" : "login"}">
-    <article class="card auth-light-panel auth-suite-panel"><div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon(isRegister ? "register" : "login")}</span><h1>${isRegister ? "إنشاء حساب" : "تسجيل الدخول"}</h1><p>${isRegister ? "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية." : "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك."}</p></div>${state.query.get("plan") ? `<span class="badge auth-suite-plan">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form auth-suite-form" novalidate>
+    <article class="card auth-light-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon(isRegister ? "register" : "login")}</span><h1>${isRegister ? "إنشاء حساب" : "تسجيل الدخول"}</h1><p>${isRegister ? "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية." : "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك."}</p></div>${authMobileScene(isRegister ? "register" : "login")}${state.query.get("plan") ? `<span class="badge auth-suite-plan">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form auth-suite-form" novalidate>
       ${isRegister ? `<label class="field"><span>الاسم الكامل</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>اسم الشركة (اختياري)</span><input class="input" name="companyName" autocomplete="organization"></label>` : ""}
       <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label><label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="${isRegister ? "new-password" : "current-password"}" placeholder="${isRegister ? "اختر كلمة مرور قوية" : "أدخل كلمة المرور"}" required></label>
       ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
@@ -2162,7 +2184,7 @@ function authPublicPage() {
 function forgotPublicPage() {
   const step = state.resetStep;
   const content = step === 1 ? `<form data-submit="forgot" class="grid auth-form"><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" required></label><button class="btn btn-primary auth-submit">إرسال رابط الاستعادة</button></form>` : step === 2 ? `<form data-submit="reset-password" class="grid auth-form"><label class="field"><span>رمز التحقق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" type="password" name="password" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" required></label><button class="btn btn-primary auth-submit">تعيين كلمة المرور</button></form>` : `<div class="auth-success"><span class="success-mark">✓</span><p>تم تغيير كلمة المرور بنجاح.</p><button class="btn btn-primary" data-link="/login">تسجيل الدخول</button></div>`;
-  return authSuiteFrame(`<section class="reset-light-shell auth-suite-shell auth-suite-reset"><article class="card reset-light-panel auth-suite-panel"><div class="auth-suite-intro"><span class="auth-suite-intro-icon auth-suite-recovery-icon">${authRecoveryIcon()}</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? localizedCopy("أدخل بريدك وسنرسل لك رمز تحقق آمنًا، ثم اختر كلمة مرور جديدة.", "Enter your email and we will send a secure verification code, then choose a new password.") : step === 2 ? localizedCopy("أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة.", "Enter the verification code sent to your email, then choose a new password.") : localizedCopy("يمكنك الآن العودة إلى حسابك.", "You can now return to your account.")}</p></div>${content}<p class="muted auth-suite-note">${localizedCopy("إذا كان البريد موجودًا فسيصلك رمز الاستعادة خلال دقائق.", "If the address exists, the recovery code will arrive within a few minutes.")}</p><p class="auth-switch">${localizedCopy("تذكرت كلمة المرور؟", "Remembered your password?")} <button class="link-button" data-link="/login">${localizedCopy("العودة إلى تسجيل الدخول", "Back to sign in")}</button></p></article><aside class="card reset-light-visual auth-suite-visual auth-suite-reset-visual"><div class="auth-logo-large">${stackedLogo()}</div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>${localizedCopy("سنرسل لك رمزًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.", "We will send a secure code so you can reset your password and return to your subscriptions.")}</p>${authScene("reset")}</aside></section>`);
+  return authSuiteFrame(`<section class="reset-light-shell auth-suite-shell auth-suite-reset"><article class="card reset-light-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon auth-suite-recovery-icon">${authRecoveryIcon()}</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? localizedCopy("أدخل بريدك وسنرسل لك رمز تحقق آمنًا، ثم اختر كلمة مرور جديدة.", "Enter your email and we will send a secure verification code, then choose a new password.") : step === 2 ? localizedCopy("أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة.", "Enter the verification code sent to your email, then choose a new password.") : localizedCopy("يمكنك الآن العودة إلى حسابك.", "You can now return to your account.")}</p></div>${authMobileScene("reset")}${content}<p class="muted auth-suite-note">${localizedCopy("إذا كان البريد موجودًا فسيصلك رمز الاستعادة خلال دقائق.", "If the address exists, the recovery code will arrive within a few minutes.")}</p><p class="auth-switch">${localizedCopy("تذكرت كلمة المرور؟", "Remembered your password?")} <button class="link-button" data-link="/login">${localizedCopy("العودة إلى تسجيل الدخول", "Back to sign in")}</button></p></article><aside class="card reset-light-visual auth-suite-visual auth-suite-reset-visual"><div class="auth-logo-large">${stackedLogo()}</div><h2>خطوة بسيطة لاستعادة الوصول</h2><p>${localizedCopy("سنرسل لك رمزًا آمنًا لإدارة كلمة المرور والعودة إلى اشتراكاتك بسهولة.", "We will send a secure code so you can reset your password and return to your subscriptions.")}</p>${authScene("reset")}</aside></section>`);
 }
 
 function normalizeEmailOtpCode(value) {
@@ -2197,7 +2219,7 @@ function emailOtpPage() {
   const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" pattern="[0-9٠-٩۰-۹]*" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
   return authSuiteFrame(`<section class="email-otp-shell auth-suite-shell auth-suite-otp">
     <aside class="email-otp-visual auth-suite-email-visual"><div class="email-otp-brand">${stackedLogo()}</div>${authScene("emailOtp")}<h2>${signupVerification ? "فعّل حسابك بثقة" : "تحقق آمن · دخول موثوق"}</h2><p>${signupVerification ? "أرسلنا رمز تحقق إلى بريدك الإلكتروني لتأكيد حسابك وإكمال التسجيل بأمان." : "نرسل رمز تحقق فريدًا إلى بريدك الإلكتروني لضمان أمان حسابك وحماية بياناتك."}</p><div class="email-otp-safety-card"><h3>${dashboardIcon("security")} ${signupVerification ? "حالة التفعيل" : "حالة الأمان"}</h3><div><span>نوع التحقق</span><strong>${dashboardIcon("email")} عبر البريد الإلكتروني</strong></div><div><span>آخر طلب رمز</span><strong>${dashboardIcon("clock")} الآن</strong></div><div><span>${signupVerification ? "الحساب" : "الجهاز"}</span><strong>${dashboardIcon(signupVerification ? "contacts" : "devices")} ${signupVerification ? "بانتظار التفعيل" : "غير موثوق بعد"}</strong></div></div></aside>
-    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content"><div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("email")}</span><h1>تحقق من بريدك الإلكتروني</h1><p>أرسلنا رمز تحقق إلى بريدك الإلكتروني المسجل${signupVerification ? " لتوثيق البريد وإكمال إنشاء الحساب" : " لإكمال تسجيل الدخول"}.</p></div><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><p class="email-otp-remember">بعد نجاح التحقق سيُوثق هذا المتصفح لمدة 48 ساعة ثابتة.</p><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق ومتابعة ${dashboardIcon("arrow-left")}</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div></div></article>
+    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("email")}</span><h1>تحقق من بريدك الإلكتروني</h1><p>أرسلنا رمز تحقق إلى بريدك الإلكتروني المسجل${signupVerification ? " لتوثيق البريد وإكمال إنشاء الحساب" : " لإكمال تسجيل الدخول"}.</p></div>${authMobileScene("emailOtp")}<label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><p class="email-otp-remember">بعد نجاح التحقق سيُوثق هذا المتصفح لمدة 48 ساعة ثابتة.</p><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق ومتابعة ${dashboardIcon("arrow-left")}</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div></div></article>
   </section>`, "email-otp-page");
 }
 
@@ -2206,7 +2228,7 @@ function mfaLoginPage() {
   if (statusData?.error) {
     return authSuiteFrame(`<section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق الثنائي</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></section>`, "email-otp-page mfa-login-page");
   }
-  return authSuiteFrame(`<section class="reset-light-shell mfa-login-shell auth-suite-shell auth-suite-mfa"><article class="card reset-light-panel mfa-login-panel auth-suite-panel"><div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("mfa")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام، ويمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p></div><form data-submit="mfa-login" class="grid auth-form auth-suite-form" novalidate><label class="field"><span data-mfa-code-label>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="000000" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-recovery">استخدام رمز استرداد</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted auth-suite-note">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual auth-suite-visual auth-suite-mfa-visual"><div class="auth-suite-mfa-logo">${stackedLogo()}</div><h2>المصادقة الثنائية تحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي تفعيل المفتاح من الواجهة.</p>${authScene("mfa")}</aside></section>`, "auth-light-page mfa-login-page");
+  return authSuiteFrame(`<section class="reset-light-shell mfa-login-shell auth-suite-shell auth-suite-mfa"><article class="card reset-light-panel mfa-login-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("mfa")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام، ويمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p></div>${authMobileScene("mfa")}<form data-submit="mfa-login" class="grid auth-form auth-suite-form" novalidate><label class="field"><span data-mfa-code-label>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="000000" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-recovery">استخدام رمز استرداد</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted auth-suite-note">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual auth-suite-visual auth-suite-mfa-visual"><div class="auth-suite-mfa-logo">${stackedLogo()}</div><h2>المصادقة الثنائية تحمي حسابك</h2><p>لن تُنشأ جلسة دخول قبل التحقق من الرمز على الخادم، ولا يكفي تفعيل المفتاح من الواجهة.</p>${authScene("mfa")}</aside></section>`, "auth-light-page mfa-login-page");
 }
 
 async function loadMfaLoginStatus(force = false) {
