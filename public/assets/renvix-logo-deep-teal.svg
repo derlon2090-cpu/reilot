@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" role="img" aria-labelledby="title desc">
+  <title id="title">Renvix</title>
+  <desc id="desc">Renvix deep teal infinity mark and wordmark</desc>
+  <g fill="none" stroke="#0B3F3B" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M38 110C38 61 94 34 132 71l92 92c38 37 94 10 94-39 0-49-56-76-94-39l-92 92C94 214 38 187 38 138"/>
+  </g>
+  <circle cx="38" cy="124" r="11" fill="#0B3F3B"/>
+  <circle cx="318" cy="124" r="11" fill="#0B3F3B"/>
+  <text x="365" y="158" fill="#0B3F3B" font-family="Sora, Manrope, Inter, Arial, sans-serif" font-size="100" font-weight="400" letter-spacing="-5">Renvix</text>
+</svg>

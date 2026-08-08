@@ -66,7 +66,7 @@ function TemplatePreview({ item, channel, draft, logoUrl }) {
         <footer>هذه رسالة آلية آمنة من متجرك</footer>
       </div>}
     </div>
-    {item.templateKey === "digital_product_delivery" && draft.secureLinkEnabled ? <section className="salla-digital-link-preview" style={{ "--salla-link-theme": draft.themeColor || "#2563EB" }}><div className="salla-digital-link-head">{logoUrl ? <img src={logoUrl} alt="شعار المتجر" /> : <DashboardIcon name="action" />}<div><small>الرابط الخاص بالطلب #10025</small><strong>{draft.linkPageTitle || "منتجاتك الرقمية جاهزة"}</strong></div></div><p>{draft.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article>{draft.showCountdown ? <div className="salla-digital-countdown">متاح لمدة <strong>23:59:59</strong></div> : null}<small>يُنشأ الرابط لكل طلب وتُرتب بيانات الاعتماد تلقائيًا.</small></section> : null}
+    {item.templateKey === "digital_product_delivery" && draft.secureLinkEnabled ? <section className="salla-digital-link-preview" style={{ "--salla-link-theme": draft.themeColor || "#0B3F3B" }}><div className="salla-digital-link-head">{logoUrl ? <img src={logoUrl} alt="شعار المتجر" /> : <DashboardIcon name="action" />}<div><small>الرابط الخاص بالطلب #10025</small><strong>{draft.linkPageTitle || "منتجاتك الرقمية جاهزة"}</strong></div></div><p>{draft.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article>{draft.showCountdown ? <div className="salla-digital-countdown">متاح لمدة <strong>23:59:59</strong></div> : null}<small>يُنشأ الرابط لكل طلب وتُرتب بيانات الاعتماد تلقائيًا.</small></section> : null}
   </aside>;
 }
 
@@ -74,7 +74,7 @@ export default function AdminSallaCatalog({ admin }) {
   const [items, setItems] = useState([]);
   const [selectedKey, setSelectedKey] = useState("");
   const [channel, setChannel] = useState("whatsapp");
-  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#2563EB" });
+  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#0B3F3B" });
   const [logoUrl, setLogoUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -105,7 +105,7 @@ export default function AdminSallaCatalog({ admin }) {
       linkPageTitle: item.settings?.linkPageTitle || "منتجاتك الرقمية جاهزة",
       linkPageContent: item.settings?.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.",
       showCountdown: item.settings?.showCountdown !== false,
-      themeColor: item.settings?.themeColor || item.settings?.branding?.themeColor || "#2563EB"
+      themeColor: item.settings?.themeColor || item.settings?.branding?.themeColor || "#0B3F3B"
     });
     setLogoUrl("");
     setNotice("");

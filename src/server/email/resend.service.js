@@ -66,7 +66,7 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
       brandName: branding.brandName || "Renvix",
       brandImageUrl: branding.logoUrl || brandImageUrl,
       brandImageRadius: Number(branding.logoBorderRadius ?? 16),
-      children: `<div style="color:#0f172a;line-height:1.9">${safeText}</div>`
+      children: `<div style="color:#062B28;line-height:1.9">${safeText}</div>`
     })
   });
 }

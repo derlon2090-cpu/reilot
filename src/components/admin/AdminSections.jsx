@@ -62,7 +62,7 @@ function statusTone(value) {
   return "warn";
 }
 
-function MiniLine({ values = [], color = "#2563eb" }) {
+function MiniLine({ values = [], color = "#0B3F3B" }) {
   const nums = values.map(n);
   const source = nums.length > 1 ? nums : [0, 0, 0, 0, 0, 0, 0];
   const min = Math.min(...source);
@@ -72,8 +72,8 @@ function MiniLine({ values = [], color = "#2563eb" }) {
   return <svg className={styles.adminSparkline} viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><polyline points={points} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>;
 }
 
-function Kpi({ label, value, helper, icon = "chart", tone = "blue", values }) {
-  const color = { blue: "#2563eb", green: "#12a66a", violet: "#7c3aed", orange: "#f59e0b", red: "#ef4444", cyan: "#0ba6b6" }[tone];
+function Kpi({ label, value, helper, icon = "chart", tone = "brand", values }) {
+  const color = { brand: "#0B3F3B", green: "#12a66a", brandMuted: "#0B3F3B", orange: "#f59e0b", red: "#ef4444", brandStrong: "#062B28" }[tone];
   return <article className={`${styles.adminKpi} ${styles[`adminKpi_${tone}`]}`}>
     <span className={styles.adminKpiIcon}><Glyph name={icon} /></span>
     <div><span>{label}</span><strong>{value}</strong><small>{helper}</small></div>
@@ -218,14 +218,14 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   </>;
 }
 
-function TrendChart({ metrics = [], title = "اتجاه الأداء", keys = [{ key: "accepted", label: "الرسائل", color: "#2563eb" }] }) {
+function TrendChart({ metrics = [], title = "اتجاه الأداء", keys = [{ key: "accepted", label: "الرسائل", color: "#0B3F3B" }] }) {
   const data = metrics.length ? metrics : [{ date: new Date().toISOString(), accepted: 0 }];
   const max = Math.max(1, ...data.flatMap((item) => keys.map((entry) => n(item[entry.key]))));
   return <article className={styles.adminChartCard}>
     <div className={styles.adminCardHead}><div><h3>{title}</h3><p>من السجلات اليومية المحفوظة في المنصة</p></div><span>آخر {data.length} يومًا</span></div>
     <div className={styles.adminLegend}>{keys.map((entry) => <span key={entry.key}><i style={{ background: entry.color }} />{entry.label}</span>)}</div>
     <svg className={styles.adminTrend} viewBox="0 0 600 220" preserveAspectRatio="none" role="img" aria-label={title}>
-      {[35, 80, 125, 170].map((y) => <line key={y} x1="20" x2="580" y1={y} y2={y} stroke="#e9eef6" />)}
+      {[35, 80, 125, 170].map((y) => <line key={y} x1="20" x2="580" y1={y} y2={y} stroke="#F3F8F7" />)}
       {keys.map((entry) => {
         const points = data.map((item, index) => `${20 + (index / Math.max(1, data.length - 1)) * 560},${190 - (n(item[entry.key]) / max) * 145}`).join(" ");
         return <polyline key={entry.key} points={points} fill="none" stroke={entry.color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
@@ -249,14 +249,14 @@ function Overview({ data, stats }) {
   return <>
     <KpiGrid metrics={metrics.map((m) => m.accepted)} items={[
       { label: "إجمالي المتاجر", value: ar(stats.stores), helper: "متجر مسجل فعليًا", icon: "store", tone: "green", values: metrics.map((m) => m.stores) },
-      { label: "المستخدمون النشطون", value: ar(stats.users), helper: "حساب داخل المنصة", icon: "users", tone: "blue", values: metrics.map((m) => m.activeUsers) },
-      { label: "الرسائل المرسلة", value: ar(stats.queue.sent), helper: `${ar(stats.queue.pending)} في الانتظار`, icon: "send", tone: "cyan" },
-      { label: "الأجهزة المتصلة", value: ar(stats.connectedChannels), helper: "قناة فعالة", icon: "device", tone: "violet" },
+      { label: "المستخدمون النشطون", value: ar(stats.users), helper: "حساب داخل المنصة", icon: "users", tone: "brand", values: metrics.map((m) => m.activeUsers) },
+      { label: "الرسائل المرسلة", value: ar(stats.queue.sent), helper: `${ar(stats.queue.pending)} في الانتظار`, icon: "send", tone: "brandStrong" },
+      { label: "الأجهزة المتصلة", value: ar(stats.connectedChannels), helper: "قناة فعالة", icon: "device", tone: "brandMuted" },
       { label: "التنبيهات المفتوحة", value: ar(stats.risks.high + stats.risks.critical), helper: `${ar(stats.risks.critical)} حرجة`, icon: "bell", tone: "orange" },
-      { label: "صحة التكاملات", value: `${healthRate}%`, helper: health.length ? `${healthy} من ${health.length} سليمة` : "لا توجد فحوصات مسجلة", icon: "link", tone: "blue" }
+      { label: "صحة التكاملات", value: `${healthRate}%`, helper: health.length ? `${healthy} من ${health.length} سليمة` : "لا توجد فحوصات مسجلة", icon: "link", tone: "brand" }
     ]} />
     <section className={styles.adminOverviewBody}>
-      <TrendChart metrics={metrics} title="نظرة عامة على الرسائل" keys={[{ key: "accepted", label: "المقبولة", color: "#2563eb" }, { key: "delivered", label: "المسلّمة", color: "#12a66a" }, { key: "failed", label: "الفاشلة", color: "#ef4444" }]} />
+      <TrendChart metrics={metrics} title="نظرة عامة على الرسائل" keys={[{ key: "accepted", label: "المقبولة", color: "#0B3F3B" }, { key: "delivered", label: "المسلّمة", color: "#12a66a" }, { key: "failed", label: "الفاشلة", color: "#ef4444" }]} />
       <ActivityList rows={data.recentAudit} />
       <article className={styles.adminHealthCard}><div className={styles.adminCardHead}><div><h3>حالة المنصة</h3><p>نتائج الفحص الحقيقية</p></div><StatusPill value={healthRate === 100 ? "healthy" : "degraded"} /></div>
         <div className={styles.adminHealthRows}>
@@ -277,7 +277,7 @@ function Subscriptions({ data, stats, admin, onRefresh }) {
   return <>
     <KpiGrid items={[
       { label: "إجمالي الاشتراكات", value: ar(stats.platformSubscriptions.total), helper: "كل حالات الاشتراك", icon: "card", tone: "green" },
-      { label: "الاشتراكات النشطة", value: ar(stats.platformSubscriptions.active), helper: "حساب نشط", icon: "chart", tone: "blue" },
+      { label: "الاشتراكات النشطة", value: ar(stats.platformSubscriptions.active), helper: "حساب نشط", icon: "chart", tone: "brand" },
       { label: "الفترات التجريبية", value: ar(stats.platformSubscriptions.trial), helper: "قيد التجربة", icon: "clock", tone: "orange" },
       { label: "الإيراد الشهري", value: `${ar(stats.monthlyRevenue)} ر.س`, helper: "من الاشتراكات الفعلية", icon: "card", tone: "green" }
     ]} />
@@ -300,8 +300,8 @@ function Customers({ data, stats }) {
   return <>
     <KpiGrid items={[
       { label: "إجمالي العملاء", value: ar(stats.users), helper: "حساب مستخدم مسجل", icon: "users", tone: "green" },
-      { label: "مساحات العمل", value: ar(stats.tenants), helper: "مساحة معزولة", icon: "store", tone: "blue" },
-      { label: "متوسط المستخدمين", value: stats.tenants ? (stats.users / stats.tenants).toFixed(1) : "0", helper: "لكل مساحة عمل", icon: "chart", tone: "violet" },
+      { label: "مساحات العمل", value: ar(stats.tenants), helper: "مساحة معزولة", icon: "store", tone: "brand" },
+      { label: "متوسط المستخدمين", value: stats.tenants ? (stats.users / stats.tenants).toFixed(1) : "0", helper: "لكل مساحة عمل", icon: "chart", tone: "brandMuted" },
       { label: "حسابات تحتاج متابعة", value: ar((data.customers || []).filter((row) => row.status && row.status !== "active").length), helper: "بحسب الحالة الفعلية", icon: "alert", tone: "orange" }
     ]} />
     <section className={styles.adminSurface}>
@@ -323,11 +323,11 @@ function Stores({ data, stats, admin, onRefresh }) {
   return <>
     <KpiGrid items={[
       { label: "إجمالي المتاجر", value: ar(stats.stores), helper: "متجر مسجل", icon: "store", tone: "green" },
-      { label: "المتاجر النشطة", value: ar((data.stores || []).filter((row) => row.status === "active").length), helper: "ضمن النتائج الحالية", icon: "users", tone: "blue" },
-      { label: "متاجر سلة المرتبطة", value: ar((data.stores || []).filter((row) => row.sallaStatus === "connected").length), helper: "اتصال فعلي", icon: "link", tone: "violet" },
+      { label: "المتاجر النشطة", value: ar((data.stores || []).filter((row) => row.status === "active").length), helper: "ضمن النتائج الحالية", icon: "users", tone: "brand" },
+      { label: "متاجر سلة المرتبطة", value: ar((data.stores || []).filter((row) => row.sallaStatus === "connected").length), helper: "اتصال فعلي", icon: "link", tone: "brandMuted" },
       { label: "المتاجر المعلّقة", value: ar((data.stores || []).filter((row) => row.status && row.status !== "active").length), helper: "تحتاج مراجعة", icon: "alert", tone: "orange" }
     ]} />
-    <TrendChart metrics={data.dailyMetrics} title="حركة المتاجر والرسائل" keys={[{ key: "stores", label: "المتاجر", color: "#12a66a" }, { key: "accepted", label: "الرسائل", color: "#2563eb" }]} />
+    <TrendChart metrics={data.dailyMetrics} title="حركة المتاجر والرسائل" keys={[{ key: "stores", label: "المتاجر", color: "#12a66a" }, { key: "accepted", label: "الرسائل", color: "#0B3F3B" }]} />
     <section className={styles.adminTwoColumn}>
       <div className={styles.adminSurface}>
         <SearchFilters value={search} onChange={setSearch} searchPlaceholder="ابحث عن متجر..." placeholders={["كل المنصات", "كل الحالات", "جميع الملاك", "كل الباقات"]} />
@@ -351,8 +351,8 @@ function Templates({ data, stats }) {
   const rows = useMemo(() => (data.adminTemplates || []).filter((row) => (channel === "all" || row.channel === channel) && `${row.name} ${row.description}`.toLowerCase().includes(search.toLowerCase())), [data.adminTemplates, search, channel]);
   return <>
     <KpiGrid items={[
-      { label: "القوالب النشطة", value: ar((data.adminTemplates || []).filter((row) => row.isActive).length), helper: `من إجمالي ${ar((data.adminTemplates || []).length)}`, icon: "template", tone: "violet" },
-      { label: "القوالب المستخدمة اليوم", value: ar((data.adminMessages || []).filter((row) => new Date(row.createdAt).toDateString() === new Date().toDateString()).length), helper: "من سجل الإرسال", icon: "send", tone: "blue" },
+      { label: "القوالب النشطة", value: ar((data.adminTemplates || []).filter((row) => row.isActive).length), helper: `من إجمالي ${ar((data.adminTemplates || []).length)}`, icon: "template", tone: "brandMuted" },
+      { label: "القوالب المستخدمة اليوم", value: ar((data.adminMessages || []).filter((row) => new Date(row.createdAt).toDateString() === new Date().toDateString()).length), helper: "من سجل الإرسال", icon: "send", tone: "brand" },
       { label: "معدل نجاح الرسائل", value: `${stats.deliveryRate}%`, helper: `${ar(stats.queue.failed)} فشل`, icon: "check", tone: "green" }
     ]} />
     <section className={styles.adminSurface}>
@@ -466,10 +466,10 @@ function Notifications() {
       <button type="button" className={styles.adminOutlineButton} onClick={() => document.getElementById("admin-notification-log")?.scrollIntoView({ behavior: "smooth" })}><Glyph name="template" /> سجل الإشعارات</button>
     </div>
     <KpiGrid items={[
-      { label: "إشعارات مجدولة", value: ar(summary.scheduled), helper: "بانتظار موعد النشر", icon: "clock", tone: "blue" },
+      { label: "إشعارات مجدولة", value: ar(summary.scheduled), helper: "بانتظار موعد النشر", icon: "clock", tone: "brand" },
       { label: "تم النشر اليوم", value: ar(summary.publishedToday), helper: "من قاعدة البيانات", icon: "send", tone: "green" },
-      { label: "مسودات", value: ar(summary.drafts), helper: "لم تنشر بعد", icon: "template", tone: "violet" },
-      { label: "المستلمون المؤهلون", value: ar(estimate), helper: NOTIFICATION_AUDIENCE_LABELS[form.audienceType], icon: "users", tone: "blue" }
+      { label: "مسودات", value: ar(summary.drafts), helper: "لم تنشر بعد", icon: "template", tone: "brandMuted" },
+      { label: "المستلمون المؤهلون", value: ar(estimate), helper: NOTIFICATION_AUDIENCE_LABELS[form.audienceType], icon: "users", tone: "brand" }
     ]} />
     {notice ? <div className={styles.adminSuccessMessage}>{notice}</div> : null}
     {error ? <div className={styles.adminErrorMessage}>{error}</div> : null}
@@ -821,7 +821,7 @@ function Integrations({ data }) {
   return <>
     <KpiGrid items={[
       { label: "التطبيقات المسجلة", value: ar(catalog.length), helper: "كتالوج تطبيقات المنصة", icon: "link", tone: "green" },
-      { label: "التكاملات النشطة", value: ar(rows.filter((row) => row.status === "healthy").length), helper: "سليمة حاليًا", icon: "chart", tone: "violet" },
+      { label: "التكاملات النشطة", value: ar(rows.filter((row) => row.status === "healthy").length), helper: "سليمة حاليًا", icon: "chart", tone: "brandMuted" },
       { label: "أخطاء المزامنة", value: ar(rows.reduce((sum, row) => sum + n(row.errorCount), 0)), helper: "من سجلات الفحص", icon: "alert", tone: "red" },
       { label: "آخر مزامنة", value: rows.length ? formatDate(rows.map((row) => row.lastCheckedAt).filter(Boolean).sort().at(-1)) : "—", helper: "آخر فحص مسجل", icon: "clock", tone: "green" }
     ]} />
@@ -852,8 +852,8 @@ function Security({ data, stats }) {
   return <>
     <KpiGrid items={[
       { label: "الخطر الحالي", value: risks ? ar(risks) : "منخفض", helper: `${ar(stats.risks.critical)} حرجة`, icon: "alert", tone: risks ? "orange" : "green" },
-      { label: "أمان المنصة", value: `${platformScore}%`, helper: "بحسب صحة التكاملات", icon: "database", tone: "violet" },
-      { label: "أمان الحسابات", value: `${score}%`, helper: `${ar(stats.activeSessions)} جلسة نشطة`, icon: "users", tone: "blue" },
+      { label: "أمان المنصة", value: `${platformScore}%`, helper: "بحسب صحة التكاملات", icon: "database", tone: "brandMuted" },
+      { label: "أمان الحسابات", value: `${score}%`, helper: `${ar(stats.activeSessions)} جلسة نشطة`, icon: "users", tone: "brand" },
       { label: "مؤشر الحماية العام", value: `${score}/100`, helper: score >= 85 ? "ممتاز" : score >= 60 ? "جيد" : "يحتاج إجراء", icon: "shield", tone: "green" }
     ]} />
     <section className={styles.adminSecurityGrid}>
@@ -874,16 +874,16 @@ function Reports({ data, stats }) {
   return <>
     <div className={styles.adminReportFilters}><select defaultValue=""><option value="">نطاق التاريخ</option></select><select defaultValue=""><option value="">كل المتاجر</option></select><select defaultValue=""><option value="">كل القنوات</option></select><button className={styles.adminOutlineButton}>تصدير التقرير</button></div>
     <KpiGrid items={[
-      { label: "الإيرادات", value: `${ar(stats.monthlyRevenue)} ر.س`, helper: "إيراد شهري محسوب", icon: "database", tone: "violet", values: metrics.map((m) => m.revenue) },
+      { label: "الإيرادات", value: `${ar(stats.monthlyRevenue)} ر.س`, helper: "إيراد شهري محسوب", icon: "database", tone: "brandMuted", values: metrics.map((m) => m.revenue) },
       { label: "الرسائل الفاشلة", value: ar(stats.queue.failed), helper: "من الطابور الفعلي", icon: "alert", tone: "red", values: metrics.map((m) => m.failed) },
-      { label: "معدل التسليم", value: `${stats.deliveryRate}%`, helper: "من الإرسال المسجل", icon: "check", tone: "blue", values: metrics.map((m) => m.delivered) },
-      { label: "الرسائل المرسلة", value: ar(stats.queue.sent), helper: "كل القنوات", icon: "send", tone: "cyan", values: metrics.map((m) => m.accepted) },
+      { label: "معدل التسليم", value: `${stats.deliveryRate}%`, helper: "من الإرسال المسجل", icon: "check", tone: "brand", values: metrics.map((m) => m.delivered) },
+      { label: "الرسائل المرسلة", value: ar(stats.queue.sent), helper: "كل القنوات", icon: "send", tone: "brandStrong", values: metrics.map((m) => m.accepted) },
       { label: "إجمالي الرسائل", value: ar(stats.queue.total), helper: "كل الحالات", icon: "store", tone: "green", values: metrics.map((m) => m.accepted) }
     ]} />
     <section className={styles.adminReportsGrid}>
-      <TrendChart metrics={metrics} title="اتجاه الأداء" keys={[{ key: "accepted", label: "المرسلة", color: "#2563eb" }, { key: "delivered", label: "تم التسليم", color: "#12a66a" }, { key: "failed", label: "الفاشلة", color: "#ef4444" }]} />
+      <TrendChart metrics={metrics} title="اتجاه الأداء" keys={[{ key: "accepted", label: "المرسلة", color: "#0B3F3B" }, { key: "delivered", label: "تم التسليم", color: "#12a66a" }, { key: "failed", label: "الفاشلة", color: "#ef4444" }]} />
       <TrendChart metrics={metrics} title="اتجاه الإيرادات" keys={[{ key: "revenue", label: "الإيرادات", color: "#12a66a" }]} />
-      <TrendChart metrics={metrics} title="نمو الاشتراكات" keys={[{ key: "activeSubscriptions", label: "الاشتراكات", color: "#7c3aed" }, { key: "activeUsers", label: "المستخدمون", color: "#2563eb" }]} />
+      <TrendChart metrics={metrics} title="نمو الاشتراكات" keys={[{ key: "activeSubscriptions", label: "الاشتراكات", color: "#0B3F3B" }, { key: "activeUsers", label: "المستخدمون", color: "#0B3F3B" }]} />
     </section>
     <section className={styles.adminSurface}><PanelTitle title="التقارير المتاحة" description="تقارير قابلة للتصدير من البيانات الفعلية" />
       <SimpleTable rows={[
@@ -1034,7 +1034,7 @@ function Support({ admin }) {
   const attachments = Array.isArray(detail?.attachments) ? detail.attachments : [];
   return <>
     <KpiGrid items={[
-      { label: "إجمالي الرسائل", value: ar(stats.total), helper: "كل الرسائل والشكاوى", icon: "mail", tone: "blue" },
+      { label: "إجمالي الرسائل", value: ar(stats.total), helper: "كل الرسائل والشكاوى", icon: "mail", tone: "brand" },
       { label: "الشكاوى المفتوحة", value: ar(stats.open), helper: "تحتاج مراجعة", icon: "alert", tone: "red" },
       { label: "تم الرد", value: ar(stats.replied), helper: "بانتظار المستخدم", icon: "check", tone: "green" },
       { label: "بانتظار المعالجة", value: ar(stats.pending), helper: "تحتاج إجراء من الدعم", icon: "clock", tone: "orange" }

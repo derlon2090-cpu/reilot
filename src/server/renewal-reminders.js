@@ -175,7 +175,7 @@ export async function queueSubscriptionReminder({ tenantId, subscriptionId, remi
         storeImageRadius: Number(context.template.storeImageRadius ?? 16),
         title: context.subject,
         body: context.body,
-        themeColor: context.template.themeColor || "#0EA5A8",
+        themeColor: context.template.themeColor || "#062B28",
         buttonLabel: context.template.buttonLabel || "جدد اشتراكك الآن",
         footerText: context.template.footerText || "شكرًا لثقتك بنا"
       }

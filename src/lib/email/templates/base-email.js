@@ -17,7 +17,7 @@ export function baseEmail({
   brandName = "Renvix",
   brandImageUrl = "",
   brandImageRadius = 16,
-  themeColor = "#0EA5A8"
+  themeColor = "#062B28"
 }) {
   const english = locale === "en";
   const direction = english ? "ltr" : "rtl";
@@ -30,7 +30,7 @@ export function baseEmail({
     const url = new URL(String(brandImageUrl || ""));
     if (url.protocol === "https:") safeBrandImage = escapeEmailHtml(url.toString());
   } catch {}
-  const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#0EA5A8";
+  const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#062B28";
   const safeBrandImageRadius = Math.min(50, Math.max(0, Math.round(Number(brandImageRadius) || 0)));
   const safeFooter = escapeEmailHtml(
     footerText || (english ? "Renvix - subscriptions made clearer." : "Renvix - إدارة أوضح للاشتراكات والتجديدات.")
@@ -43,12 +43,12 @@ export function baseEmail({
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${safeTitle}</title>
   </head>
-  <body style="margin:0;background:#f4f7fb;color:#0f2550;font-family:Arial,'Segoe UI',sans-serif">
+  <body style="margin:0;background:#F3F8F7;color:#062B28;font-family:Arial,'Segoe UI',sans-serif">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0">${safePreview}</div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 12px">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F3F8F7;padding:32px 12px">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e3eaf3;border-radius:18px;overflow:hidden;box-shadow:0 12px 34px rgba(15,37,80,.07)">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #E8F1F0;border-radius:18px;overflow:hidden;box-shadow:0 12px 34px rgba(6, 43, 40,.07)">
             <tr>
               <td style="height:6px;background:${safeTheme}"></td>
             </tr>
@@ -56,14 +56,14 @@ export function baseEmail({
               <td style="padding:28px 32px 18px;text-align:${align}">
                 ${safeBrandImage ? `<img src="${safeBrandImage}" alt="${safeBrand}" width="72" height="72" style="display:block;width:72px;height:72px;margin:0 0 12px auto;border-radius:${safeBrandImageRadius}px;object-fit:contain">` : ""}
                 <div style="display:inline-block;color:${safeTheme};font-size:22px;font-weight:800">${safeBrand}</div>
-                <h1 style="margin:22px 0 8px;color:#0f2550;font-size:26px;line-height:1.45">${safeTitle}</h1>
+                <h1 style="margin:22px 0 8px;color:#062B28;font-size:26px;line-height:1.45">${safeTitle}</h1>
               </td>
             </tr>
             <tr>
-              <td style="padding:0 32px 30px;text-align:${align};font-size:16px;line-height:1.9;color:#475569">${children}</td>
+              <td style="padding:0 32px 30px;text-align:${align};font-size:16px;line-height:1.9;color:#062B28">${children}</td>
             </tr>
             <tr>
-              <td style="padding:20px 32px;border-top:1px solid #e8eef5;background:#f8fafc;text-align:center;color:#718096;font-size:13px;line-height:1.7">${safeFooter}</td>
+              <td style="padding:20px 32px;border-top:1px solid #F3F8F7;background:#F3F8F7;text-align:center;color:#718096;font-size:13px;line-height:1.7">${safeFooter}</td>
             </tr>
           </table>
         </td>
@@ -73,7 +73,7 @@ export function baseEmail({
 </html>`;
 }
 
-export function emailButton({ href, label, themeColor = "#0EA5A8" }) {
-  const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#0EA5A8";
+export function emailButton({ href, label, themeColor = "#062B28" }) {
+  const safeTheme = /^#[0-9A-F]{6}$/i.test(String(themeColor || "")) ? String(themeColor).toUpperCase() : "#062B28";
   return `<a href="${escapeEmailHtml(href)}" style="display:inline-block;padding:13px 24px;border-radius:9px;background:${safeTheme};color:#ffffff;text-decoration:none;font-weight:700">${escapeEmailHtml(label)}</a>`;
 }

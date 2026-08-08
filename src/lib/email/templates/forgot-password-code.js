@@ -21,7 +21,7 @@ export function forgotPasswordCodeEmail({ code, expiresInMinutes = 10, locale = 
     children: `
       <p style="margin:0 0 16px">${intro}</p>
       <p style="margin:0 0 16px">${english ? "Use this verification code to continue:" : "استخدم رمز التحقق التالي لإكمال العملية:"}</p>
-      <div style="margin:24px 0;padding:18px;border:1px dashed #22c7d6;border-radius:12px;background:#ecfeff;color:#087f97;text-align:center;font-size:32px;font-weight:800;letter-spacing:8px;direction:ltr">${safeCode}</div>
+      <div style="margin:24px 0;padding:18px;border:1px dashed #0B3F3B;border-radius:12px;background:#F3F8F7;color:#062B28;text-align:center;font-size:32px;font-weight:800;letter-spacing:8px;direction:ltr">${safeCode}</div>
       <p style="margin:0 0 10px;color:#64748b">${expiry}</p>
       <p style="margin:0;color:#64748b">${ignore}</p>
     `

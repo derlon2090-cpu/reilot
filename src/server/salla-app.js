@@ -204,7 +204,7 @@ export async function saveSallaSettings(tenantId, body) {
   if (!connection.rows[0]) return { ok: false, reason: "not_connected" };
   const rules = normalizeSallaSubscriptionRules(body.subscriptionRules || []);
   const duration = Math.max(1, Math.min(3650, Number(body.defaultSubscriptionDurationDays || 30)));
-  const colors = new Set(["#2563EB", "#06B6D4", "#8B5CF6", "#22C55E", "#F97316", "#EF4444", "#64748B", "#0F172A"]);
+  const colors = new Set(["#0B3F3B", "#0B3F3B", "#E8F1F0", "#22C55E", "#F97316", "#EF4444", "#64748B", "#062B28"]);
   const color = colors.has(body.defaultThemeColor) ? body.defaultThemeColor : "#22C55E";
   const style = ["classic", "modern", "professional", "minimal", "premium", "colorful"].includes(body.defaultTemplateStyle) ? body.defaultTemplateStyle : "classic";
   const sendMethod = ["manual", "whatsapp", "email", "copy_only"].includes(body.sendMethod) ? body.sendMethod : "manual";

@@ -3,7 +3,7 @@ import { baseEmail, emailButton, escapeEmailHtml } from "./base-email.js";
 const DEFAULT_TEMPLATE = {
   storeName: "Renvix",
   title: "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
-  themeColor: "#0EA5A8",
+  themeColor: "#062B28",
   body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
   buttonLabel: "جدد اشتراكك الآن",
   footerText: "شكرًا لثقتك بنا"

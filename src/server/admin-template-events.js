@@ -79,7 +79,7 @@ function adminEmailLogoUrl() {
   try {
     if (new URL(configured).protocol === "https:") return configured;
   } catch {}
-  return "https://renvix.app/assets/renewpilot-logo-horizontal.webp";
+  return "https://renvix.app/assets/renvix-logo-deep-teal.png";
 }
 
 export async function enqueueAdminDomainEvent(client, {

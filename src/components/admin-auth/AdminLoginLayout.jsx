@@ -9,7 +9,7 @@ export default function AdminLoginLayout({ children, title = "منطقة إدا�
       <span className={`${styles.authDots} ${styles.authDotsBottom}`} aria-hidden="true" />
       <section className={styles.adminAuthContent}>
         <div className={styles.adminAuthBrand} aria-label="Renvix">
-          <img className={styles.brandLogo} src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="Renvix" />
+          <img className={styles.brandLogo} src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" />
         </div>
         <h1>{title === "منطقة إدارة خاصة" ? "دخول الأدمن" : title}</h1>
         <p className={styles.adminAuthDescription}>{title === "منطقة إدارة خاصة" ? "Renvix | وصول آمن إلى لوحة إدارة المنصة" : description}</p>

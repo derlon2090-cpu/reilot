@@ -22,7 +22,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain('grid-template-areas: "brand menu" "links links" "actions actions"');
     expect(stylesSource).toContain(".public-site .nav-link.active .public-nav-icon");
     expect(stylesSource).toContain("Public navigation uses an icon-led active pill without an underline");
-    expect(stylesSource).toContain("background: linear-gradient(135deg, #f3f8ff 0%, #eaf3ff 100%) !important;");
+    expect(stylesSource).toContain("background: #F3F8F7 !important;");
     expect(stylesSource).toContain("min-height: 60px;");
     expect(stylesSource).toContain("border-radius: 16px !important;");
   });
@@ -135,7 +135,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('class="auth-display-sliders-icon"');
     expect(appSource).toContain("function authMobileMark");
     expect(appSource).toContain("function authMobileScene");
-    expect(appSource).toContain('/assets/renvix-mark.webp');
+    expect(appSource).toContain('/assets/renvix-mark-deep-teal.svg');
     expect(stylesSource).toContain("/* Final compact authentication presentation */");
     expect(stylesSource).toContain(".auth-display-settings.is-open .auth-display-trigger");
     expect(stylesSource).toContain(".auth-display-trigger .auth-display-close-icon");

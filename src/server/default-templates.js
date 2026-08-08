@@ -97,7 +97,7 @@ export async function ensureDefaultTemplates(client, tenantId, storeName = "Renv
   await client.query(`INSERT INTO order_info_templates
     (tenant_id,template_key,template_group,name,style,theme_color,store_name,header_text,footer_text,
      additional_notes,visible_fields,is_default,is_active)
-    VALUES($1,$2,'order_information','قالب معلومات الطلب — سلة','classic','#2563EB',$3,
+    VALUES($1,$2,'order_information','قالب معلومات الطلب — سلة','classic','#0B3F3B',$3,
       'معلومات طلبك أصبحت جاهزة','Renvix','[]'::jsonb,'{}'::jsonb,true,true)
     ON CONFLICT (tenant_id) DO NOTHING`, [tenantId, TEMPLATE_KEYS.ORDER_INFORMATION_SALLA, storeName]);
 }

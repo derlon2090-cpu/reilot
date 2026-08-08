@@ -1,5 +1,5 @@
 export const ORDER_LINK_STYLES = new Set(["classic", "modern", "professional", "minimal", "premium", "colorful"]);
-export const ORDER_LINK_COLORS = new Set(["#2563EB", "#06B6D4", "#8B5CF6", "#22C55E", "#F97316", "#EF4444", "#64748B", "#0F172A"]);
+export const ORDER_LINK_COLORS = new Set(["#0B3F3B", "#0B3F3B", "#E8F1F0", "#22C55E", "#F97316", "#EF4444", "#64748B", "#062B28"]);
 export const RESERVED_ORDER_SLUGS = new Set([
   "admin", "api", "dashboard", "login", "register", "support", "pricing", "blog", "terms", "privacy", "o"
 ]);
@@ -39,7 +39,7 @@ export function normalizeOrderLinkStyle(value) {
 
 export function normalizeOrderLinkColor(value) {
   const normalized = String(value || "").toUpperCase();
-  return ORDER_LINK_COLORS.has(normalized) ? normalized : "#2563EB";
+  return ORDER_LINK_COLORS.has(normalized) ? normalized : "#0B3F3B";
 }
 
 export function normalizeAdditionalNotes(value) {

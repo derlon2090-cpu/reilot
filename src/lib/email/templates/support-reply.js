@@ -29,10 +29,10 @@ export function supportReplyEmail({
     children: `
       <p style="margin:0 0 16px">مرحبًا <strong>${escapeEmailHtml(name)}</strong>،</p>
       <p style="margin:0 0 18px">وصل رد جديد على طلب الدعم الخاص بك:</p>
-      <div style="padding:18px;border:1px solid #dbe7f4;border-radius:12px;background:#f8fbff;color:#17345f;line-height:1.9">${safeReply}</div>
+      <div style="padding:18px;border:1px solid #E8F1F0;border-radius:12px;background:#F3F8F7;color:#062B28;line-height:1.9">${safeReply}</div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px;border-collapse:collapse">
-        ${number ? `<tr><td style="padding:7px 0;color:#718096">رقم الطلب</td><td style="padding:7px 0;text-align:left;color:#0f2550;font-weight:700">${escapeEmailHtml(number)}</td></tr>` : ""}
-        <tr><td style="padding:7px 0;color:#718096">الموضوع</td><td style="padding:7px 0;text-align:left;color:#0f2550;font-weight:700">${escapeEmailHtml(subject)}</td></tr>
+        ${number ? `<tr><td style="padding:7px 0;color:#718096">رقم الطلب</td><td style="padding:7px 0;text-align:left;color:#062B28;font-weight:700">${escapeEmailHtml(number)}</td></tr>` : ""}
+        <tr><td style="padding:7px 0;color:#718096">الموضوع</td><td style="padding:7px 0;text-align:left;color:#062B28;font-weight:700">${escapeEmailHtml(subject)}</td></tr>
       </table>
       <p style="margin:20px 0 0;color:#718096;font-size:14px">يمكنك الرد على هذا البريد أو التواصل عبر support@renvix.app.</p>
     `,

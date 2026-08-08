@@ -9,9 +9,9 @@ const sitemapSource = fs.readFileSync(path.join(root, "app/sitemap.js"), "utf8")
 
 describe("public help articles and Renvix browser identity", () => {
   it("uses the Renvix mark for browser icons instead of the default globe", () => {
-    expect(layoutSource).toContain('url: "/assets/renvix-mark.png"');
-    expect(layoutSource).toContain('shortcut: "/assets/renvix-mark.png"');
-    expect(layoutSource).toContain('apple: "/assets/renvix-mark.png"');
+    expect(layoutSource).toContain('url: "/assets/renvix-mark-deep-teal.svg"');
+    expect(layoutSource).toContain('shortcut: "/assets/renvix-mark-deep-teal.svg"');
+    expect(layoutSource).toContain('apple: "/assets/renvix-mark-deep-teal.png"');
   });
 
   it("publishes every help article in the sitemap", () => {

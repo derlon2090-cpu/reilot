@@ -63,7 +63,7 @@ const ROLE_SCOPES = {
 function Brand() {
   return (
     <div className={styles.brand} aria-label="Renvix">
-      <img className={styles.brandLogo} src="/assets/renewpilot-logo-horizontal.webp" width="1165" height="342" alt="Renvix" />
+      <img className={styles.brandLogo} src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" />
     </div>
   );
 }
@@ -93,7 +93,7 @@ function Icon({ name }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[name] || ICONS.grid }} />;
 }
 
-function StatCard({ label, value, helper, tone = "blue", icon = "chart" }) {
+function StatCard({ label, value, helper, tone = "brand", icon = "chart" }) {
   return (
     <article className={styles.statCard}>
       <span className={`${styles.statIcon} ${styles[tone]}`}><Icon name={icon} /></span>
@@ -175,94 +175,94 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
   const panelCopy = PANEL_COPY[activePanel] || PANEL_COPY.overview;
   const panelCards = stats ? {
     overview: [
-      ["العملاء النشطون", stats.users, "من الشهر الماضي", "violet"],
-      ["الاشتراكات النشطة", stats.platformSubscriptions.active, `${stats.platformSubscriptions.trial} تجريبي`, "blue"],
+      ["العملاء النشطون", stats.users, "من الشهر الماضي", "brandMuted"],
+      ["الاشتراكات النشطة", stats.platformSubscriptions.active, `${stats.platformSubscriptions.trial} تجريبي`, "brand"],
       ["الرسائل المرسلة اليوم", stats.queue.sent, `${stats.queue.pending} في الانتظار`, "green"],
       ["المشكلات المعلقة", stats.risks.high + stats.risks.critical, `${stats.risks.critical} حرجة`, "red"],
-      ["القنوات المتصلة", stats.connectedChannels, "قناة فعالة", "cyan"],
+      ["القنوات المتصلة", stats.connectedChannels, "قناة فعالة", "brandStrong"],
       ["معدل النجاح العام", `${stats.deliveryRate}%`, `${stats.queue.failed} فشل`, "green"]
     ],
     subscriptions: [
-      ["إجمالي الاشتراكات", stats.platformSubscriptions.total, "جميع الحالات", "blue"],
+      ["إجمالي الاشتراكات", stats.platformSubscriptions.total, "جميع الحالات", "brand"],
       ["الاشتراكات النشطة", stats.platformSubscriptions.active, "حساب نشط", "green"],
-      ["الفترات التجريبية", stats.platformSubscriptions.trial, "حساب تجريبي", "violet"],
-      ["مساحات العمل", stats.tenants, "مرتبطة بالاشتراكات", "cyan"]
+      ["الفترات التجريبية", stats.platformSubscriptions.trial, "حساب تجريبي", "brandMuted"],
+      ["مساحات العمل", stats.tenants, "مرتبطة بالاشتراكات", "brandStrong"]
     ],
     customers: [
-      ["إجمالي المستخدمين", stats.users, "حساب مسجل", "violet"],
-      ["مساحات العمل", stats.tenants, "مستأجر", "blue"],
-      ["متوسط المستخدمين", stats.tenants ? (stats.users / stats.tenants).toFixed(1) : 0, "لكل مساحة عمل", "cyan"],
+      ["إجمالي المستخدمين", stats.users, "حساب مسجل", "brandMuted"],
+      ["مساحات العمل", stats.tenants, "مستأجر", "brand"],
+      ["متوسط المستخدمين", stats.tenants ? (stats.users / stats.tenants).toFixed(1) : 0, "لكل مساحة عمل", "brandStrong"],
       ["إشعارات غير مقروءة", stats.unreadNotifications, "تحتاج متابعة", "red"]
     ],
     stores: [
       ["إجمالي المتاجر", stats.stores, "من قاعدة البيانات", "green"],
-      ["مساحات العمل", stats.tenants, "مساحة مسجلة", "blue"],
-      ["قنوات متصلة", stats.connectedChannels, "Meta للمتاجر", "cyan"],
-      ["اشتراكات نشطة", stats.platformSubscriptions.active, "متجر فعال", "violet"]
+      ["مساحات العمل", stats.tenants, "مساحة مسجلة", "brand"],
+      ["قنوات متصلة", stats.connectedChannels, "Meta للمتاجر", "brandStrong"],
+      ["اشتراكات نشطة", stats.platformSubscriptions.active, "متجر فعال", "brandMuted"]
     ],
     devices: [
       ["القنوات المتصلة", stats.connectedChannels, "قناة فعالة", "green"],
       ["مخاطر مرتفعة", stats.risks.high, "تحتاج متابعة", "red"],
       ["مخاطر حرجة", stats.risks.critical, "تحتاج إجراءً فوريًا", "red"],
-      ["رسائل في الانتظار", stats.queue.pending, "ضمن طابور الإرسال", "cyan"]
+      ["رسائل في الانتظار", stats.queue.pending, "ضمن طابور الإرسال", "brandStrong"]
     ],
     security: [
       ["مخاطر حرجة", stats.risks.critical, "أعلى مستوى تنبيه", "red"],
       ["مخاطر مرتفعة", stats.risks.high, "تحتاج مراجعة", "red"],
-      ["إشعارات غير مقروءة", stats.unreadNotifications, "داخل المنصة", "violet"],
+      ["إشعارات غير مقروءة", stats.unreadNotifications, "داخل المنصة", "brandMuted"],
       ["فشل الإرسال", stats.queue.failed, "عملية مسجلة", "red"]
     ],
     reports: [
-      ["إجمالي عمليات الإرسال", stats.queue.total, "كل الحالات", "blue"],
+      ["إجمالي عمليات الإرسال", stats.queue.total, "كل الحالات", "brand"],
       ["تم الإرسال", stats.queue.sent, "رسالة", "green"],
-      ["في الانتظار", stats.queue.pending, "رسالة", "cyan"],
-      ["معدل التسليم", `${stats.deliveryRate}%`, `${stats.queue.failed} فشل`, "violet"]
+      ["في الانتظار", stats.queue.pending, "رسالة", "brandStrong"],
+      ["معدل التسليم", `${stats.deliveryRate}%`, `${stats.queue.failed} فشل`, "brandMuted"]
     ],
     templates: [
-      ["القنوات المتصلة", stats.connectedChannels, "واتساب وبريد", "cyan"],
+      ["القنوات المتصلة", stats.connectedChannels, "واتساب وبريد", "brandStrong"],
       ["الرسائل المرسلة", stats.queue.sent, "مرسلة بنجاح", "green"],
       ["الرسائل الفاشلة", stats.queue.failed, "تحتاج مراجعة", "red"],
-      ["معدل التسليم", `${stats.deliveryRate}%`, "من الرسائل المسجلة", "blue"]
+      ["معدل التسليم", `${stats.deliveryRate}%`, "من الرسائل المسجلة", "brand"]
     ],
     messages: [
-      ["إجمالي الرسائل", stats.queue.total, "كل الحالات", "blue"],
+      ["إجمالي الرسائل", stats.queue.total, "كل الحالات", "brand"],
       ["تم الإرسال", stats.queue.sent, "رسالة ناجحة", "green"],
-      ["في الانتظار", stats.queue.pending, "ضمن الطابور", "cyan"],
+      ["في الانتظار", stats.queue.pending, "ضمن الطابور", "brandStrong"],
       ["فشل التسليم", stats.queue.failed, "عملية فاشلة", "red"]
     ],
     campaigns: [
-      ["إجمالي الحملات", Number(stats.campaigns?.total || 0), "كل مساحات العمل", "blue"],
-      ["الحملات النشطة", Number(stats.campaigns?.active || 0), "مجدولة أو قيد الإرسال", "violet"],
+      ["إجمالي الحملات", Number(stats.campaigns?.total || 0), "كل مساحات العمل", "brand"],
+      ["الحملات النشطة", Number(stats.campaigns?.active || 0), "مجدولة أو قيد الإرسال", "brandMuted"],
       ["الرسائل المقبولة", Number(stats.campaigns?.sent || 0), "من مزودي الإرسال", "green"],
       ["فشل الإرسال", Number(stats.campaigns?.failed || 0), "بحسب الحالة الفعلية", "red"]
     ],
     contacts: [
-      ["إجمالي جهات الاتصال", Number(stats.contacts?.total || 0), "جمهور حملات", "blue"],
+      ["إجمالي جهات الاتصال", Number(stats.contacts?.total || 0), "جمهور حملات", "brand"],
       ["جهات نشطة", Number(stats.contacts?.active || 0), "صالحة للاستخدام", "green"],
       ["تحتاج مراجعة", Number(stats.contacts?.needsReview || 0), "تعارض هوية", "red"],
-      ["مساحات العمل", stats.tenants, "عزل كامل للمستأجرين", "cyan"]
+      ["مساحات العمل", stats.tenants, "عزل كامل للمستأجرين", "brandStrong"]
     ],
     integrations: [
-      ["التكاملات المسجلة", data.integrationHealth?.length || 0, "فحوصات خادم حقيقية", "blue"],
+      ["التكاملات المسجلة", data.integrationHealth?.length || 0, "فحوصات خادم حقيقية", "brand"],
       ["سليمة", (data.integrationHealth || []).filter((item) => item.status === "healthy").length, "آخر فحص", "green"],
       ["تحتاج إجراء", (data.integrationHealth || []).filter((item) => ["degraded","error"].includes(item.status)).length, "دون كشف أسرار", "red"],
-      ["غير مهيأة", (data.integrationHealth || []).filter((item) => item.status === "not_configured").length, "تحتاج إعداد", "violet"]
+      ["غير مهيأة", (data.integrationHealth || []).filter((item) => item.status === "not_configured").length, "تحتاج إعداد", "brandMuted"]
     ],
     billing: [
       ["الإيراد الشهري", `${stats.monthlyRevenue.toLocaleString("ar-SA")} ر.س`, "اشتراكات فعلية", "green"],
-      ["الاشتراكات النشطة", stats.platformSubscriptions.active, "حساب نشط", "blue"],
-      ["الفترات التجريبية", stats.platformSubscriptions.trial, "حساب تجريبي", "violet"],
-      ["إجمالي الاشتراكات", stats.platformSubscriptions.total, "جميع الحالات", "cyan"]
+      ["الاشتراكات النشطة", stats.platformSubscriptions.active, "حساب نشط", "brand"],
+      ["الفترات التجريبية", stats.platformSubscriptions.trial, "حساب تجريبي", "brandMuted"],
+      ["إجمالي الاشتراكات", stats.platformSubscriptions.total, "جميع الحالات", "brandStrong"]
     ],
     roles: [
-      ["دور الحساب", ROLE_LABELS[admin.role] || admin.role, "الدور الإداري الحالي", "blue"],
+      ["دور الحساب", ROLE_LABELS[admin.role] || admin.role, "الدور الإداري الحالي", "brand"],
       ["الجلسة", "نشطة", "جلسة إدارية محمية", "green"],
-      ["سجل التدقيق", data.recentAudit.length, "آخر العمليات الظاهرة", "violet"],
-      ["نطاق العرض", "مباشر", "بيانات فعلية من المنصة", "cyan"]
+      ["سجل التدقيق", data.recentAudit.length, "آخر العمليات الظاهرة", "brandMuted"],
+      ["نطاق العرض", "مباشر", "بيانات فعلية من المنصة", "brandStrong"]
     ],
     provisioning: [
-      ["وظائف التفعيل", data.provisioningJobs?.length || 0, "آخر 30 وظيفة", "blue"],
-      ["بانتظار المعالجة", (data.provisioningJobs || []).filter((job) => job.status === "pending").length, "تحتاج Worker", "violet"],
+      ["وظائف التفعيل", data.provisioningJobs?.length || 0, "آخر 30 وظيفة", "brand"],
+      ["بانتظار المعالجة", (data.provisioningJobs || []).filter((job) => job.status === "pending").length, "تحتاج Worker", "brandMuted"],
       ["فشل البريد", (data.provisioningJobs || []).filter((job) => job.status === "email_failed").length, "تحتاج إعادة إرسال", "red"],
       ["مكتملة", (data.provisioningJobs || []).filter((job) => job.status === "completed").length, "تفعيل ناجح", "green"]
     ]

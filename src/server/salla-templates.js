@@ -232,7 +232,7 @@ function cleanSettings(input, current = {}) {
     completedDeliveryMode: ["whatsapp_message", "secure_order_page"].includes(settings.completedDeliveryMode)
       ? settings.completedDeliveryMode : current.completedDeliveryMode,
     reviewDelayMinutes: Math.max(5, Math.min(43200, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
-    themeColor: /^#[0-9A-F]{6}$/i.test(settings.themeColor || "") ? settings.themeColor : (current.themeColor || "#2563EB"),
+    themeColor: /^#[0-9A-F]{6}$/i.test(settings.themeColor || "") ? settings.themeColor : (current.themeColor || "#0B3F3B"),
     buttonEnabled: settings.buttonEnabled == null ? current.buttonEnabled !== false : Boolean(settings.buttonEnabled),
     buttonLabel: cleanLabel(settings.buttonLabel, current.buttonLabel, 80),
     secureLinkEnabled: settings.secureLinkEnabled == null ? current.secureLinkEnabled !== false : Boolean(settings.secureLinkEnabled),
@@ -246,7 +246,7 @@ function cleanSettings(input, current = {}) {
       ...(settings.branding && typeof settings.branding === "object" ? settings.branding : {}),
       themeColor: /^#[0-9A-F]{6}$/i.test(settings.branding?.themeColor || "")
         ? settings.branding.themeColor
-        : (/^#[0-9A-F]{6}$/i.test(current.branding?.themeColor || "") ? current.branding.themeColor : "#2563EB"),
+        : (/^#[0-9A-F]{6}$/i.test(current.branding?.themeColor || "") ? current.branding.themeColor : "#0B3F3B"),
       logoUrl: safePublicHttpsUrl(settings.branding?.logoUrl || current.branding?.logoUrl || "")
     }
   };
@@ -1137,7 +1137,7 @@ export async function processSallaTemplateEvent(payload) {
         brandName: variables.store_name || brandProfile.storeName || "Renvix",
         logoUrl: template.settings?.branding?.logoUrl || brandProfile.logoUrl || "",
         logoBorderRadius: Number(template.settings?.branding?.logoBorderRadius ?? brandProfile.logoBorderRadius ?? 16),
-        themeColor: template.settings?.themeColor || template.settings?.branding?.themeColor || "#2563EB"
+        themeColor: template.settings?.themeColor || template.settings?.branding?.themeColor || "#0B3F3B"
       };
       publicPage = await getOrCreateSallaPublicPage({
         tenantId,

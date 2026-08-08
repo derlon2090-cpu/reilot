@@ -23,7 +23,7 @@ const defaultEmailTemplate = {
   channel: "email",
   storeName: "",
   title: "تذكير بتجديد اشتراكك في {{اسم_الخدمة}}",
-  themeColor: "#0EA5A8",
+  themeColor: "#062B28",
   body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
   buttonLabel: "جدد اشتراكك الآن",
   footerText: "شكرًا لثقتك بنا"
@@ -122,7 +122,7 @@ export async function PUT(req) {
 
   let title = null;
   let storeName = null;
-  let themeColor = "#0EA5A8";
+  let themeColor = "#062B28";
   let buttonLabel = null;
   let footerText = null;
   let variables = whatsappVariables;
@@ -132,7 +132,7 @@ export async function PUT(req) {
     storeName = sanitizePlainText(input.storeName, 100);
     buttonLabel = sanitizePlainText(input.buttonLabel, 80);
     footerText = sanitizePlainText(input.footerText, 300);
-    themeColor = colorPattern.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#0EA5A8";
+    themeColor = colorPattern.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#062B28";
     variables = emailVariables;
     contentJson = structuredContent(messageBody);
     if (!title || !storeName || !buttonLabel || !footerText) {

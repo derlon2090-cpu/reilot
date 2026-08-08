@@ -71,7 +71,7 @@ export async function PUT(req) {
     return Response.json({ ok: false, message: "تحقق من محتوى القالب والمتغيرات المستخدمة" }, { status: 400 });
   }
   const contentJson = {};
-  const themeColor = /^#[0-9a-f]{6}$/i.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#0EA5A8";
+  const themeColor = /^#[0-9a-f]{6}$/i.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#062B28";
   const saved = await transaction(async (client) => {
     await ensureDefaultTemplates(client, auth.session.tenantId);
     const result = await client.query(`UPDATE notification_templates SET name=$1,title=$2,body=$3,content_json=$4::jsonb,

@@ -28,8 +28,8 @@ describe("order information links", () => {
   it("normalizes template style, color, notes, and visible fields", () => {
     expect(normalizeOrderLinkStyle("premium")).toBe("premium");
     expect(normalizeOrderLinkStyle("unknown")).toBe("classic");
-    expect(normalizeOrderLinkColor("#06b6d4")).toBe("#06B6D4");
-    expect(normalizeOrderLinkColor("#ffffff")).toBe("#2563EB");
+    expect(normalizeOrderLinkColor("#0b3f3b")).toBe("#0B3F3B");
+    expect(normalizeOrderLinkColor("#ffffff")).toBe("#0B3F3B");
     expect(normalizeAdditionalNotes([" first ", "", "x".repeat(400)])).toEqual(["first", "x".repeat(300)]);
     expect(normalizeVisibleFields({ customerName: false, phoneNumber: true })).toMatchObject({
       customerName: false,
