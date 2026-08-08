@@ -7,10 +7,11 @@ import { authSchemaHealth, REQUIRED_AUTH_MIGRATION } from "../../src/server/auth
 describe("authentication database schema readiness", () => {
   beforeEach(() => vi.mocked(query).mockReset());
 
-  it("accepts only the complete 0060 authentication schema", async () => {
+  it("accepts only the complete repaired authentication schema", async () => {
     vi.mocked(query).mockResolvedValue({ rows: [{
       migration_applied: true,
       pending_registration_table: true,
+      purpose_constraint_ready: true,
       available_columns: [
         "auth_email_otp_challenges.login_attempt_id",
         "auth_email_otp_challenges.updated_at",
@@ -30,11 +31,13 @@ describe("authentication database schema readiness", () => {
     vi.mocked(query).mockResolvedValue({ rows: [{
       migration_applied: false,
       pending_registration_table: false,
+      purpose_constraint_ready: false,
       available_columns: ["users.email_verified_at"]
     }] } as never);
     const result = await authSchemaHealth();
     expect(result.ok).toBe(false);
     expect(result.pendingRegistrationTable).toBe(false);
+    expect(result.purposeConstraintReady).toBe(false);
     expect(result.missingColumns).toContain("auth_mfa_login_challenges.target_path");
   });
 });

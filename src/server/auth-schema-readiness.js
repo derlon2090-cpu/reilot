@@ -1,6 +1,6 @@
 import { query } from "./db.js";
 
-export const REQUIRED_AUTH_MIGRATION = "0060_email_otp_pending_and_trusted_browsers.sql";
+export const REQUIRED_AUTH_MIGRATION = "0061_auth_challenge_purpose_repair.sql";
 
 const REQUIRED_COLUMNS = [
   "auth_email_otp_challenges.login_attempt_id",
@@ -19,6 +19,17 @@ export async function authSchemaHealth() {
     `SELECT
        EXISTS (SELECT 1 FROM schema_migrations WHERE name = $1) AS migration_applied,
        to_regclass('public.auth_pending_registrations') IS NOT NULL AS pending_registration_table,
+       EXISTS (
+         SELECT 1
+           FROM pg_constraint c
+           JOIN pg_class t ON t.oid = c.conrelid
+           JOIN pg_namespace n ON n.oid = t.relnamespace
+          WHERE n.nspname = 'public'
+            AND t.relname = 'auth_email_otp_challenges'
+            AND c.contype = 'c'
+            AND pg_get_constraintdef(c.oid) ILIKE '%purpose%'
+            AND pg_get_constraintdef(c.oid) ILIKE '%admin_login%'
+       ) AS purpose_constraint_ready,
        COALESCE(array_agg(table_name || '.' || column_name)
          FILTER (WHERE table_name IS NOT NULL), ARRAY[]::text[]) AS available_columns
      FROM information_schema.columns
@@ -36,12 +47,14 @@ export async function authSchemaHealth() {
   const missingColumns = REQUIRED_COLUMNS.filter((column) => !available.has(column));
   const ok = row.migration_applied === true
     && row.pending_registration_table === true
+    && row.purpose_constraint_ready === true
     && missingColumns.length === 0;
   return {
     ok,
     migration: REQUIRED_AUTH_MIGRATION,
     migrationApplied: row.migration_applied === true,
     pendingRegistrationTable: row.pending_registration_table === true,
+    purposeConstraintReady: row.purpose_constraint_ready === true,
     missingColumns
   };
 }

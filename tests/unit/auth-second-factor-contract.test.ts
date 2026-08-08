@@ -11,6 +11,15 @@ describe("unified second-factor contract", () => {
     expect(migration).toContain("login_attempt_id");
   });
 
+  it("repairs the historical admin-login purpose constraint without depending on a rewritten migration", async () => {
+    const migration = await readFile(new URL("../../drizzle/0061_auth_challenge_purpose_repair.sql", import.meta.url), "utf8");
+    const email = await readFile(new URL("../../src/server/email-otp-v2.js", import.meta.url), "utf8");
+    expect(migration).toContain("admin_login");
+    expect(migration).toContain("DROP CONSTRAINT");
+    expect(email).toContain('purpose === "admin_login" ? "login" : purpose');
+    expect(email).toContain('signChallengeId(challenge.id, purpose === "admin_login" ? "admin_login" : "login")');
+  });
+
   it("keeps one UI per factor and directs successful TOTP straight to the dashboard", async () => {
     const source = await readFile(new URL("../../src/app/app.js", import.meta.url), "utf8");
     const mfaPage = source.slice(source.indexOf("function mfaLoginPage"), source.indexOf("async function loadMfaLoginStatus"));

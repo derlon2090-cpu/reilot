@@ -133,9 +133,15 @@ export async function isTrustedDevice({ userId, rawToken, riskDetected = false }
 }
 
 export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent, locale = "ar", purpose = "login", loginAttemptId = null }) {
+  // Some long-lived databases applied 0040 before `admin_login` was added to
+  // its purpose CHECK constraint. Store every interactive sign-in challenge
+  // under the stable `login` purpose and keep the admin intent in the signed
+  // cookie. Verification already derives the redirect from that signed kind,
+  // so this remains fail-closed and works before/after the repair migration.
+  const storagePurpose = purpose === "admin_login" ? "login" : purpose;
   let code = "";
   const challenge = await transaction(async (client) => {
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email-otp:${user.id}:${purpose}`]);
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email-otp:${user.id}:${storagePurpose}`]);
     await client.query(
       `UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now()
         WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL`,
@@ -147,7 +153,7 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
         WHERE user_id = $1 AND purpose = $2 AND consumed_at IS NULL AND invalidated_at IS NULL
           AND expires_at > now() AND created_at >= now() - interval '15 seconds'
         ORDER BY created_at DESC LIMIT 1`,
-      [user.id, purpose]
+      [user.id, storagePurpose]
     );
     if (existing.rows[0]) {
       const reused = loginAttemptId
@@ -165,14 +171,14 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
     await client.query(
       `UPDATE auth_email_otp_challenges SET invalidated_at = now(), updated_at = now()
         WHERE user_id = $1 AND purpose = $2 AND consumed_at IS NULL AND invalidated_at IS NULL`,
-      [user.id, purpose]
+      [user.id, storagePurpose]
     );
     const inserted = await client.query(
       `INSERT INTO auth_email_otp_challenges
          (user_id, tenant_id, purpose, code_digest, expires_at, ip_hash, user_agent_hash, login_attempt_id)
        VALUES ($1, $2, $3, '', now() + interval '5 minutes', $4, $5, $6)
        RETURNING id, expires_at AS "expiresAt", last_sent_at AS "lastSentAt"`,
-      [user.id, user.tenantId, purpose, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null, loginAttemptId]
+      [user.id, user.tenantId, storagePurpose, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null, loginAttemptId]
     );
     const row = inserted.rows[0];
     await client.query("UPDATE auth_email_otp_challenges SET code_digest = $2 WHERE id = $1", [row.id, digestOtp(code, row.id)]);
@@ -186,7 +192,7 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
       userId: user.id,
       type: "auth.email_otp.requested",
       title: "Email OTP requested",
-      metadata: { purpose }
+      metadata: { purpose, storagePurpose }
     }).catch((error) => {
       console.error("Email OTP challenge audit unavailable", { code: String(error?.code || "AUDIT_ERROR") });
     });
