@@ -21,6 +21,8 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain('grid-template-areas: "brand actions" "links links"');
     expect(stylesSource).toContain('grid-template-areas: "brand menu" "links links" "actions actions"');
     expect(stylesSource).toContain(".public-site .nav-link.active .public-nav-icon");
+    expect(stylesSource).toContain("Public navigation uses an icon-led active pill without an underline");
+    expect(stylesSource).toContain("background: linear-gradient(135deg, #f3f8ff 0%, #eaf3ff 100%) !important;");
   });
 
   it("closes the mobile sidebar through a real outside backdrop", () => {

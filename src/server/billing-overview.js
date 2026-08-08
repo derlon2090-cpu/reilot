@@ -89,7 +89,7 @@ export async function getWhatsappBillingUsage(tenantId) {
 }
 
 export async function getBillingOverview(tenantId) {
-  const [current, plans, storage, usage, whatsapp, invoices] = await Promise.all([
+  const [current, plans, storage, usage, whatsapp, invoices, commerceConnections] = await Promise.all([
     query(
       `SELECT ps.status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
@@ -128,6 +128,13 @@ export async function getBillingOverview(tenantId) {
          FROM billing_invoices
         WHERE tenant_id=$1 ORDER BY issued_at DESC LIMIT 20`,
       [tenantId]
+    ),
+    query(
+      `SELECT provider
+         FROM app_connections
+        WHERE tenant_id=$1 AND provider IN ('salla','zid')
+          AND status IN ('connected','ready')`,
+      [tenantId]
     )
   ]);
   let currentPlan = current.rows[0] || null;
@@ -151,6 +158,10 @@ export async function getBillingOverview(tenantId) {
     usage,
     emailUsage: usage.channels.email,
     whatsappUsage: whatsapp,
+    commerceConnection: {
+      connected: commerceConnections.rows.length > 0,
+      providers: commerceConnections.rows.map((connection) => connection.provider)
+    },
     invoices: invoices.rows.map((invoice) => ({
       ...invoice,
       amount: numeric(invoice.amount),

@@ -1776,7 +1776,11 @@ function marketingFeaturesPage() {
 }
 
 function marketingPricingPage() {
-  const topups = [50, 100, 250, 500, 1000];
+  const isEnglish = state.language === "en";
+  const topups = [50, 100, 250, 500, 1000].map((amount) => ({
+    amount,
+    messages: amount / 50 * 1500
+  }));
   const questions = [
     ["هل يمكنني الترقية أو التبديل بين الباقات؟", "نعم. افتح «الفوترة والباقات» واختر الخطة الجديدة. تُطبّق الترقية وفق السعر الظاهر قبل الدفع، بينما يبدأ خفض الباقة مع دورة الفوترة التالية ما لم تعرض صفحة الدفع خلاف ذلك، وتبقى بيانات حسابك محفوظة."],
     ["هل البريد وواتساب ضمن حد واحد؟", "لا. حد رسائل البريد مستقل ويظهر لكل باقة، أما رسائل واتساب الرسمية فتُحتسب حسب الاستخدام. استهلاك قناة لا يخصم من رصيد القناة الأخرى."],
@@ -1798,7 +1802,7 @@ function marketingPricingPage() {
           </article>
           <article class="card topup-card pricing-extra-card">
             <div><h2>شحن رصيد البريد</h2><p>اشحن رصيدًا لاستخدام رسائل البريد حسب احتياجك.</p></div>
-            <div class="credit-grid">${topups.map((amount) => `<div class="credit-option"><span>رصيد بريد</span><strong>${amount} ر.س</strong><button class="btn btn-secondary" data-link="/register?emailTopup=${amount}">شحن الآن</button></div>`).join("")}</div>
+            <div class="credit-grid">${topups.map(({ amount, messages }) => `<div class="credit-option"><span>${messages.toLocaleString(isEnglish ? "en-US" : "ar-SA")} ${isEnglish ? "email messages" : "رسالة بريد"}</span><strong>${amount.toLocaleString(isEnglish ? "en-US" : "ar-SA")} ${isEnglish ? "SAR" : "ر.س"}</strong><button class="btn btn-secondary" data-link="/register?emailTopup=${amount}">شحن الآن</button></div>`).join("")}</div>
           </article>
         </div>
       </div>
@@ -3150,12 +3154,12 @@ function campaignCreateModalMarkup() {
     </section>
     <section class="campaign-form-grid">
       <label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="مثال: عروض نهاية الشهر"></label>
-      <label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="campaign-channel"><option value="whatsapp">واتساب عبر Meta Cloud API</option><option value="email">البريد الإلكتروني عبر Resend</option></select></label>
+      <label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="campaign-channel"><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option></select></label>
       <label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="600" placeholder="الغرض من الحملة"></label>
       <label class="field"><span>اختيار المجموعة</span><select class="select" name="groupId"><option value="">كل جهات الاتصال المؤهلة</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)} (${Number(group.contactsCount || 0).toLocaleString("ar-SA")})</option>`).join("")}</select><small>تُستخدم مجموعات جهات الاتصال المحفوظة فقط.</small></label>
       <div data-campaign-panel="whatsapp" class="campaign-channel-fields">
-        <label class="field"><span>اختيار الأجهزة</span><select class="select" name="whatsappChannelId" required><option value="">اختر جهازًا متصلًا</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا يوجد جهاز Meta متصل. اربط جهازًا قبل تفعيل الحملة.</small>`}</label>
-        <label class="field"><span>اختيار القالب</span><select class="select" name="metaTemplateId" data-action="campaign-template"><option value="">محتوى مخصص بدون قالب</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-channel-id="${escapeHtml(template.channelId)}" data-template-body="${escapeHtml(campaignMetaTemplateBody(template))}">${escapeHtml(template.name || "قالب Meta")} — ${escapeHtml(template.language || "ar")}</option>`).join("")}</select><small>تظهر قوالب Meta المعتمدة فقط.</small></label>
+        <label class="field"><span>اختيار الأجهزة</span><select class="select" name="whatsappChannelId" required><option value="">اختر جهازًا متصلًا</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا توجد قناة واتساب متصلة. اربط قناة قبل تفعيل الحملة.</small>`}</label>
+        <label class="field"><span>اختيار القالب</span><select class="select" name="metaTemplateId" data-action="campaign-template"><option value="">محتوى مخصص بدون قالب</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-channel-id="${escapeHtml(template.channelId)}" data-template-body="${escapeHtml(campaignMetaTemplateBody(template))}">${escapeHtml(template.name || "قالب واتساب")} — ${escapeHtml(template.language || "ar")}</option>`).join("")}</select><small>تظهر قوالب واتساب الجاهزة للإرسال فقط.</small></label>
       </div>
       <div data-campaign-panel="email" class="campaign-channel-fields" hidden>
         <label class="field"><span>اختيار القالب</span><select class="select" name="templateId" data-action="campaign-template" disabled><option value="">محتوى بريد مخصص</option>${emailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-template-body="${escapeHtml(template.body || "")}" data-template-subject="${escapeHtml(template.subject || template.name || "")}">${escapeHtml(template.name)}</option>`).join("")}</select></label>
@@ -4708,9 +4712,10 @@ function billingInvoices(invoices = []) {
   return `<article class="card table-card billing-tab-panel"><div class="section-head"><div><h2>الفواتير</h2><p>لا تظهر إلا الفواتير الصادرة والمسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد إتمام أول عملية دفع موثقة.")}</article>`;
 }
 
-function emailCreditPanel(emailUsage = {}) {
+function emailCreditPanel(emailUsage = {}, showUpgrade = true) {
   const remaining = Math.max(0, Number(emailUsage.remaining || 0));
-  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد رسائل البريد</h2><p>رصيد البريد مرتبط بحد باقتك. اطلب زيادة الرصيد أو ترقية الباقة دون التأثير على ربط واتساب الرسمي.</p></div><strong>${remaining.toLocaleString("ar-SA")} رسالة متبقية</strong></div><div class="topup-amounts"><button class="topup-option" data-link="/dashboard/support"><strong>طلب رصيد إضافي</strong><span>يراجعه فريق الدعم</span></button><button class="topup-option" data-action="billing-tab" data-tab="plans"><strong>ترقية الباقة</strong><span>حد بريد أعلى</span></button></div><div class="billing-safe-note">${dashboardIcon("security")} لا تتم إضافة رسوم أو أرصدة وهمية. سيُوثق أي رصيد إضافي ضمن باقتك وفواتير حسابك.</div></article>`;
+  const packages = [50, 100, 250, 500, 1000].map((amount) => ({ amount, messages: amount / 50 * 1500 }));
+  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد رسائل البريد</h2><p>اختر عدد الرسائل المناسب دون التأثير على ربط واتساب الرسمي.</p></div><strong>${remaining.toLocaleString("ar-SA")} رسالة متبقية</strong></div><div class="topup-amounts billing-topup-actions"><button class="topup-option" data-action="billing-tab" data-tab="topup"><strong>طلب رصيد إضافي</strong><span>عرض باقات رسائل البريد</span></button>${showUpgrade ? `<button class="topup-option" data-action="billing-tab" data-tab="plans"><strong>ترقية الباقة</strong><span>حد بريد أعلى</span></button>` : ""}</div><div class="email-credit-packages" aria-label="باقات رصيد رسائل البريد">${packages.map(({ amount, messages }) => `<article class="email-credit-package"><strong>${messages.toLocaleString("ar-SA")} رسالة</strong><span>${amount.toLocaleString("ar-SA")} ر.س</span></article>`).join("")}</div><div class="billing-safe-note">${dashboardIcon("security")} لا تتم إضافة رسوم أو أرصدة وهمية. سيُوثق أي رصيد إضافي مدفوع ضمن باقتك وفواتير حسابك.</div></article>`;
 }
 
 function billingWorkspacePage() {
@@ -4729,6 +4734,7 @@ function billingWorkspacePage() {
   const storage = data.storage || { usedMb: 0, limitMb: 100, percent: 0 };
   const days = current.currentPeriodEnd ? Math.max(0, Math.ceil((new Date(current.currentPeriodEnd) - Date.now()) / 86400000)) : 0;
   const invoices = data.invoices || [];
+  const showUpgrade = data.commerceConnection?.connected !== true;
   const tab = ["overview", "plans", "whatsapp", "email", "topup", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
   const consumedEmail = Number(emailUsage.used || 0) + Number(emailUsage.reserved || 0);
   const emailLimit = Number(emailUsage.limit || 0);
@@ -4745,11 +4751,11 @@ function billingWorkspacePage() {
     <article class="card billing-stat"><span>${dashboardIcon("billing")}</span><div><small>مساحة التخزين</small><strong>${storage.usedMb} / ${storage.limitMb} MB</strong><em>${storage.percent}% مستخدم</em></div></article>
   </section>`;
   let panel = "";
-  if (tab === "overview") panel = `${overview}<section class="billing-channel-grid section">${whatsappBillingCard(whatsapp, state.whatsappUsageExpanded)}${emailBillingCard(usage)}</section><section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>حد البريد مرتبط بالباقة، بينما استخدام واتساب وفوترته يُداران مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article><aside class="billing-side">${emailCreditPanel(emailUsage)}<article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>`;
+  if (tab === "overview") panel = `${overview}<section class="billing-channel-grid section">${whatsappBillingCard(whatsapp, state.whatsappUsageExpanded)}${emailBillingCard(usage)}</section><section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>حد البريد مرتبط بالباقة، بينما استخدام واتساب وفوترته يُداران مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article><aside class="billing-side">${emailCreditPanel(emailUsage, showUpgrade)}<article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>`;
   if (tab === "plans") panel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات الشهرية تشمل المنصة والبريد، بينما واتساب الرسمي يُدار ويُحاسب مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
   if (tab === "whatsapp") panel = `<section class="billing-tab-panel">${whatsappBillingCard(whatsapp, true)}</section>`;
   if (tab === "email") panel = `<section class="billing-tab-panel">${emailBillingCard(usage)}</section>`;
-  if (tab === "topup") panel = emailCreditPanel(emailUsage);
+  if (tab === "topup") panel = emailCreditPanel(emailUsage, showUpgrade);
   if (tab === "invoices") panel = billingInvoices(invoices);
   return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">إدارة خطتك ورصيد البريد والفواتير، مع عرض استخدام واتساب المتزامن من Meta.</p>
     <nav class="billing-tabs" aria-label="أقسام الفوترة">${tabs.map(([key, label]) => `<button class="${tab === key ? "active" : ""}" data-action="billing-tab" data-tab="${key}">${label}</button>`).join("")}</nav>${panel}`);

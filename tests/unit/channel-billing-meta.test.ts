@@ -50,8 +50,29 @@ describe("channel billing separation", () => {
 
   it("routes additional credit requests to email instead of WhatsApp", () => {
     expect(appSource).toContain("شحن رصيد رسائل البريد");
-    expect(appSource).toContain("function emailCreditPanel(emailUsage = {})");
-    expect(appSource).toContain('data-link="/dashboard/support"');
+    expect(appSource).toContain("function emailCreditPanel(emailUsage = {}, showUpgrade = true)");
+    expect(appSource).toContain('class="email-credit-packages"');
+    expect(appSource).toContain("messages: amount / 50 * 1500");
+    expect(appSource).toContain('data-action="billing-tab" data-tab="topup"');
+    expect(appSource).not.toContain("يراجعه فريق الدعم");
+  });
+
+  it("hides plan upgrades when Salla or Zid is already connected", () => {
+    expect(billingSource).toContain("provider IN ('salla','zid')");
+    expect(billingSource).toContain("status IN ('connected','ready')");
+    expect(billingSource).toContain("commerceConnection: {");
+    expect(appSource).toContain("const showUpgrade = data.commerceConnection?.connected !== true");
+    expect(appSource).toContain("emailCreditPanel(emailUsage, showUpgrade)");
+  });
+
+  it("keeps provider names out of the campaign creation channel selector", () => {
+    const start = appSource.indexOf("function campaignCreateModalMarkup");
+    const end = appSource.indexOf("function campaignsPage", start);
+    const campaignCreateSource = appSource.slice(start, end);
+    expect(campaignCreateSource).toContain('<option value="whatsapp">واتساب</option>');
+    expect(campaignCreateSource).toContain('<option value="email">البريد الإلكتروني</option>');
+    expect(campaignCreateSource).not.toContain("Meta Cloud API");
+    expect(campaignCreateSource).not.toContain("Resend");
   });
 });
 
