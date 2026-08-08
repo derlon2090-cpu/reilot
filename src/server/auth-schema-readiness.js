@@ -4,8 +4,12 @@ export const REQUIRED_AUTH_MIGRATION = "0060_email_otp_pending_and_trusted_brows
 
 const REQUIRED_COLUMNS = [
   "auth_email_otp_challenges.login_attempt_id",
+  "auth_email_otp_challenges.updated_at",
   "auth_mfa_login_challenges.login_attempt_id",
   "auth_mfa_login_challenges.target_path",
+  "auth_mfa_login_challenges.updated_at",
+  "auth_trusted_devices.revoke_reason",
+  "auth_trusted_devices.updated_at",
   "users.email_verified_at",
   "users.mfa_last_verified_step"
 ];
@@ -21,8 +25,9 @@ export async function authSchemaHealth() {
     WHERE table_schema = 'public'
       AND (
         (table_name = 'users' AND column_name IN ('email_verified_at', 'mfa_last_verified_step'))
-        OR (table_name = 'auth_email_otp_challenges' AND column_name = 'login_attempt_id')
-        OR (table_name = 'auth_mfa_login_challenges' AND column_name IN ('target_path', 'login_attempt_id'))
+        OR (table_name = 'auth_email_otp_challenges' AND column_name IN ('login_attempt_id', 'updated_at'))
+        OR (table_name = 'auth_mfa_login_challenges' AND column_name IN ('target_path', 'login_attempt_id', 'updated_at'))
+        OR (table_name = 'auth_trusted_devices' AND column_name IN ('revoke_reason', 'updated_at'))
       )`,
     [REQUIRED_AUTH_MIGRATION]
   );

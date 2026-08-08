@@ -13,8 +13,12 @@ describe("authentication database schema readiness", () => {
       pending_registration_table: true,
       available_columns: [
         "auth_email_otp_challenges.login_attempt_id",
+        "auth_email_otp_challenges.updated_at",
         "auth_mfa_login_challenges.login_attempt_id",
         "auth_mfa_login_challenges.target_path",
+        "auth_mfa_login_challenges.updated_at",
+        "auth_trusted_devices.revoke_reason",
+        "auth_trusted_devices.updated_at",
         "users.email_verified_at",
         "users.mfa_last_verified_step"
       ]

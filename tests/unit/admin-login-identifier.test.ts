@@ -80,4 +80,15 @@ describe("admin login identifiers", () => {
       code: ""
     });
   });
+
+  it("identifies a failed email fallback challenge without misreporting a database outage", () => {
+    expect(classifyAdminAuthFailure({
+      authStage: "email_otp_fallback_challenge"
+    })).toEqual({
+      reason: "auth_challenge_error",
+      status: 503,
+      stage: "email_otp_fallback_challenge",
+      code: ""
+    });
+  });
 });

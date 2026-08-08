@@ -95,13 +95,19 @@ export async function createMfaLoginChallenge({ user, ipAddress, userAgent, targ
        RETURNING id,expires_at AS "expiresAt"`,
       [user.id, user.tenantId, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null, targetPath === "/admin" ? "/admin" : "/dashboard", loginAttemptId]
     );
-    await client.query(
+    return inserted.rows[0];
+  });
+  // Auditing is useful, but it is not part of the security decision. A legacy
+  // audit table must not roll back an otherwise valid MFA challenge.
+  try {
+    await query(
       `INSERT INTO activity_logs (tenant_id,user_id,type,title)
        VALUES ($1,$2,'auth.mfa.requested','Authenticator verification requested')`,
       [user.tenantId, user.id]
     );
-    return inserted.rows[0];
-  });
+  } catch (error) {
+    console.error("MFA challenge audit unavailable", { code: String(error?.code || "AUDIT_ERROR") });
+  }
   return { challengeCookie: signChallengeId(row.id), expiresAt: row.expiresAt };
 }
 

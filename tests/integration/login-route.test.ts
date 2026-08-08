@@ -118,6 +118,7 @@ describe("POST /api/auth/login", () => {
   it.each([
     ["42P01", "credential_lookup", 503, "auth_database_error"],
     ["", "session_creation", 503, "auth_session_error"],
+    ["", "email_otp_fallback_challenge", 503, "auth_challenge_error"],
     ["AUTH_CONFIGURATION_ERROR", "email_otp_challenge", 503, "auth_configuration_error"]
   ])("classifies internal authentication failures without exposing server details", (code, stage, status, reason) => {
     expect(classifyAuthFailure({ code, authStage: stage })).toEqual({ code, stage, status, reason });

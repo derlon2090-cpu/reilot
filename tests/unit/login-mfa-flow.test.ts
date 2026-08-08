@@ -115,6 +115,16 @@ describe("MFA login challenge", () => {
     expect(rawCookie).toMatch(new RegExp(`^${challengeId}\\.`));
   });
 
+  it("keeps a valid challenge when the non-critical activity audit is unavailable", async () => {
+    queryMock.mockRejectedValueOnce(Object.assign(new Error("legacy activity log schema"), { code: "42703" }));
+
+    const rawCookie = await signedChallenge();
+
+    expect(rawCookie).toMatch(new RegExp(`^${challengeId}\\.`));
+    expect(transactionMock).toHaveBeenCalledOnce();
+    expect(createSessionMock).not.toHaveBeenCalled();
+  });
+
   it("does not create a session for an invalid code and consumes an attempt", async () => {
     const rawCookie = await signedChallenge();
     const client = createClient();

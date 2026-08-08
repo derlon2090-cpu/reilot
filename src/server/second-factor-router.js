@@ -13,7 +13,18 @@ export async function resolveSecondFactor({ user, rawBrowserToken = "", riskDete
   if (!secondFactorRequired()) {
     return { method: "none", reason: "policy_disabled", requiresChallenge: false };
   }
-  const browser = await validateTrustedBrowser({ userId: user.id, rawToken: rawBrowserToken, riskDetected });
+  let browser;
+  try {
+    browser = await validateTrustedBrowser({ userId: user.id, rawToken: rawBrowserToken, riskDetected });
+  } catch (error) {
+    // A stale trusted-browser row or a rolling schema mismatch must never
+    // block login. Treat the browser as untrusted and require a fresh factor;
+    // this degrades to the safer path instead of bypassing verification.
+    console.error("trusted browser validation unavailable", {
+      code: String(error?.code || "TRUSTED_BROWSER_VALIDATION_ERROR")
+    });
+    browser = { trusted: false, reason: "validation_unavailable" };
+  }
   if (browser.trusted) {
     return { method: "trusted_browser", reason: "valid", requiresChallenge: false, browser };
   }

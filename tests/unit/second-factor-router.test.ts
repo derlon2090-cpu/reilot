@@ -34,4 +34,10 @@ describe("SecondFactorRouter", () => {
     const factor = await resolveSecondFactor({ user: { id: "user-a", mfaEnabled: true, mfaSecret: "secret" } });
     expect(factor.method).toBe("totp");
   });
+
+  it("fails closed to a fresh factor when trusted-browser validation is unavailable", async () => {
+    validateTrustedBrowser.mockRejectedValue(Object.assign(new Error("legacy trusted-device schema"), { code: "42703" }));
+    const factor = await resolveSecondFactor({ user: { id: "user-a", mfaEnabled: true, mfaSecret: "secret" }, rawBrowserToken: "token" });
+    expect(factor).toMatchObject({ method: "totp", reason: "validation_unavailable", requiresChallenge: true });
+  });
 });

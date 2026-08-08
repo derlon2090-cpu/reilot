@@ -55,6 +55,15 @@ describe("credential login second-factor precedence", () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
+  it("requires email OTP instead of bypassing verification when TOTP challenge creation fails", async () => {
+    mocks.resolveSecondFactor.mockResolvedValue({ method: "totp", reason: "missing_cookie", requiresChallenge: true });
+    mocks.createMfaLoginChallenge.mockRejectedValue(Object.assign(new Error("challenge store unavailable"), { code: "42703" }));
+    const result = await loginAccount({ email: user.email, password: "CorrectPassword1!", ipAddress: "127.0.0.1", userAgent: "iPad" });
+    expect(result).toMatchObject({ ok: true, status: 202, requiresEmailOtp: true, fallbackFrom: "totp" });
+    expect(mocks.createLoginEmailOtpChallenge).toHaveBeenCalledWith(expect.objectContaining({ purpose: "login", loginAttemptId: "attempt-1" }));
+    expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
   it("creates a session directly only when the router accepts the trusted browser", async () => {
     mocks.resolveSecondFactor.mockResolvedValue({ method: "trusted_browser", reason: "valid", requiresChallenge: false });
     const result = await loginAccount({ email: user.email, password: "CorrectPassword1!", ipAddress: "127.0.0.1", userAgent: "Safari", trustedDeviceToken: "token" });

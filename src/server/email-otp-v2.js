@@ -176,9 +176,21 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
     );
     const row = inserted.rows[0];
     await client.query("UPDATE auth_email_otp_challenges SET code_digest = $2 WHERE id = $1", [row.id, digestOtp(code, row.id)]);
-    await audit(client, { tenantId: user.tenantId, userId: user.id, type: "auth.email_otp.requested", title: "Email OTP requested", metadata: { purpose } });
     return { ...row, reused: false };
   });
+  if (!challenge.reused) {
+    // Keep the challenge durable even if a legacy/non-critical audit write is
+    // temporarily unavailable. Verification itself remains mandatory.
+    await audit({ query }, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      type: "auth.email_otp.requested",
+      title: "Email OTP requested",
+      metadata: { purpose }
+    }).catch((error) => {
+      console.error("Email OTP challenge audit unavailable", { code: String(error?.code || "AUDIT_ERROR") });
+    });
+  }
   if (!challenge.reused) {
     try {
       await sendLoginEmailOtp({ to: user.email, code, expiresInMinutes: 5, locale, name: user.name });

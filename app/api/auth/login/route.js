@@ -15,6 +15,9 @@ export function classifyAuthFailure(error) {
   if (["EMAIL_DELIVERY_UNAVAILABLE", "EMAIL_PROVIDER_ERROR", "EMAIL_CONFIGURATION_ERROR"].includes(code)) {
     return { reason: "email_otp_unavailable", status: 503, stage, code };
   }
+  if (["second_factor_routing", "mfa_challenge", "email_otp_challenge", "email_otp_fallback_challenge"].includes(stage)) {
+    return { reason: "auth_challenge_error", status: 503, stage, code };
+  }
   return { reason: "server_error", status: 500, stage, code };
 }
 
@@ -52,6 +55,7 @@ export async function POST(req) {
         {
           ok: true,
           requiresEmailOtp: true,
+          fallbackFrom: result.fallbackFrom,
           maskedEmail: result.challenge.maskedEmail,
           expiresAt: result.challenge.expiresAt,
           resendAt: result.challenge.resendAt

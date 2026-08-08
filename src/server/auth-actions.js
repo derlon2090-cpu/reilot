@@ -120,18 +120,38 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
 
   if (factor.method === "totp") {
     authStage = "mfa_challenge";
-    const challenge = await createMfaLoginChallenge({
-      user,
-      ipAddress,
-      userAgent,
-      loginAttemptId: loginAttempt.rows[0]?.id
-    });
-    return {
-      ok: true,
-      status: 202,
-      requiresMfa: true,
-      challenge
-    };
+    try {
+      const challenge = await createMfaLoginChallenge({
+        user,
+        ipAddress,
+        userAgent,
+        loginAttemptId: loginAttempt.rows[0]?.id
+      });
+      return {
+        ok: true,
+        status: 202,
+        requiresMfa: true,
+        challenge
+      };
+    } catch (mfaError) {
+      if (!emailOtpDeliveryConfigured()) throw mfaError;
+      authStage = "email_otp_fallback_challenge";
+      const challenge = await createLoginEmailOtpChallenge({
+        user,
+        ipAddress,
+        userAgent,
+        locale,
+        purpose: "login",
+        loginAttemptId: loginAttempt.rows[0]?.id
+      });
+      return {
+        ok: true,
+        status: 202,
+        requiresEmailOtp: true,
+        fallbackFrom: "totp",
+        challenge
+      };
+    }
   }
 
   if (factor.method === "email_otp") {

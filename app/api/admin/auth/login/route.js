@@ -39,7 +39,7 @@ export function classifyAdminAuthFailure(error) {
   if (stage === "session_creation") {
     return { reason: "auth_session_error", status: 503, stage, code };
   }
-  if (["second_factor_routing", "mfa_challenge", "email_otp_challenge"].includes(stage)) {
+  if (["second_factor_routing", "mfa_challenge", "email_otp_challenge", "email_otp_fallback_challenge"].includes(stage)) {
     return { reason: "auth_challenge_error", status: 503, stage, code };
   }
   return { reason: "admin_auth_service_unavailable", status: 503, stage, code };
@@ -120,14 +120,41 @@ export async function POST(request) {
   });
   if (factor.method === "totp") {
     authStage = "mfa_challenge";
-    const challenge = await createMfaLoginChallenge({
-      user: { id: admin.userId, tenantId: admin.tenantId }, ipAddress: ip,
-      userAgent: request.headers.get("user-agent"), targetPath: "/admin",
-      loginAttemptId: loginAttempt.rows[0]?.id
-    });
-    return Response.json({ ok: true, requiresMfa: true, expiresAt: challenge.expiresAt }, {
-      status: 202, headers: { "Set-Cookie": mfaChallengeCookie(challenge.challengeCookie) }
-    });
+    try {
+      const challenge = await createMfaLoginChallenge({
+        user: { id: admin.userId, tenantId: admin.tenantId }, ipAddress: ip,
+        userAgent: request.headers.get("user-agent"), targetPath: "/admin",
+        loginAttemptId: loginAttempt.rows[0]?.id
+      });
+      return Response.json({ ok: true, requiresMfa: true, expiresAt: challenge.expiresAt }, {
+        status: 202, headers: { "Set-Cookie": mfaChallengeCookie(challenge.challengeCookie) }
+      });
+    } catch (mfaError) {
+      // Never bypass the second factor. If the TOTP challenge store is
+      // temporarily unavailable, require the independently verified email
+      // factor so an administrator can still recover access safely.
+      console.error("admin TOTP challenge unavailable; requiring email fallback", {
+        requestId,
+        code: String(mfaError?.code || "MFA_CHALLENGE_ERROR")
+      });
+      if (!adminEmailOtpConfigured()) throw mfaError;
+      authStage = "email_otp_fallback_challenge";
+      const challenge = await createLoginEmailOtpChallenge({
+        user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
+        ipAddress: ip, userAgent: request.headers.get("user-agent"), purpose: "admin_login",
+        loginAttemptId: loginAttempt.rows[0]?.id
+      });
+      return Response.json({
+        ok: true,
+        requiresEmailOtp: true,
+        fallbackFrom: "totp",
+        maskedEmail: challenge.maskedEmail,
+        expiresAt: challenge.expiresAt,
+        resendAt: challenge.resendAt
+      }, {
+        status: 202, headers: { "Set-Cookie": challengeCookie(challenge.challengeCookie) }
+      });
+    }
   }
   if (factor.method === "email_otp") {
     if (!adminEmailOtpConfigured()) {
