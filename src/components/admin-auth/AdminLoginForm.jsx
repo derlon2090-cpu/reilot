@@ -52,7 +52,9 @@ export default function AdminLoginForm() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setFieldErrors(data.errors || {});
-        if (data.reason === "admin_service_unavailable" || response.status >= 500) showToast("error", "خدمة لوحة الأدمن غير متاحة", "تعذر الاتصال بقاعدة البيانات. شغّل قاعدة PostgreSQL واضبط DATABASE_URL ثم حاول مجددًا.", true);
+        if (data.reason === "database_unavailable") showToast("error", "تعذر الاتصال بقاعدة البيانات مؤقتًا", "الاتصال بالخادم لم يثبت بعد محاولتي اتصال آمنتين. انتظر لحظات ثم حاول مجددًا.", true);
+        else if (data.reason === "database_schema_missing") showToast("error", "تحديث قاعدة البيانات مطلوب", "قاعدة البيانات متصلة، لكن مخطط لوحة الأدمن غير مكتمل. يجب تطبيق migrations المنشورة ثم إعادة المحاولة.", true);
+        else if (data.reason === "admin_auth_service_unavailable" || data.reason === "admin_service_unavailable" || response.status >= 500) showToast("error", "تعذر إكمال التحقق الآمن", "قاعدة البيانات متصلة، لكن تعذر إكمال خطوة التحقق. حاول مجددًا، وإن استمر الخطأ راجع سجل الخادم برمز الطلب.", true);
         else if (data.reason === "rate_limited") showToast("warning", "تم إيقاف محاولات الدخول مؤقتًا", "تم رصد محاولات دخول متكررة. حاول مجددًا بعد 15 دقيقة.");
         else if (data.reason === "admin_disabled") showToast("error", "الحساب غير متاح", "تم تعطيل هذا الحساب. تواصل مع المسؤول الأعلى.");
         else if (data.reason === "admin_expired") showToast("warning", "انتهت صلاحية حساب الأدمن", "اطلب إنشاء حساب مؤقت جديد من المسؤول الأعلى.");

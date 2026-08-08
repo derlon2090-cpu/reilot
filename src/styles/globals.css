@@ -3478,7 +3478,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   position: relative;
   color: #1769ed !important;
   border: 1px solid #cfe2fb !important;
-  border-radius: 18px !important;
+  border-radius: 16px !important;
   background: linear-gradient(135deg, #f3f8ff 0%, #eaf3ff 100%) !important;
   box-shadow: 0 8px 24px rgba(23, 105, 237, .08) !important;
 }
@@ -3505,7 +3505,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   gap: clamp(15px, 2.1vw, 34px);
 }
 .public-site .nav-link {
-  min-height: 78px;
+  min-height: 60px;
   padding: 0 14px;
   gap: 8px;
   color: #263d62;

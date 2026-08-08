@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
-import { query, transaction } from "../../../../../src/server/db.js";
+import { databaseFailureReason, query, transaction } from "../../../../../src/server/db.js";
 import { verifyPassword } from "../../../../../src/server/password.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { createSession, destroySession, sessionCookie } from "../../../../../src/server/session.js";
@@ -125,10 +125,15 @@ export async function POST(request) {
     }, { headers: { "Set-Cookie": sessionCookie(session.token, parsed.data.rememberMe ? maxAgeSeconds : null) } });
   } catch (error) {
     console.error("admin login unavailable", safeErrorMessage(error));
+    const reason = databaseFailureReason(error);
     return Response.json({
       ok: false,
-      reason: "admin_service_unavailable",
-      message: "خدمة لوحة الأدمن غير متاحة حاليًا بسبب تعذر الاتصال بقاعدة البيانات."
+      reason,
+      message: reason === "database_unavailable"
+        ? "تعذر الاتصال بقاعدة البيانات مؤقتًا. حاول مجددًا بعد لحظات."
+        : reason === "database_schema_missing"
+          ? "مخطط قاعدة بيانات لوحة الأدمن غير مكتمل."
+          : "تعذر إكمال التحقق الآمن من حساب الأدمن."
     }, { status: 503 });
   }
 }

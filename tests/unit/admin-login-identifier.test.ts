@@ -10,6 +10,7 @@ vi.mock("../../src/server/admin-auth.js", () => ({
   requestIp: () => "127.0.0.1"
 }));
 vi.mock("../../src/server/db.js", () => ({
+  databaseFailureReason: vi.fn(() => "admin_auth_service_unavailable"),
   query: queryMock,
   transaction: async (callback: (client: { query: ReturnType<typeof vi.fn> }) => unknown) => callback({ query: vi.fn() })
 }));
