@@ -39,6 +39,9 @@ export function classifyAdminAuthFailure(error) {
   if (stage === "session_creation") {
     return { reason: "auth_session_error", status: 503, stage, code };
   }
+  if (["second_factor_routing", "mfa_challenge", "email_otp_challenge"].includes(stage)) {
+    return { reason: "auth_challenge_error", status: 503, stage, code };
+  }
   return { reason: "admin_auth_service_unavailable", status: 503, stage, code };
 }
 
@@ -179,6 +182,7 @@ export async function POST(request) {
       ok: false,
       reason,
       requestId,
+      diagnosticStage: failure.stage,
       message: reason === "database_unavailable"
         ? "تعذر الاتصال بقاعدة البيانات مؤقتًا. حاول مجددًا بعد لحظات."
         : reason === "database_schema_missing"

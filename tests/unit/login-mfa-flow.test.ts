@@ -104,6 +104,17 @@ describe("MFA login challenge", () => {
     );
   });
 
+  it("uses the configured email OTP pepper to sign a TOTP challenge when a dedicated MFA challenge key is absent", async () => {
+    delete process.env.MFA_CHALLENGE_KEY;
+    delete process.env.MFA_ENCRYPTION_KEY;
+    delete process.env.ENCRYPTION_KEY;
+    process.env.EMAIL_OTP_PEPPER = "test-email-otp-pepper-that-is-long-enough";
+
+    const rawCookie = await signedChallenge();
+
+    expect(rawCookie).toMatch(new RegExp(`^${challengeId}\\.`));
+  });
+
   it("does not create a session for an invalid code and consumes an attempt", async () => {
     const rawCookie = await signedChallenge();
     const client = createClient();

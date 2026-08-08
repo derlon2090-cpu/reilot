@@ -65,9 +65,13 @@ export default function AdminLoginForm() {
           showToast("error", "تعذر تثبيت جلسة الأدمن", `تم التحقق من البيانات لكن تعذر إنشاء الجلسة الآمنة.${requestReference}`, true);
           return;
         }
+        if (data.reason === "auth_challenge_error") {
+          showToast("error", "تعذر إنشاء خطوة التحقق", `تعذر تجهيز رمز التحقق الآمن. حاول مجددًا، وإن استمر الخطأ زوّد الدعم برمز الطلب.${requestReference}`, true);
+          return;
+        }
         if (data.reason === "database_unavailable") showToast("error", "تعذر الاتصال بقاعدة البيانات مؤقتًا", "الاتصال بالخادم لم يثبت بعد محاولتي اتصال آمنتين. انتظر لحظات ثم حاول مجددًا.", true);
         else if (data.reason === "database_schema_missing") showToast("error", "تحديث قاعدة البيانات مطلوب", "قاعدة البيانات متصلة، لكن مخطط لوحة الأدمن غير مكتمل. يجب تطبيق migrations المنشورة ثم إعادة المحاولة.", true);
-        else if (data.reason === "admin_auth_service_unavailable" || data.reason === "admin_service_unavailable" || response.status >= 500) showToast("error", "تعذر إكمال التحقق الآمن", "قاعدة البيانات متصلة، لكن تعذر إكمال خطوة التحقق. حاول مجددًا، وإن استمر الخطأ راجع سجل الخادم برمز الطلب.", true);
+        else if (data.reason === "admin_auth_service_unavailable" || data.reason === "admin_service_unavailable" || response.status >= 500) showToast("error", "تعذر إكمال التحقق الآمن", `قاعدة البيانات متصلة، لكن تعذر إكمال خطوة التحقق. حاول مجددًا، وإن استمر الخطأ راجع سجل الخادم.${requestReference}`, true);
         else if (data.reason === "rate_limited") showToast("warning", "تم إيقاف محاولات الدخول مؤقتًا", "تم رصد محاولات دخول متكررة. حاول مجددًا بعد 15 دقيقة.");
         else if (data.reason === "admin_disabled") showToast("error", "الحساب غير متاح", "تم تعطيل هذا الحساب. تواصل مع المسؤول الأعلى.");
         else if (data.reason === "admin_expired") showToast("warning", "انتهت صلاحية حساب الأدمن", "اطلب إنشاء حساب مؤقت جديد من المسؤول الأعلى.");

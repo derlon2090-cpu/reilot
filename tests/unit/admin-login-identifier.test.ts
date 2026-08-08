@@ -69,4 +69,15 @@ describe("admin login identifiers", () => {
       code: "EMAIL_PROVIDER_ERROR"
     });
   });
+
+  it("identifies second-factor challenge failures instead of returning the generic admin error", () => {
+    expect(classifyAdminAuthFailure({
+      authStage: "mfa_challenge"
+    })).toEqual({
+      reason: "auth_challenge_error",
+      status: 503,
+      stage: "mfa_challenge",
+      code: ""
+    });
+  });
 });

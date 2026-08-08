@@ -9,9 +9,26 @@ export const MFA_LOGIN_CHALLENGE_COOKIE = "renvix_mfa_login_challenge";
 const MFA_LOGIN_TTL_SECONDS = 5 * 60;
 
 function challengeKey() {
-  const value = process.env.MFA_CHALLENGE_KEY || process.env.MFA_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
-  if (!value || value.length < 24) throw new Error("MFA challenge key is missing or too short");
+  const value = process.env.MFA_CHALLENGE_KEY?.trim()
+    || process.env.MFA_ENCRYPTION_KEY?.trim()
+    || process.env.ENCRYPTION_KEY?.trim()
+    || process.env.EMAIL_OTP_PEPPER?.trim()
+    || "";
+  if (value.length < 24) {
+    throw Object.assign(new Error("MFA challenge signing key is missing or too short"), {
+      code: "AUTH_CONFIGURATION_ERROR"
+    });
+  }
   return value;
+}
+
+export function mfaChallengeSigningConfigured() {
+  return Boolean(
+    process.env.MFA_CHALLENGE_KEY?.trim().length >= 24
+    || process.env.MFA_ENCRYPTION_KEY?.trim().length >= 24
+    || process.env.ENCRYPTION_KEY?.trim().length >= 24
+    || process.env.EMAIL_OTP_PEPPER?.trim().length >= 24
+  );
 }
 
 function secureCookieEnabled() {
@@ -55,6 +72,9 @@ export function readMfaChallengeCookie(request) {
 }
 
 export async function createMfaLoginChallenge({ user, ipAddress, userAgent, targetPath = "/dashboard", loginAttemptId = null }) {
+  // Resolve the signing key before writing a challenge so a configuration
+  // problem can never leave a pending row that has no usable cookie.
+  challengeKey();
   const row = await transaction(async (client) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`mfa-login:${user.id}`]);
     await client.query(

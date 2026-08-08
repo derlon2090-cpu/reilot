@@ -3,6 +3,7 @@ import { evolutionEndpointProfile, evolutionHealth } from "../../../src/server/e
 import { safeErrorMessage } from "../../../src/server/security.js";
 import { authSchemaHealth } from "../../../src/server/auth-schema-readiness.js";
 import { resendProviderHealth } from "../../../src/lib/email/resend.js";
+import { mfaChallengeSigningConfigured } from "../../../src/server/login-mfa.js";
 
 export async function GET() {
   const policy = {
@@ -16,6 +17,7 @@ export async function GET() {
   const emailOtpRequired = true;
   const otpPepperReady = (process.env.EMAIL_OTP_PEPPER?.trim().length || 0) >= 24;
   const resendReady = Boolean(process.env.RESEND_API_KEY?.trim());
+  const mfaChallengeReady = mfaChallengeSigningConfigured();
   const authPolicyReady = policy.secondFactorRequired
     && policy.signupEmailOtpRequired
     && policy.emailFallbackEnabled
@@ -33,6 +35,7 @@ export async function GET() {
       fromConfigured: true
     },
     emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
+    mfaChallenge: { required: policy.secondFactorRequired, signingKeyConfigured: mfaChallengeReady, ok: !policy.secondFactorRequired || mfaChallengeReady },
     evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false, endpoint: evolutionEndpointProfile() }
   };
   try {
@@ -53,7 +56,7 @@ export async function GET() {
       checks.evolution = { configured: true, ok: false, endpoint: evolutionEndpointProfile(), errorCode: error?.code || "EVOLUTION_ERROR", error: safeErrorMessage(error) };
     }
   }
-  const ok = checks.database.ok && checks.authSchema.ok && checks.authPolicy.ok && checks.emailOtp.ok && (!checks.evolution.configured || checks.evolution.ok);
+  const ok = checks.database.ok && checks.authSchema.ok && checks.authPolicy.ok && checks.emailOtp.ok && checks.mfaChallenge.ok && (!checks.evolution.configured || checks.evolution.ok);
   return Response.json({
     ok,
     service: "renewpilot-ai",
