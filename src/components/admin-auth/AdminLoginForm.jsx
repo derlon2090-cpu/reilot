@@ -52,6 +52,19 @@ export default function AdminLoginForm() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setFieldErrors(data.errors || {});
+        const requestReference = data.requestId ? ` رمز الطلب: ${data.requestId}` : "";
+        if (data.reason === "email_otp_unavailable") {
+          showToast("error", "تعذر إرسال رمز التحقق", `خدمة البريد لم تُكمل إرسال رمز الدخول. أعد المحاولة بعد لحظات.${requestReference}`, true);
+          return;
+        }
+        if (data.reason === "auth_configuration_error") {
+          showToast("error", "إعدادات التحقق غير مكتملة", `تعذر إنشاء تحدي التحقق الآمن بسبب إعداد في الخادم.${requestReference}`, true);
+          return;
+        }
+        if (data.reason === "auth_session_error") {
+          showToast("error", "تعذر تثبيت جلسة الأدمن", `تم التحقق من البيانات لكن تعذر إنشاء الجلسة الآمنة.${requestReference}`, true);
+          return;
+        }
         if (data.reason === "database_unavailable") showToast("error", "تعذر الاتصال بقاعدة البيانات مؤقتًا", "الاتصال بالخادم لم يثبت بعد محاولتي اتصال آمنتين. انتظر لحظات ثم حاول مجددًا.", true);
         else if (data.reason === "database_schema_missing") showToast("error", "تحديث قاعدة البيانات مطلوب", "قاعدة البيانات متصلة، لكن مخطط لوحة الأدمن غير مكتمل. يجب تطبيق migrations المنشورة ثم إعادة المحاولة.", true);
         else if (data.reason === "admin_auth_service_unavailable" || data.reason === "admin_service_unavailable" || response.status >= 500) showToast("error", "تعذر إكمال التحقق الآمن", "قاعدة البيانات متصلة، لكن تعذر إكمال خطوة التحقق. حاول مجددًا، وإن استمر الخطأ راجع سجل الخادم برمز الطلب.", true);

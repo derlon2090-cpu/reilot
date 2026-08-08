@@ -21,7 +21,7 @@ vi.mock("../../src/server/session.js", () => ({
   sessionCookie: () => "renewpilot_session=admin-session; HttpOnly"
 }));
 
-import { POST } from "../../app/api/admin/auth/login/route.js";
+import { classifyAdminAuthFailure, POST } from "../../app/api/admin/auth/login/route.js";
 
 describe("admin login identifiers", () => {
   beforeEach(() => {
@@ -55,5 +55,18 @@ describe("admin login identifiers", () => {
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
     expect(queryMock.mock.calls[1][0]).toContain("lower(a.account_id)");
     expect(auditMock).toHaveBeenCalledWith(expect.any(Request), expect.objectContaining({ action: "admin.login.success" }));
+  });
+
+  it("identifies email OTP provider failures instead of reporting a database outage", () => {
+    expect(classifyAdminAuthFailure({
+      code: "EMAIL_PROVIDER_ERROR",
+      authStage: "email_otp_challenge",
+      providerCode: "ETIMEDOUT"
+    })).toEqual({
+      reason: "email_otp_unavailable",
+      status: 503,
+      stage: "email_otp_challenge",
+      code: "EMAIL_PROVIDER_ERROR"
+    });
   });
 });

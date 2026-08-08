@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
 import { databaseFailureReason, query, transaction } from "../../../../../src/server/db.js";
@@ -17,7 +18,33 @@ const loginSchema = z.object({
   rememberMe: z.boolean().optional().default(false)
 });
 
+function adminEmailOtpConfigured() {
+  return Boolean(process.env.RESEND_API_KEY?.trim())
+    && (process.env.EMAIL_OTP_PEPPER?.trim().length || 0) >= 24;
+}
+
+export function classifyAdminAuthFailure(error) {
+  const code = String(error?.code || "");
+  const stage = String(error?.authStage || "unknown");
+  const databaseReason = databaseFailureReason(error);
+  if (["database_unavailable", "database_schema_missing"].includes(databaseReason)) {
+    return { reason: databaseReason, status: 503, stage, code };
+  }
+  if (["EMAIL_DELIVERY_UNAVAILABLE", "EMAIL_PROVIDER_ERROR", "EMAIL_CONFIGURATION_ERROR"].includes(code)) {
+    return { reason: "email_otp_unavailable", status: 503, stage, code };
+  }
+  if (code === "AUTH_CONFIGURATION_ERROR") {
+    return { reason: "auth_configuration_error", status: 503, stage, code };
+  }
+  if (stage === "session_creation") {
+    return { reason: "auth_session_error", status: 503, stage, code };
+  }
+  return { reason: "admin_auth_service_unavailable", status: 503, stage, code };
+}
+
 export async function POST(request) {
+  const requestId = crypto.randomUUID();
+  let authStage = "request_validation";
   try {
     const parsed = loginSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
@@ -25,6 +52,7 @@ export async function POST(request) {
   }
   const identifier = normalizeEmail(parsed.data.email);
   const ip = requestIp(request);
+  authStage = "rate_limit";
   const failures = await query(
     `SELECT count(*)::int AS count FROM login_attempts
       WHERE success = false AND created_at > now() - interval '15 minutes'
@@ -35,6 +63,7 @@ export async function POST(request) {
     return Response.json({ ok: false, reason: "rate_limited", message: "تم تجاوز عدد محاولات الدخول. حاول مرة أخرى لاحقًا." }, { status: 429 });
   }
 
+  authStage = "credential_lookup";
   const result = await query(
     `SELECT u.id AS "userId", u.tenant_id AS "tenantId", u.name, u.email, a.password,
             au.id AS "adminId", au.role AS "adminRole", au.status,
@@ -49,11 +78,13 @@ export async function POST(request) {
     [identifier]
   );
   const admin = result.rows[0];
+  authStage = "password_verification";
   const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.password) : false;
   const allowedRole = ["super_admin", "admin", "support_admin", "billing_admin", "security_admin", "viewer"].includes(admin?.adminRole);
   const expired = Boolean(admin?.expiresAt && new Date(admin.expiresAt).getTime() <= Date.now());
   const valid = passwordValid && admin?.adminId && admin.status === "active" && !expired && allowedRole;
 
+  authStage = "login_attempt_audit";
   const loginAttempt = await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -78,12 +109,14 @@ export async function POST(request) {
     return Response.json({ ok: false, reason: "invalid_credentials", message: "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول إلى لوحة الأدمن." }, { status: 401 });
   }
 
+  authStage = "second_factor_routing";
   const factor = await resolveSecondFactor({
     user: { id: admin.userId, mfaEnabled: admin.mfaEnabled, mfaSecret: admin.mfaSecret },
     rawBrowserToken: readTrustedBrowserCookie(request),
     riskDetected: Number(failures.rows[0]?.count || 0) >= 3
   });
   if (factor.method === "totp") {
+    authStage = "mfa_challenge";
     const challenge = await createMfaLoginChallenge({
       user: { id: admin.userId, tenantId: admin.tenantId }, ipAddress: ip,
       userAgent: request.headers.get("user-agent"), targetPath: "/admin",
@@ -94,6 +127,13 @@ export async function POST(request) {
     });
   }
   if (factor.method === "email_otp") {
+    if (!adminEmailOtpConfigured()) {
+      return Response.json({ ok: false, reason: "email_otp_unavailable", requestId }, {
+        status: 503,
+        headers: { "X-Renvix-Request-Id": requestId }
+      });
+    }
+    authStage = "email_otp_challenge";
     const challenge = await createLoginEmailOtpChallenge({
       user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
       ipAddress: ip, userAgent: request.headers.get("user-agent"), purpose: "admin_login",
@@ -107,6 +147,7 @@ export async function POST(request) {
     return Response.json({ ok: false, reason: "second_factor_unavailable" }, { status: 503 });
   }
 
+  authStage = "session_creation";
   await destroySession(request);
   const maxAgeSeconds = parsed.data.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
   const session = await transaction(async (client) => {
@@ -124,16 +165,25 @@ export async function POST(request) {
       admin: { name: admin.name, email: admin.email, role: admin.adminRole }
     }, { headers: { "Set-Cookie": sessionCookie(session.token, parsed.data.rememberMe ? maxAgeSeconds : null) } });
   } catch (error) {
-    console.error("admin login unavailable", safeErrorMessage(error));
-    const reason = databaseFailureReason(error);
+    if (error && typeof error === "object" && !error.authStage) error.authStage = authStage;
+    const failure = classifyAdminAuthFailure(error);
+    const reason = failure.reason;
+    console.error("admin login unavailable", {
+      requestId,
+      stage: failure.stage,
+      code: failure.code || "unknown",
+      providerCode: String(error?.providerCode || ""),
+      message: safeErrorMessage(error)
+    });
     return Response.json({
       ok: false,
       reason,
+      requestId,
       message: reason === "database_unavailable"
         ? "تعذر الاتصال بقاعدة البيانات مؤقتًا. حاول مجددًا بعد لحظات."
         : reason === "database_schema_missing"
           ? "مخطط قاعدة بيانات لوحة الأدمن غير مكتمل."
           : "تعذر إكمال التحقق الآمن من حساب الأدمن."
-    }, { status: 503 });
+    }, { status: failure.status, headers: { "X-Renvix-Request-Id": requestId } });
   }
 }

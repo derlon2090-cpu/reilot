@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { sendEmail } from "../../lib/email/send-email.js";
 import { baseEmail, escapeEmailHtml } from "../../lib/email/templates/base-email.js";
 import { forgotPasswordCodeEmail } from "../../lib/email/templates/forgot-password-code.js";
@@ -15,6 +16,7 @@ export async function sendLoginEmailOtp({ to, code, expiresInMinutes = 5, locale
   return sendEmail({
     to,
     tags: [{ name: "purpose", value: "login_otp" }],
+    idempotencyKey: `login-otp-${crypto.createHash("sha256").update(`${String(to).trim().toLowerCase()}:${code}`).digest("hex")}`,
     ...loginEmailOtp({ code, expiresInMinutes, locale, name })
   });
 }

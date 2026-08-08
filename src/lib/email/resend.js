@@ -28,15 +28,17 @@ function configuredFromAddress() {
   const configured = String(process.env.RESEND_FROM_EMAIL || "").trim();
   if (!configured) return RENVIX_FROM_EMAIL;
   if (!isAllowedRenvixSender(configured)) {
-    const error = new Error("RESEND_FROM_EMAIL must use renvix.app or a Renvix subdomain");
-    error.code = "EMAIL_CONFIGURATION_ERROR";
-    throw error;
+    throw configurationError("RESEND_FROM_EMAIL must use renvix.app or a Renvix subdomain");
   }
   // `notify.renvix.app` was used by the old example before that subdomain
   // existed in DNS. Keep deployments carrying the legacy value operational
   // by moving only that exact identity to the configured root-domain sender.
   if (extractAddress(configured).endsWith("@notify.renvix.app")) return RENVIX_FROM_EMAIL;
   return configured;
+}
+
+function configurationError(message) {
+  return Object.assign(new Error(message), { code: "EMAIL_CONFIGURATION_ERROR" });
 }
 
 export function getEmailConfig() {
@@ -47,12 +49,12 @@ export function getEmailConfig() {
   const from = configuredFromAddress();
   const supportEmail = String(process.env.SUPPORT_EMAIL || RENVIX_REPLY_TO_EMAIL).trim();
 
-  if (provider !== "resend") throw new Error("EMAIL_PROVIDER must be resend");
-  if (!apiKey) throw new Error("RESEND_API_KEY is missing");
+  if (provider !== "resend") throw configurationError("EMAIL_PROVIDER must be resend");
+  if (!apiKey) throw configurationError("RESEND_API_KEY is missing");
   const senderAddress = extractAddress(from);
   const senderDomain = senderAddress.split("@")[1];
   if (!senderDomain || CONSUMER_EMAIL_DOMAINS.has(senderDomain)) {
-    throw new Error("RESEND_FROM_EMAIL must use a verified sending domain");
+    throw configurationError("RESEND_FROM_EMAIL must use a verified sending domain");
   }
 
   return { apiKey, from, supportEmail };
