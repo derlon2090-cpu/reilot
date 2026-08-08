@@ -1,6 +1,6 @@
 import pg from "pg";
 
-const migration = "0061_auth_challenge_purpose_repair.sql";
+const migration = "0062_platform_admin_auth_challenges.sql";
 const requiredColumns = new Set([
   "auth_email_otp_challenges.login_attempt_id",
   "auth_mfa_login_challenges.login_attempt_id",
@@ -31,6 +31,17 @@ try {
             AND pg_get_constraintdef(c.oid) ILIKE '%purpose%'
             AND pg_get_constraintdef(c.oid) ILIKE '%admin_login%'
        ) AS purpose_constraint_ready,
+       NOT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public'
+            AND table_name IN ('auth_email_otp_challenges','auth_mfa_login_challenges','auth_trusted_devices')
+            AND column_name='tenant_id' AND is_nullable <> 'YES'
+       ) AND (
+         SELECT count(*) = 3 FROM information_schema.columns
+          WHERE table_schema='public'
+            AND table_name IN ('auth_email_otp_challenges','auth_mfa_login_challenges','auth_trusted_devices')
+            AND column_name='tenant_id'
+       ) AS platform_admin_challenges_ready,
        COALESCE(array_agg(table_name || '.' || column_name)
          FILTER (WHERE table_name IS NOT NULL), ARRAY[]::text[]) AS available_columns
      FROM information_schema.columns
@@ -45,11 +56,12 @@ try {
   const row = result.rows[0] || {};
   const available = new Set(row.available_columns || []);
   const missingColumns = [...requiredColumns].filter((column) => !available.has(column));
-  if (row.migration_applied !== true || row.pending_registration_table !== true || row.purpose_constraint_ready !== true || missingColumns.length) {
+  if (row.migration_applied !== true || row.pending_registration_table !== true || row.purpose_constraint_ready !== true || row.platform_admin_challenges_ready !== true || missingColumns.length) {
     console.error("Authentication schema is not ready", {
       migrationApplied: row.migration_applied === true,
       pendingRegistrationTable: row.pending_registration_table === true,
       purposeConstraintReady: row.purpose_constraint_ready === true,
+      platformAdminChallengesReady: row.platform_admin_challenges_ready === true,
       missingColumns
     });
     process.exitCode = 1;

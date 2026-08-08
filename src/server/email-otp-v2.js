@@ -168,6 +168,8 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
       return { ...reused.rows[0], reused: true };
     }
     code = generateEmailOtp();
+    const challengeId = crypto.randomUUID();
+    const codeDigest = digestOtp(code, challengeId);
     await client.query(
       `UPDATE auth_email_otp_challenges SET invalidated_at = now(), updated_at = now()
         WHERE user_id = $1 AND purpose = $2 AND consumed_at IS NULL AND invalidated_at IS NULL`,
@@ -175,14 +177,12 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
     );
     const inserted = await client.query(
       `INSERT INTO auth_email_otp_challenges
-         (user_id, tenant_id, purpose, code_digest, expires_at, ip_hash, user_agent_hash, login_attempt_id)
-       VALUES ($1, $2, $3, '', now() + interval '5 minutes', $4, $5, $6)
+         (id, user_id, tenant_id, purpose, code_digest, expires_at, last_sent_at, ip_hash, user_agent_hash, login_attempt_id)
+       VALUES ($1, $2, $3, $4, $5, now() + interval '5 minutes', now(), $6, $7, $8)
        RETURNING id, expires_at AS "expiresAt", last_sent_at AS "lastSentAt"`,
-      [user.id, user.tenantId, storagePurpose, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null, loginAttemptId]
+      [challengeId, user.id, user.tenantId || null, storagePurpose, codeDigest, ipAddress ? sha256(ipAddress) : null, userAgent ? sha256(userAgent) : null, loginAttemptId]
     );
-    const row = inserted.rows[0];
-    await client.query("UPDATE auth_email_otp_challenges SET code_digest = $2 WHERE id = $1", [row.id, digestOtp(code, row.id)]);
-    return { ...row, reused: false };
+    return { ...inserted.rows[0], reused: false };
   });
   if (!challenge.reused) {
     // Keep the challenge durable even if a legacy/non-critical audit write is

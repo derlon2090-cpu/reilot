@@ -20,6 +20,14 @@ describe("unified second-factor contract", () => {
     expect(email).toContain('signChallengeId(challenge.id, purpose === "admin_login" ? "admin_login" : "login")');
   });
 
+  it("supports global platform administrators without inventing a customer tenant", async () => {
+    const migration = await readFile(new URL("../../drizzle/0062_platform_admin_auth_challenges.sql", import.meta.url), "utf8");
+    expect(migration).toContain("auth_email_otp_challenges");
+    expect(migration).toContain("auth_mfa_login_challenges");
+    expect(migration).toContain("auth_trusted_devices");
+    expect(migration.match(/ALTER COLUMN tenant_id DROP NOT NULL/g)).toHaveLength(3);
+  });
+
   it("keeps one UI per factor and directs successful TOTP straight to the dashboard", async () => {
     const source = await readFile(new URL("../../src/app/app.js", import.meta.url), "utf8");
     const mfaPage = source.slice(source.indexOf("function mfaLoginPage"), source.indexOf("async function loadMfaLoginStatus"));

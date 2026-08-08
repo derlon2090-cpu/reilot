@@ -15,7 +15,7 @@ const migrationDirectory = path.resolve("drizzle");
 const migrations = (await fs.readdir(migrationDirectory))
   .filter((name) => /^\d+.*\.sql$/.test(name))
   .sort();
-assert.equal(migrations.at(-1), "0061_auth_challenge_purpose_repair.sql");
+assert.equal(migrations.at(-1), "0062_platform_admin_auth_challenges.sql");
 
 const runId = `${Date.now()}_${process.pid}`;
 const schemas = {
@@ -79,6 +79,29 @@ async function seedChallenge(client, suffix, purpose = "login") {
   return { tenantId: tenant.rows[0].id, userId: user.rows[0].id, challengeId: challenge.rows[0].id };
 }
 
+async function seedPlatformAdminFactors(client, suffix) {
+  const user = await client.query(
+    "INSERT INTO users(tenant_id,name,email,role) VALUES (NULL,$1,$2,'admin') RETURNING id",
+    [`Platform ${suffix}`, `platform-${suffix}-${runId}@example.test`]
+  );
+  const userId = user.rows[0].id;
+  await client.query(
+    `INSERT INTO auth_email_otp_challenges(user_id,tenant_id,purpose,code_digest,expires_at)
+     VALUES ($1,NULL,'login','digest',now() + interval '5 minutes')`,
+    [userId]
+  );
+  await client.query(
+    `INSERT INTO auth_mfa_login_challenges(user_id,tenant_id,expires_at)
+     VALUES ($1,NULL,now() + interval '5 minutes')`,
+    [userId]
+  );
+  await client.query(
+    `INSERT INTO auth_trusted_devices(user_id,tenant_id,token_digest,expires_at)
+     VALUES ($1,NULL,$2,now() + interval '48 hours')`,
+    [userId, `token-${suffix}-${runId}`]
+  );
+}
+
 async function verifyFresh() {
   const client = await connect(schemas.fresh);
   try {
@@ -86,7 +109,8 @@ async function verifyFresh() {
     const definition = await purposeConstraint(client);
     assert.match(definition, /admin_login/);
     await seedChallenge(client, "fresh-admin", "admin_login");
-    return { migrationCount: migrations.length, adminLoginAccepted: true };
+    await seedPlatformAdminFactors(client, "fresh");
+    return { migrationCount: migrations.length, adminLoginAccepted: true, platformAdminFactorsAccepted: true };
   } finally {
     await client.end();
   }
@@ -95,7 +119,9 @@ async function verifyFresh() {
 async function verifyLegacyRepair() {
   const client = await connect(schemas.legacy);
   try {
-    await applyMigrations(client, migrations.slice(0, -1));
+    const purposeRepairIndex = migrations.indexOf("0061_auth_challenge_purpose_repair.sql");
+    assert.ok(purposeRepairIndex >= 0);
+    await applyMigrations(client, migrations.slice(0, purposeRepairIndex));
     const seeded = await seedChallenge(client, "legacy", "login");
     await client.query("ALTER TABLE auth_email_otp_challenges DROP CONSTRAINT IF EXISTS auth_email_otp_challenges_purpose_check");
     await client.query("ALTER TABLE auth_email_otp_challenges ADD CONSTRAINT auth_email_otp_challenges_purpose_check CHECK (purpose IN ('login','sensitive_action'))");
@@ -103,12 +129,13 @@ async function verifyLegacyRepair() {
       () => seedChallenge(client, "legacy-before", "admin_login"),
       (error) => error?.code === "23514"
     );
-    await applyMigrations(client, migrations.slice(-1));
+    await applyMigrations(client, migrations.slice(purposeRepairIndex));
     const preserved = await client.query("SELECT purpose FROM auth_email_otp_challenges WHERE id=$1", [seeded.challengeId]);
     assert.equal(preserved.rows[0]?.purpose, "login");
     assert.match(await purposeConstraint(client), /admin_login/);
     await seedChallenge(client, "legacy-after", "admin_login");
-    return { existingChallengePreserved: true, oldConstraintRepaired: true, adminLoginAccepted: true };
+    await seedPlatformAdminFactors(client, "legacy");
+    return { existingChallengePreserved: true, oldConstraintRepaired: true, adminLoginAccepted: true, platformAdminFactorsAccepted: true };
   } finally {
     await client.end();
   }

@@ -53,7 +53,7 @@ describe("admin email OTP compatibility", () => {
     const result = await createLoginEmailOtpChallenge({
       user: {
         id: "22222222-2222-4222-8222-222222222222",
-        tenantId: "33333333-3333-4333-8333-333333333333",
+        tenantId: null,
         email: "admin@example.com",
         name: "Admin"
       },
@@ -70,5 +70,9 @@ describe("admin email OTP compatibility", () => {
       .flatMap(([, values]) => Array.isArray(values) ? values : []);
     expect(purposeValues).toContain("login");
     expect(purposeValues).not.toContain("admin_login");
+    const insertCall = mocks.clientQuery.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO auth_email_otp_challenges"));
+    expect(insertCall?.[1]).toContain(null);
+    expect(String(insertCall?.[0])).toContain("code_digest");
+    expect(mocks.clientQuery.mock.calls.some(([sql]) => String(sql).includes("SET code_digest"))).toBe(false);
   });
 });
