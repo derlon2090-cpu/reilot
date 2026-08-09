@@ -86,15 +86,12 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps every public authentication form paired with its own responsive illustration", () => {
-    for (const kind of ["login", "register", "emailOtp", "mfa", "reset"]) {
-      expect(appSource).toContain(`authScene("${kind}")`);
+    for (const source of ["login.jpg", "register.jpg", "login-otp.jpg", "signup-otp.jpg", "mfa.jpg", "forgot.jpg"]) {
+      expect(appSource).toContain(`/assets/auth-reference/${source}`);
     }
-    expect(appSource).toContain('class="auth-suite-scene auth-suite-scene--${kind}"');
-    expect(appSource).toContain("فعّل حسابك بثقة");
-    expect(appSource).toContain("حالة التفعيل");
-    expect(appSource).toContain("authFeatureStrip()");
-    expect(stylesSource).toContain(".auth-suite-feature-strip");
-    expect(stylesSource).toContain(".auth-suite-scene");
+    expect(appSource).toContain('class="auth-reference-visual auth-reference-visual--${kind}"');
+    expect(appSource).toContain("function authReferenceVisual");
+    expect(stylesSource).toContain(".auth-reference-visual");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
   });
 
@@ -135,7 +132,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('class="auth-display-sliders-icon"');
     expect(appSource).toContain("function authMobileMark");
     expect(appSource).toContain("function authMobileScene");
-    expect(appSource).toContain('/assets/renvix-mark-deep-teal.svg');
+    expect(appSource).toContain('/assets/renvix-logo-exact.png');
     expect(stylesSource).toContain("/* Final compact authentication presentation */");
     expect(stylesSource).toContain(".auth-display-settings.is-open .auth-display-trigger");
     expect(stylesSource).toContain(".auth-display-trigger .auth-display-close-icon");
