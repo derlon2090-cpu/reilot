@@ -141,13 +141,16 @@ describe("Salla automation templates", () => {
   });
 
   it("offers three persisted digital delivery page designs", () => {
-    expect(appSource).toContain('class="salla-link-options"');
+    expect(appSource).toContain('class="salla-link-options" data-salla-link-options');
     expect(appSource).toContain("خيارات الرابط");
     expect(appSource).toContain("تصميم صفحة التسليم");
     expect(appSource).toContain('name="deliveryPageDesign"');
     expect(appSource).toContain('value="cards"');
     expect(appSource).toContain('value="compact"');
+    expect(appSource).toContain('name="deliveryPageCustomCss"');
+    expect(appSource).toContain("normalizeSallaPageCssCode");
     expect(serverSource).toContain("deliveryPageDesign");
+    expect(serverSource).toContain("customCssCode: normalizeSallaPageCssCode");
     expect(styles).toContain(".salla-public-page.design-cards");
     expect(styles).toContain(".salla-public-page.design-compact");
   });
@@ -212,7 +215,10 @@ describe("Salla automation templates", () => {
   it("persists CTA and secure digital-link controls and defaults first activation to WhatsApp", () => {
     expect(appSource).toContain('name="buttonEnabled"');
     expect(appSource).toContain('name="buttonLabel"');
-    expect(appSource).toContain('name="secureLinkEnabled" value="true"');
+    expect(appSource).toContain('type="checkbox" name="secureLinkEnabled"');
+    expect(appSource).toContain("عند إيقافه تظهر معاينة القناة فقط");
+    expect(appSource).toContain('linkPreview.toggleAttribute("hidden", !secureLinkEnabled)');
+    expect(serverSource).toContain("template.settings?.secureLinkEnabled !== false");
     expect(appSource).toContain("عرض مدة المنتج");
     expect(serverSource).toContain("delivery_channel=COALESCE(delivery_channel,'whatsapp')");
     expect(serverSource).toContain('? "digital"');

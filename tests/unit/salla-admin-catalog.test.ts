@@ -44,4 +44,12 @@ describe("Salla admin application catalog", () => {
     expect(adminCatalogSource).toContain("/api/admin/integrations/salla/templates/${encodeURIComponent(selected.templateKey)}/image");
     expect(adminCatalogSource).toContain("whatsappImageUrl: draft.whatsappImageEnabled");
   });
+
+  it("shows digital delivery design controls only while the secure link is enabled", () => {
+    expect(adminCatalogSource).toContain("draft.secureLinkEnabled ? <div className=\"salla-link-options\"");
+    expect(adminCatalogSource).toContain("عند إيقافه تظهر معاينة القناة فقط");
+    expect(adminCatalogSource).toContain("deliveryPageCustomCss");
+    expect(adminCatalogSource).toContain("sallaPageCssVariables(draft.deliveryPageCustomCss)");
+    expect(adminCatalogSource).toContain("للمعاينة الإدارية فقط");
+  });
 });

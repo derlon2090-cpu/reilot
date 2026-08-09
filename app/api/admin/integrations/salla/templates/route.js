@@ -21,6 +21,7 @@ const inputSchema = z.object({
     whatsappImageUrl: z.union([z.string().url().max(2000), z.literal("")]).optional(),
     emailDesign: z.enum(["classic", "modern", "minimal"]).optional(),
     deliveryPageDesign: z.enum(["classic", "cards", "compact"]).optional(),
+    deliveryPageCustomCss: z.string().max(4000).optional(),
     reviewDelayMinutes: z.number().int().min(5).max(2880).optional(),
     delaysMinutes: z.array(z.number().int().min(5).max(2880)).max(3).optional(),
     themeColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional()

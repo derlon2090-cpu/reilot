@@ -11,6 +11,7 @@ import {
   parseSmartDeliveryContent
 } from "./smart-delivery-content.js";
 import { durationWindow, resolveProductDurationWithDeepSeek } from "./product-duration-resolver.js";
+import { normalizeSallaPageCssCode } from "../data/sallaPageCss.js";
 
 export const SALLA_TEMPLATE_KEYS = Object.freeze({
   DIGITAL_PRODUCT_DELIVERY: "digital_product_delivery",
@@ -240,6 +241,7 @@ function cleanSettings(input, current = {}) {
     reviewDelayMinutes: Math.max(5, Math.min(2880, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
     emailDesign,
     deliveryPageDesign,
+    deliveryPageCustomCss: normalizeSallaPageCssCode(settings.deliveryPageCustomCss ?? current.deliveryPageCustomCss ?? ""),
     whatsappImageEnabled: settings.whatsappImageEnabled == null
       ? current.whatsappImageEnabled === true
       : Boolean(settings.whatsappImageEnabled),
@@ -1136,7 +1138,7 @@ export async function processSallaTemplateEvent(payload) {
     };
     const pageType = template.template_key === legacyInvoiceDefinition.key
       ? "invoice"
-      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY
+      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled !== false
         ? "digital"
       : template.template_key === SALLA_TEMPLATE_KEYS.COMPLETED
         ? "order"
@@ -1150,7 +1152,8 @@ export async function processSallaTemplateEvent(payload) {
         logoUrl: template.settings?.branding?.logoUrl || brandProfile.logoUrl || "",
         logoBorderRadius: Number(template.settings?.branding?.logoBorderRadius ?? brandProfile.logoBorderRadius ?? 16),
         themeColor: template.settings?.themeColor || template.settings?.branding?.themeColor || "#0B3F3B",
-        pageDesign: template.settings?.deliveryPageDesign || "classic"
+        pageDesign: template.settings?.deliveryPageDesign || "classic",
+        customCssCode: normalizeSallaPageCssCode(template.settings?.deliveryPageCustomCss || "")
       };
       publicPage = await getOrCreateSallaPublicPage({
         tenantId,
@@ -1225,7 +1228,7 @@ export async function processSallaTemplateEvent(payload) {
       emailTo: template.delivery_channel === "email" ? recipient : null,
       subject: template.email_subject ? renderSallaTemplate(template.email_subject, variables) : null,
       messageBody: renderSallaTemplate(
-        template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY
+        template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled !== false
           ? "مرحبًا {{customer_name}} 👋\n\nأصبحت معلومات تسليم طلبك رقم {{order_number}} جاهزة.\nلأمان بياناتك، اعرضها من الرابط الآمن التالي فقط:\n{{digital_content_url}}"
           : template.delivery_channel === "email"
             ? (template.email_text_content || template.message_body)
