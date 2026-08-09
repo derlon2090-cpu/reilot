@@ -23,8 +23,8 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".public-site .nav-link.active .public-nav-icon");
     expect(stylesSource).toContain("Public navigation uses an icon-led active pill without an underline");
     expect(stylesSource).toContain("background: #F3F8F7 !important;");
-    expect(stylesSource).toContain("min-height: 60px;");
-    expect(stylesSource).toContain("border-radius: 16px !important;");
+    expect(stylesSource).toContain("min-height: 50px;");
+    expect(stylesSource).toContain("border-radius: 14px !important;");
   });
 
   it("closes the mobile sidebar through a real outside backdrop", () => {

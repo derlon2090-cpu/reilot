@@ -108,6 +108,13 @@ describe("Salla automation templates", () => {
   it("supports per-template WhatsApp images and three email preview designs", () => {
     expect(appSource).toContain('name="whatsappImageEnabled"');
     expect(appSource).toContain('data-salla-whatsapp-image');
+    expect(appSource).toContain('data-salla-whatsapp-image-editor');
+    expect(appSource).toContain('data-action="salla-whatsapp-image-file"');
+    expect(appSource).toContain('action === "choose-salla-whatsapp-image"');
+    expect(appSource).toContain('whatsappImageEditor?.toggleAttribute("hidden", !imageEnabled)');
+    expect(appSource).toContain('whatsappImageUrl: payload.imageUrl');
+    expect(appSource).toContain('/api/apps/salla/templates/${encodeURIComponent(templateKey)}/image');
+    expect(appSource).not.toContain('refreshSallaTemplatePreview(form, { logoUrl: payload.logoUrl, whatsappImageUrl: payload.logoUrl })');
     expect(appSource).toContain('name="emailDesign"');
     expect(appSource).toContain('value="modern"');
     expect(appSource).toContain('value="minimal"');
@@ -123,17 +130,31 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('name="reviewDelayHours"');
     expect(appSource).toContain('name="abandonedDelayHours"');
     expect(appSource).toContain('max="48"');
+    expect(appSource).toContain("إرسال رسالة التقييم بعد تغيير حالة الطلب إلى:");
+    expect(appSource).toContain('{ label: "تم التنفيذ", slugs: ["completed", "fulfilled"]');
+    expect(appSource).toContain('{ label: "تم الشحن", slugs: ["shipped"]');
+    expect(appSource).toContain('{ label: "تم التوصيل", slugs: ["delivered"]');
     expect(serverSource).toContain("Math.min(2880");
     expect(serverSource).toContain("scheduled_for=now()+($2::text || ' minutes')::interval");
   });
 
   it("offers three persisted digital delivery page designs", () => {
+    expect(appSource).toContain('class="salla-link-options"');
+    expect(appSource).toContain("خيارات الرابط");
+    expect(appSource).toContain("تصميم صفحة التسليم");
     expect(appSource).toContain('name="deliveryPageDesign"');
     expect(appSource).toContain('value="cards"');
     expect(appSource).toContain('value="compact"');
     expect(serverSource).toContain("deliveryPageDesign");
     expect(styles).toContain(".salla-public-page.design-cards");
     expect(styles).toContain(".salla-public-page.design-compact");
+  });
+
+  it("places the apps return action on the upper left and shows persisted update time", () => {
+    expect(appSource).toContain('class="btn btn-secondary salla-back-apps" data-link="/dashboard/apps"');
+    expect(appSource).toContain("العودة إلى التطبيقات");
+    expect(appSource).toContain('class="salla-template-updated-at"');
+    expect(appSource).toContain('toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" })');
   });
 
   it("persists independent content for WhatsApp and email", () => {
