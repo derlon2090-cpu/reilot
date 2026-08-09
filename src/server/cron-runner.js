@@ -15,7 +15,7 @@ import { enqueueMessage } from "./message-queue.js";
 import { safeErrorMessage } from "./security.js";
 import { runDueSubscriptionReminders } from "./renewal-reminders.js";
 import { runPlatformNotificationWorker } from "./platform-notifications.js";
-import { sendMetaTextMessage } from "./meta-interactive-service.js";
+import { sendMetaImageMessage, sendMetaTextMessage } from "./meta-interactive-service.js";
 
 export async function runRenewalReminders() {
   return runDueSubscriptionReminders();
@@ -364,7 +364,9 @@ export async function runMessageRetry() {
       let provider;
       if (item.channel_type === "whatsapp") {
         provider = ["meta", "meta_cloud", "meta_cloud_api"].includes(item.whatsapp_provider)
-          ? await sendMetaTextMessage({ channelId: item.whatsapp_channel_id, to: item.destination, text: item.message_body })
+          ? item.template_snapshot?.whatsappImageEnabled && item.template_snapshot?.whatsappImageUrl
+            ? await sendMetaImageMessage({ channelId: item.whatsapp_channel_id, to: item.destination, imageUrl: item.template_snapshot.whatsappImageUrl, caption: item.message_body })
+            : await sendMetaTextMessage({ channelId: item.whatsapp_channel_id, to: item.destination, text: item.message_body })
           : await evolutionSendText(item.instance_name, item.destination, item.message_body);
       } else if (item.channel_type === "email") {
         provider = await sendQueuedEmail({

@@ -6,9 +6,14 @@
   --brand-primary-soft: #F3F8F7;
   --brand-primary-border: #D6E7E4;
   --brand-primary-foreground: #FFFFFF;
-  --brand-dark-surface: #102C29;
-  --brand-dark-surface-raised: #183A36;
-  --brand-dark-accent: #73A9A3;
+  --brand-dark-background: #071C1A;
+  --brand-dark-sidebar: #09231F;
+  --brand-dark-surface: #0D2926;
+  --brand-dark-surface-raised: #133530;
+  --brand-dark-border: #254A44;
+  --brand-dark-text: #F5FAF9;
+  --brand-dark-muted: #A9BFBB;
+  --brand-dark-accent: #73B8AF;
   --focus-ring: rgba(11, 63, 59, 0.18);
   --font-arabic: "Tajawal", system-ui, sans-serif;
   --font-latin: "Sora", "Manrope", "Inter", system-ui, sans-serif;

@@ -15,6 +15,8 @@ const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"),
 const styles = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
 const serverSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/salla-templates.js"), "utf8");
 const resendSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/email/resend.service.js"), "utf8");
+const metaSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/meta-interactive-service.js"), "utf8");
+const cronSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/cron-runner.js"), "utf8");
 const testRouteSource = fs.readFileSync(path.resolve(process.cwd(), "app/api/apps/salla/templates/[templateKey]/test/route.js"), "utf8");
 
 describe("Salla automation templates", () => {
@@ -101,6 +103,37 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('data-salla-preview-head="whatsapp"');
     expect(appSource).toContain('data-salla-preview-head="email"');
     expect(appSource).toContain("refreshSallaTemplatePreview(form)");
+  });
+
+  it("supports per-template WhatsApp images and three email preview designs", () => {
+    expect(appSource).toContain('name="whatsappImageEnabled"');
+    expect(appSource).toContain('data-salla-whatsapp-image');
+    expect(appSource).toContain('name="emailDesign"');
+    expect(appSource).toContain('value="modern"');
+    expect(appSource).toContain('value="minimal"');
+    expect(serverSource).toContain("whatsappImageEnabled");
+    expect(serverSource).toContain("emailDesign");
+    expect(resendSource).toContain('design === "modern"');
+    expect(metaSource).toContain("export async function sendMetaImageMessage");
+    expect(metaSource).toContain('type: "image"');
+    expect(cronSource).toContain("item.template_snapshot?.whatsappImageEnabled");
+  });
+
+  it("caps review and abandoned-cart scheduling at 48 hours", () => {
+    expect(appSource).toContain('name="reviewDelayHours"');
+    expect(appSource).toContain('name="abandonedDelayHours"');
+    expect(appSource).toContain('max="48"');
+    expect(serverSource).toContain("Math.min(2880");
+    expect(serverSource).toContain("scheduled_for=now()+($2::text || ' minutes')::interval");
+  });
+
+  it("offers three persisted digital delivery page designs", () => {
+    expect(appSource).toContain('name="deliveryPageDesign"');
+    expect(appSource).toContain('value="cards"');
+    expect(appSource).toContain('value="compact"');
+    expect(serverSource).toContain("deliveryPageDesign");
+    expect(styles).toContain(".salla-public-page.design-cards");
+    expect(styles).toContain(".salla-public-page.design-compact");
   });
 
   it("persists independent content for WhatsApp and email", () => {

@@ -16,6 +16,13 @@ const inputSchema = z.object({
     linkPageTitle: z.string().trim().max(160).optional(),
     linkPageContent: z.string().trim().max(5000).optional(),
     showCountdown: z.boolean().optional(),
+    showDuration: z.boolean().optional(),
+    whatsappImageEnabled: z.boolean().optional(),
+    whatsappImageUrl: z.union([z.string().url().max(2000), z.literal("")]).optional(),
+    emailDesign: z.enum(["classic", "modern", "minimal"]).optional(),
+    deliveryPageDesign: z.enum(["classic", "cards", "compact"]).optional(),
+    reviewDelayMinutes: z.number().int().min(5).max(2880).optional(),
+    delaysMinutes: z.array(z.number().int().min(5).max(2880)).max(3).optional(),
     themeColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional()
   }).optional()
 });

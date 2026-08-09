@@ -56,6 +56,14 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
     ? templateSnapshot.branding
     : {};
   const safeText = escapeEmailHtml(text).replace(/\n/g, "<br>");
+  const design = ["classic", "modern", "minimal"].includes(templateSnapshot?.emailDesign)
+    ? templateSnapshot.emailDesign
+    : "classic";
+  const designedBody = design === "modern"
+    ? `<div style="padding:24px;border-radius:18px;background:#f3f8f7;border-top:5px solid #0b3f3b;color:#062b28;line-height:1.9">${safeText}</div>`
+    : design === "minimal"
+      ? `<div style="padding:8px 0;color:#062b28;line-height:1.9">${safeText}</div>`
+      : `<div style="padding:20px;border:1px solid #e8f1f0;border-radius:14px;color:#062b28;line-height:1.9">${safeText}</div>`;
   return sendEmail({
     to,
     subject: subject || "إشعار من Renvix",
@@ -66,7 +74,7 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
       brandName: branding.brandName || "Renvix",
       brandImageUrl: branding.logoUrl || brandImageUrl,
       brandImageRadius: Number(branding.logoBorderRadius ?? 16),
-      children: `<div style="color:#062B28;line-height:1.9">${safeText}</div>`
+      children: designedBody
     })
   });
 }

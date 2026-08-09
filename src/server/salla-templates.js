@@ -42,6 +42,8 @@ const definitions = [
     settings: {
       secureLinkEnabled: true,
       showDuration: false,
+      deliveryPageDesign: "classic",
+      emailDesign: "classic",
       linkPageTitle: "منتجاتك الرقمية جاهزة",
       linkPageContent: "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."
     }
@@ -118,7 +120,7 @@ const definitions = [
     variables: ["customer_name", "order_number", "store_name", "rating_url"],
     body: "مرحبًا {{customer_name}} 👋\n\nشكرًا لك على طلبك رقم {{order_number}} من {{store_name}}.\nنتمنى أن تكون تجربتك معنا رائعة.\n\nشاركنا تقييمك وملاحظاتك لمساعدتنا على تحسين خدماتنا:\n{{rating_url}}",
     emailSubject: "شاركنا تقييم تجربتك",
-    settings: { reviewDelayMinutes: 1440 }
+    settings: { reviewDelayMinutes: 24 * 60 }
   },
   {
     key: SALLA_TEMPLATE_KEYS.ABANDONED_CART,
@@ -131,7 +133,7 @@ const definitions = [
     variables: ["customer_name", "store_name", "cart_total", "currency", "items_count", "cart_items", "checkout_url"],
     body: "مرحبًا {{customer_name}} 👋\n\nلاحظنا أنك لم تكمل طلبك رقم {{order_number}} بعد، ولا تزال منتجاتك في انتظارك.\n\nيمكنك العودة لإكمال طلبك بسهولة من هنا:\n{{checkout_url}}",
     emailSubject: "لا تنسَ إكمال طلبك — منتجاتك لا تزال في سلتك",
-    settings: { delaysMinutes: [30, 1440, 4320], maxMessages: 3, stopOnConversion: true }
+    settings: { delaysMinutes: [60], maxMessages: 1, stopOnConversion: true }
   },
   {
     key: SALLA_TEMPLATE_KEYS.CANCELLED,
@@ -223,15 +225,25 @@ function cleanSettings(input, current = {}) {
   const cleanLabel = (value, fallback, max = 80) => String(value ?? fallback ?? "").trim().slice(0, max);
   const cleanContent = (value, fallback, max = 5000) => String(value ?? fallback ?? "").trim().slice(0, max);
   const delays = Array.isArray(settings.delaysMinutes)
-    ? settings.delaysMinutes.slice(0, 3).map((item) => Math.max(5, Math.min(43200, Number(item) || 30)))
+    ? settings.delaysMinutes.slice(0, 3).map((item) => Math.max(5, Math.min(2880, Number(item) || 60)))
     : current.delaysMinutes;
+  const emailDesign = ["classic", "modern", "minimal"].includes(settings.emailDesign)
+    ? settings.emailDesign : (current.emailDesign || "classic");
+  const deliveryPageDesign = ["classic", "cards", "compact"].includes(settings.deliveryPageDesign)
+    ? settings.deliveryPageDesign : (current.deliveryPageDesign || "classic");
   return {
     ...current,
     ...settings,
     ...(delays ? { delaysMinutes: delays } : {}),
     completedDeliveryMode: ["whatsapp_message", "secure_order_page"].includes(settings.completedDeliveryMode)
       ? settings.completedDeliveryMode : current.completedDeliveryMode,
-    reviewDelayMinutes: Math.max(5, Math.min(43200, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
+    reviewDelayMinutes: Math.max(5, Math.min(2880, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
+    emailDesign,
+    deliveryPageDesign,
+    whatsappImageEnabled: settings.whatsappImageEnabled == null
+      ? current.whatsappImageEnabled === true
+      : Boolean(settings.whatsappImageEnabled),
+    whatsappImageUrl: safePublicHttpsUrl(settings.whatsappImageUrl || current.whatsappImageUrl || ""),
     themeColor: /^#[0-9A-F]{6}$/i.test(settings.themeColor || "") ? settings.themeColor : (current.themeColor || "#0B3F3B"),
     buttonEnabled: settings.buttonEnabled == null ? current.buttonEnabled !== false : Boolean(settings.buttonEnabled),
     buttonLabel: cleanLabel(settings.buttonLabel, current.buttonLabel, 80),
@@ -1137,7 +1149,8 @@ export async function processSallaTemplateEvent(payload) {
         brandName: variables.store_name || brandProfile.storeName || "Renvix",
         logoUrl: template.settings?.branding?.logoUrl || brandProfile.logoUrl || "",
         logoBorderRadius: Number(template.settings?.branding?.logoBorderRadius ?? brandProfile.logoBorderRadius ?? 16),
-        themeColor: template.settings?.themeColor || template.settings?.branding?.themeColor || "#0B3F3B"
+        themeColor: template.settings?.themeColor || template.settings?.branding?.themeColor || "#0B3F3B",
+        pageDesign: template.settings?.deliveryPageDesign || "classic"
       };
       publicPage = await getOrCreateSallaPublicPage({
         tenantId,
@@ -1191,10 +1204,15 @@ export async function processSallaTemplateEvent(payload) {
       templateSnapshot: template.delivery_channel === "whatsapp" ? {
         provider: "meta",
         metaTemplateId: template.whatsapp_template_id,
-        sallaTemplateKey: template.template_key
+        sallaTemplateKey: template.template_key,
+        whatsappImageEnabled: template.settings?.whatsappImageEnabled === true,
+        whatsappImageUrl: template.settings?.whatsappImageEnabled === true
+          ? safePublicHttpsUrl(template.settings?.whatsappImageUrl || brandProfile.logoUrl || "")
+          : ""
       } : {
         provider: "resend",
         sallaTemplateKey: template.template_key,
+        emailDesign: template.settings?.emailDesign || "classic",
         branding: {
           brandName: variables.store_name || brandProfile.storeName || "Renvix",
           logoUrl: brandProfile.logoUrl || "",

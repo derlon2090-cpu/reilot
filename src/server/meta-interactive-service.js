@@ -295,6 +295,33 @@ export async function sendMetaTextMessage({ channelId, to, text }) {
   });
 }
 
+export async function sendMetaImageMessage({ channelId, to, imageUrl, caption }) {
+  const url = String(imageUrl || "").trim();
+  if (!/^https:\/\//i.test(url)) {
+    throw Object.assign(new Error("رابط صورة واتساب يجب أن يكون HTTPS عامًا."), {
+      code: "META_IMAGE_URL_INVALID",
+      status: 400
+    });
+  }
+  const result = await query(
+    `SELECT id,provider,status,phone_number_id,channel_token_encrypted
+       FROM whatsapp_channels
+      WHERE id=$1 AND provider IN ('meta','meta_cloud','meta_cloud_api') LIMIT 1`,
+    [channelId]
+  );
+  const channel = result.rows[0];
+  if (!channel || channel.status !== "connected") {
+    throw Object.assign(new Error("قناة Meta الرسمية غير متصلة حاليًا."), { code: "META_NOT_CONNECTED", status: 409 });
+  }
+  return callMetaMessagesApi(graphConfiguration(channel), {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizeRecipient(to).replace(/^\+/, ""),
+    type: "image",
+    image: { link: url, caption: String(caption || "").trim().slice(0, 1024) }
+  });
+}
+
 export async function sendInteractiveMessage({
   tenantId, userId, messageId, recipient, idempotencyKey, isTest = false
 }) {
