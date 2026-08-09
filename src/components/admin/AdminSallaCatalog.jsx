@@ -51,7 +51,7 @@ function TemplatePreview({ item, channel, draft, logoUrl }) {
     <div className={isEmail ? `salla-email-preview design-${draft.emailDesign || "classic"}` : "salla-whatsapp-preview"}>
       {!isEmail ? <div className="salla-whatsapp-preview-canvas">
         <div className="salla-whatsapp-bubble">
-          {draft.whatsappImageEnabled && logoUrl ? <img className="salla-whatsapp-message-image" src={logoUrl} alt="صورة رسالة واتساب" /> : null}
+          {draft.whatsappImageEnabled && draft.whatsappImageUrl ? <img className="salla-whatsapp-message-image" src={draft.whatsappImageUrl} alt="صورة رسالة واتساب" /> : null}
           <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
           {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta"><DashboardIcon name="action" /><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
           <small>11:30 ص ✓✓</small>
@@ -75,11 +75,12 @@ export default function AdminSallaCatalog({ admin }) {
   const [items, setItems] = useState([]);
   const [selectedKey, setSelectedKey] = useState("");
   const [channel, setChannel] = useState("whatsapp");
-  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#0B3F3B", whatsappImageEnabled: false, emailDesign: "classic", deliveryPageDesign: "classic", reviewDelayHours: 24, abandonedDelayHours: 1 });
+  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#0B3F3B", whatsappImageEnabled: false, whatsappImageUrl: "", emailDesign: "classic", deliveryPageDesign: "classic", reviewDelayHours: 24, abandonedDelayHours: 1 });
   const [logoUrl, setLogoUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/integrations/salla/templates", { cache: "no-store" });
@@ -108,6 +109,7 @@ export default function AdminSallaCatalog({ admin }) {
       showCountdown: item.settings?.showCountdown !== false,
       themeColor: item.settings?.themeColor || item.settings?.branding?.themeColor || "#0B3F3B",
       whatsappImageEnabled: item.settings?.whatsappImageEnabled === true,
+      whatsappImageUrl: item.settings?.whatsappImageUrl || "",
       emailDesign: item.settings?.emailDesign || "classic",
       deliveryPageDesign: item.settings?.deliveryPageDesign || "classic",
       reviewDelayHours: Math.min(48, Math.max(1, Math.round(Number(item.settings?.reviewDelayMinutes || 1440) / 60))),
@@ -134,7 +136,7 @@ export default function AdminSallaCatalog({ admin }) {
           channel,
           subject: channel === "email" ? draft.emailSubject : null,
           body: channel === "email" ? draft.emailTextContent : draft.whatsappContent,
-          settings: { buttonEnabled: draft.buttonEnabled, buttonLabel: draft.buttonLabel, secureLinkEnabled: draft.secureLinkEnabled, linkPageTitle: draft.linkPageTitle, linkPageContent: draft.linkPageContent, showCountdown: draft.showCountdown, themeColor: draft.themeColor, whatsappImageEnabled: draft.whatsappImageEnabled, whatsappImageUrl: draft.whatsappImageEnabled && /^https:\/\//i.test(logoUrl) ? logoUrl : "", emailDesign: draft.emailDesign, deliveryPageDesign: draft.deliveryPageDesign, reviewDelayMinutes: Math.min(48, Math.max(1, Number(draft.reviewDelayHours) || 24)) * 60, delaysMinutes: [Math.min(48, Math.max(1, Number(draft.abandonedDelayHours) || 1)) * 60] }
+          settings: { buttonEnabled: draft.buttonEnabled, buttonLabel: draft.buttonLabel, secureLinkEnabled: draft.secureLinkEnabled, linkPageTitle: draft.linkPageTitle, linkPageContent: draft.linkPageContent, showCountdown: draft.showCountdown, themeColor: draft.themeColor, whatsappImageEnabled: draft.whatsappImageEnabled, whatsappImageUrl: draft.whatsappImageEnabled && /^https:\/\//i.test(draft.whatsappImageUrl) ? draft.whatsappImageUrl : "", emailDesign: draft.emailDesign, deliveryPageDesign: draft.deliveryPageDesign, reviewDelayMinutes: Math.min(48, Math.max(1, Number(draft.reviewDelayHours) || 24)) * 60, delaysMinutes: [Math.min(48, Math.max(1, Number(draft.abandonedDelayHours) || 1)) * 60] }
         })
       });
       const payload = await response.json().catch(() => ({}));
@@ -162,6 +164,32 @@ export default function AdminSallaCatalog({ admin }) {
     }
     setLogoUrl(URL.createObjectURL(file));
     setError("");
+  };
+
+  const uploadWhatsAppImage = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !selected) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+      setError("اختر صورة PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت.");
+      return;
+    }
+    setImageBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`/api/admin/integrations/salla/templates/${encodeURIComponent(selected.templateKey)}/image`, { method: "POST", body: formData });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.imageUrl) throw new Error(payload.message || "تعذر رفع صورة رسالة واتساب.");
+      setDraft((current) => ({ ...current, whatsappImageUrl: payload.imageUrl }));
+      setNotice("تم رفع صورة رسالة واتساب وظهرت في المعاينة. احفظ التغييرات لتثبيتها في القالب.");
+    } catch (uploadError) {
+      setError(uploadError.message || "تعذر رفع صورة رسالة واتساب.");
+    } finally {
+      setImageBusy(false);
+    }
   };
 
   return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
@@ -213,6 +241,10 @@ export default function AdminSallaCatalog({ admin }) {
               <div className="variables-row"><strong>المتغيرات المتاحة</strong>{selected.variables.map((variable) => <button key={variable} type="button" className="chip" onClick={() => addVariable(variable)}>{`{{${variable}}}`}</button>)}</div>
               <div className="salla-email-logo-editor"><div className="salla-email-logo-preview">{logoUrl ? <img src={logoUrl} alt="شعار المتجر في المعاينة" /> : <DashboardIcon name="apps" />}</div><div><strong>صورة متجر موحدة للبريد</strong><p>نفس خيار العميل. الصورة المختارة هنا للمعاينة الإدارية فقط؛ كل متجر يحفظ شعاره الخاص عند الربط.</p><label className="btn btn-secondary">إضافة صورة المتجر<input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectPreviewLogo} hidden /></label><small>PNG أو JPG أو WebP حقيقي، بحد أقصى 2 ميجابايت.</small></div></div>
             </section>}
+            {channel === "whatsapp" && draft.whatsappImageEnabled ? <div className="salla-whatsapp-image-editor is-open" data-admin-salla-whatsapp-image-editor>
+              <label className="btn btn-secondary">{imageBusy ? "جارٍ رفع الصورة..." : draft.whatsappImageUrl ? "استبدال صورة الرسالة" : "إضافة صورة الرسالة"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadWhatsAppImage} disabled={imageBusy} hidden /></label>
+              <small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت. تُحفظ الصورة لهذا القالب وتظهر أعلى النص في معاينة واتساب.</small>
+            </div> : null}
             {selected.templateKey === "review_request" ? <section className="salla-special-settings"><label className="field"><span>الإرسال بعد الحالة — بالساعات</span><input className="input" type="number" min="1" max="48" value={draft.reviewDelayHours} onChange={(event) => setDraft((current) => ({ ...current, reviewDelayHours: event.target.value }))} /></label></section> : null}
             {selected.templateKey === "abandoned_cart" ? <section className="salla-special-settings"><label className="field"><span>الإرسال بعد ترك السلة — بالساعات</span><input className="input" type="number" min="1" max="48" value={draft.abandonedDelayHours} onChange={(event) => setDraft((current) => ({ ...current, abandonedDelayHours: event.target.value }))} /></label></section> : null}
             {selected.templateKey === "digital_product_delivery" ? <label className="field"><span>تصميم صفحة التسليم</span><select className="select" value={draft.deliveryPageDesign} onChange={(event) => setDraft((current) => ({ ...current, deliveryPageDesign: event.target.value }))}><option value="classic">كلاسيكي</option><option value="cards">بطاقات واضحة</option><option value="compact">مدمج وعملي</option></select></label> : null}

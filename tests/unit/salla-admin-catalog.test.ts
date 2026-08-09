@@ -1,5 +1,8 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { mergeSallaAdminCatalog, platformSallaTemplateKey } from "../../src/server/salla-admin-catalog.js";
+
+const adminCatalogSource = fs.readFileSync("src/components/admin/AdminSallaCatalog.jsx", "utf8");
 
 describe("Salla admin application catalog", () => {
   it("always exposes the 12 canonical Salla templates without a store connection", () => {
@@ -32,5 +35,13 @@ describe("Salla admin application catalog", () => {
       { templateKey: platformSallaTemplateKey("digital_product_delivery", "whatsapp"), body: "رسالة", settings: { buttonEnabled: false, buttonLabel: "فتح الترخيص", secureLinkEnabled: true } }
     ]);
     expect(item.settings).toMatchObject({ buttonEnabled: false, buttonLabel: "فتح الترخيص", secureLinkEnabled: true });
+  });
+
+  it("reveals a real WhatsApp image uploader and binds the uploaded image to the preview", () => {
+    expect(adminCatalogSource).toContain('draft.whatsappImageEnabled ? <div className="salla-whatsapp-image-editor is-open"');
+    expect(adminCatalogSource).toContain("uploadWhatsAppImage");
+    expect(adminCatalogSource).toContain("draft.whatsappImageUrl ? <img");
+    expect(adminCatalogSource).toContain("/api/admin/integrations/salla/templates/${encodeURIComponent(selected.templateKey)}/image");
+    expect(adminCatalogSource).toContain("whatsappImageUrl: draft.whatsappImageEnabled");
   });
 });
