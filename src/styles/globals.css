@@ -5258,7 +5258,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-lock-logo img{width:54px;height:54px;object-fit:contain}
 .salla-templates-notice{display:flex;align-items:center;gap:12px;margin:16px 0 24px}
 .salla-templates-notice svg{width:22px;height:22px;color:#0B3F3B;flex:0 0 auto}
-.salla-templates-page-head{display:flex;align-items:center;gap:12px}.salla-templates-page-head>.salla-back-apps{margin-right:auto;margin-left:0;direction:rtl}.salla-templates-page-head .toolbar{margin-right:auto;margin-left:0}
+.salla-templates-page-head{display:flex;align-items:center;gap:12px}.salla-templates-page-head .toolbar{margin-right:auto;margin-left:0}
 .salla-templates-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .salla-template-card{min-height:238px;padding:18px;display:flex;flex-direction:column;gap:12px;border-color:#E8F1F0;box-shadow:0 10px 30px rgba(11, 63, 59,.05)}
 .salla-template-card.featured{border-color:#E8F1F0;box-shadow:0 14px 34px rgba(11, 63, 59,.11)}
@@ -5286,6 +5286,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-form-card>.section-head>svg,.salla-template-live-preview>.section-head>svg{width:24px!important;height:24px!important;flex:0 0 24px;color:#0B3F3B}
 .salla-template-editor-top{display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:14px;direction:ltr}
 .salla-template-editor-top .btn{direction:rtl}.salla-template-editor-top svg{width:18px;height:18px}
+.salla-review-trigger-grid{margin-top:14px;align-items:end}.salla-review-trigger-grid .field{margin:0}
 .salla-template-updated-at{margin:-5px 0 14px;color:var(--muted);font-size:.88rem}.salla-template-updated-at strong{color:var(--text);font-weight:700}
 .salla-template-enable{padding:17px 20px;margin:18px 0;display:flex;align-items:center;justify-content:space-between}
 .salla-template-enable>div{display:flex;gap:13px;align-items:center}

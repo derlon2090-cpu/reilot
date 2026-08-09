@@ -129,14 +129,18 @@ describe("Salla automation templates", () => {
   });
 
   it("caps review and abandoned-cart scheduling at 48 hours", () => {
+    expect(appSource).toContain('name="reviewTriggerStatus"');
     expect(appSource).toContain('name="reviewDelayHours"');
     expect(appSource).toContain('name="abandonedDelayHours"');
     expect(appSource).toContain('max="48"');
-    expect(appSource).toContain("إرسال رسالة التقييم بعد تغيير حالة الطلب إلى:");
-    expect(appSource).toContain('{ label: "تم التنفيذ", slugs: ["completed", "fulfilled"]');
-    expect(appSource).toContain('{ label: "تم الشحن", slugs: ["shipped"]');
-    expect(appSource).toContain('{ label: "تم التوصيل", slugs: ["delivered"]');
+    expect(appSource).toContain("يتم إرسال رسالة طلب التقييم عند الحالة");
+    expect(appSource).toContain('option value="shipped"');
+    expect(appSource).toContain('option value="delivered"');
+    expect(appSource).toContain('option value="completed"');
     expect(serverSource).toContain("Math.min(2880");
+    expect(serverSource).toContain("settings->>'reviewTriggerStatus'");
+    expect(serverSource).toContain("template_key<>'review_request'");
+    expect(serverSource).toContain("item.templateKey !== SALLA_TEMPLATE_KEYS.REVIEW_REQUEST");
     expect(serverSource).toContain("scheduled_for=now()+($2::text || ' minutes')::interval");
   });
 
@@ -148,6 +152,7 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('value="cards"');
     expect(appSource).toContain('value="compact"');
     expect(appSource).toContain('name="deliveryPageCustomCss"');
+    expect(appSource).toContain("كود تصميم صفحة الرابط (CSS آمن) — اختياري");
     expect(appSource).toContain("normalizeSallaPageCssCode");
     expect(serverSource).toContain("deliveryPageDesign");
     expect(serverSource).toContain("customCssCode: normalizeSallaPageCssCode");
@@ -156,7 +161,7 @@ describe("Salla automation templates", () => {
   });
 
   it("places the apps return action on the upper left and shows persisted update time", () => {
-    expect(appSource).toContain('class="btn btn-secondary salla-back-apps" data-link="/dashboard/apps"');
+    expect(appSource).toContain('class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps"');
     expect(appSource).toContain("العودة إلى التطبيقات");
     expect(appSource).toContain('class="salla-template-updated-at"');
     expect(appSource).toContain('toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" })');

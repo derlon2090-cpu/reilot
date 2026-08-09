@@ -76,7 +76,7 @@ export default function AdminSallaCatalog({ admin }) {
   const [items, setItems] = useState([]);
   const [selectedKey, setSelectedKey] = useState("");
   const [channel, setChannel] = useState("whatsapp");
-  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#0B3F3B", whatsappImageEnabled: false, whatsappImageUrl: "", emailDesign: "classic", deliveryPageDesign: "classic", deliveryPageCustomCss: "", reviewDelayHours: 24, abandonedDelayHours: 1 });
+  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: true, linkPageTitle: "", linkPageContent: "", showCountdown: true, themeColor: "#0B3F3B", whatsappImageEnabled: false, whatsappImageUrl: "", emailDesign: "classic", deliveryPageDesign: "classic", deliveryPageCustomCss: "", reviewTriggerStatus: "delivered", reviewDelayHours: 24, abandonedDelayHours: 1 });
   const [logoUrl, setLogoUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -114,6 +114,7 @@ export default function AdminSallaCatalog({ admin }) {
       emailDesign: item.settings?.emailDesign || "classic",
       deliveryPageDesign: item.settings?.deliveryPageDesign || "classic",
       deliveryPageCustomCss: item.settings?.deliveryPageCustomCss || "",
+      reviewTriggerStatus: ["shipped", "delivered", "completed"].includes(item.settings?.reviewTriggerStatus) ? item.settings.reviewTriggerStatus : "delivered",
       reviewDelayHours: Math.min(48, Math.max(1, Math.round(Number(item.settings?.reviewDelayMinutes || 1440) / 60))),
       abandonedDelayHours: Math.min(48, Math.max(1, Math.round(Number(item.settings?.delaysMinutes?.[0] || 60) / 60)))
     });
@@ -138,7 +139,7 @@ export default function AdminSallaCatalog({ admin }) {
           channel,
           subject: channel === "email" ? draft.emailSubject : null,
           body: channel === "email" ? draft.emailTextContent : draft.whatsappContent,
-          settings: { buttonEnabled: draft.buttonEnabled, buttonLabel: draft.buttonLabel, secureLinkEnabled: draft.secureLinkEnabled, linkPageTitle: draft.linkPageTitle, linkPageContent: draft.linkPageContent, showCountdown: draft.showCountdown, themeColor: draft.themeColor, whatsappImageEnabled: draft.whatsappImageEnabled, whatsappImageUrl: draft.whatsappImageEnabled && /^https:\/\//i.test(draft.whatsappImageUrl) ? draft.whatsappImageUrl : "", emailDesign: draft.emailDesign, deliveryPageDesign: draft.deliveryPageDesign, deliveryPageCustomCss: draft.deliveryPageCustomCss, reviewDelayMinutes: Math.min(48, Math.max(1, Number(draft.reviewDelayHours) || 24)) * 60, delaysMinutes: [Math.min(48, Math.max(1, Number(draft.abandonedDelayHours) || 1)) * 60] }
+          settings: { buttonEnabled: draft.buttonEnabled, buttonLabel: draft.buttonLabel, secureLinkEnabled: draft.secureLinkEnabled, linkPageTitle: draft.linkPageTitle, linkPageContent: draft.linkPageContent, showCountdown: draft.showCountdown, themeColor: draft.themeColor, whatsappImageEnabled: draft.whatsappImageEnabled, whatsappImageUrl: draft.whatsappImageEnabled && /^https:\/\//i.test(draft.whatsappImageUrl) ? draft.whatsappImageUrl : "", emailDesign: draft.emailDesign, deliveryPageDesign: draft.deliveryPageDesign, deliveryPageCustomCss: draft.deliveryPageCustomCss, reviewTriggerStatus: draft.reviewTriggerStatus, reviewDelayMinutes: Math.min(48, Math.max(1, Number(draft.reviewDelayHours) || 24)) * 60, delaysMinutes: [Math.min(48, Math.max(1, Number(draft.abandonedDelayHours) || 1)) * 60] }
         })
       });
       const payload = await response.json().catch(() => ({}));
@@ -195,11 +196,10 @@ export default function AdminSallaCatalog({ admin }) {
   };
 
   return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
-    {selected ? <div className="salla-template-editor-top"><button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button></div> : null}
+    <div className="salla-template-editor-top">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
     <div className="salla-templates-page-head">
       <div className="page-title">
         <div><h1>{selected ? selected.name : "قوالب سلة"}</h1><p className="muted">{selected ? selected.description : "إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة، بنفس الواجهة التي تظهر للمستخدم بعد الربط."}</p></div>
-        <div className="toolbar">{selected ? null : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
       </div>
       <span className="salla-chip">سلة</span>
     </div>
@@ -247,7 +247,7 @@ export default function AdminSallaCatalog({ admin }) {
               <label className="btn btn-secondary">{imageBusy ? "جارٍ رفع الصورة..." : draft.whatsappImageUrl ? "استبدال صورة الرسالة" : "إضافة صورة الرسالة"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadWhatsAppImage} disabled={imageBusy} hidden /></label>
               <small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت. تُحفظ الصورة لهذا القالب وتظهر أعلى النص في معاينة واتساب.</small>
             </div> : null}
-            {selected.templateKey === "review_request" ? <section className="salla-special-settings"><label className="field"><span>الإرسال بعد الحالة — بالساعات</span><input className="input" type="number" min="1" max="48" value={draft.reviewDelayHours} onChange={(event) => setDraft((current) => ({ ...current, reviewDelayHours: event.target.value }))} /></label></section> : null}
+            {selected.templateKey === "review_request" ? <section className="salla-special-settings"><div className="section-head"><div><h2>توقيت طلب التقييم</h2><p>تبدأ المهلة من وقت وصول الحالة المختارة من سلة.</p></div><DashboardIcon name="clock" /></div><div className="form-grid two salla-review-trigger-grid"><label className="field"><span>يتم إرسال رسالة طلب التقييم عند الحالة</span><select className="select" value={draft.reviewTriggerStatus} onChange={(event) => setDraft((current) => ({ ...current, reviewTriggerStatus: event.target.value }))}><option value="shipped">تم الشحن</option><option value="delivered">تم التوصيل</option><option value="completed">تم التنفيذ</option></select><small>اختر الحالة التي يبدأ عندها العد.</small></label><label className="field"><span>الإرسال بعد الحالة — بالساعات</span><input className="input" type="number" min="1" max="48" value={draft.reviewDelayHours} onChange={(event) => setDraft((current) => ({ ...current, reviewDelayHours: event.target.value }))} /><small>من ساعة واحدة حتى 48 ساعة.</small></label></div></section> : null}
             {selected.templateKey === "abandoned_cart" ? <section className="salla-special-settings"><label className="field"><span>الإرسال بعد ترك السلة — بالساعات</span><input className="input" type="number" min="1" max="48" value={draft.abandonedDelayHours} onChange={(event) => setDraft((current) => ({ ...current, abandonedDelayHours: event.target.value }))} /></label></section> : null}
             {selected.templateKey === "digital_product_delivery" ? <section className="salla-special-settings salla-digital-settings">
               <div className="section-head"><div><h2>صفحة تسليم المنتج الرقمي</h2><p>رابط آمن مستقل لكل طلب، مع ترتيب تلقائي للكود أو البريد وكلمة المرور.</p></div><DashboardIcon name="action" /></div>
@@ -257,7 +257,7 @@ export default function AdminSallaCatalog({ admin }) {
                 <label className="field"><span>محتوى صفحة الرابط</span><textarea className="textarea" maxLength={5000} value={draft.linkPageContent} onChange={(event) => setDraft((current) => ({ ...current, linkPageContent: event.target.value }))} /></label>
                 <div className="salla-digital-branding"><div><strong>شعار صفحة الرابط</strong><small>للمعاينة الإدارية فقط؛ يحتفظ كل متجر بشعاره الخاص.</small></div><label className="btn btn-secondary">{logoUrl ? "تغيير شعار المعاينة" : "إضافة شعار للمعاينة"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectPreviewLogo} hidden /></label></div>
                 <label className="field"><span>تصميم صفحة التسليم</span><select className="select" value={draft.deliveryPageDesign} onChange={(event) => setDraft((current) => ({ ...current, deliveryPageDesign: event.target.value }))}><option value="classic">كلاسيكي</option><option value="cards">بطاقات واضحة</option><option value="compact">مدمج وعملي</option></select></label>
-                <label className="field salla-css-code-editor"><span>كود تصميم صفحة الرابط (CSS آمن)</span><textarea className="textarea" dir="ltr" spellCheck={false} maxLength={4000} value={draft.deliveryPageCustomCss} onChange={(event) => setDraft((current) => ({ ...current, deliveryPageCustomCss: event.target.value }))} placeholder={"--salla-page-background: #f4fbf9;\n--salla-card-radius: 24px;\n--salla-button-radius: 12px;"} /><small>يقبل متغيرات التصميم الموضحة فقط، ويمنع الروابط والأكواد التنفيذية تلقائيًا.</small></label>
+                <label className="field salla-css-code-editor"><span>كود تصميم صفحة الرابط (CSS آمن) — اختياري</span><textarea className="textarea" dir="ltr" spellCheck={false} maxLength={4000} value={draft.deliveryPageCustomCss} onChange={(event) => setDraft((current) => ({ ...current, deliveryPageCustomCss: event.target.value }))} placeholder={"--salla-page-background: #f4fbf9;\n--salla-card-radius: 24px;\n--salla-button-radius: 12px;"} /><small>اختياري؛ اتركه فارغًا لاستخدام التصميم المحدد أعلاه. يمنع الروابط والأكواد التنفيذية تلقائيًا.</small></label>
                 <label className="setting-line"><span><strong>إظهار العد التنازلي</strong><small>يظهر عند توفر مدة موثقة للمنتج.</small></span><input type="checkbox" checked={draft.showCountdown} onChange={(event) => setDraft((current) => ({ ...current, showCountdown: event.target.checked }))} /></label>
               </div> : null}
             </section> : null}

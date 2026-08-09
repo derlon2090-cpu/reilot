@@ -51,5 +51,20 @@ describe("Salla admin application catalog", () => {
     expect(adminCatalogSource).toContain("deliveryPageCustomCss");
     expect(adminCatalogSource).toContain("sallaPageCssVariables(draft.deliveryPageCustomCss)");
     expect(adminCatalogSource).toContain("للمعاينة الإدارية فقط");
+    expect(adminCatalogSource).toContain("كود تصميم صفحة الرابط (CSS آمن) — اختياري");
+  });
+
+  it("links review-request timing to one persisted Salla order state", () => {
+    expect(adminCatalogSource).toContain('reviewTriggerStatus: "delivered"');
+    expect(adminCatalogSource).toContain("يتم إرسال رسالة طلب التقييم عند الحالة");
+    expect(adminCatalogSource).toContain('<option value="shipped">تم الشحن</option>');
+    expect(adminCatalogSource).toContain('<option value="delivered">تم التوصيل</option>');
+    expect(adminCatalogSource).toContain('<option value="completed">تم التنفيذ</option>');
+    expect(adminCatalogSource).toContain("reviewTriggerStatus: draft.reviewTriggerStatus");
+  });
+
+  it("keeps the applications return action in a dedicated upper-left row", () => {
+    expect(adminCatalogSource).toContain('className="salla-template-editor-top"');
+    expect(adminCatalogSource).toContain('href="/admin/integrations"');
   });
 });

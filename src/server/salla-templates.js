@@ -121,7 +121,7 @@ const definitions = [
     variables: ["customer_name", "order_number", "store_name", "rating_url"],
     body: "مرحبًا {{customer_name}} 👋\n\nشكرًا لك على طلبك رقم {{order_number}} من {{store_name}}.\nنتمنى أن تكون تجربتك معنا رائعة.\n\nشاركنا تقييمك وملاحظاتك لمساعدتنا على تحسين خدماتنا:\n{{rating_url}}",
     emailSubject: "شاركنا تقييم تجربتك",
-    settings: { reviewDelayMinutes: 24 * 60 }
+    settings: { reviewDelayMinutes: 24 * 60, reviewTriggerStatus: "delivered" }
   },
   {
     key: SALLA_TEMPLATE_KEYS.ABANDONED_CART,
@@ -232,6 +232,9 @@ function cleanSettings(input, current = {}) {
     ? settings.emailDesign : (current.emailDesign || "classic");
   const deliveryPageDesign = ["classic", "cards", "compact"].includes(settings.deliveryPageDesign)
     ? settings.deliveryPageDesign : (current.deliveryPageDesign || "classic");
+  const reviewTriggerStatus = ["shipped", "delivered", "completed"].includes(settings.reviewTriggerStatus)
+    ? settings.reviewTriggerStatus
+    : (["shipped", "delivered", "completed"].includes(current.reviewTriggerStatus) ? current.reviewTriggerStatus : "delivered");
   return {
     ...current,
     ...settings,
@@ -239,6 +242,7 @@ function cleanSettings(input, current = {}) {
     completedDeliveryMode: ["whatsapp_message", "secure_order_page"].includes(settings.completedDeliveryMode)
       ? settings.completedDeliveryMode : current.completedDeliveryMode,
     reviewDelayMinutes: Math.max(5, Math.min(2880, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
+    reviewTriggerStatus,
     emailDesign,
     deliveryPageDesign,
     deliveryPageCustomCss: normalizeSallaPageCssCode(settings.deliveryPageCustomCss ?? current.deliveryPageCustomCss ?? ""),
@@ -518,7 +522,7 @@ export async function validateSallaAutomationTemplate({ tenantId, userId, templa
   const item = payload.item;
   const errors = [];
   if (!item.channel) errors.push("لم يتم تحديد قناة الإرسال.");
-  if (item.requiresStatusMapping && !item.mappedStatusId) errors.push("لم يتم ربط حالة سلة.");
+  if (item.requiresStatusMapping && item.templateKey !== SALLA_TEMPLATE_KEYS.REVIEW_REQUEST && !item.mappedStatusId) errors.push("لم يتم ربط حالة سلة.");
   if (!String(item.messageBody || "").trim()) errors.push("محتوى الرسالة مفقود.");
   if (item.channel === "whatsapp") {
     if (!item.whatsappTemplateId) errors.push("قالب واتساب المعتمد غير محدد.");
@@ -971,7 +975,12 @@ export async function processSallaTemplateEvent(payload) {
         OR (trigger_type='event' AND salla_event_name=$2)
         OR (template_key='cancelled' AND $2='order.deleted')
         OR (template_key='returned' AND $2='order.refunded')
-        OR (trigger_type='order_status' AND (
+        OR (template_key='review_request' AND trigger_type='order_status' AND (
+          (COALESCE(settings->>'reviewTriggerStatus','delivered')='shipped' AND $4='shipped')
+          OR (COALESCE(settings->>'reviewTriggerStatus','delivered')='delivered' AND $4='delivered')
+          OR (COALESCE(settings->>'reviewTriggerStatus','delivered')='completed' AND $4 IN ('completed','fulfilled'))
+        ))
+        OR (trigger_type='order_status' AND template_key<>'review_request' AND (
           mapped_status_id=$3 OR (mapped_status_slug IS NOT NULL AND mapped_status_slug=$4)
         ))
       )`,

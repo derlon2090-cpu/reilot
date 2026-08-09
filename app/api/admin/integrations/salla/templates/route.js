@@ -22,6 +22,7 @@ const inputSchema = z.object({
     emailDesign: z.enum(["classic", "modern", "minimal"]).optional(),
     deliveryPageDesign: z.enum(["classic", "cards", "compact"]).optional(),
     deliveryPageCustomCss: z.string().max(4000).optional(),
+    reviewTriggerStatus: z.enum(["shipped", "delivered", "completed"]).optional(),
     reviewDelayMinutes: z.number().int().min(5).max(2880).optional(),
     delaysMinutes: z.array(z.number().int().min(5).max(2880)).max(3).optional(),
     themeColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional()
