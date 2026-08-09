@@ -8655,6 +8655,14 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.name === "whatsappImageEnabled") {
+    const form = target.closest('form[data-submit="salla-automation-template"]');
+    const editor = form?.querySelector("[data-salla-whatsapp-image-editor]");
+    editor?.toggleAttribute("hidden", !target.checked);
+    editor?.classList.toggle("is-open", target.checked);
+    refreshSallaTemplatePreview(form);
+    return;
+  }
   if (target.dataset.action === "campaign-channel") {
     const form = target.closest("form");
     form?.querySelectorAll("[data-campaign-panel]").forEach((panel) => {

@@ -112,6 +112,8 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('data-action="salla-whatsapp-image-file"');
     expect(appSource).toContain('action === "choose-salla-whatsapp-image"');
     expect(appSource).toContain('whatsappImageEditor?.toggleAttribute("hidden", !imageEnabled)');
+    expect(appSource).toContain('target.name === "whatsappImageEnabled"');
+    expect(appSource).toContain('editor?.toggleAttribute("hidden", !target.checked)');
     expect(appSource).toContain('whatsappImageUrl: payload.imageUrl');
     expect(appSource).toContain('/api/apps/salla/templates/${encodeURIComponent(templateKey)}/image');
     expect(appSource).not.toContain('refreshSallaTemplatePreview(form, { logoUrl: payload.logoUrl, whatsappImageUrl: payload.logoUrl })');
