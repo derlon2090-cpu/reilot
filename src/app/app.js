@@ -2889,7 +2889,6 @@ function authReferenceVisual(kind) {
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
     <div class="auth-showcase-art">${illustration}</div>
-    <div class="auth-showcase-note"><span>${dashboardIcon(item.icon)}</span><p>${item.note}</p></div>
   </div>`;
 }
 
