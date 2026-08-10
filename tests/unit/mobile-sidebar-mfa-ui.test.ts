@@ -112,6 +112,13 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("transform:scale(1.065)");
     expect(stylesSource).toContain("transform-origin:center center!important");
     expect(stylesSource).toContain("transform:translate(-50%,-50%) scale(.58)!important");
+    expect(stylesSource).toContain("Final auth flow correction: reference order, visible tabs and register-only scrolling.");
+    expect(stylesSource).toContain("flex:0 0 54px!important");
+    expect(stylesSource).toContain("body:has(.auth-suite-shell.register)");
+    expect(stylesSource).toContain("overflow-y:auto!important");
+    expect(stylesSource).toContain(".auth-suite-page .auth-suite-otp>.email-otp-panel{\n    grid-column:1!important");
+    expect(stylesSource).toContain(".auth-suite-page .auth-suite-otp>.auth-suite-email-visual{\n    grid-column:2!important");
+    expect(stylesSource).toContain("-webkit-text-fill-color:#183a36!important");
     expect(stylesSource).toContain(".auth-showcase-dots,.auth-showcase-pagination{display:none!important}");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
   });
@@ -120,7 +127,8 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('class="auth-recovery-icon"');
     expect(appSource).toContain('function authIntroIcon');
     expect(appSource).toContain('auth-intro-symbol--${kind}');
-    expect(appSource).toContain("623 841");
+    expect(appSource).toContain("746 823");
+    expect(appSource).toContain("رموز الاسترداد");
     expect(appSource).toContain("7F3K-R9D2-4M8Q");
     expect(appSource).not.toContain('<ol class="email-otp-steps">');
     expect(stylesSource).toContain("inset-inline:auto;");

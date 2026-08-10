@@ -10186,3 +10186,109 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @media (min-width:744px) and (max-width:900px){
   .auth-showcase-art>.auth-platform-scene{transform:translate(-50%,-50%) scale(.58)!important}
 }
+
+/* Final auth flow correction: reference order, visible tabs and register-only scrolling. */
+@media (min-width:744px){
+  .auth-showcase-copy{
+    padding-top:clamp(12px,1.35vw,20px)!important;
+  }
+  .auth-showcase-art>.auth-suite-scene{
+    transform:translateY(clamp(10px,1.25vw,18px))!important;
+  }
+  .auth-suite-page .auth-suite-mode-tabs{
+    min-height:54px!important;
+    height:54px!important;
+    flex:0 0 54px!important;
+    align-self:stretch!important;
+  }
+  .auth-suite-page .auth-suite-mode-tabs button{
+    height:54px!important;
+    min-height:54px!important;
+    flex:0 0 auto!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+  .auth-suite-page .auth-suite-mode-tabs button>span{
+    display:inline!important;
+    overflow:visible!important;
+    white-space:nowrap!important;
+  }
+  .auth-suite-page .auth-suite-otp>.email-otp-panel{
+    grid-column:1!important;
+    grid-row:1!important;
+    direction:rtl!important;
+  }
+  .auth-suite-page .auth-suite-otp>.auth-suite-email-visual{
+    grid-column:2!important;
+    grid-row:1!important;
+  }
+  .auth-suite-page .email-otp-email .input{
+    color:#183a36!important;
+    -webkit-text-fill-color:#183a36!important;
+    opacity:1!important;
+    border-color:#dce7e5!important;
+    background:#fff!important;
+  }
+  html:has(.auth-suite-shell.register),
+  body:has(.auth-suite-shell.register){
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    overscroll-behavior-y:auto!important;
+  }
+  .auth-suite-page:has(.auth-suite-shell.register){
+    position:relative!important;
+    inset:auto!important;
+    height:auto!important;
+    min-height:100svh!important;
+    overflow:visible!important;
+    align-items:start!important;
+  }
+  .auth-suite-page:has(.auth-suite-shell.register) .auth-suite-stage{
+    height:auto!important;
+    min-height:100svh!important;
+    max-height:none!important;
+    grid-template-rows:64px auto!important;
+    overflow:visible!important;
+  }
+  .auth-suite-page .auth-suite-shell.register{
+    height:auto!important;
+    min-height:690px!important;
+    max-height:none!important;
+    align-items:start!important;
+    overflow:visible!important;
+  }
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-panel{
+    height:auto!important;
+    min-height:690px!important;
+    max-height:none!important;
+    align-self:start!important;
+    overflow:visible!important;
+  }
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-visual{
+    height:690px!important;
+    min-height:690px!important;
+    max-height:690px!important;
+    align-self:start!important;
+  }
+  .auth-suite-page .auth-suite-shell.register .auth-suite-form{
+    flex:0 0 auto!important;
+  }
+}
+
+@media (min-width:744px) and (max-width:1100px){
+  .auth-suite-page .auth-suite-mode-tabs,
+  .auth-suite-page .auth-suite-mode-tabs button{
+    height:48px!important;
+    min-height:48px!important;
+  }
+  .auth-suite-page .auth-suite-mode-tabs{flex-basis:48px!important}
+  .auth-suite-page .auth-suite-shell.register,
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-panel,
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-visual{
+    min-height:640px!important;
+  }
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-visual{
+    height:640px!important;
+    max-height:640px!important;
+  }
+}
