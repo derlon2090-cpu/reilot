@@ -93,12 +93,20 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('class="auth-platform-phone"');
     expect(appSource).toContain('class="auth-platform-feature auth-platform-feature--security"');
     expect(appSource).toContain('class="auth-suite-scene auth-suite-scene--${kind}"');
+    expect(appSource).toContain('kind === "signupOtp" ? signupOtpScene');
+    expect(appSource).toContain('kind === "loginOtp" ? loginOtpScene');
+    expect(appSource).toContain('scene: "loginOtp"');
+    expect(appSource).toContain('scene: "signupOtp"');
+    expect(appSource).toContain('class="auth-showcase-caption"');
     for (const referenceContent of ["تذكيرات ذكية", "تقارير وتحليلات", "أتمتة التجديدات", "حملات مخصصة", "أمان وموثوقية", "1,250", "45,680", "98%", "تم تجديد اشتراكك بنجاح"]) {
       expect(appSource).toContain(referenceContent);
     }
     expect(stylesSource).toContain(".auth-platform-scene::before");
     expect(stylesSource).toContain("border:1px dashed rgba(17,127,115,.26)");
     expect(stylesSource).toContain("height:100dvh!important");
+    expect(stylesSource).toContain("height:100svh!important");
+    expect(stylesSource).toContain(".auth-showcase-caption");
+    expect(stylesSource).toContain(".auth-showcase-dots,.auth-showcase-pagination{display:none!important}");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
   });
 

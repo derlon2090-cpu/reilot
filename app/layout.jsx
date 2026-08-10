@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260810-user-suite-v2-auth-position-v23" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260810-auth-reference-panels-v25" />
       </head>
       <body>{children}</body>
     </html>
