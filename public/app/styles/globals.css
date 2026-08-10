@@ -9461,6 +9461,48 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .auth-suite-page .auth-suite-note{margin-top:16px!important;padding:14px!important;font-size:12px!important}
 }
 
+/* Channel detail header: overview link stays at the visual top-left in RTL. */
+.ref-detail-page .channel-detail-heading-clean{
+  display:flex;
+  width:100%;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:20px;
+}
+.ref-detail-page .channel-detail-heading-clean>div{min-width:0;flex:1}
+.channel-overview-link{
+  display:flex;
+  min-width:max-content;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  order:2;
+  padding:10px 13px;
+  border:1px solid transparent;
+  border-radius:9px;
+  color:#526b67;
+  background:transparent;
+  font:inherit;
+  font-size:12px;
+  font-weight:750;
+  cursor:pointer;
+  transition:color .18s ease,background .18s ease,border-color .18s ease;
+}
+.channel-overview-link:hover,.channel-overview-link:focus-visible{
+  border-color:#d9e7e4;
+  color:#0b3f3b;
+  background:#f4faf8;
+  outline:none;
+}
+.channel-overview-link svg{width:19px;height:19px;color:#6f8581}
+.channel-overview-link:hover svg,.channel-overview-link:focus-visible svg{color:#0b3f3b}
+
+@media (max-width:640px){
+  .ref-detail-page .channel-detail-heading-clean{display:grid;grid-template-columns:1fr;gap:12px}
+  .channel-overview-link{order:-1;justify-self:end;padding:8px 10px}
+}
+
 @media (prefers-reduced-motion:reduce){
   .auth-showcase-art .auth-suite-scene,
   .auth-showcase-halo,
