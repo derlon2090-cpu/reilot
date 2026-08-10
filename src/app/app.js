@@ -1561,10 +1561,10 @@ function marketingFlowNetwork(mode = "home") {
   const paths = ys.map((y, index) => {
     const curve = index === 2 ? `M 367 ${y} C 388 ${y}, 401 250, 419 250` : `M 367 ${y} C 390 ${y}, 401 ${250 + (index - 2) * 10}, 419 250`;
     const rightCurve = index === 2 ? `M 581 250 C 599 250, 612 ${y}, 633 ${y}` : `M 581 250 C 599 ${250 + (index - 2) * 10}, 610 ${y}, 633 ${y}`;
-    return `<g data-flow-line="${inbound[index][0]}"><path class="flow-base" d="${curve}"/><path class="flow-pulse flow-in" d="${curve}"/><circle class="flow-terminal" cx="367" cy="${y}" r="4.5"/></g><g data-flow-line="${outbound[index][0]}"><path class="flow-base" d="${rightCurve}"/><path class="flow-pulse flow-out" d="${rightCurve}"/><circle class="flow-terminal" cx="633" cy="${y}" r="4.5"/></g>`;
+    return `<g data-flow-line="${inbound[index][0]}"><path class="flow-base" d="${curve}"/><path class="flow-pulse flow-in" d="${curve}"/><circle class="flow-terminal flow-terminal-card" cx="367" cy="${y}" r="4.5"/><circle class="flow-terminal flow-terminal-center" cx="419" cy="250" r="3.5"/></g><g data-flow-line="${outbound[index][0]}"><path class="flow-base" d="${rightCurve}"/><path class="flow-pulse flow-out" d="${rightCurve}"/><circle class="flow-terminal flow-terminal-card" cx="633" cy="${y}" r="4.5"/><circle class="flow-terminal flow-terminal-center" cx="581" cy="250" r="3.5"/></g>`;
   }).join("");
   return `<div class="flow-network ${mode === "features" ? "flow-network-features" : ""}" data-motion-scene>
-    <svg class="flow-network-svg" viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="flow-glow"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${paths}</svg>
+    <svg class="flow-network-svg"${mode === "features" ? " data-flow-geometry" : ""} viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="flow-glow"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${paths}</svg>
     <div class="flow-side flow-side-in">${inbound.map(([key, label, icon], index) => `<article class="flow-node" data-flow-node="${key}" style="--flow-delay:${index * .24}s"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${localizedCopy("مصدر متصل", "Connected source")}</small></div></article>`).join("")}</div>
     <div class="flow-center" data-flow-center><i></i><i></i><div>${logo()}</div><small>${localizedCopy("منصة موحدة تتصل بكل ما تحتاجه", "One platform connected to everything")}</small></div>
     <div class="flow-side flow-side-out">${outbound.map(([key, label, icon, body], index) => `<article class="flow-node" data-flow-node="${key}" style="--flow-delay:${(index + .5) * .24}s"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${body || localizedCopy("نتيجة مؤتمتة", "Automated outcome")}</small></div></article>`).join("")}</div>
@@ -1573,11 +1573,11 @@ function marketingFlowNetwork(mode = "home") {
 
 function marketingHomeOperationsScene({ compact = false } = {}) {
   const connections = [
-    "M263 76 C340 76 360 184 425 214", "M500 136 C500 142 500 146 500 150", "M737 92 C660 92 640 184 575 214",
-    "M263 246 C340 246 365 234 425 226", "M737 276 C660 276 635 240 575 234", "M263 420 C340 420 365 326 430 286", "M500 380 C500 350 500 324 500 300", "M737 420 C660 420 635 326 570 286"
+    ["M263 76 C340 76 360 184 425 214", [263, 76], [425, 214]], ["M500 136 C500 142 500 146 500 150", [500, 136], [500, 150]], ["M737 92 C660 92 640 184 575 214", [737, 92], [575, 214]],
+    ["M263 246 C340 246 365 234 425 226", [263, 246], [425, 226]], ["M737 276 C660 276 635 240 575 234", [737, 276], [575, 234]], ["M263 420 C340 420 365 326 430 286", [263, 420], [430, 286]], ["M500 380 C500 350 500 324 500 300", [500, 380], [500, 300]], ["M737 420 C660 420 635 326 570 286", [737, 420], [570, 286]]
   ];
   return `<div class="home-ops-scene${compact ? " home-ops-scene--hero" : ""}" data-motion-scene aria-label="${localizedCopy("تدفق عمليات Renvix الحي", "Live Renvix operations flow")}">
-    <svg class="home-ops-wires" viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="home-ops-glow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${connections.map((path, index) => `<path class="home-ops-wire" d="${path}"/><path class="home-ops-data" style="--ops-delay:${index * .35}s;--ops-duration:${2.8 + (index % 3) * .35}s" d="${path}"/>`).join("")}</svg>
+    <svg class="home-ops-wires" viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="home-ops-glow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${connections.map(([path, cardPoint, centerPoint], index) => `<path class="home-ops-wire" d="${path}"/><path class="home-ops-data" style="--ops-delay:${index * .35}s;--ops-duration:${2.8 + (index % 3) * .35}s" d="${path}"/><circle class="home-ops-terminal home-ops-terminal--card" cx="${cardPoint[0]}" cy="${cardPoint[1]}" r="4.5"/><circle class="home-ops-terminal home-ops-terminal--center" cx="${centerPoint[0]}" cy="${centerPoint[1]}" r="3.5"/>`).join("")}</svg>
     <div class="home-ops-center"><i></i><i></i><i></i><img class="home-ops-mark" src="/assets/renvix-mark-deep-teal.svg" alt="Renvix" /></div>
     <article class="home-ops-card ops-renewals" style="--ops-enter:.8s" data-reveal><header><span>${dashboardIcon("reports")}</span><h3>${localizedCopy("ملخص التجديدات", "Renewal summary")}</h3></header><strong data-count-target="24.8" data-count-start="21.7" data-count-decimals="1" data-count-prefix="+">+21.7%</strong><small>${localizedCopy("نمو هذا الشهر", "Growth this month")}</small><svg viewBox="0 0 240 74" aria-hidden="true"><path class="ops-chart-grid" d="M5 62H235"/><path class="ops-chart-line" d="M8 60 L48 42 L78 50 L112 28 L146 39 L183 20 L232 5"/>${["8,60", "48,42", "78,50", "112,28", "146,39", "183,20", "232,5"].map((point, index) => `<circle style="--dot-delay:${1 + index * .1}s" cx="${point.split(",")[0]}" cy="${point.split(",")[1]}" r="3"/>`).join("")}</svg><em>${localizedCopy("اتجاه إيجابي", "Positive trend")}</em></article>
     <article class="home-ops-card ops-automation" style="--ops-enter:1s" data-reveal><header><span>${dashboardIcon("settings")}</span><h3>${localizedCopy("أتمتة ذكية", "Smart automation")}</h3></header><div class="ops-automation-track"><i></i>${[["استقبال", "email"], ["تذكير", "notifications"], ["تجديد", "customers"], ["تأكيد", "success"]].map(([label, icon], index) => `<span style="--auto-step:${index}">${dashboardIcon(icon)}<b>${localizedCopy(label, label)}</b></span>`).join("")}</div></article>
@@ -1678,7 +1678,54 @@ function initMarketingMotion() {
     schedule();
   });
 
+  const syncFeatureFlowGeometry = (network) => {
+    const svg = network.querySelector("[data-flow-geometry]");
+    const center = network.querySelector("[data-flow-center]");
+    if (!svg || !center || getComputedStyle(svg).display === "none") return;
+    const networkRect = network.getBoundingClientRect();
+    const centerRect = center.getBoundingClientRect();
+    if (!networkRect.width || !networkRect.height || !centerRect.width) return;
+    const width = networkRect.width;
+    const height = networkRect.height;
+    const centerX = centerRect.left - networkRect.left + centerRect.width / 2;
+    const centerY = centerRect.top - networkRect.top + centerRect.height / 2;
+    const radius = Math.min(centerRect.width, centerRect.height) / 2;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    network.querySelectorAll("[data-flow-line]").forEach((line) => {
+      const node = network.querySelector(`[data-flow-node="${line.dataset.flowLine}"]`);
+      if (!node) return;
+      const nodeRect = node.getBoundingClientRect();
+      const nodeCenterX = nodeRect.left - networkRect.left + nodeRect.width / 2;
+      const cardY = nodeRect.top - networkRect.top + nodeRect.height / 2;
+      const cardIsLeft = nodeCenterX < centerX;
+      const cardX = cardIsLeft ? nodeRect.right - networkRect.left : nodeRect.left - networkRect.left;
+      const normalizedY = Math.max(-1, Math.min(1, (cardY - centerY) / Math.max(1, height * .43)));
+      const hubY = centerY + normalizedY * radius * .72;
+      const hubYOffset = hubY - centerY;
+      const hubXOffset = Math.sqrt(Math.max(0, radius * radius - hubYOffset * hubYOffset));
+      const hubX = centerX + (cardIsLeft ? -hubXOffset : hubXOffset);
+      const distance = Math.abs(hubX - cardX);
+      const direction = cardIsLeft ? 1 : -1;
+      const controlOneX = cardX + direction * distance * .38;
+      const controlTwoX = hubX - direction * distance * .34;
+      const path = `M ${cardX} ${cardY} C ${controlOneX} ${cardY}, ${controlTwoX} ${hubY}, ${hubX} ${hubY}`;
+      line.querySelectorAll("path").forEach((item) => item.setAttribute("d", path));
+      const cardTerminal = line.querySelector(".flow-terminal-card");
+      const centerTerminal = line.querySelector(".flow-terminal-center");
+      cardTerminal?.setAttribute("cx", cardX);
+      cardTerminal?.setAttribute("cy", cardY);
+      centerTerminal?.setAttribute("cx", hubX);
+      centerTerminal?.setAttribute("cy", hubY);
+    });
+  };
+
   root.querySelectorAll(".flow-network").forEach((network) => {
+    syncFeatureFlowGeometry(network);
+    if (network.matches(".flow-network-features") && "ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(() => requestAnimationFrame(() => syncFeatureFlowGeometry(network)));
+      resizeObserver.observe(network);
+      disposers.push(() => resizeObserver.disconnect());
+    }
     const nodes = [...network.querySelectorAll("[data-flow-node]")];
     nodes.forEach((node) => {
       const enter = () => {

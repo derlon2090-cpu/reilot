@@ -68,7 +68,8 @@ body {
   background:rgba(236,255,252,.9);
   box-shadow:0 0 0 9px rgba(81,221,203,.08),0 12px 22px rgba(5,112,100,.12);
 }
-.marketing-home-v3 .home-ops-center>*{position:relative;z-index:2}
+.marketing-home-v3 .home-ops-center .home-ops-mark{position:relative;z-index:2}
+.marketing-home-v3 .home-ops-center>i{position:absolute!important;z-index:0}
 
 /* Features network: fixed geometry prevents connector lines from escaping into cards. */
 .marketing-features-v3{
@@ -8414,8 +8415,26 @@ input[type="password"]::-webkit-textfield-decoration-container {
   vector-effect:non-scaling-stroke;
   filter:drop-shadow(0 0 5px rgba(21,177,157,.5));
 }
+.marketing-features-v3 .flow-terminal-center{
+  fill:#fff;
+  stroke:#1ab29d;
+  stroke-width:2.4;
+}
 .marketing-features-v3 .flow-base{stroke:#a9ddd5;stroke-width:1.65}
 .marketing-features-v3 .flow-pulse{stroke-width:2.8}
+
+.marketing-home-v3 .home-ops-terminal{
+  fill:#16aa96;
+  stroke:#e6fffb;
+  stroke-width:2.6;
+  vector-effect:non-scaling-stroke;
+  filter:drop-shadow(0 0 4px rgba(18,167,148,.38));
+}
+.marketing-home-v3 .home-ops-terminal--center{
+  fill:#fff;
+  stroke:#21ad9a;
+  stroke-width:2.2;
+}
 
 /* Reference correction: spacious, non-overlapping home operations composition. */
 .marketing-home-v3 .home-ops-center .home-ops-mark{
@@ -8426,21 +8445,27 @@ input[type="password"]::-webkit-textfield-decoration-container {
 }
 
 @media (min-width:901px){
-  .marketing-home-v3 .marketing-v3-hero-visual{padding-top:18px}
-  .marketing-home-v3 .home-ops-scene--hero{min-height:550px!important;overflow:visible}
+  .marketing-home-v3 .marketing-v3-hero-visual{padding-top:4px}
+  .marketing-home-v3 .marketing-v3-hero-grid{gap-inline:78px}
+  .marketing-home-v3 .marketing-v3-copy .hero-actions{display:grid;width:100%;max-width:410px;grid-template-columns:repeat(2,minmax(0,1fr));margin-inline-start:auto}
+  .marketing-home-v3 .home-ops-scene--hero{min-height:462px!important;overflow:visible}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-wires{z-index:1}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-card{z-index:3;box-sizing:border-box}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals,
   .marketing-home-v3 .home-ops-scene--hero .ops-automation,
   .marketing-home-v3 .home-ops-scene--hero .ops-reminders{top:8px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:190px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:218px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:0!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:0!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0;bottom:0!important;min-height:108px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:151px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:33px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:18px!important;width:224px;height:126px;min-height:126px!important;padding:10px;overflow:hidden}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live-feed{gap:2px;margin-top:4px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live-feed>span{min-height:20px;grid-template-columns:14px minmax(0,1fr) auto;gap:3px;padding:3px;font-size:6px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live-feed b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live-feed small{font-size:5px;white-space:nowrap}
+  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0;bottom:16px!important;min-height:108px}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{
     z-index:4;
-    top:150px!important;
+    top:146px!important;
     width:150px!important;
     height:150px!important;
     border-color:rgba(23,174,156,.3);
@@ -8450,12 +8475,20 @@ input[type="password"]::-webkit-textfield-decoration-container {
     display:block;
     width:108px!important;
     height:auto;
+    align-self:center;
+    justify-self:center;
     filter:drop-shadow(0 6px 10px rgba(3,78,70,.12));
   }
   .marketing-home-v3 .home-ops-scene--hero.is-in-view .home-ops-mark{animation:homeOpsMarkFloat 4.2s ease-in-out infinite}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::before{z-index:-3;bottom:-55px;width:92%;height:42px}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::after{z-index:-2;bottom:-36px;width:110%;height:30px}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::before{z-index:-3;bottom:-43px;width:82%;height:34px;opacity:.42}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::after{z-index:-2;bottom:-27px;width:98%;height:23px;opacity:.52}
   .marketing-home-v3 .home-ops-card header{min-height:30px;align-items:center;gap:8px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals{height:114px;min-height:114px;overflow:hidden}
+  .marketing-home-v3 .home-ops-scene--hero .ops-automation{height:112px;min-height:112px;overflow:hidden}
+  .marketing-home-v3 .home-ops-scene--hero .ops-reminders{height:188px;min-height:188px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{height:152px;min-height:152px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>svg{position:absolute;left:10px;bottom:12px;margin:0}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>em{position:absolute;right:11px;bottom:10px}
   .marketing-home-v3 .home-ops-card header>span{
     display:grid!important;
     flex:0 0 29px;
@@ -8484,14 +8517,44 @@ input[type="password"]::-webkit-textfield-decoration-container {
   }
   .marketing-home-v3 .ops-success-ring::before{content:"";position:absolute;inset:7px;border-radius:inherit;background:#fff}
   .marketing-home-v3 .ops-success-ring>span{position:relative;color:#087d70;font-size:10px;font-weight:900}
+  .marketing-home-v3 .marketing-hero-metrics article{min-height:108px}
 }
 
 @media (min-width:901px) and (max-width:1180px){
-  .marketing-home-v3 .home-ops-scene--hero{min-height:510px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:174px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:204px!important}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:148px!important;width:136px!important;height:136px!important}
+  .marketing-home-v3 .marketing-v3-hero-grid{gap-inline:18px}
+  .marketing-home-v3 .home-ops-scene--hero{min-height:462px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:151px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:146px!important;width:136px!important;height:136px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{width:96px!important}
+
+  .public-site .public-nav{min-height:76px}
+  .public-site .public-nav .nav-inner{
+    width:calc(100% - 48px);
+    min-height:76px;
+    grid-template-columns:180px minmax(0,1fr) 384px;
+    grid-template-areas:"brand links actions";
+    grid-template-rows:76px;
+    gap:8px;
+  }
+  .public-site .nav-inner>.brand{min-width:174px;transform:none}
+  .public-site .public-nav .brand-logo-image{width:174px!important;max-width:174px!important;max-height:43px!important}
+  .public-site .nav-links{min-width:0;min-height:76px;gap:4px;border-top:0}
+  .public-site .nav-link{min-height:44px;gap:5px;padding-inline:3px;font-size:11px}
+  .public-site .public-nav-icon .line-icon{width:16px;height:16px}
+  .public-site .nav-actions{min-width:0;gap:5px}
+  .public-site .public-nav-preferences{gap:4px}
+  .public-site .public-language-compact{min-width:70px;min-height:40px;padding-inline:7px}
+  .public-site .public-language-compact strong{font-size:11px}
+  .public-site .public-theme{min-width:40px;min-height:40px;padding-inline:8px}
+  .public-site .public-auth-actions{gap:6px}
+  .public-site .public-auth-actions .btn{min-height:40px;padding-inline:8px;font-size:11px}
+  .public-site .public-register-action{min-width:106px}
+  .public-site .public-login-action{min-width:96px}
+}
+
+@media (min-width:1181px){
+  .public-site .public-nav .nav-inner{width:calc(100% - 64px);max-width:1380px}
 }
 
 @keyframes homeOpsMarkFloat{
@@ -8540,5 +8603,5 @@ input[type="password"]::-webkit-textfield-decoration-container {
 
 @media (min-width:641px) and (max-width:1180px){
   .public-site .nav-inner>.brand{transform:translateX(6px)}
-  .public-site .nav-actions{gap:12px}
+  .public-site .nav-actions{gap:6px}
 }
