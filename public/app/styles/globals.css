@@ -8404,6 +8404,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .marketing-home-v3 .ops-reminders[data-reveal]{transition-delay:.2s!important;animation-delay:.2s}
 .marketing-home-v3 .ops-live[data-reveal]{transition-delay:.24s!important;animation-delay:.24s}
 .marketing-home-v3 .ops-metrics[data-reveal],.marketing-home-v3 .ops-revenue[data-reveal]{transition-delay:.28s!important;animation-delay:.28s}
+.marketing-home-v3 .ops-success[data-reveal]{transition-delay:.32s!important;animation-delay:.32s}
 
 /* Reference correction: every feature connector terminates on the card edge. */
 .marketing-features-v3 .flow-terminal{
@@ -8425,19 +8426,21 @@ input[type="password"]::-webkit-textfield-decoration-container {
 }
 
 @media (min-width:901px){
-  .marketing-home-v3 .home-ops-scene--hero{min-height:520px!important;overflow:visible}
+  .marketing-home-v3 .marketing-v3-hero-visual{padding-top:18px}
+  .marketing-home-v3 .home-ops-scene--hero{min-height:550px!important;overflow:visible}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-wires{z-index:1}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-card{z-index:3;box-sizing:border-box}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals,
   .marketing-home-v3 .home-ops-scene--hero .ops-automation,
-  .marketing-home-v3 .home-ops-scene--hero .ops-reminders{top:0!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:176px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:204px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-reminders{top:8px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:190px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:218px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:0!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:0!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0;bottom:0!important;min-height:108px}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{
     z-index:4;
-    top:126px!important;
+    top:150px!important;
     width:150px!important;
     height:150px!important;
     border-color:rgba(23,174,156,.3);
@@ -8450,8 +8453,8 @@ input[type="password"]::-webkit-textfield-decoration-container {
     filter:drop-shadow(0 6px 10px rgba(3,78,70,.12));
   }
   .marketing-home-v3 .home-ops-scene--hero.is-in-view .home-ops-mark{animation:homeOpsMarkFloat 4.2s ease-in-out infinite}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::before{bottom:-43px;width:86%;height:44px}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::after{bottom:-21px;width:102%;height:30px}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::before{z-index:-3;bottom:-55px;width:92%;height:42px}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::after{z-index:-2;bottom:-36px;width:110%;height:30px}
   .marketing-home-v3 .home-ops-card header{min-height:30px;align-items:center;gap:8px}
   .marketing-home-v3 .home-ops-card header>span{
     display:grid!important;
@@ -8467,13 +8470,27 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .ops-live header>span{transform:translateY(3px)}
   .marketing-home-v3 .ops-metrics header>span{box-shadow:0 6px 14px rgba(8,125,112,.1)}
   .marketing-home-v3 .ops-metrics header>span .line-icon{position:static!important;inset:auto!important;width:16px!important;height:16px!important}
+  .marketing-home-v3 .ops-success-ring{
+    position:absolute;
+    left:14px;
+    bottom:13px;
+    display:grid;
+    width:54px;
+    height:54px;
+    place-items:center;
+    border-radius:50%;
+    background:conic-gradient(#17a995 0 346deg,#e5f4f1 346deg 360deg);
+    box-shadow:0 7px 18px rgba(8,125,112,.12);
+  }
+  .marketing-home-v3 .ops-success-ring::before{content:"";position:absolute;inset:7px;border-radius:inherit;background:#fff}
+  .marketing-home-v3 .ops-success-ring>span{position:relative;color:#087d70;font-size:10px;font-weight:900}
 }
 
 @media (min-width:901px) and (max-width:1180px){
-  .marketing-home-v3 .home-ops-scene--hero{min-height:480px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:160px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:190px!important}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:124px!important;width:136px!important;height:136px!important}
+  .marketing-home-v3 .home-ops-scene--hero{min-height:510px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:174px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:204px!important}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:148px!important;width:136px!important;height:136px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{width:96px!important}
 }
 
