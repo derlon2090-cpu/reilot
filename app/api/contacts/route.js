@@ -51,7 +51,9 @@ export async function GET(request) {
       ORDER BY c.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
     values
   );
-  return Response.json({ ok: true, items: result.rows, page, limit, total: result.rows[0]?.totalCount || 0 });
+  const role = String(auth.session.role || "").toLowerCase();
+  return Response.json({ ok: true, items: result.rows, page, limit, total: result.rows[0]?.totalCount || 0,
+    permissions: { canEdit: role !== "viewer", canDelete: ["owner", "admin"].includes(role) } });
 }
 
 export async function POST(request) {
