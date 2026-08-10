@@ -9982,7 +9982,7 @@ html[data-theme="dark"] .suite-card h2,html[data-theme="dark"] .suite-metric str
   .auth-showcase-art{
     padding-top:0!important;
     place-items:start center!important;
-    transform:translateY(-6px)!important;
+    transform:translateY(-18px)!important;
   }
   .auth-showcase-art .auth-suite-scene{
     max-height:min(250px,34dvh)!important;
@@ -10020,6 +10020,7 @@ html[data-theme="dark"] .suite-card h2,html[data-theme="dark"] .suite-metric str
 
 @media (min-width:901px) and (max-width:1100px){
   .auth-showcase{padding-top:18px!important}
+  .auth-showcase-art{transform:translateY(-16px)!important}
   .auth-showcase-art .auth-suite-scene{max-height:min(210px,32dvh)!important}
   .auth-platform-scene{height:240px!important;transform:scale(.75)!important}
 }
@@ -10031,7 +10032,7 @@ html[data-theme="dark"] .suite-card h2,html[data-theme="dark"] .suite-metric str
   .auth-showcase{padding:15px 14px 10px!important}
   .auth-showcase-copy h2{font-size:clamp(20px,2.8vw,25px)!important}
   .auth-showcase-copy p{margin-top:4px!important;font-size:11px!important;line-height:1.55!important}
-  .auth-showcase-art{transform:translateY(-8px)!important}
+  .auth-showcase-art{transform:translateY(-14px)!important}
   .auth-showcase-art .auth-suite-scene{max-height:min(165px,29dvh)!important}
   .auth-platform-scene{height:186px!important;transform:scale(.58)!important}
 }

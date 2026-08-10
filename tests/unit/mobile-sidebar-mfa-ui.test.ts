@@ -93,6 +93,9 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('class="auth-platform-phone"');
     expect(appSource).toContain('class="auth-platform-feature auth-platform-feature--security"');
     expect(appSource).toContain('class="auth-suite-scene auth-suite-scene--${kind}"');
+    for (const referenceContent of ["تذكيرات ذكية", "تقارير وتحليلات", "أتمتة التجديدات", "حملات مخصصة", "أمان وموثوقية", "1,250", "45,680", "98%", "تم تجديد اشتراكك بنجاح"]) {
+      expect(appSource).toContain(referenceContent);
+    }
     expect(stylesSource).toContain(".auth-platform-scene::before");
     expect(stylesSource).toContain("border:1px dashed rgba(17,127,115,.26)");
     expect(stylesSource).toContain("height:100dvh!important");
