@@ -2821,16 +2821,58 @@ function authMobileScene(kind) {
 }
 
 function authReferenceVisual(kind) {
-  const references = {
-    register: "/assets/auth-reference/register.jpg",
-    login: "/assets/auth-reference/login.jpg",
-    reset: "/assets/auth-reference/forgot.jpg",
-    mfa: "/assets/auth-reference/mfa.jpg",
-    signupOtp: "/assets/auth-reference/signup-otp.jpg",
-    loginOtp: "/assets/auth-reference/login-otp.jpg"
+  const showcases = {
+    login: {
+      title: "منصة ذكية لإدارة الاشتراكات والتجديدات",
+      description: "تابع اشتراكاتك، بسّط عملياتك، واتخذ قرارات أفضل لنمو عملك.",
+      scene: "login",
+      note: "لوحة تحكم متكاملة تمنحك رؤية واضحة لعملك وتساعدك على اتخاذ قرارات أفضل.",
+      icon: "reports"
+    },
+    register: {
+      title: "منصة ذكية لإدارة الاشتراكات والتجديدات",
+      description: "أنشئ حسابك وابدأ بتنظيم اشتراكاتك وتجديدات عملائك بسهولة.",
+      scene: "register",
+      note: "ابدأ اليوم بلوحة واضحة تجمع الاشتراكات والتجديدات والتنبيهات في مكان واحد.",
+      icon: "star"
+    },
+    reset: {
+      title: "استعادة الوصول بسهولة",
+      description: "خطوة سريعة وآمنة لإرجاع الوصول إلى حسابك ومتابعة إدارة اشتراكاتك.",
+      scene: "reset",
+      note: "صُممت عملية الاستعادة بحماية عالية لضمان سرية حسابك وأمان بياناتك.",
+      icon: "security"
+    },
+    mfa: {
+      title: "المصادقة الثنائية تحمي حسابك",
+      description: "طبقة حماية إضافية تمنح حسابك أمانًا أعلى قبل الوصول إلى المنصة.",
+      scene: "mfa",
+      note: "حتى عند معرفة كلمة مرورك، لن يتمكن أحد من الدخول دون رمز التحقق.",
+      icon: "security"
+    },
+    signupOtp: {
+      title: "فعّل حسابك بثقة",
+      description: "تأكيد البريد الإلكتروني يضمن أمان الحساب وبدء استخدام المنصة مباشرة.",
+      scene: "emailOtp",
+      note: "تأكيد سريع، حماية متقدمة، وبداية آمنة لاستخدام حسابك.",
+      icon: "email"
+    },
+    loginOtp: {
+      title: "تسجيل دخول آمن وموثوق",
+      description: "نضيف خطوة تحقق لحماية حسابك قبل الوصول إلى لوحة التحكم.",
+      scene: "emailOtp",
+      note: "تجربة موثوقة تحافظ على بياناتك وتمنحك حماية متقدمة.",
+      icon: "security"
+    }
   };
-  const source = references[kind] || references.login;
-  return `<div class="auth-reference-visual auth-reference-visual--${kind}" aria-hidden="true"><img src="${source}" width="1280" height="960" alt="" loading="eager" decoding="async"></div>`;
+  const item = showcases[kind] || showcases.login;
+  return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
+    <span class="auth-showcase-orb auth-showcase-orb--top"></span>
+    <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
+    <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
+    <div class="auth-showcase-art"><span class="auth-showcase-halo"></span>${authScene(item.scene)}<span class="auth-showcase-spark auth-showcase-spark--one">${dashboardIcon("star")}</span><span class="auth-showcase-spark auth-showcase-spark--two">${dashboardIcon("security")}</span></div>
+    <div class="auth-showcase-note"><span>${dashboardIcon(item.icon)}</span><p>${item.note}</p></div>
+  </div>`;
 }
 
 function authPublicPage() {
