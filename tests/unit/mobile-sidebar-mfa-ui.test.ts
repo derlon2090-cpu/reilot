@@ -86,12 +86,16 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps every public authentication form paired with its own responsive illustration", () => {
-    for (const source of ["login.jpg", "register.jpg", "login-otp.jpg", "signup-otp.jpg", "mfa.jpg", "forgot.jpg"]) {
-      expect(appSource).toContain(`/assets/auth-reference/${source}`);
-    }
-    expect(appSource).toContain('class="auth-reference-visual auth-reference-visual--${kind}"');
     expect(appSource).toContain("function authReferenceVisual");
-    expect(stylesSource).toContain(".auth-reference-visual");
+    expect(appSource).toContain("function authDashboardScene");
+    expect(appSource).toContain('class="auth-platform-scene"');
+    expect(appSource).toContain('class="auth-platform-monitor"');
+    expect(appSource).toContain('class="auth-platform-phone"');
+    expect(appSource).toContain('class="auth-platform-feature auth-platform-feature--security"');
+    expect(appSource).toContain('class="auth-suite-scene auth-suite-scene--${kind}"');
+    expect(stylesSource).toContain(".auth-platform-scene::before");
+    expect(stylesSource).toContain("border:1px dashed rgba(17,127,115,.26)");
+    expect(stylesSource).toContain("height:100dvh!important");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
   });
 
