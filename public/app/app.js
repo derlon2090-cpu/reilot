@@ -1500,6 +1500,7 @@ function publicNavbar() {
           <button class="btn btn-primary public-register-action" data-link="/register"><span>${t("auth.createAccount")}</span>${dashboardIcon("publicRegister")}</button>
         </div>
       </div>
+      <button class="mobile-public-login" data-link="/login">${dashboardIcon("publicLogin")}<span>${t("auth.loginTitle")}</span></button>
       <button class="mobile-menu ${state.navOpen ? "is-open" : ""}" data-action="toggle-public-nav" aria-label="${state.navOpen ? (state.language === "en" ? "Close menu" : "إغلاق القائمة") : (state.language === "en" ? "Open menu" : "فتح القائمة")}" aria-expanded="${state.navOpen ? "true" : "false"}">${state.navOpen ? dashboardIcon("close") : dashboardIcon("menu")}</button>
     </div>
   </nav>`;
@@ -1890,11 +1891,13 @@ function featureGrid(limit = features.length) {
 }
 
 function pricingCards(short = false, billingCycle = state.billing) {
+  const mobilePlanIcons = { free: "store", starter: "star", business: "success", pro: "payments" };
   return `<div class="grid grid-4">${pricingPlans.map((plan) => {
     const price = plan.priceLabel || (billingCycle === "yearly" ? plan.yearly : plan.monthly);
     const features = short ? plan.features.slice(0, 6) : plan.features;
     return `<article class="card pricing-card ${plan.featured ? "featured" : ""}">
       ${plan.badge ? `<span class="badge">${plan.badge}</span>` : ""}
+      <span class="plan-mobile-icon">${dashboardIcon(mobilePlanIcons[plan.id] || "subscriptions")}</span>
       <div><h3>${plan.name}</h3></div>
       <div class="price">${typeof price === "number" ? `<strong>${price}</strong><small>ريال / شهريًا</small>` : `<strong>${price}</strong><small>تواصل معنا للحصول على عرض سعر</small>`}</div>
       <ul class="plan-feature-list">${features.map(([item, included]) => `<li class="${included ? "included" : "excluded"}">${dashboardIcon(included ? "success" : "close")}<span>${item}</span></li>`).join("")}</ul>
@@ -2092,10 +2095,29 @@ function marketingHomePage() {
     <section class="marketing-v3-hero"><div class="container marketing-v3-hero-grid">
       <div class="marketing-v3-copy" data-reveal><span class="marketing-v3-kicker"><i></i>${localizedCopy("اشتراكات منظمة، تجديدات في وقتها", "Organized subscriptions, timely renewals")} ${dashboardIcon("infinity")}</span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات", "Manage subscriptions and renewals")}<br>${localizedCopy("عملائك بذكاء مع", "intelligently with")} <span>Renvix</span></h1><p>${localizedCopy("منصة متكاملة لإدارة الاشتراكات والتذكيرات والحملات التسويقية عبر واتساب Meta والبريد الإلكتروني وقنوات متعددة.", "One intelligent platform for subscriptions, reminders, and campaigns across Meta WhatsApp, email, and multiple channels.")}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}${dashboardIcon("arrowLeft")}</button><button class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}${dashboardIcon("play")}</button></div><div class="marketing-v3-assurances"><span>${dashboardIcon("check")}${localizedCopy("دون بطاقة ائتمان", "No credit card")}</span><span>${dashboardIcon("check")}${localizedCopy("إعداد سريع في دقائق", "Setup in minutes")}</span><span>${dashboardIcon("check")}${localizedCopy("دعم عربي 24/7", "24/7 Arabic support")}</span></div></div>
       <div class="marketing-v3-hero-visual" data-reveal>${marketingHomeOperationsScene({ compact: true })}</div>
+      ${marketingMobileHomeNetwork()}
       <div class="marketing-hero-metrics" aria-label="${localizedCopy("مؤشرات المنصة", "Platform highlights")}">${heroMetrics.map(([value, label, note, icon]) => `<article><span>${dashboardIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><em>${note}</em></div></article>`).join("")}</div>
     </div></section>
     <section class="marketing-v3-section marketing-steps-section"><div class="container">${marketingSectionHeading(localizedCopy("4 خطوات للبدء مع Renvix", "Start with Renvix in four steps"), localizedCopy("مسار واضح من إنشاء الحساب حتى تشغيل الأتمتة.", "A clear path from account creation to live automation."))}${marketingSteps()}</div></section>
+    ${marketingMobileToolsAndCta()}
   </main>`);
+}
+
+function marketingMobileHomeNetwork() {
+  const nodes = [
+    ["renewals", localizedCopy("ملخص التجديدات", "Renewal summary"), "reports"],
+    ["reminders", localizedCopy("تذكيرات العملاء", "Customer reminders"), "notifications"],
+    ["automation", localizedCopy("أتمتة ذكية", "Smart automation"), "settings"],
+    ["revenue", localizedCopy("إيرادات متجددة", "Renewed revenue"), "barChart"],
+    ["integrations", localizedCopy("تكاملات متصلة", "Connected integrations"), "link"],
+    ["live", localizedCopy("نشاط حي", "Live activity"), "bolt"]
+  ];
+  return `<div class="mobile-home-network" data-reveal aria-label="${localizedCopy("تدفق عمليات Renvix", "Renvix operations flow")}"><svg viewBox="0 0 360 210" preserveAspectRatio="none" aria-hidden="true"><path d="M120 24 C148 24 151 70 164 83M240 24 C212 24 209 70 196 83M120 105 H160M240 105 H200M120 186 C148 186 151 140 164 127M240 186 C212 186 209 140 196 127"/></svg><div class="mobile-home-core"><i></i><i></i><img src="/assets/renvix-mark-deep-teal.svg" alt="Renvix"></div>${nodes.map(([key,title,icon],index)=>`<article class="mobile-home-node mobile-home-node--${key}" style="--mobile-node-delay:${index*.08}s"><span>${dashboardIcon(icon)}</span><strong>${title}</strong><b></b></article>`).join("")}</div>`;
+}
+
+function marketingMobileToolsAndCta() {
+  const tools = [["التقارير","barChart"],["الروابط","link"],["الحملات","send"],["البريد الإلكتروني","email"],["سلة","store"],["Meta","whatsapp"]];
+  return `<section class="mobile-home-extras"><div class="container"><h2>${localizedCopy("تتكامل مع أدواتك المفضلة", "Works with your favorite tools")}</h2><div class="mobile-tools-row">${tools.map(([title,icon])=>`<article><span>${dashboardIcon(icon)}</span><strong>${localizedCopy(title,title)}</strong></article>`).join("")}</div><div class="mobile-public-cta"><h2>${localizedCopy("جاهز لتنظيم اشتراكاتك وزيادة رضا عملائك؟", "Ready to organize subscriptions and delight customers?")}</h2><p>${localizedCopy("ابدأ اليوم مجانًا واكتشف الفرق بنفسك.", "Start free today and see the difference.")}</p><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن مجانًا", "Start free now")}${dashboardIcon("arrowLeft")}</button></div></div></section>`;
 }
 
 function marketingFeaturesPage() {
@@ -2107,7 +2129,8 @@ function marketingFeaturesPage() {
     [localizedCopy("دعم فني متميز", "Expert support"), localizedCopy("فريق دعم متخصص متاح لمساعدتك في كل خطوة.", "Specialized help at every step."), "support"],
     [localizedCopy("آمن وموثوق", "Secure and trusted"), localizedCopy("حماية متقدمة لبياناتك وبيانات عملائك.", "Advanced protection for your business data."), "security"]
   ];
-  return publicShell(`<main class="marketing-v3 marketing-features-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المميزات", "Features"), localizedCopy("كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.", "Everything you need to manage renewals, subscriptions, and customers in one intelligent platform."))}${marketingFlowNetwork("features")}</div></section><section class="marketing-feature-benefits"><div class="container">${benefits.map(([title, body, icon]) => `<article data-reveal><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}</div></section></main>`);
+  const mobileBenefits = [["قابل للتوسع","ينمو مع عملك ويواكب احتياجاتك.","reports"],["دقة وموثوقية","بيانات دقيقة وتنبيهات في الوقت المناسب.","security"],["توفير الوقت","أتمتة ذكية تقلل العمل اليدوي.","clock"],["منصة موحدة","كل الأدوات التي تحتاجها في مكان واحد.","store"]];
+  return publicShell(`<main class="marketing-v3 marketing-features-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المميزات", "Features"), localizedCopy("كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.", "Everything you need to manage renewals, subscriptions, and customers in one intelligent platform."))}${marketingFlowNetwork("features")}</div></section><section class="marketing-feature-benefits"><div class="container">${benefits.map(([title, body, icon]) => `<article data-reveal><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}</div></section><section class="mobile-feature-benefits"><div class="container"><h2>${localizedCopy("لماذا Renvix؟", "Why Renvix?")}</h2><div>${mobileBenefits.map(([title,body,icon])=>`<article><span>${dashboardIcon(icon)}</span><h3>${localizedCopy(title,title)}</h3><p>${localizedCopy(body,body)}</p></article>`).join("")}</div></div></section><section class="mobile-feature-cta"><div class="container"><div class="mobile-public-cta"><h2>${localizedCopy("جاهز لتنظيم اشتراكاتك وزيادة رضا عملائك؟", "Ready to organize subscriptions and delight customers?")}</h2><p>${localizedCopy("ابدأ اليوم مجانًا واكتشف الفرق بنفسك.", "Start free today and see the difference.")}</p><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن مجانًا", "Start free now")}${dashboardIcon("arrowLeft")}</button></div></div></section></main>`);
 }
 
 function marketingPricingPage() {
@@ -2552,10 +2575,57 @@ function marketingResourcePage() {
   };
 
   const faqPage = () => {
-    const questions = ["ما هو Renvix وكيف يعمل؟", "كيف يمكنني تجربة Renvix؟", "ما هي خطط الأسعار المتاحة؟", "كيف تتم عملية الفوترة والدفع؟", "ما هي طرق الدفع المدعومة؟", "كيف أربط Renvix مع الأدوات الأخرى؟", "هل بياناتي آمنة ومشفرة؟", "كيف يمكنني التواصل مع الدعم الفني؟"];
+    const questions = [
+      {
+        title: "ما هو Renvix وكيف يعمل؟",
+        answer: "Renvix منصة موحّدة لإدارة الاشتراكات والتجديدات والتذكيرات والحملات. تجمع بيانات العميل والخدمة وموعد التجديد وقنوات التواصل في سجل واحد، ثم تشغّل التنبيهات تلقائيًا وتعرض نتائج الإرسال والتجديد داخل لوحة متابعة واضحة.",
+        icon: "infinity",
+        actions: [["استكشف المنصة", "/features"], ["ابدأ مع الدليل", "/user-guide"]]
+      },
+      {
+        title: "كيف يمكنني تجربة Renvix؟",
+        answer: "أنشئ حسابًا جديدًا وأكمل بيانات مساحة العمل، ثم أضف أول عميل واشتراك واربط القناة التي تريد استخدامها. يمكنك تجربة رحلة العمل الأساسية ومراجعة النتائج قبل تشغيل أي حملة فعلية، ولن تحتاج إلى إدخال بيانات دفع أثناء خطوات البداية المتاحة.",
+        icon: "star",
+        actions: [["إنشاء حساب", "/register"], ["خطوات البدء", "/user-guide"]]
+      },
+      {
+        title: "ما هي خطط الأسعار المتاحة؟",
+        answer: "تختلف الخطط بحسب حجم قاعدة العملاء وعدد الرسائل والقنوات والميزات المطلوبة. صفحة الباقات تعرض الحدود والمزايا بوضوح، ويمكنك البدء بالخطة المناسبة ثم الترقية عند نمو الاستخدام دون فقدان بياناتك أو إعداداتك.",
+        icon: "subscriptions",
+        actions: [["عرض الباقات", "/pricing"]]
+      },
+      {
+        title: "كيف تتم عملية الفوترة والدفع؟",
+        answer: "تُصدر الفاتورة وفق دورة الاشتراك المحددة في حسابك، وتظهر قيمتها وحالتها وتاريخ الاستحقاق داخل قسم الفوترة قبل تأكيد الدفع. بعد نجاح العملية يتم تحديث حالة الباقة وإضافة إيصال الدفع إلى سجل الحساب، ويمكن للمستخدم المخوّل مراجعة السجل في أي وقت.",
+        icon: "document"
+      },
+      {
+        title: "ما هي طرق الدفع المدعومة؟",
+        answer: "تعتمد الطرق المتاحة على بلد الحساب ومزوّد الدفع المرتبط بالخدمة، وتظهر لك الخيارات المدعومة مباشرة عند إتمام العملية. عادةً تشمل البطاقات البنكية ووسائل الدفع الرقمية المتاحة محليًا، مع معالجة آمنة وعدم تخزين بيانات البطاقة الكاملة داخل Renvix.",
+        icon: "payments"
+      },
+      {
+        title: "كيف أربط Renvix مع الأدوات الأخرى؟",
+        answer: "انتقل إلى صفحة التكاملات، اختر المنصة أو القناة، ثم امنح الصلاحيات المطلوبة فقط وأكمل اختبار الاتصال. يدعم Renvix القنوات التجارية وواتساب والبريد وواجهات API وWebhooks، مع سجل حالة يساعدك على متابعة المزامنة ومعالجة أي انقطاع.",
+        icon: "link",
+        actions: [["استكشف التكاملات", "/integrations"], ["دليل الربط", "/user-guide"]]
+      },
+      {
+        title: "هل بياناتي آمنة ومشفرة؟",
+        answer: "نعم، تُحمى البيانات أثناء النقل عبر اتصال مشفّر، وتُطبّق صلاحيات وصول منفصلة داخل مساحة العمل مع تسجيل للعمليات الحساسة. نوصي كذلك بتفعيل وسائل الحماية المتاحة للحساب، ومراجعة المستخدمين والأجهزة الموثوقة بصورة دورية.",
+        icon: "security",
+        actions: [["سياسة الخصوصية", "/privacy"]]
+      },
+      {
+        title: "كيف يمكنني التواصل مع الدعم الفني؟",
+        answer: "ابدأ بالبحث في مركز المساعدة للوصول إلى المقال المناسب، وإن استمرت المشكلة أرسل طلب دعم يتضمن وصف الحالة والخطوات التي سبقتها والنتيجة المتوقعة. سيصل الطلب إلى الفريق المختص، ويمكن متابعة الرد من البريد الإلكتروني أو قناة التواصل المرتبطة بالحساب.",
+        icon: "support",
+        actions: [["مركز المساعدة", "/support"], ["تواصل معنا", "/contact"]]
+      }
+    ];
     return `<main class="footer-showcase-page fp-faq">${pageHero("الأسئلة الشائعة", "إجابات سريعة على أكثر الأسئلة شيوعًا حول Renvix واشتراكك والتكاملات والدعم الفني.", `<label class="fp-hero-search">${dashboardIcon("search")}<input placeholder="ابحث عن سؤال أو موضوع..."></label>`)}<div class="container fp-page-stack">
       <div class="fp-filter-row">${[["الكل","store"],["الاشتراكات","subscriptions"],["الفوترة","document"],["التكاملات","link"],["الأمان","security"],["الحملات","send"],["الدعم","support"]].map(([name,icon],index)=>`<button class="${index===0?"active":""}">${dashboardIcon(icon)}${name}</button>`).join("")}</div>
-      <section class="fp-faq-layout"><aside data-reveal><h2>أكثر المواضيع شيوعًا</h2>${[["بداية سريعة","إنشاء حسابك الأول في دقائق","star"],["إدارة الاشتراكات","إضافة وإدارة الخطط","subscriptions"],["التكاملات","ربط Renvix مع أدواتك","link"],["الحملات والأتمتة","إنشاء حملات ذكية","send"],["الأمان والخصوصية","حماية بياناتك بأعلى المعايير","security"],["الفوترة والدفع","كل ما يخص الدفع","document"]].map(([t,b,i])=>`<button>${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span>${dashboardIcon("arrowLeft")}</button>`).join("")}<footer><strong>لم تجد الإجابة؟</strong><p>ابحث في مركز المساعدة الكامل.</p><button data-link="/support">زيارة مركز المساعدة</button></footer></aside><div class="fp-faq-list">${questions.map((q,index)=>`<details ${index===0?"open":""} data-reveal style="--fp-delay:${index*.04}s"><summary>${q}<i>${index===0?"−":"+"}</i></summary><div>${index===0?`<span>${dashboardIcon("infinity")}</span><p>Renvix منصة متكاملة لإدارة الاشتراكات والتجديدات والحملات التسويقية. تساعدك على تنظيم العملاء وأتمتة التواصل ورفع كفاءة العمليات من لوحة تحكم واحدة.</p><div><button data-link="/features">استكشف المنصة</button><button data-link="/user-guide">شاهد الفيديو التعريفي</button></div>`:`<p>ستجد داخل دليل المستخدم شرحًا واضحًا وخطوات عملية مرتبطة بهذا الموضوع، مع روابط مباشرة للإعدادات والمقالات ذات الصلة.</p>`}</div></details>`).join("")}</div></section>
+      <section class="fp-faq-layout"><aside data-reveal><h2>أكثر المواضيع شيوعًا</h2>${[["بداية سريعة","إنشاء حسابك الأول في دقائق","star"],["إدارة الاشتراكات","إضافة وإدارة الخطط","subscriptions"],["التكاملات","ربط Renvix مع أدواتك","link"],["الحملات والأتمتة","إنشاء حملات ذكية","send"],["الأمان والخصوصية","حماية بياناتك بأعلى المعايير","security"],["الفوترة والدفع","كل ما يخص الدفع","document"]].map(([t,b,i])=>`<button>${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span>${dashboardIcon("arrowLeft")}</button>`).join("")}<footer><strong>لم تجد الإجابة؟</strong><p>ابحث في مركز المساعدة الكامل.</p><button data-link="/support">زيارة مركز المساعدة</button></footer></aside><div class="fp-faq-list">${questions.map((item,index)=>`<details ${index===0?"open":""} data-reveal style="--fp-delay:${index*.04}s"><summary>${item.title}<i>${index===0?"−":"+"}</i></summary><div><span>${dashboardIcon(item.icon)}</span><p>${item.answer}</p>${item.actions?.length?`<div>${item.actions.map(([label,path])=>`<button data-link="${path}">${label}</button>`).join("")}</div>`:""}</div></details>`).join("")}</div></section>
       <section>${sectionTitle("ما زلت تحتاج مساعدة؟")}<div class="fp-four-grid">${[["طلب مكالمة", "احصل على مساعدة من أحد خبرائنا.", "document"], ["مركز المساعدة", "تصفح مئات المقالات والشروحات.", "helpBook"], ["البريد الإلكتروني", "أرسل لنا وسنرد خلال يوم عمل.", "email"], ["الدعم عبر واتساب", "تحدث مع فريقنا مباشرة.", "whatsapp"]].map(iconCard).join("")}</div></section>
       ${actionBanner("استكشف دليل Renvix الشامل", "دليل خطوة بخطوة يساعدك على البدء بسرعة وتحقيق أقصى استفادة.", "استكشف الدليل", "/user-guide", "infinity")}</div></main>`;
   };
@@ -2579,8 +2649,8 @@ function marketingResourcePage() {
 
   const careersPage = () => `<main class="footer-showcase-page fp-careers">${pageHero("الوظائف", "في Renvix نؤمن بأن أفضل المنتجات تُبنى بأفضل الناس. انضم إلى فريقنا وساهم في بناء مستقبل إدارة الاشتراكات وتجديدها.")}<div class="container fp-page-stack">
     <div class="fp-four-grid">${[["بيئة عمل مرنة","خطط مرنة تركز على الإنجاز.","devices"],["تأثير حقيقي","عملك يصل إلى آلاف الشركات.","star"],["نمو مهني","فرص تعلم وتطور مستمرة.","reports"],["فريق طموح","ثقافة تعاون وتحدٍ دائم.","customers"]].map(iconCard).join("")}</div>
-    <section class="fp-career-life" data-reveal><div><h2>الحياة في Renvix</h2><p>نحن شركة تقنية عالمية تقود فرقًا لإدارة الاشتراكات والتجديدات وتبسيط العمليات المعقدة وتمكين الشركات من النمو بثقة واستدامة.</p>${[["رسالة واضحة","نسهّل إدارة الاشتراكات للشركات.","star"],["ثقافة تقوم على الثقة","النتائج والشفافية أولًا.","customers"],["اندماج وشمولية","كل شخص يستطيع أن يصنع فرقًا.","heart"]].map(([t,b,i])=>`<article>${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span></article>`).join("")}</div><div class="fp-team-visual"><span>${dashboardIcon("customers")}</span><div>${[1,2,3,4,5,6].map(()=>`<i>${dashboardIcon("customers")}</i>`).join("")}</div><svg viewBox="0 0 200 90"><path d="M4 79 L38 65 L70 70 L105 38 L140 48 L170 20 L196 8"/></svg></div></section>
-    <section>${sectionTitle("الوظائف المفتوحة")}<div class="fp-job-toolbar"><label>${dashboardIcon("search")}<input placeholder="ابحث عن وظيفة..."></label><button>جميع الأقسام</button><button>جميع المواقع</button></div><div class="fp-jobs">${[["مدير المنتج","المنتج","الرياض، السعودية","star"],["أخصائي تسويق رقمي","التسويق","عن بُعد","send"],["أخصائي دعم عملاء","الدعم","عن بُعد","support"],["مطور برمجيات أول","الهندسة","الرياض، السعودية","code"],["مدير شراكات","الشراكات","الرياض، السعودية","link"]].map(([t,d,l,i],index)=>`<article data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(i)}</span><h3>${t}</h3><small>${d}</small><p>${l}</p><div><em>دوام كامل</em><button data-link="/contact">${index===1||index===2?"قدّم الآن":"عرض التفاصيل"}</button></div></article>`).join("")}</div></section>
+    <section class="fp-career-life" data-reveal><div><h2>الحياة في Renvix</h2><p>نحن شركة تقنية عالمية تقود فرقًا لإدارة الاشتراكات والتجديدات وتبسيط العمليات المعقدة وتمكين الشركات من النمو بثقة واستدامة.</p>${[["رسالة واضحة","نسهّل إدارة الاشتراكات للشركات.","star"],["ثقافة تقوم على الثقة","النتائج والشفافية أولًا.","customers"],["اندماج وشمولية","كل شخص يستطيع أن يصنع فرقًا.","heart"]].map(([t,b,i])=>`<article>${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span></article>`).join("")}</div><div class="fp-team-visual"><div class="fp-team-orbit"><span class="fp-team-core">${dashboardIcon("infinity")}</span><i class="fp-team-node fp-team-node-a">${dashboardIcon("customers")}</i><i class="fp-team-node fp-team-node-b">${dashboardIcon("code")}</i><i class="fp-team-node fp-team-node-c">${dashboardIcon("reports")}</i><i class="fp-team-node fp-team-node-d">${dashboardIcon("star")}</i><svg viewBox="0 0 360 230" aria-hidden="true"><path d="M180 115 C112 48 73 57 42 38 M180 115 C248 48 287 57 318 38 M180 115 C112 182 73 173 42 192 M180 115 C248 182 287 173 318 192"/></svg></div><div class="fp-team-caption"><strong>فريق واحد، أثر يتوسع</strong><small>منتج · هندسة · نمو · نجاح عملاء</small></div></div></section>
+    <section>${sectionTitle("الوظائف")}<div class="fp-job-toolbar"><label>${dashboardIcon("search")}<input placeholder="ابحث في الوظائف السابقة..."></label><button>جميع الأقسام</button><button>جميع المواقع</button></div><div class="fp-jobs">${[["مدير المنتج","المنتج","الرياض، السعودية","star"],["أخصائي تسويق رقمي","التسويق","عن بُعد","send"],["أخصائي دعم عملاء","الدعم","عن بُعد","support"],["مطور برمجيات أول","الهندسة","الرياض، السعودية","code"],["مدير شراكات","الشراكات","الرياض، السعودية","link"]].map(([t,d,l,i],index)=>`<article class="is-complete" data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(i)}</span><b class="fp-job-complete">${dashboardIcon("success")} اكتمل التوظيف</b><h3>${t}</h3><small>${d}</small><p>${l}</p><div><em>دوام كامل</em><button type="button" disabled aria-disabled="true">اكتملت</button></div></article>`).join("")}</div></section>
     <section>${sectionTitle("مزايا العمل معنا")}<div class="fp-six-grid">${[["تأمين صحي شامل","تغطية لك ولعائلتك.","security"],["عمل مرن","مكتب أو عمل عن بعد.","devices"],["ميزانية تعلم","دعم للتعلم والتطوير.","star"],["إجازات مدفوعة","توازن صحي ومستدام.","document"],["أدوات حديثة","أفضل الأدوات لإنجاز العمل.","devices"],["ثقافة تعاونية","بيئة داعمة بلا تعقيد.","customers"]].map(iconCard).join("")}</div></section>
     <section>${sectionTitle("رحلة الانضمام إلى فريق Renvix")} ${steps([["التقديم","أرسل طلبك وسيرتك.","send"],["المراجعة","يراجع الفريق طلبك.","search"],["المقابلة","نتعرف على خبرتك.","chat"],["الانضمام","نبدأ رحلتنا معًا.","star"]])}</section>
     ${actionBanner("مستقبلك يبدأ هنا", "انضم إلى فريق Renvix وساهم في بناء منتجات تغير طريقة عمل الشركات.", "استكشف الوظائف", "/contact", "infinity")}</div></main>`;
