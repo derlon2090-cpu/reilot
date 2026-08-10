@@ -2912,11 +2912,20 @@ function authReferenceVisual(kind) {
   };
   const item = showcases[kind] || showcases.login;
   const illustration = kind === "login" || kind === "register" ? authDashboardScene() : authScene(item.scene);
+  const referenceAssets = {
+    login: "/app/assets/auth-reference/dashboard-v2.png?v=20260810-auth-art-v29",
+    register: "/app/assets/auth-reference/dashboard-v2.png?v=20260810-auth-art-v29",
+    reset: "/app/assets/auth-reference/reset-v2.png?v=20260810-auth-art-v29",
+    mfa: "/app/assets/auth-reference/mfa-v2.png?v=20260810-auth-art-v29",
+    signupOtp: "/app/assets/auth-reference/signup-otp-v2.png?v=20260810-auth-art-v29",
+    loginOtp: "/app/assets/auth-reference/login-otp-v2.png?v=20260810-auth-art-v29"
+  };
+  const referenceAsset = referenceAssets[kind] || referenceAssets.login;
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${illustration}</div>
+    <div class="auth-showcase-art"><img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" decoding="async">${illustration}</div>
     <div class="auth-showcase-caption"><span>${dashboardIcon(item.icon)}</span><p>${item.note}</p></div>
   </div>`;
 }

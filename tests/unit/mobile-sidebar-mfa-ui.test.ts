@@ -98,6 +98,11 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('scene: "loginOtp"');
     expect(appSource).toContain('scene: "signupOtp"');
     expect(appSource).toContain('class="auth-showcase-caption"');
+    expect(appSource).toContain('class="auth-showcase-reference-art"');
+    for (const asset of ["dashboard-v2.png", "mfa-v2.png", "reset-v2.png", "login-otp-v2.png", "signup-otp-v2.png"]) {
+      expect(appSource).toContain(`/app/assets/auth-reference/${asset}`);
+      expect(fs.existsSync(path.join(root, "public/app/assets/auth-reference", asset))).toBe(true);
+    }
     expect(appSource).toContain('viewBox="12 7 486 305"');
     for (const referenceContent of ["تذكيرات ذكية", "تقارير وتحليلات", "أتمتة التجديدات", "حملات مخصصة", "أمان وموثوقية", "1,250", "45,680", "98%", "تم تجديد اشتراكك بنجاح"]) {
       expect(appSource).toContain(referenceContent);
@@ -121,6 +126,10 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("-webkit-text-fill-color:#183a36!important");
     expect(stylesSource).toContain(".auth-showcase-dots,.auth-showcase-pagination{display:none!important}");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
+    expect(stylesSource).toContain("Reference-derived artwork: keep mobile untouched and preserve approved panel sizes.");
+    expect(stylesSource).toContain(".auth-showcase-reference-art{display:none}");
+    expect(stylesSource).toContain(".auth-showcase-art>.auth-showcase-reference-art");
+    expect(stylesSource).toContain("object-fit:contain!important");
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
