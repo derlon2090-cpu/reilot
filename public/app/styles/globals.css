@@ -8468,7 +8468,17 @@ input[type="password"]::-webkit-textfield-decoration-container {
     top:146px!important;
     width:150px!important;
     height:150px!important;
-    border-color:rgba(23,174,156,.3);
+    border-color:transparent;
+    background:transparent;
+    box-shadow:none;
+  }
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-disc-face{
+    position:absolute;
+    z-index:1;
+    inset:0;
+    border:1px solid rgba(23,174,156,.3);
+    border-radius:50%;
+    background:#fff;
     box-shadow:0 0 0 12px rgba(88,215,196,.075),0 20px 42px rgba(5,91,82,.13);
   }
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{
