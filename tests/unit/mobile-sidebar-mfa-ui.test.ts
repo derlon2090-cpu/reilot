@@ -99,6 +99,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('scene: "signupOtp"');
     expect(appSource).not.toContain('class="auth-showcase-caption"');
     expect(appSource).toContain('class="auth-showcase-feature-lines"');
+    expect(appSource).toContain('const featureLines = `<span class="auth-showcase-feature-lines"');
     for (const connector of ["alerts", "reports", "automation", "campaigns", "channels", "security"]) {
       expect(appSource).toContain(`auth-feature-line--${connector}`);
     }
@@ -137,6 +138,8 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("Clean artwork balance: no lower caption card, with reference-style feature connectors.");
     expect(stylesSource).toContain(".auth-showcase-feature-lines{display:none}");
     expect(stylesSource).toContain("border-top:2px dashed rgba(8,111,101,.38)");
+    expect(stylesSource).toContain("Keep every reference illustration fully visible inside the approved fixed panel.");
+    expect(stylesSource).toContain("max-height:355px!important");
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
