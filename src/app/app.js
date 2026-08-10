@@ -1577,7 +1577,7 @@ function marketingHomeOperationsScene({ compact = false } = {}) {
     ["integrations", "M263 246 C340 246 365 234 425 226", [263, 246], [425, 226]], ["revenue", "M737 276 C660 276 635 240 575 234", [737, 276], [575, 234]], ["metrics", "M263 420 C340 420 365 326 430 286", [263, 420], [430, 286]], ["live", "M500 380 C500 350 500 324 500 300", [500, 380], [500, 300]], ["success", "M737 420 C660 420 635 326 570 286", [737, 420], [570, 286]]
   ];
   return `<div class="home-ops-scene${compact ? " home-ops-scene--hero" : ""}" data-motion-scene aria-label="${localizedCopy("تدفق عمليات Renvix الحي", "Live Renvix operations flow")}">
-    <svg class="home-ops-wires" data-home-flow-geometry viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="home-ops-glow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${connections.map(([key, path, cardPoint, centerPoint], index) => `<g data-home-flow-line="${key}"><path class="home-ops-wire" d="${path}"/><path class="home-ops-data" style="--ops-delay:${index * .35}s;--ops-duration:${2.8 + (index % 3) * .35}s" d="${path}"/><circle class="home-ops-terminal home-ops-terminal--card" cx="${cardPoint[0]}" cy="${cardPoint[1]}" r="4.5"/><circle class="home-ops-terminal home-ops-terminal--center" cx="${centerPoint[0]}" cy="${centerPoint[1]}" r="3.5"/></g>`).join("")}</svg>
+    <svg class="home-ops-wires" data-home-flow-geometry viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="home-ops-glow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${connections.map(([key, path, cardPoint, centerPoint], index) => `<g data-home-flow-line="${key}"><path class="home-ops-wire" d="${path}"/><path class="home-ops-data" style="--ops-delay:${index * .35}s;--ops-duration:${2.8 + (index % 3) * .35}s" d="${path}"/><circle class="home-ops-terminal home-ops-terminal--card" cx="${cardPoint[0]}" cy="${cardPoint[1]}" r="3.2"/><circle class="home-ops-terminal home-ops-terminal--center" cx="${centerPoint[0]}" cy="${centerPoint[1]}" r="2.7"/></g>`).join("")}</svg>
     <div class="home-ops-center" data-home-flow-center><span class="home-ops-disc-face" aria-hidden="true"></span><i></i><i></i><i></i><img class="home-ops-mark" src="/assets/renvix-mark-deep-teal.svg" alt="Renvix" /></div>
     <article class="home-ops-card ops-renewals" data-home-flow-node="renewals" style="--ops-enter:.8s" data-reveal><header><span>${dashboardIcon("reports")}</span><h3>${localizedCopy("ملخص التجديدات", "Renewal summary")}</h3></header><strong data-count-target="24.8" data-count-start="21.7" data-count-decimals="1" data-count-prefix="+">+21.7%</strong><small>${localizedCopy("نمو هذا الشهر", "Growth this month")}</small><svg viewBox="0 0 240 74" aria-hidden="true"><path class="ops-chart-grid" d="M5 62H235"/><path class="ops-chart-line" d="M8 60 L48 42 L78 50 L112 28 L146 39 L183 20 L232 5"/>${["8,60", "48,42", "78,50", "112,28", "146,39", "183,20", "232,5"].map((point, index) => `<circle style="--dot-delay:${1 + index * .1}s" cx="${point.split(",")[0]}" cy="${point.split(",")[1]}" r="3"/>`).join("")}</svg><em>${localizedCopy("اتجاه إيجابي", "Positive trend")}</em></article>
     <article class="home-ops-card ops-automation" data-home-flow-node="automation" style="--ops-enter:1s" data-reveal><header><span>${dashboardIcon("settings")}</span><h3>${localizedCopy("أتمتة ذكية", "Smart automation")}</h3></header><div class="ops-automation-track"><i></i>${[["استقبال", "email"], ["تذكير", "notifications"], ["تجديد", "customers"], ["تأكيد", "success"]].map(([label, icon], index) => `<span style="--auto-step:${index}">${dashboardIcon(icon)}<b>${localizedCopy(label, label)}</b></span>`).join("")}</div></article>
@@ -1731,6 +1731,7 @@ function initMarketingMotion() {
     const centerY = centerRect.top - networkRect.top + centerRect.height / 2;
     const radius = Math.min(centerRect.width, centerRect.height) / 2;
     svg.setAttribute("viewBox", `0 0 ${networkRect.width} ${networkRect.height}`);
+    const terminalOffset = 3.7;
     network.querySelectorAll("[data-home-flow-line]").forEach((line) => {
       const key = line.dataset.homeFlowLine;
       const node = network.querySelector(`[data-home-flow-node="${key}"]`);
@@ -1742,15 +1743,15 @@ function initMarketingMotion() {
       let terminalY = nodeCenterY;
       let vertical = false;
       if (key === "automation") {
-        terminalY = nodeRect.bottom - networkRect.top + 5;
+        terminalY = nodeRect.bottom - networkRect.top + terminalOffset;
         vertical = true;
       } else if (key === "live") {
-        terminalY = nodeRect.top - networkRect.top - 5;
+        terminalY = nodeRect.top - networkRect.top - terminalOffset;
         vertical = true;
       } else if (nodeCenterX < centerX) {
-        terminalX = nodeRect.right - networkRect.left + 5;
+        terminalX = nodeRect.right - networkRect.left + terminalOffset;
       } else {
-        terminalX = nodeRect.left - networkRect.left - 5;
+        terminalX = nodeRect.left - networkRect.left - terminalOffset;
       }
       const deltaX = terminalX - centerX;
       const deltaY = terminalY - centerY;

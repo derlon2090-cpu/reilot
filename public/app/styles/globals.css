@@ -8425,15 +8425,15 @@ input[type="password"]::-webkit-textfield-decoration-container {
 
 .marketing-home-v3 .home-ops-terminal{
   fill:#16aa96;
-  stroke:#e6fffb;
-  stroke-width:2.6;
+  stroke:#effffb;
+  stroke-width:1.45;
   vector-effect:non-scaling-stroke;
-  filter:drop-shadow(0 0 4px rgba(18,167,148,.38));
+  filter:drop-shadow(0 0 2px rgba(18,167,148,.26));
 }
 .marketing-home-v3 .home-ops-terminal--center{
   fill:#fff;
   stroke:#21ad9a;
-  stroke-width:2.2;
+  stroke-width:1.55;
 }
 
 /* Reference correction: spacious, non-overlapping home operations composition. */
@@ -8499,6 +8499,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-integrations{height:152px;min-height:152px}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header{position:static;padding-inline-start:0}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header>span{position:static;inset:auto;margin:0}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header>span .line-icon{margin:0!important;transform:none!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>svg{position:absolute;left:10px;bottom:12px;margin:0}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>em{position:absolute;right:11px;bottom:10px}
   .marketing-home-v3 .home-ops-card header>span{
@@ -8535,8 +8536,14 @@ input[type="password"]::-webkit-textfield-decoration-container {
 @media (min-width:901px) and (max-width:1180px){
   .marketing-home-v3 .marketing-v3-hero-grid{gap-inline:18px}
   .marketing-home-v3 .home-ops-scene--hero{min-height:462px!important;margin:0!important;transform:none!important;transform-origin:center!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals,
+  .marketing-home-v3 .home-ops-scene--hero .ops-automation,
+  .marketing-home-v3 .home-ops-scene--hero .ops-reminders{top:8px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:151px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:33px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:4px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-success{bottom:16px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:146px!important;width:136px!important;height:136px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{width:96px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-card{width:160px!important}
