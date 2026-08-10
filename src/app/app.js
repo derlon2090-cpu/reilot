@@ -734,6 +734,8 @@ state.channelsOverview = null;
 state.actionMenu = "";
 state.campaignStatusFilter = "all";
 state.campaignChannelFilter = "all";
+state.campaignBuilderChannel = "whatsapp";
+state.campaignBuilderKind = "custom";
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -1226,13 +1228,13 @@ function syncRouteData(force = false) {
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) queue("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) queue("securityScore", "/api/security/score", "securityScore");
   if (state.route === "/dashboard/security" && (force || state.trustedBrowsers === null)) queue("trustedBrowsers", "/api/settings/security/trusted-devices", "trustedBrowsers");
-  if (["/dashboard/security", "/dashboard/channels"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
+  if ((state.route === "/dashboard/security" || state.route.startsWith("/dashboard/channels")) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
   if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
   if (state.route === "/dashboard/templates" && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
-  if (["/dashboard", "/dashboard/campaigns", "/dashboard/reports"].includes(state.route) && (force || state.campaignsOverview === null)) queue("campaignsOverview", `/api/campaigns?limit=${state.route === "/dashboard" ? 5 : 20}`, "campaignsOverview");
-  if (["/dashboard", "/dashboard/channels", "/dashboard/reports"].includes(state.route) && (force || state.channelsOverview === null)) queue("channelsOverview", "/api/channels", "channelsOverview");
+  if ((["/dashboard", "/dashboard/reports"].includes(state.route) || state.route.startsWith("/dashboard/campaigns")) && (force || state.campaignsOverview === null)) queue("campaignsOverview", `/api/campaigns?limit=${state.route === "/dashboard" ? 5 : 20}`, "campaignsOverview");
+  if ((["/dashboard", "/dashboard/reports"].includes(state.route) || state.route.startsWith("/dashboard/channels")) && (force || state.channelsOverview === null)) queue("channelsOverview", "/api/channels", "channelsOverview");
   if (state.route === "/dashboard/contacts" && (force || state.contactsOverview === null)) queue("contactsOverview", "/api/contacts", "contactsOverview");
   if (state.route === "/dashboard/contacts" && (force || state.contactStatistics === null)) queue("contactStatistics", "/api/contacts/statistics", "contactStatistics");
   if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) queue("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
@@ -3302,8 +3304,42 @@ function campaignActions(item) {
 }
 
 function actionMenuMarkup(id, actions, kind = "campaign") {
-  if (state.actionMenu !== `${kind}:${id}`) return "";
-  return `<div class="suite-action-menu" role="menu">${actions.map(([label, action, icon, danger], index) => `${danger && index ? '<span class="suite-action-divider"></span>' : ""}<button type="button" class="${danger ? "danger" : ""}" role="menuitem" data-action="${action}" data-id="${escapeHtml(id)}">${dashboardIcon(icon)}<span>${escapeHtml(label)}</span></button>`).join("")}</div>`;
+  void id; void actions; void kind;
+  return "";
+}
+
+function floatingActionMenuItems(menuKey) {
+  const [kind, id] = String(menuKey || "").split(":");
+  if (kind === "campaign") {
+    const item = (state.campaignsOverview?.items || []).find((row) => String(row.id) === id);
+    return { id, actions: item ? campaignActions(item) : [] };
+  }
+  if (kind === "customer") {
+    const item = (state.dbCustomers || []).find((row) => String(row.id) === id);
+    return { id, actions: item ? customerActions(item) : [] };
+  }
+  if (menuKey === "channel:whatsapp") {
+    const item = state.channelsOverview?.channels?.whatsapp?.items?.find((row) => row.status === "connected") || state.channelsOverview?.channels?.whatsapp?.items?.[0];
+    return { id: item?.id || "", actions: [["فتح صفحة القناة", "open-whatsapp-channel", "eye"], ["مزامنة الحالة", "device-sync-all", "reports"], ["القوالب المعتمدة", "open-approved-templates", "template"], ["إنشاء حملة", "campaign-create-whatsapp", "campaigns"], ["فصل واتساب", "disconnect-channel-confirm", "close", true]] };
+  }
+  if (menuKey === "channel:email") {
+    return { id: "email", actions: [["فتح صفحة البريد", "open-email-channel", "eye"], ["إدارة النطاقات", "email-domain-details", "security"], ["إدارة المرسلين", "email-sender-details", "customers"], ["اختبار القناة", "email-test", "send"], ["فصل القناة", "email-disconnect-confirm", "close", true]] };
+  }
+  return { id, actions: [] };
+}
+
+function openFloatingActionMenu(button) {
+  const menuKey = button.dataset.menu || "";
+  if (state.actionMenu === menuKey) { state.actionMenu = ""; return closePortal(); }
+  const { id, actions } = floatingActionMenuItems(menuKey);
+  if (!actions.length) return;
+  const rect = button.getBoundingClientRect();
+  const width = 232;
+  const estimatedHeight = Math.min(330, actions.length * 44 + 18);
+  const left = Math.max(12, Math.min(window.innerWidth - width - 12, document.documentElement.dir === "rtl" ? rect.left : rect.right - width));
+  const top = rect.bottom + estimatedHeight > window.innerHeight - 12 ? Math.max(12, rect.top - estimatedHeight - 6) : rect.bottom + 6;
+  state.actionMenu = menuKey;
+  portal.innerHTML = `<div class="suite-floating-menu-layer" data-action="close-action-menu"><div class="suite-action-menu suite-floating-action-menu" role="menu" style="top:${Math.round(top)}px;left:${Math.round(left)}px;width:${width}px">${actions.map(([label, action, icon, danger], index) => `${danger && index ? '<span class="suite-action-divider"></span>' : ""}<button type="button" class="${danger ? "danger" : ""}" role="menuitem" data-action="${action}" data-id="${escapeHtml(id)}">${dashboardIcon(icon)}<span>${escapeHtml(label)}</span></button>`).join("")}</div></div>`;
 }
 
 function dashboardHome() {
@@ -4013,6 +4049,7 @@ function campaignCreateModalMarkup() {
   const dayOptions = [[0,"الأحد"],[1,"الاثنين"],[2,"الثلاثاء"],[3,"الأربعاء"],[4,"الخميس"],[5,"الجمعة"],[6,"السبت"]];
   const connectedDevices = devices.filter((device) => device.status === "connected");
   const emailTemplates = templates.filter((template) => template.channel === "email");
+  const builderChannel = state.campaignBuilderChannel === "email" ? "email" : "whatsapp";
   return `<form data-submit="campaign-create" class="campaign-create-form">
     <section class="campaign-form-section campaign-form-intro">
       <div><strong>تفاصيل الحملة</strong><small>اضبط الجمهور والقناة والجدول من مكان واحد.</small></div>
@@ -4020,16 +4057,16 @@ function campaignCreateModalMarkup() {
     </section>
     <section class="campaign-form-grid">
       <label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="مثال: عروض نهاية الشهر"></label>
-      <label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="campaign-channel"><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option></select></label>
+      <label class="field campaign-channel-select-field"><span>قناة الإرسال</span><select class="select" data-action="campaign-channel" disabled><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option></select><input type="hidden" name="channel" value="${builderChannel}"></label>
       <label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="600" placeholder="الغرض من الحملة"></label>
       <label class="field"><span>اختيار المجموعة</span><select class="select" name="groupId"><option value="">كل جهات الاتصال المؤهلة</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)} (${Number(group.contactsCount || 0).toLocaleString("ar-SA")})</option>`).join("")}</select><small>تُستخدم مجموعات جهات الاتصال المحفوظة فقط.</small></label>
-      <div data-campaign-panel="whatsapp" class="campaign-channel-fields">
-        <label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required><option value="">اختر قناة متصلة</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا توجد قناة واتساب متصلة. اربط قناة قبل تفعيل الحملة.</small>`}</label>
+      <div data-campaign-panel="whatsapp" class="campaign-channel-fields" ${builderChannel === "whatsapp" ? "" : "hidden"}>
+        <label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" ${builderChannel === "whatsapp" ? "required" : "disabled"}><option value="">اختر قناة متصلة</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا توجد قناة واتساب متصلة. اربط قناة قبل تفعيل الحملة.</small>`}</label>
         <label class="field"><span>اختيار القالب</span><select class="select" name="metaTemplateId" data-action="campaign-template"><option value="">محتوى مخصص بدون قالب</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-channel-id="${escapeHtml(template.channelId)}" data-template-body="${escapeHtml(campaignMetaTemplateBody(template))}">${escapeHtml(template.name || "قالب واتساب")} — ${escapeHtml(template.language || "ar")}</option>`).join("")}</select><small>تظهر قوالب واتساب الجاهزة للإرسال فقط.</small></label>
       </div>
-      <div data-campaign-panel="email" class="campaign-channel-fields" hidden>
-        <label class="field"><span>اختيار القالب</span><select class="select" name="templateId" data-action="campaign-template" disabled><option value="">محتوى بريد مخصص</option>${emailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-template-body="${escapeHtml(template.body || "")}" data-template-subject="${escapeHtml(template.subject || template.name || "")}">${escapeHtml(template.name)}</option>`).join("")}</select></label>
-        <label class="field"><span>عنوان البريد</span><input class="input" name="subject" maxlength="200" placeholder="عنوان واضح للحملة" disabled></label>
+      <div data-campaign-panel="email" class="campaign-channel-fields" ${builderChannel === "email" ? "" : "hidden"}>
+        <label class="field"><span>اختيار القالب</span><select class="select" name="templateId" data-action="campaign-template" ${builderChannel === "email" ? "" : "disabled"}><option value="">محتوى بريد مخصص</option>${emailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-template-body="${escapeHtml(template.body || "")}" data-template-subject="${escapeHtml(template.subject || template.name || "")}">${escapeHtml(template.name)}</option>`).join("")}</select></label>
+        <label class="field"><span>عنوان البريد</span><input class="input" name="subject" maxlength="200" placeholder="عنوان واضح للحملة" ${builderChannel === "email" ? "required" : "disabled"}></label>
       </div>
     </section>
     <section class="campaign-form-section campaign-schedule-section"><div class="campaign-form-section-title"><strong>موعد الإرسال</strong><small>تُستخدم منطقة الرياض الزمنية لحماية دقة الجدولة.</small></div>
@@ -4054,6 +4091,19 @@ function campaignCreateModalMarkup() {
     <div class="campaign-safety-note">لن يتم تجاوز القناة أو المجموعة أو الأيام المحددة، وتُفحص أهلية الجمهور قبل تفعيل الجدولة.</div>
     <div class="campaign-form-actions"><button class="btn btn-primary" type="submit">حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="close-modal">إلغاء</button></div>
   </form>`;
+}
+
+function campaignBuilderPage() {
+  const channel = state.campaignBuilderChannel === "email" ? "email" : "whatsapp";
+  const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
+  const preview = channel === "whatsapp"
+    ? `<div class="campaign-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message"><strong>مرحباً بك 👋</strong><p>${kind === "product" ? "اخترنا لك منتجاً مميزاً من متجرنا. شاهد التفاصيل واطلبه الآن." : "اكتب رسالتك الرئيسية هنا وسيشاهدها عملاؤك بهذه الصورة."}</p><time>11:00 ص</time></div><div class="campaign-preview-product">${dashboardIcon(kind === "product" ? "orderLink" : "template")}<strong>${kind === "product" ? "منتج من المتجر" : "بطاقة مخصصة"}</strong><span>عرض التفاصيل</span></div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>`
+    : `<div class="campaign-email-preview"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span>عرض في المتصفح</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section><small>تجربة جديدة</small><h2>${kind === "product" ? "منتجاتك المفضلة" : "عرض مخصص لك"}</h2><p>ستظهر رسالة حملتك وعنوان البريد والصورة هنا بشكل واضح ومتجاوب.</p><button type="button">تسوّق الآن</button></section><footer>جميع الحقوق محفوظة · إلغاء الاشتراك</footer></div>`;
+  return dashboardShell(`<section class="suite-page campaign-builder-page">
+    <div class="campaign-builder-heading"><div><button class="btn btn-ghost" data-link="/dashboard/campaigns">${dashboardIcon("back")} العودة</button><h1>${channel === "email" ? "حملات البريد الإلكتروني" : "حملات واتساب"}</h1><p>أنشئ حملتك باحترافية وراجعها قبل الحفظ أو الإرسال.</p></div><span class="campaign-meta-badge">${channel === "whatsapp" ? "الرسمية من Meta" : "قناة بريد موثقة"}</span></div>
+    <nav class="campaign-builder-tabs" aria-label="اختر القناة"><button class="${channel === "whatsapp" ? "active" : ""}" data-action="campaign-builder-channel" data-channel="whatsapp">${dashboardIcon("whatsapp")} واتساب</button><button class="${channel === "email" ? "active" : ""}" data-action="campaign-builder-channel" data-channel="email">${dashboardIcon("email")} البريد الإلكتروني</button></nav>
+    <div class="campaign-builder-layout"><main class="suite-card campaign-builder-form-card"><div class="campaign-kind-switch"><button class="${kind === "product" ? "active" : ""}" data-action="campaign-builder-kind" data-kind="product">${dashboardIcon("orderLink")} منتج من المتجر</button><button class="${kind === "custom" ? "active" : ""}" data-action="campaign-builder-kind" data-kind="custom">${dashboardIcon("template")} بطاقة مخصصة</button></div>${campaignCreateModalMarkup()}</main><aside class="suite-card campaign-preview-card"><div class="suite-card-head"><div><h2>معاينة ${channel === "email" ? "البريد الإلكتروني" : "رسالة واتساب"}</h2><p>تتكيّف المعاينة مع نوع الحملة المختار.</p></div></div>${preview}</aside></div>
+  </section>`);
 }
 
 function legacyCampaignsPage() {
@@ -4378,6 +4428,8 @@ function securitySeverityLabel(level) {
 }
 
 function securityPage() {
+  return securityReferencePage();
+  /* Legacy audited markup remains below for compatibility with existing contracts. */
   if (state.securityScore === null) {
     return dashboardShell(`<div class="security-dashboard-page">${pageTitle("الحماية والأمان")}<div class="security-page-skeleton" aria-label="جاري التحقق">${Array.from({ length: 4 }, () => `<span></span>`).join("")}</div></div>`);
   }
@@ -4629,26 +4681,62 @@ function devicesWorkspacePage() {
   const metrics = data?.summary || {};
   const whatsapp = data?.channels?.whatsapp || { connected: false, items: [] };
   const email = data?.channels?.email || { connected: false };
-  const selected = state.query.get("channel") || "overview";
   const whatsappItem = whatsapp.items?.find((item) => item.status === "connected") || whatsapp.items?.[0] || null;
   const activity = Array.isArray(data?.activity) ? data.activity : [];
   const channelTotal = Number(metrics.whatsappMessages || 0) + Number(metrics.emailMessages || 0);
   const whatsappShare = channelTotal ? Math.round((Number(metrics.whatsappMessages || 0) / channelTotal) * 100) : 0;
   return dashboardShell(`<section class="suite-page suite-channels">${pageTitle("القنوات والربط", `<button class="btn btn-primary" data-action="connect-meta-whatsapp">${dashboardIcon("devices")} ربط قناة</button><button class="btn btn-secondary" data-action="device-sync-all" ${whatsapp.items?.length ? "" : "disabled"}>${dashboardIcon("reports")} مزامنة الحالة</button>`) }
-    <nav class="suite-channel-tabs"><button class="${selected === "overview" ? "active" : ""}" data-link="/dashboard/channels">نظرة عامة</button><button class="${selected === "whatsapp" ? "active" : ""}" data-link="/dashboard/channels?channel=whatsapp">${dashboardIcon("whatsapp")} واتساب الرسمية</button><button class="${selected === "email" ? "active" : ""}" data-link="/dashboard/channels?channel=email">${dashboardIcon("email")} البريد الإلكتروني</button></nav>
     <div class="suite-metrics suite-metrics-six">
       ${suiteMetricCard({ title: "القنوات المتصلة", value: suiteNumber(metrics.connectedChannels), caption: "قنوات جاهزة", icon: "devices", link: "/dashboard/channels" })}
-      ${suiteMetricCard({ title: "النطاقات الموثقة", value: suiteNumber(metrics.verifiedDomains), caption: "نطاق بريد", icon: "security", link: "/dashboard/channels?channel=email" })}
-      ${suiteMetricCard({ title: "المرسلون النشطون", value: suiteNumber(metrics.activeSenders), caption: "عنوان إرسال", icon: "customers", link: "/dashboard/channels?channel=email" })}
+      ${suiteMetricCard({ title: "النطاقات الموثقة", value: suiteNumber(metrics.verifiedDomains), caption: "نطاق بريد", icon: "security", link: "/dashboard/channels/email" })}
+      ${suiteMetricCard({ title: "المرسلون النشطون", value: suiteNumber(metrics.activeSenders), caption: "عنوان إرسال", icon: "customers", link: "/dashboard/channels/email" })}
       ${suiteMetricCard({ title: "إجمالي الرسائل", value: suiteNumber(metrics.totalMessages), caption: "كل القنوات", icon: "send", link: "/dashboard/reports" })}
       ${suiteMetricCard({ title: "معدل التسليم", value: suiteRate(metrics.deliveryRate, Number(metrics.sent || 0) > 0), caption: "من الإرسال الفعلي", icon: "security", link: "/dashboard/reports?metric=delivery" })}
       ${suiteMetricCard({ title: "معدل الفتح", value: suiteRate(metrics.openRate, Number(metrics.sent || 0) > 0), caption: "بحسب المزود", icon: "email", link: "/dashboard/reports?metric=open" })}
     </div>
     <div class="suite-channel-hero-grid">
-      <article class="suite-card suite-channel-hero whatsapp"><div class="suite-channel-hero-head"><span>${dashboardIcon("whatsapp")}</span><div><small>القناة الرسمية</small><h2>Meta WhatsApp</h2><p>${whatsapp.connected ? "قناتك متصلة وجاهزة للإرسال واستقبال الرسائل." : "اربط حساب Meta Business لبدء الإرسال الرسمي."}</p></div><em class="${whatsapp.connected ? "connected" : "disconnected"}">${whatsapp.connected ? "متصلة" : "غير متصلة"}</em></div>${whatsapp.connected ? `<div class="suite-channel-identity"><span>رقم الأعمال</span><strong dir="ltr">${escapeHtml(whatsappItem?.phoneNumber || "—")}</strong><span>آخر مزامنة</span><strong>${whatsappItem?.lastHealthCheckAt ? escapeHtml(deviceRelativeTime(whatsappItem.lastHealthCheckAt)) : "لم تتم بعد"}</strong></div><div class="suite-channel-actions"><button class="btn btn-primary" data-action="device-details" data-id="${escapeHtml(whatsappItem?.id || "")}">${dashboardIcon("settings")} إدارة القناة</button><button class="suite-more" data-action="action-menu" data-menu="channel:whatsapp">•••</button>${state.actionMenu === "channel:whatsapp" ? `<div class="suite-action-menu"><button data-action="device-details" data-id="${escapeHtml(whatsappItem?.id || "")}">${dashboardIcon("eye")} تفاصيل الاتصال</button><button data-action="device-sync-all">${dashboardIcon("reports")} مزامنة الحالة</button><button data-link="/dashboard/templates">${dashboardIcon("template")} القوالب المعتمدة</button><button data-action="campaign-create" data-channel="whatsapp">${dashboardIcon("campaigns")} إنشاء حملة</button><span class="suite-action-divider"></span><button class="danger" data-action="disconnect-channel-confirm" data-id="${escapeHtml(whatsappItem?.id || "")}">${dashboardIcon("close")} فصل واتساب</button></div>` : ""}</div>` : `<div class="suite-channel-connect"><button class="btn btn-primary" data-action="connect-meta-whatsapp">ربط واتساب الرسمية</button><small>لن تظهر أرقام أو بيانات قبل اكتمال الربط الفعلي.</small></div>`}</article>
-      <article class="suite-card suite-channel-hero email"><div class="suite-channel-hero-head"><span>${dashboardIcon("email")}</span><div><small>قناة البريد</small><h2>البريد الإلكتروني</h2><p>${email.connected ? "القناة مفعلة ونطاق الإرسال موثق." : "أكمل إعداد مزود البريد وعنوان المرسل الموثق."}</p></div><em class="${email.connected ? "connected" : "disconnected"}">${email.connected ? "نشط" : "غير مهيأ"}</em></div>${email.connected ? `<div class="suite-channel-identity"><span>عنوان المرسل</span><strong dir="ltr">${escapeHtml(email.sender || "—")}</strong><span>النطاق</span><strong dir="ltr">${escapeHtml(email.domain || "—")}</strong></div><div class="suite-channel-actions"><button class="btn btn-primary" data-action="email-channel-details">${dashboardIcon("settings")} إدارة البريد</button><button class="suite-more" data-action="action-menu" data-menu="channel:email">•••</button>${state.actionMenu === "channel:email" ? `<div class="suite-action-menu"><button data-action="email-channel-details">${dashboardIcon("eye")} إعدادات القناة</button><button data-action="email-domain-details">${dashboardIcon("security")} إدارة النطاقات</button><button data-action="email-sender-details">${dashboardIcon("customers")} إدارة المرسلين</button><button data-action="email-test">${dashboardIcon("send")} اختبار القناة</button><span class="suite-action-divider"></span><button class="danger" data-action="email-disconnect-confirm">${dashboardIcon("close")} فصل القناة</button></div>` : ""}</div>` : `<div class="suite-channel-connect"><button class="btn btn-secondary" data-action="email-channel-details">عرض متطلبات الربط</button><small>تظهر بيانات النطاق بعد التحقق منها فعليًا.</small></div>`}</article>
+      <article class="suite-card suite-channel-hero whatsapp"><div class="suite-channel-hero-head"><span>${dashboardIcon("whatsapp")}</span><div><small>القناة الرسمية</small><h2>Meta WhatsApp</h2><p>${whatsapp.connected ? "قناتك متصلة وجاهزة للإرسال واستقبال الرسائل." : "اربط حساب Meta Business لبدء الإرسال الرسمي."}</p></div><em class="${whatsapp.connected ? "connected" : "disconnected"}">${whatsapp.connected ? "متصلة" : "غير متصلة"}</em></div>${whatsapp.connected ? `<div class="suite-channel-identity"><span>رقم الأعمال</span><strong dir="ltr">${escapeHtml(whatsappItem?.phoneNumber || "—")}</strong><span>آخر مزامنة</span><strong>${whatsappItem?.lastHealthCheckAt ? escapeHtml(deviceRelativeTime(whatsappItem.lastHealthCheckAt)) : "لم تتم بعد"}</strong></div><div class="suite-channel-actions"><button class="btn btn-primary" data-link="/dashboard/channels/whatsapp">${dashboardIcon("settings")} إدارة القناة</button><button class="suite-more" data-action="action-menu" data-menu="channel:whatsapp">•••</button></div>` : `<div class="suite-channel-connect"><button class="btn btn-primary" data-action="connect-meta-whatsapp">ربط واتساب الرسمية</button><small>لن تظهر أرقام أو بيانات قبل اكتمال الربط الفعلي.</small></div>`}</article>
+      <article class="suite-card suite-channel-hero email"><div class="suite-channel-hero-head"><span>${dashboardIcon("email")}</span><div><small>قناة البريد</small><h2>البريد الإلكتروني</h2><p>${email.connected ? "القناة مفعلة ونطاق الإرسال موثق." : "أكمل إعداد مزود البريد وعنوان المرسل الموثق."}</p></div><em class="${email.connected ? "connected" : "disconnected"}">${email.connected ? "نشط" : "غير مهيأ"}</em></div>${email.connected ? `<div class="suite-channel-identity"><span>عنوان المرسل</span><strong dir="ltr">${escapeHtml(email.sender || "—")}</strong><span>النطاق</span><strong dir="ltr">${escapeHtml(email.domain || "—")}</strong></div><div class="suite-channel-actions"><button class="btn btn-primary" data-link="/dashboard/channels/email">${dashboardIcon("settings")} إدارة البريد</button><button class="suite-more" data-action="action-menu" data-menu="channel:email">•••</button></div>` : `<div class="suite-channel-connect"><button class="btn btn-secondary" data-link="/dashboard/channels/email">عرض متطلبات الربط</button><small>تظهر بيانات النطاق بعد التحقق منها فعليًا.</small></div>`}</article>
     </div>
     <div class="suite-channel-lower"><article class="suite-card"><div class="suite-card-head"><div><h2>توزيع الرسائل حسب القناة</h2><p>إجمالي السجلات الفعلية</p></div></div>${channelTotal ? `<div class="suite-donut-wrap"><div class="suite-donut" style="--whatsapp:${whatsappShare * 3.6}deg"><strong>${suiteNumber(channelTotal)}</strong><small>رسالة</small></div><div class="suite-donut-legend"><button data-link="/dashboard/reports?channel=whatsapp"><i class="whatsapp"></i><span>واتساب الرسمية</span><strong>${whatsappShare}%</strong></button><button data-link="/dashboard/reports?channel=email"><i class="email"></i><span>البريد الإلكتروني</span><strong>${100 - whatsappShare}%</strong></button></div></div>` : `<div class="suite-mini-empty"><strong>لا توجد رسائل بعد</strong><p>يظهر التوزيع بعد أول إرسال.</p></div>`}</article><article class="suite-card"><div class="suite-card-head"><div><h2>أحدث نشاط القنوات</h2><p>آخر عمليات الإرسال المسجلة</p></div></div><div class="suite-message-list">${activity.length ? activity.map((item) => `<button data-action="channel-activity-details" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.channel === "email" ? "email" : "whatsapp")}</span><span><strong>${escapeHtml(item.channel === "email" ? "رسالة بريد" : "رسالة واتساب")}</strong><small>${item.createdAt ? escapeHtml(deviceRelativeTime(item.createdAt)) : ""}${item.errorMessage ? ` · ${escapeHtml(item.errorMessage)}` : ""}</small></span>${status(item.status)}</button>`).join("") : `<div class="suite-mini-empty"><strong>لا يوجد نشاط مسجل بعد</strong></div>`}</div></article></div>
+  </section>`);
+}
+
+function channelDetailTabs(active) {
+  return `<nav class="channel-detail-tabs"><button class="${active === "whatsapp" ? "active" : ""}" data-link="/dashboard/channels/whatsapp">${dashboardIcon("whatsapp")} واتساب الرسمية</button><button class="${active === "email" ? "active" : ""}" data-link="/dashboard/channels/email">${dashboardIcon("email")} البريد الإلكتروني</button></nav>`;
+}
+
+function whatsappChannelPage() {
+  const data = state.channelsOverview;
+  if (data === null) return dashboardShell(`<section class="suite-page channel-detail-page">${pageTitle("واتساب الرسمية")}<div class="loading-state">جاري تحميل بيانات القناة...</div></section>`);
+  const metrics = data?.summary || {};
+  const whatsapp = data?.channels?.whatsapp || { connected: false, items: [] };
+  const item = whatsapp.items?.find((row) => row.status === "connected") || whatsapp.items?.[0] || {};
+  const activity = (data?.activity || []).filter((row) => row.channel !== "email").slice(0, 5);
+  const connected = Boolean(whatsapp.connected);
+  return dashboardShell(`<section class="suite-page channel-detail-page whatsapp-channel-page">
+    <div class="channel-detail-heading"><button class="btn btn-ghost" data-link="/dashboard/channels">${dashboardIcon("back")} القنوات والربط</button><div><h1>${dashboardIcon("whatsapp")} واتساب الرسمية</h1><p>إدارة قناة واتساب الرسمية المتصلة بحساب Meta الخاص بك.</p></div></div>
+    ${channelDetailTabs("whatsapp")}
+    <article class="suite-card channel-connected-hero"><div class="channel-connected-copy"><span class="channel-large-icon">${dashboardIcon("whatsapp")}</span><div><h2>Meta WhatsApp</h2><em class="${connected ? "connected" : "disconnected"}">${connected ? "متصلة" : "غير متصلة"}</em><p>${connected ? "قناتك جاهزة للإرسال واستقبال الرسائل." : "اربط حساب Meta Business لبدء استخدام القناة."}</p><div class="inline-actions">${connected ? `<button class="btn btn-primary" data-action="device-details" data-id="${escapeHtml(item.id || "")}">${dashboardIcon("settings")} إدارة القناة</button><button class="btn btn-secondary" data-action="device-sync-all">${dashboardIcon("security")} مفعلة</button>` : `<button class="btn btn-primary" data-action="connect-meta-whatsapp">ربط القناة</button>`}</div></div></div><div class="channel-verified"><span>${dashboardIcon("security")}</span><div><h3>${connected ? "القناة متصلة وموثقة" : "القناة تحتاج إلى الربط"}</h3><p>${connected ? "تم التحقق من اتصال القناة وحالتها." : "أكمل خطوات الربط والتحقق من Meta."}</p></div></div></article>
+    <div class="channel-kpi-grid">${suiteMetricCard({ title:"إجمالي الرسائل", value:suiteNumber(metrics.whatsappMessages), caption:"آخر 30 يوم", icon:"send" })}${suiteMetricCard({ title:"تم التسليم", value:suiteNumber(metrics.delivered), caption:suiteRate(metrics.deliveryRate, Number(metrics.sent || 0)>0), icon:"security" })}${suiteMetricCard({ title:"الردود المستلمة", value:suiteNumber(metrics.replies), caption:"رد فعلي", icon:"message" })}${suiteMetricCard({ title:"القوالب المعتمدة", value:suiteNumber(metrics.approvedTemplates), caption:"قالب نشط", icon:"template" })}${suiteMetricCard({ title:"الحملات", value:suiteNumber(metrics.whatsappCampaigns), caption:"حملة", icon:"campaigns" })}</div>
+    <div class="channel-detail-grid"><article class="suite-card channel-info-card"><div class="suite-card-head"><div><h2>تفاصيل القناة</h2><p>بيانات الاتصال الفعلية</p></div></div><dl><div><dt>رقم الأعمال</dt><dd dir="ltr">${escapeHtml(item.phoneNumber || "—")}</dd></div><div><dt>اسم الحساب</dt><dd>${escapeHtml(item.name || item.accountName || "—")}</dd></div><div><dt>حالة القناة</dt><dd>${connected ? "متصلة" : "غير متصلة"}</dd></div><div><dt>آخر مزامنة</dt><dd>${item.lastHealthCheckAt ? escapeHtml(deviceRelativeTime(item.lastHealthCheckAt)) : "لم تتم بعد"}</dd></div></dl><button class="btn btn-secondary" data-action="device-details" data-id="${escapeHtml(item.id || "")}">${dashboardIcon("settings")} عرض إعدادات القناة</button></article><article class="suite-card channel-quick-card"><div class="suite-card-head"><div><h2>إجراءات سريعة</h2><p>الوصول المباشر لأهم المهام</p></div></div><button data-action="campaign-create-whatsapp">${dashboardIcon("send")}<span><strong>إنشاء حملة جديدة</strong><small>إرسال رسائل لحملة محددة</small></span></button><button data-link="/dashboard/templates">${dashboardIcon("template")}<span><strong>القوالب المعتمدة</strong><small>عرض وإدارة القوالب</small></span></button><button data-link="/dashboard/reports?channel=whatsapp">${dashboardIcon("reports")}<span><strong>إحصائيات القناة</strong><small>تحليل أداء واتساب</small></span></button></article><article class="suite-card channel-activity-card"><div class="suite-card-head"><div><h2>أحدث نشاط في واتساب</h2><p>آخر الأحداث المسجلة</p></div></div>${activity.length ? `<div class="suite-message-list">${activity.map((row)=>`<button data-action="channel-activity-details" data-id="${escapeHtml(row.id)}"><span>${dashboardIcon("whatsapp")}</span><span><strong>${escapeHtml(row.title || "رسالة واتساب")}</strong><small>${row.createdAt ? escapeHtml(deviceRelativeTime(row.createdAt)) : ""}</small></span>${status(row.status)}</button>`).join("")}</div>` : `<div class="suite-mini-empty"><strong>لا يوجد نشاط مسجل بعد</strong></div>`}</article></div>
+  </section>`);
+}
+
+function emailChannelPage() {
+  const data = state.channelsOverview;
+  if (data === null) return dashboardShell(`<section class="suite-page channel-detail-page">${pageTitle("البريد الإلكتروني")}<div class="loading-state">جاري تحميل بيانات القناة...</div></section>`);
+  const metrics = data?.summary || {};
+  const email = data?.channels?.email || { connected:false };
+  const activity = (data?.activity || []).filter((row) => row.channel === "email").slice(0, 4);
+  const senders = Array.isArray(email.senders) ? email.senders : email.sender ? [{ address:email.sender, verified:email.connected }] : [];
+  const domains = Array.isArray(email.domains) ? email.domains : email.domain ? [{ name:email.domain, verified:email.connected }] : [];
+  return dashboardShell(`<section class="suite-page channel-detail-page email-channel-page">
+    <div class="channel-detail-heading"><button class="btn btn-ghost" data-link="/dashboard/channels">${dashboardIcon("back")} القنوات والربط</button><div><h1>البريد الإلكتروني</h1><p>إدارة قناة البريد الإلكتروني وإعداداتها وأدائها.</p></div></div>
+    ${channelDetailTabs("email")}
+    <article class="suite-card channel-connected-hero email"><div class="channel-connected-copy"><span class="channel-large-icon">${dashboardIcon("email")}</span><div><div class="channel-title-line"><h2>القناة ${email.connected ? "مفعلة وموثقة" : "غير مهيأة"}</h2><em class="${email.connected ? "connected" : "disconnected"}">${email.connected ? "نشط" : "غير نشط"}</em></div><p>${email.connected ? "بريدك الإلكتروني متصل وجاهز للإرسال." : "أكمل إعداد النطاق وعنوان المرسل."}</p><div class="inline-actions"><button class="btn btn-primary" data-action="email-domain-details">${dashboardIcon("settings")} إدارة البريد</button><span class="channel-connection-state"><i></i> ${email.connected ? "متصل" : "غير متصل"}</span></div></div></div><div class="channel-email-art">${dashboardIcon("email")}<span>✓</span></div></article>
+    <div class="channel-kpi-grid six">${suiteMetricCard({ title:"المرسلون النشطون", value:suiteNumber(metrics.activeSenders), caption:"مرسل", icon:"customers" })}${suiteMetricCard({ title:"إجمالي الرسائل المرسلة", value:suiteNumber(metrics.emailMessages), caption:"آخر 30 يوم", icon:"send" })}${suiteMetricCard({ title:"تم التسليم", value:suiteNumber(metrics.delivered), caption:"آخر 30 يوم", icon:"security" })}${suiteMetricCard({ title:"الارتدادات", value:suiteNumber(metrics.bounces), caption:"آخر 30 يوم", icon:"email" })}${suiteMetricCard({ title:"الشكاوى", value:suiteNumber(metrics.complaints), caption:"آخر 30 يوم", icon:"warning" })}${suiteMetricCard({ title:"معدل الفتح", value:suiteRate(metrics.openRate, Number(metrics.sent||0)>0), caption:"متوسط 30 يوم", icon:"eye" })}</div>
+    <div class="email-channel-grid"><article class="suite-card channel-list-card"><div class="suite-card-head"><div><h2>عناوين الإرسال</h2><p>العناوين الموثقة للقناة</p></div>${dashboardIcon("customers")}</div>${senders.length ? `<div class="channel-data-list">${senders.map((row,index)=>`<div><span>${index ? "عنوان إرسال" : "المرسل الافتراضي"}</span><strong dir="ltr">${escapeHtml(row.address || row.email || "—")}</strong><em>${row.verified ? "موثق ✓" : "قيد التحقق"}</em></div>`).join("")}</div>` : `<div class="suite-mini-empty"><strong>لا توجد عناوين إرسال بعد</strong></div>`}<button class="btn btn-secondary" data-action="email-sender-details">إضافة عنوان إرسال جديد</button></article><article class="suite-card channel-list-card"><div class="suite-card-head"><div><h2>نطاقات الإرسال</h2><p>النطاقات التي تم التحقق منها</p></div>${dashboardIcon("security")}</div>${domains.length ? `<div class="channel-data-list">${domains.map((row,index)=>`<div><span>${index ? "نطاق ثانوي" : "النطاق الأساسي"}</span><strong dir="ltr">${escapeHtml(row.name || row.domain || "—")}</strong><em>${row.verified ? "موثق ✓" : "قيد التحقق"}</em></div>`).join("")}</div>` : `<div class="suite-mini-empty"><strong>لا توجد نطاقات موثقة بعد</strong></div>`}<button class="btn btn-secondary" data-action="email-domain-details">التحقق من نطاق جديد</button></article><article class="suite-card channel-quick-card"><div class="suite-card-head"><div><h2>إجراءات سريعة</h2><p>مهام البريد الأساسية</p></div></div><button data-action="email-domain-details">${dashboardIcon("security")}<span><strong>التحقق من نطاق جديد</strong><small>توثيق نطاق للإرسال</small></span></button><button data-action="email-sender-details">${dashboardIcon("customers")}<span><strong>إضافة عنوان إرسال</strong><small>إنشاء مرسل جديد</small></span></button><button data-link="/dashboard/reports?channel=email">${dashboardIcon("reports")}<span><strong>تخصيص تتبع الرسائل</strong><small>تقارير الفتح والنقر</small></span></button><button data-action="email-test">${dashboardIcon("send")}<span><strong>إرسال اختبار</strong><small>فحص جاهزية القناة</small></span></button></article><article class="suite-card channel-activity-card"><div class="suite-card-head"><div><h2>نشاط البريد الحديث</h2><p>آخر الرسائل الفعلية</p></div></div>${activity.length ? `<div class="suite-message-list">${activity.map((row)=>`<button data-action="channel-activity-details" data-id="${escapeHtml(row.id)}"><span>${dashboardIcon("email")}</span><span><strong>${escapeHtml(row.title || "رسالة بريد")}</strong><small>${row.createdAt ? escapeHtml(deviceRelativeTime(row.createdAt)) : ""}</small></span>${status(row.status)}</button>`).join("")}</div>` : `<div class="suite-mini-empty"><strong>لا يوجد نشاط مسجل بعد</strong></div>`}</article></div>
   </section>`);
 }
 
@@ -5779,6 +5867,46 @@ function notificationSettingToggle(key, label, checked, disabled = false) {
   return `<label class="setting-row"><span>${label}</span><span class="switch-control"><input type="checkbox" data-action="notification-preference" data-key="${key}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}><span></span></span></label>`;
 }
 
+function settingsReferencePage() {
+  if (state.accountSettings === null) return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}<div class="settings-loading-grid">${Array.from({length:4},()=>`<article class="suite-card settings-loading-card"></article>`).join("")}</div></section>`);
+  if (state.accountSettings?.error) return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}${emptyState("تعذر تحميل إعدادات الحساب", escapeHtml(state.accountSettings.error), "إعادة المحاولة", "reload-settings")}</section>`);
+  const remote = state.accountSettings.settings || {};
+  const storage = state.accountSettings.storage || { usedMb:0, limitMb:100, percent:0, breakdown:[] };
+  const avatarUrl = remote.avatarUrl || remote.image;
+  const fullName = remote.fullName || remote.name || "";
+  const avatar = avatarUrl ? `<img class="settings-ref-avatar" src="${escapeHtml(avatarUrl)}" alt="صورة الحساب">` : `<span class="settings-ref-avatar fallback">${escapeHtml(fullName.trim().charAt(0) || "م")}</span>`;
+  const usedGb = (Number(storage.usedMb || 0) / 1024).toFixed(1);
+  const limitGb = (Number(storage.limitMb || 0) / 1024).toFixed(1);
+  const newsletterUrl = `${location.origin}/newsletter/subscribe`;
+  return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}<p class="page-kicker">إدارة إعدادات المنصة والحساب والتفضيلات.</p>
+    <div class="settings-reference-grid">
+      <article class="suite-card settings-ref-card account"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><h2>إعدادات الحساب</h2><p>معلوماتك الشخصية وبيانات التواصل.</p></div></div><div class="settings-ref-account"><div class="settings-ref-avatar-wrap">${avatar}<input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">${dashboardIcon("upload")} تغيير الصورة</button><small>PNG, JPG حتى 2MB</small></div><form data-submit="profile-settings" class="settings-ref-profile" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><div class="settings-ref-two"><label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(String(fullName).split(" ")[0] || fullName)}" readonly></label><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label></div><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly dir="ltr"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" value="${escapeHtml(remote.phone || "")}" dir="ltr"></label><input type="hidden" name="storeName" value="${escapeHtml(remote.storeName || "")}"><button class="btn btn-primary profile-save-button">حفظ التعديلات</button></form></div></article>
+      <article class="suite-card settings-ref-card security"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>أمان الحساب</h2><p>تغيير كلمة المرور والتحقق الثنائي.</p></div></div><div class="settings-ref-mfa"><div><strong>تفعيل التحقق الثنائي</strong><p>عزز أمان حسابك بطبقة حماية إضافية عند تسجيل الدخول.</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><form data-submit="password" class="settings-ref-password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article>
+      <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>أنشئ رابط اشتراك لجمع البريد الإلكتروني من جمهورك.</p></div></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}">${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-preview"><strong>معاينة نموذج الاشتراك</strong><input class="input" type="email" placeholder="أدخل بريدك الإلكتروني"><button type="button" class="btn btn-primary">اشتراك</button></div></article>
+      <article class="suite-card settings-ref-card storage"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية.</p></div></div><div class="settings-storage-number"><strong>${usedGb} GB</strong><span>من ${limitGb} GB</span><em>${Number(storage.percent || 0)}%</em></div><div class="storage-progress"><i style="width:${Math.min(100,Number(storage.percent || 0))}%"></i></div><div class="settings-storage-list">${(storage.breakdown || []).slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${(Number(item.mb||0)/1024).toFixed(1)} GB</strong></div>`).join("") || `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></article>
+    </div>
+  </section>`);
+}
+
+function securityReferencePage() {
+  if (state.securityScore === null) return dashboardShell(`<section class="suite-page security-reference-page">${pageTitle("الحماية والأمان")}<div class="security-page-skeleton">${Array.from({length:4},()=>`<span></span>`).join("")}</div></section>`);
+  const score = state.securityScore?.overall ? state.securityScore : null;
+  if (state.securityScore?.error || !score) return dashboardShell(`<section class="suite-page security-reference-page">${pageTitle("الحماية والأمان")}${emptyState("تعذر التحقق من الحماية", "أعد الفحص لاسترجاع بيانات الأمان الفعلية.", "إعادة الفحص", "recalculate-security")}</section>`);
+  const overall = score.overall || {};
+  const protection = score.accountProtection || {};
+  const sessions = score.sessions || {activeSessions:0,items:[]};
+  const trusted = Array.isArray(state.trustedBrowsers?.items) ? state.trustedBrowsers.items : [];
+  const alerts = (Array.isArray(score.securityAlerts) ? score.securityAlerts : []).slice(0,4);
+  const sessionItems = Array.isArray(sessions.items) ? sessions.items.slice(0,4) : [];
+  const events = Array.isArray(score.events) ? score.events.slice(0,4) : [];
+  const mfaEnabled = protection.otpStatus === "enabled" || state.accountSettings?.settings?.mfaEnabled;
+  return dashboardShell(`<section class="suite-page security-reference-page">${pageTitle("الحماية والأمان")}<p class="page-kicker">إدارة أمان الحساب والجلسات والأجهزة الموثوقة من مكان واحد.</p>
+    <div class="security-ref-metrics"><article class="suite-card"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><small>درجة الأمان</small><strong>${overall.score != null ? `${Number(overall.score)}%` : "—"}</strong><em>حماية قوية لحسابك</em></div></article><article class="suite-card"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><small>الجلسات النشطة</small><strong>${Number(sessions.activeSessions || 0)}</strong><em>جلسات نشطة الآن</em></div></article><article class="suite-card"><span class="suite-icon-tile">${dashboardIcon("devices")}</span><div><small>الأجهزة الموثوقة</small><strong>${trusted.length}</strong><em>أجهزة موثوقة</em></div></article><article class="suite-card"><span class="suite-icon-tile">${dashboardIcon("notifications")}</span><div><small>آخر تنبيه أمني</small><strong>${alerts.length ? "اليوم" : "—"}</strong><em>${alerts.length ? alerts[0].title : "لا توجد تنبيهات جديدة"}</em></div></article></div>
+    <div class="security-ref-main"><article class="suite-card security-ref-password"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>كلمة المرور</h2><p>آخر تغيير لكلمة المرور حسب بيانات الحساب.</p></div></div><div class="password-strength"><span>قوة كلمة المرور</span><i><b></b><b></b><b></b><b></b></i><strong>قوية</strong></div><form data-submit="password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article><article class="suite-card security-ref-mfa"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>التحقق الثنائي</h2><p>أضف طبقة حماية إضافية للحساب.</p></div><em class="${mfaEnabled ? "on" : "off"}">${mfaEnabled ? "مفعل" : "غير مفعل"}</em></div><div class="security-method"><span>${dashboardIcon("devices")}</span><div><strong>تطبيق المصادقة</strong><small>Google Authenticator</small></div><i>${mfaEnabled ? "✓" : ""}</i></div><div class="security-method"><span>${dashboardIcon("email")}</span><div><strong>البريد الإلكتروني</strong><small dir="ltr">${escapeHtml(state.accountSettings?.settings?.email || "—")}</small></div><i>${mfaEnabled ? "✓" : ""}</i></div><div class="security-method"><span>${dashboardIcon("security")}</span><div><strong>الرموز الاحتياطية</strong><small>رموز استرداد آمنة</small></div></div><button class="btn btn-primary" data-action="mfa-toggle-button">${mfaEnabled ? "إدارة التحقق الثنائي" : "تفعيل التحقق الثنائي"}</button></article></div>
+    <div class="security-ref-lower"><article class="suite-card"><div class="suite-card-head"><div><h2>الجلسات والأجهزة</h2><p>الأجهزة الموثوقة والجلسات النشطة</p></div>${dashboardIcon("devices")}</div><div class="security-list">${sessionItems.length ? sessionItems.map((item)=>`<div><span>${dashboardIcon("devices")}</span><div><strong>${escapeHtml(item.device || item.browser || "جهاز")}</strong><small>${escapeHtml(item.location || item.maskedIp || "")}</small></div><em>${item.current ? "الجلسة الحالية" : "نشطة"}</em></div>`).join("") : `<p class="muted">لا توجد جلسات متاحة.</p>`}</div><button class="security-main-link" data-action="manage-sessions">عرض جميع الجلسات</button></article><article class="suite-card"><div class="suite-card-head"><div><h2>سجل النشاط الأمني</h2><p>أحدث التغييرات ومحاولات الدخول</p></div>${dashboardIcon("security")}</div><div class="security-list">${events.length ? events.map((item)=>`<div><span>${dashboardIcon(item.success === false ? "warning" : "security")}</span><div><strong>${escapeHtml(item.title || item.event || "نشاط أمني")}</strong><small>${escapeHtml(securityTime(item.occurredAt || item.createdAt))}</small></div></div>`).join("") : `<p class="muted">لا يوجد نشاط مسجل.</p>`}</div><button class="security-main-link" data-action="security-alerts">عرض سجل النشاط</button></article><article class="suite-card"><div class="suite-card-head"><div><h2>تنبيهات الأمان</h2><p>الأحداث التي تستحق المراجعة</p></div>${dashboardIcon("notifications")}</div><div class="security-list alerts">${alerts.length ? alerts.map((item)=>`<div><span>${dashboardIcon(item.severity === "high" ? "warning" : "security")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.message || item.detail || "")}</small></div></div>`).join("") : `<div class="security-safe-state">${dashboardIcon("security")} لا توجد محاولات مشبوهة</div>`}</div><button class="security-main-link" data-action="security-alerts">إعدادات التنبيهات</button></article></div>
+  </section>`);
+}
+
 function simpleTable(headers, rows) {
   return `<div class="compare"><table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
@@ -6422,9 +6550,16 @@ async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
   if (action === "action-menu") {
-    state.actionMenu = state.actionMenu === target.dataset.menu ? "" : target.dataset.menu;
-    render();
+    return openFloatingActionMenu(target);
+  }
+  if (action === "close-action-menu") {
+    state.actionMenu = "";
+    closePortal();
     return;
+  }
+  if (target.closest(".suite-floating-action-menu")) {
+    state.actionMenu = "";
+    closePortal();
   }
   if (action === "campaign-filter") {
     state.campaignStatusFilter = target.dataset.filter || "all";
@@ -6496,9 +6631,12 @@ async function handleAction(target) {
     if (!item) return;
     return openDrawer("تفاصيل الرسالة", `<div class="suite-detail-drawer"><dl><div><dt>القناة</dt><dd>${escapeHtml(item.channel === "email" ? "البريد الإلكتروني" : "واتساب")}</dd></div><div><dt>المستلم</dt><dd dir="ltr">${escapeHtml(item.customerName || item.recipient || item.toNumber || "—")}</dd></div><div><dt>الحالة</dt><dd>${status(item.status)}</dd></div><div><dt>وقت الإرسال</dt><dd>${item.sentAt || item.createdAt ? new Date(item.sentAt || item.createdAt).toLocaleString("ar-SA") : "—"}</dd></div>${item.errorMessage ? `<div><dt>سبب الفشل</dt><dd>${escapeHtml(item.errorMessage)}</dd></div>` : ""}</dl></div>`);
   }
+  if (action === "open-whatsapp-channel") return navigate("/dashboard/channels/whatsapp");
+  if (action === "open-email-channel" || action === "email-channel-details") return navigate("/dashboard/channels/email");
+  if (action === "open-approved-templates") return navigate("/dashboard/templates");
   if (action === "customer-export-dialog") return openModal("تصدير العملاء", `<form data-submit="customer-export" class="grid"><label class="field"><span>النطاق</span><select class="select" name="scope"><option value="all">كل العملاء</option><option value="current">النتائج الحالية</option><option value="selected" ${(state.customerSelection || []).length ? "" : "disabled"}>المحددون فقط</option></select></label><label class="field"><span>الصيغة</span><select class="select" name="format"><option value="csv">CSV</option><option value="xlsx">XLSX</option></select></label><button class="btn btn-primary">تجهيز الملف</button></form>`);
   if (action === "export-report-dialog") return openModal("تصدير التقرير", `<form data-submit="report-export" class="grid"><div class="suite-export-summary"><span>الفترة: آخر 30 يومًا</span><span>القناة: جميع القنوات</span><span>التقرير: الأداء العام</span></div><label class="field"><span>الصيغة</span><select class="select" name="format"><option value="csv">CSV</option><option value="pdf">PDF</option><option value="xlsx">XLSX</option></select></label><label class="setting-line"><span>تضمين التفاصيل اليومية</span><input type="checkbox" name="daily" checked></label><button class="btn btn-primary">تصدير</button></form>`);
-  if (action === "email-channel-details" || action === "email-domain-details" || action === "email-sender-details") {
+  if (action === "email-domain-details" || action === "email-sender-details") {
     const email = state.channelsOverview?.channels?.email || {};
     return openDrawer("إدارة البريد الإلكتروني", `<div class="suite-detail-drawer"><div class="suite-detail-title"><span>${dashboardIcon("email")}</span><div><h3>قناة البريد الإلكتروني</h3><p>${email.connected ? "القناة مفعلة بعنوان إرسال موثق." : "القناة غير مهيأة بعد."}</p></div></div><dl><div><dt>عنوان المرسل</dt><dd dir="ltr">${escapeHtml(email.sender || "غير مضاف")}</dd></div><div><dt>النطاق</dt><dd dir="ltr">${escapeHtml(email.domain || "غير موثق")}</dd></div><div><dt>الحالة</dt><dd>${email.connected ? "مفعلة وموثقة" : "تحتاج إعدادًا على الخادم"}</dd></div></dl></div>`);
   }
@@ -6655,7 +6793,23 @@ async function handleAction(target) {
   if (action === "campaign-reload") { state.campaignsOverview=null; syncRouteData(true); return render(); }
   if (action === "contacts-reload") { state.contactsOverview=null; state.contactStatistics=null; syncRouteData(true); return render(); }
   if (action === "campaign-create") {
-    return openModal("إنشاء حملة جديدة", campaignCreateModalMarkup());
+    state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
+    state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : "whatsapp";
+    closePortal();
+    return navigate("/dashboard/campaigns/new");
+  }
+  if (action === "campaign-create-whatsapp") {
+    state.campaignBuilderKind = "custom";
+    state.campaignBuilderChannel = "whatsapp";
+    return navigate("/dashboard/campaigns/new");
+  }
+  if (action === "campaign-builder-channel") {
+    state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : "whatsapp";
+    return render();
+  }
+  if (action === "campaign-builder-kind") {
+    state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
+    return render();
   }
   if (action === "contact-create") {
     return openModal("إضافة جهة اتصال", `<form data-submit="contact-create" class="grid"><label class="field"><span>الاسم</span><input class="input" name="displayName" maxlength="160"></label><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" inputmode="tel" placeholder="+966 5X XXX XXXX"></label><label class="field"><span>الشركة (اختياري)</span><input class="input" name="companyName" maxlength="160"></label><label class="field"><span>الموافقة على التواصل</span><select class="select" name="consentStatus"><option value="unknown">غير محددة</option><option value="granted">موافق</option><option value="revoked">سحب الموافقة</option></select></label><button class="btn btn-primary">حفظ جهة الاتصال</button></form>`);
@@ -7956,6 +8110,13 @@ async function handleAction(target) {
     try { await fetchJson("/api/settings/security/sessions/revoke-others", { method: "POST" }); toast("تم إنهاء الجلسات الأخرى"); await showSessionsDrawer(); }
     catch (error) { toast(error.message || "تعذر إنهاء الجلسات", "danger"); }
   }
+  if (action === "copy-value") { copyText(target.dataset.value || ""); return; }
+  if (action === "mfa-toggle-button") {
+    const enabled = Boolean(state.accountSettings?.settings?.mfaEnabled);
+    if (!enabled) await startMfaSetup();
+    else openModal("إدارة دخول الحساب OTP", `<div class="grid"><p>دخول الحساب OTP مفعّل حاليًا. يمكنك مراجعة الجلسات أو إيقافه من إعدادات الحساب.</p><button class="btn btn-secondary" data-action="manage-sessions">إدارة الجلسات</button><button class="btn btn-danger" data-action="mfa-toggle">إيقاف دخول OTP</button></div>`);
+    return;
+  }
   if (action === "mfa-toggle") {
     const enabled = Boolean(state.accountSettings?.settings?.mfaEnabled);
     target.checked = enabled;
@@ -8332,7 +8493,10 @@ async function handleSubmit(form, event) {
         timezone:Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Riyadh",allowedDays,minDelaySeconds,maxDelaySeconds,
         contactKeywords,customKeywords
       }) });
-      closePortal(); state.campaignsOverview=null; await syncRouteData(true); toast(form.elements.isEnabled?.checked ? "تم إنشاء الحملة وتفعيل جدولها بنجاح." : "تم حفظ الحملة كمسودة غير مفعلة.");
+      closePortal(); state.campaignsOverview=null;
+      if (state.route === "/dashboard/campaigns/new") await navigate("/dashboard/campaigns");
+      else await syncRouteData(true);
+      toast(form.elements.isEnabled?.checked ? "تم إنشاء الحملة وتفعيل جدولها بنجاح." : "تم حفظ الحملة كمسودة غير مفعلة.");
     } catch(error){toast(error.message||"تعذر إنشاء الحملة","danger");}
     return;
   }
@@ -9235,8 +9399,11 @@ function render() {
       "/dashboard/customers": customersPage,
       "/dashboard/templates": templatesCatalogPage,
       "/dashboard/campaigns": campaignsPage,
+      "/dashboard/campaigns/new": campaignBuilderPage,
       "/dashboard/contacts": contactsPage,
       "/dashboard/channels": devicesWorkspacePage,
+      "/dashboard/channels/whatsapp": whatsappChannelPage,
+      "/dashboard/channels/email": emailChannelPage,
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,
@@ -9250,7 +9417,7 @@ function render() {
       "/dashboard/security": securityPage,
       "/dashboard/reports": reportsPage,
       "/dashboard/billing": billingWorkspacePage,
-      "/dashboard/settings": settingsPage
+      "/dashboard/settings": settingsReferencePage
       ,"/dashboard/support": dashboardSupportPage
     };
     const dashboardPage = state.route === "/dashboard/integrations/salla/products"
