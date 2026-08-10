@@ -734,8 +734,11 @@ state.channelsOverview = null;
 state.actionMenu = "";
 state.campaignStatusFilter = "all";
 state.campaignChannelFilter = "all";
-state.campaignBuilderChannel = "whatsapp";
+state.campaignBuilderChannel = null;
 state.campaignBuilderKind = "custom";
+state.productCampaignChannel = null;
+state.customCampaignChannel = null;
+state.campaignBuilderProduct = null;
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -4098,32 +4101,50 @@ function campaignCreateModalMarkup() {
 }
 
 function campaignBuilderPage() {
-  const channel = state.campaignBuilderChannel === "email" ? "email" : "whatsapp";
+  const channel = state.campaignBuilderChannel === "email" ? "email" : state.campaignBuilderChannel === "whatsapp" ? "whatsapp" : null;
   const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
   const options = state.campaignsOverview?.createOptions || {};
   const devices = (options.devices || []).filter((item) => item.status === "connected");
   const groups = options.groups || [];
   const templates = (options.templates || []).filter((item) => item.channel === "email");
-  const metaTemplates = options.metaTemplates || [];
+  const metaTemplates = (options.metaTemplates || []).filter((item) => devices.some((device) => device.id === item.channelId));
+  const product = kind === "product" ? state.campaignBuilderProduct : null;
+  const emailSender = options.email?.connected ? options.email.sender : null;
+  const channelReady = channel === "whatsapp" ? devices.length > 0 : channel === "email" ? Boolean(emailSender) : false;
+  if (!channel || !channelReady || (kind === "product" && !product)) {
+    const message = !channel
+      ? "اختر قناة الإرسال من بطاقة إنشاء الحملة أولًا."
+      : !channelReady
+        ? channel === "whatsapp" ? "قناة واتساب غير متصلة بالحساب." : "قناة البريد الإلكتروني غير مهيأة."
+        : "اختر منتجًا فعليًا من كتالوج متجرك أولًا.";
+    return dashboardShell(`<section class="suite-page campaign-builder-guard">${pageTitle("إنشاء حملة")}<div class="suite-card suite-mini-empty"><span>${dashboardIcon("campaigns")}</span><strong>تعذر فتح المحرر</strong><p>${message}</p><button class="btn btn-primary" data-action="campaign-builder-exit">العودة إلى الحملات</button></div></section>`);
+  }
   const start = new Date(Date.now() + 10 * 60_000);
   const localStart = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString();
   const startDate = localStart.slice(0, 10);
   const startTime = localStart.slice(11, 16);
+  const productImage = safeStoreLogoUrl(product?.thumbnailUrl);
+  const productTitle = escapeHtml(product?.name || "المنتج المختار");
+  const productPrice = product?.price != null ? `${escapeHtml(product.price)} ${escapeHtml(product.currency || "")}` : "";
   const preview = channel === "whatsapp"
-    ? `<div class="campaign-phone ref-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message"><strong>مرحباً أحمد،</strong><p>${kind === "product" ? "اخترنا لك منتجاً مميزاً من متجرنا. شاهد التفاصيل واطلبه الآن." : "اكتب رسالتك الرئيسية هنا وسيشاهدها عملاؤك بهذه الصورة."}</p><time>11:00 ص</time></div><div class="campaign-preview-product">${dashboardIcon(kind === "product" ? "orderLink" : "template")}<strong>${kind === "product" ? "منتج من المتجر" : "بطاقة مخصصة"}</strong><span>عرض التفاصيل</span></div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>`
-    : `<div class="campaign-email-preview ref-email-preview"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span>عرض في المتصفح</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section><small>تجربة جديدة</small><h2>${kind === "product" ? "منتجاتك المفضلة" : "عرض مخصص لك"}</h2><p>ستظهر رسالة حملتك وعنوان البريد والصورة هنا بشكل واضح ومتجاوب.</p><button type="button">تسوّق الآن</button></section><footer>جميع الحقوق محفوظة · إلغاء الاشتراك</footer></div>`;
+    ? `<div class="campaign-phone ref-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message">${productImage ? `<img class="campaign-preview-media" src="${escapeHtml(productImage)}" alt="${productTitle}">` : ""}<strong>مرحبًا {{customer_name}}</strong><p data-campaign-live-body>${kind === "product" ? `تعرف على ${productTitle}${productPrice ? ` بسعر ${productPrice}` : ""}.` : "سيظهر محتوى القالب المعتمد هنا."}</p><time>11:00 ص</time></div><div class="campaign-preview-product">${dashboardIcon(kind === "product" ? "orderLink" : "template")}<strong>${kind === "product" ? productTitle : "حملة مخصصة"}</strong><span data-campaign-live-cta>${kind === "product" ? "عرض المنتج" : "زر القالب"}</span></div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>`
+    : `<div class="campaign-email-preview ref-email-preview"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span data-campaign-live-subject>عنوان البريد</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section>${productImage ? `<img class="campaign-preview-media" src="${escapeHtml(productImage)}" alt="${productTitle}">` : ""}<small data-campaign-live-preheader>نص المعاينة</small><h2>${kind === "product" ? productTitle : "عنوان الحملة"}</h2><p data-campaign-live-body>${kind === "product" ? `تفاصيل ${productTitle}${productPrice ? ` — ${productPrice}` : ""}` : "سيظهر محتوى البريد هنا."}</p><button type="button" data-campaign-live-cta>${kind === "product" ? "عرض المنتج" : "زر الإجراء"}</button></section><footer data-campaign-live-footer>جميع الحقوق محفوظة · إلغاء الاشتراك</footer></div>`;
   const channelFields = channel === "whatsapp"
-    ? `<label class="field ref-span-2"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required><option value="">اختر قناة متصلة</option>${devices.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field ref-span-2"><span>قالب Meta المعتمد</span><select class="select" name="metaTemplateId"><option value="">رسالة مخصصة</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select></label>`
-    : `<label class="field"><span>اسم المرسل</span><input class="input" value="Renvix" readonly></label><label class="field"><span>البريد المرسل</span><input class="input" value="${escapeHtml(state.channelsOverview?.channels?.email?.sender || "غير مهيأ")}" readonly dir="ltr"></label><label class="field ref-span-2"><span>قالب البريد</span><select class="select" name="templateId" data-action="campaign-template"><option value="">محتوى بريد مخصص</option>${templates.map((item) => `<option value="${escapeHtml(item.id)}" data-template-body="${escapeHtml(item.body || "")}" data-template-subject="${escapeHtml(item.subject || item.name || "")}">${escapeHtml(item.name)}</option>`).join("")}</select></label><label class="field ref-span-2"><span>عنوان البريد</span><input class="input" name="subject" required maxlength="200" placeholder="عرض الربيع - خصم 20%"></label>`;
+    ? `<label class="field ref-span-2"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required><option value="">اختر قناة متصلة</option>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${devices.length === 1 ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field ref-span-2"><span>قالب Meta المعتمد</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}">${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>Header وFooter والأزرار تُستخدم من مكونات قالب Meta المعتمد.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة لهذه المساحة.</small>`}</label><label class="field"><span>Header</span><select class="select" name="headerType"><option value="template">حسب القالب المعتمد</option></select></label><label class="field"><span>Footer اختياري</span><input class="input" name="footer" maxlength="240" placeholder="يُحفظ ضمن إعدادات الحملة"></label>`
+    : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" value="Renvix" readonly></label><label class="field"><span>عنوان المرسل الفعلي</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender)}" readonly dir="ltr"></label><label class="field ref-span-2"><span>قالب البريد</span><select class="select" name="templateId" data-action="campaign-template"><option value="">محتوى بريد مخصص</option>${templates.map((item) => `<option value="${escapeHtml(item.id)}" data-template-body="${escapeHtml(item.body || "")}" data-template-subject="${escapeHtml(item.subject || item.name || "")}">${escapeHtml(item.name)}</option>`).join("")}</select></label><label class="field ref-span-2"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" placeholder="عنوان واضح للحملة"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" placeholder="النص القصير الظاهر بجانب العنوان"></label><label class="field"><span>نص زر الإجراء</span><input class="input" name="ctaLabel" data-campaign-preview-field="cta" maxlength="80" value="${kind === "product" ? "عرض المنتج" : "عرض التفاصيل"}"></label><label class="field"><span>Footer</span><input class="input" name="footer" data-campaign-preview-field="footer" maxlength="240" placeholder="نص تذييل البريد"></label>`;
+  const selectedProduct = kind === "product" ? `<article class="campaign-selected-product">${productImage ? `<img src="${escapeHtml(productImage)}" alt="${productTitle}">` : `<span>${dashboardIcon("orderLink")}</span>`}<div><small>المنتج المختار من كتالوجك</small><strong>${productTitle}</strong>${productPrice ? `<b>${productPrice}</b>` : ""}<em dir="ltr">${escapeHtml(product?.sku || product?.productId || "")}</em></div></article>` : "";
+  const defaultBody = kind === "product" ? `مرحبًا {{customer_name}}،\nتعرف على ${product?.name || "المنتج المختار"}${productPrice ? ` بسعر ${productPrice}` : ""}.` : "";
   return dashboardShell(`<section class="suite-page campaign-builder-page ref-campaign-builder">
-    <div class="campaign-builder-heading"><div><h1>${channel === "email" ? "حملات البريد الإلكتروني" : "حملات واتساب"}</h1><p>${channel === "email" ? "إنشاء وإدارة حملات البريد الإلكتروني ومتابعة أدائها." : "أنشئ حملة واتساب احترافية وأرسلها عبر القناة الرسمية."}</p></div>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : ""}</div>
-    <nav class="campaign-builder-tabs" aria-label="اختر القناة"><button class="${channel === "email" ? "active" : ""}" data-action="campaign-builder-channel" data-channel="email">${dashboardIcon("email")} البريد الإلكتروني</button><button class="${channel === "whatsapp" ? "active" : ""}" data-action="campaign-builder-channel" data-channel="whatsapp">${dashboardIcon("whatsapp")} واتساب</button></nav>
-    <div class="campaign-builder-layout"><main class="suite-card campaign-builder-form-card"><form data-submit="campaign-create" class="ref-campaign-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="حملة منشأة من محرر الحملات"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
-      <header class="ref-form-title"><span>${dashboardIcon("campaigns")}</span><h2>أساسيات الحملة</h2></header><div class="ref-form-grid"><label class="field ref-span-2"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="عرض الربيع الخاص"></label><label class="field ref-span-2"><span>الجمهور المستهدف</span><select class="select" name="groupId"><option value="">جميع جهات الاتصال المؤهلة</option>${groups.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${suiteNumber(item.contactsCount)} مشترك</option>`).join("")}</select></label><label class="field"><span>تاريخ الإرسال</span><input class="input" type="date" name="startDate" value="${startDate}" min="${startDate}" required></label><label class="field"><span>وقت الإرسال</span><input class="input" type="time" name="startTime" value="${startTime}" required></label>${channelFields}</div>
-      <section class="ref-kind-section"><h3>نوع الحملة</h3><div class="campaign-kind-switch"><button type="button" class="${kind === "product" ? "active" : ""}" data-action="campaign-builder-kind" data-kind="product">${dashboardIcon("orderLink")}<span><strong>منتج من المتجر</strong><small>اختر منتجاً وأرسله لعملائك</small></span></button><button type="button" class="${kind === "custom" ? "active" : ""}" data-action="campaign-builder-kind" data-kind="custom">${dashboardIcon("template")}<span><strong>بطاقة مخصصة</strong><small>صمم بطاقة لعرض خدماتك</small></span></button></div></section>
-      <details class="ref-builder-section" open><summary>${dashboardIcon("edit")} <span><strong>${channel === "email" ? "محتوى البريد الإلكتروني" : "نص الرسالة الرئيسية"}</strong><small>اكتب المحتوى الذي سيستلمه العملاء</small></span></summary><textarea class="textarea" name="body" rows="7" maxlength="12000" required placeholder="اكتب رسالة الحملة هنا...">مرحباً {{customer_name}}،\nاكتشف عرضنا الجديد واختر ما يناسبك.</textarea></details>
+    <div class="campaign-builder-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><h1>${channel === "email" ? "حملة بريد إلكتروني" : "حملة واتساب"} — ${kind === "product" ? "منتج من المتجر" : "بطاقة مخصصة"}</h1><p>القناة والنوع محددان من بطاقة الإنشاء، ولا يمكن تبديلهما من داخل المحرر.</p></div><span class="campaign-selected-channel">${dashboardIcon(channel)} ${channel === "email" ? "البريد الإلكتروني" : "واتساب الرسمية"}</span></div>
+    <ol class="campaign-wizard-steps" aria-label="خطوات إنشاء الحملة"><li class="active"><b>1</b><span>المحتوى</span></li><li><b>2</b><span>الجمهور</span></li><li><b>3</b><span>الجدولة والإعدادات</span></li><li><b>4</b><span>المراجعة</span></li></ol>
+    <div class="campaign-builder-layout"><main class="suite-card campaign-builder-form-card"><form data-submit="campaign-create" class="ref-campaign-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${kind === "product" ? "منتج من المتجر" : "بطاقة مخصصة"} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
+      <header class="ref-form-title"><span>1</span><div><h2>المحتوى</h2><small>بيانات الحملة والقالب والمحتوى الفعلي</small></div></header>${selectedProduct}<div class="ref-form-grid"><label class="field ref-span-2"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required placeholder="اكتب اسم الحملة"></label>${channelFields}</div>
+      <details class="ref-builder-section" open><summary>${dashboardIcon("edit")} <span><strong>${channel === "email" ? "محرر محتوى البريد" : "Body ومتغيرات الرسالة"}</strong><small>${channel === "whatsapp" ? "استخدم متغيرات القالب المعتمد فقط" : "أضف عنوانًا ونصًا وروابط واضحة"}</small></span></summary><textarea class="textarea" name="body" data-campaign-preview-field="body" rows="7" maxlength="12000" required placeholder="اكتب محتوى الحملة هنا...">${escapeHtml(defaultBody)}</textarea></details>
+      <header class="ref-form-title"><span>2</span><div><h2>الجمهور</h2><small>تُستخدم جهات الاتصال المؤهلة للقناة المختارة فقط</small></div></header><div class="ref-form-grid"><label class="field ref-span-2"><span>الجمهور المستهدف</span><select class="select" name="groupId"><option value="">جميع جهات الاتصال المؤهلة</option>${groups.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${suiteNumber(item.contactsCount)} مشترك</option>`).join("")}</select></label></div>
+      <header class="ref-form-title"><span>3</span><div><h2>الجدولة والإعدادات</h2><small>حدد موعد الإرسال وحالة التفعيل</small></div></header><div class="ref-form-grid"><label class="field"><span>تاريخ الإرسال</span><input class="input" type="date" name="startDate" value="${startDate}" min="${startDate}" required></label><label class="field"><span>وقت الإرسال</span><input class="input" type="time" name="startTime" value="${startTime}" required></label></div>
+      <header class="ref-form-title"><span>4</span><div><h2>المراجعة</h2><small>راجع المعاينة ثم احفظ الحملة أو أرسل اختبارًا</small></div></header>
       <details class="ref-builder-section"><summary>${dashboardIcon("settings")} <span><strong>إعدادات اختيارية</strong><small>خيارات متقدمة وتخصيصات إضافية للحملة</small></span></summary><label class="setting-line"><span>تفعيل الحملة وجدولتها بعد الحفظ</span><input type="checkbox" name="isEnabled"></label></details>
-      <div class="campaign-form-actions ref-builder-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-preview">${dashboardIcon("eye")} معاينة الرسالة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-test">${dashboardIcon("send")} إرسال تجريبي</button><button class="btn btn-ghost" type="button" data-link="/dashboard/campaigns">${dashboardIcon("back")} العودة</button></div>
+      <div class="campaign-form-actions ref-builder-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-preview">${dashboardIcon("eye")} معاينة الرسالة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-test">${dashboardIcon("send")} إرسال تجريبي</button><button class="btn btn-ghost" type="button" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة</button></div>
     </form></main><aside class="suite-card campaign-preview-card" tabindex="-1"><div class="suite-card-head"><div><h2>معاينة ${channel === "email" ? "البريد الإلكتروني" : "رسالة واتساب"}</h2><p>تتكيّف المعاينة مع نوع الحملة المختار.</p></div></div>${preview}</aside></div>
   </section>`);
 }
@@ -4145,6 +4166,52 @@ function legacyCampaignsPage() {
     `<div class="campaign-layout"><section class="card campaign-main-card"><div class="toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="campaign-search" placeholder="ابحث عن حملة..."></div><select class="select"><option>كل القنوات</option><option>واتساب</option><option>البريد الإلكتروني</option></select><select class="select"><option>كل الحالات</option><option>مسودة</option><option>مجدولة</option><option>مكتملة</option></select></div>${content}</section>`+
     `<aside class="card campaign-activity-card"><div class="section-head"><div><h2>أحدث الأنشطة</h2><p class="muted">أحداث محفوظة في سجل مساحة العمل.</p></div></div>${campaignActivityMarkup(data?.activity || [])}</aside></div>`+
     `<section class="campaign-bottom-grid"><article class="card"><div class="section-head"><div><h2>نظرة عامة على الأداء</h2><p class="muted">المؤشرات محسوبة من الرسائل الفعلية فقط.</p></div></div><div class="campaign-performance"><div><span>تم التسليم</span><strong>${Number(summary.delivered||0).toLocaleString("ar-SA")}</strong>${campaignProgress(summary.delivered,summary.sent)}</div><div><span>فشل الإرسال</span><strong>${Number(summary.failed||0).toLocaleString("ar-SA")}</strong>${campaignProgress(summary.failed,summary.sent)}</div></div></article><article class="card campaign-tip"><span>${dashboardIcon("reports")}</span><div><h2>اقتراح لتحسين الأداء</h2><p>استخدم جمهورًا لديه موافقة صالحة، واختبر المحتوى قبل جدولة الحملة.</p><button class="btn btn-ghost" data-link="/dashboard/templates">فتح القوالب</button></div></article></section>`);
+}
+
+function campaignCreationAvailability() {
+  const options = state.campaignsOverview?.createOptions || {};
+  return {
+    whatsapp: (options.devices || []).some((item) => item.status === "connected"),
+    email: Boolean(options.email?.connected),
+    products: (options.products || []).filter((item) => item.isAvailable !== false)
+  };
+}
+
+function campaignChannelChoice(kind, channel, selected, available) {
+  const otherChannel = channel === "whatsapp" ? "email" : "whatsapp";
+  const otherLabel = otherChannel === "whatsapp" ? "واتساب" : "البريد الإلكتروني";
+  const currentLabel = channel === "whatsapp" ? "واتساب" : "البريد الإلكتروني";
+  const unavailableReason = channel === "whatsapp" ? "اربط واتساب أولًا" : "قم بإعداد قناة البريد أولًا";
+  const locked = Boolean(selected && selected !== channel);
+  const disabled = !available || locked;
+  const title = !available
+    ? unavailableReason
+    : locked
+      ? `أزل تحديد ${otherLabel} أولًا لتتمكن من اختيار ${currentLabel}`
+      : selected === channel
+        ? `إزالة تحديد ${currentLabel}`
+        : `اختيار ${currentLabel}`;
+  return `<button type="button" class="campaign-channel-choice ${selected === channel ? "is-selected" : ""} ${disabled ? "is-disabled" : ""}" data-action="campaign-card-channel" data-kind="${kind}" data-channel="${channel}" aria-pressed="${selected === channel}" ${disabled ? "disabled" : ""} title="${escapeHtml(title)}">
+    <span class="campaign-channel-check" aria-hidden="true">${selected === channel ? "✓" : ""}</span>
+    <strong>${currentLabel}</strong><span class="campaign-channel-brand-icon">${dashboardIcon(channel === "whatsapp" ? "whatsapp" : "email")}</span>
+    ${!available ? `<small>${unavailableReason}</small>` : ""}
+  </button>`;
+}
+
+function campaignCreationCard(kind) {
+  const availability = campaignCreationAvailability();
+  const selected = kind === "product" ? state.productCampaignChannel : state.customCampaignChannel;
+  const isProduct = kind === "product";
+  return `<article class="campaign-creation-card" data-campaign-kind="${kind}">
+    <span class="campaign-creation-icon">${dashboardIcon(isProduct ? "orderLink" : "template")}</span>
+    <div class="campaign-creation-copy"><h3>${isProduct ? "منتج من المتجر" : "بطاقة مخصصة"}</h3><p>${isProduct ? "اختر منتجًا فعليًا من متجرك وأرسله لعملائك مع صورته وتفاصيله ورابطه." : "أنشئ حملة مخصصة بنص وصورة وزر دون فرض منتج من المتجر."}</p>
+      <div class="campaign-channel-selector"><div><strong>اختر قناة الإرسال</strong><small>يمكن اختيار قناة واحدة فقط لكل حملة</small></div><div class="campaign-channel-options">
+        ${campaignChannelChoice(kind, "whatsapp", selected, availability.whatsapp)}
+        ${campaignChannelChoice(kind, "email", selected, availability.email)}
+      </div></div>
+      <button class="btn btn-primary campaign-creation-continue" data-action="campaign-card-continue" data-kind="${kind}" ${selected ? "" : "disabled"}>${isProduct ? "اختيار منتج" : "إنشاء حملة"}</button>
+    </div>
+  </article>`;
 }
 
 function campaignsPage() {
@@ -4172,7 +4239,7 @@ function campaignsPage() {
       ${suiteMetricCard({ title: "معتمدة", value: suiteNumber(summary.approved), caption: "جاهزة للإرسال", icon: "security", tone: "success", action: "campaign-filter", filter: "approved" })}
       ${suiteMetricCard({ title: "مجدولة", value: suiteNumber(summary.scheduled), caption: "بانتظار الموعد", icon: "clock", tone: "info", action: "campaign-filter", filter: "scheduled" })}
     </div>
-    <section class="suite-create-section"><div class="suite-section-title"><h2>إنشاء حملة جديدة</h2><p>اختر نوع المحتوى والقناة المناسبة لجمهورك.</p></div><div class="suite-create-cards"><article><span>${dashboardIcon("orderLink")}</span><div><h3>منتج من المتجر</h3><p>اختر منتجًا من متجرك وأرسله لعملائك مع صورته وتفاصيله ورابط الشراء.</p><button class="btn btn-secondary" data-action="campaign-create" data-kind="product">اختيار منتج</button></div></article><article><span>${dashboardIcon("template")}</span><div><h3>بطاقة مخصصة</h3><p>صمم حملة بصورة أو فيديو ونص وزر مخصص دون الحاجة إلى منتج من المتجر.</p><button class="btn btn-secondary" data-action="campaign-create" data-kind="custom">إنشاء بطاقة</button></div></article></div></section>
+    <section class="suite-create-section"><div class="suite-section-title"><h2>إنشاء حملة جديدة</h2><p>حدد نوع الحملة، ثم اختر قناة إرسال واحدة داخل البطاقة.</p></div><div class="suite-create-cards campaign-creation-cards">${campaignCreationCard("product")}${campaignCreationCard("custom")}</div></section>
     <section class="suite-card suite-campaign-list"><div class="suite-card-head suite-campaign-toolbar"><div><h2>الحملات الحديثة</h2>${activeChip}</div><div class="suite-toolbar-controls"><label class="suite-search">${dashboardIcon("reports")}<input data-action="campaign-search" value="${escapeHtml(state.search)}" placeholder="ابحث عن حملة..."></label><select data-action="campaign-channel-filter"><option value="all">كل القنوات</option><option value="whatsapp" ${state.campaignChannelFilter === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${state.campaignChannelFilter === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><select data-action="campaign-status-filter"><option value="all">كل الحالات</option><option value="draft" ${state.campaignStatusFilter === "draft" ? "selected" : ""}>مسودة</option><option value="meta_review" ${state.campaignStatusFilter === "meta_review" ? "selected" : ""}>قيد المراجعة</option><option value="approved" ${state.campaignStatusFilter === "approved" ? "selected" : ""}>معتمدة</option><option value="scheduled" ${state.campaignStatusFilter === "scheduled" ? "selected" : ""}>مجدولة</option><option value="completed" ${state.campaignStatusFilter === "completed" ? "selected" : ""}>مكتملة</option></select></div></div>${table}</section>
   </section>`);
 }
@@ -6829,10 +6896,52 @@ async function handleAction(target) {
   }
   if (action === "campaign-reload") { state.campaignsOverview=null; syncRouteData(true); return render(); }
   if (action === "contacts-reload") { state.contactsOverview=null; state.contactStatistics=null; syncRouteData(true); return render(); }
-  if (action === "campaign-create") {
-    state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
-    state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : "whatsapp";
+  if (action === "campaign-card-channel") {
+    const kind = target.dataset.kind === "product" ? "product" : "custom";
+    const channel = target.dataset.channel === "email" ? "email" : "whatsapp";
+    const key = kind === "product" ? "productCampaignChannel" : "customCampaignChannel";
+    const availability = campaignCreationAvailability();
+    if (!availability[channel]) return toast(channel === "whatsapp" ? "اربط واتساب أولًا." : "قم بإعداد قناة البريد أولًا.", "warning");
+    if (state[key] && state[key] !== channel) {
+      const selectedLabel = state[key] === "whatsapp" ? "واتساب" : "البريد الإلكتروني";
+      return toast(`أزل تحديد ${selectedLabel} أولًا ثم اختر القناة الأخرى.`, "warning");
+    }
+    state[key] = state[key] === channel ? null : channel;
+    return render();
+  }
+  if (action === "campaign-card-continue") {
+    const kind = target.dataset.kind === "product" ? "product" : "custom";
+    const channel = kind === "product" ? state.productCampaignChannel : state.customCampaignChannel;
+    const availability = campaignCreationAvailability();
+    if (!channel) return toast("اختر قناة الإرسال أولًا.", "warning");
+    if (!availability[channel]) return toast(channel === "whatsapp" ? "قناة واتساب غير متصلة." : "قناة البريد غير مهيأة.", "warning");
+    if (kind === "product") {
+      if (!availability.products.length) return toast("لا توجد منتجات متاحة في كتالوج المتجر. زامن منتجات سلة أولًا.", "warning");
+      return openModal("اختيار منتج من المتجر", `<form data-submit="campaign-product-select" class="grid campaign-product-picker"><input type="hidden" name="channel" value="${channel}"><label class="field"><span>المنتج المتاح</span><select class="select" name="productId" required><option value="">اختر منتجًا فعليًا</option>${availability.products.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name || item.sku || item.productId)}${item.price != null ? ` — ${escapeHtml(item.price)} ${escapeHtml(item.currency || "")}` : ""}</option>`).join("")}</select><small>تظهر المنتجات المتاحة والمزامنة مع حسابك فقط.</small></label><button class="btn btn-primary" type="submit">متابعة إلى محرر الحملة</button></form>`);
+    }
+    state.campaignBuilderKind = "custom";
+    state.campaignBuilderChannel = channel;
+    state.campaignBuilderProduct = null;
+    return navigate("/dashboard/campaigns/new");
+  }
+  if (action === "campaign-builder-exit") {
+    state.productCampaignChannel = null;
+    state.customCampaignChannel = null;
+    state.campaignBuilderChannel = null;
+    state.campaignBuilderProduct = null;
+    state.campaignBuilderKind = "custom";
     closePortal();
+    return navigate("/dashboard/campaigns");
+  }
+  if (action === "campaign-create") {
+    if (!target.dataset.kind) {
+      document.querySelector(".suite-create-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
+    state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : target.dataset.channel === "whatsapp" ? "whatsapp" : null;
+    closePortal();
+    if (!state.campaignBuilderChannel) return navigate("/dashboard/campaigns");
     return navigate("/dashboard/campaigns/new");
   }
   if (action === "campaign-create-whatsapp") {
@@ -6841,12 +6950,10 @@ async function handleAction(target) {
     return navigate("/dashboard/campaigns/new");
   }
   if (action === "campaign-builder-channel") {
-    state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : "whatsapp";
-    return render();
+    return;
   }
   if (action === "campaign-builder-kind") {
-    state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
-    return render();
+    return;
   }
   if (action === "campaign-builder-preview") {
     const preview = document.querySelector(".campaign-preview-card");
@@ -8526,6 +8633,18 @@ async function handleSubmit(form, event) {
     } catch (error) { toast(error.message || "تعذر إرسال بريد الاختبار.", "danger"); setSubmitBusy(button, false, "إرسال اختبار"); }
     return;
   }
+  if (type === "campaign-product-select") {
+    const product = (state.campaignsOverview?.createOptions?.products || []).find((item) => item.id === data.productId && item.isAvailable !== false);
+    const channel = data.channel === "email" ? "email" : "whatsapp";
+    const availability = campaignCreationAvailability();
+    if (!product) return toast("المنتج المحدد لم يعد متاحًا. حدّث قائمة المنتجات وحاول مجددًا.", "warning");
+    if (!availability[channel]) return toast(channel === "whatsapp" ? "قناة واتساب غير متصلة." : "قناة البريد غير مهيأة.", "warning");
+    state.campaignBuilderKind = "product";
+    state.campaignBuilderChannel = channel;
+    state.campaignBuilderProduct = product;
+    closePortal();
+    return navigate("/dashboard/campaigns/new");
+  }
   if (type === "campaign-draft-test") {
     const button = form.querySelector("button[type='submit']");
     setSubmitBusy(button, true, "جاري إرسال الاختبار...");
@@ -8561,9 +8680,32 @@ async function handleSubmit(form, event) {
         templateId:data.channel === "email" ? data.templateId || null : null,groupId:data.groupId||null,
         isEnabled:Boolean(form.elements.isEnabled?.checked),scheduledFor:scheduledDate.toISOString(),endTime:data.endTime,
         timezone:Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Riyadh",allowedDays,minDelaySeconds,maxDelaySeconds,
-        contactKeywords,customKeywords
+        contactKeywords,customKeywords,
+        audienceFilter: {
+          campaignKind: state.campaignBuilderKind === "product" ? "product" : "custom",
+          product: state.campaignBuilderProduct ? {
+            id: state.campaignBuilderProduct.id,
+            productId: state.campaignBuilderProduct.productId || null,
+            variantId: state.campaignBuilderProduct.variantId || null,
+            sku: state.campaignBuilderProduct.sku || null,
+            name: state.campaignBuilderProduct.name || null,
+            price: state.campaignBuilderProduct.price ?? null,
+            currency: state.campaignBuilderProduct.currency || null,
+            thumbnailUrl: state.campaignBuilderProduct.thumbnailUrl || null,
+            customerUrl: state.campaignBuilderProduct.customerUrl || null
+          } : null,
+          previewText: data.previewText || null,
+          ctaLabel: data.ctaLabel || null,
+          footer: data.footer || null,
+          headerType: data.headerType || null
+        }
       }) });
       closePortal(); state.campaignsOverview=null;
+      state.productCampaignChannel = null;
+      state.customCampaignChannel = null;
+      state.campaignBuilderChannel = null;
+      state.campaignBuilderProduct = null;
+      state.campaignBuilderKind = "custom";
       if (state.route === "/dashboard/campaigns/new") await navigate("/dashboard/campaigns");
       else await syncRouteData(true);
       toast(form.elements.isEnabled?.checked ? "تم إنشاء الحملة وتفعيل جدولها بنجاح." : "تم حفظ الحملة كمسودة غير مفعلة.");
@@ -9886,6 +10028,12 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.dataset.campaignPreviewField) {
+    const field = target.dataset.campaignPreviewField;
+    const selector = field === "body" ? "[data-campaign-live-body]" : field === "subject" ? "[data-campaign-live-subject]" : field === "preheader" ? "[data-campaign-live-preheader]" : field === "cta" ? "[data-campaign-live-cta]" : "[data-campaign-live-footer]";
+    const fallback = field === "body" ? "سيظهر محتوى الحملة هنا." : field === "subject" ? "عنوان البريد" : field === "preheader" ? "نص المعاينة" : field === "cta" ? "زر الإجراء" : "جميع الحقوق محفوظة · إلغاء الاشتراك";
+    document.querySelectorAll(selector).forEach((node) => { node.textContent = target.value || fallback; });
+  }
   const sallaTemplateForm = target.closest?.('form[data-submit="salla-automation-template"]');
   if (sallaTemplateForm && ["whatsappContent", "emailTextContent", "emailSubject", "buttonLabel", "buttonEnabled", "whatsappImageEnabled", "emailDesign", "secureLinkEnabled", "deliveryPageDesign", "deliveryPageCustomCss", "linkPageTitle", "linkPageContent", "showDuration", "themeColor"].includes(target.name)) {
     refreshSallaTemplatePreview(sallaTemplateForm);
@@ -10101,8 +10249,16 @@ document.addEventListener("change", (event) => {
     const selected = target.selectedOptions?.[0];
     const body = form?.elements.body;
     const subject = form?.elements.subject;
-    if (body && selected?.dataset.templateBody) body.value = selected.dataset.templateBody;
-    if (subject && selected?.dataset.templateSubject) subject.value = selected.dataset.templateSubject;
+    const whatsappChannel = form?.elements.whatsappChannelId;
+    if (whatsappChannel && selected?.dataset.channelId) whatsappChannel.value = selected.dataset.channelId;
+    if (body && selected?.dataset.templateBody) {
+      body.value = selected.dataset.templateBody;
+      document.querySelectorAll("[data-campaign-live-body]").forEach((node) => { node.textContent = body.value; });
+    }
+    if (subject && selected?.dataset.templateSubject) {
+      subject.value = selected.dataset.templateSubject;
+      document.querySelectorAll("[data-campaign-live-subject]").forEach((node) => { node.textContent = subject.value; });
+    }
     return;
   }
   if (target.dataset.action === "campaign-all-days") {

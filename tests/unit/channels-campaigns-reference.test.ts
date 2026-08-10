@@ -15,10 +15,10 @@ describe("reference channel and campaign experiences", () => {
     expect(appSource).toContain('class="suite-page channel-detail-page email-channel-page ref-detail-page"');
   });
 
-  it("keeps both campaign channels in one full builder without the old embedded form", () => {
+  it("keeps both campaign channels in the creation cards and uses the full builder", () => {
     expect(appSource).toContain('class="suite-page campaign-builder-page ref-campaign-builder"');
-    expect(appSource).toContain('data-channel="whatsapp"');
-    expect(appSource).toContain('data-channel="email"');
+    expect(appSource).toContain('campaignChannelChoice(kind, "whatsapp"');
+    expect(appSource).toContain('campaignChannelChoice(kind, "email"');
     expect(appSource).toContain('data-submit="campaign-create" class="ref-campaign-form"');
     expect(appSource).not.toContain('${campaignCreateModalMarkup()}</main><aside');
     expect(stylesSource).toContain('.ref-builder-actions{position:static!important');

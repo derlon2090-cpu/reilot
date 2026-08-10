@@ -5,6 +5,13 @@ import { assertCampaignChannelReady, prepareCampaign } from "../../../src/server
 import { campaignAudienceFilter, campaignCreateSchema } from "../../../src/server/campaign-config.js";
 import { assertPlanFeature, planEntitlementResponse } from "../../../src/server/plan-entitlements.js";
 
+function configuredEmailSender() {
+  const value = String(process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || "").trim();
+  if (!value) return null;
+  const match = value.match(/<?([^<>\s]+@[^<>\s]+)>?$/);
+  return match?.[1] || null;
+}
+
 export async function GET(request) {
   const auth = await requireSession(request); if (!auth.ok) return auth.response;
   const url = new URL(request.url);
@@ -19,7 +26,7 @@ export async function GET(request) {
   if (["whatsapp","email"].includes(channel)) { values.push(channel); where.push(`channel=$${values.length}`); }
   if (search) { values.push(`%${search.toLowerCase()}%`); where.push(`lower(name) LIKE $${values.length}`); }
   values.push(limit, (page - 1) * limit);
-  const [campaigns, stats, activity, channels, groups, templates, metaTemplates] = await Promise.all([
+  const [campaigns, stats, activity, channels, groups, templates, metaTemplates, products] = await Promise.all([
     query(`SELECT c.id,c.name,c.description,c.channel,c.status,c.subject,c.schedule_mode AS "scheduleMode",c.scheduled_for AS "scheduledFor",
                   c.total_recipients AS "totalRecipients",c.eligible_recipients AS "eligibleRecipients",c.queued_count AS "queuedCount",
                   c.sent_count AS "sentCount",c.delivered_count AS "deliveredCount",c.read_count AS "readCount",c.failed_count AS "failedCount",
@@ -58,10 +65,14 @@ export async function GET(request) {
              FROM meta_message_templates mt
             WHERE mt.tenant_id=$1 AND mt.deleted_at IS NULL
               AND (mt.local_status='approved' OR upper(COALESCE(mt.meta_status,''))='APPROVED')
-            ORDER BY mt.updated_at DESC`, [auth.session.tenantId])
+            ORDER BY mt.updated_at DESC`, [auth.session.tenantId]),
+    query(`SELECT id,salla_product_id AS "productId",salla_variant_id AS "variantId",sku,name,price,currency,status,
+                  thumbnail_url AS "thumbnailUrl",customer_url AS "customerUrl",is_available AS "isAvailable"
+             FROM salla_products WHERE tenant_id=$1 AND is_available=true ORDER BY name,sku`, [auth.session.tenantId])
   ]);
   const summary = stats.rows[0];
   summary.deliveryRate = Number(summary.sent) > 0 ? Number(((Number(summary.delivered) / Number(summary.sent)) * 100).toFixed(1)) : 0;
+  const emailSender = configuredEmailSender();
   return Response.json({
     ok: true,
     items: campaigns.rows,
@@ -71,7 +82,12 @@ export async function GET(request) {
       devices: channels.rows,
       groups: groups.rows,
       templates: templates.rows,
-      metaTemplates: metaTemplates.rows
+      metaTemplates: metaTemplates.rows,
+      products: products.rows,
+      email: {
+        connected: Boolean(process.env.RESEND_API_KEY && emailSender),
+        sender: emailSender
+      }
     },
     page,
     limit,

@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260810-auth-flow-v28" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260810-campaign-choice-v29" />
       </head>
       <body>{children}</body>
     </html>
