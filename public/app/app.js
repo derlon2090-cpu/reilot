@@ -4776,7 +4776,6 @@ function devicesWorkspacePage() {
   const channelTotal = Number(metrics.whatsappMessages || 0) + Number(metrics.emailMessages || 0);
   const whatsappShare = channelTotal ? Math.round((Number(metrics.whatsappMessages || 0) / channelTotal) * 100) : 0;
   return dashboardShell(`<section class="suite-page suite-channels ref-channels-page">${pageTitle("القنوات والربط")}
-    <nav class="ref-channel-pills" aria-label="القنوات المتصلة"><button data-link="/dashboard/channels/whatsapp">${dashboardIcon("success")} <span>واتساب الرسمية</span></button><button data-link="/dashboard/channels/email">${dashboardIcon("success")} <span>البريد الإلكتروني</span></button></nav>
     <div class="suite-metrics suite-metrics-six ref-metrics">
       ${suiteMetricCard({ title: "القنوات المتصلة", value: suiteNumber(metrics.connectedChannels), caption: "قنوات جاهزة", icon: "devices", link: "/dashboard/channels" })}
       ${suiteMetricCard({ title: "النطاقات الموثقة", value: suiteNumber(metrics.verifiedDomains), caption: "نطاق بريد", icon: "security", link: "/dashboard/channels/email" })}
