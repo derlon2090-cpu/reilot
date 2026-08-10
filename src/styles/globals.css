@@ -9587,3 +9587,57 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .auth-dashboard-body>main{padding:5px;gap:4px}.auth-dashboard-stats{gap:3px}.auth-dashboard-stats>span{padding:4px 2px;border-radius:4px}.auth-dashboard-stats small{font-size:3.8px}.auth-dashboard-stats strong{font-size:8px}.auth-dashboard-stats em{font-size:3.4px}
   .auth-dashboard-charts{grid-template-columns:minmax(0,1.55fr) minmax(64px,.72fr);gap:4px}.auth-dashboard-charts>section{padding:5px;border-radius:5px}.auth-dashboard-charts section>strong{font-size:4.5px}.auth-dashboard-donut>div{width:38px;height:38px;margin:6px auto 3px}.auth-dashboard-donut small,.auth-dashboard-donut small b{font-size:3.2px}
 }
+
+/* Fixed, vertically balanced authentication artwork for iPad and laptop. */
+@media (min-width:744px){
+  .auth-showcase{
+    --auth-art-width:480px;
+    --auth-art-height:304px;
+    --auth-art-raise:-12px;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    align-items:stretch!important;
+  }
+  .auth-showcase-copy{align-self:start!important}
+  .auth-showcase-art{
+    width:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    height:100%!important;
+    margin:0!important;
+    display:grid!important;
+    place-items:center!important;
+    align-self:stretch!important;
+    transform:translateY(var(--auth-art-raise))!important;
+  }
+  .auth-showcase-art .auth-suite-scene,
+  .auth-showcase-art .auth-dashboard-mockup{
+    width:min(100%,var(--auth-art-width))!important;
+    height:auto!important;
+    max-width:var(--auth-art-width)!important;
+    max-height:var(--auth-art-height)!important;
+    aspect-ratio:1.58!important;
+    margin:0!important;
+    align-self:center!important;
+    justify-self:center!important;
+    transform:none!important;
+  }
+  .auth-showcase-art .auth-suite-scene{object-fit:contain!important}
+  .auth-showcase-note{margin:0!important;align-self:end!important}
+}
+
+@media (min-width:744px) and (max-width:900px){
+  .auth-showcase{
+    --auth-art-width:294px;
+    --auth-art-height:186px;
+    --auth-art-raise:-8px;
+  }
+}
+
+@media (min-width:901px) and (max-width:1100px){
+  .auth-showcase{
+    --auth-art-width:400px;
+    --auth-art-height:253px;
+    --auth-art-raise:-10px;
+  }
+}
