@@ -2820,6 +2820,23 @@ function authMobileScene(kind) {
   return `<div class="auth-mobile-scene" aria-hidden="true">${authScene(kind)}</div>`;
 }
 
+function authDashboardScene() {
+  const menu = ["الرئيسية", "الاشتراكات", "التجديدات", "التقارير", "الإعدادات"];
+  return `<div class="auth-dashboard-mockup">
+    <header><img src="/assets/renvix-logo-exact.png" alt="" width="1029" height="221"><strong>نظرة عامة</strong></header>
+    <div class="auth-dashboard-body">
+      <aside>${menu.map((label, index) => `<span class="${index === 0 ? "active" : ""}"><i>${dashboardIcon(index === 0 ? "home" : index === 1 ? "subscriptions" : index === 2 ? "renew" : index === 3 ? "reports" : "settings")}</i>${label}</span>`).join("")}</aside>
+      <main>
+        <div class="auth-dashboard-stats"><span><small>إجمالي الاشتراكات</small><strong>1,248</strong><em>+12%</em></span><span><small>العملاء النشطون</small><strong>86</strong><em>+8%</em></span><span><small>الإيرادات الشهرية</small><strong>245,690</strong><em>+18%</em></span><span><small>معدل التجديد</small><strong>92%</strong><em>+5%</em></span></div>
+        <div class="auth-dashboard-charts">
+          <section class="auth-dashboard-line"><strong>الاشتراكات المتجددة</strong><div class="auth-dashboard-gridlines"></div><div class="auth-dashboard-line-path"><i></i><i></i><i></i><i></i><i></i><i></i></div><footer><span>يناير</span><span>فبراير</span><span>مارس</span><span>أبريل</span><span>مايو</span><span>يونيو</span></footer></section>
+          <section class="auth-dashboard-donut"><strong>حالة الاشتراكات</strong><div></div><small><i></i> نشطة <b>68%</b></small><small><i></i> قيد التجديد <b>22%</b></small><small><i></i> منتهية <b>10%</b></small></section>
+        </div>
+      </main>
+    </div>
+  </div>`;
+}
+
 function authReferenceVisual(kind) {
   const showcases = {
     login: {
@@ -2866,11 +2883,12 @@ function authReferenceVisual(kind) {
     }
   };
   const item = showcases[kind] || showcases.login;
+  const illustration = kind === "login" || kind === "register" ? authDashboardScene() : authScene(item.scene);
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art"><span class="auth-showcase-halo"></span>${authScene(item.scene)}<span class="auth-showcase-spark auth-showcase-spark--one">${dashboardIcon("star")}</span><span class="auth-showcase-spark auth-showcase-spark--two">${dashboardIcon("security")}</span></div>
+    <div class="auth-showcase-art">${illustration}</div>
     <div class="auth-showcase-note"><span>${dashboardIcon(item.icon)}</span><p>${item.note}</p></div>
   </div>`;
 }
