@@ -1428,7 +1428,7 @@ function dashboardIcon(name) {
      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21h-4v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3v-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.61.65 1.05 1.27 1.05H21v4h-.08c-.63 0-1.16.44-1.52 1z"/>',
      linkedin: '<path fill="currentColor" stroke="none" d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.32 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14ZM7.1 20.45H3.54V9H7.1v11.45Z"/>',
      facebook: '<path fill="currentColor" stroke="none" d="M13.7 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.25-1.5 1.55-1.5h1.65V3.62c-.29-.04-1.27-.12-2.42-.12-2.4 0-4.05 1.47-4.05 4.16V9.9H7.7V13h2.73v8h3.27Z"/>',
-     youtube: '<path fill="currentColor" stroke="none" d="M21.58 7.19a2.96 2.96 0 0 0-2.08-2.1C17.66 4.6 12 4.6 12 4.6s-5.66 0-7.5.49a2.96 2.96 0 0 0-2.08 2.1A30.8 30.8 0 0 0 1.93 12c0 1.63.14 3.25.49 4.81a2.96 2.96 0 0 0 2.08 2.1c1.84.49 7.5.49 7.5.49s5.66 0 7.5-.49a2.96 2.96 0 0 0 2.08-2.1c.35-1.56.49-3.18.49-4.81s-.14-3.25-.49-4.81Z"/><path fill="#fff" stroke="none" d="m9.85 15.15 5.15-3.15-5.15-3.15v6.3Z"/>',
+     youtube: '<path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" stroke="none" d="M21.58 7.19a2.96 2.96 0 0 0-2.08-2.1C17.66 4.6 12 4.6 12 4.6s-5.66 0-7.5.49a2.96 2.96 0 0 0-2.08 2.1A30.8 30.8 0 0 0 1.93 12c0 1.63.14 3.25.49 4.81a2.96 2.96 0 0 0 2.08 2.1c1.84.49 7.5.49 7.5.49s5.66 0 7.5-.49a2.96 2.96 0 0 0 2.08-2.1c.35-1.56.49-3.18.49-4.81s-.14-3.25-.49-4.81ZM9.85 8.85 15 12l-5.15 3.15Z"/>',
      x: '<path fill="currentColor" stroke="none" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>',
      instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.7" r="1" fill="currentColor" stroke="none"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
@@ -1573,20 +1573,20 @@ function marketingFlowNetwork(mode = "home") {
 
 function marketingHomeOperationsScene({ compact = false } = {}) {
   const connections = [
-    ["M263 76 C340 76 360 184 425 214", [263, 76], [425, 214]], ["M500 136 C500 142 500 146 500 150", [500, 136], [500, 150]], ["M737 92 C660 92 640 184 575 214", [737, 92], [575, 214]],
-    ["M263 246 C340 246 365 234 425 226", [263, 246], [425, 226]], ["M737 276 C660 276 635 240 575 234", [737, 276], [575, 234]], ["M263 420 C340 420 365 326 430 286", [263, 420], [430, 286]], ["M500 380 C500 350 500 324 500 300", [500, 380], [500, 300]], ["M737 420 C660 420 635 326 570 286", [737, 420], [570, 286]]
+    ["renewals", "M263 76 C340 76 360 184 425 214", [263, 76], [425, 214]], ["automation", "M500 136 C500 142 500 146 500 150", [500, 136], [500, 150]], ["reminders", "M737 92 C660 92 640 184 575 214", [737, 92], [575, 214]],
+    ["integrations", "M263 246 C340 246 365 234 425 226", [263, 246], [425, 226]], ["revenue", "M737 276 C660 276 635 240 575 234", [737, 276], [575, 234]], ["metrics", "M263 420 C340 420 365 326 430 286", [263, 420], [430, 286]], ["live", "M500 380 C500 350 500 324 500 300", [500, 380], [500, 300]], ["success", "M737 420 C660 420 635 326 570 286", [737, 420], [570, 286]]
   ];
   return `<div class="home-ops-scene${compact ? " home-ops-scene--hero" : ""}" data-motion-scene aria-label="${localizedCopy("تدفق عمليات Renvix الحي", "Live Renvix operations flow")}">
-    <svg class="home-ops-wires" viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="home-ops-glow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${connections.map(([path, cardPoint, centerPoint], index) => `<path class="home-ops-wire" d="${path}"/><path class="home-ops-data" style="--ops-delay:${index * .35}s;--ops-duration:${2.8 + (index % 3) * .35}s" d="${path}"/><circle class="home-ops-terminal home-ops-terminal--card" cx="${cardPoint[0]}" cy="${cardPoint[1]}" r="4.5"/><circle class="home-ops-terminal home-ops-terminal--center" cx="${centerPoint[0]}" cy="${centerPoint[1]}" r="3.5"/>`).join("")}</svg>
-    <div class="home-ops-center"><span class="home-ops-disc-face" aria-hidden="true"></span><i></i><i></i><i></i><img class="home-ops-mark" src="/assets/renvix-mark-deep-teal.svg" alt="Renvix" /></div>
-    <article class="home-ops-card ops-renewals" style="--ops-enter:.8s" data-reveal><header><span>${dashboardIcon("reports")}</span><h3>${localizedCopy("ملخص التجديدات", "Renewal summary")}</h3></header><strong data-count-target="24.8" data-count-start="21.7" data-count-decimals="1" data-count-prefix="+">+21.7%</strong><small>${localizedCopy("نمو هذا الشهر", "Growth this month")}</small><svg viewBox="0 0 240 74" aria-hidden="true"><path class="ops-chart-grid" d="M5 62H235"/><path class="ops-chart-line" d="M8 60 L48 42 L78 50 L112 28 L146 39 L183 20 L232 5"/>${["8,60", "48,42", "78,50", "112,28", "146,39", "183,20", "232,5"].map((point, index) => `<circle style="--dot-delay:${1 + index * .1}s" cx="${point.split(",")[0]}" cy="${point.split(",")[1]}" r="3"/>`).join("")}</svg><em>${localizedCopy("اتجاه إيجابي", "Positive trend")}</em></article>
-    <article class="home-ops-card ops-automation" style="--ops-enter:1s" data-reveal><header><span>${dashboardIcon("settings")}</span><h3>${localizedCopy("أتمتة ذكية", "Smart automation")}</h3></header><div class="ops-automation-track"><i></i>${[["استقبال", "email"], ["تذكير", "notifications"], ["تجديد", "customers"], ["تأكيد", "success"]].map(([label, icon], index) => `<span style="--auto-step:${index}">${dashboardIcon(icon)}<b>${localizedCopy(label, label)}</b></span>`).join("")}</div></article>
-    <article class="home-ops-card ops-reminders" style="--ops-enter:1.2s" data-reveal><header><span>${dashboardIcon("notifications")}</span><h3>${localizedCopy("تذكيرات العملاء", "Customer reminders")}</h3></header><div class="ops-reminder-list">${[["تذكير قبل 7 أيام", "7 days before"], ["تذكير قبل 3 أيام", "3 days before"], ["تذكير يوم التجديد", "On renewal day"]].map(([ar, en], index) => `<span style="--reminder-step:${index}">${dashboardIcon("check")}<b>${localizedCopy(ar, en)}</b><i></i></span>`).join("")}</div><footer><span>${dashboardIcon("whatsapp")}</span><span>${dashboardIcon("email")}</span><span>${dashboardIcon("store")}</span></footer></article>
-    <article class="home-ops-card ops-integrations" style="--ops-enter:1.1s" data-reveal><header><span>${dashboardIcon("puzzle")}</span><h3>${localizedCopy("تكاملات متصلة", "Connected integrations")}</h3></header><div><span>${dashboardIcon("whatsapp")}<b>Meta</b></span><i>${dashboardIcon("arrowLeft")}</i><span>${dashboardIcon("subscriptions")}<b>Salla</b></span><i>${dashboardIcon("arrowLeft")}</i><span>${dashboardIcon("email")}<b>${localizedCopy("البريد", "Email")}</b></span></div></article>
-    <article class="home-ops-card ops-live" style="--ops-enter:1.4s" data-reveal><header><span>${dashboardIcon("bolt")}</span><h3>${localizedCopy("نشاط حي", "Live activity")}</h3><small><i></i>LIVE</small></header><div class="ops-live-feed"><span style="--activity-step:0">${dashboardIcon("email")}<b>${localizedCopy("تم إرسال رسالة تذكير", "Reminder sent")}</b><small>${localizedCopy("منذ دقيقة", "1 min ago")}</small></span><span style="--activity-step:1">${dashboardIcon("subscriptions")}<b>${localizedCopy("تم تجديد اشتراك جديد", "Subscription renewed")}</b><small>${localizedCopy("منذ 5 دقائق", "5 min ago")}</small></span><span style="--activity-step:2">${dashboardIcon("link")}<b>${localizedCopy("تم تأكيد عملية تجديد", "Renewal confirmed")}</b><small>${localizedCopy("منذ 9 دقائق", "9 min ago")}</small></span></div></article>
-    <article class="home-ops-card ops-metrics" style="--ops-enter:1.6s" data-reveal><header><span>${dashboardIcon("reports")}</span><h3>${localizedCopy("مؤشرات لحظية", "Real-time metrics")}</h3></header><strong data-count-target="98.7" data-count-start="96.4" data-count-decimals="1" data-count-prefix="+">+96.4%</strong><small>${localizedCopy("معدل التسليم", "Delivery rate")}</small><svg viewBox="0 0 170 54" aria-hidden="true"><path class="ops-chart-line" d="M4 47 L32 30 L55 38 L82 19 L108 29 L138 11 L166 4"/></svg></article>
-    <article class="home-ops-card ops-success" style="--ops-enter:1.7s" data-reveal><header><span>${dashboardIcon("success")}</span><h3>${localizedCopy("تجديدات مكتملة", "Completed renewals")}</h3></header><strong data-count-target="31" data-count-start="24" data-count-decimals="0" data-count-prefix="+">+24</strong><small>${localizedCopy("تمت اليوم بنجاح", "Completed successfully today")}</small><div class="ops-success-ring" aria-hidden="true"><span>96%</span></div></article>
-    <article class="home-ops-card ops-revenue" style="--ops-enter:1.6s" data-reveal><header><span>${dashboardIcon("subscriptions")}</span><h3>${localizedCopy("إيرادات مجددة", "Renewed revenue")}</h3></header><strong data-count-target="12.7" data-count-start="9.4" data-count-decimals="1" data-count-prefix="+">+9.4%</strong><small>${localizedCopy("مقارنة بالشهر الماضي", "vs last month")}</small><div class="ops-bars">${[34, 49, 61, 77, 92].map((height, index) => `<i style="--bar-height:${height}%;--bar-step:${index}"></i>`).join("")}</div></article>
+    <svg class="home-ops-wires" data-home-flow-geometry viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="home-ops-glow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${connections.map(([key, path, cardPoint, centerPoint], index) => `<g data-home-flow-line="${key}"><path class="home-ops-wire" d="${path}"/><path class="home-ops-data" style="--ops-delay:${index * .35}s;--ops-duration:${2.8 + (index % 3) * .35}s" d="${path}"/><circle class="home-ops-terminal home-ops-terminal--card" cx="${cardPoint[0]}" cy="${cardPoint[1]}" r="4.5"/><circle class="home-ops-terminal home-ops-terminal--center" cx="${centerPoint[0]}" cy="${centerPoint[1]}" r="3.5"/></g>`).join("")}</svg>
+    <div class="home-ops-center" data-home-flow-center><span class="home-ops-disc-face" aria-hidden="true"></span><i></i><i></i><i></i><img class="home-ops-mark" src="/assets/renvix-mark-deep-teal.svg" alt="Renvix" /></div>
+    <article class="home-ops-card ops-renewals" data-home-flow-node="renewals" style="--ops-enter:.8s" data-reveal><header><span>${dashboardIcon("reports")}</span><h3>${localizedCopy("ملخص التجديدات", "Renewal summary")}</h3></header><strong data-count-target="24.8" data-count-start="21.7" data-count-decimals="1" data-count-prefix="+">+21.7%</strong><small>${localizedCopy("نمو هذا الشهر", "Growth this month")}</small><svg viewBox="0 0 240 74" aria-hidden="true"><path class="ops-chart-grid" d="M5 62H235"/><path class="ops-chart-line" d="M8 60 L48 42 L78 50 L112 28 L146 39 L183 20 L232 5"/>${["8,60", "48,42", "78,50", "112,28", "146,39", "183,20", "232,5"].map((point, index) => `<circle style="--dot-delay:${1 + index * .1}s" cx="${point.split(",")[0]}" cy="${point.split(",")[1]}" r="3"/>`).join("")}</svg><em>${localizedCopy("اتجاه إيجابي", "Positive trend")}</em></article>
+    <article class="home-ops-card ops-automation" data-home-flow-node="automation" style="--ops-enter:1s" data-reveal><header><span>${dashboardIcon("settings")}</span><h3>${localizedCopy("أتمتة ذكية", "Smart automation")}</h3></header><div class="ops-automation-track"><i></i>${[["استقبال", "email"], ["تذكير", "notifications"], ["تجديد", "customers"], ["تأكيد", "success"]].map(([label, icon], index) => `<span style="--auto-step:${index}">${dashboardIcon(icon)}<b>${localizedCopy(label, label)}</b></span>`).join("")}</div></article>
+    <article class="home-ops-card ops-reminders" data-home-flow-node="reminders" style="--ops-enter:1.2s" data-reveal><header><span>${dashboardIcon("notifications")}</span><h3>${localizedCopy("تذكيرات العملاء", "Customer reminders")}</h3></header><div class="ops-reminder-list">${[["تذكير قبل 7 أيام", "7 days before"], ["تذكير قبل 3 أيام", "3 days before"], ["تذكير يوم التجديد", "On renewal day"]].map(([ar, en], index) => `<span style="--reminder-step:${index}">${dashboardIcon("check")}<b>${localizedCopy(ar, en)}</b><i></i></span>`).join("")}</div><footer><span>${dashboardIcon("whatsapp")}</span><span>${dashboardIcon("email")}</span><span>${dashboardIcon("store")}</span></footer></article>
+    <article class="home-ops-card ops-integrations" data-home-flow-node="integrations" style="--ops-enter:1.1s" data-reveal><header><span>${dashboardIcon("puzzle")}</span><h3>${localizedCopy("تكاملات متصلة", "Connected integrations")}</h3></header><div><span>${dashboardIcon("whatsapp")}<b>Meta</b></span><i>${dashboardIcon("arrowLeft")}</i><span>${dashboardIcon("subscriptions")}<b>Salla</b></span><i>${dashboardIcon("arrowLeft")}</i><span>${dashboardIcon("email")}<b>${localizedCopy("البريد", "Email")}</b></span></div></article>
+    <article class="home-ops-card ops-live" data-home-flow-node="live" style="--ops-enter:1.4s" data-reveal><header><span>${dashboardIcon("bolt")}</span><h3>${localizedCopy("نشاط حي", "Live activity")}</h3><small><i></i>LIVE</small></header><div class="ops-live-feed"><span style="--activity-step:0">${dashboardIcon("email")}<b>${localizedCopy("تم إرسال رسالة تذكير", "Reminder sent")}</b><small>${localizedCopy("منذ دقيقة", "1 min ago")}</small></span><span style="--activity-step:1">${dashboardIcon("subscriptions")}<b>${localizedCopy("تم تجديد اشتراك جديد", "Subscription renewed")}</b><small>${localizedCopy("منذ 5 دقائق", "5 min ago")}</small></span><span style="--activity-step:2">${dashboardIcon("link")}<b>${localizedCopy("تم تأكيد عملية تجديد", "Renewal confirmed")}</b><small>${localizedCopy("منذ 9 دقائق", "9 min ago")}</small></span></div></article>
+    <article class="home-ops-card ops-metrics" data-home-flow-node="metrics" style="--ops-enter:1.6s" data-reveal><header><span>${dashboardIcon("reports")}</span><h3>${localizedCopy("مؤشرات لحظية", "Real-time metrics")}</h3></header><strong data-count-target="98.7" data-count-start="96.4" data-count-decimals="1" data-count-prefix="+">+96.4%</strong><small>${localizedCopy("معدل التسليم", "Delivery rate")}</small><svg viewBox="0 0 170 54" aria-hidden="true"><path class="ops-chart-line" d="M4 47 L32 30 L55 38 L82 19 L108 29 L138 11 L166 4"/></svg></article>
+    <article class="home-ops-card ops-success" data-home-flow-node="success" style="--ops-enter:1.7s" data-reveal><header><span>${dashboardIcon("success")}</span><h3>${localizedCopy("تجديدات مكتملة", "Completed renewals")}</h3></header><strong data-count-target="31" data-count-start="24" data-count-decimals="0" data-count-prefix="+">+24</strong><small>${localizedCopy("تمت اليوم بنجاح", "Completed successfully today")}</small><div class="ops-success-ring" aria-hidden="true"><span>96%</span></div></article>
+    <article class="home-ops-card ops-revenue" data-home-flow-node="revenue" style="--ops-enter:1.6s" data-reveal><header><span>${dashboardIcon("subscriptions")}</span><h3>${localizedCopy("إيرادات مجددة", "Renewed revenue")}</h3></header><strong data-count-target="12.7" data-count-start="9.4" data-count-decimals="1" data-count-prefix="+">+9.4%</strong><small>${localizedCopy("مقارنة بالشهر الماضي", "vs last month")}</small><div class="ops-bars">${[34, 49, 61, 77, 92].map((height, index) => `<i style="--bar-height:${height}%;--bar-step:${index}"></i>`).join("")}</div></article>
   </div>`;
 }
 
@@ -1719,6 +1719,70 @@ function initMarketingMotion() {
       centerTerminal?.setAttribute("cy", hubY);
     });
   };
+
+  const syncHomeFlowGeometry = (network) => {
+    const svg = network.querySelector("[data-home-flow-geometry]");
+    const center = network.querySelector("[data-home-flow-center]");
+    if (!svg || !center || getComputedStyle(svg).display === "none") return;
+    const networkRect = network.getBoundingClientRect();
+    const centerRect = center.getBoundingClientRect();
+    if (!networkRect.width || !networkRect.height || !centerRect.width) return;
+    const centerX = centerRect.left - networkRect.left + centerRect.width / 2;
+    const centerY = centerRect.top - networkRect.top + centerRect.height / 2;
+    const radius = Math.min(centerRect.width, centerRect.height) / 2;
+    svg.setAttribute("viewBox", `0 0 ${networkRect.width} ${networkRect.height}`);
+    network.querySelectorAll("[data-home-flow-line]").forEach((line) => {
+      const key = line.dataset.homeFlowLine;
+      const node = network.querySelector(`[data-home-flow-node="${key}"]`);
+      if (!node) return;
+      const nodeRect = node.getBoundingClientRect();
+      const nodeCenterX = nodeRect.left - networkRect.left + nodeRect.width / 2;
+      const nodeCenterY = nodeRect.top - networkRect.top + nodeRect.height / 2;
+      let terminalX = nodeCenterX;
+      let terminalY = nodeCenterY;
+      let vertical = false;
+      if (key === "automation") {
+        terminalY = nodeRect.bottom - networkRect.top + 5;
+        vertical = true;
+      } else if (key === "live") {
+        terminalY = nodeRect.top - networkRect.top - 5;
+        vertical = true;
+      } else if (nodeCenterX < centerX) {
+        terminalX = nodeRect.right - networkRect.left + 5;
+      } else {
+        terminalX = nodeRect.left - networkRect.left - 5;
+      }
+      const deltaX = terminalX - centerX;
+      const deltaY = terminalY - centerY;
+      const length = Math.max(1, Math.hypot(deltaX, deltaY));
+      const hubX = centerX + deltaX / length * radius;
+      const hubY = centerY + deltaY / length * radius;
+      const controlOneX = vertical ? terminalX : terminalX + (hubX - terminalX) * .4;
+      const controlOneY = vertical ? terminalY + (hubY - terminalY) * .4 : terminalY;
+      const controlTwoX = vertical ? hubX : hubX - (hubX - terminalX) * .28;
+      const controlTwoY = vertical ? hubY - (hubY - terminalY) * .28 : hubY;
+      const path = `M ${terminalX} ${terminalY} C ${controlOneX} ${controlOneY}, ${controlTwoX} ${controlTwoY}, ${hubX} ${hubY}`;
+      line.querySelectorAll("path").forEach((item) => item.setAttribute("d", path));
+      const cardTerminal = line.querySelector(".home-ops-terminal--card");
+      const centerTerminal = line.querySelector(".home-ops-terminal--center");
+      cardTerminal?.setAttribute("cx", terminalX);
+      cardTerminal?.setAttribute("cy", terminalY);
+      centerTerminal?.setAttribute("cx", hubX);
+      centerTerminal?.setAttribute("cy", hubY);
+    });
+  };
+
+  root.querySelectorAll(".home-ops-scene--hero").forEach((network) => {
+    syncHomeFlowGeometry(network);
+    const settleGeometry = () => requestAnimationFrame(() => syncHomeFlowGeometry(network));
+    network.addEventListener("transitionend", settleGeometry);
+    disposers.push(() => network.removeEventListener("transitionend", settleGeometry));
+    if ("ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(() => requestAnimationFrame(() => syncHomeFlowGeometry(network)));
+      resizeObserver.observe(network);
+      disposers.push(() => resizeObserver.disconnect());
+    }
+  });
 
   root.querySelectorAll(".flow-network").forEach((network) => {
     syncFeatureFlowGeometry(network);

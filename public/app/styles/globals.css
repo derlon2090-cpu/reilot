@@ -8497,8 +8497,8 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-automation{height:112px;min-height:112px;overflow:hidden}
   .marketing-home-v3 .home-ops-scene--hero .ops-reminders{height:188px;min-height:188px}
   .marketing-home-v3 .home-ops-scene--hero .ops-integrations{height:152px;min-height:152px}
-  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header{position:relative;padding-inline-start:37px}
-  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header>span{position:absolute;top:0;inset-inline-start:0}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header{position:static;padding-inline-start:0}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header>span{position:static;inset:auto;margin:0}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>svg{position:absolute;left:10px;bottom:12px;margin:0}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>em{position:absolute;right:11px;bottom:10px}
   .marketing-home-v3 .home-ops-card header>span{
@@ -8534,7 +8534,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 
 @media (min-width:901px) and (max-width:1180px){
   .marketing-home-v3 .marketing-v3-hero-grid{gap-inline:18px}
-  .marketing-home-v3 .home-ops-scene--hero{min-height:462px!important}
+  .marketing-home-v3 .home-ops-scene--hero{min-height:462px!important;margin:0!important;transform:none!important;transform-origin:center!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:151px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:146px!important;width:136px!important;height:136px!important}
@@ -8635,8 +8635,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .public-footer.marketing-footer .marketing-footer-newsletter input{text-align:right;border-radius:8px 0 0 8px}
 .public-footer.marketing-footer .marketing-footer-newsletter form button{border-radius:0 8px 8px 0}
 .public-footer.marketing-footer .footer-social a[aria-label="YouTube"]{background:rgba(255,255,255,.06)}
-.public-footer.marketing-footer .footer-social a[aria-label="YouTube"] .line-icon path:first-child{fill:#063f3b}
-.public-footer.marketing-footer .footer-social a[aria-label="YouTube"] .line-icon path:last-child{fill:#fff}
+.public-footer.marketing-footer .footer-social a[aria-label="YouTube"] .line-icon path{fill:#fff}
 
 /* Editorial blog composition: editor rail, hero story, five latest cards. */
 .marketing-blog-v3 .marketing-v3-heading h2{font-size:clamp(38px,4.2vw,56px)}
