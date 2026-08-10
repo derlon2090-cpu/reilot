@@ -98,6 +98,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('scene: "loginOtp"');
     expect(appSource).toContain('scene: "signupOtp"');
     expect(appSource).toContain('class="auth-showcase-caption"');
+    expect(appSource).toContain('viewBox="12 7 486 305"');
     for (const referenceContent of ["تذكيرات ذكية", "تقارير وتحليلات", "أتمتة التجديدات", "حملات مخصصة", "أمان وموثوقية", "1,250", "45,680", "98%", "تم تجديد اشتراكك بنجاح"]) {
       expect(appSource).toContain(referenceContent);
     }
@@ -106,6 +107,11 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("height:100dvh!important");
     expect(stylesSource).toContain("height:100svh!important");
     expect(stylesSource).toContain(".auth-showcase-caption");
+    expect(stylesSource).toContain("place-items:center!important");
+    expect(stylesSource).toContain("align-self:center!important");
+    expect(stylesSource).toContain("transform:scale(1.065)");
+    expect(stylesSource).toContain("transform-origin:center center!important");
+    expect(stylesSource).toContain("transform:translate(-50%,-50%) scale(.58)!important");
     expect(stylesSource).toContain(".auth-showcase-dots,.auth-showcase-pagination{display:none!important}");
     expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
   });
