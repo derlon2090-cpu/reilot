@@ -9054,18 +9054,56 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .mobile-home-node--automation{right:auto;left:0}.mobile-home-node--revenue{right:0;left:auto}
   .mobile-home-node--integrations{right:auto;left:0}.mobile-home-node--live{right:0;left:auto}
   .marketing-features-v3 .flow-center .brand-logo-image{width:70px!important;content:url('/assets/renvix-mark-deep-teal.svg')}
+  .marketing-features-v3 .flow-network-features::before{
+    position:absolute;
+    z-index:0;
+    top:56px;
+    right:-1px;
+    left:calc(50% + 56px);
+    height:92px;
+    border-top:1px dashed #9bd8cf;
+    border-right:1px dashed #9bd8cf;
+    border-radius:0 22px 0 0;
+    content:"";
+    pointer-events:none;
+  }
+  .marketing-features-v3 .flow-network-features::after{
+    position:absolute;
+    z-index:0;
+    top:146px;
+    right:-1px;
+    bottom:25px;
+    width:1px;
+    background:repeating-linear-gradient(to bottom,#9bd8cf 0 4px,transparent 4px 9px);
+    content:"";
+    pointer-events:none;
+  }
+  .marketing-features-v3 .flow-side{z-index:1}
+  .marketing-features-v3 .flow-node::after{z-index:2;right:-5px}
   .pricing-public-grid .pricing-card{direction:ltr}
   .pricing-public-grid .pricing-card>*{direction:rtl}
   .marketing-support-v3 .support-v3-categories button:nth-child(1){order:1}.marketing-support-v3 .support-v3-categories button:nth-child(2){order:2}.marketing-support-v3 .support-v3-categories button:nth-child(6){order:3}.marketing-support-v3 .support-v3-categories button:nth-child(3){order:4}.marketing-support-v3 .support-v3-categories button:nth-child(5){order:5}.marketing-support-v3 .support-v3-categories button:nth-child(4){order:6}.marketing-support-v3 .support-v3-categories button:nth-child(8){order:7}
-  .public-footer.marketing-footer{position:relative;min-height:188px;padding:16px 0 38px}
-  .public-footer.marketing-footer>.marketing-footer-grid{direction:ltr;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .marketing-support-v3 .support-v3-categories button{color:#0b3f3b!important}
+  .marketing-support-v3 .support-v3-categories strong{color:#0b3f3b!important}
+  .marketing-support-v3 .support-v3-categories small{color:#71847f!important}
+  .marketing-support-v3 .support-v3-categories button::after{color:#0b625a!important}
+  .public-footer.marketing-footer{position:relative;min-height:0;padding:18px 0 82px}
+  .public-footer.marketing-footer>.marketing-footer-grid{direction:ltr;grid-template-columns:1.08fr repeat(3,minmax(0,.88fr)) 1.08fr;gap:9px 7px;padding-bottom:0}
   .public-footer.marketing-footer>.marketing-footer-grid>*{direction:rtl}
   .public-footer.marketing-footer .marketing-footer-brand{grid-column:5;grid-row:1}
   .public-footer.marketing-footer .marketing-footer-column:nth-of-type(1){grid-column:4;grid-row:1}.public-footer.marketing-footer .marketing-footer-column:nth-of-type(2){grid-column:3;grid-row:1}.public-footer.marketing-footer .marketing-footer-column:nth-of-type(3){grid-column:2;grid-row:1}
   .public-footer.marketing-footer .marketing-footer-newsletter{grid-column:1;grid-row:1}
-  .public-footer.marketing-footer .marketing-footer-brand .brand-logo-image{width:62px}
-  .public-footer.marketing-footer .marketing-footer-brand p{font-size:5.5px}
-  .public-footer.marketing-footer .footer-social{position:absolute;right:auto;bottom:38px;left:14px;display:flex;margin:0}
-  .public-footer.marketing-footer .marketing-meta-partner{position:absolute;right:14px;bottom:37px;left:auto;margin:0;transform:scale(.6);transform-origin:right bottom}
-  .public-footer.marketing-footer>.marketing-footer-bottom{position:absolute;right:12px;bottom:6px;left:12px;margin:0}
+  .public-footer.marketing-footer .marketing-footer-brand .brand-logo-image{width:66px}
+  .public-footer.marketing-footer .marketing-footer-brand p{margin-top:6px;font-size:5.4px;line-height:1.75}
+  .public-footer.marketing-footer .marketing-footer-column{gap:4px}
+  .public-footer.marketing-footer .marketing-footer-column h2,.public-footer.marketing-footer .marketing-footer-newsletter h2{margin-bottom:5px;font-size:8.5px;line-height:1.35}
+  .public-footer.marketing-footer .marketing-footer-column button{padding:1px 0;font-size:6.5px;line-height:1.55;white-space:normal;text-align:right}
+  .public-footer.marketing-footer .marketing-footer-newsletter p{margin-bottom:7px;font-size:5.5px;line-height:1.65}
+  .public-footer.marketing-footer .marketing-footer-newsletter form{width:100%;min-height:32px}
+  .public-footer.marketing-footer .marketing-footer-newsletter input{min-width:0;padding-inline:22px 4px;font-size:5.7px}
+  .public-footer.marketing-footer .marketing-footer-newsletter form button{width:29px;flex:0 0 29px}
+  .public-footer.marketing-footer .footer-social{position:absolute;right:auto;bottom:39px;left:14px;display:flex;margin:0;gap:6px}
+  .public-footer.marketing-footer .footer-social a{width:27px;height:27px;flex-basis:27px}
+  .public-footer.marketing-footer .marketing-meta-partner{position:absolute;right:14px;bottom:39px;left:auto;margin:0;transform:scale(.52);transform-origin:right bottom}
+  .public-footer.marketing-footer>.marketing-footer-bottom{position:absolute;right:12px;bottom:6px;left:12px;min-height:25px;margin:0;padding-top:6px}
 }
