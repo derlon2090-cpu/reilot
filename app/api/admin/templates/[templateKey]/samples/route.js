@@ -83,7 +83,7 @@ export async function GET(request, { params }) {
         disconnected_phone: row.phone_number || "",
         disconnect_reason: row.last_error || "فصل مؤكد للقناة",
         disconnected_at: displayDate(row.disconnected_at),
-        reconnect_url: `${appUrl()}/dashboard/devices`,
+        reconnect_url: `${appUrl()}/dashboard/channels`,
         support_url: `${appUrl()}/support`
       }
     }));

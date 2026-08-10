@@ -20,7 +20,7 @@ describe("dashboard comprehensive quick search", () => {
       "/dashboard/templates",
       "/dashboard/campaigns",
       "/dashboard/contacts",
-      "/dashboard/devices",
+      "/dashboard/channels",
       "/dashboard/apps",
       "/dashboard/apps/salla/templates",
       "/dashboard/settings/integrations/custom-api",

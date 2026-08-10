@@ -730,6 +730,12 @@ state.metaTemplates = null;
 state.billingOverview = null;
 state.messageUsage = null;
 state.campaignsOverview = null;
+state.channelsOverview = null;
+state.actionMenu = "";
+state.campaignStatusFilter = "all";
+state.campaignChannelFilter = "all";
+state.reportChannelFilter = "all";
+state.customerSelection = [];
 state.contactsOverview = null;
 state.contactStatistics = null;
 state.appsOverview = null;
@@ -805,14 +811,14 @@ const routes = [
 ];
 
 const dashboardRoutes = [
-  ["/dashboard", "الرئيسية", "home"],
+  ["/dashboard", "لوحة التحكم", "home"],
   ["/dashboard/subscriptions", "الاشتراكات", "subscriptions"],
   ["/dashboard/customers", "العملاء", "customers"],
   ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
   ["/dashboard/templates", "قوالب عامة", "template"],
   ["/dashboard/campaigns", "الحملات", "campaigns"],
   ["/dashboard/contacts", "جهات الاتصال", "contacts"],
-  ["/dashboard/devices", "الأجهزة", "devices"],
+  ["/dashboard/channels", "القنوات والربط", "devices"],
   ["/dashboard/apps", "تطبيقاتنا", "apps"],
   ["/dashboard/security", "الحماية والأمان", "security"],
   ["/dashboard/reports", "التقارير", "reports"],
@@ -825,8 +831,9 @@ const dashboardAliases = {
   "/settings/integrations/custom-api": "/dashboard/settings/integrations/custom-api",
   "/dashboard/apps/custom-integration": "/dashboard/settings/integrations/custom-api",
   "/dashboard/renewals": "/dashboard/subscriptions",
-  "/dashboard/connected-devices": "/dashboard/devices",
-  "/dashboard/linked-devices": "/dashboard/devices",
+  "/dashboard/devices": "/dashboard/channels",
+  "/dashboard/connected-devices": "/dashboard/channels",
+  "/dashboard/linked-devices": "/dashboard/channels",
   "/dashboard/whatsapp-safety": "/dashboard/security",
   "/dashboard/unsubscribe": "/dashboard/security",
   "/dashboard/warranty": "/dashboard/security",
@@ -902,13 +909,13 @@ const dashboardQuickSearchItems = [
     keywords: ["جهة اتصال", "جهات", "اتصال", "ارقام", "أرقام", "دليل", "مجموعات", "contact", "contacts", "phone book", "groups", "audience"]
   },
   {
-    route: "/dashboard/devices",
+    route: "/dashboard/channels",
     icon: "devices",
-    ar: "الأجهزة",
-    en: "Devices",
-    descriptionAr: "ربط الأجهزة وفحص اتصال واتساب والمزامنة",
-    descriptionEn: "Linked devices, WhatsApp connection and sync",
-    keywords: ["جهاز", "اجهزة", "أجهزة", "ربط واتساب", "باركود", "رمز QR", "مزامنة", "device", "devices", "linked", "connection", "qr", "sync"]
+    ar: "القنوات والربط",
+    en: "Channels & connections",
+    descriptionAr: "إدارة واتساب الرسمية والبريد الإلكتروني وحالة الربط",
+    descriptionEn: "Official WhatsApp, email and connection status",
+    keywords: ["قناة", "قنوات", "ربط", "واتساب", "بريد", "باركود", "رمز QR", "مزامنة", "channel", "channels", "connection", "qr", "sync"]
   },
   {
     route: "/dashboard/apps",
@@ -1219,12 +1226,13 @@ function syncRouteData(force = false) {
   if (["/dashboard", "/dashboard/subscriptions", "/dashboard/customers", "/dashboard/order-links"].includes(state.route) && (force || state.dbCustomers === null)) queue("customers", "/api/customers", "dbCustomers");
   if (state.route === "/dashboard/security" && (force || state.securityScore === null)) queue("securityScore", "/api/security/score", "securityScore");
   if (state.route === "/dashboard/security" && (force || state.trustedBrowsers === null)) queue("trustedBrowsers", "/api/settings/security/trusted-devices", "trustedBrowsers");
-  if (["/dashboard/security", "/dashboard/devices"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
+  if (["/dashboard/security", "/dashboard/channels"].includes(state.route) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
   if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
   if (state.route === "/dashboard/templates" && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
-  if (state.route === "/dashboard/campaigns" && (force || state.campaignsOverview === null)) queue("campaignsOverview", "/api/campaigns", "campaignsOverview");
+  if (["/dashboard", "/dashboard/campaigns", "/dashboard/reports"].includes(state.route) && (force || state.campaignsOverview === null)) queue("campaignsOverview", `/api/campaigns?limit=${state.route === "/dashboard" ? 5 : 20}`, "campaignsOverview");
+  if (["/dashboard", "/dashboard/channels", "/dashboard/reports"].includes(state.route) && (force || state.channelsOverview === null)) queue("channelsOverview", "/api/channels", "channelsOverview");
   if (state.route === "/dashboard/contacts" && (force || state.contactsOverview === null)) queue("contactsOverview", "/api/contacts", "contactsOverview");
   if (state.route === "/dashboard/contacts" && (force || state.contactStatistics === null)) queue("contactStatistics", "/api/contacts/statistics", "contactStatistics");
   if (state.route === "/dashboard/order-links" && (force || state.orderLinkTemplates === null)) queue("orderLinkTemplates", "/api/order-information/template", "orderLinkTemplates");
@@ -1322,7 +1330,7 @@ async function navigate(to, { sessionVerified = false } = {}) {
   state.filter = "الكل";
   render();
   requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
-  if (state.route === "/dashboard/devices") void syncLinkedDevice();
+  if (state.route === "/dashboard/channels") void syncLinkedDevice();
 }
 
 async function enterDashboardAfterSessionVerification() {
@@ -1417,6 +1425,7 @@ function dashboardIcon(name) {
     message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
     attachment: '<path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.7 9.7a2 2 0 0 1-2.8-2.8l8.9-8.9"/>',
     upload: '<path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+    download: '<path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 20h14"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     helpBook: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
     faq: '<path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.5 4.5 8.4 8.4 0 0 1-4-.95L3 21l1.95-5.5A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 8.5 4a8.4 8.4 0 0 1 4-.95H13a8.5 8.5 0 0 1 8 8.45Z"/><path d="M10.1 9.2a2.2 2.2 0 1 1 3.65 1.65c-.8.6-1.25 1-1.25 2.15"/><path d="M12.5 16h.01"/>',
@@ -2821,18 +2830,28 @@ function authMobileScene(kind) {
 }
 
 function authDashboardScene() {
-  const menu = ["الرئيسية", "الاشتراكات", "التجديدات", "التقارير", "الإعدادات"];
-  return `<div class="auth-dashboard-mockup">
-    <header><img src="/assets/renvix-logo-exact.png" alt="" width="1029" height="221"><strong>نظرة عامة</strong></header>
-    <div class="auth-dashboard-body">
-      <aside>${menu.map((label, index) => `<span class="${index === 0 ? "active" : ""}"><i>${dashboardIcon(index === 0 ? "home" : index === 1 ? "subscriptions" : index === 2 ? "renew" : index === 3 ? "reports" : "settings")}</i>${label}</span>`).join("")}</aside>
-      <main>
-        <div class="auth-dashboard-stats"><span><small>إجمالي الاشتراكات</small><strong>1,248</strong><em>+12%</em></span><span><small>العملاء النشطون</small><strong>86</strong><em>+8%</em></span><span><small>الإيرادات الشهرية</small><strong>245,690</strong><em>+18%</em></span><span><small>معدل التجديد</small><strong>92%</strong><em>+5%</em></span></div>
-        <div class="auth-dashboard-charts">
-          <section class="auth-dashboard-line"><strong>الاشتراكات المتجددة</strong><div class="auth-dashboard-gridlines"></div><div class="auth-dashboard-line-path"><i></i><i></i><i></i><i></i><i></i><i></i></div><footer><span>يناير</span><span>فبراير</span><span>مارس</span><span>أبريل</span><span>مايو</span><span>يونيو</span></footer></section>
-          <section class="auth-dashboard-donut"><strong>حالة الاشتراكات</strong><div></div><small><i></i> نشطة <b>68%</b></small><small><i></i> قيد التجديد <b>22%</b></small><small><i></i> منتهية <b>10%</b></small></section>
+  return `<div class="auth-platform-scene">
+    <span class="auth-platform-feature auth-platform-feature--alerts">${dashboardIcon("notifications")}<b>تذكيرات ذكية</b></span>
+    <span class="auth-platform-feature auth-platform-feature--reports">${dashboardIcon("barChart")}<b>تقارير وتحليلات</b></span>
+    <span class="auth-platform-feature auth-platform-feature--automation">${dashboardIcon("settings")}<b>أتمتة التجديدات</b></span>
+    <span class="auth-platform-feature auth-platform-feature--campaigns">${dashboardIcon("campaigns")}<b>حملات مخصصة</b></span>
+    <span class="auth-platform-feature auth-platform-feature--security">${dashboardIcon("security")}<b>أمان وموثوقية</b></span>
+    <div class="auth-platform-monitor">
+      <i class="auth-platform-camera"></i>
+      <div class="auth-platform-screen">
+        <header><img src="/assets/renvix-logo-exact.png" alt="" width="1029" height="221"></header>
+        <div class="auth-platform-dashboard">
+          <aside><span class="active">${dashboardIcon("home")} لوحة التحكم</span><span>${dashboardIcon("subscriptions")} الاشتراكات</span><span>${dashboardIcon("customers")} العملاء</span><span>${dashboardIcon("reports")} التقارير</span><span>${dashboardIcon("settings")} الإعدادات</span></aside>
+          <main><div class="auth-platform-stats"><span><small>إجمالي الاشتراكات</small><strong>1,250</strong></span><span><small>القادمة للتجديد</small><strong>320</strong></span><span><small>الإيرادات الشهرية</small><strong>45,680</strong></span><span><small>معدل التجديد</small><strong>98%</strong></span></div><section><b>نظرة عامة</b><div class="auth-platform-chart"><i></i><i></i><i></i><i></i><i></i><i></i></div></section><footer><span><i></i><b>شركة الرياض للتقنية</b><small>نشط</small></span><span><i></i><b>متجر النخبة</b><small>قريب من التجديد</small></span></footer></main>
         </div>
-      </main>
+      </div>
+      <div class="auth-platform-stand"><i></i></div>
+    </div>
+    <div class="auth-platform-phone">
+      <i class="auth-platform-notch"></i>
+      <header>${dashboardIcon("whatsapp")}<span>•••</span></header>
+      <main><p>مرحبًا 👋<br>هذا تذكير بأن اشتراكك سيتم تجديده خلال 3 أيام.</p><p>هل ترغب في التجديد الآن؟</p><p class="reply">نعم، يرجى التجديد</p><p>✅ تم تجديد اشتراكك بنجاح.<br>شكرًا لثقتك بنا.</p></main>
+      <footer><span>اكتب رسالة</span><b>●</b></footer>
     </div>
   </div>`;
 }
@@ -3092,11 +3111,11 @@ function notificationsPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "الرئيسية": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قوالب عامة": "General Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "الأجهزة": "Devices", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const englishLabels = { "لوحة التحكم": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قوالب عامة": "General Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "القنوات والربط": "Channels & connections", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
   const routeGroups = [
     { label: "", paths: ["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"] },
     { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates", "/dashboard/campaigns", "/dashboard/contacts"] },
-    { label: state.language === "ar" ? "القنوات والربط" : "Channels & integrations", paths: ["/dashboard/devices", "/dashboard/apps"] },
+    { label: state.language === "ar" ? "القنوات والربط" : "Channels & integrations", paths: ["/dashboard/channels", "/dashboard/apps"] },
     { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/settings"] }
   ];
   const links = routeGroups.map((group) => {
@@ -3188,7 +3207,7 @@ function invalidateMessageUsage() {
   syncRouteData(true);
 }
 
-function dashboardHome() {
+function legacyDashboardHome() {
   const stats = overviewStats();
   const latest = Array.isArray(state.dbSubscriptions) ? state.dbSubscriptions.slice(0, 5) : [];
   const latestContent = state.dbSubscriptions?.error
@@ -3225,19 +3244,114 @@ function dashboardHome() {
     <article class="card table-card section"><div class="section-head"><div><h2>أحدث النشاطات</h2><p class="muted">العمليات الفعلية داخل الحساب.</p></div><button class="text-button" data-link="/dashboard/reports">سجل النشاط</button></div>${activities.length ? activityList(activities) : emptyState("لا توجد نشاطات بعد", "ستظهر العمليات التي تنفذها داخل المنصة هنا.")}</article>`);
 }
 
+function suiteNumber(value) {
+  return Number(value || 0).toLocaleString(state.language === "ar" ? "ar-SA" : "en-US");
+}
+
+function suiteRate(value, available = true) {
+  return available && value !== null && value !== undefined ? `${Number(value).toLocaleString("ar-SA")}%` : "—";
+}
+
+function suiteMetricCard({ title, value, caption, icon = "reports", tone = "teal", link = "", action = "", filter = "" }) {
+  const attrs = link ? `data-link="${escapeHtml(link)}"` : action ? `data-action="${escapeHtml(action)}"${filter ? ` data-filter="${escapeHtml(filter)}"` : ""}` : "";
+  return `<article class="suite-metric ${tone} ${attrs ? "is-clickable" : ""}" ${attrs} tabindex="${attrs ? "0" : "-1"}"><span class="suite-metric-icon">${dashboardIcon(icon)}</span><div><span>${escapeHtml(title)}</span><strong>${escapeHtml(String(value))}</strong><small>${escapeHtml(caption || "")}</small></div></article>`;
+}
+
+function suitePerformanceChart(points = []) {
+  const rows = Array.isArray(points) ? points : [];
+  const hasData = rows.some((item) => Number(item.sent || 0) > 0 || Number(item.delivered || 0) > 0);
+  if (!hasData) return `<div class="suite-chart-empty">${dashboardIcon("reports")}<strong>لا توجد بيانات بعد</strong><p>سيظهر أداء الإرسال هنا بعد تنفيذ أول حملة أو رسالة.</p></div>`;
+  const max = Math.max(1, ...rows.flatMap((item) => [Number(item.sent || 0), Number(item.delivered || 0)]));
+  return `<div class="suite-chart" role="img" aria-label="أداء الإرسال"><div class="suite-chart-bars">${rows.map((item, index) => {
+    const sentHeight = Math.max(3, Math.round((Number(item.sent || 0) / max) * 100));
+    const deliveredHeight = Math.max(3, Math.round((Number(item.delivered || 0) / max) * 100));
+    const date = item.day ? new Date(item.day) : null;
+    const label = date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("ar-SA", { day: "numeric", month: "short" }) : "";
+    return `<div class="suite-chart-column" title="${escapeHtml(label)} · تم الإرسال: ${suiteNumber(item.sent)} · تم التسليم: ${suiteNumber(item.delivered)}"><span class="sent" style="height:${sentHeight}%"></span><span class="delivered" style="height:${deliveredHeight}%"></span>${index % Math.max(1, Math.ceil(rows.length / 6)) === 0 ? `<small>${escapeHtml(label)}</small>` : ""}</div>`;
+  }).join("")}</div><div class="suite-chart-legend"><span><i class="sent"></i> تم الإرسال</span><span><i class="delivered"></i> تم التسليم</span></div></div>`;
+}
+
+function campaignStatusPresentation(item = {}) {
+  const templateStatus = String(item.templateStatus || item.metaStatus || "").toUpperCase();
+  if (["PENDING", "IN_APPEAL"].includes(templateStatus)) return { key: "meta_review", label: "قيد مراجعة Meta", tone: "review", icon: "clock" };
+  if (templateStatus === "REJECTED") return { key: "rejected", label: "يحتاج تعديلات", tone: "danger", icon: "warning" };
+  if (["PAUSED", "DISABLED"].includes(templateStatus)) return { key: "paused", label: templateStatus === "DISABLED" ? "القالب معطّل" : "القالب متوقف", tone: "warning", icon: "warning" };
+  const key = String(item.status || "draft").toLowerCase();
+  const map = {
+    draft: ["مسودة", "neutral", "template"], validating: ["قيد التحقق", "review", "clock"], ready: ["معتمدة", "success", "security"],
+    scheduled: ["مجدولة", "info", "clock"], queueing: ["قيد التجهيز", "review", "clock"], sending: ["قيد الإرسال", "info", "send"],
+    paused: ["متوقفة", "warning", "warning"], completed: ["مكتملة", "success", "security"], cancelled: ["ملغاة", "neutral", "close"], failed: ["فشلت", "danger", "warning"]
+  };
+  const current = map[key] || [key || "مسودة", "neutral", "template"];
+  return { key, label: current[0], tone: current[1], icon: current[2] };
+}
+
+function suiteStatusBadge(item) {
+  const current = campaignStatusPresentation(item);
+  return `<span class="suite-status ${current.tone}">${dashboardIcon(current.icon)} ${escapeHtml(current.label)}</span>`;
+}
+
+function campaignActions(item) {
+  const current = campaignStatusPresentation(item).key;
+  if (current === "meta_review") return [["عرض التفاصيل", "campaign-details", "eye"], ["عرض حالة مراجعة Meta", "campaign-review", "clock"], ["معاينة القالب", "campaign-preview", "eye"], ["نسخ كحملة جديدة", "campaign-duplicate", "copy"], ["إلغاء المسودة المحلية", "campaign-cancel-local", "close", true]];
+  if (current === "rejected") return [["عرض سبب الرفض", "campaign-review", "warning"], ["تعديل وإعادة الإرسال", "campaign-edit", "settings"], ["معاينة", "campaign-preview", "eye"], ["نسخ", "campaign-duplicate", "copy"], ["حذف", "campaign-delete", "close", true]];
+  if (current === "scheduled") return [["عرض الحملة", "campaign-details", "eye"], ["تغيير الجدولة", "campaign-reschedule", "clock"], ["إلغاء الجدولة", "campaign-pause-confirm", "close", true], ["نسخ", "campaign-duplicate", "copy"]];
+  if (current === "completed") return [["عرض التقرير", "campaign-report", "reports"], ["عرض المستلمين", "campaign-estimate", "customers"], ["تصدير النتائج", "campaign-export-one", "download"], ["إنشاء نسخة جديدة", "campaign-duplicate", "copy"]];
+  if (["ready", "paused"].includes(current)) return [["إرسال الآن", "campaign-start", "send"], ["جدولة", "campaign-reschedule", "clock"], ["معاينة", "campaign-preview", "eye"], ["إرسال تجريبي", "campaign-test", "send"], ["نسخ", "campaign-duplicate", "copy"]];
+  return [["تعديل الحملة", "campaign-edit", "settings"], ["معاينة", "campaign-preview", "eye"], ["فحص الجمهور", "campaign-estimate", "reports"], ["نسخ الحملة", "campaign-duplicate", "copy"], ["حذف", "campaign-delete", "close", true]];
+}
+
+function actionMenuMarkup(id, actions, kind = "campaign") {
+  if (state.actionMenu !== `${kind}:${id}`) return "";
+  return `<div class="suite-action-menu" role="menu">${actions.map(([label, action, icon, danger], index) => `${danger && index ? '<span class="suite-action-divider"></span>' : ""}<button type="button" class="${danger ? "danger" : ""}" role="menuitem" data-action="${action}" data-id="${escapeHtml(id)}">${dashboardIcon(icon)}<span>${escapeHtml(label)}</span></button>`).join("")}</div>`;
+}
+
+function dashboardHome() {
+  const channelData = state.channelsOverview;
+  const channels = channelData?.summary || {};
+  const campaigns = state.campaignsOverview;
+  const campaignSummary = campaigns?.summary || {};
+  const campaignItems = Array.isArray(campaigns?.items) ? campaigns.items.slice(0, 5) : [];
+  const recentMessages = Array.isArray(state.dashboardOverview?.recentNotifications) ? state.dashboardOverview.recentNotifications : [];
+  const notifications = notificationItems().slice(0, 3);
+  const emailUsage = state.messageUsage?.channels?.email || state.messageUsage || {};
+  const credit = emailUsage.unlimited === true || Number(emailUsage.limit) === -1 ? "غير محدود" : suiteNumber(emailUsage.remaining || 0);
+  const metricsReady = channelData !== null && !channelData?.error;
+  const campaignRows = campaignItems.length ? `<div class="suite-table-scroll"><table class="suite-table"><thead><tr><th>اسم الحملة</th><th>القناة</th><th>الحالة</th><th>منذ</th><th></th></tr></thead><tbody>${campaignItems.map((item) => `<tr><td><button class="suite-row-link" data-action="campaign-details" data-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button></td><td>${campaignChannel(item.channel)}</td><td>${suiteStatusBadge(item)}</td><td>${item.createdAt ? escapeHtml(deviceRelativeTime(item.createdAt)) : "—"}</td><td class="suite-menu-cell"><button class="suite-more" type="button" data-action="action-menu" data-menu="campaign:${escapeHtml(item.id)}" aria-label="إجراءات الحملة">•••</button>${actionMenuMarkup(item.id, campaignActions(item))}</td></tr>`).join("")}</tbody></table></div>` : emptyState("لم تنشئ أي حملة بعد", "أنشئ أول حملة واختر البريد الإلكتروني أو واتساب الرسمية.", "إنشاء أول حملة", "campaign-create");
+  return dashboardShell(`<section class="suite-page suite-dashboard">${pageTitle("لوحة التحكم")}
+    <div class="suite-metrics suite-metrics-four">
+      ${suiteMetricCard({ title: "الرصيد", value: credit, caption: "رسالة متاحة", icon: "billing", link: "/dashboard/billing" })}
+      ${suiteMetricCard({ title: "إجمالي الإرسالات", value: suiteNumber(channels.totalMessages), caption: "جميع القنوات", icon: "send", link: "/dashboard/reports?metric=sent" })}
+      ${suiteMetricCard({ title: "معدل التسليم", value: suiteRate(channels.deliveryRate, metricsReady && Number(channels.sent || 0) > 0), caption: Number(channels.sent || 0) ? "من الرسائل المرسلة" : "لا يوجد إرسال بعد", icon: "security", link: "/dashboard/reports?metric=delivery" })}
+      ${suiteMetricCard({ title: "القنوات المتصلة", value: suiteNumber(channels.connectedChannels), caption: Number(channels.connectedChannels || 0) ? "قنوات جاهزة" : "لم يتم ربط قناة", icon: "devices", link: "/dashboard/channels" })}
+    </div>
+    <div class="suite-dashboard-primary">
+      <article class="suite-card suite-performance"><div class="suite-card-head"><div><h2>أداء الإرسال خلال آخر 30 يومًا</h2><p>بيانات الرسائل الفعلية من مزودي الإرسال</p></div><select class="select" data-action="dashboard-period"><option value="30">آخر 30 يومًا</option><option value="7">آخر 7 أيام</option><option value="90">آخر 90 يومًا</option></select></div>${suitePerformanceChart(channelData?.dailyPerformance || [])}</article>
+      <article class="suite-card suite-campaigns-card"><div class="suite-card-head"><div><h2>آخر الحملات</h2><p>${suiteNumber(campaignSummary.total)} حملة محفوظة</p></div><button class="suite-link" data-link="/dashboard/campaigns">عرض جميع الحملات</button></div>${campaignRows}</article>
+    </div>
+    <div class="suite-dashboard-secondary">
+      <article class="suite-card"><div class="suite-card-head"><div><h2>القنوات المتصلة</h2><p>القنوات الجاهزة للإرسال</p></div></div><div class="suite-channel-list">${channelData?.channels?.whatsapp?.connected ? `<button data-link="/dashboard/channels?channel=whatsapp"><span class="suite-channel-logo whatsapp">${dashboardIcon("whatsapp")}</span><span><strong>واتساب الرسمية</strong><small>${escapeHtml(channelData.channels.whatsapp.items.find((item) => item.status === "connected")?.phoneNumber || "متصلة عبر Meta")}</small></span>${suiteStatusBadge({ status: "ready" })}</button>` : ""}${channelData?.channels?.email?.connected ? `<button data-link="/dashboard/channels?channel=email"><span class="suite-channel-logo email">${dashboardIcon("email")}</span><span><strong>البريد الإلكتروني</strong><small>${escapeHtml(channelData.channels.email.domain || "نطاق موثق")}</small></span>${suiteStatusBadge({ status: "ready" })}</button>` : ""}${!Number(channels.connectedChannels || 0) ? `<div class="suite-mini-empty"><strong>لم يتم ربط أي قناة بعد</strong><button data-link="/dashboard/channels">ربط قناة</button></div>` : ""}</div></article>
+      <article class="suite-card"><div class="suite-card-head"><div><h2>آخر الرسائل</h2><p>أحدث عمليات الإرسال الحقيقية</p></div></div><div class="suite-message-list">${recentMessages.length ? recentMessages.map((item) => `<button data-action="message-details" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.channel === "email" ? "email" : "whatsapp")}</span><span><strong>${escapeHtml(item.customerName || item.toNumber || "مستلم")}</strong><small>${escapeHtml(item.channel === "email" ? "البريد الإلكتروني" : "واتساب")} · ${item.createdAt ? escapeHtml(deviceRelativeTime(item.createdAt)) : ""}</small></span>${status(item.status)}</button>`).join("") : `<div class="suite-mini-empty"><strong>ستظهر الرسائل هنا بعد أول إرسال</strong></div>`}</div></article>
+      <article class="suite-card"><div class="suite-card-head"><div><h2>التنبيهات والإشعارات</h2><p>ما يحتاج انتباهك الآن</p></div></div><div class="suite-notice-list">${notifications.length ? notifications.map((item) => `<button data-action="notification-open" data-id="${escapeHtml(item.id)}" data-url="${escapeHtml(item.actionUrl || "/dashboard/notifications")}"><span class="${item.isRead ? "" : "unread"}">${dashboardIcon(item.type?.includes("security") ? "security" : "notifications")}</span><span><strong>${escapeHtml(item.title || notificationLabel(item.type))}</strong><small>${escapeHtml(item.message || "")}</small></span></button>`).join("") : `<div class="suite-mini-empty"><strong>لا توجد تنبيهات جديدة</strong></div>`}</div></article>
+    </div>
+    <section class="suite-quick-center"><h2>مركز الإجراءات السريعة</h2><div><button data-action="campaign-create">${dashboardIcon("campaigns")}<span><strong>إنشاء حملة</strong><small>ابدأ حملة جديدة</small></span></button><button data-action="send-message">${dashboardIcon("send")}<span><strong>إرسال رسالة</strong><small>رسالة فورية للجمهور</small></span></button><button data-action="import-customers">${dashboardIcon("customers")}<span><strong>استيراد قائمة</strong><small>إضافة جهات اتصال</small></span></button><button data-link="/dashboard/templates">${dashboardIcon("template")}<span><strong>إنشاء قالب</strong><small>صمم قالبًا احترافيًا</small></span></button></div></section>
+  </section>`);
+}
+
 function pageTitle(title, actions = "") {
   const pageActions = title === "قوالب عامة" ? "" : actions;
   const descriptions = {
-    "الرئيسية": "ملخص أعمالك الحقيقي من قاعدة البيانات.",
+    "لوحة التحكم": "نظرة شاملة على أداء المنصة والحملات والرسائل.",
     "إدارة الاشتراكات": "تابع الاشتراكات والتجديدات في مكان واحد.",
     "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
-    "الأجهزة": "اربط واتساب وتحقق من حالة الاتصال الفعلية.",
+    "الحملات": "إدارة حملاتك ومتابعة أدائها في مكان واحد.",
+    "القنوات والربط": "إدارة واتساب الرسمية والبريد الإلكتروني وحالة الربط.",
     "القوالب": "إدارة قوالب الرسائل والروابط الجاهزة حسب القناة.",
     "إرسال معلومات الطلب": "صمم قالبًا واحدًا برابط ثابت وأضف إليه طلبات عملائك.",
     "تطبيقاتنا": "اربط متجرك بالتطبيقات الخارجية وشغّل المزامنة والأتمتة بأمان.",
     "الحماية": "قواعد الإرسال الآمن وقائمة إيقاف الرسائل.",
     "الحماية والأمان": "نراقب ونؤمّن منصتك وعمليات الإرسال لحماية بياناتك وضمان استمرارية أعمالك.",
-    "التقارير": "المؤشرات وسجل النشاط والفوترة.",
+    "التقارير": "تابع أداء الرسائل والقنوات والعملاء من مكان واحد.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
   };
   return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "Renvix"}</p></div><div class="toolbar">${pageActions}</div></div>`;
@@ -3910,7 +4024,7 @@ function campaignCreateModalMarkup() {
       <label class="field"><span>وصف اختياري</span><input class="input" name="description" maxlength="600" placeholder="الغرض من الحملة"></label>
       <label class="field"><span>اختيار المجموعة</span><select class="select" name="groupId"><option value="">كل جهات الاتصال المؤهلة</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)} (${Number(group.contactsCount || 0).toLocaleString("ar-SA")})</option>`).join("")}</select><small>تُستخدم مجموعات جهات الاتصال المحفوظة فقط.</small></label>
       <div data-campaign-panel="whatsapp" class="campaign-channel-fields">
-        <label class="field"><span>اختيار الأجهزة</span><select class="select" name="whatsappChannelId" required><option value="">اختر جهازًا متصلًا</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا توجد قناة واتساب متصلة. اربط قناة قبل تفعيل الحملة.</small>`}</label>
+        <label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required><option value="">اختر قناة متصلة</option>${connectedDevices.map((device) => `<option value="${escapeHtml(device.id)}">${escapeHtml(device.name)}${device.phoneNumber ? ` — ${escapeHtml(device.phoneNumber)}` : ""}</option>`).join("")}</select>${connectedDevices.length ? "" : `<small class="field-warning">لا توجد قناة واتساب متصلة. اربط قناة قبل تفعيل الحملة.</small>`}</label>
         <label class="field"><span>اختيار القالب</span><select class="select" name="metaTemplateId" data-action="campaign-template"><option value="">محتوى مخصص بدون قالب</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" data-channel-id="${escapeHtml(template.channelId)}" data-template-body="${escapeHtml(campaignMetaTemplateBody(template))}">${escapeHtml(template.name || "قالب واتساب")} — ${escapeHtml(template.language || "ar")}</option>`).join("")}</select><small>تظهر قوالب واتساب الجاهزة للإرسال فقط.</small></label>
       </div>
       <div data-campaign-panel="email" class="campaign-channel-fields" hidden>
@@ -3937,12 +4051,12 @@ function campaignCreateModalMarkup() {
       <label class="field"><span>أقل وقت بين الرسالة والأخرى بالثانية</span><input class="input" name="minDelaySeconds" type="number" min="20" max="3600" value="20" required><small>الحد الأدنى الآمن هو 20 ثانية.</small></label>
       <label class="field"><span>أقصى وقت بين الرسالة والأخرى بالثانية</span><input class="input" name="maxDelaySeconds" type="number" min="20" max="7200" value="120" required><small>تختار المنصة فترة عشوائية ضمن النطاق.</small></label>
     </div></section>
-    <div class="campaign-safety-note">لن يتم تجاوز الجهاز أو المجموعة أو الأيام المحددة، وتُفحص أهلية الجمهور قبل تفعيل الجدولة.</div>
+    <div class="campaign-safety-note">لن يتم تجاوز القناة أو المجموعة أو الأيام المحددة، وتُفحص أهلية الجمهور قبل تفعيل الجدولة.</div>
     <div class="campaign-form-actions"><button class="btn btn-primary" type="submit">حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="close-modal">إلغاء</button></div>
   </form>`;
 }
 
-function campaignsPage() {
+function legacyCampaignsPage() {
   const data = state.campaignsOverview;
   const items = Array.isArray(data?.items) ? data.items : [];
   const summary = data?.summary || { total:0,active:0,messagesThisMonth:0,deliveryRate:0,failed:0 };
@@ -3959,6 +4073,36 @@ function campaignsPage() {
     `<div class="campaign-layout"><section class="card campaign-main-card"><div class="toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="campaign-search" placeholder="ابحث عن حملة..."></div><select class="select"><option>كل القنوات</option><option>واتساب</option><option>البريد الإلكتروني</option></select><select class="select"><option>كل الحالات</option><option>مسودة</option><option>مجدولة</option><option>مكتملة</option></select></div>${content}</section>`+
     `<aside class="card campaign-activity-card"><div class="section-head"><div><h2>أحدث الأنشطة</h2><p class="muted">أحداث محفوظة في سجل مساحة العمل.</p></div></div>${campaignActivityMarkup(data?.activity || [])}</aside></div>`+
     `<section class="campaign-bottom-grid"><article class="card"><div class="section-head"><div><h2>نظرة عامة على الأداء</h2><p class="muted">المؤشرات محسوبة من الرسائل الفعلية فقط.</p></div></div><div class="campaign-performance"><div><span>تم التسليم</span><strong>${Number(summary.delivered||0).toLocaleString("ar-SA")}</strong>${campaignProgress(summary.delivered,summary.sent)}</div><div><span>فشل الإرسال</span><strong>${Number(summary.failed||0).toLocaleString("ar-SA")}</strong>${campaignProgress(summary.failed,summary.sent)}</div></div></article><article class="card campaign-tip"><span>${dashboardIcon("reports")}</span><div><h2>اقتراح لتحسين الأداء</h2><p>استخدم جمهورًا لديه موافقة صالحة، واختبر المحتوى قبل جدولة الحملة.</p><button class="btn btn-ghost" data-link="/dashboard/templates">فتح القوالب</button></div></article></section>`);
+}
+
+function campaignsPage() {
+  const data = state.campaignsOverview;
+  const sourceItems = Array.isArray(data?.items) ? data.items : [];
+  const filteredItems = sourceItems.filter((item) => {
+    const current = campaignStatusPresentation(item).key;
+    const statusMatch = state.campaignStatusFilter === "all" || current === state.campaignStatusFilter || (state.campaignStatusFilter === "approved" && current === "ready");
+    const channelMatch = state.campaignChannelFilter === "all" || item.channel === state.campaignChannelFilter;
+    const searchMatch = !state.search.trim() || String(item.name || "").toLocaleLowerCase("ar").includes(state.search.trim().toLocaleLowerCase("ar"));
+    return statusMatch && channelMatch && searchMatch;
+  });
+  const summary = data?.summary || {};
+  const activeChip = state.campaignStatusFilter !== "all" ? `<button class="suite-filter-chip" data-action="campaign-filter" data-filter="all">${escapeHtml(({ meta_review: "قيد المراجعة", approved: "معتمدة", scheduled: "مجدولة", draft: "مسودة" })[state.campaignStatusFilter] || state.campaignStatusFilter)} ×</button>` : "";
+  const table = data?.error ? emptyState("تعذر تحميل الحملات", escapeHtml(data.error), "إعادة المحاولة", "campaign-reload") : data === null ? `<div class="loading-state">جاري تحميل الحملات...</div>` : filteredItems.length ? `<div class="suite-table-scroll"><table class="suite-table suite-campaign-table"><thead><tr><th>الحملة</th><th>القناة</th><th>الحالة</th><th>الجمهور</th><th>الجدولة</th><th>معدل الفتح</th><th>معدل التسليم</th><th>الردود</th><th>الإجراءات</th></tr></thead><tbody>${filteredItems.map((item) => {
+    const sent = Number(item.sentCount || 0);
+    const delivered = Number(item.deliveredCount || 0);
+    const opened = Number(item.readCount || 0);
+    return `<tr><td><button class="suite-row-link" data-action="campaign-details" data-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}</strong><small>${item.templateName ? `قالب Meta: ${escapeHtml(item.templateName)}` : escapeHtml(item.description || "حملة محفوظة")}</small></button></td><td>${campaignChannel(item.channel)}</td><td>${suiteStatusBadge(item)}</td><td><strong>${suiteNumber(item.eligibleRecipients)}</strong><small>مؤهل</small></td><td>${item.scheduledFor ? `<strong>${new Date(item.scheduledFor).toLocaleDateString("ar-SA")}</strong><small>${new Date(item.scheduledFor).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</small>` : `<span class="suite-dash">—</span>`}</td><td>${suiteRate(sent ? (opened / sent) * 100 : null, sent > 0)}</td><td>${suiteRate(sent ? (delivered / sent) * 100 : null, sent > 0)}</td><td>${suiteNumber(item.replyCount)}</td><td class="suite-menu-cell"><button class="suite-more" data-action="action-menu" data-menu="campaign:${escapeHtml(item.id)}" aria-label="إجراءات الحملة">•••</button>${actionMenuMarkup(item.id, campaignActions(item))}</td></tr>`;
+  }).join("")}</tbody></table></div>` : emptyState(state.search || state.campaignStatusFilter !== "all" || state.campaignChannelFilter !== "all" ? "لا توجد نتائج مطابقة" : "لا توجد حملات حتى الآن", state.search || state.campaignStatusFilter !== "all" || state.campaignChannelFilter !== "all" ? "غيّر البحث أو عوامل التصفية." : "أنشئ حملتك الأولى وحدد القناة والجمهور.", state.search || state.campaignStatusFilter !== "all" ? "" : "إنشاء حملة", "campaign-create");
+  return dashboardShell(`<section class="suite-page suite-campaigns">${pageTitle("الحملات", `<button class="btn btn-primary" data-action="campaign-create">${dashboardIcon("campaigns")} إنشاء حملة</button>`) }
+    <div class="suite-metrics suite-metrics-four suite-filter-metrics">
+      ${suiteMetricCard({ title: "إجمالي الحملات", value: suiteNumber(summary.total), caption: "جميع الحملات", icon: "billing", action: "campaign-filter", filter: "all" })}
+      ${suiteMetricCard({ title: "قيد المراجعة", value: suiteNumber(summary.inReview), caption: "قوالب Meta", icon: "clock", tone: "warning", action: "campaign-filter", filter: "meta_review" })}
+      ${suiteMetricCard({ title: "معتمدة", value: suiteNumber(summary.approved), caption: "جاهزة للإرسال", icon: "security", tone: "success", action: "campaign-filter", filter: "approved" })}
+      ${suiteMetricCard({ title: "مجدولة", value: suiteNumber(summary.scheduled), caption: "بانتظار الموعد", icon: "clock", tone: "info", action: "campaign-filter", filter: "scheduled" })}
+    </div>
+    <section class="suite-create-section"><div class="suite-section-title"><h2>إنشاء حملة جديدة</h2><p>اختر نوع المحتوى والقناة المناسبة لجمهورك.</p></div><div class="suite-create-cards"><article><span>${dashboardIcon("orderLink")}</span><div><h3>منتج من المتجر</h3><p>اختر منتجًا من متجرك وأرسله لعملائك مع صورته وتفاصيله ورابط الشراء.</p><button class="btn btn-secondary" data-action="campaign-create" data-kind="product">اختيار منتج</button></div></article><article><span>${dashboardIcon("template")}</span><div><h3>بطاقة مخصصة</h3><p>صمم حملة بصورة أو فيديو ونص وزر مخصص دون الحاجة إلى منتج من المتجر.</p><button class="btn btn-secondary" data-action="campaign-create" data-kind="custom">إنشاء بطاقة</button></div></article></div></section>
+    <section class="suite-card suite-campaign-list"><div class="suite-card-head suite-campaign-toolbar"><div><h2>الحملات الحديثة</h2>${activeChip}</div><div class="suite-toolbar-controls"><label class="suite-search">${dashboardIcon("reports")}<input data-action="campaign-search" value="${escapeHtml(state.search)}" placeholder="ابحث عن حملة..."></label><select data-action="campaign-channel-filter"><option value="all">كل القنوات</option><option value="whatsapp" ${state.campaignChannelFilter === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${state.campaignChannelFilter === "email" ? "selected" : ""}>البريد الإلكتروني</option></select><select data-action="campaign-status-filter"><option value="all">كل الحالات</option><option value="draft" ${state.campaignStatusFilter === "draft" ? "selected" : ""}>مسودة</option><option value="meta_review" ${state.campaignStatusFilter === "meta_review" ? "selected" : ""}>قيد المراجعة</option><option value="approved" ${state.campaignStatusFilter === "approved" ? "selected" : ""}>معتمدة</option><option value="scheduled" ${state.campaignStatusFilter === "scheduled" ? "selected" : ""}>مجدولة</option><option value="completed" ${state.campaignStatusFilter === "completed" ? "selected" : ""}>مكتملة</option></select></div></div>${table}</section>
+  </section>`);
 }
 
 function contactsTable(items) {
@@ -3978,7 +4122,7 @@ function contactsPage() {
     `<section class="card contact-card"><div class="toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="input" data-action="contact-search" placeholder="ابحث بالاسم أو البريد أو الجوال..."></div><select class="select"><option>كل القنوات</option><option>واتساب</option><option>البريد الإلكتروني</option></select><span class="status warning">تحتاج مراجعة: ${Number(stats.needsReview||0)}</span></div>${content}</section>`);
 }
 
-function customersPage() {
+function legacyCustomersPage() {
   const stats = overviewStats();
   const source = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
   const rows = filterRows(source, ["name", "email", "phone", "serviceName", "status"]);
@@ -3997,13 +4141,38 @@ function customersPage() {
     <article class="card table-card section"><div class="section-head"><div><h2>أحدث التنبيهات</h2><p class="muted">رسائل العملاء المسجلة فعليًا.</p></div><button class="btn btn-secondary" data-action="send-message" ${sendDisabled} title="${sendDisabled ? "اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات." : "إرسال تنبيه"}">إرسال تنبيه</button></div>${recentNotifications.length ? `<div class="notification-list">${recentNotifications.map((item) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item.customerName || item.toNumber || "تنبيه")}</strong><p class="muted">${escapeHtml(item.channel)} · ${escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString("ar-SA") : "")}</p></div>${status(item.status)}</div>`).join("")}</div>` : emptyState("لا توجد تنبيهات بعد", "ستظهر سجلات التنبيهات بعد أول عملية إرسال.")}</article>`);
 }
 
-function customersTable(rows) {
+function legacyCustomersTable(rows) {
   if (!rows.length) return emptyState("لا يوجد عملاء مطابقون", "غيّر البحث أو الفلترة.");
   const body = rows.map((row) => `<tr><td><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.email || "")}</small></td><td>${escapeHtml(row.phone || "غير مضاف")}</td><td>${escapeHtml(row.serviceName || "لا توجد خدمة")}</td><td>${escapeHtml(row.lastRenewal ? String(row.lastRenewal).slice(0, 10) : "-")}</td><td>${status(row.status)}</td><td>${escapeHtml((row.tags || []).join("، ") || "-")}</td><td><div class="inline-actions"><button class="btn btn-secondary" data-action="customer-details-db" data-id="${row.id}">عرض</button><button class="btn btn-ghost icon-only" data-action="customer-edit-db" data-id="${row.id}" title="تعديل">${dashboardIcon("settings")}</button><button class="btn btn-ghost icon-only danger-text" data-action="customer-delete-db" data-id="${row.id}" title="حذف">×</button></div></td></tr>`).join("");
   return `<div class="compare"><table><thead><tr>${["الاسم", "الهاتف", "الخدمة", "آخر تجديد", "الحالة", "الملاحظات", "الإجراء"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
-function reportsPage() {
+function customerActions(row) {
+  return [["عرض الملف", "customer-details-db", "eye"], ["تعديل", "customer-edit-db", "settings"], ["عرض الاشتراكات", "customer-subscriptions", "subscriptions"], ["إرسال رسالة", "customer-message", "send"], ["عرض النشاط", "customer-timeline", "reports"], ["أرشفة", "customer-archive", "copy"], ["حذف", "customer-delete-db", "close", true]];
+}
+
+function customersPage() {
+  const stats = overviewStats();
+  const source = Array.isArray(state.dbCustomers) ? state.dbCustomers : [];
+  const rows = filterRows(source, ["name", "email", "phone", "status"]);
+  const active = source.filter((row) => row.status === "active").length;
+  const emailSubscribers = source.filter((row) => Boolean(row.email)).length;
+  const whatsappCustomers = source.filter((row) => Boolean(row.whatsappNumber || row.phone)).length;
+  const selected = new Set(state.customerSelection || []);
+  const table = state.dbCustomers?.error ? emptyState("تعذر تحميل العملاء", escapeHtml(state.dbCustomers.error)) : state.dbCustomers === null ? `<div class="loading-state">جاري تحميل العملاء...</div>` : rows.length ? `<div class="suite-table-scroll"><table class="suite-table suite-customers-table"><thead><tr><th><input type="checkbox" data-action="customer-select-all" aria-label="تحديد الجميع" ${rows.length && rows.every((row) => selected.has(row.id)) ? "checked" : ""}></th><th>العميل</th><th>البريد الإلكتروني</th><th>رقم الجوال</th><th>القناة</th><th>الحالة</th><th>تاريخ الإضافة</th><th>الإجراءات</th></tr></thead><tbody>${rows.map((row) => `<tr><td><input type="checkbox" data-action="customer-select" data-id="${escapeHtml(row.id)}" ${selected.has(row.id) ? "checked" : ""} aria-label="تحديد ${escapeHtml(row.name)}"></td><td><button class="suite-customer-name" data-action="customer-details-db" data-id="${escapeHtml(row.id)}"><span>${escapeHtml(Array.from(String(row.name || "ع"))[0] || "ع")}</span><strong>${escapeHtml(row.name)}</strong></button></td><td>${row.email ? `<span dir="ltr">${escapeHtml(row.email)}</span>` : "—"}</td><td>${row.phone ? `<span dir="ltr">${escapeHtml(row.phone)}</span>` : "—"}</td><td><div class="suite-channel-tags">${row.email ? `<span>${dashboardIcon("email")} بريد</span>` : ""}${row.whatsappNumber || row.phone ? `<span>${dashboardIcon("whatsapp")} واتساب</span>` : ""}${!row.email && !row.phone ? "—" : ""}</div></td><td>${status(row.status)}</td><td>${row.createdAt ? new Date(row.createdAt).toLocaleDateString("ar-SA") : "—"}</td><td class="suite-menu-cell"><button class="suite-more" data-action="action-menu" data-menu="customer:${escapeHtml(row.id)}" aria-label="إجراءات العميل">•••</button>${actionMenuMarkup(row.id, customerActions(row), "customer")}</td></tr>`).join("")}</tbody></table></div>` : emptyState("لا توجد جهات اتصال بعد", "أضف جهة اتصال يدويًا أو استورد قائمة أو اربط متجرك.", "إضافة عميل", "add-customer");
+  return dashboardShell(`<section class="suite-page suite-customers">${pageTitle("العملاء")}
+    <div class="suite-metrics suite-metrics-four">
+      ${suiteMetricCard({ title: "إجمالي العملاء", value: suiteNumber(stats.totalCustomers), caption: "كل جهات الاتصال", icon: "customers" })}
+      ${suiteMetricCard({ title: "العملاء النشطون", value: suiteNumber(active), caption: "حساب نشط", icon: "customers", tone: "success" })}
+      ${suiteMetricCard({ title: "مشتركو البريد", value: suiteNumber(emailSubscribers), caption: "لديهم بريد صالح", icon: "email", tone: "info" })}
+      ${suiteMetricCard({ title: "عملاء واتساب", value: suiteNumber(whatsappCustomers), caption: "لديهم رقم تواصل", icon: "whatsapp", tone: "success" })}
+    </div>
+    <section class="suite-card suite-customers-card"><div class="suite-customer-toolbar"><div class="suite-toolbar-actions"><button class="btn btn-primary" data-action="add-customer">${dashboardIcon("customers")} إضافة عميل</button><button class="btn btn-secondary" data-action="import-customers">${dashboardIcon("upload")} استيراد</button><button class="btn btn-secondary" data-action="customer-export-dialog">${dashboardIcon("download")} تصدير</button></div><div class="suite-toolbar-controls"><label class="suite-search">${dashboardIcon("reports")}<input data-action="dashboard-search" value="${escapeHtml(state.search)}" placeholder="ابحث بالاسم أو البريد أو الجوال"></label><select data-action="filter"><option>الكل</option><option value="active">نشط</option><option value="inactive">غير نشط</option></select></div></div>${table}</section>
+    ${selected.size ? `<div class="suite-bulk-toolbar"><strong>${suiteNumber(selected.size)} محددان</strong><button>إضافة لشريحة</button><button data-action="export-customers">تصدير</button><button data-action="customer-bulk-archive">أرشفة</button><button class="suite-more">•••</button></div>` : ""}
+  </section>`);
+}
+
+function legacyReportsPage() {
   const stats = overviewStats();
   const activities = (state.dashboardOverview?.activities || []).filter((item) => !String(item.type || "").startsWith("auth."));
   const profile = state.dashboardOverview?.profile || {};
@@ -4029,6 +4198,30 @@ function reportsPage() {
       <article class="card table-card"><div class="section-head"><div><h2>سجل النشاط</h2><p class="muted">آخر العمليات داخل مساحة العمل.</p></div></div>${activities.length ? activityList(activities) : emptyState("لا توجد نشاطات بعد", "ستظهر العمليات الفعلية هنا بعد استخدام المنصة.")}</article>
       <article class="card table-card"><div class="section-head"><div><h2>الفوترة والباقات</h2><p class="muted">الخطة الحالية والفواتير.</p></div><span class="plan-badge">${escapeHtml(profile.planName || "Free Trial")}</span></div>${emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا عند إصدار أول فاتورة.", "عرض الباقات", "/dashboard/billing")}</article>
     </div>`);
+}
+
+function reportsPage() {
+  const channelData = state.channelsOverview;
+  const metrics = channelData?.summary || {};
+  const allCampaigns = Array.isArray(state.campaignsOverview?.items) ? state.campaignsOverview.items : [];
+  const topCampaigns = allCampaigns.filter((item) => Number(item.sentCount || 0) > 0).sort((a, b) => Number(b.deliveredCount || 0) - Number(a.deliveredCount || 0)).slice(0, 4);
+  const reportActivities = (state.dashboardOverview?.activities || []).filter((item) => String(item.type || "").startsWith("report."));
+  const totalByChannel = Number(metrics.whatsappMessages || 0) + Number(metrics.emailMessages || 0);
+  const whatsappShare = totalByChannel ? Math.round((Number(metrics.whatsappMessages || 0) / totalByChannel) * 100) : 0;
+  const emailShare = totalByChannel ? 100 - whatsappShare : 0;
+  const topTable = topCampaigns.length ? `<div class="suite-table-scroll"><table class="suite-table"><thead><tr><th>#</th><th>الحملة</th><th>القناة</th><th>التفاعل</th><th>الحالة</th><th></th></tr></thead><tbody>${topCampaigns.map((item, index) => { const sent = Number(item.sentCount || 0); const engaged = Number(item.readCount || item.deliveredCount || 0); return `<tr><td>${index + 1}</td><td><button class="suite-row-link" data-action="campaign-report" data-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button></td><td>${campaignChannel(item.channel)}</td><td>${suiteRate(sent ? (engaged / sent) * 100 : null, sent > 0)}</td><td>${suiteStatusBadge(item)}</td><td class="suite-menu-cell"><button class="suite-more" data-action="action-menu" data-menu="campaign:${escapeHtml(item.id)}">•••</button>${actionMenuMarkup(item.id, [["عرض التقرير", "campaign-report", "reports"], ["عرض الحملة", "campaign-details", "eye"], ["عرض الجمهور", "campaign-estimate", "customers"], ["تصدير", "campaign-export-one", "download"], ["إنشاء نسخة جديدة", "campaign-duplicate", "copy"]])}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="suite-mini-empty suite-report-empty"><strong>لا توجد بيانات كافية لإنشاء التقرير</strong><p>ستبدأ الإحصائيات بالظهور بعد تنفيذ أول حملة أو إرسال.</p></div>`;
+  return dashboardShell(`<section class="suite-page suite-reports">${pageTitle("التقارير")}
+    <div class="suite-report-toolbar"><select data-action="report-period"><option value="30">آخر 30 يومًا</option><option value="7">آخر 7 أيام</option><option value="90">آخر 90 يومًا</option></select><select data-action="report-channel-filter"><option value="all">كل القنوات</option><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option></select><select><option>الأداء العام</option><option>التسليم</option><option>التفاعل</option><option>الحملات</option></select><button class="btn btn-primary" data-action="export-report-dialog">${dashboardIcon("download")} تصدير التقرير</button></div>
+    <div class="suite-metrics suite-metrics-four">
+      ${suiteMetricCard({ title: "إجمالي الرسائل", value: suiteNumber(metrics.totalMessages), caption: "خلال الفترة", icon: "send" })}
+      ${suiteMetricCard({ title: "معدل التسليم", value: suiteRate(metrics.deliveryRate, Number(metrics.sent || 0) > 0), caption: "من الرسائل المرسلة", icon: "security", tone: "success" })}
+      ${suiteMetricCard({ title: "معدل الفتح", value: suiteRate(metrics.openRate, Number(metrics.sent || 0) > 0), caption: "بحسب مزود القناة", icon: "email", tone: "info" })}
+      ${suiteMetricCard({ title: "العملاء النشطون", value: suiteNumber(overviewStats().activeCustomers), caption: "في مساحة العمل", icon: "customers" })}
+    </div>
+    <div class="suite-report-main"><article class="suite-card suite-performance"><div class="suite-card-head"><div><h2>أداء الرسائل خلال 30 يومًا</h2><p>المُرسلة والمُسلّمة من السجلات الفعلية</p></div></div>${suitePerformanceChart(channelData?.dailyPerformance || [])}</article><article class="suite-card suite-channel-donut"><div class="suite-card-head"><div><h2>أداء القنوات</h2><p>توزيع الإرسال الفعلي</p></div></div>${totalByChannel ? `<div class="suite-donut-wrap"><div class="suite-donut" style="--whatsapp:${whatsappShare * 3.6}deg"><strong>${suiteNumber(totalByChannel)}</strong><small>إجمالي الرسائل</small></div><div class="suite-donut-legend"><button data-link="/dashboard/reports?channel=whatsapp"><i class="whatsapp"></i><span>واتساب الرسمية</span><strong>${whatsappShare}%</strong></button><button data-link="/dashboard/reports?channel=email"><i class="email"></i><span>البريد الإلكتروني</span><strong>${emailShare}%</strong></button></div></div>` : `<div class="suite-mini-empty"><strong>لا توجد بيانات قنوات بعد</strong></div>`}</article></div>
+    <div class="suite-report-secondary"><article class="suite-card"><div class="suite-card-head"><div><h2>أفضل الحملات</h2><p>مرتبة حسب التسليم الفعلي</p></div></div>${topTable}</article><article class="suite-card"><div class="suite-card-head"><div><h2>ملخص التقارير المهمة</h2><p>قراءات مستندة إلى البيانات الحالية</p></div></div><div class="suite-insights">${Number(metrics.totalMessages || 0) ? `<div>${dashboardIcon("email")}<span><strong>القناة الأكثر استخدامًا</strong><small>${Number(metrics.emailMessages || 0) >= Number(metrics.whatsappMessages || 0) ? "البريد الإلكتروني" : "واتساب الرسمية"}</small></span></div><div>${dashboardIcon("reports")}<span><strong>حالة التسليم</strong><small>${suiteRate(metrics.deliveryRate, Number(metrics.sent || 0) > 0)} من الرسائل المرسلة</small></span></div>` : `<div class="suite-mini-empty"><strong>ستظهر الملخصات بعد أول إرسال</strong></div>`}</div></article></div>
+    <article class="suite-card suite-recent-reports"><div class="suite-card-head"><div><h2>آخر التقارير</h2><p>التقارير التي أنشأها فريقك</p></div></div>${reportActivities.length ? activityList(reportActivities) : emptyState("لا توجد تقارير منشأة بعد", "استخدم زر تصدير التقرير لإنشاء أول تقرير حقيقي.")}</article>
+  </section>`);
 }
 
 function securityScoreTone(score, configured = true) {
@@ -4360,7 +4553,7 @@ function deviceActivityPresentation(item) {
   return { ...mapped, title: /[\u0600-\u06FF]/.test(String(item?.title || "")) ? item.title : mapped.title };
 }
 
-function devicesWorkspacePage() {
+function legacyDevicesWorkspacePage() {
   const payload = { ...defaultLinkedDevice, ...state.linkedDevice };
   const fallbackDevice = payload.id ? [payload] : [];
   const devices = Array.isArray(payload.devices) ? payload.devices : fallbackDevice;
@@ -4426,6 +4619,36 @@ function devicesWorkspacePage() {
         <article class="card devices-activity-card"><div class="devices-card-heading"><span>${dashboardIcon("template")}</span><div><h2>سجل النشاط الأخير</h2><p>آخر العمليات المرتبطة بأجهزتك.</p></div></div><div class="devices-activity-list">${activity.length ? activity.slice(0, activityLimit).map((item) => { const presentation = deviceActivityPresentation(item); return `<div class="${presentation.tone}"><span>${dashboardIcon(presentation.icon)}</span><div><strong>${escapeHtml(presentation.title)}</strong><small>${escapeHtml(item.deviceName || "تحديث على إعدادات الربط")}</small></div><time>${escapeHtml(deviceRelativeTime(item.createdAt))}</time></div>`; }).join("") : `<div class="devices-empty-activity">${dashboardIcon("template")}<strong>لا يوجد نشاط مسجل بعد</strong><p>ستظهر عمليات الربط والمزامنة وفحص الاتصال هنا.</p></div>`}</div>${activity.length > 5 ? `<button class="devices-card-link devices-activity-more" data-action="device-activity-toggle">${state.deviceActivityExpanded ? "عرض الأحدث فقط" : "عرض جميع السجلات"} <b>‹</b></button>` : ""}</article>
       </div>
     </section>
+  </section>`);
+}
+
+function devicesWorkspacePage() {
+  const data = state.channelsOverview;
+  if (data === null) return dashboardShell(`<section class="suite-page suite-channels">${pageTitle("القنوات والربط")}<div class="loading-state">جاري تحميل القنوات...</div></section>`);
+  if (data?.error) return dashboardShell(`<section class="suite-page suite-channels">${pageTitle("القنوات والربط")}${emptyState("تعذر تحميل القنوات", escapeHtml(data.error), "إعادة المحاولة", "channels-reload")}</section>`);
+  const metrics = data?.summary || {};
+  const whatsapp = data?.channels?.whatsapp || { connected: false, items: [] };
+  const email = data?.channels?.email || { connected: false };
+  const selected = state.query.get("channel") || "overview";
+  const whatsappItem = whatsapp.items?.find((item) => item.status === "connected") || whatsapp.items?.[0] || null;
+  const activity = Array.isArray(data?.activity) ? data.activity : [];
+  const channelTotal = Number(metrics.whatsappMessages || 0) + Number(metrics.emailMessages || 0);
+  const whatsappShare = channelTotal ? Math.round((Number(metrics.whatsappMessages || 0) / channelTotal) * 100) : 0;
+  return dashboardShell(`<section class="suite-page suite-channels">${pageTitle("القنوات والربط", `<button class="btn btn-primary" data-action="connect-meta-whatsapp">${dashboardIcon("devices")} ربط قناة</button><button class="btn btn-secondary" data-action="device-sync-all" ${whatsapp.items?.length ? "" : "disabled"}>${dashboardIcon("reports")} مزامنة الحالة</button>`) }
+    <nav class="suite-channel-tabs"><button class="${selected === "overview" ? "active" : ""}" data-link="/dashboard/channels">نظرة عامة</button><button class="${selected === "whatsapp" ? "active" : ""}" data-link="/dashboard/channels?channel=whatsapp">${dashboardIcon("whatsapp")} واتساب الرسمية</button><button class="${selected === "email" ? "active" : ""}" data-link="/dashboard/channels?channel=email">${dashboardIcon("email")} البريد الإلكتروني</button></nav>
+    <div class="suite-metrics suite-metrics-six">
+      ${suiteMetricCard({ title: "القنوات المتصلة", value: suiteNumber(metrics.connectedChannels), caption: "قنوات جاهزة", icon: "devices", link: "/dashboard/channels" })}
+      ${suiteMetricCard({ title: "النطاقات الموثقة", value: suiteNumber(metrics.verifiedDomains), caption: "نطاق بريد", icon: "security", link: "/dashboard/channels?channel=email" })}
+      ${suiteMetricCard({ title: "المرسلون النشطون", value: suiteNumber(metrics.activeSenders), caption: "عنوان إرسال", icon: "customers", link: "/dashboard/channels?channel=email" })}
+      ${suiteMetricCard({ title: "إجمالي الرسائل", value: suiteNumber(metrics.totalMessages), caption: "كل القنوات", icon: "send", link: "/dashboard/reports" })}
+      ${suiteMetricCard({ title: "معدل التسليم", value: suiteRate(metrics.deliveryRate, Number(metrics.sent || 0) > 0), caption: "من الإرسال الفعلي", icon: "security", link: "/dashboard/reports?metric=delivery" })}
+      ${suiteMetricCard({ title: "معدل الفتح", value: suiteRate(metrics.openRate, Number(metrics.sent || 0) > 0), caption: "بحسب المزود", icon: "email", link: "/dashboard/reports?metric=open" })}
+    </div>
+    <div class="suite-channel-hero-grid">
+      <article class="suite-card suite-channel-hero whatsapp"><div class="suite-channel-hero-head"><span>${dashboardIcon("whatsapp")}</span><div><small>القناة الرسمية</small><h2>Meta WhatsApp</h2><p>${whatsapp.connected ? "قناتك متصلة وجاهزة للإرسال واستقبال الرسائل." : "اربط حساب Meta Business لبدء الإرسال الرسمي."}</p></div><em class="${whatsapp.connected ? "connected" : "disconnected"}">${whatsapp.connected ? "متصلة" : "غير متصلة"}</em></div>${whatsapp.connected ? `<div class="suite-channel-identity"><span>رقم الأعمال</span><strong dir="ltr">${escapeHtml(whatsappItem?.phoneNumber || "—")}</strong><span>آخر مزامنة</span><strong>${whatsappItem?.lastHealthCheckAt ? escapeHtml(deviceRelativeTime(whatsappItem.lastHealthCheckAt)) : "لم تتم بعد"}</strong></div><div class="suite-channel-actions"><button class="btn btn-primary" data-action="device-details" data-id="${escapeHtml(whatsappItem?.id || "")}">${dashboardIcon("settings")} إدارة القناة</button><button class="suite-more" data-action="action-menu" data-menu="channel:whatsapp">•••</button>${state.actionMenu === "channel:whatsapp" ? `<div class="suite-action-menu"><button data-action="device-details" data-id="${escapeHtml(whatsappItem?.id || "")}">${dashboardIcon("eye")} تفاصيل الاتصال</button><button data-action="device-sync-all">${dashboardIcon("reports")} مزامنة الحالة</button><button data-link="/dashboard/templates">${dashboardIcon("template")} القوالب المعتمدة</button><button data-action="campaign-create" data-channel="whatsapp">${dashboardIcon("campaigns")} إنشاء حملة</button><span class="suite-action-divider"></span><button class="danger" data-action="disconnect-channel-confirm" data-id="${escapeHtml(whatsappItem?.id || "")}">${dashboardIcon("close")} فصل واتساب</button></div>` : ""}</div>` : `<div class="suite-channel-connect"><button class="btn btn-primary" data-action="connect-meta-whatsapp">ربط واتساب الرسمية</button><small>لن تظهر أرقام أو بيانات قبل اكتمال الربط الفعلي.</small></div>`}</article>
+      <article class="suite-card suite-channel-hero email"><div class="suite-channel-hero-head"><span>${dashboardIcon("email")}</span><div><small>قناة البريد</small><h2>البريد الإلكتروني</h2><p>${email.connected ? "القناة مفعلة ونطاق الإرسال موثق." : "أكمل إعداد مزود البريد وعنوان المرسل الموثق."}</p></div><em class="${email.connected ? "connected" : "disconnected"}">${email.connected ? "نشط" : "غير مهيأ"}</em></div>${email.connected ? `<div class="suite-channel-identity"><span>عنوان المرسل</span><strong dir="ltr">${escapeHtml(email.sender || "—")}</strong><span>النطاق</span><strong dir="ltr">${escapeHtml(email.domain || "—")}</strong></div><div class="suite-channel-actions"><button class="btn btn-primary" data-action="email-channel-details">${dashboardIcon("settings")} إدارة البريد</button><button class="suite-more" data-action="action-menu" data-menu="channel:email">•••</button>${state.actionMenu === "channel:email" ? `<div class="suite-action-menu"><button data-action="email-channel-details">${dashboardIcon("eye")} إعدادات القناة</button><button data-action="email-domain-details">${dashboardIcon("security")} إدارة النطاقات</button><button data-action="email-sender-details">${dashboardIcon("customers")} إدارة المرسلين</button><button data-action="email-test">${dashboardIcon("send")} اختبار القناة</button><span class="suite-action-divider"></span><button class="danger" data-action="email-disconnect-confirm">${dashboardIcon("close")} فصل القناة</button></div>` : ""}</div>` : `<div class="suite-channel-connect"><button class="btn btn-secondary" data-action="email-channel-details">عرض متطلبات الربط</button><small>تظهر بيانات النطاق بعد التحقق منها فعليًا.</small></div>`}</article>
+    </div>
+    <div class="suite-channel-lower"><article class="suite-card"><div class="suite-card-head"><div><h2>توزيع الرسائل حسب القناة</h2><p>إجمالي السجلات الفعلية</p></div></div>${channelTotal ? `<div class="suite-donut-wrap"><div class="suite-donut" style="--whatsapp:${whatsappShare * 3.6}deg"><strong>${suiteNumber(channelTotal)}</strong><small>رسالة</small></div><div class="suite-donut-legend"><button data-link="/dashboard/reports?channel=whatsapp"><i class="whatsapp"></i><span>واتساب الرسمية</span><strong>${whatsappShare}%</strong></button><button data-link="/dashboard/reports?channel=email"><i class="email"></i><span>البريد الإلكتروني</span><strong>${100 - whatsappShare}%</strong></button></div></div>` : `<div class="suite-mini-empty"><strong>لا توجد رسائل بعد</strong><p>يظهر التوزيع بعد أول إرسال.</p></div>`}</article><article class="suite-card"><div class="suite-card-head"><div><h2>أحدث نشاط القنوات</h2><p>آخر عمليات الإرسال المسجلة</p></div></div><div class="suite-message-list">${activity.length ? activity.map((item) => `<button data-action="channel-activity-details" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.channel === "email" ? "email" : "whatsapp")}</span><span><strong>${escapeHtml(item.channel === "email" ? "رسالة بريد" : "رسالة واتساب")}</strong><small>${item.createdAt ? escapeHtml(deviceRelativeTime(item.createdAt)) : ""}${item.errorMessage ? ` · ${escapeHtml(item.errorMessage)}` : ""}</small></span>${status(item.status)}</button>`).join("") : `<div class="suite-mini-empty"><strong>لا يوجد نشاط مسجل بعد</strong></div>`}</div></article></div>
   </section>`);
 }
 
@@ -6198,6 +6421,89 @@ function readSallaRuleDrafts() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "action-menu") {
+    state.actionMenu = state.actionMenu === target.dataset.menu ? "" : target.dataset.menu;
+    render();
+    return;
+  }
+  if (action === "campaign-filter") {
+    state.campaignStatusFilter = target.dataset.filter || "all";
+    state.actionMenu = "";
+    render();
+    return;
+  }
+  if (action === "channels-reload") {
+    state.channelsOverview = null;
+    syncRouteData(true);
+    render();
+    return;
+  }
+  if (["campaign-details", "campaign-preview", "campaign-review", "campaign-report"].includes(action)) {
+    const item = (state.campaignsOverview?.items || []).find((row) => row.id === target.dataset.id);
+    if (!item) return toast("تعذر العثور على الحملة.", "warning");
+    const current = campaignStatusPresentation(item);
+    const sent = Number(item.sentCount || 0);
+    const delivered = Number(item.deliveredCount || 0);
+    return openDrawer(action === "campaign-report" ? "تقرير الحملة" : action === "campaign-review" ? "حالة مراجعة Meta" : action === "campaign-preview" ? "معاينة الحملة" : "تفاصيل الحملة", `<div class="suite-detail-drawer"><div class="suite-detail-title"><span>${dashboardIcon(item.channel === "email" ? "email" : "whatsapp")}</span><div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.description || "حملة محفوظة")}</p></div>${suiteStatusBadge(item)}</div><dl><div><dt>القناة</dt><dd>${item.channel === "email" ? "البريد الإلكتروني" : "واتساب الرسمية"}</dd></div><div><dt>الجمهور المؤهل</dt><dd>${suiteNumber(item.eligibleRecipients)}</dd></div><div><dt>موعد الإرسال</dt><dd>${item.scheduledFor ? new Date(item.scheduledFor).toLocaleString("ar-SA") : "لم يُحدد"}</dd></div><div><dt>تم الإرسال</dt><dd>${suiteNumber(sent)}</dd></div><div><dt>تم التسليم</dt><dd>${suiteNumber(delivered)}</dd></div><div><dt>معدل التسليم</dt><dd>${suiteRate(sent ? (delivered / sent) * 100 : null, sent > 0)}</dd></div>${item.templateName ? `<div><dt>قالب Meta</dt><dd>${escapeHtml(item.templateName)} · ${escapeHtml(current.label)}</dd></div>` : ""}</dl>${action === "campaign-review" && current.key === "rejected" ? `<div class="inline-notice warning">لم تتم الموافقة على القالب. راجع سبب Meta المسجل ثم عدّل نسخة المحتوى وأعد الإرسال.</div>` : ""}</div>`);
+  }
+  if (action === "campaign-duplicate") {
+    target.disabled = true;
+    try {
+      await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/duplicate`, { method: "POST" });
+      state.actionMenu = "";
+      state.campaignsOverview = null;
+      await syncRouteData(true);
+      toast("تم إنشاء نسخة جديدة كمسودة.");
+    } catch (error) { toast(error.message || "تعذر نسخ الحملة.", "danger"); }
+    finally { target.disabled = false; }
+    return;
+  }
+  if (action === "campaign-delete") {
+    state.actionMenu = "";
+    return openModal("حذف الحملة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيتم حذف الحملة من مساحة العمل. لا يمكن التراجع عن هذا الإجراء.</p></div>`, `<button class="btn btn-danger" data-action="confirm-campaign-delete" data-id="${escapeHtml(target.dataset.id)}">حذف الحملة</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "confirm-campaign-delete") {
+    try {
+      await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}`, { method: "DELETE" });
+      closePortal(); state.campaignsOverview = null; await syncRouteData(true); toast("تم حذف الحملة.");
+    } catch (error) { toast(error.message || "تعذر حذف الحملة.", "danger"); }
+    return;
+  }
+  if (action === "campaign-reschedule") {
+    const start = new Date(Date.now() + 5 * 60_000);
+    const local = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    return openModal("جدولة الحملة", `<form data-submit="campaign-reschedule" data-id="${escapeHtml(target.dataset.id)}" class="grid"><label class="field"><span>التاريخ والوقت</span><input class="input" name="scheduledFor" type="datetime-local" min="${local}" value="${local}" required></label><label class="field"><span>المنطقة الزمنية</span><input class="input" value="${escapeHtml(Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Riyadh")}" readonly></label><button class="btn btn-primary">حفظ الجدولة</button></form>`);
+  }
+  if (action === "campaign-pause-confirm") return openModal("إلغاء جدولة الحملة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيتم إلغاء الجدولة وإيقاف الرسائل التي لم تُرسل بعد. هل تريد المتابعة؟</p></div>`, `<button class="btn btn-danger" data-action="campaign-pause" data-id="${escapeHtml(target.dataset.id)}">إلغاء الجدولة</button><button class="btn btn-secondary" data-action="close-modal">تراجع</button>`);
+  if (action === "campaign-edit") {
+    try {
+      const payload = await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}`);
+      const item = payload.item || {};
+      return openModal("تعديل الحملة", `<form data-submit="campaign-edit" data-id="${escapeHtml(target.dataset.id)}" class="grid"><label class="field"><span>اسم الحملة</span><input class="input" name="name" value="${escapeHtml(item.name || "")}" maxlength="160" required></label><label class="field"><span>الوصف</span><input class="input" name="description" value="${escapeHtml(item.description || "")}" maxlength="600"></label>${item.channel === "email" ? `<label class="field"><span>عنوان البريد</span><input class="input" name="subject" value="${escapeHtml(item.subject || "")}" maxlength="200"></label>` : ""}<label class="field"><span>المحتوى</span><textarea class="textarea" name="body" rows="8" required>${escapeHtml(item.body || "")}</textarea></label><button class="btn btn-primary">حفظ التعديلات</button></form>`);
+    } catch (error) { toast(error.message || "تعذر تحميل الحملة.", "danger"); }
+    return;
+  }
+  if (action === "campaign-cancel-local") return openModal("إلغاء المسودة المحلية", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيتم حذف النسخة المحلية للحملة فقط. لن يُرسل أي جمهور إلى Meta.</p></div>`, `<button class="btn btn-danger" data-action="confirm-campaign-delete" data-id="${escapeHtml(target.dataset.id)}">إلغاء المسودة</button><button class="btn btn-secondary" data-action="close-modal">تراجع</button>`);
+  if (action === "campaign-test") return openModal("إرسال تجريبي", `<form class="grid" data-submit="campaign-test" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>المستلم التجريبي</span><input class="input" name="destination" required placeholder="البريد أو رقم واتساب"></label><p class="inline-notice info">لا يدخل الإرسال التجريبي ضمن إحصائية الحملة الحقيقية.</p><button class="btn btn-primary">إرسال الاختبار</button></form>`);
+  if (action === "campaign-export-one") {
+    const item = (state.campaignsOverview?.items || []).find((row) => row.id === target.dataset.id);
+    if (!item) return toast("تعذر العثور على الحملة.", "warning");
+    exportCsv(`campaign-${item.id}.csv`, [["الحملة", "القناة", "الحالة", "الجمهور", "تم الإرسال", "تم التسليم", "الفشل"], [item.name, item.channel, item.status, item.eligibleRecipients || 0, item.sentCount || 0, item.deliveredCount || 0, item.failedCount || 0]]);
+    return;
+  }
+  if (action === "message-details" || action === "channel-activity-details") {
+    const item = action === "message-details" ? (state.dashboardOverview?.recentNotifications || []).find((row) => row.id === target.dataset.id) : (state.channelsOverview?.activity || []).find((row) => row.id === target.dataset.id);
+    if (!item) return;
+    return openDrawer("تفاصيل الرسالة", `<div class="suite-detail-drawer"><dl><div><dt>القناة</dt><dd>${escapeHtml(item.channel === "email" ? "البريد الإلكتروني" : "واتساب")}</dd></div><div><dt>المستلم</dt><dd dir="ltr">${escapeHtml(item.customerName || item.recipient || item.toNumber || "—")}</dd></div><div><dt>الحالة</dt><dd>${status(item.status)}</dd></div><div><dt>وقت الإرسال</dt><dd>${item.sentAt || item.createdAt ? new Date(item.sentAt || item.createdAt).toLocaleString("ar-SA") : "—"}</dd></div>${item.errorMessage ? `<div><dt>سبب الفشل</dt><dd>${escapeHtml(item.errorMessage)}</dd></div>` : ""}</dl></div>`);
+  }
+  if (action === "customer-export-dialog") return openModal("تصدير العملاء", `<form data-submit="customer-export" class="grid"><label class="field"><span>النطاق</span><select class="select" name="scope"><option value="all">كل العملاء</option><option value="current">النتائج الحالية</option><option value="selected" ${(state.customerSelection || []).length ? "" : "disabled"}>المحددون فقط</option></select></label><label class="field"><span>الصيغة</span><select class="select" name="format"><option value="csv">CSV</option><option value="xlsx">XLSX</option></select></label><button class="btn btn-primary">تجهيز الملف</button></form>`);
+  if (action === "export-report-dialog") return openModal("تصدير التقرير", `<form data-submit="report-export" class="grid"><div class="suite-export-summary"><span>الفترة: آخر 30 يومًا</span><span>القناة: جميع القنوات</span><span>التقرير: الأداء العام</span></div><label class="field"><span>الصيغة</span><select class="select" name="format"><option value="csv">CSV</option><option value="pdf">PDF</option><option value="xlsx">XLSX</option></select></label><label class="setting-line"><span>تضمين التفاصيل اليومية</span><input type="checkbox" name="daily" checked></label><button class="btn btn-primary">تصدير</button></form>`);
+  if (action === "email-channel-details" || action === "email-domain-details" || action === "email-sender-details") {
+    const email = state.channelsOverview?.channels?.email || {};
+    return openDrawer("إدارة البريد الإلكتروني", `<div class="suite-detail-drawer"><div class="suite-detail-title"><span>${dashboardIcon("email")}</span><div><h3>قناة البريد الإلكتروني</h3><p>${email.connected ? "القناة مفعلة بعنوان إرسال موثق." : "القناة غير مهيأة بعد."}</p></div></div><dl><div><dt>عنوان المرسل</dt><dd dir="ltr">${escapeHtml(email.sender || "غير مضاف")}</dd></div><div><dt>النطاق</dt><dd dir="ltr">${escapeHtml(email.domain || "غير موثق")}</dd></div><div><dt>الحالة</dt><dd>${email.connected ? "مفعلة وموثقة" : "تحتاج إعدادًا على الخادم"}</dd></div></dl></div>`);
+  }
+  if (action === "email-test") return openModal("اختبار قناة البريد", `<form data-submit="email-channel-test" class="grid"><label class="field"><span>بريد الاختبار</span><input class="input" type="email" name="email" required></label><button class="btn btn-primary">إرسال اختبار</button></form>`);
+  if (action === "disconnect-channel-confirm" || action === "email-disconnect-confirm") return openModal("فصل القناة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيؤدي فصل القناة إلى إيقاف الحملات والعمليات المستقبلية المرتبطة بها. هل تريد المتابعة؟</p></div>`, `<button class="btn btn-danger" data-action="${action === "disconnect-channel-confirm" ? "disconnect-device" : "close-modal"}">تأكيد الفصل</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
   if (action === "auth-display-toggle") {
     state.authDisplayOpen = !state.authDisplayOpen;
     render();
@@ -6374,7 +6680,7 @@ async function handleAction(target) {
     catch(error){if(error.usage)showMessageQuotaLimit(error.usage);else toast(error.message||"تعذر بدء الحملة","danger");} return;
   }
   if (action === "campaign-pause") {
-    try { await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/pause`,{method:"POST"});state.campaignsOverview=null;state.messageUsage=null;await syncRouteData(true);toast("تم إيقاف الحملة وإعادة الرصيد المحجوز غير المستخدم"); }
+    try { await fetchJson(`/api/campaigns/${encodeURIComponent(target.dataset.id)}/pause`,{method:"POST"});closePortal();state.actionMenu="";state.campaignsOverview=null;state.messageUsage=null;await syncRouteData(true);toast("تم إيقاف الحملة وإعادة الرصيد المحجوز غير المستخدم"); }
     catch(error){toast(error.message||"تعذر إيقاف الحملة","danger");} return;
   }
   if (action === "reload-salla-templates") {
@@ -7509,7 +7815,8 @@ async function handleAction(target) {
   }
   if (action === "customer-timeline") {
     try {
-      const payload = await fetchJson(`/api/customers/${target.dataset.customerId}/timeline`);
+      const customerId = target.dataset.customerId || target.dataset.id;
+      const payload = await fetchJson(`/api/customers/${encodeURIComponent(customerId)}/timeline`);
       const content = payload.items.length ? payload.items.map((item) => `<div class="timeline-item"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.createdAt)}</small></div>`).join("") : `<p class="muted">لا يوجد نشاط مسجل</p>`;
       openDrawer("Timeline العميل", `<div class="timeline">${content}</div>`);
     } catch (error) { toast(error.message, "danger"); }
@@ -7581,6 +7888,40 @@ async function handleAction(target) {
     const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
     if (row) openDrawer("تفاصيل العميل", `<div class="customer-detail"><h3>${escapeHtml(row.name)}</h3><p>${escapeHtml(row.email || "لا يوجد بريد")}</p><p>${escapeHtml(row.phone || "لا يوجد رقم")}</p><div class="grid grid-2"><div class="mini-stat"><span>الاشتراكات</span><strong>${row.subscriptionCount || 0}</strong></div><div class="mini-stat"><span>القيمة</span><strong>${formatMoney(row.totalValue || 0)}</strong></div></div><button class="btn btn-secondary" data-action="customer-timeline" data-customer-id="${row.id}">عرض Timeline</button></div>`);
   }
+  if (action === "customer-subscriptions") {
+    return navigate(`/dashboard/subscriptions?customer=${encodeURIComponent(target.dataset.id)}`);
+  }
+  if (action === "customer-message") {
+    const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
+    if (!row) return toast("تعذر العثور على سجل العميل", "danger");
+    return openModal("إرسال رسالة للعميل", `<div class="suite-contact-send"><span class="suite-channel-logo whatsapp">${dashboardIcon("send")}</span><h3>${escapeHtml(row.name)}</h3><p>أنشئ حملة موجهة من القناة المناسبة، مع مراجعة القالب والموافقة قبل الإرسال.</p><dl>${row.email ? `<div><dt>البريد الإلكتروني</dt><dd dir="ltr">${escapeHtml(row.email)}</dd></div>` : ""}${row.phone ? `<div><dt>رقم الجوال</dt><dd dir="ltr">${escapeHtml(row.phone)}</dd></div>` : ""}</dl><div class="inline-actions"><button class="btn btn-primary" data-action="campaign-create">إنشاء حملة</button><button class="btn btn-secondary" data-link="/dashboard/channels">مراجعة القنوات</button></div></div>`);
+  }
+  if (action === "customer-archive") {
+    const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
+    return openModal("أرشفة العميل", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيصبح ${escapeHtml(row?.name || "هذا العميل")} غير نشط، ويمكن إعادة تنشيطه لاحقًا من التعديل.</p></div>`, `<button class="btn btn-danger" data-action="customer-archive-confirm" data-id="${escapeHtml(target.dataset.id)}">تأكيد الأرشفة</button><button class="btn btn-secondary" data-action="close-modal">تراجع</button>`);
+  }
+  if (action === "customer-archive-confirm") {
+    try {
+      await fetchJson(`/api/customers/${encodeURIComponent(target.dataset.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "inactive" }) });
+      closePortal(); state.actionMenu = ""; state.dbCustomers = null; state.dashboardOverview = null;
+      await syncRouteData(true); toast("تمت أرشفة العميل ويمكن إعادة تنشيطه لاحقًا");
+    } catch (error) { toast(error.message || "تعذرت أرشفة العميل", "danger"); }
+    return;
+  }
+  if (action === "customer-bulk-archive") {
+    const count = state.customerSelection.size;
+    if (!count) return toast("حدد عميلًا واحدًا على الأقل", "warning");
+    return openModal("أرشفة العملاء المحددين", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيتم تحويل ${suiteNumber(count)} من العملاء إلى حالة غير نشط دون حذف بياناتهم.</p></div>`, `<button class="btn btn-danger" data-action="customer-bulk-archive-confirm">تأكيد الأرشفة</button><button class="btn btn-secondary" data-action="close-modal">تراجع</button>`);
+  }
+  if (action === "customer-bulk-archive-confirm") {
+    const ids = [...state.customerSelection];
+    try {
+      await Promise.all(ids.map((id) => fetchJson(`/api/customers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "inactive" }) })));
+      closePortal(); state.customerSelection.clear(); state.dbCustomers = null; state.dashboardOverview = null;
+      await syncRouteData(true); toast(`تمت أرشفة ${suiteNumber(ids.length)} من العملاء`);
+    } catch (error) { toast(error.message || "تعذرت أرشفة بعض العملاء", "danger"); }
+    return;
+  }
   if (action === "customer-edit-db") {
     const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
     if (row) openModal("تعديل عميل", customerForm(row, row.id));
@@ -7597,9 +7938,9 @@ async function handleAction(target) {
     } catch (error) { toast(error.message || "تعذر حذف العميل", "danger"); }
   }
   if (action === "send-message") {
-    if (!overviewStats().connectedDevices) return toast("اربط جهازًا أولًا حتى تتمكن من إرسال التنبيهات.", "warning");
-    await navigate("/dashboard/devices");
-    toast("استخدم زر إرسال رسالة اختبار من الجهاز المتصل.", "info");
+    if (!overviewStats().connectedDevices) return toast("اربط قناة واتساب أولًا حتى تتمكن من إرسال التنبيهات.", "warning");
+    await navigate("/dashboard/channels");
+    toast("استخدم زر إرسال رسالة اختبار من القناة المتصلة.", "info");
   }
   if (action === "import-unsubscribes") openModal("استيراد قائمة الإيقاف", `<form data-submit="unsubscribe-import" class="grid"><label class="field"><span>رقم في كل سطر</span><textarea class="textarea spreadsheet-input" name="text" required placeholder="9665XXXXXXXX"></textarea></label><button class="btn btn-primary">استيراد القائمة</button></form>`);
   if (action === "policy-details" || action === "review-risks") {
@@ -7918,6 +8259,57 @@ async function handleSubmit(form, event) {
       toast(error.message || "تعذرت جدولة رسالة الاختبار.", "danger");
       setSubmitBusy(button, false, "جدولة رسالة الاختبار");
     }
+    return;
+  }
+  if (type === "campaign-reschedule") {
+    const scheduledFor = new Date(data.scheduledFor);
+    if (Number.isNaN(scheduledFor.getTime())) return toast("تحقق من تاريخ ووقت الجدولة.", "warning");
+    try {
+      await fetchJson(`/api/campaigns/${encodeURIComponent(form.dataset.id)}/schedule`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduledFor: scheduledFor.toISOString() }) });
+      closePortal(); state.campaignsOverview = null; await syncRouteData(true); toast("تم حفظ موعد الحملة.");
+    } catch (error) { toast(error.message || "تعذر جدولة الحملة.", "danger"); }
+    return;
+  }
+  if (type === "campaign-edit") {
+    try {
+      await fetchJson(`/api/campaigns/${encodeURIComponent(form.dataset.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: data.name, description: data.description || null, subject: data.subject || null, body: data.body }) });
+      closePortal(); state.campaignsOverview = null; await syncRouteData(true); toast("تم حفظ تعديلات الحملة.");
+    } catch (error) { toast(error.message || "تعذر حفظ الحملة.", "danger"); }
+    return;
+  }
+  if (type === "campaign-test") {
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري إرسال الاختبار...");
+    try {
+      await fetchJson(`/api/campaigns/${encodeURIComponent(form.dataset.id)}/test`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destination: data.destination }) });
+      closePortal(); toast("قبل مزود القناة رسالة الاختبار بنجاح.");
+    } catch (error) { toast(error.message || "تعذر إرسال الاختبار.", "danger"); setSubmitBusy(button, false, "إرسال الاختبار"); }
+    return;
+  }
+  if (type === "customer-export") {
+    if (data.format !== "csv") return toast("تصدير XLSX غير مهيأ في هذه البيئة. اختر CSV.", "warning");
+    const selected = new Set(state.customerSelection || []);
+    const rows = (Array.isArray(state.dbCustomers) ? state.dbCustomers : []).filter((row) => data.scope !== "selected" || selected.has(row.id));
+    if (!rows.length) return toast("لا توجد بيانات لتصديرها.", "warning");
+    exportCsv("customers.csv", [["الاسم", "البريد", "الهاتف", "الحالة", "عدد الاشتراكات"], ...rows.map((row) => [row.name, row.email || "", row.phone || "", row.status, row.subscriptionCount || 0])]);
+    closePortal();
+    return;
+  }
+  if (type === "report-export") {
+    if (data.format !== "csv") return toast("اختر CSV للتصدير الفوري. صيغ PDF وXLSX تتطلب خدمة التقارير الخلفية.", "warning");
+    const metrics = state.channelsOverview?.summary || {};
+    const rows = [["المؤشر", "القيمة"], ["إجمالي الرسائل", metrics.totalMessages || 0], ["تم الإرسال", metrics.sent || 0], ["تم التسليم", metrics.delivered || 0], ["فشل", metrics.failed || 0], ["معدل التسليم", metrics.deliveryRate ?? "—"], ["معدل الفتح", metrics.openRate ?? "—"]];
+    if (form.elements.daily?.checked) rows.push([], ["التاريخ", "تم الإرسال", "تم التسليم"], ...(state.channelsOverview?.dailyPerformance || []).map((row) => [String(row.day || "").slice(0, 10), row.sent || 0, row.delivered || 0]));
+    exportCsv("renvix-report.csv", rows); closePortal();
+    return;
+  }
+  if (type === "email-channel-test") {
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, "جاري إرسال الاختبار...");
+    try {
+      await fetchJson("/api/channels/email/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: data.email }) });
+      closePortal(); toast("تم إرسال بريد الاختبار عبر القناة الموثقة.");
+    } catch (error) { toast(error.message || "تعذر إرسال بريد الاختبار.", "danger"); setSubmitBusy(button, false, "إرسال اختبار"); }
     return;
   }
   if (type === "campaign-create") {
@@ -8844,6 +9236,7 @@ function render() {
       "/dashboard/templates": templatesCatalogPage,
       "/dashboard/campaigns": campaignsPage,
       "/dashboard/contacts": contactsPage,
+      "/dashboard/channels": devicesWorkspacePage,
       "/dashboard/devices": devicesWorkspacePage,
       "/dashboard/order-links": orderLinksWorkspacePage,
       "/dashboard/apps": appsPage,
@@ -9191,12 +9584,17 @@ document.addEventListener("click", (event) => {
     document.querySelector('[data-action="global-search"]')?.setAttribute("aria-expanded", "false");
   }
   const link = event.target.closest("[data-link]");
+  const action = event.target.closest("[data-action]");
+  if (state.actionMenu && !event.target.closest(".suite-menu-cell,.suite-channel-actions") && !link && !action) {
+    state.actionMenu = "";
+    render();
+    return;
+  }
   if (link) {
     event.preventDefault();
     navigate(link.dataset.link);
     return;
   }
-  const action = event.target.closest("[data-action]");
   if (action) {
     if ((action.classList.contains("modal-overlay") || action.classList.contains("drawer-overlay")) && event.target !== action) return;
     handleAction(action);
@@ -9383,6 +9781,16 @@ document.addEventListener("input", (event) => {
     });
     return;
   }
+  if (target.dataset.action === "campaign-search") {
+    state.search = target.value;
+    render();
+    requestAnimationFrame(() => {
+      const input = document.querySelector('[data-action="campaign-search"]');
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+    return;
+  }
   if (target.dataset.orderField) {
     const value = target.type === "checkbox" ? target.checked : target.dataset.orderField === "logoBorderRadius" ? safeStoreLogoRadius(target.value) : target.value;
     state.orderLinkDraft[target.dataset.orderField] = value;
@@ -9406,6 +9814,34 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "campaign-channel-filter") {
+    state.campaignChannelFilter = target.value || "all";
+    render();
+    return;
+  }
+  if (target.dataset.action === "campaign-status-filter") {
+    state.campaignStatusFilter = target.value || "all";
+    render();
+    return;
+  }
+  if (target.dataset.action === "report-channel-filter") {
+    state.reportChannelFilter = target.value || "all";
+    render();
+    return;
+  }
+  if (target.dataset.action === "customer-select") {
+    const selected = new Set(state.customerSelection || []);
+    if (target.checked) selected.add(target.dataset.id); else selected.delete(target.dataset.id);
+    state.customerSelection = [...selected];
+    render();
+    return;
+  }
+  if (target.dataset.action === "customer-select-all") {
+    const rows = filterRows(Array.isArray(state.dbCustomers) ? state.dbCustomers : [], ["name", "email", "phone", "serviceName", "status"]);
+    state.customerSelection = target.checked ? rows.map((row) => row.id) : [];
+    render();
+    return;
+  }
   if (target.name === "whatsappImageEnabled") {
     const form = target.closest('form[data-submit="salla-automation-template"]');
     const editor = form?.querySelector("[data-salla-whatsapp-image-editor]");

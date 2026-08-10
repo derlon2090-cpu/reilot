@@ -20,14 +20,24 @@ export async function GET(request) {
   if (search) { values.push(`%${search.toLowerCase()}%`); where.push(`lower(name) LIKE $${values.length}`); }
   values.push(limit, (page - 1) * limit);
   const [campaigns, stats, activity, channels, groups, templates, metaTemplates] = await Promise.all([
-    query(`SELECT id,name,description,channel,status,subject,schedule_mode AS "scheduleMode",scheduled_for AS "scheduledFor",
-                  total_recipients AS "totalRecipients",eligible_recipients AS "eligibleRecipients",queued_count AS "queuedCount",
-                  sent_count AS "sentCount",delivered_count AS "deliveredCount",read_count AS "readCount",failed_count AS "failedCount",
-                  skipped_count AS "skippedCount",charged_credits AS "chargedCredits",created_at AS "createdAt",updated_at AS "updatedAt",
+    query(`SELECT c.id,c.name,c.description,c.channel,c.status,c.subject,c.schedule_mode AS "scheduleMode",c.scheduled_for AS "scheduledFor",
+                  c.total_recipients AS "totalRecipients",c.eligible_recipients AS "eligibleRecipients",c.queued_count AS "queuedCount",
+                  c.sent_count AS "sentCount",c.delivered_count AS "deliveredCount",c.read_count AS "readCount",c.failed_count AS "failedCount",
+                  c.skipped_count AS "skippedCount",c.charged_credits AS "chargedCredits",c.created_at AS "createdAt",c.updated_at AS "updatedAt",
+                  mt.local_status AS "templateStatus",mt.meta_status AS "metaStatus",mt.display_name AS "templateName",
                   count(*) OVER()::int AS "totalCount"
-             FROM campaigns WHERE ${where.join(" AND ")} ORDER BY created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values),
+             FROM campaigns c LEFT JOIN meta_message_templates mt ON mt.id=c.meta_template_id AND mt.tenant_id=c.tenant_id
+            WHERE ${where.map((clause) => clause.replace(/^tenant_id/, "c.tenant_id").replace(/^status/, "c.status").replace(/^channel/, "c.channel").replace(/lower\(name\)/, "lower(c.name)")).join(" AND ")}
+            ORDER BY c.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values),
     query(`SELECT count(*)::int AS total,
                   count(*) FILTER (WHERE status IN ('scheduled','queueing','sending'))::int AS active,
+                  count(*) FILTER (WHERE status='draft')::int AS draft,
+                  count(*) FILTER (WHERE status='scheduled')::int AS scheduled,
+                  count(*) FILTER (WHERE status='ready')::int AS approved,
+                  count(*) FILTER (WHERE EXISTS (
+                    SELECT 1 FROM meta_message_templates mt WHERE mt.id=campaigns.meta_template_id
+                      AND (upper(COALESCE(mt.meta_status,'')) IN ('PENDING','IN_APPEAL') OR mt.local_status='pending')
+                  ))::int AS "inReview",
                   COALESCE(sum(sent_count) FILTER (WHERE created_at >= date_trunc('month',now())),0)::int AS "messagesThisMonth",
                   COALESCE(sum(delivered_count),0)::int AS delivered,
                   COALESCE(sum(sent_count),0)::int AS sent,

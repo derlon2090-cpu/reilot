@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260810-auth-artwork-v17" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260810-user-suite-v1" />
       </head>
       <body>{children}</body>
     </html>

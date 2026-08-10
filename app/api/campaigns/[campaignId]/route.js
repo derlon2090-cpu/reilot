@@ -37,3 +37,17 @@ export async function PATCH(request, { params }) {
   await query(`INSERT INTO activity_logs(tenant_id,user_id,type,title,metadata) VALUES($1,$2,'campaign.updated','Campaign updated',$3::jsonb)`, [auth.session.tenantId,auth.session.userId,JSON.stringify({campaignId})]);
   return Response.json({ok:true,item:result.rows[0]});
 }
+
+export async function DELETE(request, { params }) {
+  const auth = await requireSession(request); if (!auth.ok) return auth.response;
+  if (!sameOriginRequest(request)) return Response.json({ ok: false, reason: "invalid_origin" }, { status: 403 });
+  const { campaignId } = await params;
+  const current = await query(`SELECT id,name,status FROM campaigns WHERE tenant_id=$1 AND id=$2`, [auth.session.tenantId, campaignId]);
+  if (!current.rowCount) return Response.json({ ok: false, reason: "not_found" }, { status: 404 });
+  if (!["draft", "ready", "paused", "completed", "cancelled", "failed"].includes(current.rows[0].status)) {
+    return Response.json({ ok: false, reason: "campaign_locked", message: "أوقف الحملة أو ألغِ جدولتها قبل حذفها." }, { status: 409 });
+  }
+  await query(`DELETE FROM campaigns WHERE tenant_id=$1 AND id=$2`, [auth.session.tenantId, campaignId]);
+  await query(`INSERT INTO activity_logs(tenant_id,user_id,type,title,metadata) VALUES($1,$2,'campaign.deleted','Campaign deleted',$3::jsonb)`, [auth.session.tenantId, auth.session.userId, JSON.stringify({ campaignId, name: current.rows[0].name })]);
+  return Response.json({ ok: true });
+}
