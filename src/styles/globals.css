@@ -8457,7 +8457,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-integrations{top:151px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:33px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:18px!important;width:224px;height:126px;min-height:126px!important;padding:10px;overflow:hidden}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:4px!important;width:224px;height:126px;min-height:126px!important;padding:10px;overflow:hidden}
   .marketing-home-v3 .home-ops-scene--hero .ops-live-feed{gap:2px;margin-top:4px}
   .marketing-home-v3 .home-ops-scene--hero .ops-live-feed>span{min-height:20px;grid-template-columns:14px minmax(0,1fr) auto;gap:3px;padding:3px;font-size:6px}
   .marketing-home-v3 .home-ops-scene--hero .ops-live-feed b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -8480,13 +8480,15 @@ input[type="password"]::-webkit-textfield-decoration-container {
     filter:drop-shadow(0 6px 10px rgba(3,78,70,.12));
   }
   .marketing-home-v3 .home-ops-scene--hero.is-in-view .home-ops-mark{animation:homeOpsMarkFloat 4.2s ease-in-out infinite}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::before{z-index:-3;bottom:-43px;width:82%;height:34px;opacity:.42}
-  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::after{z-index:-2;bottom:-27px;width:98%;height:23px;opacity:.52}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::before{z-index:-3;bottom:-18px;width:76%;height:22px;opacity:.34}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-center::after{z-index:-2;bottom:-8px;width:90%;height:15px;opacity:.44}
   .marketing-home-v3 .home-ops-card header{min-height:30px;align-items:center;gap:8px}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals{height:114px;min-height:114px;overflow:hidden}
   .marketing-home-v3 .home-ops-scene--hero .ops-automation{height:112px;min-height:112px;overflow:hidden}
   .marketing-home-v3 .home-ops-scene--hero .ops-reminders{height:188px;min-height:188px}
   .marketing-home-v3 .home-ops-scene--hero .ops-integrations{height:152px;min-height:152px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header{position:relative;padding-inline-start:37px}
+  .marketing-home-v3 .home-ops-scene--hero .ops-renewals>header>span{position:absolute;top:0;inset-inline-start:0}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>svg{position:absolute;left:10px;bottom:12px;margin:0}
   .marketing-home-v3 .home-ops-scene--hero .ops-renewals>em{position:absolute;right:11px;bottom:10px}
   .marketing-home-v3 .home-ops-card header>span{
@@ -8527,6 +8529,9 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:146px!important;width:136px!important;height:136px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{width:96px!important}
+  .marketing-home-v3 .home-ops-scene--hero .home-ops-card{width:160px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-automation{width:164px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-live{width:188px!important}
 
   .public-site .public-nav{min-height:76px}
   .public-site .public-nav .nav-inner{
@@ -8604,4 +8609,130 @@ input[type="password"]::-webkit-textfield-decoration-container {
 @media (min-width:641px) and (max-width:1180px){
   .public-site .nav-inner>.brand{transform:translateX(6px)}
   .public-site .nav-actions{gap:6px}
+}
+
+/* Final marketing alignment: keep the RTL hero actions directly under the copy. */
+@media (min-width:901px){
+  .marketing-home-v3 .marketing-v3-copy .hero-actions{
+    margin-inline-start:0;
+    margin-inline-end:auto;
+  }
+}
+
+/* Footer controls mirror the Arabic reference without reversing the input content. */
+.public-footer.marketing-footer .marketing-footer-newsletter form{direction:ltr}
+.public-footer.marketing-footer .marketing-footer-newsletter label{direction:rtl}
+.public-footer.marketing-footer .marketing-footer-newsletter input{text-align:right;border-radius:8px 0 0 8px}
+.public-footer.marketing-footer .marketing-footer-newsletter form button{border-radius:0 8px 8px 0}
+.public-footer.marketing-footer .footer-social a[aria-label="YouTube"]{background:rgba(255,255,255,.06)}
+.public-footer.marketing-footer .footer-social a[aria-label="YouTube"] .line-icon path:first-child{fill:#063f3b}
+.public-footer.marketing-footer .footer-social a[aria-label="YouTube"] .line-icon path:last-child{fill:#fff}
+
+/* Editorial blog composition: editor rail, hero story, five latest cards. */
+.marketing-blog-v3 .marketing-v3-heading h2{font-size:clamp(38px,4.2vw,56px)}
+.marketing-blog-v3 .blog-v3-search{display:none}
+.marketing-blog-v3 .blog-v3-toolbar{margin-bottom:18px}
+.marketing-blog-v3 .blog-v3-toolbar .chips{gap:12px}
+.marketing-blog-v3 .blog-v3-toolbar .chip{
+  display:flex;
+  min-height:44px;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:800;
+}
+.marketing-blog-v3 .blog-v3-toolbar .chip .icon{width:17px;height:17px}
+.marketing-blog-v3 .blog-v3-lead-layout{
+  display:grid;
+  grid-template-columns:330px minmax(0,1fr);
+  grid-template-areas:"rail feature";
+  gap:18px;
+  align-items:stretch;
+  direction:ltr;
+}
+.marketing-blog-v3 .blog-v3-side-rail{grid-area:rail;display:grid;align-content:start;gap:9px;direction:rtl}
+.marketing-blog-v3 .blog-v3-side-rail>h2{margin:0;color:#0a4641;font-size:15px}
+.marketing-blog-v3 .blog-v3-side-list{gap:9px}
+.marketing-blog-v3 .blog-v3-side-list button{
+  grid-template-columns:minmax(0,1fr) 118px;
+  grid-template-areas:"copy media";
+  min-height:93px;
+  gap:11px;
+  padding:9px;
+  direction:ltr;
+  box-shadow:0 8px 20px rgba(5,69,63,.055);
+}
+.marketing-blog-v3 .blog-v3-side-list img{grid-area:media;width:118px;height:74px}
+.marketing-blog-v3 .blog-v3-side-list span{grid-area:copy;align-content:center;direction:rtl}
+.marketing-blog-v3 .blog-v3-side-list strong{color:#103f3b;font-size:12px}
+.marketing-blog-v3 .blog-v3-featured{
+  grid-area:feature;
+  grid-template-columns:.78fr 1.22fr;
+  grid-template-areas:"copy media";
+  min-height:315px;
+  direction:ltr;
+}
+.marketing-blog-v3 .blog-v3-featured-media{grid-area:media;order:initial;min-height:315px}
+.marketing-blog-v3 .blog-v3-featured>div:last-child{grid-area:copy;order:initial;padding:30px;direction:rtl}
+.marketing-blog-v3 .blog-v3-featured h1{font-size:28px}
+.marketing-blog-v3 .blog-v3-latest--full{margin-top:22px}
+.marketing-blog-v3 .blog-v3-grid--full{grid-template-columns:repeat(5,minmax(0,1fr))}
+.marketing-blog-v3 .blog-v3-grid--full .blog-art{height:128px}
+.marketing-blog-v3 .blog-v3-grid--full .blog-v3-card{min-width:0}
+.marketing-blog-v3 .blog-v3-grid--full .blog-v3-card h3{font-size:14px;line-height:1.55}
+.marketing-blog-v3 .blog-v3-grid--full .blog-v3-card p{font-size:11px;line-height:1.65}
+
+/* Corporate resource pages: unique outcomes, audiences, process and action. */
+.marketing-resource-page .resource-hero{
+  background:radial-gradient(circle at 14% 20%,rgba(84,221,201,.13),transparent 28%),radial-gradient(circle at 88% 72%,rgba(84,221,201,.1),transparent 30%),linear-gradient(180deg,#f8fdfc,#fff);
+}
+.marketing-resource-page .resource-card-grid>article{animation-delay:var(--resource-delay,0s)}
+.marketing-resource-page .resource-insight-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);
+  gap:18px;
+  margin-top:24px;
+}
+.marketing-resource-page .resource-outcomes,.marketing-resource-page .resource-audience{
+  padding:30px;
+  border:1px solid rgba(7,111,101,.1);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 14px 36px rgba(5,77,70,.07);
+}
+.marketing-resource-page .resource-outcomes>span,.marketing-resource-page .resource-audience>span{color:#078f80;font-size:12px;font-weight:900}
+.marketing-resource-page .resource-outcomes h2,.marketing-resource-page .resource-audience h2{margin:7px 0 20px;color:#093f3b;font-size:25px}
+.marketing-resource-page .resource-outcomes ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}
+.marketing-resource-page .resource-outcomes li{display:flex;min-height:56px;align-items:center;gap:10px;padding:12px 14px;border-radius:13px;color:#315b56;background:#f0faf8}
+.marketing-resource-page .resource-outcomes li .icon{flex:0 0 20px;width:20px;height:20px;color:#0aa18f}
+.marketing-resource-page .resource-outcomes li strong{font-size:13px;line-height:1.55}
+.marketing-resource-page .resource-audience{color:#fff;background:linear-gradient(145deg,#08675f,#053e3b)}
+.marketing-resource-page .resource-audience>span{color:#99e6dc}
+.marketing-resource-page .resource-audience h2{color:#fff}
+.marketing-resource-page .resource-audience>div{display:grid;gap:10px}
+.marketing-resource-page .resource-audience p{display:flex;align-items:center;gap:11px;margin:0;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;color:#e5f5f2;background:rgba(255,255,255,.065);font-size:13px;font-weight:750}
+.marketing-resource-page .resource-audience p b{display:grid;width:30px;height:30px;place-items:center;border-radius:9px;color:#064b45;background:#b9f3ea;font-size:11px}
+
+@media (max-width:1180px){
+  .marketing-blog-v3 .blog-v3-lead-layout{grid-template-columns:285px minmax(0,1fr)}
+  .marketing-blog-v3 .blog-v3-featured{grid-template-columns:.9fr 1.1fr}
+  .marketing-blog-v3 .blog-v3-featured>div:last-child{padding:24px}
+  .marketing-blog-v3 .blog-v3-featured h1{font-size:24px}
+  .marketing-blog-v3 .blog-v3-side-list button{grid-template-columns:minmax(0,1fr) 100px}
+  .marketing-blog-v3 .blog-v3-side-list img{width:100px}
+  .marketing-blog-v3 .blog-v3-grid--full{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+@media (max-width:900px){
+  .marketing-resource-page .resource-insight-grid{grid-template-columns:1fr}
+}
+
+@media (max-width:820px){
+  .marketing-blog-v3 .blog-v3-lead-layout{grid-template-columns:1fr;grid-template-areas:"feature" "rail"}
+  .marketing-blog-v3 .blog-v3-side-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .marketing-blog-v3 .blog-v3-side-list button{grid-template-columns:1fr;grid-template-areas:"media" "copy"}
+  .marketing-blog-v3 .blog-v3-side-list img{width:100%;height:100px}
+  .marketing-resource-page .resource-outcomes ul{grid-template-columns:1fr}
 }

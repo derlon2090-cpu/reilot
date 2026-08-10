@@ -1699,20 +1699,21 @@ function initMarketingMotion() {
       const cardY = nodeRect.top - networkRect.top + nodeRect.height / 2;
       const cardIsLeft = nodeCenterX < centerX;
       const cardX = cardIsLeft ? nodeRect.right - networkRect.left : nodeRect.left - networkRect.left;
+      const direction = cardIsLeft ? 1 : -1;
+      const terminalX = cardX + direction * 5;
       const normalizedY = Math.max(-1, Math.min(1, (cardY - centerY) / Math.max(1, height * .43)));
       const hubY = centerY + normalizedY * radius * .72;
       const hubYOffset = hubY - centerY;
       const hubXOffset = Math.sqrt(Math.max(0, radius * radius - hubYOffset * hubYOffset));
       const hubX = centerX + (cardIsLeft ? -hubXOffset : hubXOffset);
-      const distance = Math.abs(hubX - cardX);
-      const direction = cardIsLeft ? 1 : -1;
-      const controlOneX = cardX + direction * distance * .38;
+      const distance = Math.abs(hubX - terminalX);
+      const controlOneX = terminalX + direction * distance * .38;
       const controlTwoX = hubX - direction * distance * .34;
-      const path = `M ${cardX} ${cardY} C ${controlOneX} ${cardY}, ${controlTwoX} ${hubY}, ${hubX} ${hubY}`;
+      const path = `M ${terminalX} ${cardY} C ${controlOneX} ${cardY}, ${controlTwoX} ${hubY}, ${hubX} ${hubY}`;
       line.querySelectorAll("path").forEach((item) => item.setAttribute("d", path));
       const cardTerminal = line.querySelector(".flow-terminal-card");
       const centerTerminal = line.querySelector(".flow-terminal-center");
-      cardTerminal?.setAttribute("cx", cardX);
+      cardTerminal?.setAttribute("cx", terminalX);
       cardTerminal?.setAttribute("cy", cardY);
       centerTerminal?.setAttribute("cx", hubX);
       centerTerminal?.setAttribute("cy", hubY);
@@ -2081,11 +2082,20 @@ function marketingPricingPage() {
 
 function blogPage() {
   const query = state.search.trim().toLowerCase();
-  const posts = publicBlogPosts.filter((post) => (state.blogCategory === "الكل" || post.category === state.blogCategory) && (!query || `${localizedField(post.title)} ${localizedField(post.excerpt)}`.toLowerCase().includes(query)));
+  const categoryForPost = (post) => {
+    if (["whatsapp-messages", "safe-whatsapp"].includes(post.slug)) return "واتساب Meta";
+    if (["quick-start-guide", "integrations-settings-guide"].includes(post.slug)) return "أدلة الاستخدام";
+    if (["renewal-strategies", "renewal-guide"].includes(post.slug)) return "الحملات";
+    if (post.slug === "billing-payments-guide") return "التجارة الإلكترونية";
+    return "النمو والتحليلات";
+  };
+  const activeCategory = ["الكل", "آخر التحديثات"].includes(state.blogCategory) ? "آخر التحديثات" : state.blogCategory;
+  const posts = publicBlogPosts.filter((post) => (activeCategory === "آخر التحديثات" || categoryForPost(post) === activeCategory) && (!query || `${localizedField(post.title)} ${localizedField(post.excerpt)}`.toLowerCase().includes(query)));
   const featured = posts[0];
-  const categoryTabs = ["الكل", "أدلة المساعدة", "النصائح", "التجديدات", "التقارير", "الحماية"];
-  return publicShell(`<main class="marketing-v3 marketing-blog-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المدونة", "Blog"), localizedCopy("مقالات وأدلة تفصيلية، تحديثات المنتج، وأفكار عملية تساعدك على النمو مع Renvix.", "Practical articles, product updates, and guides to help you grow with Renvix."))}<div class="blog-v3-toolbar" data-reveal><div class="chips">${categoryTabs.map((item) => `<button class="chip ${state.blogCategory === item ? "active" : ""}" data-action="blog-category" data-category="${item}">${item}</button>`).join("")}</div><label class="blog-v3-search">${dashboardIcon("search")}<input data-action="blog-search" value="${escapeHtml(state.search)}" placeholder="${localizedCopy("ابحث في المقالات...", "Search articles...")}"></label></div>
-      ${featured ? `<section class="blog-v3-featured" data-reveal><div class="blog-v3-featured-media"><img src="${featured.image}" alt="${escapeHtml(localizedField(featured.title))}"></div><div><span>${localizedCopy("مقالة مميزة", "Featured article")} ${dashboardIcon("star")}</span><small>${localizedField(featured.date)}</small><h1>${localizedField(featured.title)}</h1><p>${localizedField(featured.excerpt)}</p><button data-link="/blog/${featured.slug}">${localizedCopy("اقرأ المزيد", "Read more")}${dashboardIcon("arrowLeft")}</button></div></section><section class="blog-v3-latest blog-v3-latest--full"><header><h2>${localizedCopy("أحدث المقالات", "Latest articles")}</h2><button data-action="blog-category" data-category="الكل">${localizedCopy("عرض جميع المقالات", "View all articles")}${dashboardIcon("arrowLeft")}</button></header><div class="blog-v3-grid blog-v3-grid--full">${posts.slice(1).map((post) => blogCard(post)).join("")}</div></section>` : `<div class="marketing-v3-empty">${emptyState(localizedCopy("لا توجد مقالات مطابقة", "No matching articles"), localizedCopy("جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.", "Try another search or category."))}</div>`}
+  const categoryTabs = [["آخر التحديثات", localizedCopy("آخر التحديثات", "Latest updates"), "campaigns"], ["أدلة الاستخدام", localizedCopy("أدلة الاستخدام", "Guides"), "helpBook"], ["واتساب Meta", localizedCopy("واتساب Meta", "Meta WhatsApp"), "whatsapp"], ["الحملات", localizedCopy("الحملات", "Campaigns"), "send"], ["التجارة الإلكترونية", localizedCopy("التجارة الإلكترونية", "Commerce"), "store"], ["النمو والتحليلات", localizedCopy("النمو والتحليلات", "Growth & analytics"), "reports"]];
+  const sidePosts = posts.slice(1, 4);
+  return publicShell(`<main class="marketing-v3 marketing-blog-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المدونة", "Blog"), localizedCopy("مقالات وأدلة تفصيلية، تحديثات المنتج، وأفكار عملية تساعدك على النمو مع Renvix.", "Practical articles, product updates, and guides to help you grow with Renvix."))}<div class="blog-v3-toolbar" data-reveal><div class="chips">${categoryTabs.map(([key, label, icon]) => `<button class="chip ${activeCategory === key ? "active" : ""}" data-action="blog-category" data-category="${key}">${dashboardIcon(icon)}${label}</button>`).join("")}</div><label class="blog-v3-search">${dashboardIcon("search")}<input data-action="blog-search" value="${escapeHtml(state.search)}" placeholder="${localizedCopy("ابحث في المقالات...", "Search articles...")}"></label></div>
+      ${featured ? `<div class="blog-v3-lead-layout"><aside class="blog-v3-side-rail" data-reveal><h2>${localizedCopy("مختارات المحرر", "Editor's picks")}</h2><div class="blog-v3-side-list">${sidePosts.map((post) => `<button data-link="/blog/${post.slug}"><img src="${post.image}" alt=""><span><strong>${localizedField(post.title)}</strong><small>${localizedField(post.date)}</small></span></button>`).join("")}</div></aside><section class="blog-v3-featured" data-reveal><div class="blog-v3-featured-media"><img src="${featured.image}" alt="${escapeHtml(localizedField(featured.title))}"></div><div><span>${localizedCopy("مقالة مميزة", "Featured article")} ${dashboardIcon("star")}</span><small>${localizedField(featured.date)}</small><h1>${localizedField(featured.title)}</h1><p>${localizedField(featured.excerpt)}</p><button data-link="/blog/${featured.slug}">${localizedCopy("اقرأ المزيد", "Read more")}${dashboardIcon("arrowLeft")}</button></div></section></div><section class="blog-v3-latest blog-v3-latest--full"><header><h2>${localizedCopy("أحدث المقالات", "Latest articles")}</h2><button data-action="blog-category" data-category="آخر التحديثات">${localizedCopy("عرض جميع المقالات", "View all articles")}${dashboardIcon("arrowLeft")}</button></header><div class="blog-v3-grid blog-v3-grid--full">${posts.slice(1, 6).map((post) => blogCard(post)).join("")}</div></section>` : `<div class="marketing-v3-empty">${emptyState(localizedCopy("لا توجد مقالات مطابقة", "No matching articles"), localizedCopy("جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.", "Try another search or category."))}</div>`}
       <section class="blog-v3-newsletter" data-reveal><span>${dashboardIcon("email")}</span><div><h2>${localizedCopy("ابقَ على اطلاع دائم", "Stay up to date")}</h2><p>${localizedCopy("اشترك في نشرتنا البريدية لتحصل على أحدث المقالات والتحديثات مباشرة إلى بريدك.", "Receive the latest articles and product updates in your inbox.")}</p></div><form data-submit="newsletter"><input type="email" name="email" placeholder="${localizedCopy("أدخل بريدك الإلكتروني", "Enter your email")}" required><button class="btn btn-primary">${localizedCopy("اشترك الآن", "Subscribe")}</button></form></section>
     </div></section></main>`);
 }
@@ -2377,12 +2387,74 @@ const marketingResourcePages = {
   }
 };
 
+const marketingResourceDetails = {
+  "/integrations": {
+    secondary: ["دليل الربط", "Connection guide", "/user-guide", "helpBook"],
+    processTitle: ["من اختيار القناة إلى اتصال موثوق", "From channel selection to a reliable connection"],
+    outcomes: [["مزامنة منظمة للبيانات", "Structured data sync"], ["مراقبة واضحة لحالة الاتصال", "Clear connection monitoring"], ["مفاتيح معزولة لكل مساحة عمل", "Isolated keys for every workspace"], ["اختبار آمن قبل التشغيل", "Safe testing before launch"]],
+    audiences: [["فرق التقنية", "Technical teams"], ["عمليات التجارة الإلكترونية", "Commerce operations"], ["الوكالات ومقدمو الخدمات", "Agencies and providers"]],
+    cta: ["اربط أول قناة بثقة", "Connect your first channel confidently", "ابدأ بتكامل واحد، اختبره، ثم وسّع التشغيل مع سجل واضح لكل خطوة.", "Start with one integration, test it, then scale with a clear activity trail.", "ابدأ الربط", "Start connecting", "/register"]
+  },
+  "/product-updates": {
+    secondary: ["زيارة المدونة", "Visit the blog", "/blog", "publicBlog"],
+    processTitle: ["تحديثات مدروسة من الاختبار إلى الإطلاق", "Thoughtful updates from testing to rollout"],
+    outcomes: [["ملخص واضح لكل إصدار", "A clear release summary"], ["تفسير أثر التغيير", "Change impact explained"], ["إطلاق تدريجي يحمي الاستقرار", "Gradual rollout for stability"], ["إرشادات للإجراءات المطلوبة", "Guidance for required actions"]],
+    audiences: [["مديرو الحسابات", "Account administrators"], ["فرق التشغيل", "Operations teams"], ["الفرق التقنية", "Technical teams"]],
+    cta: ["تابع المنتج وهو يتطور", "Follow the product as it evolves", "اقرأ الشروحات العملية واعرف ما تغيّر وكيف تستفيد منه في عملك.", "Read practical notes and understand what changed and how it helps your work.", "عرض أحدث المقالات", "View latest articles", "/blog"]
+  },
+  "/careers": {
+    secondary: ["تعرف علينا", "About Renvix", "/about", "customers"],
+    processTitle: ["رحلة توظيف واضحة تحترم وقتك", "A clear hiring journey that respects your time"],
+    outcomes: [["عمل له أثر مباشر على العملاء", "Work with direct customer impact"], ["ملكية حقيقية للقرارات", "Real ownership of decisions"], ["معايير جودة وأمان مرتفعة", "High quality and security standards"], ["تعاون صريح بين التخصصات", "Open cross-functional collaboration"]],
+    audiences: [["الهندسة والبيانات", "Engineering and data"], ["المنتج والتصميم", "Product and design"], ["نجاح العملاء والعمليات", "Customer success and operations"]],
+    cta: ["هل ترى مكانك معنا؟", "See yourself building with us?", "عرّفنا بخبرتك، والمشكلة التي تحب حلها، ونوع الأثر الذي تريد صنعه.", "Tell us about your experience, the problems you enjoy solving, and the impact you want to make.", "أرسل اهتمامك", "Share your interest", "/contact"]
+  },
+  "/partners": {
+    secondary: ["استكشف التكاملات", "Explore integrations", "/integrations", "puzzle"],
+    processTitle: ["شراكة تبدأ بهدف وتنتهي بنتيجة", "A partnership that starts with a goal and ends with an outcome"],
+    outcomes: [["نموذج تعاون محدد", "A defined collaboration model"], ["نطاق تقني وتجاري واضح", "Clear technical and commercial scope"], ["متابعة منظمة للفرص", "Structured opportunity tracking"], ["مؤشرات نجاح مشتركة", "Shared success metrics"]],
+    audiences: [["منصات SaaS والتجارة", "SaaS and commerce platforms"], ["الوكالات الرقمية", "Digital agencies"], ["مقدمو الخدمات التقنية", "Technology providers"]],
+    cta: ["لنصمم فرصة مشتركة", "Let's design a shared opportunity", "شاركنا جمهورك ونموذج عملك وسنحدد معًا المسار الأكثر واقعية وقابلية للقياس.", "Share your audience and business model so we can define a realistic, measurable path together.", "ابدأ طلب الشراكة", "Start a partnership request", "/contact"]
+  },
+  "/contact": {
+    secondary: ["مركز المساعدة", "Help center", "/support", "helpBook"],
+    processTitle: ["طلبك يصل إلى الفريق الصحيح من البداية", "Your request reaches the right team from the start"],
+    outcomes: [["تصنيف واضح لنوع الطلب", "Clear request classification"], ["سياق كامل يقلل الأسئلة المتكررة", "Complete context that reduces back-and-forth"], ["حماية التفاصيل الحساسة", "Protection for sensitive details"], ["مرجع للمتابعة والرد", "A reference for follow-up"]],
+    audiences: [["الدعم الفني", "Technical support"], ["المبيعات والفوترة", "Sales and billing"], ["الشراكات والتكامل", "Partnerships and integrations"]],
+    cta: ["تحتاج مساعدة في حسابك؟", "Need help with your account?", "ابحث أولًا في مركز المساعدة أو افتح طلبًا يتضمن الخطوات والنتيجة المتوقعة.", "Search the help center first or open a request with steps and the expected outcome.", "فتح مركز الدعم", "Open support center", "/support"]
+  },
+  "/user-guide": {
+    secondary: ["الأسئلة الشائعة", "Frequently asked questions", "/faq", "faq"],
+    processTitle: ["تعلم حسب المهمة، لا حسب القوائم", "Learn by task, not by menu"],
+    outcomes: [["متطلبات واضحة قبل البدء", "Clear prerequisites"], ["خطوات قصيرة قابلة للتنفيذ", "Short actionable steps"], ["نقطة تحقق بعد كل مهمة", "A verification point after every task"], ["حلول للأخطاء المتوقعة", "Solutions for common issues"]],
+    audiences: [["مديرو مساحة العمل", "Workspace admins"], ["موظفو التشغيل", "Operations staff"], ["مسؤولو القنوات والتقارير", "Channel and reporting owners"]],
+    cta: ["ابدأ بمسار عملي", "Start with a practical path", "جهّز حسابك ثم أضف أول عميل واشتراك وقناة وفق ترتيب واضح.", "Set up your account, then add your first customer, subscription, and channel in a clear order.", "إنشاء مساحة عمل", "Create workspace", "/register"]
+  },
+  "/faq": {
+    secondary: ["دليل المستخدم", "User guide", "/user-guide", "helpBook"],
+    processTitle: ["من السؤال إلى الإجابة المناسبة بسرعة", "From question to the right answer quickly"],
+    outcomes: [["إجابة مختصرة ومباشرة", "A concise direct answer"], ["السياق المرتبط بكل قسم", "Context for each product area"], ["روابط للسياسات والأدلة", "Links to policies and guides"], ["تصعيد آمن عند الحاجة", "Safe escalation when needed"]],
+    audiences: [["المستخدمون الجدد", "New users"], ["مديرو الحساب", "Account admins"], ["فرق المالية والتقنية", "Finance and technical teams"]],
+    cta: ["لم تجد الإجابة؟", "Still need an answer?", "استخدم بحث الدعم لفتح المقال المناسب مباشرة أو أرسل طلبًا محدد التفاصيل.", "Use support search to open the right article directly or submit a detailed request.", "ابحث في الدعم", "Search support", "/support"]
+  },
+  "/message-templates": {
+    secondary: ["دليل الاستخدام", "Usage guide", "/user-guide", "helpBook"],
+    processTitle: ["رسالة مدروسة من الفكرة إلى القياس", "A thoughtful message from idea to measurement"],
+    outcomes: [["نص مناسب لكل قناة", "Channel-specific copy"], ["متغيرات وموافقات آمنة", "Safe variables and consent"], ["معاينة واختبار قبل الإرسال", "Preview and test before sending"], ["قياس الاستجابة والتحسين", "Measure response and improve"]],
+    audiences: [["فرق نجاح العملاء", "Customer success teams"], ["التسويق والنمو", "Marketing and growth"], ["عمليات الاشتراكات", "Subscription operations"]],
+    cta: ["حوّل الرسالة إلى رحلة واضحة", "Turn a message into a clear journey", "اختر القناة والقالب والمتغيرات، ثم راجع التجربة قبل تشغيلها لعملائك.", "Choose the channel, template, and variables, then review the experience before launching it to customers.", "ابدأ إعداد القوالب", "Set up templates", "/register"]
+  }
+};
+
 function marketingResourcePage() {
   const page = marketingResourcePages[state.route] || marketingResourcePages["/integrations"];
+  const detail = marketingResourceDetails[state.route] || marketingResourceDetails["/integrations"];
   const [eyebrowAr, eyebrowEn] = page.eyebrow;
   const [titleAr, titleEn] = page.title;
   const [introAr, introEn] = page.intro;
-  return publicShell(`<main class="marketing-v3 marketing-resource-page"><section class="resource-hero"><div class="container"><span class="resource-hero-icon">${dashboardIcon(page.icon)}</span><span class="eyebrow">${localizedCopy(eyebrowAr, eyebrowEn)}</span><h1>${localizedCopy(titleAr, titleEn)}</h1><p>${localizedCopy(introAr, introEn)}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}${dashboardIcon("arrowLeft")}</button><button class="btn btn-secondary" data-link="/support">${localizedCopy("تحدث مع الفريق", "Talk to the team")}${dashboardIcon("chat")}</button></div></div></section><section class="resource-content"><div class="container"><div class="resource-card-grid">${page.cards.map(([arTitle, enTitle, arBody, enBody, icon], index) => `<article data-reveal style="--resource-delay:${index * .08}s"><span>${dashboardIcon(icon)}</span><h2>${localizedCopy(arTitle, enTitle)}</h2><p>${localizedCopy(arBody, enBody)}</p></article>`).join("")}</div><div class="resource-process" data-reveal><header><span>${localizedCopy("مسار واضح", "A clear path")}</span><h2>${localizedCopy("من الفكرة إلى نتيجة قابلة للقياس", "From idea to a measurable outcome")}</h2></header><div>${page.steps.map(([ar, en], index) => `<article><b>${String(index + 1).padStart(2, "0")}</b><span>${localizedCopy(ar, en)}</span></article>`).join("")}</div></div><div class="public-cta resource-cta" data-reveal><div><h2>${localizedCopy("جاهز لتجربة Renvix؟", "Ready to try Renvix?")}</h2><p>${localizedCopy("أنشئ حسابك أو تواصل مع فريقنا لاختيار المسار الأنسب.", "Create an account or talk with our team about the right path.")}</p></div><button class="btn btn-primary" data-link="/register">${localizedCopy("إنشاء حساب", "Create account")}</button></div></div></section></main>`);
+  const [secondaryAr, secondaryEn, secondaryPath, secondaryIcon] = detail.secondary;
+  const [ctaAr, ctaEn, ctaBodyAr, ctaBodyEn, ctaLabelAr, ctaLabelEn, ctaPath] = detail.cta;
+  return publicShell(`<main class="marketing-v3 marketing-resource-page"><section class="resource-hero"><div class="container"><span class="resource-hero-icon">${dashboardIcon(page.icon)}</span><span class="eyebrow">${localizedCopy(eyebrowAr, eyebrowEn)}</span><h1>${localizedCopy(titleAr, titleEn)}</h1><p>${localizedCopy(introAr, introEn)}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}${dashboardIcon("arrowLeft")}</button><button class="btn btn-secondary" data-link="${secondaryPath}">${localizedCopy(secondaryAr, secondaryEn)}${dashboardIcon(secondaryIcon)}</button></div></div></section><section class="resource-content"><div class="container"><div class="resource-card-grid">${page.cards.map(([arTitle, enTitle, arBody, enBody, icon], index) => `<article data-reveal style="--resource-delay:${index * .08}s"><span>${dashboardIcon(icon)}</span><h2>${localizedCopy(arTitle, enTitle)}</h2><p>${localizedCopy(arBody, enBody)}</p></article>`).join("")}</div><section class="resource-insight-grid" data-reveal><article class="resource-outcomes"><span>${localizedCopy("نتائج عملية", "Practical outcomes")}</span><h2>${localizedCopy("ما الذي ستنجزه في هذا المسار؟", "What will you accomplish on this path?")}</h2><ul>${detail.outcomes.map(([ar, en]) => `<li>${dashboardIcon("success")}<strong>${localizedCopy(ar, en)}</strong></li>`).join("")}</ul></article><aside class="resource-audience"><span>${localizedCopy("مصمم لفرق العمل", "Built for teams")}</span><h2>${localizedCopy("سياق واضح لكل دور", "Clear context for every role")}</h2><div>${detail.audiences.map(([ar, en], index) => `<p><b>${String(index + 1).padStart(2, "0")}</b>${localizedCopy(ar, en)}</p>`).join("")}</div></aside></section><div class="resource-process" data-reveal><header><span>${localizedCopy("مسار واضح", "A clear path")}</span><h2>${localizedCopy(...detail.processTitle)}</h2></header><div>${page.steps.map(([ar, en], index) => `<article><b>${String(index + 1).padStart(2, "0")}</b><span>${localizedCopy(ar, en)}</span></article>`).join("")}</div></div><div class="public-cta resource-cta" data-reveal><div><h2>${localizedCopy(ctaAr, ctaEn)}</h2><p>${localizedCopy(ctaBodyAr, ctaBodyEn)}</p></div><button class="btn btn-primary" data-link="${ctaPath}">${localizedCopy(ctaLabelAr, ctaLabelEn)}${dashboardIcon("arrowLeft")}</button></div></div></section></main>`);
 }
 
 function policyPage() {
