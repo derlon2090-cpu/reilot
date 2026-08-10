@@ -18,7 +18,7 @@ export default async function SpaPage({ params }) {
     <>
       <div id="app" />
       <div id="portal" />
-      <Script src="/app/app.js?v=20260810-auth-art-centered-v26" type="module" strategy="afterInteractive" />
+      <Script src="/app/app.js?v=20260810-channels-campaigns-v27" type="module" strategy="afterInteractive" />
     </>
   );
 }
