@@ -53,4 +53,29 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain("@media (max-width:460px)");
     expect(stylesSource).toContain(".campaign-studio-email-preview.mobile");
   });
+
+  it("treats email templates as visual layouts instead of campaign copy", () => {
+    expect(appSource).toContain('name="emailDesign"');
+    expect(appSource).toContain('id:"luxury"');
+    expect(appSource).toContain('id:"showcase"');
+    expect(appSource).toContain('id:"editorial"');
+    expect(appSource).toContain('id:"seasonal"');
+    expect(appSource).toContain('id:"minimal"');
+    expect(appSource).toContain('id:"spotlight"');
+    expect(appSource).toContain("الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك");
+    expect(stylesSource).toContain(".campaign-template-thumb.design-luxury");
+    expect(stylesSource).toContain(".campaign-studio-email-preview.design-spotlight");
+  });
+
+  it("renders valid social links as icons inside the email preview and generated HTML", () => {
+    expect(appSource).toContain("function campaignStudioSocialIconLinks");
+    expect(appSource).toContain("data-campaign-social-preview");
+    expect(appSource).toContain("campaignStudioValidHttpUrl");
+    expect(appSource).toContain("socialLinks ?");
+    expect(stylesSource).toContain(".campaign-email-social.is-empty");
+  });
+
+  it("pins the campaigns return control at the upper left", () => {
+    expect(stylesSource).toMatch(/\.campaign-studio-heading \.btn-ghost\{position:absolute;top:0;left:0/);
+  });
 });

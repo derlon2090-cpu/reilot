@@ -3,6 +3,8 @@ import { query } from "./db.js";
 const TABLE_GROUPS = {
   customers: "العملاء والاشتراكات",
   subscriptions: "العملاء والاشتراكات",
+  newsletter_profiles: "العملاء والاشتراكات",
+  newsletter_subscribers: "العملاء والاشتراكات",
   order_info_links: "روابط وقوالب الطلبات",
   order_info_templates: "روابط وقوالب الطلبات",
   order_link_profiles: "روابط وقوالب الطلبات",

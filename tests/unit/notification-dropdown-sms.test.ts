@@ -10,12 +10,13 @@ const planRouteSource = readFileSync(new URL("../../app/api/billing/current-plan
 const historyRouteSource = readFileSync(new URL("../../app/api/billing/usage-history/route.js", import.meta.url), "utf8");
 
 describe("notification dropdown layout", () => {
-  it("restores the dropdown to the centered dashboard position without clipping", () => {
+  it("anchors the desktop dropdown below its trigger without clipping", () => {
     expect(stylesSource).toMatch(/\.notification-trigger-wrap\s*\{[\s\S]*?position:\s*relative;/);
-    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?position:\s*fixed;/);
-    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?left:\s*50%;/);
+    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?position:\s*absolute;/);
+    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?top:\s*calc\(100% \+ 12px\);/);
+    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?inset-inline-end:\s*0;/);
     expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?width:\s*min\(390px,/);
-    expect(stylesSource).toMatch(/\.notification-dropdown\s*\{[\s\S]*?transform:\s*translateX\(-50%\);/);
+    expect(stylesSource).toMatch(/@media\(max-width:760px\)\{\.notification-dropdown\{position:fixed;/);
   });
 });
 

@@ -1,3 +1,5 @@
+import Script from "next/script";
+
 export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
   description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات.",
@@ -29,11 +31,13 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-relocated-v49" />
-        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-dark-system-v48" />
-        <script type="module" src="/app/app.js?v=20260811-auth-relocated-v49"></script>
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-relocated-v50" />
+        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-dark-system-v50" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Script type="module" src="/app/app.js?v=20260811-settings-newsletter-v50" strategy="afterInteractive" />
+      </body>
     </html>
   );
 }

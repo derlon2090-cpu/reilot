@@ -715,6 +715,8 @@ state.notifications = null;
 state.activities = null;
 state.unsubscribes = null;
 state.accountSettings = null;
+state.publicNewsletter = null;
+state.publicNewsletterRequestedId = "";
 state.readiness = null;
 state.operationalIssues = null;
 state.whatsappHealth = null;
@@ -1197,6 +1199,12 @@ function syncRouteData(force = false) {
   };
 
   if (state.route === "/pricing" && (force || state.publicPlans === null)) queue("publicPlans", "/api/public/plans", "publicPlans");
+  const newsletterPublicId = state.route.match(/^\/newsletter\/subscribe\/([^/]+)$/)?.[1];
+  if (newsletterPublicId && (force || state.publicNewsletterRequestedId !== newsletterPublicId)) {
+    state.publicNewsletterRequestedId = newsletterPublicId;
+    state.publicNewsletter = null;
+    queue("publicNewsletter", `/api/public/newsletter/${encodeURIComponent(newsletterPublicId)}`, "publicNewsletter");
+  }
 
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) queue("overview", "/api/dashboard/overview", "dashboardOverview");
   if (state.route.startsWith("/dashboard") && (force || state.messageUsage === null)) queue("messageUsage", "/api/billing/message-usage", "messageUsage");
@@ -1458,6 +1466,7 @@ function dashboardIcon(name) {
      youtube: '<path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" stroke="none" d="M21.58 7.19a2.96 2.96 0 0 0-2.08-2.1C17.66 4.6 12 4.6 12 4.6s-5.66 0-7.5.49a2.96 2.96 0 0 0-2.08 2.1A30.8 30.8 0 0 0 1.93 12c0 1.63.14 3.25.49 4.81a2.96 2.96 0 0 0 2.08 2.1c1.84.49 7.5.49 7.5.49s5.66 0 7.5-.49a2.96 2.96 0 0 0 2.08-2.1c.35-1.56.49-3.18.49-4.81s-.14-3.25-.49-4.81ZM9.85 8.85 15 12l-5.15 3.15Z"/>',
      x: '<path fill="currentColor" stroke="none" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>',
      instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.7" r="1" fill="currentColor" stroke="none"/>',
+     snapchat: '<path d="M12 3.5c-2.5 0-4.2 2-4.2 4.7 0 1-.1 1.8-.5 2.6-.4.8-1.1 1.4-2.1 1.8-.5.2-.6.9-.1 1.2.7.5 1.4.8 2.1.9.2.8.8 1.2 1.7 1.1.7-.1 1.2.4 1.5 1 .4.7.8 1.2 1.6 1.2s1.2-.5 1.6-1.2c.3-.6.8-1.1 1.5-1 .9.1 1.5-.3 1.7-1.1.7-.1 1.4-.4 2.1-.9.5-.3.4-1-.1-1.2-1-.4-1.7-1-2.1-1.8-.4-.8-.5-1.6-.5-2.6 0-2.7-1.7-4.7-4.2-4.7Z"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>',
     moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>',
@@ -3834,7 +3843,7 @@ function appsCatalogMarkup(data, connected, customIntegrations = []) {
       <div class="integration-card-head"><span class="integration-logo integration-logo--zid" aria-label="شعار زد"><img src="/assets/zid-logo-original.webp" alt="شعار زد الأصلي"></span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
       <h2>زد</h2><p class="integration-subtitle">منصة التجارة الإلكترونية زد</p>
       <p class="integration-description">سيُتاح ربط زد بعد اكتمال واعتماد التكامل الرسمي، دون طلب أي بيانات منك الآن.</p>
-      <span class="integration-status unavailable"><i></i> قريبًا</span>
+      <span class="integration-status unavailable"><i></i> غير متاح حاليًا</span>
       <ul class="integration-features"><li>مزامنة الطلبات تلقائيًا</li><li>إنشاء العملاء تلقائيًا</li><li>ربط المنتج بالباقة</li><li>إرسال رابط معلومات الطلب</li></ul>
       <button class="btn btn-secondary integration-action" type="button" disabled>${dashboardIcon("security")} غير متاح حاليًا</button>
     </article>
@@ -3842,7 +3851,7 @@ function appsCatalogMarkup(data, connected, customIntegrations = []) {
       <div class="integration-card-head"><span class="integration-logo integration-logo--shopify"><svg viewBox="0 0 48 48" role="img" aria-label="شعار شوبيفاي"><path class="shopify-bag" d="M12 15.5h24l2.2 26H9.8z"></path><path class="shopify-handle" d="M17 17c.3-6 3-10 7-10s6.7 4 7 10"></path><text x="24" y="34" text-anchor="middle">S</text></svg></span><span class="unavailable-badge">${dashboardIcon("security")} غير متاح حاليًا</span></div>
       <h2>شوبيفاي</h2><p class="integration-subtitle">منصة التجارة الإلكترونية شوبيفاي</p>
       <p class="integration-description">سيُتاح ربط شوبيفاي بعد اكتمال واعتماد التكامل الرسمي، دون طلب أي بيانات منك الآن.</p>
-      <span class="integration-status unavailable"><i></i> قريبًا</span>
+      <span class="integration-status unavailable"><i></i> غير متاح حاليًا</span>
       <ul class="integration-features"><li>مزامنة الطلبات تلقائيًا</li><li>إنشاء العملاء تلقائيًا</li><li>ربط المنتج بالباقة</li><li>إرسال رابط معلومات الطلب</li></ul>
       <button class="btn btn-secondary integration-action" type="button" disabled>${dashboardIcon("security")} غير متاح حاليًا</button>
     </article>
@@ -4265,9 +4274,46 @@ function campaignStudioPreviewCards(cards, channel) {
   }).join("")}</div>`;
 }
 
-function campaignStudioEmailTemplates(templates) {
-  if (!templates.length) return `<div class="campaign-studio-template-empty">لا توجد قوالب بريد محفوظة حتى الآن. يمكنك إنشاء المحتوى يدويًا وحفظه كمسودة.</div>`;
-  return `<div class="campaign-studio-template-strip">${templates.map((template, index) => `<label class="campaign-studio-template-choice"><input type="radio" name="templateId" value="${escapeHtml(template.id)}" data-action="campaign-template" data-template-body="${escapeHtml(template.body || "")}" data-template-subject="${escapeHtml(template.subject || template.name || "")}" ${index === 0 ? "" : ""}><span><i>${dashboardIcon("email")}</i><b>${escapeHtml(template.name)}</b><small>${escapeHtml(template.subject || "قالب بريد محفوظ")}</small></span></label>`).join("")}</div>`;
+function campaignEmailDesignOptions() {
+  return [
+    { id:"luxury", name:"عرض فاخر", caption:"واجهة داكنة وبطاقات راقية", accent:"#0b3f3b" },
+    { id:"showcase", name:"معرض المنتجات", caption:"شبكة واضحة لعرض عدة منتجات", accent:"#178b77" },
+    { id:"editorial", name:"تحريري", caption:"تخطيط قصصي بمساحات مريحة", accent:"#315a70" },
+    { id:"seasonal", name:"موسمي", caption:"طابع دافئ للعروض والمناسبات", accent:"#b76b55" },
+    { id:"minimal", name:"بسيط", caption:"محتوى نظيف يركز على الرسالة", accent:"#4e6964" },
+    { id:"spotlight", name:"واجهة بارزة", caption:"عنوان قوي ومنتج رئيسي واضح", accent:"#0b3f3b" }
+  ];
+}
+
+function campaignEmailDesignThumb(design) {
+  return `<i class="campaign-template-thumb design-${escapeHtml(design.id)}" style="--template-accent:${escapeHtml(design.accent)}"><span class="template-brand"></span><span class="template-hero"></span><span class="template-copy"></span><span class="template-grid"><b></b><b></b></span><span class="template-button"></span></i>`;
+}
+
+function campaignStudioEmailTemplates(selectedDesign = "showcase") {
+  const options = campaignEmailDesignOptions();
+  const selected = options.some((item) => item.id === selectedDesign) ? selectedDesign : "showcase";
+  return `<div class="campaign-studio-template-strip">${options.map((design) => `<label class="campaign-studio-template-choice"><input type="radio" name="emailDesign" value="${escapeHtml(design.id)}" ${design.id === selected ? "checked" : ""}><span>${campaignEmailDesignThumb(design)}<b>${escapeHtml(design.name)}</b><small>${escapeHtml(design.caption)}</small></span></label>`).join("")}</div>`;
+}
+
+function campaignStudioSocialPlatforms() {
+  return [["instagram","Instagram"],["x","X"],["linkedin","LinkedIn"],["youtube","YouTube"],["snapchat","Snapchat"],["facebook","Facebook"]];
+}
+
+function campaignStudioValidHttpUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    return /^https?:$/.test(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function campaignStudioSocialIconLinks(values) {
+  const getValue = (name) => values?.elements ? values.elements[name]?.value : values?.[name];
+  return campaignStudioSocialPlatforms().map(([name, label]) => {
+    const url = campaignStudioValidHttpUrl(getValue(name));
+    return url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${dashboardIcon(name)}</a>` : "";
+  }).join("");
 }
 
 function campaignStudioFormCards(form) {
@@ -4285,7 +4331,7 @@ function campaignStudioFormCards(form) {
 function captureCampaignStudioDraft(form) {
   if (!form) return null;
   const values = {};
-  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
+  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","emailDesign","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
   state.campaignBuilderCards = campaignStudioFormCards(form);
   state.campaignBuilderDraft = { values, cards:state.campaignBuilderCards, updatedAt:new Date().toISOString() };
   return state.campaignBuilderDraft;
@@ -4306,6 +4352,19 @@ function refreshCampaignStudioPreview(form) {
     const title = card.querySelector("header>strong");
     if (title) title.textContent = `بطاقة ${suiteNumber(index + 1)}`;
   });
+  if (channel === "email") {
+    const design = String(form.elements.emailDesign?.value || "showcase");
+    const emailPreview = document.querySelector(".campaign-studio-email-preview");
+    if (emailPreview) {
+      campaignEmailDesignOptions().forEach((item) => emailPreview.classList.remove(`design-${item.id}`));
+      emailPreview.classList.add(`design-${design}`);
+    }
+    const socialPreview = document.querySelector("[data-campaign-social-preview]");
+    if (socialPreview) {
+      socialPreview.innerHTML = campaignStudioSocialIconLinks(form);
+      socialPreview.classList.toggle("is-empty", !socialPreview.innerHTML);
+    }
+  }
 }
 
 function scheduleCampaignStudioDraft(form) {
@@ -4328,8 +4387,23 @@ function campaignStudioGeneratedHtml(form) {
   const previewText = String(form?.elements.previewText?.value || "").trim();
   const body = String(form?.elements.body?.value || "").trim();
   const footer = String(form?.elements.footer?.value || "").trim();
-  const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:#0b3f3b;font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#0b3f3b;color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5f8f7"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f8f7"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:#0b3f3b;font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:#526763;font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table><p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
+  const design = String(form?.elements.emailDesign?.value || "showcase");
+  const themes = {
+    luxury:{page:"#f2f4f3",surface:"#0b302d",heading:"#ffffff",copy:"#d8e4e1",card:"#ffffff",accent:"#c3a76d"},
+    showcase:{page:"#f5f8f7",surface:"#ffffff",heading:"#0b3f3b",copy:"#526763",card:"#ffffff",accent:"#0b3f3b"},
+    editorial:{page:"#eef3f4",surface:"#ffffff",heading:"#244a5b",copy:"#526873",card:"#f8fbfb",accent:"#315a70"},
+    seasonal:{page:"#fff6f0",surface:"#fffaf6",heading:"#7e4637",copy:"#765d54",card:"#ffffff",accent:"#b76b55"},
+    minimal:{page:"#f7f8f8",surface:"#ffffff",heading:"#243d39",copy:"#667874",card:"#ffffff",accent:"#4e6964"},
+    spotlight:{page:"#eaf3f1",surface:"#e7f3f0",heading:"#0b3f3b",copy:"#486c66",card:"#ffffff",accent:"#0b3f3b"}
+  };
+  const theme = themes[design] || themes.showcase;
+  const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
+  const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
+    const url = campaignStudioValidHttpUrl(form?.elements[name]?.value);
+    const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
+    return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
+  }).join("");
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 function campaignStudioDraftValue(name, fallback = "") {
@@ -4349,7 +4423,6 @@ function campaignStudioPage() {
   const options = state.campaignsOverview?.createOptions || {};
   const devices = (options.devices || []).filter((item) => item.status === "connected");
   const groups = Array.isArray(options.groups) ? options.groups : [];
-  const templates = (options.templates || []).filter((item) => item.channel === "email");
   const metaTemplates = (options.metaTemplates || []).filter((item) => devices.some((device) => device.id === item.channelId));
   const emailSender = options.email?.connected ? options.email.sender : null;
   const channelReady = channel === "whatsapp" ? devices.length > 0 : channel === "email" ? Boolean(emailSender) : false;
@@ -4371,13 +4444,14 @@ function campaignStudioPage() {
     const count = Number(group[channel === "whatsapp" ? "whatsappContactsCount" : "emailContactsCount"] ?? group.contactsCount ?? 0);
     return `<option value="${escapeHtml(group.id)}" data-count="${count}" ${campaignStudioDraftValue("groupId") === group.id ? "selected" : ""}>${escapeHtml(group.name)} — ${suiteNumber(count)}</option>`;
   }).join("");
-  const socialFields = channel === "email" ? `<details class="campaign-studio-section" open><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>اختيارية، ولا تظهر في البريد إلا عند إدخال رابط صحيح.</small></span></summary><div class="campaign-social-grid">${[["instagram","Instagram"],["x","X"],["linkedin","LinkedIn"],["youtube","YouTube"],["snapchat","Snapchat"],["facebook","Facebook"]].map(([name,label]) => `<label class="field"><span>${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
+  const socialFields = channel === "email" ? `<details class="campaign-studio-section" open><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>اختيارية، وتظهر كأيقونات احترافية أسفل محتوى البريد عند إدخال رابط صحيح.</small></span></summary><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
   const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>HTML آمن للبريد بتخطيط جداول وCSS مضمّن، دون JavaScript.</small></span></summary><div class="campaign-html-tools"><div><button type="button" class="btn btn-secondary" data-action="campaign-studio-generate-html">${dashboardIcon("code")} توليد الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="8" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea></div></details>` : "";
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
     : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
-  const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>قوالب البريد الاحترافية</h2><p>اختر من القوالب المحفوظة فعليًا في حسابك.</p></div></header>${campaignStudioEmailTemplates(templates)}</section>` : "";
-  const preview = channel === "whatsapp" ? `<div class="campaign-phone campaign-studio-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message"><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر النص الرئيسي هنا."))}</p><time>11:00 ص</time></div><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>` : `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode}"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان البريد"))}</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div></section><footer data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</footer></div>`;
+  const emailDesign = campaignStudioDraftValue("emailDesign", "showcase");
+  const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>تصميم البريد الإلكتروني</h2><p>اختر شكل وتخطيط البريد؛ الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
+  const preview = channel === "whatsapp" ? `<div class="campaign-phone campaign-studio-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message"><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر النص الرئيسي هنا."))}</p><time>11:00 ص</time></div><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>` : `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${escapeHtml(emailDesign)}"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان البريد"))}</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section><footer data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</footer></div>`;
   return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}">
     <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
     <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
@@ -6301,17 +6375,46 @@ function settingsReferencePage() {
   const avatarUrl = remote.avatarUrl || remote.image;
   const fullName = remote.fullName || remote.name || "";
   const avatar = avatarUrl ? `<img class="settings-ref-avatar" src="${escapeHtml(avatarUrl)}" alt="صورة الحساب">` : `<span class="settings-ref-avatar fallback">${escapeHtml(fullName.trim().charAt(0) || "م")}</span>`;
-  const usedGb = (Number(storage.usedMb || 0) / 1024).toFixed(1);
-  const limitGb = (Number(storage.limitMb || 0) / 1024).toFixed(1);
-  const newsletterUrl = `${location.origin}/newsletter/subscribe`;
+  const usedStorage = storageAmountLabel(storage.usedMb, storage.usedBytes);
+  const limitStorage = storageAmountLabel(storage.limitMb, storage.limitBytes);
+  const newsletterPublicId = state.accountSettings.newsletter?.publicId || "";
+  const newsletterUrl = newsletterPublicId ? `${location.origin}/newsletter/subscribe/${encodeURIComponent(newsletterPublicId)}` : "";
+  const storagePercent = Math.max(0, Number(storage.percent || 0));
+  const storageProgress = Math.min(100, Math.max(0, Number(storage.progressPercent ?? storagePercent)));
   return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}<p class="page-kicker">إدارة إعدادات المنصة والحساب والتفضيلات.</p>
     <div class="settings-reference-grid">
       <article class="suite-card settings-ref-card account"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><h2>إعدادات الحساب</h2><p>معلوماتك الشخصية وبيانات التواصل.</p></div></div><div class="settings-ref-account"><div class="settings-ref-avatar-wrap">${avatar}<input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">${dashboardIcon("upload")} تغيير الصورة</button><small>PNG, JPG حتى 2MB</small></div><form data-submit="profile-settings" class="settings-ref-profile" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><div class="settings-ref-two"><label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(String(fullName).split(" ")[0] || fullName)}" readonly></label><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label></div><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly dir="ltr"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" value="${escapeHtml(remote.phone || "")}" dir="ltr"></label><input type="hidden" name="storeName" value="${escapeHtml(remote.storeName || "")}"><button class="btn btn-primary profile-save-button">حفظ التعديلات</button></form></div></article>
       <article class="suite-card settings-ref-card security"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>أمان الحساب</h2><p>تغيير كلمة المرور والتحقق الثنائي.</p></div></div><div class="settings-ref-mfa"><div><strong>تفعيل التحقق الثنائي</strong><p>عزز أمان حسابك بطبقة حماية إضافية عند تسجيل الدخول.</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><form data-submit="password" class="settings-ref-password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article>
-      <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>أنشئ رابط اشتراك لجمع البريد الإلكتروني من جمهورك.</p></div></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}">${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-preview"><strong>معاينة نموذج الاشتراك</strong><input class="input" type="email" placeholder="أدخل بريدك الإلكتروني"><button type="button" class="btn btn-primary">اشتراك</button></div></article>
-      <article class="suite-card settings-ref-card storage"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية.</p></div></div><div class="settings-storage-number"><strong>${usedGb} GB</strong><span>من ${limitGb} GB</span><em>${Number(storage.percent || 0)}%</em></div><div class="storage-progress"><i style="width:${Math.min(100,Number(storage.percent || 0))}%"></i></div><div class="settings-storage-list">${(storage.breakdown || []).slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${(Number(item.mb||0)/1024).toFixed(1)} GB</strong></div>`).join("") || `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></article>
+      <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>رابط اشتراك مخصص لحسابك؛ كل مشترك جديد يُضاف تلقائيًا إلى عملائك.</p></div><span class="newsletter-live-badge"><i></i> مفعّلة</span></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr" aria-label="رابط النشرة المخصص"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}" ${newsletterUrl ? "" : "disabled"}>${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-link-note">${dashboardIcon("security")} الرابط مرتبط بحسابك، ويُمنع تكرار البريد نفسه تلقائيًا.</div><form class="newsletter-preview" data-submit="tenant-newsletter" data-public-id="${escapeHtml(newsletterPublicId)}"><strong>معاينة نموذج الاشتراك</strong><input class="input" name="email" type="email" placeholder="أدخل بريدك الإلكتروني" required><input class="newsletter-honeypot" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button type="submit" class="btn btn-primary" ${newsletterPublicId ? "" : "disabled"}>اشتراك</button></form></article>
+      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية محسوب من بياناتك الفعلية.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-list">${(storage.breakdown || []).slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${storageAmountLabel(item.mb, item.bytes)}</strong></div>`).join("") || `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></article>
     </div>
   </section>`);
+}
+
+function storageAmountLabel(mbValue, bytesValue = null) {
+  const bytes = Number(bytesValue);
+  const mb = bytesValue !== null && Number.isFinite(bytes) && bytes >= 0 ? bytes / 1024 / 1024 : Math.max(0, Number(mbValue || 0));
+  if (mb > 1000) return `${(mb / 1024).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} GB`;
+  if (mb > 0 && mb < 0.01) return `< 0.01 MB`;
+  return `${mb.toLocaleString("en-US", { minimumFractionDigits: mb > 0 && mb < 10 ? 2 : 0, maximumFractionDigits: 2 })} MB`;
+}
+
+function formatStoragePercent(value) {
+  return `${Math.max(0, Number(value || 0)).toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
+}
+
+function newsletterSubscribePage() {
+  const newsletterPublicId = state.route.match(/^\/newsletter\/subscribe\/([^/]+)$/)?.[1] || "";
+  const payload = state.publicNewsletter;
+  const loading = payload === null;
+  const invalid = !loading && (payload?.error || !payload?.profile);
+  const displayName = payload?.profile?.displayName || "النشرة البريدية";
+  const body = loading
+    ? `<div class="newsletter-public-loading" role="status"><i></i><span>جاري تجهيز نموذج الاشتراك...</span></div>`
+    : invalid
+      ? `<div class="newsletter-public-invalid">${dashboardIcon("warning")}<h1>الرابط غير متاح</h1><p>${escapeHtml(payload?.error || "تحقق من الرابط وحاول مرة أخرى.")}</p></div>`
+      : `<div class="newsletter-public-icon">${dashboardIcon("email")}</div><span class="newsletter-public-eyebrow">النشرة البريدية</span><h1>اشترك في نشرة ${escapeHtml(displayName)}</h1><p>أدخل بريدك الإلكتروني لتصلك التحديثات والمحتوى الجديد مباشرة.</p><form data-submit="tenant-newsletter" data-public-id="${escapeHtml(newsletterPublicId)}"><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email" inputmode="email" autocomplete="email" dir="ltr" placeholder="name@example.com" required></label><input class="newsletter-honeypot" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn btn-primary" type="submit">${dashboardIcon("send")} اشتراك في النشرة</button><small>${dashboardIcon("security")} لن يُستخدم بريدك إلا للتواصل الخاص بهذه النشرة.</small></form>`;
+  return `<div class="page-shell public-site newsletter-public-shell"><header class="newsletter-public-header">${logo()}</header><main class="newsletter-public-main"><section class="newsletter-public-card">${body}</section><p class="newsletter-public-powered">مدعوم بواسطة Renvix</p></main></div>`;
 }
 
 function securityReferencePage() {
@@ -9171,6 +9274,7 @@ async function handleSubmit(form, event) {
           senderName: data.fromName || null,
           senderEmail: data.fromEmail || null,
           replyTo: data.replyTo || null,
+          emailDesign: data.channel === "email" ? data.emailDesign || "showcase" : null,
           cards: campaignCards,
           socialLinks,
           htmlContent: data.htmlContent || null,
@@ -9760,6 +9864,38 @@ async function handleSubmit(form, event) {
     toast("تم الاشتراك في النشرة بنجاح");
     return;
   }
+  if (type === "tenant-newsletter") {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast("أدخل بريدًا إلكترونيًا صحيحًا.", "danger");
+    const newsletterPublicId = String(form.dataset.publicId || "");
+    if (!newsletterPublicId) return toast("تعذر العثور على رابط النشرة المخصص.", "danger");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ الاشتراك...");
+    try {
+      const payload = await fetchJson(`/api/public/newsletter/${encodeURIComponent(newsletterPublicId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, website: data.website || "" })
+      });
+      form.reset();
+      if (form.closest(".newsletter-public-card")) {
+        form.innerHTML = `<div class="newsletter-public-success">${dashboardIcon("success")}<strong>${escapeHtml(payload.message || "تم الاشتراك بنجاح.")}</strong><span>أصبحت الآن ضمن قائمة عملاء صاحب النشرة.</span></div>`;
+      }
+      appToast.success(payload.alreadySubscribed ? "أنت مشترك بالفعل" : "تم الاشتراك في النشرة", {
+        description: payload.message,
+        id: payload.alreadySubscribed ? "newsletter-existing" : "newsletter-created"
+      });
+      if (state.route === "/dashboard/settings") {
+        state.dbCustomers = null;
+        state.accountSettings = null;
+        await syncRouteData(true);
+      }
+    } catch (error) {
+      appToast.error("تعذر إتمام الاشتراك", { description: error.message || "حاول مرة أخرى بعد قليل.", id: "newsletter-subscribe-error" });
+    } finally {
+      if (button?.isConnected) setSubmitBusy(button, false);
+    }
+    return;
+  }
   if (type === "subscription-settings") {
     try {
       await fetchJson(`/api/subscriptions/${form.dataset.id}`, {
@@ -10173,9 +10309,12 @@ function render() {
     "/terms": policyPage,
     "/refund-policy": policyPage
   };
+  const isNewsletterPublic = /^\/newsletter\/subscribe\/[^/]+$/.test(state.route);
   const isSallaPublicOrder = /^\/o\/(sord|sdig)_/.test(state.route);
   const page = state.route.startsWith("/blog/")
     ? articlePage
+    : isNewsletterPublic
+      ? newsletterSubscribePage
     : isSallaPublicOrder || state.route.startsWith("/i/")
       ? publicSallaPage
       : state.route.startsWith("/o/")
@@ -10200,6 +10339,7 @@ function render() {
     if (!state.mfaLoginStatus) queueMicrotask(() => loadMfaLoginStatus());
     requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]:not([disabled])')?.focus());
   }
+  syncRouteData();
 }
 
 const CUSTOM_API_BASE = "/dashboard/settings/integrations/custom-api";

@@ -11,7 +11,7 @@ describe("site-wide dark theme system", () => {
     ]);
 
     for (const markup of [layout, index]) {
-      expect(markup).toContain("/app/styles/dark-system.css?v=20260811-dark-system-v48");
+      expect(markup).toContain("/app/styles/dark-system.css?v=20260811-dark-system-v50");
       expect(markup.indexOf("globals.css")).toBeLessThan(markup.indexOf("dark-system.css"));
     }
   });
@@ -26,6 +26,10 @@ describe("site-wide dark theme system", () => {
     expect(css).toContain(".dashboard-shell .topbar");
     expect(css).toContain(".dashboard-shell .sidebar .side-link .line-icon");
     expect(css).toContain(".dashboard-main :is(.email-credit-package,.topup-option)");
+    expect(css).toContain(".dashboard-main .suite-quick-center button>svg");
+    expect(css).toContain(".dashboard-main .campaign-channel-choice.is-selected");
+    expect(css).toContain(".dashboard-shell :is(.sidebar-brand,.sidebar-brand .brand,.sidebar .brand)");
+    expect(css).toContain(".auth-showcase-art");
   });
 
   it("uses the transparent logo assets in dark mode", async () => {

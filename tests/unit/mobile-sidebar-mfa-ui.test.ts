@@ -152,10 +152,10 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-feature-connector--campaigns{top:70.91%;left:10.38%;width:11.1%;transform:rotate(-32.5deg)}");
     expect(stylesSource).toContain(".auth-feature-connector--channels{top:88%;left:38.4%;width:7.5%;transform:rotate(-51deg);display:none}");
     expect(stylesSource).toContain(".auth-feature-connector--security{top:88.05%;left:73.4%;width:8.5%;transform:rotate(-143.5deg);display:none}");
-    expect(stylesSource).toContain(".auth-relocated-feature--channels{top:43%;left:99%");
-    expect(stylesSource).toContain(".auth-relocated-feature--security{top:69%;left:101%");
-    expect(stylesSource).toContain(".auth-relocated-feature--channels::before{width:44px");
-    expect(stylesSource).toContain(".auth-relocated-feature--security::before{width:52px");
+    expect(stylesSource).toContain(".auth-relocated-feature--channels{top:41%;left:95%");
+    expect(stylesSource).toContain(".auth-relocated-feature--security{top:76%;left:95%");
+    expect(stylesSource).toContain(".auth-relocated-feature--channels::before{width:50px;transform:rotate(26.3deg)");
+    expect(stylesSource).toContain(".auth-relocated-feature--security::before{width:56px;transform:rotate(32.5deg)");
     expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
   });

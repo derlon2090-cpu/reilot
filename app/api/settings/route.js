@@ -1,11 +1,12 @@
 import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 import { getTenantStorage } from "../../../src/server/tenant-storage.js";
+import { getOrCreateNewsletterProfile } from "../../../src/server/newsletter.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
-  const [result, storage] = await Promise.all([query(
+  const [result, storage, newsletter] = await Promise.all([query(
     `SELECT u.name, u.name AS "fullName", u.email, u.image, u.image AS "avatarUrl", u.phone,
             COALESCE(st.name, '') AS "storeName", COALESCE(tm.role, u.role) AS role,
             COALESCE(s.language, 'ar') AS language, COALESCE(s.theme, 'light') AS theme,
@@ -26,8 +27,8 @@ export async function GET(req) {
        LEFT JOIN user_notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1 AND u.tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
-  ), getTenantStorage(auth.session.tenantId)]);
-  return Response.json({ ok: true, settings: result.rows[0] || null, storage });
+  ), getTenantStorage(auth.session.tenantId), getOrCreateNewsletterProfile(auth.session.tenantId, auth.session.userId)]);
+  return Response.json({ ok: true, settings: result.rows[0] || null, storage, newsletter });
 }
 
 export async function PATCH(req) {

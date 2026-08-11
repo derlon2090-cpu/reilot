@@ -73,6 +73,10 @@ export const campaignCreateSchema = z.object({
   if (String(value.audienceFilter?.htmlContent || "").length > 500_000) {
     context.addIssue({ code: "custom", path: ["audienceFilter", "htmlContent"], message: "حجم قالب HTML أكبر من الحد المسموح." });
   }
+  const emailDesign = value.audienceFilter?.emailDesign;
+  if (value.channel === "email" && emailDesign && !["luxury", "showcase", "editorial", "seasonal", "minimal", "spotlight"].includes(emailDesign)) {
+    context.addIssue({ code: "custom", path: ["audienceFilter", "emailDesign"], message: "تصميم البريد المحدد غير صالح." });
+  }
 });
 
 export function validateCampaignMessage(value) {
