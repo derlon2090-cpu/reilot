@@ -16,6 +16,8 @@ describe("footer resource pages", () => {
     expect(appSource).toContain('data-action="footer-faq-search"');
     expect(appSource).toContain('data-action="footer-faq-topic"');
     expect(appSource).toContain("function refreshFooterGuideResults(input)");
+    expect(appSource).toContain('.fp-steps article,.fp-guide-table button');
+    expect(appSource).toContain('querySelectorAll("[data-guide-section]")');
     expect(appSource).toContain("function refreshFooterFaqResults(root");
   });
 

@@ -2637,10 +2637,10 @@ function marketingResourcePage() {
   const guidePage = () => {
     const categories = [["البدء", "خطوات البداية وإنشاء الحساب.", "star", "8 أدلة"], ["الاشتراكات", "إدارة الباقات والفوترة.", "infinity", "12 دليل"], ["الحملات", "إنشاء الحملات والمتابعة.", "send", "14 دليل"], ["التكاملات", "ربط المنصات والقنوات.", "puzzle", "15 دليل"], ["الأجهزة", "إدارة الأجهزة وتسجيل الدخول.", "devices", "6 أدلة"], ["الأمان", "إعدادات الأمان والتحقق.", "security", "9 أدلة"], ["API / Webhooks", "وثائق الواجهات البرمجية.", "code", "10 أدلة"]];
     return `<main class="footer-showcase-page fp-guide">${pageHero("دليل المستخدم", "كل ما تحتاجه للبدء والنجاح مع Renvix. استكشف أدلة عملية خطوة بخطوة وتعرّف على الميزات والإعدادات وأفضل الممارسات.", `<label class="fp-hero-search">${dashboardIcon("search")}<input type="search" data-action="footer-guide-search" aria-label="البحث في دليل المستخدم" autocomplete="off" placeholder="ابحث عن موضوع أو دليل..."></label><div class="fp-search-suggestions"><span>أكثر البحث:</span>${["ربط المتجر","إنشاء حملة","إعداد API","إدارة الاشتراكات","التقارير"].map((query)=>`<button type="button" data-action="footer-guide-suggestion" data-query="${query}">${query}</button>`).join("")}</div><p class="fp-filter-status" data-footer-guide-status aria-live="polite"></p>`)}<div class="container fp-page-stack">
-      <section>${sectionTitle("تصفح أدلة الاستخدام")}<div class="fp-guide-categories" data-footer-guide-results>${categories.map(([title,body,icon,count],index)=>`<article data-guide-result data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p><b>${count}</b></article>`).join("")}</div></section>
-      <section>${sectionTitle("أدلة مقترحة")}<div class="fp-five-grid">${[["إنشاء حملتك الأولى", "تعلم كيفية إنشاء حملة خطوة بخطوة.", "customers"], ["ربط متجرك في 5 دقائق", "ربط Salla وShopify بسهولة.", "store"], ["إعداد طرق الدفع", "إضافة وإدارة وسائل الدفع.", "subscriptions"], ["تقارير الأداء والتحليلات", "فهم التقارير وقياس الأداء.", "reports"], ["الأتمتة والرسائل الذكية", "أتمتة الرسائل وإعداد السيناريوهات.", "bolt"]].map(iconCard).join("")}</div></section>
-      <section>${sectionTitle("ابدأ بسرعة")} ${steps([["أنشئ حسابك", "سجل حسابك وأدخل بياناتك.", "customers"], ["أكمل إعدادات الحساب", "أضف بيانات متجرك وفريقك.", "settings"], ["اربط تطبيقاتك", "اربط القنوات المطلوبة.", "puzzle"], ["أنشئ حملتك الأولى", "اختر الجمهور والقالب.", "send"], ["تابع النتائج وقِس", "راقب الأداء وحسّن النتائج.", "reports"]])}</section>
-      <section>${sectionTitle("آخر التحديثات في الدليل")}<div class="fp-guide-table">${[["دليل إعداد Webhooks خطوة بخطوة", "API / Webhooks", "منذ يومين"], ["تحديث تجربة إنشاء الحملات", "الحملات", "منذ 3 أيام"], ["دعم الدفع عبر Apple Pay", "الاشتراكات", "منذ 5 أيام"], ["تحسينات في تقارير الأداء", "التقارير", "منذ أسبوع"]].map(([title,type,time])=>`<button data-link="/blog"><span><strong>${title}</strong><small>${type}</small></span><time>${time}</time>${dashboardIcon("arrowLeft")}</button>`).join("")}</div></section>
+      <section data-guide-section>${sectionTitle("تصفح أدلة الاستخدام")}<div class="fp-guide-categories" data-footer-guide-results>${categories.map(([title,body,icon,count],index)=>`<article data-guide-result data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p><b>${count}</b></article>`).join("")}</div></section>
+      <section data-guide-section>${sectionTitle("أدلة مقترحة")}<div class="fp-five-grid">${[["إنشاء حملتك الأولى", "تعلم كيفية إنشاء حملة خطوة بخطوة.", "customers"], ["ربط متجرك في 5 دقائق", "ربط Salla وShopify بسهولة.", "store"], ["إعداد طرق الدفع", "إضافة وإدارة وسائل الدفع.", "subscriptions"], ["تقارير الأداء والتحليلات", "فهم التقارير وقياس الأداء.", "reports"], ["الأتمتة والرسائل الذكية", "أتمتة الرسائل وإعداد السيناريوهات.", "bolt"]].map(iconCard).join("")}</div></section>
+      <section data-guide-section>${sectionTitle("ابدأ بسرعة")} ${steps([["أنشئ حسابك", "سجل حسابك وأدخل بياناتك.", "customers"], ["أكمل إعدادات الحساب", "أضف بيانات متجرك وفريقك.", "settings"], ["اربط تطبيقاتك", "اربط القنوات المطلوبة.", "puzzle"], ["أنشئ حملتك الأولى", "اختر الجمهور والقالب.", "send"], ["تابع النتائج وقِس", "راقب الأداء وحسّن النتائج.", "reports"]])}</section>
+      <section data-guide-section>${sectionTitle("آخر التحديثات في الدليل")}<div class="fp-guide-table">${[["دليل إعداد Webhooks خطوة بخطوة", "API / Webhooks", "منذ يومين"], ["تحديث تجربة إنشاء الحملات", "الحملات", "منذ 3 أيام"], ["دعم الدفع عبر Apple Pay", "الاشتراكات", "منذ 5 أيام"], ["تحسينات في تقارير الأداء", "التقارير", "منذ أسبوع"]].map(([title,type,time])=>`<button data-link="/blog"><span><strong>${title}</strong><small>${type}</small></span><time>${time}</time>${dashboardIcon("arrowLeft")}</button>`).join("")}</div></section>
       ${actionBanner("هل تحتاج إلى مساعدة؟", "فريق الدعم جاهز لمساعدتك في أي وقت وتوجيهك إلى المقال المناسب.", "تواصل مع الدعم", "/support", "support")}</div></main>`;
   };
 
@@ -2769,12 +2769,17 @@ function refreshFooterGuideResults(input) {
   const root = input?.closest(".fp-guide");
   if (!root) return;
   const query = normalizeFooterSearch(input.value);
-  const results = [...root.querySelectorAll("[data-guide-result],.fp-five-grid .fp-icon-card,.fp-guide-table button")];
+  const resultSelector = "[data-guide-result],.fp-five-grid .fp-icon-card,.fp-steps article,.fp-guide-table button";
+  const results = [...root.querySelectorAll(resultSelector)];
   let visible = 0;
   results.forEach((item) => {
     const matches = !query || normalizeFooterSearch(item.textContent).includes(query);
     item.hidden = !matches;
     if (matches) visible += 1;
+  });
+  root.querySelectorAll("[data-guide-section]").forEach((section) => {
+    const sectionResults = [...section.querySelectorAll(resultSelector)];
+    section.hidden = Boolean(query) && !sectionResults.some((item) => !item.hidden);
   });
   const status = root.querySelector("[data-footer-guide-status]");
   if (status) status.textContent = query ? (visible ? `${visible.toLocaleString("ar-SA")} نتيجة مطابقة` : "لا توجد نتائج مطابقة. جرّب كلمة أقصر.") : "";
