@@ -8498,7 +8498,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-live-feed>span{min-height:20px;grid-template-columns:14px minmax(0,1fr) auto;gap:3px;padding:3px;font-size:6px}
   .marketing-home-v3 .home-ops-scene--hero .ops-live-feed b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .marketing-home-v3 .home-ops-scene--hero .ops-live-feed small{font-size:5px;white-space:nowrap}
-  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0;bottom:33px!important;min-height:108px;overflow:hidden}
+  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0;bottom:13px!important;min-height:108px;overflow:hidden}
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{overflow:hidden}
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue>strong{
     position:absolute;
@@ -8608,7 +8608,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:33px!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:4px!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-success{bottom:33px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-success{bottom:13px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{top:146px!important;width:136px!important;height:136px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{width:96px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-card{width:160px!important}
@@ -8785,7 +8785,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .marketing-home-v3 .home-ops-scene--hero .ops-revenue{top:213px!important;right:0!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-metrics{bottom:33px!important;left:0!important}
   .marketing-home-v3 .home-ops-scene--hero .ops-live{bottom:4px!important;left:50%!important;width:224px!important;transform:translateX(-50%)!important}
-  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0!important;bottom:33px!important}
+  .marketing-home-v3 .home-ops-scene--hero .ops-success{right:0!important;bottom:13px!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-center{position:absolute!important;inset:auto!important;top:146px!important;left:50%!important;grid-column:auto;width:150px!important;height:150px!important;margin:0!important;transform:translateX(-50%)!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-mark{width:108px!important}
 }
