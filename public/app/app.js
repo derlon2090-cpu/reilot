@@ -3976,7 +3976,7 @@ function subscriptionsPage() {
     : state.dbSubscriptions === null
       ? `<div class="loading-state">جاري تحميل الاشتراكات من قاعدة البيانات...</div>`
       : rows.length ? subscriptionsTable(rows) : emptyState("لا توجد اشتراكات حتى الآن", meta.sallaConnected ? "لن يُنشأ اشتراك إلا من طلب مدفوع لمنتج مربوط بباقة، أو بإضافة اشتراك يدوي." : "اربط متجر سلة لاستيراد الطلبات والمنتجات، أو أضف اشتراكًا يدويًا.", meta.sallaConnected ? "إضافة اشتراك" : "ربط متجر سلة", meta.sallaConnected ? "add-subscription" : "connect-salla");
-  const tabs = [["list","قائمة الاشتراكات"],["settings","إعدادات التذكير"],["templates","قوالب الرسائل"],["log","سجل الإرسال"]];
+  const tabs = [["list","قائمة الاشتراكات","subscriptions"],["settings","إعدادات التذكير","settings"],["templates","قوالب الرسائل","template"],["log","سجل الإرسال","send"]];
   const upcoming = meta.upcoming || [];
   const sendLog = meta.sendLog || [];
   const settingsRows = Array.isArray(meta.settingsItems) ? meta.settingsItems : rows;
@@ -4001,7 +4001,7 @@ function subscriptionsPage() {
       { title: "قيمة الاشتراكات النشطة", value: formatMoney(Number(stats.activeValue||0)), caption: "ر.س", tone: "purple", icon: "billing" }
     ])}
     ${Number(meta.unmappedCount||0)>0?`<button class="inline-notice warning subscription-unmapped-notice" data-link="/dashboard/apps">${Number(meta.unmappedCount)} عناصر طلب من سلة تحتاج إلى ربط باقة ومدة — لم يُنشأ لها اشتراك تلقائيًا.</button>`:""}
-    <nav class="subscription-section-tabs">${tabs.map(([key,label])=>`<button class="${state.subscriptionSection===key?"active":""}" data-action="subscription-section" data-section="${key}">${label}</button>`).join("")}</nav>
+    <nav class="subscription-section-tabs dashboard-line-tabs" aria-label="أقسام الاشتراكات">${tabs.map(([key,label,icon])=>`<button class="${state.subscriptionSection===key?"active":""}" data-action="subscription-section" data-section="${key}" aria-current="${state.subscriptionSection===key?"page":"false"}"><span class="dashboard-line-tab-icon">${dashboardIcon(icon)}</span><span>${label}</span></button>`).join("")}</nav>
     ${subscriptionToolbar()}
     ${activeSection}`);
 }
@@ -6027,8 +6027,8 @@ function billingWorkspacePage() {
   const statusLabel = ({ trial: "تجربة مجانية", active: "اشتراك نشط", past_due: "دفعة متأخرة", canceled: "ملغي", cancelled: "ملغي", expired: "منتهي" })[statusKey] || "—";
   const planLabel = trialActive || trialExpired ? "التجربة المجانية" : current.planName || "—";
   const tabs = [
-    ["overview", "نظرة عامة"], ["plans", "الباقات"], ["whatsapp", "استخدام واتساب"],
-    ["email", "استخدام البريد"], ["topup", "شحن رصيد رسائل البريد"], ["invoices", "الفواتير"]
+    ["overview", "نظرة عامة", "home"], ["plans", "الباقات", "publicPlans"], ["whatsapp", "استخدام واتساب", "whatsapp"],
+    ["email", "استخدام البريد", "email"], ["topup", "شحن رصيد رسائل البريد", "add"], ["invoices", "الفواتير", "document"]
   ];
   const overview = `<section class="billing-stats-grid">
     <article class="card billing-stat"><span>${dashboardIcon("subscriptions")}</span><div><small>الخطة الحالية</small><strong>${escapeHtml(planLabel)}</strong><em>${statusLabel}</em></div></article>
@@ -6052,7 +6052,7 @@ function billingWorkspacePage() {
   if (tab === "topup") panel = emailCreditPanel(emailUsage, showUpgrade);
   if (tab === "invoices") panel = billingInvoices(invoices);
   return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">إدارة خطتك ورصيد البريد والفواتير، مع عرض استخدام واتساب المتزامن من Meta.</p>
-    <nav class="billing-tabs" aria-label="أقسام الفوترة">${tabs.map(([key, label]) => `<button class="${tab === key ? "active" : ""}" data-action="billing-tab" data-tab="${key}">${label}</button>`).join("")}</nav>${panel}`);
+    <nav class="billing-tabs dashboard-line-tabs" aria-label="أقسام الفوترة">${tabs.map(([key, label, icon]) => `<button class="${tab === key ? "active" : ""}" data-action="billing-tab" data-tab="${key}" aria-current="${tab === key ? "page" : "false"}"><span class="dashboard-line-tab-icon">${dashboardIcon(icon)}</span><span>${label}</span></button>`).join("")}</nav>${panel}`);
 }
 
 function settingsPage() {
