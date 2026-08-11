@@ -2953,12 +2953,15 @@ function authReferenceVisual(kind) {
     loginOtp: "/app/assets/auth-reference/login-otp-v2.png?v=20260810-auth-art-v29"
   };
   const referenceAsset = referenceAssets[kind] || referenceAssets.login;
+  const featureConnectors = kind === "login" || kind === "register"
+    ? `<span class="auth-showcase-feature-connectors" aria-hidden="true"><i class="auth-feature-connector auth-feature-connector--alerts"></i><i class="auth-feature-connector auth-feature-connector--reports"></i><i class="auth-feature-connector auth-feature-connector--automation"></i><i class="auth-feature-connector auth-feature-connector--campaigns"></i><i class="auth-feature-connector auth-feature-connector--channels"></i><i class="auth-feature-connector auth-feature-connector--security"></i></span>`
+    : "";
   prioritizeAuthReference(referenceAsset);
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art"><img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
+    <div class="auth-showcase-art">${featureConnectors}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
   </div>`;
 }
 

@@ -100,8 +100,9 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('scene: "loginOtp"');
     expect(appSource).toContain('scene: "signupOtp"');
     expect(appSource).not.toContain('class="auth-showcase-caption"');
-    expect(appSource).not.toContain('class="auth-showcase-feature-lines"');
-    expect(appSource).not.toContain('auth-feature-line--alerts');
+    expect(appSource).toContain('class="auth-showcase-feature-connectors"');
+    expect(appSource).toContain('auth-feature-connector--alerts');
+    expect(appSource).toContain('kind === "login" || kind === "register"');
     expect(appSource).toContain('class="auth-showcase-reference-art"');
     expect(appSource).toContain("function prioritizeAuthReference");
     expect(appSource).toContain('loading="eager" decoding="sync" fetchpriority="high"');
@@ -140,8 +141,10 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("Clean artwork balance: the reference asset owns its precisely attached connector paths.");
     expect(stylesSource).toContain("Keep every reference illustration fully visible inside the approved fixed panel.");
     expect(stylesSource).toContain("Stable access artwork: one panel size for sign-in/register, using embedded connectors.");
-    expect(stylesSource).toContain("Login/register only: reveal the artwork's native icon-to-device paths without detached overlays.");
-    expect(stylesSource).toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
+    expect(stylesSource).toContain("Preserve the original artwork quality; connectors are a separate layer behind it.");
+    expect(stylesSource).toContain(".auth-showcase--login .auth-showcase-feature-connectors");
+    expect(stylesSource).toContain(".auth-feature-connector--security");
+    expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
   });
 
@@ -154,7 +157,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
         expect(source).toContain(asset);
       }
     }
-    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-stable-load-v37"></script>');
+    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-manual-connectors-v38"></script>');
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
