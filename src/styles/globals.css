@@ -11555,3 +11555,129 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .dashboard-sidebar-toggle { display: none; }
   .topbar .dashboard-search { transform: none; }
 }
+
+/* Campaign Studio reference layout: product/custom × WhatsApp/email. */
+.campaign-studio[data-campaign-channel][data-campaign-kind]{width:100%;max-width:none;margin-inline:auto;padding-bottom:54px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-heading{min-height:92px;margin-bottom:14px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-layout{direction:rtl;gap:18px}
+.campaign-studio.is-email .campaign-studio-layout{grid-template-columns:minmax(0,1.55fr) minmax(390px,.95fr)}
+.campaign-studio.is-whatsapp .campaign-studio-layout{grid-template-columns:minmax(0,1.88fr) minmax(360px,.76fr)}
+.campaign-studio.is-email.is-product .campaign-studio-preview,
+.campaign-studio.is-email.is-custom .campaign-studio-preview{min-height:820px}
+.campaign-studio.is-whatsapp.is-product .campaign-studio-preview,
+.campaign-studio.is-whatsapp.is-custom .campaign-studio-preview{min-height:790px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-form{gap:12px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section{padding:16px;border-radius:14px;box-shadow:0 7px 20px rgba(7,61,55,.03)}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section>header>span,
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section>summary>svg{width:38px;height:38px;flex-basis:38px;border-radius:11px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section>header>span svg{width:20px;height:20px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section h2,
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section summary strong{font-size:15px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-basics{gap:11px;margin-top:14px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .input,
+.campaign-studio[data-campaign-channel][data-campaign-kind] .select{min-height:42px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-main-message textarea{min-height:116px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview{top:76px;padding:13px;border-radius:15px;background:#fff;box-shadow:0 10px 28px rgba(7,61,55,.05)}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview>header{min-height:42px;margin-bottom:10px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview>header h2{font-size:15px}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview>header p{display:none}
+.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:sticky;bottom:10px;z-index:5;padding:10px;border:1px solid #dce8e5;border-radius:13px;background:rgba(255,255,255,.96);box-shadow:0 10px 28px rgba(7,61,55,.08)}
+
+/* Large, extended WhatsApp preview matching the campaign references. */
+.campaign-studio.is-whatsapp .campaign-studio-preview>div{display:flex;justify-content:center}
+.campaign-studio.is-whatsapp .campaign-studio-phone{display:flex;width:100%;max-width:420px;min-height:720px;margin:0 auto;overflow:hidden;flex-direction:column;border:7px solid #172b29;border-radius:39px;background:#f6eee6;box-shadow:0 13px 28px rgba(7,41,37,.13)}
+.campaign-studio.is-whatsapp .campaign-phone-top{min-height:36px;padding:8px 20px 5px;color:#152c29;background:#fff;font-size:11px;direction:ltr}
+.campaign-studio.is-whatsapp .campaign-phone-brand{display:grid;grid-template-columns:30px 38px minmax(0,1fr) 30px;align-items:center;gap:7px;min-height:70px;padding:10px 12px;border-bottom:1px solid #e4ebe9;background:#fff;direction:ltr}
+.campaign-studio.is-whatsapp .campaign-phone-brand>button{display:grid;width:30px;height:30px;padding:0;place-items:center;border:0;color:#173e39;background:transparent}
+.campaign-studio.is-whatsapp .campaign-phone-brand>button .line-icon{width:18px;height:18px}
+.campaign-studio.is-whatsapp .campaign-phone-brand>img{width:36px;height:36px;object-fit:contain}
+.campaign-studio.is-whatsapp .campaign-phone-brand>div{display:grid;gap:2px;direction:rtl;text-align:left}
+.campaign-studio.is-whatsapp .campaign-phone-brand strong{display:flex;align-items:center;gap:4px;color:#173d38;font-size:14px}
+.campaign-studio.is-whatsapp .campaign-phone-brand strong .line-icon{width:13px;height:13px;color:#129c80}
+.campaign-studio.is-whatsapp .campaign-phone-brand small{color:#7b8e8a;font-size:9px}
+.campaign-studio.is-whatsapp .campaign-chat{display:flex;flex:1;flex-direction:column;min-height:545px;padding:18px 10px 14px;background:#f7eee5}
+.campaign-studio.is-whatsapp .campaign-chat-day{align-self:center;margin-bottom:10px;padding:4px 10px;border-radius:5px;color:#6d817d;background:rgba(255,255,255,.78);font-size:8px}
+.campaign-studio.is-whatsapp .campaign-chat-message{align-self:stretch;margin-bottom:8px;padding:13px 12px 7px;border-radius:12px 12px 3px 12px;color:#264943;background:#fff;box-shadow:0 2px 7px rgba(20,54,49,.06)}
+.campaign-studio.is-whatsapp .campaign-chat-message p{font-size:10px;line-height:1.8;text-align:right}
+.campaign-studio.is-whatsapp .campaign-chat-message time{display:block;margin-top:5px;color:#8b9b98;text-align:left;font-size:7px}
+.campaign-studio.is-whatsapp .campaign-studio-preview-cards{grid-auto-columns:minmax(165px,1fr);gap:7px;padding:1px}
+.campaign-studio.is-whatsapp .campaign-studio-preview-card{min-height:246px;padding:7px;border-radius:10px;box-shadow:0 2px 7px rgba(20,54,49,.05)}
+.campaign-studio.is-whatsapp .campaign-studio-preview-card>img,
+.campaign-studio.is-whatsapp .campaign-studio-preview-card>span{height:132px}
+.campaign-studio.is-whatsapp .campaign-studio-preview-card strong{font-size:10px}
+.campaign-studio.is-whatsapp .campaign-studio-preview-card p{min-height:32px;font-size:8px}
+.campaign-studio.is-whatsapp .campaign-studio-preview-card b{font-size:9px}
+.campaign-preview-pagination{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:10px}.campaign-preview-pagination>*{display:block;width:5px;height:5px;border-radius:50%;background:#cad6d3}.campaign-preview-pagination>b{width:16px;border-radius:999px;background:#159b83}
+.campaign-preview-swipe-hint{display:block;margin-top:5px;color:#92a19e;text-align:center;font-size:7px}
+.campaign-studio.is-whatsapp .campaign-phone-input{display:grid;grid-template-columns:30px minmax(0,1fr) 22px 22px 37px;align-items:center;gap:5px;min-height:64px;padding:9px 10px;border-top:1px solid #e4ebe9;background:#fff;direction:ltr}
+.campaign-studio.is-whatsapp .campaign-phone-input>button{width:28px;height:28px;padding:0;border:0;color:#617a75;background:transparent;font-size:17px}
+.campaign-studio.is-whatsapp .campaign-phone-input>span{color:#9aa8a5;font-size:9px;direction:rtl;text-align:right}
+.campaign-studio.is-whatsapp .campaign-phone-input>.line-icon{width:18px;height:18px;color:#617a75}
+.campaign-studio.is-whatsapp .campaign-phone-input>b{display:grid;width:37px;height:37px;place-items:center;border-radius:50%;color:#fff;background:#0b816e}
+.campaign-studio.is-whatsapp .campaign-phone-input>b .line-icon{width:18px;height:18px}
+
+/* Large browser/email preview matching both product and custom email editors. */
+.campaign-studio.is-email .campaign-studio-email-preview{display:flex;min-height:720px;flex-direction:column;border-color:#d9e5e2;border-radius:10px;box-shadow:0 7px 20px rgba(7,61,55,.04)}
+.campaign-email-windowbar{position:relative;display:flex;min-height:40px;align-items:center;justify-content:center;padding:8px 13px;border-bottom:1px solid #e4ecea;color:#6d817d;background:#f8fbfa;font-size:8px}
+.campaign-email-windowbar>span{position:absolute;left:13px;display:flex;gap:5px}.campaign-email-windowbar>span i{display:block;width:8px;height:8px;border-radius:50%;background:#0b8b78}.campaign-email-windowbar>span i:nth-child(2){background:#e8a536}.campaign-email-windowbar>span i:nth-child(3){background:#d85e61}
+.campaign-email-windowbar>b{font-size:9px}.campaign-email-windowbar>small{position:absolute;right:13px;padding:3px 7px;border-radius:5px;color:#778b87;background:#edf3f2;font-size:7px}
+.campaign-email-message-meta{display:grid;grid-template-columns:32px minmax(0,1fr) auto 18px 18px 18px;align-items:center;gap:6px;min-height:58px;padding:9px 12px;border-bottom:1px solid #e5ecea;background:#fff;text-align:right}
+.campaign-email-message-meta>span{display:grid;width:30px;height:30px;place-items:center;border-radius:50%;color:#0b3f3b;background:#e9f4f2}.campaign-email-message-meta>span .line-icon{width:17px;height:17px}
+.campaign-email-message-meta>div{display:grid;gap:1px}.campaign-email-message-meta strong{color:#173e39;font-size:9px}.campaign-email-message-meta small,.campaign-email-message-meta time{color:#8a9b97;font-size:7px}.campaign-email-message-meta>.line-icon{width:13px;height:13px;color:#738985}
+.campaign-studio-email-preview .campaign-email-brand{min-height:64px;align-items:center;padding:12px;background:#fff}.campaign-studio-email-preview .campaign-email-brand img{width:112px;max-height:36px;object-fit:contain}
+.campaign-studio.is-email .campaign-studio-email-preview>section{display:flex;flex:1;flex-direction:column;padding:0 17px 21px;background:#f5f9f8;text-align:right}
+.campaign-email-hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(135px,.85fr);align-items:center;gap:16px;min-height:245px;margin:0 -17px 22px;padding:24px 20px;color:#123d37;background:#e7f3f0;overflow:hidden}
+.campaign-email-hero>div:first-child{display:grid;align-content:center;gap:8px}.campaign-email-hero>div:first-child>small{color:#598079;font-size:8px}.campaign-studio-email-preview .campaign-email-hero h2{margin:0;color:#0b3f3b;font-size:clamp(22px,2vw,29px);line-height:1.35}.campaign-studio-email-preview .campaign-email-hero p{margin:0;color:#52716b;font-size:10px;line-height:1.9;white-space:pre-wrap}
+.campaign-email-hero-media{display:grid;min-height:190px;place-items:center;overflow:hidden;border-radius:14px;color:#0b3f3b;background:#f5faf9}.campaign-email-hero-media.has-image{background:#fff}.campaign-email-hero-media>img{width:100%;height:190px;object-fit:cover}.campaign-email-hero-media>span{display:grid;justify-items:center;gap:8px;color:#71908a}.campaign-email-hero-media>span .line-icon{width:42px;height:42px}.campaign-email-hero-media>span small{font-size:8px}
+.campaign-email-cards-title{margin:0 0 12px;color:#173e39;text-align:center;font-size:14px}
+.campaign-studio.is-email .campaign-studio-preview-card{gap:8px;padding:9px;border-radius:10px;text-align:right}
+.campaign-studio.is-email .campaign-studio-preview-card>img,
+.campaign-studio.is-email .campaign-studio-preview-card>span{height:132px}
+.campaign-studio.is-email .campaign-studio-preview-card strong{font-size:10px}.campaign-studio.is-email .campaign-studio-preview-card p{min-height:36px;font-size:8px}.campaign-studio.is-email .campaign-studio-preview-card b{min-height:28px;font-size:8px}
+.campaign-studio.is-email .campaign-email-social{margin-top:auto;padding-top:17px}
+.campaign-studio.is-email .campaign-studio-email-preview>footer{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:50px;padding:12px 16px;border-top:1px solid #e5ecea;background:#fff;text-align:right}.campaign-studio.is-email .campaign-studio-email-preview>footer span{max-width:80%}.campaign-studio.is-email .campaign-studio-email-preview>footer small{color:#0b3f3b;font-weight:800}
+.campaign-studio.is-email.is-product .campaign-email-hero{background:#eef7f4}
+.campaign-studio.is-email.is-custom .campaign-email-hero{background:#e8f1ef}
+.campaign-studio-email-preview.design-luxury .campaign-email-hero{color:#fff;background:#0b302d}.campaign-studio-email-preview.design-luxury .campaign-email-hero h2{color:#fff}.campaign-studio-email-preview.design-luxury .campaign-email-hero p,.campaign-studio-email-preview.design-luxury .campaign-email-hero>div:first-child>small{color:#d6e3df}
+.campaign-studio-email-preview.design-editorial .campaign-email-hero{border-inline-start:6px solid #315a70;background:#f5f8f9}.campaign-studio-email-preview.design-seasonal .campaign-email-hero{background:#fff4ed}.campaign-studio-email-preview.design-minimal .campaign-email-hero{background:#fff}.campaign-studio-email-preview.design-spotlight .campaign-email-hero{background:#e7f3f0}
+
+:root[data-theme="dark"] .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{border-color:#28514b;background:rgba(8,43,39,.96)}
+:root[data-theme="dark"] .campaign-email-windowbar,
+:root[data-theme="dark"] .campaign-email-message-meta,
+:root[data-theme="dark"] .campaign-studio-email-preview .campaign-email-brand,
+:root[data-theme="dark"] .campaign-studio.is-email .campaign-studio-email-preview>footer{border-color:#28514b;background:#0b322e}
+
+@media (max-width:1280px) and (min-width:921px){
+  .campaign-studio.is-email .campaign-studio-layout{grid-template-columns:minmax(0,1.22fr) minmax(330px,.78fr)}
+  .campaign-studio.is-whatsapp .campaign-studio-layout{grid-template-columns:minmax(0,1.42fr) minmax(310px,.66fr)}
+  .campaign-studio.is-whatsapp .campaign-studio-phone{max-width:360px;min-height:680px}
+  .campaign-studio.is-whatsapp .campaign-chat{min-height:505px}
+  .campaign-email-hero{grid-template-columns:1fr;min-height:230px}.campaign-email-hero-media{min-height:150px}.campaign-email-hero-media>img{height:150px}
+}
+@media (max-width:920px){
+  .campaign-studio.is-email .campaign-studio-layout,.campaign-studio.is-whatsapp .campaign-studio-layout{grid-template-columns:1fr}
+  .campaign-studio.is-email.is-product .campaign-studio-preview,.campaign-studio.is-email.is-custom .campaign-studio-preview,.campaign-studio.is-whatsapp.is-product .campaign-studio-preview,.campaign-studio.is-whatsapp.is-custom .campaign-studio-preview{min-height:auto}
+  .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview{position:static;order:2}
+  .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-workspace{order:1}
+  .campaign-studio.is-email .campaign-studio-preview>div{max-width:700px;margin-inline:auto}
+  .campaign-studio.is-whatsapp .campaign-studio-phone{max-width:420px}
+}
+@media (max-width:700px){
+  .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-heading{min-height:0}
+  .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-section{padding:13px}
+  .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:static;grid-template-columns:1fr}
+  .campaign-studio.is-email .campaign-studio-email-preview{min-height:650px}
+  .campaign-email-hero{grid-template-columns:1fr;gap:12px;min-height:0;padding:19px 15px}.campaign-email-hero-media{min-height:170px}.campaign-email-hero-media>img{height:170px}
+  .campaign-studio.is-email .campaign-studio-email-preview .campaign-studio-preview-cards{grid-template-columns:1fr}
+  .campaign-studio.is-whatsapp .campaign-studio-phone{max-width:370px;min-height:680px;border-width:5px;border-radius:31px}
+  .campaign-studio.is-whatsapp .campaign-chat{min-height:505px}
+}
+@media (max-width:420px){
+  .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview{padding:9px}
+  .campaign-studio.is-whatsapp .campaign-studio-phone{min-height:640px}
+  .campaign-studio.is-whatsapp .campaign-chat{min-height:465px;padding-inline:7px}
+  .campaign-studio.is-whatsapp .campaign-studio-preview-cards{grid-auto-columns:minmax(148px,1fr)}
+  .campaign-studio.is-whatsapp .campaign-studio-preview-card>img,.campaign-studio.is-whatsapp .campaign-studio-preview-card>span{height:116px}
+  .campaign-email-message-meta{grid-template-columns:30px minmax(0,1fr) auto 16px 16px 16px;padding-inline:8px}
+  .campaign-studio-email-preview .campaign-email-brand img{width:100px}
+}
