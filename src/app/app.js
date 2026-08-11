@@ -533,6 +533,8 @@ function readDensityPreference() {
   return ["comfortable", "medium", "compact"].includes(value) ? value : "comfortable";
 }
 
+const dashboardSidebarCollapsedKey = "renvix.dashboard.sidebar.collapsed";
+
 function getNestedValue(object, key) {
   return key.split(".").reduce((value, part) => value?.[part], object);
 }
@@ -666,6 +668,7 @@ const state = {
   query: new URLSearchParams(location.search),
   navOpen: false,
   sidebarOpen: false,
+  sidebarCollapsed: storage.get(dashboardSidebarCollapsedKey, false) === true,
   theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
   interfaceDensity: readDensityPreference(),
@@ -1426,11 +1429,11 @@ function icon(text, tone = "") {
   return `<span class="icon-bubble ${tone}">${text}</span>`;
 }
 
-function logo() {
+function logo(compact = false) {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image" src="/assets/renvix-logo-exact.png" width="1029" height="221" alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image${compact ? " brand-logo-image--mark" : ""}" src="${compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-exact.png"}" ${compact ? 'width="64" height="48"' : 'width="1029" height="221"'} alt="${escapeHtml(appName)}">
   </button>`;
 }
 
@@ -3307,7 +3310,10 @@ function dashboardShell(content) {
     { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/settings"] }
   ];
   const links = routeGroups.map((group) => {
-    const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => `<button class="side-link ${state.route === path || (path === "/dashboard/apps" && state.route.startsWith("/dashboard/apps/")) ? "active" : ""}" data-link="${path}">${dashboardIcon(mark)}<span>${state.language === "ar" ? label : englishLabels[label]}</span></button>`).join("");
+    const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => {
+      const localizedLabel = state.language === "ar" ? label : englishLabels[label];
+      return `<button class="side-link ${state.route === path || (path === "/dashboard/apps" && state.route.startsWith("/dashboard/apps/")) ? "active" : ""}" data-link="${path}" aria-label="${escapeHtml(localizedLabel)}" title="${escapeHtml(localizedLabel)}">${dashboardIcon(mark)}<span>${localizedLabel}</span></button>`;
+    }).join("");
     return `<div class="side-group">${group.label ? `<span class="side-group-title">${group.label}</span>` : ""}${items}</div>`;
   }).join("");
   const themeIcon = state.theme === "dark" ? "☾" : "☀";
@@ -3325,17 +3331,21 @@ function dashboardShell(content) {
     ? `<strong>${escapeHtml(profileName)}</strong>`
     : `<span class="profile-name-skeleton" aria-label="${state.language === "ar" ? "جاري تحميل اسم الحساب" : "Loading account name"}"></span>`;
   const unreadNotifications = Number(state.notifications?.summary?.unread || 0);
-  return `<div class="dashboard-shell">
+  const sidebarToggleLabel = state.sidebarCollapsed
+    ? (state.language === "ar" ? "إظهار القائمة كاملة" : "Expand navigation")
+    : (state.language === "ar" ? "إظهار الأيقونات فقط" : "Show icons only");
+  return `<div class="dashboard-shell ${state.sidebarCollapsed ? "sidebar-collapsed" : ""}">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
-      <div class="sidebar-brand">${logo()}</div>
+      <div class="sidebar-brand">${logo(state.sidebarCollapsed)}</div>
       <nav class="side-links">${links}</nav>
-      <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
+      <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support" aria-label="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}" title="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
     </aside>
     ${state.sidebarOpen ? `<button class="sidebar-backdrop" data-action="close-sidebar" aria-label="إغلاق القائمة"></button>` : ""}
     <main class="dashboard-main">
       <header class="topbar">
         <div class="topbar-tools">
           <button class="btn btn-secondary icon-btn mobile-side-toggle" data-action="toggle-sidebar">☰</button>
+          <button class="dashboard-sidebar-toggle" type="button" data-action="toggle-sidebar-collapse" aria-label="${sidebarToggleLabel}" title="${sidebarToggleLabel}" aria-pressed="${state.sidebarCollapsed ? "true" : "false"}">${dashboardIcon(state.sidebarCollapsed ? "close" : "menu")}</button>
           <div class="search-wrap dashboard-search"><span class="search-icon">⌕</span><input class="input" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="dashboard-quick-search-results" aria-expanded="${state.globalSearch ? "true" : "false"}" data-action="global-search" placeholder="${state.language === "ar" ? "بحث سريع..." : "Quick search..."}" value="${escapeHtml(state.globalSearch)}"><div id="dashboard-quick-search-results" class="dashboard-quick-search-results" role="listbox" data-global-search-results ${state.globalSearch ? "" : "hidden"}>${dashboardQuickSearchResultsMarkup(state.globalSearch)}</div></div>
         </div>
         <div class="topbar-tools topbar-account-tools">
@@ -8264,6 +8274,12 @@ async function handleAction(target) {
   }
   if (action === "toggle-public-nav") { state.navOpen = !state.navOpen; render(); }
   if (action === "toggle-sidebar") { state.sidebarOpen = !state.sidebarOpen; render(); }
+  if (action === "toggle-sidebar-collapse") {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    try { storage.set(dashboardSidebarCollapsedKey, state.sidebarCollapsed); } catch { /* The visual state still works when storage is unavailable. */ }
+    render();
+    return;
+  }
   if (action === "close-sidebar") { state.sidebarOpen = false; render(); return; }
   if (action === "template-catalog-channel" && target.tagName !== "SELECT") { state.templateCatalogChannel = target.dataset.channel || "all"; render(); }
   if (action === "preview-catalog-template") document.querySelector(".template-preview-v2")?.scrollIntoView({ behavior: "smooth", block: "start" });
