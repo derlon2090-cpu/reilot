@@ -60,10 +60,10 @@ const ROLE_SCOPES = {
   viewer: ["عرض المؤشرات", "عرض الاشتراكات", "عرض المستخدمين والعملاء", "عرض الأجهزة والقنوات", "عرض الحماية", "عرض التقارير", "سجل التدقيق"]
 };
 
-function Brand() {
+function Brand({ compact = false }) {
   return (
     <div className={styles.brand} aria-label="Renvix">
-      <img className={styles.brandLogo} src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" />
+      <img className={styles.brandLogo} src={compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-deep-teal.svg"} width={compact ? "220" : "760"} height="220" alt="Renvix" />
     </div>
   );
 }
@@ -86,7 +86,9 @@ const ICONS = {
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
   store: '<path d="M3 9l2-5h14l2 5"/><path d="M5 13v8h14v-8M9 21v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>',
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/>',
-  billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h2"/>'
+  billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h2"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  close: '<path d="m6 6 12 12M18 6 6 18"/>'
 };
 
 function Icon({ name }) {
@@ -145,6 +147,15 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState(initialPanel);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setSidebarCollapsed(window.localStorage.getItem("renvix.admin.sidebar.collapsed") === "true");
+    } catch {
+      setSidebarCollapsed(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setError("");
@@ -169,6 +180,18 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" }).catch(() => null);
     onLogout();
+  }
+
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem("renvix.admin.sidebar.collapsed", String(next));
+      } catch {
+        // The visual state still works when browser storage is unavailable.
+      }
+      return next;
+    });
   }
 
   const stats = data?.stats;
@@ -289,15 +312,23 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
     return terms.some((term) => value.includes(term));
   });
   return (
-    <main className={styles.dashboard} dir="rtl">
+    <main className={`${styles.dashboard} ${sidebarCollapsed ? styles.dashboardCollapsed : ""}`} dir="rtl">
       <aside className={styles.sidebar}>
-        <Brand />
-        <nav aria-label="قائمة الأدمن">
+        <div className={styles.sidebarHeader}>
+          <Brand compact={sidebarCollapsed} />
+          <button className={styles.sidebarToggle} type="button" onClick={toggleSidebar} aria-controls="admin-primary-navigation" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed ? "إظهار الشريط الجانبي" : "طي الشريط الجانبي"} title={sidebarCollapsed ? "إظهار الشريط الجانبي" : "طي الشريط الجانبي"}>
+            <Icon name={sidebarCollapsed ? "close" : "menu"} />
+          </button>
+        </div>
+        <nav id="admin-primary-navigation" aria-label="قائمة الأدمن">
           {ADMIN_NAV_GROUPS.map(([group, items], groupIndex) => <div className={styles.navGroup} key={group || groupIndex}>
             {group ? <span className={styles.navGroupLabel}>{group}</span> : null}
             {items.map(([key, label, icon]) => (
               <button key={key} type="button" className={activePanel === key ? styles.activeNav : ""}
                 onClick={() => window.location.assign(key === "overview" ? "/admin" : `/admin/${key}`)}
+                data-label={label}
+                title={sidebarCollapsed ? label : undefined}
+                aria-label={label}
                 aria-current={activePanel === key ? "page" : undefined}>
                 <Icon name={icon} /><span>{label}</span>
               </button>
