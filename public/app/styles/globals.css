@@ -10487,7 +10487,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     margin-bottom:0!important;
     overflow:visible!important;
   }
-  .auth-showcase-feature-lines{
+  .auth-showcase--login .auth-showcase-feature-lines,
+  .auth-showcase--register .auth-showcase-feature-lines{
     position:absolute;
     z-index:4;
     inset:0;
@@ -10538,5 +10539,58 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--register .auth-showcase-reference-art{
     width:min(calc(100% + 8px),500px)!important;
     max-height:355px!important;
+  }
+}
+
+/* Stable access artwork: one panel size for sign-in/register, connectors nowhere else. */
+@media (min-width:744px){
+  html:has(.auth-suite-shell.login),
+  html:has(.auth-suite-shell.register),
+  body:has(.auth-suite-shell.login),
+  body:has(.auth-suite-shell.register){
+    direction:ltr!important;
+  }
+  .auth-suite-page:has(.auth-suite-shell.login),
+  .auth-suite-page:has(.auth-suite-shell.register){
+    width:100vw!important;
+    max-width:100vw!important;
+    direction:rtl!important;
+  }
+  .auth-suite-page .auth-suite-shell.login,
+  .auth-suite-page .auth-suite-shell.register{
+    --auth-showcase-height:min(650px,calc(100dvh - 90px))!important;
+  }
+  .auth-suite-page .auth-suite-shell.login>.auth-suite-visual,
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-visual{
+    height:var(--auth-showcase-height)!important;
+    min-height:var(--auth-showcase-height)!important;
+    max-height:var(--auth-showcase-height)!important;
+    align-self:start!important;
+  }
+  .auth-showcase--login,
+  .auth-showcase--register{
+    height:100%!important;
+    min-height:100%!important;
+  }
+  .auth-showcase--login .auth-showcase-reference-art,
+  .auth-showcase--register .auth-showcase-reference-art{
+    width:min(calc(100% - 4px),540px)!important;
+    max-height:380px!important;
+    transform:translateY(-14px)!important;
+  }
+}
+
+@media (min-width:744px) and (max-width:1100px){
+  .auth-suite-page:has(.auth-suite-shell.login) .auth-suite-stage,
+  .auth-suite-page:has(.auth-suite-shell.register) .auth-suite-stage{
+    width:calc(100vw - 44px)!important;
+    max-width:calc(100vw - 44px)!important;
+    justify-self:center!important;
+  }
+  .auth-showcase--login .auth-showcase-reference-art,
+  .auth-showcase--register .auth-showcase-reference-art{
+    width:min(calc(100% - 18px),470px)!important;
+    max-height:330px!important;
+    transform:translateY(-12px)!important;
   }
 }
