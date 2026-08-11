@@ -11190,16 +11190,45 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   color:#fff!important;
   background:linear-gradient(135deg,#0b8175,#087065)!important;
 }
-.auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-controls .auth-suite-theme-button{
-  color:#ddf0ec!important;
-  border-color:#315d56!important;
-  background:#0b322d!important;
-}
 .auth-suite-page[data-auth-theme="dark"] a,
 .auth-suite-page[data-auth-theme="dark"] .link-button,
 .auth-suite-page[data-auth-theme="dark"] .auth-switch button,
 .auth-suite-page[data-auth-theme="dark"] .auth-suite-panel button.link-button{
   color:#79d8ca!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(
+  .auth-suite-intro-icon,
+  .email-otp-secure-badge,
+  .email-otp-resend-row,
+  .email-otp-help,
+  .email-otp-invalid>span,
+  .auth-suite-panel .password-toggle
+){color:#8eddd1!important}
+.auth-suite-page[data-auth-theme="dark"] :is(
+  .auth-suite-intro-icon,
+  .email-otp-secure-badge,
+  .email-otp-resend-row,
+  .email-otp-help,
+  .email-otp-invalid,
+  .auth-suite-note
+){border-color:#315d56!important}
+.auth-suite-page[data-auth-theme="dark"] :is(
+  .email-otp-form>label,
+  .email-otp-remember,
+  .email-otp-email>span,
+  .auth-suite-note,
+  .email-otp-invalid p
+){color:#b9cec9!important}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-panel,.email-otp-panel,.email-otp-invalid) :is(.line-icon,svg){
+  color:inherit;
+  stroke:currentColor;
+  opacity:1!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.btn-primary,.email-otp-submit) :is(.line-icon,svg){color:#fff!important}
+.auth-suite-page[data-auth-theme="dark"] .btn-secondary{
+  color:#dcece8!important;
+  border-color:#315d56!important;
+  background:#0b322d!important;
 }
 .auth-suite-page[data-auth-theme="dark"] input[type="checkbox"]{accent-color:#18a28f}
 .auth-suite-page[data-auth-theme="light"] .auth-suite-panel,

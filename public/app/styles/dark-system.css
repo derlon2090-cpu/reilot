@@ -160,14 +160,6 @@
   background:transparent!important;
   box-shadow:none!important;
 }
-:root[data-theme="dark"] .auth-suite-page[data-auth-theme="dark"] .auth-suite-theme-button,
-:root[data-theme="dark"] .auth-suite-page[data-auth-theme="dark"] .auth-suite-theme-button .line-icon,
-:root[data-theme="dark"] .auth-suite-page[data-auth-theme="dark"] .auth-suite-theme-button svg{
-  color:#f3d47b!important;
-  stroke:currentColor!important;
-  opacity:1!important;
-}
-
 /* Dashboard quick actions: strong labels and icons instead of dark-on-dark glyphs. */
 :root[data-theme="dark"] .dashboard-main .suite-quick-center{color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important}
 :root[data-theme="dark"] .dashboard-main .suite-quick-center h2{color:var(--dark-text)!important}

@@ -11,7 +11,7 @@ describe("site-wide dark theme system", () => {
     ]);
 
     for (const markup of [layout, index]) {
-      expect(markup).toContain("/app/styles/dark-system.css?v=20260811-dark-system-v50");
+      expect(markup).toContain("/app/styles/dark-system.css?v=20260811-auth-global-display-v65");
       expect(markup.indexOf("globals.css")).toBeLessThan(markup.indexOf("dark-system.css"));
     }
   });

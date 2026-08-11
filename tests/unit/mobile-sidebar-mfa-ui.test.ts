@@ -3,8 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
-const appSource = fs.readFileSync(path.join(root, "src/app/app.js"), "utf8");
-const stylesSource = fs.readFileSync(path.join(root, "src/styles/globals.css"), "utf8");
+const appSource = fs.readFileSync(path.join(root, "src/app/app.js"), "utf8").replace(/\r\n/g, "\n");
+const stylesSource = fs.readFileSync(path.join(root, "src/styles/globals.css"), "utf8").replace(/\r\n/g, "\n");
 const layoutSource = fs.readFileSync(path.join(root, "app/layout.jsx"), "utf8");
 const staticIndexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const setupRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mfa/setup/route.js"), "utf8");
@@ -188,34 +188,33 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-suite-otp .email-otp-content{width:min(100%,500px)");
   });
 
-  it("renders authentication as a standalone responsive model with isolated display settings", () => {
-    const authStart = appSource.indexOf("function authDisplaySettings");
+  it("inherits authentication language and theme from the global site preferences", () => {
+    const authStart = appSource.indexOf("function authSuiteFrame");
     const authEnd = appSource.indexOf("function normalizeEmailOtpCode", authStart);
     const authPages = appSource.slice(authStart, authEnd);
-    expect(authPages).toContain('class="auth-display-settings');
-    expect(authPages).toContain('data-action="auth-display-language"');
-    expect(authPages).toContain('data-action="auth-display-theme"');
+    expect(authPages).toContain('const language = state.language === "en"');
+    expect(authPages).toContain("const theme = resolvedInterfaceTheme()");
     expect(authPages).toContain('data-auth-language="${language}"');
     expect(authPages).toContain('data-auth-theme="${theme}"');
+    expect(authPages).not.toContain("auth-suite-brandbar-controls");
+    expect(authPages).not.toContain("authDisplaySettings");
     expect(authPages).not.toContain("auth-light-header");
     expect(authPages).not.toContain("publicFooter()");
-    expect(appSource).toContain('localStorage.setItem("renvix.auth.language"');
-    expect(appSource).toContain('localStorage.setItem("renvix.auth.theme"');
-    expect(stylesSource).toContain(".auth-display-settings{position:fixed");
+    expect(appSource).not.toContain("auth-display-language");
+    expect(appSource).not.toContain("auth-display-theme");
+    expect(appSource).not.toContain("renvix.auth.language");
+    expect(appSource).not.toContain("renvix.auth.theme");
     expect(stylesSource).toContain("@media (max-width:820px)");
     expect(stylesSource).toContain(".auth-suite-otp>.email-otp-visual{display:none}");
-    expect(stylesSource).toContain(".auth-display-settings{position:absolute;");
+    expect(stylesSource).toContain('.auth-suite-page[data-auth-theme="dark"] .email-otp-panel');
+    expect(stylesSource).toContain('.auth-suite-page[data-auth-theme="dark"] .btn-secondary');
   });
 
-  it("keeps the compact display controller and mobile authentication identity in sync", () => {
-    expect(appSource).toContain('class="auth-display-close-icon"');
-    expect(appSource).toContain('class="auth-display-sliders-icon"');
+  it("keeps the mobile authentication identity in sync without local display controls", () => {
     expect(appSource).toContain("function authMobileMark");
     expect(appSource).toContain("function authMobileScene");
     expect(appSource).toContain('/assets/renvix-logo-exact.png');
     expect(stylesSource).toContain("/* Final compact authentication presentation */");
-    expect(stylesSource).toContain(".auth-display-settings.is-open .auth-display-trigger");
-    expect(stylesSource).toContain(".auth-display-trigger .auth-display-close-icon");
     expect(stylesSource).toContain(".auth-mobile-brand");
     expect(stylesSource).toContain(".auth-mobile-scene");
   });

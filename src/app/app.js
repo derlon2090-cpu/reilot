@@ -652,15 +652,6 @@ function clearCachedDashboardProfile() {
 
 const passwordResetSession = readPasswordResetSession();
 
-function readAuthDisplayPreference(key, fallback, allowed) {
-  try {
-    const value = localStorage.getItem(`renvix.auth.${key}`);
-    return allowed.includes(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 const state = {
   route: location.pathname,
   query: new URLSearchParams(location.search),
@@ -669,9 +660,6 @@ const state = {
   theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
   interfaceDensity: readDensityPreference(),
-  authDisplayOpen: false,
-  authDisplayLanguage: readAuthDisplayPreference("language", readPreference("renewpilot_locale", "renewpilot.language", "ar"), ["ar", "en"]),
-  authDisplayTheme: readAuthDisplayPreference("theme", readPreference("renewpilot_theme", "renewpilot.theme", "light"), ["light", "dark"]),
   profileOpen: false,
   resetStep: passwordResetSession.step,
   resetEmail: passwordResetSession.email,
@@ -1078,11 +1066,14 @@ function refreshDashboardQuickSearch(input) {
   input.setAttribute("aria-expanded", markup ? "true" : "false");
 }
 
-function applyPreferences() {
-  const resolvedTheme = state.theme === "system"
+function resolvedInterfaceTheme() {
+  return state.theme === "system"
     ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-    : state.theme;
-  document.documentElement.dataset.theme = resolvedTheme;
+    : state.theme === "dark" ? "dark" : "light";
+}
+
+function applyPreferences() {
+  document.documentElement.dataset.theme = resolvedInterfaceTheme();
   document.documentElement.dataset.density = state.interfaceDensity || "comfortable";
   document.documentElement.lang = state.language;
   document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
@@ -2953,30 +2944,11 @@ function policyPage() {
   return publicShell(`<main class="policy-page"><section class="policy-hero"><div class="container"><span class="eyebrow">${localizedCopy("معلومات قانونية وتشغيلية", "Legal and operational information")}</span><h1>${content.title}</h1><p>${content.intro}</p><small>${localizedCopy("آخر تحديث: 31 يوليو 2026", "Last updated: July 31, 2026")}</small></div></section><section class="section policy-section"><div class="container policy-layout"><aside class="policy-summary"><h2>${localizedCopy("في هذه الصفحة", "On this page")}</h2>${content.sections.map(([title], index) => `<a href="#policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span>${title}</a>`).join("")}<button class="btn btn-primary" data-link="/support">${localizedCopy("تواصل مع الدعم", "Contact support")}</button></aside><article class="policy-content">${content.sections.map(([title, body], index) => `<section id="policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${title}</h2><p>${body}</p></div></section>`).join("")}<div class="policy-contact"><strong>${localizedCopy("هل تحتاج إلى توضيح إضافي؟", "Need more information?")}</strong><p>${localizedCopy("راسلنا عبر support@renvix.app أو افتح طلبًا من مركز الدعم.", "Email support@renvix.app or open a request in the Support Center.")}</p><button class="btn btn-secondary" data-link="/support">${localizedCopy("الانتقال إلى مركز الدعم", "Go to Support Center")}</button></div></article></div></section></main>`);
 }
 
-function authDisplaySettings() {
-  const arabic = state.authDisplayLanguage !== "en";
-  const dark = state.authDisplayTheme === "dark";
-  return `<div class="auth-display-settings ${state.authDisplayOpen ? "is-open" : ""}">
-    <button class="auth-display-trigger" type="button" data-action="auth-display-toggle" aria-expanded="${state.authDisplayOpen ? "true" : "false"}" aria-label="${arabic ? "إعدادات العرض" : "Display settings"}">
-      ${state.authDisplayOpen
-        ? '<svg class="auth-display-close-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="m15 15 18 18M33 15 15 33" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>'
-        : '<svg class="auth-display-sliders-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M14 22h22M46 22h4M14 42h4M28 42h22" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><circle cx="41" cy="22" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="23" cy="42" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/></svg>'}
-    </button>
-    <section class="auth-display-popover" ${state.authDisplayOpen ? "" : "hidden"} aria-label="${arabic ? "إعدادات عرض نموذج المصادقة" : "Authentication display settings"}">
-      <div class="auth-display-heading"><strong>${arabic ? "إعدادات العرض" : "Display settings"}</strong><small>${arabic ? "خصّص هذا النموذج فقط" : "Customize this form only"}</small></div>
-      <div class="auth-display-options">
-        <div class="auth-display-option"><b>${arabic ? "اللغة" : "Language"}</b><div class="auth-display-segment"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">عربي</button><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">EN</button></div></div>
-        <div class="auth-display-option"><b>${arabic ? "الثيم" : "Theme"}</b><div class="auth-display-segment"><button type="button" class="${dark ? "" : "active"}" data-action="auth-display-theme" data-theme="light">${dashboardIcon("sun")} ${arabic ? "فاتح" : "Light"}</button><button type="button" class="${dark ? "active" : ""}" data-action="auth-display-theme" data-theme="dark">${dashboardIcon("moon")} ${arabic ? "داكن" : "Dark"}</button></div></div>
-      </div>
-    </section>
-  </div>`;
-}
-
 function authSuiteFrame(content, pageClass = "auth-light-page") {
-  const language = state.authDisplayLanguage === "en" ? "en" : "ar";
-  const theme = state.authDisplayTheme === "dark" ? "dark" : "light";
+  const language = state.language === "en" ? "en" : "ar";
+  const theme = resolvedInterfaceTheme();
   const arabic = language === "ar";
-  return `<main class="${pageClass} auth-suite-page" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="auth-display-theme" data-theme="${theme === "dark" ? "light" : "dark"}" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div>${authDisplaySettings()}</main>`;
+  return `<main class="${pageClass} auth-suite-page" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div></header>${content}</div></main>`;
 }
 
 function authModeTabs(activeMode) {
@@ -7610,23 +7582,6 @@ async function handleAction(target) {
   }
   if (action === "email-test") return openModal("اختبار قناة البريد", `<form data-submit="email-channel-test" class="grid"><label class="field"><span>بريد الاختبار</span><input class="input" type="email" name="email" required></label><button class="btn btn-primary">إرسال اختبار</button></form>`);
   if (action === "disconnect-channel-confirm" || action === "email-disconnect-confirm") return openModal("فصل القناة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيؤدي فصل القناة إلى إيقاف الحملات والعمليات المستقبلية المرتبطة بها. هل تريد المتابعة؟</p></div>`, `<button class="btn btn-danger" data-action="${action === "disconnect-channel-confirm" ? "disconnect-device" : "close-modal"}">تأكيد الفصل</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
-  if (action === "auth-display-toggle") {
-    state.authDisplayOpen = !state.authDisplayOpen;
-    render();
-    return;
-  }
-  if (action === "auth-display-language") {
-    state.authDisplayLanguage = target.dataset.language === "en" ? "en" : "ar";
-    try { localStorage.setItem("renvix.auth.language", state.authDisplayLanguage); } catch { /* local rendering still works */ }
-    render();
-    return;
-  }
-  if (action === "auth-display-theme") {
-    state.authDisplayTheme = target.dataset.theme === "dark" ? "dark" : "light";
-    try { localStorage.setItem("renvix.auth.theme", state.authDisplayTheme); } catch { /* local rendering still works */ }
-    render();
-    return;
-  }
   if (action === "toggle-delivery-secret") {
     const value = document.getElementById(target.dataset.target || "");
     const plain = String(currentDeliveryField(target)?.value || "");
@@ -10872,12 +10827,8 @@ function render() {
       : state.route.startsWith("/o/")
         ? publicOrderPage
         : pages[state.route] || marketingHomePage;
-  const authRoute = ["/login", "/register", "/forgot-password", "/reset-password", "/auth/verify-email", "/auth/verify-mfa"].includes(state.route);
-  const siteLanguage = state.language;
-  if (authRoute) state.language = state.authDisplayLanguage;
   app.innerHTML = page();
   localizeElement(app);
-  state.language = siteLanguage;
   ensurePasswordToggles();
   requestAnimationFrame(() => initMarketingMotion());
   if (state.route === "/auth/verify-email") {
