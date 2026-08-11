@@ -96,9 +96,10 @@ describe("Salla automation templates", () => {
     expect(serverSource).toContain('WHERE tenant_id=$1 AND template_key=$2');
     expect(serverSource).toContain('delivery_channel=$3');
     expect(appSource).toContain('name="channel" value="email" data-salla-channel-choice');
-    expect(appSource.indexOf('name="channel" value="whatsapp" data-salla-channel-choice')).toBeLessThan(
-      appSource.indexOf('name="channel" value="email" data-salla-channel-choice')
+    expect(appSource.indexOf('name="channel" value="email" data-salla-channel-choice')).toBeLessThan(
+      appSource.indexOf('name="channel" value="whatsapp" data-salla-channel-choice')
     );
+    expect(appSource).toContain('const selectedChannel = item.channel || "whatsapp";');
   });
 
   it("updates the preview immediately when a template channel changes", () => {

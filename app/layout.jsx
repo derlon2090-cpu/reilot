@@ -37,7 +37,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260811-salla-email-designs-v70" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260811-salla-channel-order-v75" strategy="afterInteractive" />
       </body>
     </html>
   );

@@ -3982,7 +3982,7 @@ function sallaAutomationTemplateEditorPage() {
         <article class="card salla-template-form-card">
           <div class="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div>${dashboardIcon("template")}</div>
           <div class="form-grid two"><label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(item.name)}" disabled></label>${item.templateKey === "review_request" ? "" : statusField}</div>
-          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label></fieldset>
+          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label></fieldset>
           ${item.templateKey === "review_request" ? `<div class="salla-review-trigger-field">${statusField}</div>` : ""}
           ${metaPanel}${emailPanel}
           ${abandoned}${completed}${review}${invoice}${digital}
