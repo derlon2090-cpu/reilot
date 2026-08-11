@@ -10840,6 +10840,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--login .auth-showcase-reference-art,
   .auth-showcase--register .auth-showcase-reference-art{
     filter:drop-shadow(0 14px 20px rgba(6,43,40,.1))!important;
+    clip-path:polygon(0 0,100% 0,100% 100%,92% 100%,92% 83%,25% 83%,25% 100%,0 100%);
   }
   .auth-showcase--login .auth-showcase-feature-connectors,
   .auth-showcase--register .auth-showcase-feature-connectors{
@@ -10881,16 +10882,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     pointer-events:none;
     transform:translate(-50%,-50%);
   }
-  .auth-relocated-mask{
-    position:absolute;
-    z-index:0;
-    display:block;
-    border-radius:45%;
-    background:linear-gradient(150deg,rgba(239,248,246,.99),rgba(247,251,250,.99));
-    box-shadow:0 0 18px 12px rgba(241,249,247,.94);
-  }
-  .auth-relocated-mask--channels{left:33%;top:83%;width:24%;height:19%}
-  .auth-relocated-mask--security{left:69%;top:84%;width:24%;height:18%}
   .auth-relocated-feature{
     position:absolute;
     z-index:2;
@@ -10933,10 +10924,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector{
     background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
-  }
-  .auth-suite-page[data-auth-theme="dark"] .auth-relocated-mask{
-    background:linear-gradient(150deg,rgba(11,41,37,.99),rgba(9,35,31,.99));
-    box-shadow:0 0 18px 12px rgba(10,38,34,.94);
   }
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature{color:#edf8f5}
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature>i{color:#8bd9cd;border-color:#31514b;background:#0b2825}

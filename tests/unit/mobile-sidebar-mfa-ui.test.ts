@@ -154,6 +154,9 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-feature-connector--security{top:88.05%;left:73.4%;width:8.5%;transform:rotate(-143.5deg);display:none}");
     expect(stylesSource).toContain(".auth-relocated-feature--channels{top:41%;left:95%");
     expect(stylesSource).toContain(".auth-relocated-feature--security{top:76%;left:95%");
+    expect(appSource).not.toContain("auth-relocated-mask");
+    expect(stylesSource).not.toContain(".auth-relocated-mask");
+    expect(stylesSource).toContain("clip-path:polygon(0 0,100% 0,100% 100%,92% 100%,92% 83%,25% 83%,25% 100%,0 100%)");
     expect(stylesSource).toContain('.auth-relocated-feature>b{font-family:"IBM Plex Sans Arabic","Tajawal",system-ui,sans-serif;font-size:10px;font-weight:600;line-height:1.35;white-space:nowrap}');
     expect(stylesSource).toContain(".auth-relocated-feature>b{font-size:9px}");
     expect(stylesSource).toContain(".auth-relocated-feature--channels::before{width:47px;clip-path:inset(0 0 0 34%);transform:rotate(26.3deg)");

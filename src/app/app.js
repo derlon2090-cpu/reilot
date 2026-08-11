@@ -3065,7 +3065,7 @@ function authReferenceVisual(kind) {
     ? `<span class="auth-showcase-feature-connectors" aria-hidden="true"><i class="auth-feature-connector auth-feature-connector--alerts"></i><i class="auth-feature-connector auth-feature-connector--reports"></i><i class="auth-feature-connector auth-feature-connector--automation"></i><i class="auth-feature-connector auth-feature-connector--campaigns"></i><i class="auth-feature-connector auth-feature-connector--channels"></i><i class="auth-feature-connector auth-feature-connector--security"></i></span>`
     : "";
   const relocatedFeatures = kind === "login" || kind === "register"
-    ? `<span class="auth-showcase-relocated-features" aria-hidden="true"><i class="auth-relocated-mask auth-relocated-mask--channels"></i><i class="auth-relocated-mask auth-relocated-mask--security"></i><span class="auth-relocated-feature auth-relocated-feature--channels"><i>${dashboardIcon("cloud")}</i><b>قنوات متصلة</b></span><span class="auth-relocated-feature auth-relocated-feature--security"><i>${dashboardIcon("security")}</i><b>أمان وموثوقية</b></span></span>`
+    ? `<span class="auth-showcase-relocated-features" aria-hidden="true"><span class="auth-relocated-feature auth-relocated-feature--channels"><i>${dashboardIcon("cloud")}</i><b>قنوات متصلة</b></span><span class="auth-relocated-feature auth-relocated-feature--security"><i>${dashboardIcon("security")}</i><b>أمان وموثوقية</b></span></span>`
     : "";
   prioritizeAuthReference(referenceAsset);
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
