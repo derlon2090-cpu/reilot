@@ -195,7 +195,7 @@ export default function AdminSallaCatalog({ admin }) {
     }
   };
 
-  return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
+  return <div className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
     <div className="salla-template-editor-top">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
     <div className="salla-templates-page-head">
       <div className="page-title">
@@ -267,5 +267,5 @@ export default function AdminSallaCatalog({ admin }) {
         <TemplatePreview item={selected} channel={channel} draft={draft} logoUrl={logoUrl} />
       </section>
     </>}
-  </main>;
+  </div>;
 }
