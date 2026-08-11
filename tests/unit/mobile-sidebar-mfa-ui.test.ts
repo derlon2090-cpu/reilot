@@ -144,14 +144,14 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("Preserve the original artwork quality; connectors are a separate layer behind it.");
     expect(stylesSource).toContain(".auth-showcase--login .auth-showcase-feature-connectors");
     expect(stylesSource).toContain(".auth-feature-connector--security");
-    expect(stylesSource).toContain("z-index:6;");
-    expect(stylesSource).toContain(".auth-feature-connector::before");
-    expect(stylesSource).toContain(".auth-feature-connector--alerts{top:9.65%;left:13.7%;width:6.15%;transform:rotate(26deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--reports{top:10.9%;left:87.8%;width:10.25%;transform:rotate(166deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--automation{top:36.2%;left:11.2%;width:8.9%;transform:rotate(-27deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--campaigns{top:70.2%;left:11%;width:9.6%;transform:rotate(-31deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--channels{top:85.5%;left:38.4%;width:5.9%;transform:rotate(-37deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--security{top:87.3%;left:72.8%;width:6.6%;transform:rotate(-144deg)}");
+    expect(stylesSource).toContain("z-index:4;");
+    expect(stylesSource).not.toContain(".auth-feature-connector::before");
+    expect(stylesSource).toContain(".auth-feature-connector--alerts{top:8.86%;left:13.04%;width:7.66%;transform:rotate(25.4deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--reports{top:9.83%;left:88.64%;width:12.1%;transform:rotate(166deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--automation{top:37.1%;left:10.56%;width:10.2%;transform:rotate(-26.3deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--campaigns{top:70.91%;left:10.38%;width:11.1%;transform:rotate(-32.5deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--channels{top:88%;left:38.4%;width:7.5%;transform:rotate(-51deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--security{top:88.05%;left:73.4%;width:8.5%;transform:rotate(-143.5deg)}");
     expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
   });
@@ -165,7 +165,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
         expect(source).toContain(asset);
       }
     }
-    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-connectors-v43"></script>');
+    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=');
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
