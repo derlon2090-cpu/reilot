@@ -12,6 +12,7 @@ import {
 } from "../../src/server/salla-templates.js";
 
 const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
+const adminCatalogSource = fs.readFileSync(path.resolve(process.cwd(), "src/components/admin/AdminSallaCatalog.jsx"), "utf8");
 const styles = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
 const serverSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/salla-templates.js"), "utf8");
 const resendSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/email/resend.service.js"), "utf8");
@@ -111,6 +112,10 @@ describe("Salla automation templates", () => {
   });
 
   it("places three professional Salla email designs below the image with an adjacent color editor", () => {
+    const customerEmailPanel = appSource.slice(
+      appSource.indexOf("const emailPanel ="),
+      appSource.indexOf("const abandoned =", appSource.indexOf("const emailPanel ="))
+    );
     expect(appSource).toContain('name="whatsappImageEnabled"');
     expect(appSource).toContain('data-salla-whatsapp-image');
     expect(appSource).toContain('data-salla-whatsapp-image-editor');
@@ -132,8 +137,10 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('data-action="set-email-theme-color"');
     expect(appSource).toContain('class="email-design-workspace"');
     expect(appSource).toContain("تعديل لون القالب");
-    expect(styles).toContain(".salla-email-builder-panel > .salla-email-logo-editor { order: 3");
-    expect(styles).toContain(".salla-email-builder-panel > .email-design-builder { order: 4");
+    expect(appSource).toContain('<h2>تصميم البريد</h2>');
+    expect(customerEmailPanel.indexOf("${sallaEmailLogoEditor}")).toBeLessThan(customerEmailPanel.indexOf("${sallaEmailDesignSection}"));
+    expect(adminCatalogSource.indexOf("data-admin-salla-email-image-section")).toBeLessThan(adminCatalogSource.indexOf("data-admin-salla-email-design-section"));
+    expect(styles).toContain(".salla-email-design-section { display: grid; gap: 12px;");
     expect(styles).toContain(".email-design-builder.is-salla-catalog .email-design-workspace { grid-template-columns:");
     expect(appSource).toContain('data-action="adopt-email-design"');
     expect(appSource).toContain('data-action="adopt-email-html"');
