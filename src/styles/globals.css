@@ -10973,6 +10973,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     stroke-linecap:round;
     vector-effect:non-scaling-stroke;
   }
+  .auth-relocated-connectors circle{fill:currentColor}
   .auth-relocated-feature::before{
     content:none;
   }

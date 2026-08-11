@@ -161,10 +161,13 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-relocated-feature>b{font-size:9px}");
     expect(appSource).toContain('class="auth-relocated-connectors"');
     expect(appSource).toContain('x1="892" y1="334" x2="984" y2="384"');
+    expect(appSource).toContain('circle cx="892" cy="334" r="4"');
     expect(appSource).toContain('x1="892" y1="671" x2="984" y2="734"');
+    expect(appSource).toContain('circle cx="892" cy="671" r="4"');
     expect(stylesSource).toContain(".auth-relocated-connectors line{");
     expect(stylesSource).toContain("stroke-linecap:round;");
     expect(stylesSource).toContain("vector-effect:non-scaling-stroke;");
+    expect(stylesSource).toContain(".auth-relocated-connectors circle{fill:currentColor}");
     expect(stylesSource).toContain(".auth-relocated-feature::before{\n    content:none;");
     expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
@@ -196,32 +199,34 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-suite-otp .email-otp-content{width:min(100%,500px)");
   });
 
-  it("inherits authentication language and theme from the global site preferences", () => {
+  it("keeps authentication language and theme independent from dashboard preferences", () => {
     const authStart = appSource.indexOf("function authSuiteFrame");
     const authEnd = appSource.indexOf("function normalizeEmailOtpCode", authStart);
     const authPages = appSource.slice(authStart, authEnd);
-    expect(authPages).toContain('const language = state.language === "en"');
-    expect(authPages).toContain("const theme = resolvedInterfaceTheme()");
+    expect(authPages).toContain('const language = state.authDisplayLanguage === "en"');
+    expect(authPages).toContain('const theme = state.authDisplayTheme === "dark"');
     expect(authPages).toContain('data-auth-language="${language}"');
     expect(authPages).toContain('data-auth-theme="${theme}"');
     expect(authPages).toContain('class="auth-suite-brandbar-controls"');
-    expect(authPages).toContain('data-action="language" data-language="ar"');
-    expect(authPages).toContain('data-action="language" data-language="en"');
-    expect(authPages).toContain('data-action="theme"');
+    expect(authPages).toContain('data-action="auth-display-language" data-language="ar"');
+    expect(authPages).toContain('data-action="auth-display-language" data-language="en"');
+    expect(authPages).toContain('data-action="auth-display-theme"');
     expect(authPages).not.toContain("authDisplaySettings");
     expect(authPages).not.toContain("auth-light-header");
     expect(authPages).not.toContain("publicFooter()");
-    expect(appSource).not.toContain("auth-display-language");
-    expect(appSource).not.toContain("auth-display-theme");
-    expect(appSource).not.toContain("renvix.auth.language");
-    expect(appSource).not.toContain("renvix.auth.theme");
+    expect(appSource).toContain('readAuthDisplayPreference("language", "ar"');
+    expect(appSource).toContain('readAuthDisplayPreference("theme", "light"');
+    expect(appSource).toContain('localStorage.setItem("renvix.auth.language"');
+    expect(appSource).toContain('localStorage.setItem("renvix.auth.theme"');
+    expect(appSource).toContain("if (authRoute) state.language = state.authDisplayLanguage");
+    expect(appSource).toContain("if (authRoute) state.language = siteLanguage");
     expect(stylesSource).toContain("@media (max-width:820px)");
     expect(stylesSource).toContain(".auth-suite-otp>.email-otp-visual{display:none}");
     expect(stylesSource).toContain('.auth-suite-page[data-auth-theme="dark"] .email-otp-panel');
     expect(stylesSource).toContain('.auth-suite-page[data-auth-theme="dark"] .btn-secondary');
   });
 
-  it("keeps the mobile authentication identity in sync without local display controls", () => {
+  it("keeps the mobile authentication identity in sync with local display controls", () => {
     expect(appSource).toContain("function authMobileMark");
     expect(appSource).toContain("function authMobileScene");
     expect(appSource).toContain('/assets/renvix-logo-exact.png');

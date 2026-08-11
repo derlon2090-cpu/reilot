@@ -32,12 +32,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-pricing-current-only-v78" />
-        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-auth-art-cleanup-v68" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-independent-v80" />
+        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-auth-independent-v80" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260811-pricing-current-only-v78" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260811-auth-independent-v80" strategy="afterInteractive" />
       </body>
     </html>
   );
