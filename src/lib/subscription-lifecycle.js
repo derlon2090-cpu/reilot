@@ -2,7 +2,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 const TEMPLATE_VARIABLES = new Set([
   "customer_name", "plan_name", "expiry_date", "days_remaining",
-  "renewal_url", "store_name", "order_number", "subscription_id"
+  "renewal_url", "store_name", "order_number", "subscription_id", "support_url"
 ]);
 
 function validDate(value) {

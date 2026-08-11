@@ -51,6 +51,8 @@ describe("subscription lifecycle", () => {
   it("validates and renders only supported template variables", () => {
     expect(validateRenewalTemplate("مرحبًا {{customer_name}} {{unknown}}")).toEqual({ ok: false, unknown: ["unknown"] });
     expect(renderRenewalTemplate("مرحبًا {{customer_name}}", { customer_name: "محمد" })).toBe("مرحبًا محمد");
+    expect(validateRenewalTemplate("الدعم: {{support_url}}")).toEqual({ ok: true, unknown: [] });
+    expect(renderRenewalTemplate("الدعم: {{support_url}}", { support_url: "https://renvix.app/support" })).toContain("https://renvix.app/support");
   });
   it("creates stable reminder keys", () => {
     expect(reminderIdempotencyKey({ subscriptionId: "s1", type: "before_7_days", scheduledFor: "2026-08-20", channel: "whatsapp" })).toContain("subscription:s1:before_7_days:");

@@ -5587,7 +5587,7 @@ function inspectEmailHtmlClient(value) {
   return { ok: errors.length === 0, html: template.innerHTML, errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
 }
 
-function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset", htmlContent = "", sampleCode = "", themeColor = null, presetIds = null } = {}) {
+function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset", htmlContent = "", sampleCode = "", themeColor = null, presetIds = null, compact = false } = {}) {
   const presets = Array.isArray(presetIds)
     ? EMAIL_DESIGN_PRESETS.filter((item) => presetIds.includes(item.id))
     : EMAIL_DESIGN_PRESETS;
@@ -5598,10 +5598,10 @@ function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset"
   const selectedTheme = safeEmailTheme(themeColor || state.sallaAutomationTemplate?.item?.settings?.emailThemeColor || "#0B3F3B");
   const themePalette = EMAIL_THEME_PALETTE;
   const codeExample = sampleCode || `<section style="padding:28px;background-color:#f4f9f8;border-radius:20px;text-align:right" dir="rtl">\n  <h2 style="margin:0 0 14px;color:#062b28">حان وقت تجديد اشتراكك</h2>\n  <p style="margin:0 0 18px;line-height:1.9">مرحبًا {{customer_name}}، اشتراكك في {{service_name}} يقترب من الانتهاء.</p>\n  <a href="{{renewal_link}}" style="display:inline-block;padding:12px 22px;background-color:#0b3f3b;color:#ffffff;border-radius:10px;text-decoration:none">جدد الآن</a>\n</section>`;
-  return `<section class="email-design-builder ${Array.isArray(presetIds) ? "is-salla-catalog" : ""} ${showThemeControl ? "has-theme-control" : ""}" data-email-design-builder>
+  return `<section class="email-design-builder ${Array.isArray(presetIds) ? "is-salla-catalog" : ""} ${showThemeControl ? "has-theme-control" : ""} ${compact ? "is-compact" : ""}" data-email-design-builder>
     <input type="hidden" name="emailDesign" value="${escapeHtml(design)}">
     <input type="hidden" name="emailContentMode" value="${escapeHtml(mode)}">
-    <div class="email-design-builder-head"><div><h3>قوالب بريد جاهزة</h3><p>اختر تصميمًا ثم اضغط اعتماد. لن يتغير المصدر النشط دون اعتمادك.</p></div><span class="email-source-status ${mode === "html" ? "is-code" : "is-preset"}" data-email-source-status>${mode === "html" ? "الكود المعتمد" : `القالب المعتمد: ${escapeHtml(presets.find((item) => item.id === design)?.name || "كلاسيكي أنيق")}`}</span></div>
+    <div class="email-design-builder-head"><div><h3>${compact ? "قوالب تصميم" : "قوالب بريد جاهزة"}</h3><p>${compact ? "اختر النمط المعتمد للبريد." : "اختر تصميمًا ثم اضغط اعتماد. لن يتغير المصدر النشط دون اعتمادك."}</p></div><span class="email-source-status ${mode === "html" ? "is-code" : "is-preset"}" data-email-source-status>${mode === "html" ? "الكود المعتمد" : `القالب المعتمد: ${escapeHtml(presets.find((item) => item.id === design)?.name || "كلاسيكي أنيق")}`}</span></div>
     <div class="email-design-workspace"><div class="email-design-presets">${presets.map((item) => `<article class="email-design-preset design-${item.id} ${mode === "preset" && item.id === design ? "is-active" : ""}" data-email-design-card="${item.id}"><div class="email-design-thumb"><i></i><b></b><span></span><em></em></div><strong>${item.name}</strong><small>${item.caption}</small><button class="btn btn-secondary" type="button" data-action="adopt-email-design" data-design="${item.id}">${mode === "preset" && item.id === design ? "معتمد ✓" : "اعتماد القالب"}</button></article>`).join("")}</div>
     ${showThemeControl ? `<div class="email-template-theme"><div><strong>تعديل لون القالب</strong><small>اختر لون الهوية أو استخدم منتقي اللون المخصص؛ يطبّق فورًا على العنوان والزر والتفاصيل البارزة.</small></div><div class="email-theme-palette">${themePalette.map((color) => `<button type="button" data-action="set-email-theme-color" data-color="${color}" class="${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار لون القالب ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" name="emailThemeColor" value="${selectedTheme}" aria-label="لون قالب بريد مخصص"><span>${dashboardIcon("edit")}</span></label></div></div>` : ""}</div>
     <details class="email-code-designer" ${mode === "html" ? "open" : ""}><summary><span>${dashboardIcon("code")} تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div class="email-code-designer-body"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" maxlength="30000" data-email-code-sample="${escapeHtml(codeExample)}" placeholder="${escapeHtml(codeExample)}">${escapeHtml(htmlContent || "")}</textarea><small>محتوى HTML فقط. يتم فحص العناصر والروابط وCSS قبل الاعتماد والحفظ.</small></label><div class="email-code-actions"><button class="btn btn-primary" type="button" data-action="adopt-email-html">فحص واعتماد الكود</button><button class="btn btn-secondary" type="button" data-action="insert-email-code-sample">إضافة نموذج احترافي</button></div><div class="email-code-validation neutral" data-email-code-validation>${mode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط فحص واعتماد الكود."}</div></div></details>
@@ -5705,7 +5705,8 @@ function readEmailTemplateForm(form = document.querySelector("form[data-submit='
     storeImageUrl: state.orderLinkProfile?.logoUrl || "",
     logoBorderRadius: safeStoreLogoRadius(state.orderLinkDraft.logoBorderRadius ?? state.orderLinkProfile?.logoBorderRadius),
     title: data.title || document.querySelector("[data-email-field][name='title']")?.value || "",
-    themeColor: safeEmailTheme(data.themeColor || state.emailThemeColor),
+    themeColor: safeEmailTheme(data.themeColor || data.emailThemeColor || state.emailThemeColor),
+    templateDescription: data.templateDescription || "",
     body: data.body || "",
     buttonLabel: data.buttonLabel || "",
     footerText: data.footerText || "",
@@ -6022,18 +6023,36 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
       </section>`);
   }
 
-  const colors = ["#062B28", "#0B3F3B", "#2563EB", "#22C55E", "#F97316", "#64748B"];
-  const variables = ["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{days_remaining}}", "{{renewal_link}}", "{{store_name}}"];
+  const variables = ["{{customer_name}}", "{{store_name}}", "{{plan_name}}", "{{expiry_date}}", "{{renewal_url}}", "{{support_url}}"];
   const contentJson = template.contentJson && typeof template.contentJson === "object" ? template.contentJson : {};
   const emailDesign = template.emailDesign || contentJson.emailDesign || "classic";
   const emailContentMode = template.emailContentMode || contentJson.emailContentMode || "preset";
   const emailHtmlContent = template.emailHtmlContent || contentJson.emailHtmlContent || "";
+  const templateDescription = contentJson.templateDescription || `يرسل تلقائيًا قبل ${Number(rule.daysOffset || 7)} أيام من انتهاء الاشتراك النشط.`;
   const templateForPreview = { ...template, emailDesign, emailContentMode, emailHtmlContent };
-  return dashboardShell(`${pageTitle("قالب البريد الإلكتروني للتجديد", backButton)}<p class="page-kicker">تم إعداد هذا البريد لإرسال تذكيرات التجديد للعملاء قبل انتهاء اشتراكاتهم.</p>
-    <section class="template-editor-v2 template-editor-v2-email"><form data-submit="renewal-template" class="email-builder-form">
-      <article class="card email-settings-v2"><div class="section-head"><div><h2>إعدادات الهوية</h2><p>خصّص بيانات المرسل وهوية الرسالة من مكان واحد.</p></div>${dashboardIcon("settings")}</div><div class="template-editor-meta-v2"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "قالب البريد الإلكتروني للتجديد")}" required></label>${channelSelect}</div><div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div><label class="field"><span>اسم المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>اسم المتجر في الرسالة</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}" required></label><label class="field"><span>موضوع الرسالة</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}" required></label>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}<div class="email-settings-hint">عنوان المرسل موثّق وثابت، بينما التصميم والمحتوى قابلان للتخصيص بالكامل.</div></article>
-      <article class="card template-editor-card-v2 email-editor-v2"><div class="section-head"><div><h2>محتوى وتصميم البريد</h2><p>احتفظ بنسخة نصية موثوقة، ثم اعتمد قالبًا جاهزًا أو كود HTML اختياريًا.</p></div>${dashboardIcon("template")}</div>${emailDesignBuilder({ selectedDesign: emailDesign, contentMode: emailContentMode, htmlContent: emailHtmlContent })}<div class="email-fallback-editor"><div class="editor-toolbar"><span>النسخة النصية البديلة</span></div><textarea class="textarea template-editor email-content-editor" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body || "")}</textarea><div class="variables-row email-variables"><span>المتغيرات المتاحة</span>${variableButtons(variables)}</div><div class="template-meta-grid"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel || "جدد اشتراكك الآن")}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText || "شكرًا لثقتك بنا")}" required></label></div></div>${preservedReminderSettings}<div class="template-editor-v2-footer"><span class="muted">لن يُرسل أي كود قبل اجتياز الفحص واعتماده صراحة.</span><div class="template-actions"><button class="btn btn-primary">حفظ القالب ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="test-template">إرسال رسالة تجريبية ${dashboardIcon("send")}</button></div></div></article>
-      <aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>المعاينة تعرض المصدر المعتمد حاليًا فقط.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-email-preview-subject>الموضوع: ${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}</span></div><div data-email-preview>${emailTemplatePreview(templateForPreview)}</div><div class="email-preview-security">${dashboardIcon("security")} فحص HTML والروابط وCSS يعمل قبل الحفظ والإرسال.</div></article></aside>
+  const renewalDesignIds = ["classic", "modern", "editorial", "premium"];
+  return dashboardShell(`${pageTitle("قالب رسالة التجديد - البريد الإلكتروني", backButton)}<p class="page-kicker">صمّم رسالة التجديد، اعتمد النمط المناسب، وراجع النتيجة قبل الحفظ أو الإرسال التجريبي.</p>
+    <section class="template-editor-v2 template-editor-v2-email renewal-email-page"><form data-submit="renewal-template" class="email-builder-form renewal-email-builder">
+      <div class="renewal-email-main">
+        <article class="card renewal-email-profile-card">
+          <input type="hidden" name="channel" value="email"><input type="hidden" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}"><input type="hidden" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}"><input type="hidden" name="daysOffset" value="${Number(rule.daysOffset || 7)}">
+          <label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "تذكير التجديد")}" required></label>
+          <label class="field renewal-email-description-field"><span>وصف القالب</span><input class="input" name="templateDescription" value="${escapeHtml(templateDescription)}" maxlength="300" required></label>
+          <label class="renewal-email-status-control"><span>الحالة</span><span class="renewal-email-status-line"><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}><b>${template.isActive !== false ? "نشط" : "متوقف"}</b></span></label>
+        </article>
+        <article class="card template-editor-card-v2 email-editor-v2 renewal-email-content-card"><div class="section-head"><div><h2>محتوى البريد</h2><p>حرّر الرسالة واستخدم المتغيرات المعتمدة، ثم اختر الصورة والتصميم واللون.</p></div>${dashboardIcon("email")}</div>
+          <div class="renewal-email-compose-grid">
+            <aside class="renewal-email-tools">
+              <section class="renewal-email-tool-section renewal-email-variable-section"><div class="renewal-email-tool-title"><strong>المتغيرات المتاحة</strong>${dashboardIcon("info")}</div><div class="renewal-email-variable-grid">${variableButtons(variables)}</div></section>
+              <section class="renewal-email-tool-section renewal-email-image-section"><strong>إضافة صورة للبريد</strong>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}</section>
+              <section class="renewal-email-tool-section renewal-email-design-section">${emailDesignBuilder({ selectedDesign: emailDesign, contentMode: emailContentMode, htmlContent: emailHtmlContent, themeColor: safeEmailTheme(template.themeColor), presetIds: renewalDesignIds, compact: true })}</section>
+            </aside>
+            <section class="renewal-email-message-panel"><div class="editor-toolbar renewal-email-editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص البريد الآمن</span></div><textarea class="textarea template-editor email-content-editor renewal-email-message-input" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body || "")}</textarea><div class="template-meta-grid renewal-email-cta-fields"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel || "جدد اشتراكك الآن")}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText || "شكرًا لثقتك بنا")}" required></label></div></section>
+          </div>
+        </article>
+        <div class="renewal-email-form-actions"><button class="btn btn-primary">حفظ التعديلات ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة ${dashboardIcon("eye")}</button></div>
+      </div>
+      <aside class="template-preview-v2 email-preview-v2 renewal-email-preview-column"><article class="card renewal-email-preview-card"><div class="section-head"><div><h2>معاينة البريد الإلكتروني</h2><p>تعرض الشكل والمحتوى المعتمدين قبل الإرسال.</p></div>${dashboardIcon("email")}</div><div class="renewal-email-browser"><div class="renewal-email-browser-bar"><span class="renewal-browser-dots"><i></i><i></i><i></i></span><b>‹</b><b>›</b><em></em></div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-email-preview-subject>الموضوع: ${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}</span></div><div data-email-preview>${emailTemplatePreview(templateForPreview)}</div></div><button type="button" class="btn btn-secondary renewal-email-test-button" data-action="test-template">إرسال رسالة اختبار ${dashboardIcon("send")}</button><p class="renewal-email-preview-note">سيتم إرسال رسالة اختبار إلى بريد تختاره لمعاينة الشكل والمحتوى قبل الحفظ النهائي.</p></article></aside>
     </form></section>`);
 }
 
@@ -8170,7 +8189,8 @@ async function handleAction(target) {
     if (!colorInput) return;
     colorInput.value = safeEmailTheme(target.dataset.color);
     form.querySelectorAll("[data-action='set-email-theme-color']").forEach((button) => button.classList.toggle("active", button === target));
-    refreshSallaTemplatePreview(form);
+    if (form.matches('[data-submit="renewal-template"]')) refreshEmailTemplatePreview();
+    else refreshSallaTemplatePreview(form);
     return;
   }
   if (action === "adopt-email-html") {
@@ -9254,7 +9274,7 @@ async function handleAction(target) {
     toast("تمت استعادة القالب الافتراضي. احفظ لتثبيت التغييرات.", "info");
   }
   if (action === "test-template") {
-    const channel = document.querySelector("select[name='channel']")?.value || state.templateChannel || state.notificationTemplate?.template?.channel || "whatsapp";
+    const channel = document.querySelector("[name='channel']")?.value || state.templateChannel || state.notificationTemplate?.template?.channel || "whatsapp";
     if (channel === "email") {
       state.emailTemplateTestDraft = readEmailTemplateForm();
       return openModal("إرسال رسالة بريد تجريبية", `<form data-submit="email-template-test" class="grid"><p class="muted">سيصل الاختبار من Renvix &lt;noreply@notify.renvix.app&gt;، وبحد أقصى 5 اختبارات كل 10 دقائق.</p><label class="field"><span>البريد المستلم</span><input class="input" name="to" type="email" autocomplete="email" placeholder="name@example.com" required></label><button class="btn btn-primary">إرسال الاختبار</button></form>`);
@@ -11358,7 +11378,15 @@ document.addEventListener("input", (event) => {
     const button = profileForm.querySelector(".profile-save-button");
     if (button) button.disabled = !(nameChanged || storeChanged || phoneChanged);
   }
-  if (target.dataset.emailField !== undefined || (target.name === "emailHtmlContent" && target.closest?.('form[data-submit="renewal-template"]')?.elements.emailContentMode?.value === "html")) refreshEmailTemplatePreview();
+  const renewalEmailForm = target.closest?.('form[data-submit="renewal-template"]');
+  if (target.name === "isActive" && target.closest?.(".renewal-email-profile-card")) {
+    const statusLabel = target.closest(".renewal-email-status-line")?.querySelector("b");
+    if (statusLabel) statusLabel.textContent = target.checked ? "نشط" : "متوقف";
+  }
+  if (target.name === "emailThemeColor" && renewalEmailForm) {
+    renewalEmailForm.querySelectorAll("[data-action='set-email-theme-color']").forEach((button) => button.classList.remove("active"));
+  }
+  if (target.dataset.emailField !== undefined || (target.name === "emailThemeColor" && renewalEmailForm) || (target.name === "emailHtmlContent" && renewalEmailForm?.elements.emailContentMode?.value === "html")) refreshEmailTemplatePreview();
   if (target.dataset.action === "template-body") {
     const preview = document.querySelector("[data-whatsapp-preview-body]");
     if (preview) preview.textContent = target.value || "اكتب محتوى الرسالة ليظهر هنا.";

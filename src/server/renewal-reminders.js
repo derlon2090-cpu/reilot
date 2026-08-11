@@ -116,6 +116,7 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
     expiry_date: new Date(row.expires_at).toISOString().slice(0, 10),
     days_remaining: Math.max(0, daysRemaining),
     renewal_url: renewalUrl || "",
+    support_url: `${appUrl()}/support`,
     store_name: row.store_name,
     order_number: row.order_number,
     subscription_id: row.id
@@ -167,6 +168,7 @@ export async function queueSubscriptionReminder({ tenantId, subscriptionId, remi
         endDate: context.variables.expiry_date,
         remainingDays: context.variables.days_remaining,
         renewalLink: context.variables.renewal_url,
+        supportUrl: context.variables.support_url,
         orderNumber: context.row.order_number,
         storeName: context.template.storeName || context.row.store_name
       },

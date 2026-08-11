@@ -7,7 +7,9 @@ const renewalEditorSource = appSource.slice(
   appSource.indexOf("function renewalTemplateEditorPageV2("),
   appSource.indexOf("function renewalTemplateEditorPage(")
 );
-const renewalWhatsappSource = renewalEditorSource.slice(0, renewalEditorSource.indexOf('const colors = ["#062B28"'));
+const renewalEmailStart = renewalEditorSource.indexOf('const variables = ["{{customer_name}}"');
+const renewalWhatsappSource = renewalEditorSource.slice(0, renewalEmailStart);
+const renewalEmailSource = renewalEditorSource.slice(renewalEmailStart);
 
 describe("templates catalog UI", () => {
   it("routes the user dashboard to the rebuilt templates catalog", () => {
@@ -66,5 +68,20 @@ describe("templates catalog UI", () => {
     expect(renewalWhatsappSource).toContain('class="whatsapp-phone-preview renewal-whatsapp-phone-preview"');
     expect(stylesSource).toContain(".renewal-whatsapp-phone-preview { border: 1px solid #E8F1F0; background: #fff; }");
     expect(stylesSource).toContain(".renewal-whatsapp-phone-preview .whatsapp-phone-shell");
+  });
+
+  it("rebuilds the renewal email editor as the reference-matched studio", () => {
+    expect(renewalEmailSource).toContain('pageTitle("قالب رسالة التجديد - البريد الإلكتروني", backButton)');
+    expect(renewalEmailSource).toContain('<input type="hidden" name="channel" value="email">');
+    expect(renewalEmailSource).not.toContain("${channelSelect}");
+    expect(renewalEmailSource).toContain('class="email-builder-form renewal-email-builder"');
+    expect(renewalEmailSource).toContain('class="renewal-email-compose-grid"');
+    expect(renewalEmailSource).toContain('class="renewal-email-browser"');
+    expect(renewalEmailSource).toContain('name="templateDescription"');
+    expect(renewalEmailSource).toContain('{{support_url}}');
+    expect(renewalEmailSource).toContain("compact: true");
+    expect(stylesSource).toContain(".renewal-email-builder { display: grid;");
+    expect(stylesSource).toContain(".renewal-email-compose-grid { min-height: 590px;");
+    expect(stylesSource).toContain(".renewal-email-preview-column { position: sticky;");
   });
 });

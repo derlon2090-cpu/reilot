@@ -35,7 +35,7 @@ test("template previews stay on the left and shared store branding is available"
   await page.route("**/api/order-link/list", (route) => route.fulfill({ json: { ok: true, items: [], stats: {} } }));
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".marketing-copy")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("#app")).toBeVisible({ timeout: 30_000 });
   await page.evaluate(() => {
     history.pushState({}, "", "/dashboard/templates?edit=renewal_email");
     window.dispatchEvent(new PopStateEvent("popstate"));

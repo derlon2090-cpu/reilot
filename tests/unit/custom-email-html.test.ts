@@ -35,6 +35,24 @@ describe("custom email HTML", () => {
     expect(email.html).not.toContain("<img src=x");
   });
 
+  it("renders the supported renewal and support links in custom email HTML", () => {
+    const email = renewalReminderEmail({
+      customerName: "سارة",
+      serviceName: "Business",
+      endDate: "2026-09-01",
+      renewalLink: "https://renvix.app/r/secure",
+      supportUrl: "https://renvix.app/support",
+      template: {
+        emailContentMode: "html",
+        emailHtmlContent: '<section><p>{{customer_name}} · {{plan_name}} · {{expiry_date}}</p><a href="{{renewal_url}}">تجديد</a><a href="{{support_url}}">الدعم</a></section>'
+      }
+    });
+    expect(email.html).toContain("سارة · Business · 2026-09-01");
+    expect(email.html).toContain('href="https://renvix.app/r/secure"');
+    expect(email.html).toContain('href="https://renvix.app/support"');
+    expect(email.html).not.toContain("{{support_url}}");
+  });
+
   it("normalizes unsupported modes and designs", () => {
     expect(supportedEmailContentMode("script")).toBe("preset");
     expect(supportedEmailDesign("editorial")).toBe("editorial");

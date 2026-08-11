@@ -30,6 +30,9 @@ describe("system template separation", () => {
     expect(renewalRoute).toContain("template_group = 'renewal'");
     expect(renewalRoute).toContain("template_key IN ('renewal_whatsapp','renewal_email')");
     expect(renewalRoute).not.toContain("order_information_salla");
+    expect(renewalRoute).toContain('"support_url"');
+    expect(renewalRoute).toContain("allowedEmailVariables");
+    expect(renewalRoute).toContain("templateDescription: sanitizePlainText(input.templateDescription, 300)");
   });
 
   it("scopes order information to its one Salla template", () => {

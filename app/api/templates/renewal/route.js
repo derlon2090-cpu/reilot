@@ -19,7 +19,9 @@ import {
 const allowedChannels = new Set(["whatsapp", "email"]);
 const whatsappVariables = ["customer_name", "plan_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number", "subscription_id", "service_name", "end_date", "renewal_link"];
 const emailVariables = ["اسم_العميل", "اسم_الخدمة", "تاريخ_الانتهاء", "الأيام_المتبقية", "رابط_التجديد", "رقم_الطلب", "اسم_المتجر"];
-const allTemplateVariables = [...new Set([...whatsappVariables, ...emailVariables])];
+const canonicalEmailVariables = ["customer_name", "plan_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number", "support_url", "service_name", "end_date", "renewal_link"];
+const allowedEmailVariables = [...new Set([...emailVariables, ...canonicalEmailVariables])];
+const allTemplateVariables = [...new Set([...whatsappVariables, ...allowedEmailVariables])];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const colorPattern = /^#[0-9a-f]{6}$/i;
 
@@ -83,6 +85,7 @@ function emailContentSettings(input, messageBody) {
       emailDesign,
       emailContentMode,
       emailHtmlContent: inspection.html,
+      templateDescription: sanitizePlainText(input.templateDescription, 300) || "",
       validationWarnings: inspection.warnings
     }
   };
@@ -124,7 +127,8 @@ export async function GET(req) {
       ...item,
       emailDesign: item.contentJson?.emailDesign || "classic",
       emailContentMode: item.contentJson?.emailContentMode || "preset",
-      emailHtmlContent: item.contentJson?.emailHtmlContent || ""
+      emailHtmlContent: item.contentJson?.emailHtmlContent || "",
+      templateDescription: item.contentJson?.templateDescription || ""
     }));
   const rules = rulesResult.rows.filter((item, index, rows) => rows.findIndex((row) => row.channel === item.channel) === index);
   const template = templates.find((item) => item.channel === "whatsapp") || templates[0] || null;
@@ -167,7 +171,7 @@ export async function PUT(req) {
     buttonLabel = sanitizePlainText(input.buttonLabel, 80);
     footerText = sanitizePlainText(input.footerText, 300);
     themeColor = colorPattern.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#062B28";
-    variables = emailVariables;
+    variables = allowedEmailVariables;
     const emailContent = emailContentSettings(input, messageBody);
     if (!emailContent.ok) {
       return Response.json({ ok: false, code: "INVALID_EMAIL_HTML", message: emailContent.errors[0], errors: emailContent.errors }, { status: 400 });
@@ -298,7 +302,7 @@ export async function POST(req) {
       return Response.json({ ok: false, code: "INVALID_EMAIL_VARIABLE", message: "كود البريد يحتوي متغيرًا غير معتمد." }, { status: 400 });
     }
   }
-  if (![template.title, template.body, template.buttonLabel, template.footerText].every((value) => hasOnlyAllowedVariables(value, emailVariables))) {
+  if (![template.title, template.body, template.buttonLabel, template.footerText].every((value) => hasOnlyAllowedVariables(value, allowedEmailVariables))) {
     return Response.json({ ok: false, message: "يحتوي القالب على متغير غير معتمد" }, { status: 400 });
   }
 

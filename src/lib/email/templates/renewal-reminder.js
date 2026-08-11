@@ -54,6 +54,7 @@ export function renewalReminderEmail({
   renewalLink,
   orderNumber,
   storeName,
+  supportUrl = "https://renvix.app/support",
   template = {},
   locale = "ar"
 }) {
@@ -90,6 +91,13 @@ export function renewalReminderEmail({
     رابط_التجديد: safeHttpsUrl(renewalLink),
     رقم_الطلب: orderNumber || "",
     اسم_المتجر: resolved.storeName,
+    plan_name: serviceName || "الاشتراك",
+    expiry_date: endDate || "",
+    days_remaining: Number.isFinite(Number(remainingDays)) ? Number(remainingDays) : "",
+    renewal_url: safeHttpsUrl(renewalLink),
+    store_name: resolved.storeName,
+    order_number: orderNumber || "",
+    support_url: safeHttpsUrl(supportUrl),
     customer_name: customerName || "عميلنا",
     service_name: serviceName || "الاشتراك",
     end_date: endDate || "",
