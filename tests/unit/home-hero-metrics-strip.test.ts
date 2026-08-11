@@ -18,4 +18,9 @@ describe("home hero metrics strip", () => {
     expect(appSource).toContain("data-static-hero-metric");
     expect(appSource).toContain("${note}${dashboardIcon(noteIcon)}");
   });
+
+  it("lifts the Meta value away from its supporting note", () => {
+    expect(stylesSource).toContain(".marketing-hero-metrics article:nth-child(3) strong{position:relative;top:-2px}");
+    expect(stylesSource).toContain(".marketing-hero-metrics article:nth-child(3) em{margin-top:2px}");
+  });
 });

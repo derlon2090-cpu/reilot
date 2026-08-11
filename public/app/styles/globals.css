@@ -578,6 +578,8 @@ body {
 .marketing-hero-metrics small{overflow:hidden;color:#324f4b;font-size:11px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}
 .marketing-hero-metrics strong{direction:ltr;color:#072f2b;font-size:26px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .marketing-hero-metrics em{display:flex;align-items:center;gap:4px;color:#71837f;font-size:9px;font-style:normal;white-space:nowrap}.marketing-hero-metrics em .icon{width:11px;height:11px;color:#0b9687}
+.marketing-hero-metrics article:nth-child(3) strong{position:relative;top:-2px}
+.marketing-hero-metrics article:nth-child(3) em{margin-top:2px}
 
 .home-ops-scene--hero{min-height:470px;margin:0;direction:ltr}
 .home-ops-scene--hero .home-ops-wire{stroke:#cee6e1;stroke-width:1.35}
