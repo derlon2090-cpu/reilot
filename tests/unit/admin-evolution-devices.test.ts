@@ -8,7 +8,7 @@ import {
   maskAdminDevicePhone,
   normalizeAdminDeviceStatus
 } from "../../src/server/admin-evolution-devices.js";
-import { EvolutionAdminAdapter } from "../../src/server/admin-evolution-provider.js";
+import { EvolutionAdminAdapter, adminEvolutionHealth } from "../../src/server/admin-evolution-provider.js";
 
 describe("admin Evolution device presentation", () => {
   it.each([
@@ -48,6 +48,7 @@ describe("admin Evolution device presentation", () => {
     expect(source).not.toContain("ربط المستخدمين عبر Meta Cloud API");
     expect(source).toContain('runAction(selected, "qr")');
     expect(source).toContain('runAction(selected, "pairing_code"');
+    expect(source).toContain('await runAction(result.device, pairingAction');
   });
 
   it("does not persist QR images or pairing codes in the admin device service", () => {
@@ -68,6 +69,8 @@ describe("EvolutionAdminAdapter pairing", () => {
     vi.unstubAllGlobals();
     delete process.env.EVOLUTION_ADMIN_API_URL;
     delete process.env.EVOLUTION_ADMIN_API_KEY;
+    delete process.env.EVOLUTION_API_URL;
+    delete process.env.EVOLUTION_API_KEY;
   });
 
   it("generates an ephemeral QR image from provider pairing text", async () => {
@@ -93,6 +96,36 @@ describe("EvolutionAdminAdapter pairing", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://evolution.test/instance/connectionState/admin_device_01",
+      expect.objectContaining({ headers: expect.objectContaining({ apikey: "test-key" }) })
+    );
+  });
+
+  it("uses the self-hosted Evolution server when dedicated admin credentials are omitted", async () => {
+    delete process.env.EVOLUTION_ADMIN_API_URL;
+    delete process.env.EVOLUTION_ADMIN_API_KEY;
+    process.env.EVOLUTION_API_URL = "http://evolution-api:8080";
+    process.env.EVOLUTION_API_KEY = "shared-server-key";
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ pairingCode: "8H5M-2Q7P" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await new EvolutionAdminAdapter().generatePairingCode({ instanceName: "admin_device_01", phoneNumber: "966512345678" });
+
+    expect(result.pairingCode).toBe("8H5M-2Q7P");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://evolution-api:8080/instance/connect/admin_device_01?number=966512345678",
+      expect.objectContaining({ headers: expect.objectContaining({ apikey: "shared-server-key" }) })
+    );
+  });
+
+  it("checks the authenticated Evolution v2 instances endpoint for server health", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([{ instance: { instanceName: "admin_device_01" } }]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await adminEvolutionHealth();
+
+    expect(result).toMatchObject({ ok: true, instances: 1 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://evolution.test/instance/fetchInstances",
       expect.objectContaining({ headers: expect.objectContaining({ apikey: "test-key" }) })
     );
   });

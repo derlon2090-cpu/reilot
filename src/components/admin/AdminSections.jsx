@@ -656,6 +656,8 @@ function Devices() {
       setPairingTab(createForm.method);
       setPairingPhone(createForm.phoneNumber);
       setDrawer("pairing");
+      const pairingAction = createForm.method === "code" ? "pairing_code" : "qr";
+      await runAction(result.device, pairingAction, pairingAction === "pairing_code" ? { phoneNumber: createForm.phoneNumber } : {});
       setCreateForm({ displayName: "", phoneNumber: "", method: "qr" });
       await loadDevices();
     } catch {

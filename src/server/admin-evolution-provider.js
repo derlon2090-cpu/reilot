@@ -3,8 +3,11 @@ import { extractEvolutionPairingCode, extractEvolutionQr } from "./evolution-cli
 
 function configuration() {
   assertProviderAllowed({ scope: "platform_admin", provider: "evolution_admin" });
-  const baseUrl = String(process.env.EVOLUTION_ADMIN_API_URL || "").replace(/\/$/, "");
-  const apiKey = String(process.env.EVOLUTION_ADMIN_API_KEY || "");
+  // A dedicated administrator endpoint/key can be supplied in split deployments.
+  // The self-hosted production stack intentionally reuses the same Evolution
+  // server while keeping the administrator instance and database scope isolated.
+  const baseUrl = String(process.env.EVOLUTION_ADMIN_API_URL || process.env.EVOLUTION_API_URL || "").trim().replace(/\/$/, "");
+  const apiKey = String(process.env.EVOLUTION_ADMIN_API_KEY || process.env.EVOLUTION_API_KEY || "").trim();
   const instanceName = String(process.env.EVOLUTION_ADMIN_INSTANCE || "");
   if (!baseUrl || !apiKey) {
     const error = new Error("Evolution Admin is not configured");
@@ -16,11 +19,19 @@ function configuration() {
 
 async function evolutionAdminRequest(path, init = {}) {
   const { baseUrl, apiKey } = configuration();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: { apikey: apiKey, "Content-Type": "application/json", ...(init.headers || {}) },
-    signal: AbortSignal.timeout(init.timeoutMs || 15_000)
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: { apikey: apiKey, "Content-Type": "application/json", ...(init.headers || {}) },
+      signal: AbortSignal.timeout(init.timeoutMs || 15_000)
+    });
+  } catch (cause) {
+    const error = new Error(cause?.name === "TimeoutError" ? "Evolution Admin request timed out" : "Evolution Admin is unreachable");
+    error.code = cause?.name === "TimeoutError" ? "EVOLUTION_ADMIN_TIMEOUT" : "EVOLUTION_ADMIN_UNREACHABLE";
+    error.cause = cause;
+    throw error;
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(`Evolution Admin request failed (${response.status})`);
@@ -163,8 +174,15 @@ export const evolutionAdminAdapter = new EvolutionAdminAdapter();
 
 export async function adminEvolutionHealth() {
   const startedAt = Date.now();
-  const body = await evolutionAdminRequest("/server/ok").catch(() => evolutionAdminRequest("/"));
-  return { ok: true, responseTimeMs: Date.now() - startedAt, version: body?.version || body?.response?.version || null };
+  // This endpoint exists in Evolution v2 and verifies both reachability and
+  // the configured API key, unlike an unauthenticated root-page probe.
+  const body = await evolutionAdminRequest("/instance/fetchInstances", { timeoutMs: 10_000 });
+  return {
+    ok: true,
+    responseTimeMs: Date.now() - startedAt,
+    version: body?.version || body?.response?.version || null,
+    instances: Array.isArray(body) ? body.length : Array.isArray(body?.data) ? body.data.length : 0
+  };
 }
 
 export async function sendAdminEvolutionText({ to, text }) {
