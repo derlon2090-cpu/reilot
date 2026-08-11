@@ -3589,9 +3589,9 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .salla-email-builder-panel { display: grid; gap: 16px; background: #fff; }
 .salla-email-builder-panel > .section-head { margin-bottom: 0; }
 .salla-email-builder-panel .email-design-builder { padding: 15px; border: 1px solid #e1ecea; border-radius: 15px; background: #f7fbfa; }
-.salla-email-builder-panel > .salla-email-logo-editor { order: 3; margin-top: 0; }
-.salla-email-builder-panel > .email-design-builder { order: 4; }
-.salla-email-builder-panel > .email-fallback-editor { order: 5; }
+.salla-email-builder-panel > .salla-email-logo-editor { margin-top: 0; }
+.salla-email-design-section { display: grid; gap: 12px; }
+.salla-email-design-section > .section-head { margin-bottom: 0; }
 .salla-email-builder-panel .email-design-builder.is-salla-catalog .email-design-workspace { grid-template-columns: minmax(0, 1fr) minmax(210px, .58fr); align-items: start; }
 .salla-email-builder-panel .email-design-builder.is-salla-catalog .email-design-presets { grid-template-columns: 1fr; }
 .salla-email-builder-panel .email-design-builder.is-salla-catalog .email-template-theme { min-height: 100%; display: grid; align-content: start; justify-items: stretch; gap: 16px; }
