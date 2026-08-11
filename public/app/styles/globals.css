@@ -10786,9 +10786,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     transform-origin:right center;
   }
   .auth-relocated-feature--channels{top:41%;left:95%;transform:translate(-8%,-50%)}
-  .auth-relocated-feature--channels::before{width:40px;transform:rotate(26.3deg)}
+  .auth-relocated-feature--channels::before{width:47px;transform:rotate(26.3deg)}
   .auth-relocated-feature--security{top:76%;left:95%;transform:translate(-8%,-50%)}
-  .auth-relocated-feature--security::before{width:42px;transform:rotate(32.5deg)}
+  .auth-relocated-feature--security::before{width:49px;transform:rotate(32.5deg)}
   .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector{
     background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
@@ -10812,8 +10812,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-relocated-feature svg{width:21px;height:21px}
   .auth-relocated-feature>b{font-size:9px}
   .auth-relocated-feature::before{top:18px;right:calc(50% + 18px)}
-  .auth-relocated-feature--channels::before{width:36px}
-  .auth-relocated-feature--security::before{width:38px}
+  .auth-relocated-feature--channels::before{width:42px}
+  .auth-relocated-feature--security::before{width:44px}
 }
 
 /* Shared Renvix metric treatment: pale circular icon tile and tabular teal values. */
