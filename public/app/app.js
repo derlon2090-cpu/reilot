@@ -3825,7 +3825,7 @@ function sallaAutomationTemplatesPage() {
 
 function sallaTemplatePreviewPanel(item, storeProfile = {}) {
   const isEmail = item.channel === "email";
-  const settings = item.settings || {};
+  const settings = { ...(item.settings || {}) };
   const buttonEnabled = settings.buttonEnabled !== false;
   const activeContent = isEmail ? (item.emailTextContent || item.messageBody) : (item.whatsappContent || item.messageBody);
   const customInspection = isEmail && settings.emailContentMode === "html" ? inspectEmailHtmlClient(item.emailHtmlContent || "") : null;
@@ -3833,6 +3833,9 @@ function sallaTemplatePreviewPanel(item, storeProfile = {}) {
   const logoUrl = storeProfile.logoUrl || "";
   const whatsappImageUrl = settings.whatsappImageUrl || logoUrl;
   const logoRadius = Math.max(0, Math.min(50, Number(storeProfile.logoBorderRadius ?? 16)));
+  const emailThemeColor = safeEmailTheme(settings.emailThemeColor || "#0B3F3B");
+  const secureLinkActive = settings.secureLinkEnabled === true && settings.secureLinkOptIn === true;
+  settings.secureLinkEnabled = secureLinkActive;
   const emailLogo = logoUrl
     ? `<span class="salla-email-store-logo"><img src="${escapeHtml(logoUrl)}" alt="شعار ${escapeHtml(storeProfile.storeName || "المتجر")}" style="--salla-logo-radius:${logoRadius}px"></span>`
     : `<span class="salla-email-store-logo is-empty">${dashboardIcon("apps")}</span>`;
@@ -3841,7 +3844,7 @@ function sallaTemplatePreviewPanel(item, storeProfile = {}) {
     .join(";");
   return `<aside class="card salla-template-live-preview">
     <div class="section-head"><div><h2 data-salla-preview-title>${isEmail ? "معاينة البريد" : "معاينة واتساب"}</h2><p>معاينة موحدة وآمنة — لن يتم إرسال أي رسالة.</p></div>${dashboardIcon(isEmail ? "template" : "eye")}</div>
-    <div class="${isEmail ? `salla-email-preview design-${settings.emailDesign || "classic"} ${customInspection?.ok ? "uses-custom-html" : ""}` : "salla-whatsapp-preview"}" data-salla-preview-frame>
+    <div class="${isEmail ? `salla-email-preview design-${settings.emailDesign || "classic"} ${customInspection?.ok ? "uses-custom-html" : ""}` : "salla-whatsapp-preview"}" data-salla-preview-frame style="--email-theme:${emailThemeColor}">
       <div class="salla-whatsapp-preview-canvas" data-salla-preview-head="whatsapp" ${isEmail ? "hidden" : ""}>
         <div class="salla-whatsapp-bubble">${settings.whatsappImageEnabled === true && whatsappImageUrl ? `<img class="salla-whatsapp-message-image" data-salla-whatsapp-image src="${escapeHtml(whatsappImageUrl)}" alt="صورة رسالة واتساب">` : `<img class="salla-whatsapp-message-image" data-salla-whatsapp-image alt="صورة رسالة واتساب" hidden>`}<div class="salla-preview-message" data-salla-preview-message>${body}</div><button type="button" tabindex="-1" class="salla-preview-cta" data-salla-preview-cta ${buttonEnabled ? "" : "hidden"}>${dashboardIcon("orderLink")} <span>${escapeHtml(settings.buttonLabel || item.previewAction || "عرض التفاصيل")}</span></button><small>11:30 ص ✓✓</small></div>
       </div>
@@ -3869,8 +3872,9 @@ function refreshSallaTemplatePreview(form, {
   if (frame) {
     frame.classList.toggle("salla-email-preview", isEmail);
     frame.classList.toggle("salla-whatsapp-preview", !isEmail);
-    frame.classList.remove("design-classic", "design-modern", "design-minimal");
+    frame.classList.remove("design-classic", "design-modern", "design-minimal", "design-premium", "design-editorial", "design-commerce", "design-aurora", "design-executive");
     if (isEmail) frame.classList.add(`design-${form.elements.emailDesign?.value || "classic"}`);
+    frame.style.setProperty("--email-theme", safeEmailTheme(form.elements.emailThemeColor?.value || "#0B3F3B"));
   }
   document.querySelectorAll("[data-salla-preview-head]").forEach((head) => {
     head.toggleAttribute("hidden", head.dataset.sallaPreviewHead !== (isEmail ? "email" : "whatsapp"));
@@ -3904,7 +3908,7 @@ function refreshSallaTemplatePreview(form, {
   }
   const linkPreview = document.querySelector("[data-salla-link-preview]");
   const linkOptions = form.querySelector("[data-salla-link-options]");
-  const secureLinkEnabled = form.elements.secureLinkEnabled?.checked !== false;
+  const secureLinkEnabled = form.elements.secureLinkEnabled?.checked === true;
   linkOptions?.toggleAttribute("hidden", !secureLinkEnabled);
   if (linkPreview) {
     linkPreview.toggleAttribute("hidden", !secureLinkEnabled);
@@ -3944,7 +3948,9 @@ function sallaAutomationTemplateEditorPage() {
   const storeProfile = payload.storeProfile || {};
   const statuses = Array.isArray(payload.statuses) ? payload.statuses : [];
   const metaTemplates = Array.isArray(payload.metaTemplates) ? payload.metaTemplates : [];
-  const settings = item.settings || {};
+  const settings = { ...(item.settings || {}) };
+  const secureLinkActive = settings.secureLinkEnabled === true && settings.secureLinkOptIn === true;
+  settings.secureLinkEnabled = secureLinkActive;
   const selectedChannel = item.channel || "whatsapp";
   const statusField = item.templateKey === "review_request" ? "" : item.requiresStatusMapping ? `<label class="field"><span>حالة سلة التي تشغّل القالب</span><select class="select" name="mappedStatusId" required><option value="">اختيار الحالة</option>${statuses.map((statusItem) => `<option value="${escapeHtml(statusItem.id)}" data-slug="${escapeHtml(statusItem.slug || "")}" data-name="${escapeHtml(statusItem.name)}" ${statusItem.id === item.mappedStatusId ? "selected" : ""}>${escapeHtml(statusItem.name)}${statusItem.isCustom ? " — مخصصة" : ""}</option>`).join("")}</select><small>${statuses.length ? "تتم المطابقة بمعرّف الحالة وslug، وليس بالنص العربي." : "زامن حالات سلة أولًا قبل التفعيل."}</small></label>` : `<label class="field"><span>حدث التشغيل</span><input class="input" value="${escapeHtml(item.eventName || item.triggerType)}" disabled></label>`;
   const variables = `<div class="variables-row"><strong>المتغيرات المتاحة</strong>${item.variables.map((variable) => `<button type="button" class="chip" data-action="insert-salla-variable" data-variable="{{${escapeHtml(variable)}}}">{{${escapeHtml(variable)}}}</button>`).join("")}</div>`;
@@ -3976,7 +3982,7 @@ function sallaAutomationTemplateEditorPage() {
         <article class="card salla-template-form-card">
           <div class="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div>${dashboardIcon("template")}</div>
           <div class="form-grid two"><label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(item.name)}" disabled></label>${item.templateKey === "review_request" ? "" : statusField}</div>
-          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label></fieldset>
+          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label></fieldset>
           ${item.templateKey === "review_request" ? `<div class="salla-review-trigger-field">${statusField}</div>` : ""}
           ${metaPanel}${emailPanel}
           ${abandoned}${completed}${review}${invoice}${digital}
@@ -5422,7 +5428,11 @@ const EMAIL_DESIGN_PRESETS = [
   { id: "classic", name: "كلاسيكي أنيق", caption: "بطاقة واضحة وهوية متوازنة" },
   { id: "modern", name: "حديث مميز", caption: "مساحات مريحة ولمسة عصرية" },
   { id: "minimal", name: "بسيط راقٍ", caption: "محتوى خفيف يركز على الرسالة" },
-  { id: "premium", name: "فاخر داكن", caption: "تباين قوي للعروض المهمة" }
+  { id: "premium", name: "فاخر داكن", caption: "تباين قوي للعروض المهمة" },
+  { id: "editorial", name: "تحريري عالمي", caption: "أسلوب المجلات والعلامات الراقية" },
+  { id: "commerce", name: "تجارة احترافية", caption: "مثالي للطلبات والمنتجات والعروض" },
+  { id: "aurora", name: "أورورا متدرج", caption: "هوية حيوية بتدرج لوني ناعم" },
+  { id: "executive", name: "تنفيذي رسمي", caption: "طابع مؤسسي واضح وموثوق" }
 ];
 
 function inspectEmailHtmlClient(value) {
@@ -5478,15 +5488,19 @@ function inspectEmailHtmlClient(value) {
   return { ok: errors.length === 0, html: template.innerHTML, errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
 }
 
-function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset", htmlContent = "", sampleCode = "" } = {}) {
+function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset", htmlContent = "", sampleCode = "", themeColor = null } = {}) {
   const design = EMAIL_DESIGN_PRESETS.some((item) => item.id === selectedDesign) ? selectedDesign : "classic";
   const mode = contentMode === "html" ? "html" : "preset";
+  const showThemeControl = themeColor !== null || Boolean(sampleCode);
+  const selectedTheme = safeEmailTheme(themeColor || state.sallaAutomationTemplate?.item?.settings?.emailThemeColor || "#0B3F3B");
+  const themePalette = ["#0B3F3B", "#2563EB", "#7C3AED", "#DB2777", "#EA580C", "#0F766E"];
   const codeExample = sampleCode || `<section style="padding:28px;background-color:#f4f9f8;border-radius:20px;text-align:right" dir="rtl">\n  <h2 style="margin:0 0 14px;color:#062b28">حان وقت تجديد اشتراكك</h2>\n  <p style="margin:0 0 18px;line-height:1.9">مرحبًا {{customer_name}}، اشتراكك في {{service_name}} يقترب من الانتهاء.</p>\n  <a href="{{renewal_link}}" style="display:inline-block;padding:12px 22px;background-color:#0b3f3b;color:#ffffff;border-radius:10px;text-decoration:none">جدد الآن</a>\n</section>`;
   return `<section class="email-design-builder" data-email-design-builder>
     <input type="hidden" name="emailDesign" value="${escapeHtml(design)}">
     <input type="hidden" name="emailContentMode" value="${escapeHtml(mode)}">
     <div class="email-design-builder-head"><div><h3>قوالب بريد جاهزة</h3><p>اختر تصميمًا ثم اضغط اعتماد. لن يتغير المصدر النشط دون اعتمادك.</p></div><span class="email-source-status ${mode === "html" ? "is-code" : "is-preset"}" data-email-source-status>${mode === "html" ? "الكود المعتمد" : `القالب المعتمد: ${escapeHtml(EMAIL_DESIGN_PRESETS.find((item) => item.id === design)?.name || "كلاسيكي أنيق")}`}</span></div>
     <div class="email-design-presets">${EMAIL_DESIGN_PRESETS.map((item) => `<article class="email-design-preset design-${item.id} ${mode === "preset" && item.id === design ? "is-active" : ""}" data-email-design-card="${item.id}"><div class="email-design-thumb"><i></i><b></b><span></span><em></em></div><strong>${item.name}</strong><small>${item.caption}</small><button class="btn btn-secondary" type="button" data-action="adopt-email-design" data-design="${item.id}">${mode === "preset" && item.id === design ? "معتمد ✓" : "اعتماد القالب"}</button></article>`).join("")}</div>
+    ${showThemeControl ? `<div class="email-template-theme"><div><strong>لون هوية القالب</strong><small>يُطبّق على العنوان وزر الإجراء والتفاصيل البارزة في البريد.</small></div><div class="email-theme-palette">${themePalette.map((color) => `<button type="button" data-action="set-email-theme-color" data-color="${color}" class="${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار لون القالب ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" name="emailThemeColor" value="${selectedTheme}" aria-label="لون قالب بريد مخصص"><span>${dashboardIcon("edit")}</span></label></div></div>` : ""}
     <details class="email-code-designer" ${mode === "html" ? "open" : ""}><summary><span>${dashboardIcon("code")} تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div class="email-code-designer-body"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" maxlength="30000" data-email-code-sample="${escapeHtml(codeExample)}" placeholder="${escapeHtml(codeExample)}">${escapeHtml(htmlContent || "")}</textarea><small>محتوى HTML فقط. يتم فحص العناصر والروابط وCSS قبل الاعتماد والحفظ.</small></label><div class="email-code-actions"><button class="btn btn-primary" type="button" data-action="adopt-email-html">فحص واعتماد الكود</button><button class="btn btn-secondary" type="button" data-action="insert-email-code-sample">إضافة نموذج احترافي</button></div><div class="email-code-validation neutral" data-email-code-validation>${mode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط فحص واعتماد الكود."}</div></div></details>
   </section>`;
 }
@@ -8042,6 +8056,15 @@ async function handleAction(target) {
     toast("تم اعتماد القالب الجاهز كمصدر تصميم البريد.");
     return;
   }
+  if (action === "set-email-theme-color") {
+    const form = target.closest("form");
+    const colorInput = form?.elements.emailThemeColor;
+    if (!colorInput) return;
+    colorInput.value = safeEmailTheme(target.dataset.color);
+    form.querySelectorAll("[data-action='set-email-theme-color']").forEach((button) => button.classList.toggle("active", button === target));
+    refreshSallaTemplatePreview(form);
+    return;
+  }
   if (action === "adopt-email-html") {
     const form = target.closest("form");
     const editor = form?.elements.emailHtmlContent;
@@ -9535,6 +9558,7 @@ async function handleSubmit(form, event) {
         : "",
       emailDesign: form.elements.emailDesign?.value || currentSettings.emailDesign || "classic",
       emailContentMode: form.elements.emailContentMode?.value === "html" ? "html" : "preset",
+      emailThemeColor: safeEmailTheme(form.elements.emailThemeColor?.value || currentSettings.emailThemeColor || "#0B3F3B"),
       ...(form.elements.abandonedDelayHours ? {
         delaysMinutes: [Math.min(48, Math.max(1, Number(data.abandonedDelayHours) || 1)) * 60],
         maxMessages: 1,
@@ -9550,6 +9574,7 @@ async function handleSubmit(form, event) {
       } : {}),
       ...(form.elements.linkPageTitle ? {
         secureLinkEnabled: Boolean(form.elements.secureLinkEnabled?.checked),
+        secureLinkOptIn: Boolean(form.elements.secureLinkEnabled?.checked),
         linkPageTitle: String(form.elements.linkPageTitle?.value || "").trim(),
         linkPageContent: String(form.elements.linkPageContent?.value || "").trim(),
         showDuration: Boolean(form.elements.showDuration?.checked),
@@ -11176,7 +11201,7 @@ document.addEventListener("input", (event) => {
     document.querySelectorAll(selector).forEach((node) => { node.textContent = target.value || fallback; });
   }
   const sallaTemplateForm = target.closest?.('form[data-submit="salla-automation-template"]');
-  if (sallaTemplateForm && ["whatsappContent", "emailTextContent", "emailHtmlContent", "emailSubject", "buttonLabel", "buttonEnabled", "whatsappImageEnabled", "emailDesign", "secureLinkEnabled", "deliveryPageDesign", "deliveryPageCustomCss", "linkPageTitle", "linkPageContent", "showDuration", "themeColor"].includes(target.name)) {
+  if (sallaTemplateForm && ["whatsappContent", "emailTextContent", "emailHtmlContent", "emailSubject", "buttonLabel", "buttonEnabled", "whatsappImageEnabled", "emailDesign", "emailThemeColor", "secureLinkEnabled", "deliveryPageDesign", "deliveryPageCustomCss", "linkPageTitle", "linkPageContent", "showDuration", "themeColor"].includes(target.name)) {
     refreshSallaTemplatePreview(sallaTemplateForm);
   }
   if (target.matches?.("[data-otp-digit]")) {

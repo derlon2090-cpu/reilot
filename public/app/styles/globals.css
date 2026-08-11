@@ -3515,6 +3515,25 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .email-design-preset.design-premium .email-design-thumb { border-color: #315b56; background: #071f1d; }
 .email-design-preset.design-premium .email-design-thumb b { background: #173b37; }
 .email-design-preset.design-premium .email-design-thumb span { background: #b69b60; }
+.email-design-preset.design-editorial .email-design-thumb { border-radius: 2px; background: #fffdf8; }
+.email-design-preset.design-editorial .email-design-thumb b { border-inline-start: 4px solid #9a7042; border-radius: 1px; background: #f4eee4; }
+.email-design-preset.design-commerce .email-design-thumb { background: #f8fbff; }
+.email-design-preset.design-commerce .email-design-thumb b { background: repeating-linear-gradient(90deg,#dce8f8 0 9px,#fff 9px 13px); }
+.email-design-preset.design-aurora .email-design-thumb { border-color: #c4b5fd; background: linear-gradient(145deg,#ecfeff,#f5f3ff 52%,#fdf2f8); }
+.email-design-preset.design-aurora .email-design-thumb i,.email-design-preset.design-aurora .email-design-thumb em { background: #7c3aed; }
+.email-design-preset.design-executive .email-design-thumb { border-color: #334155; background: #f8fafc; }
+.email-design-preset.design-executive .email-design-thumb i { width: 100%; background: #0f172a; }
+.email-template-theme { padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #dbe8e6; border-radius: 13px; background: #fff; }
+.email-template-theme strong,.email-template-theme small { display: block; }
+.email-template-theme strong { color: #062B28; font-size: 11px; }
+.email-template-theme small { margin-top: 3px; color: #718097; font-size: 9px; line-height: 1.55; }
+.email-theme-palette { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.email-theme-palette > button,.email-theme-palette > label { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; background: var(--email-palette,#0B3F3B); box-shadow: 0 0 0 1px #d6e2e0; cursor: pointer; transition: transform .18s ease,box-shadow .18s ease; }
+.email-theme-palette > button:hover,.email-theme-palette > button.active { transform: scale(1.08); box-shadow: 0 0 0 2px #0B3F3B; }
+.email-theme-palette > label { position: relative; overflow: hidden; border-radius: 8px; background: #f1f5f9; }
+.email-theme-palette input { width: 34px; height: 34px; position: absolute; inset: -4px; opacity: 0; cursor: pointer; }
+.email-theme-palette label span { color: #334155; pointer-events: none; }
+.email-theme-palette label svg { width: 14px; height: 14px; }
 .email-code-designer { overflow: hidden; border: 1px solid #dbe8e6; border-radius: 13px; background: #fbfdfd; }
 .email-code-designer summary { min-height: 50px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #062B28; cursor: pointer; font-size: 12px; font-weight: 800; list-style: none; }
 .email-code-designer summary::-webkit-details-marker { display: none; }
@@ -3538,6 +3557,16 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .email-envelope.design-premium { color: #eafffb; border-color: #315b56; background: #071f1d; }
 .email-envelope.design-premium .email-preview-body h3,.email-envelope.design-premium .email-preview-brand strong { color: #f8fffe; }
 .email-envelope.design-premium .email-preview-footer { color: #a8c1bc; border-color: #315b56; background: #0d2b28; }
+.email-envelope.design-editorial { border-radius: 2px; background: #fffdf8; font-family: Georgia,"Times New Roman",serif; }
+.email-envelope.design-editorial::before { height: 2px; }
+.email-envelope.design-editorial .email-preview-body { margin-inline: 18px; padding-inline: 18px; border-inline-start: 4px solid var(--email-theme); }
+.email-envelope.design-commerce .email-preview-brand { background: color-mix(in srgb,var(--email-theme) 7%,#fff); }
+.email-envelope.design-commerce .email-preview-body { margin: 0 14px 18px; padding: 20px; border: 1px solid color-mix(in srgb,var(--email-theme) 24%,#e8f1f0); border-radius: 12px; }
+.email-envelope.design-aurora { border-color: color-mix(in srgb,var(--email-theme) 26%,#e8f1f0); background: linear-gradient(150deg,#ecfeff 0%,#fff 46%,#fdf2f8 100%); }
+.email-envelope.design-aurora .email-preview-body > a { box-shadow: 0 10px 24px color-mix(in srgb,var(--email-theme) 28%,transparent); }
+.email-envelope.design-executive { border-color: #cbd5e1; border-radius: 4px; }
+.email-envelope.design-executive .email-preview-brand { color: #0f172a; border-bottom: 1px solid #e2e8f0; }
+.email-envelope.design-executive .email-preview-body h3 { color: #0f172a; text-transform: none; }
 .email-envelope.uses-custom-html .email-preview-body { padding-inline: 14px; }
 .email-custom-html-preview { max-width: 100%; overflow: auto; text-align: initial; }
 .email-custom-html-preview img,.salla-email-preview.uses-custom-html .salla-preview-message img { max-width: 100%; height: auto; }
@@ -3545,11 +3574,23 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .salla-email-builder-panel { display: grid; gap: 16px; background: #fff; }
 .salla-email-builder-panel > .section-head { margin-bottom: 0; }
 .salla-email-builder-panel .email-design-builder { padding: 15px; border: 1px solid #e1ecea; border-radius: 15px; background: #f7fbfa; }
+.salla-email-builder-panel > .salla-email-logo-editor { order: 3; margin-top: 0; }
+.salla-email-builder-panel > .email-design-builder { order: 4; }
+.salla-email-builder-panel > .email-fallback-editor { order: 5; }
 .salla-email-builder-panel .email-fallback-editor { padding-top: 15px; }
 .salla-email-preview.design-premium .salla-email-preview-canvas { color: #eafffb; background: #071f1d; }
 .salla-email-preview.design-premium .salla-email-preview-head { border-color: #315b56; background: #0d2b28; }
 .salla-email-preview.design-premium .salla-email-preview-head strong,.salla-email-preview.design-premium .salla-email-preview-head small,.salla-email-preview.design-premium .salla-preview-message { color: #eafffb; }
 .salla-email-preview.design-premium .salla-email-hero { color: #fff; background: #173b37; }
+.salla-email-preview .salla-email-hero { color: var(--email-theme); background: color-mix(in srgb,var(--email-theme) 10%,#fff); }
+.salla-email-preview .salla-preview-cta.primary { border-color: var(--email-theme); background: var(--email-theme); }
+.salla-email-preview.design-editorial .salla-email-preview-canvas { border-radius: 2px; background: #fffdf8; font-family: Georgia,"Times New Roman",serif; }
+.salla-email-preview.design-editorial .salla-preview-message { padding-inline-start: 16px; border-inline-start: 4px solid var(--email-theme); }
+.salla-email-preview.design-commerce .salla-email-preview-canvas { background: #f8fbff; }
+.salla-email-preview.design-commerce .salla-preview-message { padding: 18px; border: 1px solid color-mix(in srgb,var(--email-theme) 24%,#dbe8e6); border-radius: 12px; background: #fff; }
+.salla-email-preview.design-aurora .salla-email-preview-canvas { background: linear-gradient(150deg,#ecfeff 0%,#fff 50%,#fdf2f8 100%); }
+.salla-email-preview.design-executive .salla-email-preview-canvas { border-radius: 4px; background: #fff; }
+.salla-email-preview.design-executive .salla-email-preview-head { border-bottom: 2px solid #0f172a; background: #f8fafc; }
 .salla-email-preview.uses-custom-html .salla-preview-message { overflow: auto; white-space: normal; }
 
 :root[data-theme="dark"] .template-catalog-card,
@@ -3576,6 +3617,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 :root[data-theme="dark"] .template-editor-v2-footer { border-color: #062B28; background-color: transparent; }
 :root[data-theme="dark"] .template-editor-v2-body { color: #E8F1F0; border-color: #062B28; background: #062B28; }
 :root[data-theme="dark"] .email-design-preset,
+:root[data-theme="dark"] .email-template-theme,
 :root[data-theme="dark"] .email-code-designer,
 :root[data-theme="dark"] .salla-email-builder-panel,
 :root[data-theme="dark"] .salla-email-builder-panel .email-design-builder { border-color: #315b56; background: #0d2b28; }

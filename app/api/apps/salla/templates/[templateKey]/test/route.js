@@ -43,6 +43,7 @@ export async function POST(request, { params }) {
         sallaTemplateKey: item.templateKey,
         test: true,
         emailDesign: item.settings?.emailDesign || "classic",
+        emailThemeColor: item.settings?.emailThemeColor || "#0B3F3B",
         emailContentMode: item.settings?.emailContentMode || "preset",
         emailHtmlContent: item.settings?.emailContentMode === "html" ? item.emailHtmlContent || "" : "",
         branding: {

@@ -43,7 +43,8 @@ const definitions = [
     body: "مرحبًا {{customer_name}} 👋\n\nأصبحت معلومات تسليم طلبك رقم {{order_number}} جاهزة.\nلأمان بياناتك، اعرضها من الرابط الآمن التالي فقط:\n{{digital_content_url}}",
     emailSubject: "تفاصيل منتجك الرقمي جاهزة للاستلام",
     settings: {
-      secureLinkEnabled: true,
+      secureLinkEnabled: false,
+      secureLinkOptIn: false,
       showDuration: false,
       deliveryPageDesign: "classic",
       emailDesign: "classic",
@@ -252,6 +253,9 @@ function cleanSettings(input, current = {}) {
     reviewTriggerStatus,
     emailDesign,
     emailContentMode,
+    emailThemeColor: /^#[0-9A-F]{6}$/i.test(settings.emailThemeColor || "")
+      ? settings.emailThemeColor
+      : (/^#[0-9A-F]{6}$/i.test(current.emailThemeColor || "") ? current.emailThemeColor : "#0B3F3B"),
     deliveryPageDesign,
     deliveryPageCustomCss: normalizeSallaPageCssCode(settings.deliveryPageCustomCss ?? current.deliveryPageCustomCss ?? ""),
     whatsappImageEnabled: settings.whatsappImageEnabled == null
@@ -261,7 +265,8 @@ function cleanSettings(input, current = {}) {
     themeColor: /^#[0-9A-F]{6}$/i.test(settings.themeColor || "") ? settings.themeColor : (current.themeColor || "#0B3F3B"),
     buttonEnabled: settings.buttonEnabled == null ? current.buttonEnabled !== false : Boolean(settings.buttonEnabled),
     buttonLabel: cleanLabel(settings.buttonLabel, current.buttonLabel, 80),
-    secureLinkEnabled: settings.secureLinkEnabled == null ? current.secureLinkEnabled !== false : Boolean(settings.secureLinkEnabled),
+    secureLinkEnabled: settings.secureLinkEnabled == null ? current.secureLinkEnabled === true : Boolean(settings.secureLinkEnabled),
+    secureLinkOptIn: settings.secureLinkOptIn == null ? current.secureLinkOptIn === true : Boolean(settings.secureLinkOptIn),
     linkPageTitle: cleanLabel(settings.linkPageTitle, current.linkPageTitle, 160),
     linkPageContent: cleanContent(settings.linkPageContent, current.linkPageContent, 5000),
     showCountdown: settings.showCountdown == null ? current.showCountdown !== false : Boolean(settings.showCountdown),
@@ -1169,7 +1174,7 @@ export async function processSallaTemplateEvent(payload) {
     };
     const pageType = template.template_key === legacyInvoiceDefinition.key
       ? "invoice"
-      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled !== false
+      : template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled === true && template.settings?.secureLinkOptIn === true
         ? "digital"
       : template.template_key === SALLA_TEMPLATE_KEYS.COMPLETED
         ? "order"
@@ -1247,6 +1252,7 @@ export async function processSallaTemplateEvent(payload) {
         provider: "resend",
         sallaTemplateKey: template.template_key,
         emailDesign: template.settings?.emailDesign || "classic",
+        emailThemeColor: template.settings?.emailThemeColor || "#0B3F3B",
         emailContentMode: template.settings?.emailContentMode || "preset",
         emailHtmlContent: template.settings?.emailContentMode === "html"
           ? renderSallaTemplateHtml(template.email_html_content || "", variables)
@@ -1263,7 +1269,7 @@ export async function processSallaTemplateEvent(payload) {
       emailTo: template.delivery_channel === "email" ? recipient : null,
       subject: template.email_subject ? renderSallaTemplate(template.email_subject, variables) : null,
       messageBody: renderSallaTemplate(
-        template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled !== false
+        template.template_key === SALLA_TEMPLATE_KEYS.DIGITAL_PRODUCT_DELIVERY && template.settings?.secureLinkEnabled === true && template.settings?.secureLinkOptIn === true
           ? "مرحبًا {{customer_name}} 👋\n\nأصبحت معلومات تسليم طلبك رقم {{order_number}} جاهزة.\nلأمان بياناتك، اعرضها من الرابط الآمن التالي فقط:\n{{digital_content_url}}"
           : template.delivery_channel === "email"
             ? (template.email_text_content || template.message_body)
@@ -1330,6 +1336,7 @@ export async function processSallaTemplateEvent(payload) {
               sallaTemplateKey: template.template_key,
               abandonedCartMessageIndex: messageIndex,
               emailDesign: template.settings?.emailDesign || "classic",
+              emailThemeColor: template.settings?.emailThemeColor || "#0B3F3B",
               emailContentMode: template.settings?.emailContentMode || "preset",
               emailHtmlContent: template.settings?.emailContentMode === "html"
                 ? renderSallaTemplateHtml(template.email_html_content || "", variables)

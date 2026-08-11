@@ -37,6 +37,8 @@ describe("custom email HTML", () => {
 
   it("normalizes unsupported modes and designs", () => {
     expect(supportedEmailContentMode("script")).toBe("preset");
+    expect(supportedEmailDesign("editorial")).toBe("editorial");
+    expect(supportedEmailDesign("executive")).toBe("executive");
     expect(supportedEmailDesign("copied-page")).toBe("classic");
   });
 });

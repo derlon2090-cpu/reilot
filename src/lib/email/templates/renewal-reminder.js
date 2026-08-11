@@ -39,6 +39,10 @@ function presetBody({ design, body, renewalUrl, buttonLabel, themeColor, footerT
   if (design === "modern") return `<div style="padding:30px;border-radius:24px;background:#f3f8f7;border-top:6px solid ${themeColor};box-shadow:0 12px 30px rgba(6,43,40,.08)">${content}</div>`;
   if (design === "minimal") return `<div style="padding:8px 2px;border-bottom:2px solid ${themeColor}">${content}</div>`;
   if (design === "premium") return `<div style="padding:32px;border-radius:20px;background:#071f1d;color:#f8fffe;border:1px solid #315b56"><div style="height:3px;background:${themeColor};margin-bottom:24px"></div>${content}</div>`;
+  if (design === "editorial") return `<div style="padding:30px 32px;border-right:5px solid ${themeColor};background:#fffdf8;color:#292524;font-family:Georgia,'Times New Roman',serif;line-height:2">${content}</div>`;
+  if (design === "commerce") return `<div style="padding:30px;border:1px solid ${themeColor};border-radius:14px;background:#f8fbff;color:#0f172a">${content}</div>`;
+  if (design === "aurora") return `<div style="padding:32px;border:1px solid ${themeColor};border-radius:24px;background:linear-gradient(145deg,#ecfeff,#ffffff 48%,#fdf2f8);color:#172554">${content}</div>`;
+  if (design === "executive") return `<div style="padding:32px;border-top:7px solid #0f172a;border-bottom:2px solid ${themeColor};background:#ffffff;color:#0f172a">${content}</div>`;
   return `<div style="padding:24px;border:1px solid #dce9e7;border-radius:18px">${content}</div>`;
 }
 
