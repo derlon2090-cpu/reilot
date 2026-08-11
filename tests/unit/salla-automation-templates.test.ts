@@ -123,17 +123,20 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('<form id="salla-template-editor-form" class="salla-template-editor-form"');
     expect(appSource).toContain('<div class="salla-template-editor-layout">');
     expect(appSource).not.toContain('<section class="salla-template-editor-layout">');
-    expect(styles).toContain(".salla-template-editor-form{display:grid;gap:12px;margin:0");
-    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:stretch");
+    expect(styles).toContain(".salla-template-editor-form{display:grid;grid-template-rows:max-content max-content;align-content:start;align-self:start;height:max-content;gap:12px;margin:0");
+    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:stretch;align-content:start;align-self:start");
     expect(styles).toContain(".salla-template-form-card{grid-column:1;grid-row:1");
     expect(styles).toContain(".salla-template-live-preview{grid-column:2;grid-row:1}");
     expect(styles).not.toContain(".salla-editor-actions{grid-column:1;grid-row:2}");
-    expect(styles).toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0");
+    expect(styles).toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0;padding:18px;overflow:visible;contain:size");
     expect(styles).not.toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:100%;min-height:100%");
     expect(styles).toContain(".salla-template-preview-sticky{position:sticky;top:92px");
     expect(styles).toContain('[data-theme="dark"] .salla-preview-important-note');
     expect(styles).toContain(".salla-template-live-preview.is-digital-delivery .salla-template-preview-stack:has(.salla-digital-link-preview:not([hidden]))");
-    expect(styles).toContain("grid-template-rows:repeat(2,minmax(470px,1fr))");
+    expect(styles).toContain("grid-template-rows:repeat(2,minmax(0,1fr))");
+    expect(styles).toContain("align-content:stretch;gap:32px");
+    expect(styles).toContain("animation:sallaDigitalPagePreviewIn .52s cubic-bezier(.22,1,.36,1) both");
+    expect(styles).toContain("@keyframes sallaDigitalPagePreviewIn");
   });
 
   it("keeps Salla header icons compact and uses a roomy white WhatsApp phone preview", () => {
