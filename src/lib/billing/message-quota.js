@@ -175,18 +175,29 @@ async function currentSubscription(client, tenantId) {
   );
   if (result.rows[0]) return result.rows[0];
 
+  const previous = await client.query(
+    `SELECT status FROM platform_subscriptions
+      WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1`,
+    [tenantId]
+  );
+  if (previous.rows[0]) {
+    const error = new Error("A paid subscription is required");
+    error.code = "SUBSCRIPTION_REQUIRED";
+    throw error;
+  }
+
   const free = await client.query(
     `SELECT id, name, slug, monthly_message_limit, whatsapp_message_limit,
             email_message_limit, sms_message_limit
        FROM platform_plans
-      WHERE slug IN ('free', 'trial') AND is_active = true
-      ORDER BY CASE slug WHEN 'free' THEN 0 ELSE 1 END LIMIT 1`
+      WHERE slug = 'trial' LIMIT 1`
   );
-  if (!free.rows[0]) throw new Error("No active free platform plan is configured");
+  if (!free.rows[0]) throw new Error("No trial policy is configured");
   result = await client.query(
     `INSERT INTO platform_subscriptions (
        tenant_id, plan_id, status, billing_cycle, current_period_start, current_period_end
-     ) VALUES ($1,$2,'active','monthly',now(),now() + interval '1 month')
+       , trial_started_at, trial_ends_at
+     ) VALUES ($1,$2,'trial','monthly',now(),now() + interval '7 days',now(),now() + interval '7 days')
      RETURNING id, plan_id, current_period_start, current_period_end, status`,
     [tenantId, free.rows[0].id]
   );

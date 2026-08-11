@@ -1,4 +1,4 @@
-import { features, pricingPlans, knowledgeBase } from "../data/publicData.js?v=20260728-otp-pricing-api-v1";
+import { features, knowledgeBase } from "../data/publicData.js?v=20260811-central-plan-catalog-v1";
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 
 const app = document.querySelector("#app");
@@ -728,6 +728,7 @@ state.notificationTemplate = null;
 state.catalogTemplates = null;
 state.metaTemplates = null;
 state.billingOverview = null;
+state.publicPlans = null;
 state.messageUsage = null;
 state.campaignsOverview = null;
 state.channelsOverview = null;
@@ -1189,6 +1190,8 @@ function syncRouteData(force = false) {
     const request = loadRemotePage(key, url, target, options, { renderOnComplete: !isDashboardHome });
     if (isDashboardHome && request) pending.push(request);
   };
+
+  if (state.route === "/pricing" && (force || state.publicPlans === null)) queue("publicPlans", "/api/public/plans", "publicPlans");
 
   if (state.route.startsWith("/dashboard") && (force || state.dashboardOverview === null)) queue("overview", "/api/dashboard/overview", "dashboardOverview");
   if (state.route.startsWith("/dashboard") && (force || state.messageUsage === null)) queue("messageUsage", "/api/billing/message-usage", "messageUsage");
@@ -1910,17 +1913,26 @@ function featureGrid(limit = features.length) {
 }
 
 function pricingCards(short = false, billingCycle = state.billing) {
-  const mobilePlanIcons = { free: "store", starter: "star", business: "success", pro: "payments" };
-  return `<div class="grid grid-4">${pricingPlans.map((plan) => {
-    const price = plan.priceLabel || (billingCycle === "yearly" ? plan.yearly : plan.monthly);
-    const features = short ? plan.features.slice(0, 6) : plan.features;
-    return `<article class="card pricing-card ${plan.featured ? "featured" : ""}">
-      ${plan.badge ? `<span class="badge">${plan.badge}</span>` : ""}
-      <span class="plan-mobile-icon">${dashboardIcon(mobilePlanIcons[plan.id] || "subscriptions")}</span>
-      <div><h3>${plan.name}</h3></div>
-      <div class="price">${typeof price === "number" ? `<strong>${price}</strong><small>ريال / شهريًا</small>` : `<strong>${price}</strong><small>تواصل معنا للحصول على عرض سعر</small>`}</div>
-      <ul class="plan-feature-list">${features.map(([item, included]) => `<li class="${included ? "included" : "excluded"}">${dashboardIcon(included ? "success" : "close")}<span>${item}</span></li>`).join("")}</ul>
-      <button class="btn ${plan.featured ? "btn-primary" : "btn-secondary"}" ${plan.contact ? 'data-link="/contact"' : `data-link="/register?plan=${plan.id}"`}>${plan.cta}</button>
+  if (state.publicPlans === null) return `<div class="pricing-catalog-loading" role="status">جاري تحميل الباقات الفعلية...</div>`;
+  if (state.publicPlans?.error) return emptyState("تعذر تحميل الباقات", "لم نعرض أي أسعار افتراضية. أعد المحاولة لاسترجاع سجل الباقات الفعلي.", "إعادة المحاولة", "public-plans-reload");
+  const plans = Array.isArray(state.publicPlans?.plans) ? state.publicPlans.plans : [];
+  if (!plans.length) return emptyState("لا توجد باقات متاحة حاليًا", "يرجى التواصل معنا لاختيار الحل المناسب.", "تواصل معنا", "/contact");
+  const mobilePlanIcons = { starter: "store", professional: "star", business: "success", enterprise: "payments" };
+  return `<div class="grid grid-4">${plans.map((plan) => {
+    const price = billingCycle === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar;
+    const planFeatures = (short ? plan.features.slice(0, 6) : plan.features) || [];
+    const priceMarkup = plan.contactSales
+      ? `<strong>سعر مخصص</strong><small>حلول وحدود حسب احتياج شركتك</small>`
+      : price == null
+        ? `<strong>—</strong><small>السعر غير متاح حاليًا</small>`
+        : `<strong>${Number(price).toLocaleString("ar-SA")}</strong><small>ريال / ${billingCycle === "yearly" ? "سنويًا" : "شهريًا"}</small>`;
+    return `<article class="card pricing-card ${plan.popular ? "featured" : ""}">
+      ${plan.popular ? `<span class="badge">الأكثر شيوعًا</span>` : ""}
+      <span class="plan-mobile-icon">${dashboardIcon(mobilePlanIcons[plan.slug] || "subscriptions")}</span>
+      <div><h3>${escapeHtml(plan.name)}</h3><p>${escapeHtml(plan.description || "")}</p></div>
+      <div class="price">${priceMarkup}</div>
+      <ul class="plan-feature-list">${planFeatures.map((item) => `<li class="included">${dashboardIcon("success")}<span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+      <button class="btn ${plan.popular ? "btn-primary" : "btn-secondary"}" ${plan.contactSales ? 'data-link="/contact"' : price == null ? "disabled" : `data-link="/register?plan=${encodeURIComponent(plan.slug)}"`}>${plan.contactSales ? "تواصل معنا" : price == null ? "السعر غير متاح" : "اختر الباقة"}</button>
     </article>`;
   }).join("")}</div>`;
 }
@@ -2169,8 +2181,9 @@ function marketingPricingPage() {
       <div class="container">
         <div class="pricing-reference-heading">
           <h1 id="pricing-page-title">الباقات</h1>
-          <p>اختر الباقة المناسبة لاحتياجك، مع حدود واضحة للبريد وواتساب ومزايا كل خطة.</p>
+          <p>اختر الباقة المناسبة لاحتياجك، مع حدود ومزايا مستخرجة مباشرة من تعريف الباقات الفعلي.</p>
         </div>
+        <div class="public-trial-banner"><div><strong>ابدأ بتجربة مجانية لمدة 7 أيام</strong><span>جرّب Renvix قبل اختيار باقتك. لا توجد باقة مجانية دائمة.</span></div><button class="btn btn-primary" data-link="/register">ابدأ تجربتك المجانية</button></div>
         <div class="pricing-public-grid">${pricingCards(false, "monthly")}</div>
         <div class="pricing-reference-extras">
           <article class="card faq-card faq-compact">
@@ -5889,23 +5902,21 @@ function whatsappSourceLabel(source) {
 
 function billingPlanCatalog(plans, current) {
   if (!plans.length) return emptyState("لا توجد باقات مفعلة", "يرجى التواصل مع الدعم لتهيئة باقات المنصة.", "مركز الدعم", "/support");
-  const currentSlug = current?.planSlug || "free";
+  const currentSlug = current?.status === "active" || current?.status === "past_due" ? current?.planSlug : null;
   return `<div class="dashboard-plan-grid">${plans.map((plan) => {
-    const isCurrent = plan.slug === currentSlug || (plan.slug === "free" && currentSlug === "trial");
-    const planFeatures = Array.isArray(plan.features) && plan.features.length ? plan.features : [
-      `${Number(plan.emailMessageLimit || 0).toLocaleString("ar-SA")} رسالة بريد إلكتروني`,
-      `${Number(plan.customersLimit || 0).toLocaleString("ar-SA")} عميل`,
-      `${Number(plan.whatsappChannelsLimit || 0).toLocaleString("ar-SA")} قناة واتساب رسمية`,
-      "رسائل واتساب حسب الاستخدام",
-      `${Number(plan.storageLimitMb || 100).toLocaleString("ar-SA")} MB تخزين`
-    ];
+    const isCurrent = plan.slug === currentSlug;
+    const planFeatures = Array.isArray(plan.features) ? plan.features : [];
+    const selectedPrice = state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar;
+    const price = plan.contactSales ? "سعر مخصص" : selectedPrice == null ? "—" : formatMoney(selectedPrice);
+    const canChoose = plan.contactSales || selectedPrice != null;
     return `<article class="dashboard-plan ${isCurrent ? "current" : ""}">
-      <span class="status ${isCurrent ? "success" : "info"}">${isCurrent ? "خطتك الحالية" : "متاحة"}</span>
+      <span class="status ${isCurrent ? "success" : plan.popular ? "info" : "neutral"}">${isCurrent ? "خطتك الحالية" : plan.popular ? "الأكثر شيوعًا" : "متاحة"}</span>
       <h3>${escapeHtml(plan.name)}</h3>
-      <p class="plan-price">${plan.customPricing ? "مخصص" : formatMoney(state.billing === "yearly" ? plan.yearlyPriceSar : plan.monthlyPriceSar)} <small>${plan.customPricing ? "تواصل معنا" : `/ ${state.billing === "yearly" ? "سنة" : "شهر"}`}</small></p>
+      <p class="plan-description">${escapeHtml(plan.description || "")}</p>
+      <p class="plan-price">${price} <small>${plan.contactSales ? "تواصل معنا" : selectedPrice == null ? "السعر غير متاح" : `/ ${state.billing === "yearly" ? "سنة" : "شهر"}`}</small></p>
       <ul class="check-list">${planFeatures.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul>
       <p class="whatsapp-usage-note" title="تتم فوترة رسائل واتساب الرسمية مباشرة عبر Meta، ولا تبيع Renvix رصيد واتساب.">${dashboardIcon("whatsapp")} ربط واتساب الرسمي وإدارته مباشرة عبر Meta</p>
-      <button class="btn ${isCurrent ? "btn-secondary" : "btn-primary"}" ${isCurrent ? "disabled" : 'data-link="/support"'}>${isCurrent ? "الخطة الحالية" : plan.customPricing ? "تواصل معنا" : "طلب الترقية"}</button>
+      <button class="btn ${isCurrent ? "btn-secondary" : "btn-primary"}" ${isCurrent || !canChoose ? "disabled" : 'data-link="/support"'}>${isCurrent ? "الخطة الحالية" : plan.contactSales ? "تواصل معنا" : !canChoose ? "السعر غير متاح" : "اختر الباقة"}</button>
     </article>`;
   }).join("")}</div>`;
 }
@@ -5948,6 +5959,7 @@ function bindDigitalProductCountdowns() {
 }
 
 function emailBillingCard(usage) {
+  if (!usage || usage.error) return emptyState("بيانات استخدام البريد غير متاحة", "لم نعرض قيمة تقديرية بدل البيانات الفعلية.");
   return `<div class="email-channel-card">${messageUsageCard(usage)}</div>`;
 }
 
@@ -5956,47 +5968,70 @@ function billingInvoices(invoices = []) {
 }
 
 function emailCreditPanel(emailUsage = {}, showUpgrade = true) {
-  const remaining = Math.max(0, Number(emailUsage.remaining || 0));
+  const remaining = emailUsage?.remaining == null ? null : Math.max(0, Number(emailUsage.remaining));
   const packages = [50, 100, 250, 500, 1000].map((amount) => ({ amount, messages: amount / 50 * 1500 }));
-  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد رسائل البريد</h2><p>اختر عدد الرسائل المناسب دون التأثير على ربط واتساب الرسمي.</p></div><strong>${remaining.toLocaleString("ar-SA")} رسالة متبقية</strong></div><div class="topup-amounts billing-topup-actions"><button class="topup-option" data-action="billing-tab" data-tab="topup"><strong>طلب رصيد إضافي</strong><span>عرض باقات رسائل البريد</span></button>${showUpgrade ? `<button class="topup-option" data-action="billing-tab" data-tab="plans"><strong>ترقية الباقة</strong><span>حد بريد أعلى</span></button>` : ""}</div><div class="email-credit-packages" aria-label="باقات رصيد رسائل البريد">${packages.map(({ amount, messages }) => `<article class="email-credit-package"><strong>${messages.toLocaleString("ar-SA")} رسالة</strong><span>${amount.toLocaleString("ar-SA")} ر.س</span></article>`).join("")}</div><div class="billing-safe-note">${dashboardIcon("security")} لا تتم إضافة رسوم أو أرصدة وهمية. سيُوثق أي رصيد إضافي مدفوع ضمن باقتك وفواتير حسابك.</div></article>`;
+  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد رسائل البريد</h2><p>اختر عدد الرسائل المناسب دون التأثير على ربط واتساب الرسمي.</p></div><strong>${remaining == null ? "—" : remaining.toLocaleString("ar-SA")} ${remaining == null ? "" : "رسالة متبقية"}</strong></div><div class="topup-amounts billing-topup-actions"><button class="topup-option" data-action="billing-tab" data-tab="topup"><strong>طلب رصيد إضافي</strong><span>عرض باقات رسائل البريد</span></button>${showUpgrade ? `<button class="topup-option" data-action="billing-tab" data-tab="plans"><strong>ترقية الباقة</strong><span>حد بريد أعلى</span></button>` : ""}</div><div class="email-credit-packages" aria-label="باقات رصيد رسائل البريد">${packages.map(({ amount, messages }) => `<article class="email-credit-package"><strong>${messages.toLocaleString("ar-SA")} رسالة</strong><span>${amount.toLocaleString("ar-SA")} ر.س</span></article>`).join("")}</div><div class="billing-safe-note">${dashboardIcon("security")} سيُوثق أي رصيد إضافي مدفوع ضمن باقتك وفواتير حسابك.</div></article>`;
 }
 
 function billingWorkspacePage() {
   if (state.billingOverview === null || state.messageUsage === null) {
     return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">جاري تحميل بيانات خطتك واستخدامك الموثق...</p><div class="card loading-state" role="status" aria-live="polite">جاري مزامنة بيانات الفوترة</div>`);
   }
-  if (state.billingOverview?.error || state.messageUsage?.error) {
+  if (state.billingOverview?.error) {
     return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">تعذر تحميل بيانات الفوترة الموثقة.</p>${emptyState("تعذر تحميل بيانات الفوترة", "لم نعرض قيمًا افتراضية حتى لا تظهر أرقام غير صحيحة.", "إعادة المحاولة", "billing-reload")}`);
   }
   const data = state.billingOverview;
   const current = data.current || {};
   const plans = data.plans || [];
   const usage = state.messageUsage && !state.messageUsage.error ? state.messageUsage : data.usage || null;
-  const emailUsage = usage?.channels?.email || data.emailUsage || usage || {};
-  const whatsapp = data.whatsappUsage || {};
-  const storage = data.storage || { usedMb: 0, limitMb: 100, percent: 0 };
-  const days = current.currentPeriodEnd ? Math.max(0, Math.ceil((new Date(current.currentPeriodEnd) - Date.now()) / 86400000)) : 0;
+  const emailUsage = usage?.channels?.email || data.emailUsage || null;
+  const whatsapp = data.whatsappUsage || null;
+  const accountStorage = data.storage || null;
+  const statusKey = String(current.status || "").toLowerCase();
+  const trialEnd = current.trialEndsAt || (statusKey === "trial" ? current.currentPeriodEnd : null);
+  const periodEnd = trialEnd || current.currentPeriodEnd || null;
+  const days = periodEnd && Number.isFinite(new Date(periodEnd).getTime()) ? Math.max(0, Math.ceil((new Date(periodEnd).getTime() - Date.now()) / 86400000)) : null;
+  const trialActive = statusKey === "trial" && days !== null && days > 0;
+  const trialExpired = statusKey === "expired" || (statusKey === "trial" && days === 0);
   const invoices = data.invoices || [];
   const showUpgrade = data.commerceConnection?.connected !== true;
   const tab = ["overview", "plans", "whatsapp", "email", "topup", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
-  const consumedEmail = Number(emailUsage.used || 0) + Number(emailUsage.reserved || 0);
-  const emailLimit = Number(emailUsage.limit || 0);
+  const numberOrNull = (value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
+  const valueText = (value, suffix = "") => numberOrNull(value) === null ? "—" : `${numberOrNull(value).toLocaleString("ar-SA")}${suffix}`;
+  const usedEmail = numberOrNull(emailUsage?.used);
+  const reservedEmail = numberOrNull(emailUsage?.reserved);
+  const consumedEmail = usedEmail === null && reservedEmail === null ? null : Number(usedEmail || 0) + Number(reservedEmail || 0);
+  const emailLimit = numberOrNull(emailUsage?.limit);
+  const emailPercentage = numberOrNull(emailUsage?.percentage);
+  const emailRemaining = numberOrNull(emailUsage?.remaining);
+  const whatsappMessages = numberOrNull(whatsapp?.messagesThisMonth);
+  const storageUsed = numberOrNull(accountStorage?.usedMb);
+  const storageLimit = numberOrNull(accountStorage?.limitMb);
+  const storagePercent = numberOrNull(accountStorage?.percent);
+  const statusLabel = ({ trial: "تجربة مجانية", active: "اشتراك نشط", past_due: "دفعة متأخرة", canceled: "ملغي", cancelled: "ملغي", expired: "منتهي" })[statusKey] || "—";
+  const planLabel = trialActive || trialExpired ? "التجربة المجانية" : current.planName || "—";
   const tabs = [
     ["overview", "نظرة عامة"], ["plans", "الباقات"], ["whatsapp", "استخدام واتساب"],
     ["email", "استخدام البريد"], ["topup", "شحن رصيد رسائل البريد"], ["invoices", "الفواتير"]
   ];
   const overview = `<section class="billing-stats-grid">
-    <article class="card billing-stat"><span>${dashboardIcon("subscriptions")}</span><div><small>الخطة الحالية</small><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong><em>${escapeHtml(current.status || "trial")}</em></div></article>
-    <article class="card billing-stat purple"><span>${dashboardIcon("template")}</span><div><small>الأيام المتبقية</small><strong>${days.toLocaleString("ar-SA")}</strong><em>${current.currentPeriodEnd ? `حتى ${new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA")}` : "لا توجد دورة نشطة"}</em></div></article>
-    <article class="card billing-stat whatsapp"><span>${dashboardIcon("whatsapp")}</span><div><small>رسائل واتساب هذا الشهر</small><strong>${Number(whatsapp.messagesThisMonth || 0).toLocaleString("ar-SA")}</strong><em>حسب الاستخدام</em></div></article>
-    <article class="card billing-stat"><span>${dashboardIcon("email")}</span><div><small>استهلاك البريد الإلكتروني</small><strong>${consumedEmail.toLocaleString("ar-SA")} / ${emailLimit.toLocaleString("ar-SA")}</strong><em>${Number(emailUsage.percentage || 0).toLocaleString("ar-SA")}% مستخدم</em></div></article>
-    <article class="card billing-stat success"><span>${dashboardIcon("email")}</span><div><small>رصيد رسائل البريد</small><strong>${Math.max(0, Number(emailUsage.remaining || 0)).toLocaleString("ar-SA")}</strong><em>رسالة متبقية</em></div></article>
-    <article class="card billing-stat"><span>${dashboardIcon("billing")}</span><div><small>مساحة التخزين</small><strong>${storage.usedMb} / ${storage.limitMb} MB</strong><em>${storage.percent}% مستخدم</em></div></article>
+    <article class="card billing-stat"><span>${dashboardIcon("subscriptions")}</span><div><small>الخطة الحالية</small><strong>${escapeHtml(planLabel)}</strong><em>${statusLabel}</em></div></article>
+    <article class="card billing-stat"><span>${dashboardIcon("calendar")}</span><div><small>الأيام المتبقية</small><strong>${valueText(days)}</strong><em>${periodEnd ? `حتى ${new Date(periodEnd).toLocaleDateString("ar-SA")}` : "—"}</em></div></article>
+    <article class="card billing-stat"><span>${dashboardIcon("email")}</span><div><small>رصيد رسائل البريد</small><strong>${valueText(emailRemaining)}</strong><em>${emailRemaining === null ? "—" : "رسالة متبقية"}</em></div></article>
+    <article class="card billing-stat"><span>${dashboardIcon("email")}</span><div><small>استخدام البريد هذا الشهر</small><strong>${emailPercentage === null ? "—" : `${valueText(emailPercentage)}%`}</strong><em>${consumedEmail === null || emailLimit === null ? "—" : `${valueText(consumedEmail)} من ${valueText(emailLimit)} رسالة`}</em></div></article>
+    <article class="card billing-stat whatsapp"><span>${dashboardIcon("whatsapp")}</span><div><small>استخدام واتساب هذا الشهر</small><strong>${valueText(whatsappMessages)}</strong><em>${whatsappMessages === null ? "—" : "رسالة مسجلة"}</em></div></article>
+    <article class="card billing-stat"><span>${dashboardIcon("billing")}</span><div><small>مساحة التخزين</small><strong>${storageUsed === null ? "—" : `${valueText(storageUsed)} MB`}</strong><em>${storageLimit === null ? "—" : `من ${valueText(storageLimit)} MB${storagePercent === null ? "" : ` · ${valueText(storagePercent)}%`}`}</em></div></article>
   </section>`;
+  const trialNotice = trialActive
+    ? `<section class="billing-trial-notice"><div><strong>التجربة المجانية</strong><span>متبقي ${valueText(days)} ${days === 1 ? "يوم" : "أيام"}. جرّب Renvix قبل اختيار باقتك؛ لا توجد باقة مجانية دائمة.</span></div><button class="btn btn-primary" data-action="billing-tab" data-tab="plans">اختيار الباقة</button></section>`
+    : trialExpired
+      ? `<section class="billing-trial-notice expired"><div><strong>انتهت تجربتك المجانية</strong><span>اختر الباقة المناسبة لاستكمال استخدام Renvix. بياناتك محفوظة ولن تُحذف.</span></div><button class="btn btn-primary" data-action="billing-tab" data-tab="plans">عرض الباقات</button></section>`
+      : "";
+  const plansPanel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>مزايا وحدود كل باقة مستخرجة مباشرة من تعريفها الفعلي في النظام.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
   let panel = "";
-  if (tab === "overview") panel = `${overview}<section class="billing-channel-grid section">${whatsappBillingCard(whatsapp, state.whatsappUsageExpanded)}${emailBillingCard(usage)}</section><section class="section billing-workspace"><article class="card plan-catalog"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>حد البريد مرتبط بالباقة، بينما استخدام واتساب وفوترته يُداران مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article><aside class="billing-side">${emailCreditPanel(emailUsage, showUpgrade)}<article class="card invoice-summary"><h2>ملخص الفاتورة</h2><div><span>الخطة الحالية</span><strong>${escapeHtml(current.planName || "تجربة مجانية")}</strong></div><div><span>دورة الفاتورة</span><strong>${escapeHtml(current.billingCycle || "monthly")}</strong></div><div><span>التجديد القادم</span><strong>${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString("ar-SA") : "غير متوفر"}</strong></div></article></aside></section>`;
-  if (tab === "plans") panel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>الباقات الشهرية تشمل المنصة والبريد، بينما واتساب الرسمي يُدار ويُحاسب مباشرة عبر Meta.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
-  if (tab === "whatsapp") panel = `<section class="billing-tab-panel">${whatsappBillingCard(whatsapp, true)}</section>`;
+  if (tab === "overview") panel = `${overview}${trialNotice}<section class="section billing-reference-main">${plansPanel}<aside>${emailCreditPanel(emailUsage, showUpgrade)}</aside></section><section class="section">${billingInvoices(invoices)}</section>`;
+  if (tab === "plans") panel = `${trialNotice}${plansPanel}`;
+  if (tab === "whatsapp") panel = whatsapp ? `<section class="billing-tab-panel">${whatsappBillingCard(whatsapp, true)}</section>` : emptyState("بيانات استخدام واتساب غير متاحة", "لم نعرض رقمًا تقديريًا بدل البيانات الفعلية.");
   if (tab === "email") panel = `<section class="billing-tab-panel">${emailBillingCard(usage)}</section>`;
   if (tab === "topup") panel = emailCreditPanel(emailUsage, showUpgrade);
   if (tab === "invoices") panel = billingInvoices(invoices);
@@ -7394,6 +7429,11 @@ async function handleAction(target) {
   if (action === "billing-reload") {
     state.billingOverview = null;
     state.messageUsage = null;
+    render();
+    return syncRouteData(true);
+  }
+  if (action === "public-plans-reload") {
+    state.publicPlans = null;
     render();
     return syncRouteData(true);
   }

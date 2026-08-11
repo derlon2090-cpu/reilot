@@ -1,31 +1,11 @@
 import { query } from "./db.js";
 import { getCurrentMessageUsage } from "../lib/billing/message-quota.js";
 import { getTenantStorage } from "./tenant-storage.js";
+import { getActivePlanCatalog } from "./plan-catalog.js";
 
 function numeric(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normalizePlan(plan) {
-  return {
-    ...plan,
-    monthlyPriceSar: numeric(plan.monthlyPriceSar),
-    yearlyPriceSar: numeric(plan.yearlyPriceSar),
-    emailMessageLimit: numeric(plan.emailMessageLimit),
-    whatsappMessageLimit: -1,
-    whatsappChannelsLimit: numeric(plan.whatsappChannelsLimit),
-    customersLimit: numeric(plan.customersLimit),
-    usersLimit: numeric(plan.usersLimit),
-    storageLimitMb: numeric(plan.storageLimitMb),
-    orderLinksLimit: numeric(plan.orderLinksLimit),
-    campaignsEnabled: Boolean(plan.campaignsEnabled),
-    automationEnabled: Boolean(plan.automationEnabled),
-    customApiEnabled: Boolean(plan.customApiEnabled),
-    sallaEnabled: Boolean(plan.sallaEnabled),
-    customPricing: Boolean(plan.customPricing),
-    features: Array.isArray(plan.features) ? plan.features : []
-  };
 }
 
 export async function getWhatsappBillingUsage(tenantId) {
@@ -94,34 +74,22 @@ export async function getBillingOverview(tenantId) {
       `SELECT ps.status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
               ps.current_period_end AS "currentPeriodEnd",
+              ps.trial_started_at AS "trialStartedAt", ps.trial_ends_at AS "trialEndsAt",
               pp.name AS "planName", pp.slug AS "planSlug",
               pp.storage_limit_mb AS "storageLimitMb"
          FROM platform_subscriptions ps
          JOIN platform_plans pp ON pp.id = ps.plan_id
-        WHERE ps.tenant_id = $1 AND ps.status IN ('active','trial','past_due')
-          AND ps.current_period_end > now()
-        ORDER BY CASE ps.status WHEN 'active' THEN 0 WHEN 'trial' THEN 1 ELSE 2 END,
-                 ps.created_at DESC LIMIT 1`,
+        WHERE ps.tenant_id = $1
+        ORDER BY CASE
+                   WHEN ps.status='active' AND ps.current_period_end>now() THEN 0
+                   WHEN ps.status='trial' AND COALESCE(ps.trial_ends_at,ps.current_period_end)>now() THEN 1
+                   WHEN ps.status='past_due' THEN 2 ELSE 3
+                 END, ps.created_at DESC LIMIT 1`,
       [tenantId]
     ),
-    query(
-      `SELECT name, slug, monthly_price_sar AS "monthlyPriceSar",
-              yearly_price_sar AS "yearlyPriceSar",
-              COALESCE(email_message_limit, monthly_message_limit) AS "emailMessageLimit",
-              whatsapp_message_limit AS "whatsappMessageLimit",
-              whatsapp_channels_limit AS "whatsappChannelsLimit",
-              customers_limit AS "customersLimit", users_limit AS "usersLimit",
-              storage_limit_mb AS "storageLimitMb", order_links_limit AS "orderLinksLimit",
-              campaigns_enabled AS "campaignsEnabled", automation_enabled AS "automationEnabled",
-              custom_api_enabled AS "customApiEnabled", salla_enabled AS "sallaEnabled",
-              custom_pricing AS "customPricing", features
-         FROM platform_plans WHERE is_active = true AND slug <> 'trial'
-        ORDER BY CASE slug WHEN 'free' THEN 0 WHEN 'starter' THEN 1
-                          WHEN 'business' THEN 2 WHEN 'pro' THEN 3 ELSE 4 END`,
-      []
-    ),
+    getActivePlanCatalog(),
     getTenantStorage(tenantId),
-    getCurrentMessageUsage(tenantId),
+    getCurrentMessageUsage(tenantId).catch(() => null),
     getWhatsappBillingUsage(tenantId),
     query(
       `SELECT invoice_number AS number,issued_at AS date,description,amount,currency,status
@@ -138,11 +106,12 @@ export async function getBillingOverview(tenantId) {
     )
   ]);
   let currentPlan = current.rows[0] || null;
-  if (!currentPlan && usage.platformSubscriptionId) {
+  if (!currentPlan && usage?.platformSubscriptionId) {
     const created = await query(
       `SELECT ps.status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
               ps.current_period_end AS "currentPeriodEnd",
+              ps.trial_started_at AS "trialStartedAt", ps.trial_ends_at AS "trialEndsAt",
               pp.name AS "planName", pp.slug AS "planSlug",
               pp.storage_limit_mb AS "storageLimitMb"
          FROM platform_subscriptions ps
@@ -154,9 +123,9 @@ export async function getBillingOverview(tenantId) {
   }
   return {
     current: currentPlan,
-    plans: plans.rows.map(normalizePlan),
+    plans,
     usage,
-    emailUsage: usage.channels.email,
+    emailUsage: usage?.channels?.email || null,
     whatsappUsage: whatsapp,
     commerceConnection: {
       connected: commerceConnections.rows.length > 0,
@@ -167,6 +136,12 @@ export async function getBillingOverview(tenantId) {
       amount: numeric(invoice.amount),
       date: new Date(invoice.date).toLocaleDateString("ar-SA")
     })),
-    storage
+    storage: currentPlan ? {
+      ...storage,
+      limitMb: numeric(currentPlan.storageLimitMb),
+      percent: numeric(currentPlan.storageLimitMb) > 0
+        ? Math.round((numeric(storage.usedMb) / numeric(currentPlan.storageLimitMb)) * 1000) / 10
+        : null
+    } : { ...storage, limitMb: null, percent: null }
   };
 }

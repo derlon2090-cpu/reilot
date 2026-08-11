@@ -46,6 +46,11 @@ async function loadPlan(runner, tenantId) {
     [tenantId]
   );
   if (active.rows[0]) return active.rows[0];
+  const previous = await runner.query(
+    `SELECT 1 FROM platform_subscriptions WHERE tenant_id=$1 LIMIT 1`,
+    [tenantId]
+  );
+  if (previous.rows[0]) return null;
   const fallback = await runner.query(
     `SELECT id,slug,name,whatsapp_channels_limit AS "whatsappChannelsLimit",
             customers_limit AS "customersLimit",users_limit AS "usersLimit",
@@ -54,15 +59,14 @@ async function loadPlan(runner, tenantId) {
             salla_enabled AS "sallaEnabled",NULL::uuid AS "subscriptionId",
             date_trunc('month',now()) AS "periodStart",
             date_trunc('month',now()) + interval '1 month' AS "periodEnd"
-       FROM platform_plans WHERE slug IN ('free','trial')
-      ORDER BY CASE slug WHEN 'free' THEN 0 ELSE 1 END LIMIT 1`
+       FROM platform_plans WHERE slug='trial' LIMIT 1`
   );
   return fallback.rows[0];
 }
 
 export async function getPlanEntitlement(tenantId, featureKey, runner = { query }) {
   const plan = await loadPlan(runner, tenantId);
-  if (!plan) return { plan: "free", enabled: false, limitValue: 0, limitUnit: null };
+  if (!plan) return { plan: null, enabled: false, limitValue: 0, limitUnit: null, subscriptionRequired: true };
   const entitlement = await runner.query(
     `SELECT enabled,limit_value AS "limitValue",limit_unit AS "limitUnit",
             overage_allowed AS "overageAllowed",overage_price AS "overagePrice",

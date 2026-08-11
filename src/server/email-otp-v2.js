@@ -365,8 +365,14 @@ async function provisionPendingRegistration(client, row, { ipAddress, userAgent,
   await client.query("INSERT INTO settings (tenant_id,language,theme) VALUES ($1,'ar','light')", [tenantId]);
   await client.query("INSERT INTO whatsapp_safety_settings (tenant_id) VALUES ($1)", [tenantId]);
   await ensureDefaultTemplates(client, tenantId, workspaceName);
-  const plan = await client.query("SELECT id FROM platform_plans WHERE slug IN ('free','trial','starter') ORDER BY CASE slug WHEN 'free' THEN 0 WHEN 'trial' THEN 1 ELSE 2 END LIMIT 1");
-  if (plan.rows[0]) await client.query("INSERT INTO platform_subscriptions (tenant_id,plan_id,status,current_period_start,current_period_end) VALUES ($1,$2,'active',now(),now() + interval '1 month')", [tenantId, plan.rows[0].id]);
+  const trialPolicy = await client.query("SELECT id FROM platform_plans WHERE slug='trial' LIMIT 1");
+  if (!trialPolicy.rows[0]) throw new Error("Trial policy is not configured");
+  await client.query(
+    `INSERT INTO platform_subscriptions
+       (tenant_id,plan_id,status,current_period_start,current_period_end,trial_started_at,trial_ends_at)
+     VALUES ($1,$2,'trial',now(),now() + interval '7 days',now(),now() + interval '7 days')`,
+    [tenantId, trialPolicy.rows[0].id]
+  );
   await client.query("UPDATE auth_pending_registrations SET consumed_at=now(),updated_at=now() WHERE id=$1", [row.id]);
   const browser = await trustBrowserForUser({ userId, tenantId, rawToken: existingBrowserToken, ipAddress, userAgent, client });
   const session = await createSession(client, { userId, ipAddress, userAgent });
