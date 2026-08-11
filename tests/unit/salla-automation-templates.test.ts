@@ -96,6 +96,9 @@ describe("Salla automation templates", () => {
     expect(serverSource).toContain('WHERE tenant_id=$1 AND template_key=$2');
     expect(serverSource).toContain('delivery_channel=$3');
     expect(appSource).toContain('name="channel" value="email" data-salla-channel-choice');
+    expect(appSource.indexOf('name="channel" value="whatsapp" data-salla-channel-choice')).toBeLessThan(
+      appSource.indexOf('name="channel" value="email" data-salla-channel-choice')
+    );
   });
 
   it("updates the preview immediately when a template channel changes", () => {
@@ -105,7 +108,7 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain("refreshSallaTemplatePreview(form)");
   });
 
-  it("supports per-template WhatsApp images and four adoptable email preview designs", () => {
+  it("supports per-template WhatsApp images and eight adoptable global email designs", () => {
     expect(appSource).toContain('name="whatsappImageEnabled"');
     expect(appSource).toContain('data-salla-whatsapp-image');
     expect(appSource).toContain('data-salla-whatsapp-image-editor');
@@ -120,6 +123,14 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('name="emailDesign"');
     expect(appSource).toContain('{ id: "modern"');
     expect(appSource).toContain('{ id: "minimal"');
+    expect(appSource).toContain('{ id: "editorial"');
+    expect(appSource).toContain('{ id: "commerce"');
+    expect(appSource).toContain('{ id: "aurora"');
+    expect(appSource).toContain('{ id: "executive"');
+    expect(appSource).toContain('name="emailThemeColor"');
+    expect(appSource).toContain('data-action="set-email-theme-color"');
+    expect(styles).toContain(".salla-email-builder-panel > .salla-email-logo-editor { order: 3");
+    expect(styles).toContain(".salla-email-builder-panel > .email-design-builder { order: 4");
     expect(appSource).toContain('data-action="adopt-email-design"');
     expect(appSource).toContain('data-action="adopt-email-html"');
     expect(appSource).toContain('name="emailHtmlContent"');
@@ -127,8 +138,11 @@ describe("Salla automation templates", () => {
     expect(serverSource).toContain("whatsappImageEnabled");
     expect(serverSource).toContain("emailDesign");
     expect(serverSource).toContain("emailContentMode");
+    expect(serverSource).toContain("emailThemeColor");
     expect(serverSource).toContain("inspectCustomEmailHtml");
-    expect(resendSource).toContain('design === "modern"');
+    expect(resendSource).toContain("function designedEmailBody");
+    expect(resendSource).toContain("editorial:");
+    expect(resendSource).toContain("aurora:");
     expect(resendSource).toContain("customInspection?.ok ? customInspection.html : designedBody");
     expect(metaSource).toContain("export async function sendMetaImageMessage");
     expect(metaSource).toContain('type: "image"');
@@ -224,13 +238,14 @@ describe("Salla automation templates", () => {
     expect(result.links).toHaveLength(2);
   });
 
-  it("persists CTA and secure digital-link controls and defaults first activation to WhatsApp", () => {
+  it("persists CTA controls and requires an explicit opt-in for the digital link", () => {
     expect(appSource).toContain('name="buttonEnabled"');
     expect(appSource).toContain('name="buttonLabel"');
     expect(appSource).toContain('type="checkbox" name="secureLinkEnabled"');
-    expect(appSource).toContain("عند إيقافه تظهر معاينة القناة فقط");
+    expect(appSource).toContain("secureLinkOptIn");
     expect(appSource).toContain('linkPreview.toggleAttribute("hidden", !secureLinkEnabled)');
-    expect(serverSource).toContain("template.settings?.secureLinkEnabled !== false");
+    expect(serverSource).toContain("secureLinkEnabled: false");
+    expect(serverSource).toContain("template.settings?.secureLinkOptIn === true");
     expect(appSource).toContain("عرض مدة المنتج");
     expect(serverSource).toContain("delivery_channel=COALESCE(delivery_channel,'whatsapp')");
     expect(serverSource).toContain('? "digital"');

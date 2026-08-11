@@ -49,5 +49,8 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain('name="emailContentMode"');
     expect(stylesSource).toContain(".email-builder-form");
     expect(stylesSource).toContain(".email-design-presets");
+    expect(stylesSource).toContain(".email-template-theme");
+    expect(stylesSource).toContain(".email-envelope.design-editorial");
+    expect(stylesSource).toContain(".email-envelope.design-aurora");
   });
 });

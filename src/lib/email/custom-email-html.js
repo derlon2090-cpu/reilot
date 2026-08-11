@@ -111,7 +111,7 @@ export function inspectCustomEmailHtml(value, { maxLength = 30000 } = {}) {
 }
 
 export function supportedEmailDesign(value, fallback = "classic") {
-  return ["classic", "modern", "minimal", "premium"].includes(value) ? value : fallback;
+  return ["classic", "modern", "minimal", "premium", "editorial", "commerce", "aurora", "executive"].includes(value) ? value : fallback;
 }
 
 export function supportedEmailContentMode(value, fallback = "preset") {
