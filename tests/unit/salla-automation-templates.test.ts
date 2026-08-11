@@ -18,6 +18,7 @@ const resendSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/ema
 const metaSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/meta-interactive-service.js"), "utf8");
 const cronSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/cron-runner.js"), "utf8");
 const testRouteSource = fs.readFileSync(path.resolve(process.cwd(), "app/api/apps/salla/templates/[templateKey]/test/route.js"), "utf8");
+const digitalLinkDefaultOffMigration = fs.readFileSync(path.resolve(process.cwd(), "drizzle/0069_disable_digital_delivery_link_by_default.sql"), "utf8");
 
 describe("Salla automation templates", () => {
   it("defines exactly one immutable record key for every required template", () => {
@@ -249,6 +250,10 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('linkPreview.toggleAttribute("hidden", !secureLinkEnabled)');
     expect(serverSource).toContain("secureLinkEnabled: false");
     expect(serverSource).toContain("template.settings?.secureLinkOptIn === true");
+    expect(digitalLinkDefaultOffMigration).toContain("template_key = 'digital_product_delivery'");
+    expect(digitalLinkDefaultOffMigration).toContain("'{secureLinkEnabled}', 'false'::jsonb");
+    expect(digitalLinkDefaultOffMigration).toContain("'{secureLinkOptIn}'");
+    expect(digitalLinkDefaultOffMigration).toContain("'false'::jsonb");
     expect(appSource).toContain("عرض مدة المنتج");
     expect(serverSource).toContain("delivery_channel=COALESCE(delivery_channel,'whatsapp')");
     expect(serverSource).toContain('? "digital"');
