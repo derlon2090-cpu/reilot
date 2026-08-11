@@ -3488,6 +3488,18 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .whatsapp-chat-composer { height: 36px; padding: 0 11px; display: flex; align-items: center; gap: 8px; position: absolute; inset-inline: 11px; bottom: 11px; z-index: 1; color: #91a49a; border-radius: 18px; background: #1b2a25; font-size: 9px; }
 .whatsapp-chat-composer span { margin-inline-start: auto; }
 .whatsapp-chat-composer b { color: #062B28; }
+.renewal-whatsapp-phone-preview { border: 1px solid #E8F1F0; background: #fff; }
+.renewal-whatsapp-phone-preview .whatsapp-phone-shell { color: #0B3F3B; border-color: #0B3F3B; background: #fff; box-shadow: 0 18px 34px rgba(6, 43, 40, .1), inset 0 0 0 1px #DCE9E7; }
+.renewal-whatsapp-phone-preview .whatsapp-phone-speaker { background: #0B3F3B; }
+.renewal-whatsapp-phone-preview .whatsapp-chat-top { color: #0B3F3B; border-bottom-color: #E8F1F0; }
+.renewal-whatsapp-phone-preview .whatsapp-chat-top small { color: #6F817E; }
+.renewal-whatsapp-phone-preview .whatsapp-chat-day { color: #0B3F3B; background: #E8F1F0; }
+.renewal-whatsapp-phone-preview .whatsapp-message-bubble { color: #0B3F3B; border: 1px solid #DCE9E7; background: #F3F8F7; box-shadow: 0 8px 22px rgba(6, 43, 40, .07); }
+.renewal-whatsapp-phone-preview .whatsapp-message-bubble strong { color: #062B28; }
+.renewal-whatsapp-phone-preview .whatsapp-message-bubble a { color: #0F9B5C; }
+.renewal-whatsapp-phone-preview .whatsapp-message-bubble small { color: #778C88; }
+.renewal-whatsapp-phone-preview .whatsapp-chat-composer { color: #758B87; border: 1px solid #E8F1F0; background: #F3F8F7; }
+.renewal-whatsapp-phone-preview .whatsapp-chat-composer b { color: #15957F; }
 .template-safety-note strong { color: #062B28; }
 .template-safety-note p { margin: 7px 0 0; color: #0B3F3B; font-size: 11px; line-height: 1.75; }
 

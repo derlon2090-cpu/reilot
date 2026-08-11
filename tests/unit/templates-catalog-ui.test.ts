@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("../../src/app/app.js", import.meta.url), "utf8");
 const stylesSource = readFileSync(new URL("../../src/styles/globals.css", import.meta.url), "utf8");
+const renewalEditorSource = appSource.slice(
+  appSource.indexOf("function renewalTemplateEditorPageV2("),
+  appSource.indexOf("function renewalTemplateEditorPage(")
+);
+const renewalWhatsappSource = renewalEditorSource.slice(0, renewalEditorSource.indexOf('const colors = ["#062B28"'));
 
 describe("templates catalog UI", () => {
   it("routes the user dashboard to the rebuilt templates catalog", () => {
@@ -35,7 +40,7 @@ describe("templates catalog UI", () => {
     expect(appSource).toContain("حذف القالب من Meta قد يمنع استخدامه");
     expect(appSource).toContain("function renewalTemplateEditorPageV2");
     expect(appSource).toContain("function catalogTemplateEditorPage");
-    expect(appSource).toContain('class="whatsapp-phone-preview"');
+    expect(appSource).toContain('class="whatsapp-phone-preview');
     expect(appSource).toContain("email-preview-v2");
     expect(appSource).toContain("storeLogoEditor(state.orderLinkProfile?.logoUrl)");
     expect(stylesSource).toContain(".general-template-card");
@@ -52,5 +57,14 @@ describe("templates catalog UI", () => {
     expect(stylesSource).toContain(".email-template-theme");
     expect(stylesSource).toContain(".email-envelope.design-editorial");
     expect(stylesSource).toContain(".email-envelope.design-aurora");
+  });
+
+  it("keeps the renewal WhatsApp editor dedicated to WhatsApp with a light preview", () => {
+    expect(renewalWhatsappSource).toContain('pageTitle("قالب رسالة التجديد - واتساب", backButton)');
+    expect(renewalWhatsappSource).toContain('<input type="hidden" name="channel" value="whatsapp">');
+    expect(renewalWhatsappSource).not.toContain("${channelSelect}");
+    expect(renewalWhatsappSource).toContain('class="whatsapp-phone-preview renewal-whatsapp-phone-preview"');
+    expect(stylesSource).toContain(".renewal-whatsapp-phone-preview { border: 1px solid #E8F1F0; background: #fff; }");
+    expect(stylesSource).toContain(".renewal-whatsapp-phone-preview .whatsapp-phone-shell");
   });
 });
