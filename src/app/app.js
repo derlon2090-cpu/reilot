@@ -795,7 +795,7 @@ state.orderLinkDraft = {
   logoBorderRadius: 16,
   slug: "",
   style: "classic",
-  themeColor: "#0B3F3B",
+  themeColor: "#2563EB",
   headerText: "شكرًا لاختيارك خدماتنا",
   footerText: "Renvix",
   additionalNotes: [],
@@ -5361,12 +5361,12 @@ const orderLinkStyleOptions = [
   ["minimal", "بسيط"], ["premium", "فاخر"], ["colorful", "ملون"]
 ];
 const orderLinkColorOptions = [
-  ["#0B3F3B", "أزرق"], ["#0B3F3B", "تركواز"], ["#E8F1F0", "بنفسجي"], ["#22C55E", "أخضر"],
-  ["#F97316", "برتقالي"], ["#EF4444", "أحمر"], ["#64748B", "رمادي"], ["#062B28", "كحلي"]
+  ["#2563EB", "أزرق"], ["#06B6D4", "تركواز"], ["#8B5CF6", "بنفسجي"], ["#22C55E", "أخضر"],
+  ["#F97316", "برتقالي"], ["#EF4444", "أحمر"], ["#64748B", "رمادي"], ["#0F172A", "كحلي"]
 ];
 
 function safeOrderLinkColor(value) {
-  return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#0B3F3B";
+  return /^#[0-9A-F]{6}$/i.test(String(value || "")) ? String(value).toUpperCase() : "#2563EB";
 }
 
 function todayDateInputValue() {
@@ -5631,14 +5631,13 @@ function orderLinksWorkspacePage() {
       : links.length
         ? simpleTable(["رقم الطلب", "العميل", "القالب", "اللون", "طريقة الإرسال", "الحالة", "الفتحات", "آخر فتح", "الإنشاء", "الإجراءات"], linkRows)
         : emptyState("لا توجد طلبات محفوظة بعد", "أضف أول طلب إلى قالبك الثابت ليتمكن العميل من البحث عنه.");
-  return dashboardShell(`<div class="order-links-page-title">${pageTitle("إرسال معلومات الطلب")}</div>
-    ${statGrid([
-      { title: "قالب معلومات الطلب", value: stats.activeTemplates || 0, caption: "قالب ثابت", tone: "purple", icon: "template" },
-      { title: "روابط الطلبات", value: stats.sentLinks || 0, caption: "رابط خاص", tone: "info", icon: "orderLink" },
-      { title: "الروابط المفتوحة", value: stats.openedLinks || 0, caption: "رابط", tone: "success", icon: "reports" },
-      { title: "طلبات اليوم", value: stats.todayRequests || 0, caption: "استعلام", tone: "warning", icon: "template" },
-      { title: "نسبة الفتح", value: `${stats.openRate || 0}%`, caption: "من الروابط", tone: "info", icon: "reports" }
-    ])}
+  return dashboardShell(`<section class="order-links-dashboard-page"><div class="order-links-page-title">${pageTitle("إرسال معلومات الطلب")}</div>
+    <div class="order-links-metrics">${statGrid([
+      { title: "نسبة الفتح", value: `${stats.openRate || 0}%`, caption: "من الروابط", tone: "info", icon: "security" },
+      { title: "مرات فتح الرابط", value: stats.openedLinks || 0, caption: "آخر 30 يوم", tone: "success", icon: "reports" },
+      { title: "الطلب الثابت", value: stats.sentLinks || links.length || 0, caption: "طلب ثابت", tone: "info", icon: "email" },
+      { title: "الرابط الثابت", value: stats.activeTemplates || templates.length || 0, caption: "رابط ثابت", tone: "info", icon: "orderLink" }
+    ])}</div>
     <section class="order-link-workspace section">
       <article class="card order-link-builder">
         <div class="section-head"><div><h2>قالب معلومات الطلب — سلة</h2><p>خصص نص الرسالة ومظهر صفحة الطلب المستخدمة لجميع طلبات متجرك.</p></div>${dashboardIcon("orderLink")}</div>
@@ -5692,7 +5691,7 @@ function orderLinksWorkspacePage() {
       <aside class="card order-link-preview-panel"><div class="section-head"><div><h2>معاينة صفحة العميل</h2><p>نفس مكوّن الصفحة الفعلية، ببيانات الاشتراك المختار فقط.</p></div>${dashboardIcon("reports")}</div><div id="order-live-preview">${orderLinkPreviewSlides(selected, draft)}</div><p class="preview-note">لا ينشئ Renvix بيانات تجريبية. اختر اشتراكًا حقيقيًا أو أكمل الطلب اليدوي لعرض المعاينة.</p></aside>
     </section>
     <article class="card table-card section order-links-table-card order-links-table-card--links"><div class="section-head"><div><h2>الطلبات المحفوظة في القوالب <span class="saved-orders-count">${Number(links.length).toLocaleString("ar-SA")}</span></h2><p>كل الطلبات تستخدم الرابط الثابت للقالب، ويبحث العميل بينها برقم الطلب.</p></div></div>${savedOrdersContent}</article>
-    <article class="card table-card section order-links-table-card order-links-table-card--templates"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article>`);
+    <article class="card table-card section order-links-table-card order-links-table-card--templates"><div class="section-head"><div><h2>القوالب المحفوظة</h2><p>احفظ أكثر من هوية للرسائل وصفحات الطلب.</p></div></div>${templates.length ? simpleTable(["اسم القالب", "النمط", "اللون", "اسم المتجر", "افتراضي", "آخر تحديث", "الإجراءات"], templateRows) : emptyState("لا توجد قوالب محفوظة", "خصص القالب أعلاه ثم اضغط حفظ القالب.")}</article></section>`);
 }
 
 async function loadPublicOrderPresentation() {

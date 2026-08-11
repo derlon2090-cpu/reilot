@@ -98,10 +98,26 @@ describe("order information links", () => {
     expect(appSource).toContain('loadRemotePage(`orderLinksAfterCreate:${created.id}`');
     expect(appSource).toContain('data-action="reload-order-links"');
     expect(appSource).toContain("order-saved-actions");
-    expect(stylesSource).toContain(".order-links-table-card { width: 100%; max-width: 100%; min-width: 0; overflow: visible; }");
+    expect(stylesSource).toContain(".order-links-table-card { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }");
     expect(stylesSource).toContain("scrollbar-gutter: stable both-edges");
     expect(stylesSource).toContain("min-width: 286px");
     expect(stylesSource).toContain(".order-links-table-card--links th:nth-child(9)");
+  });
+
+  it("uses the four requested real metrics and keeps the order studio inside its container", () => {
+    expect(appSource).toContain('{ title: "نسبة الفتح", value: `${stats.openRate || 0}%`');
+    expect(appSource).toContain('{ title: "مرات فتح الرابط", value: stats.openedLinks || 0');
+    expect(appSource).toContain('{ title: "الطلب الثابت", value: stats.sentLinks || links.length || 0');
+    expect(appSource).toContain('{ title: "الرابط الثابت", value: stats.activeTemplates || templates.length || 0');
+    expect(appSource).not.toContain('{ title: "طلبات اليوم"');
+    expect(stylesSource).toContain(".order-links-metrics .dashboard-stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }");
+    expect(stylesSource).toContain(".order-link-form { width: 100%; max-width: 100%; min-width: 0;");
+    expect(stylesSource).toContain(".order-preview-tabs button.active { color: #fff; background: #0B3F3B;");
+  });
+
+  it("restores the original order page color choices", () => {
+    expect(appSource).toContain('["#2563EB", "أزرق"], ["#06B6D4", "تركواز"], ["#8B5CF6", "بنفسجي"]');
+    expect(appSource).toContain('themeColor: "#2563EB"');
   });
 
   it("restores the selected template and its stable public URL without rendering the wrong draft", () => {
