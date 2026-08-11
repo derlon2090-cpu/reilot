@@ -25,11 +25,11 @@ describe("exclusive campaign channel selection", () => {
 
   it("opens a channel-specific builder without the removable top channel tabs", () => {
     const builderSource = appSource.slice(
-      appSource.indexOf("function campaignBuilderPage()"),
+      appSource.indexOf("function campaignStudioPage()"),
       appSource.indexOf("function legacyCampaignsPage()")
     );
-    expect(builderSource).toContain('class="suite-page campaign-builder-page ref-campaign-builder"');
-    expect(builderSource).toContain('class="campaign-wizard-steps"');
+    expect(builderSource).toContain('class="suite-page campaign-studio is-${channel} is-${kind}"');
+    expect(builderSource).toContain('data-campaign-studio');
     expect(builderSource).toContain('data-action="campaign-builder-exit"');
     expect(builderSource).not.toContain("campaign-builder-tabs");
     expect(builderSource).not.toContain("campaign-builder-channel");
@@ -40,7 +40,7 @@ describe("exclusive campaign channel selection", () => {
     expect(campaignsRoute).toContain("is_available=true");
     expect(campaignsRoute).toContain("connected: Boolean(process.env.RESEND_API_KEY && emailSender)");
     expect(appSource).toContain('data-submit="campaign-product-select"');
-    expect(appSource).toContain("product: state.campaignBuilderProduct ?");
+    expect(appSource).toContain("cards: campaignCards");
   });
 
   it("matches the Renvix identity and responsive states", () => {

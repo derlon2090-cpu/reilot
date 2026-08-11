@@ -16,12 +16,12 @@ describe("reference channel and campaign experiences", () => {
   });
 
   it("keeps both campaign channels in the creation cards and uses the full builder", () => {
-    expect(appSource).toContain('class="suite-page campaign-builder-page ref-campaign-builder"');
+    expect(appSource).toContain('class="suite-page campaign-studio is-${channel} is-${kind}"');
     expect(appSource).toContain('campaignChannelChoice(kind, "whatsapp"');
     expect(appSource).toContain('campaignChannelChoice(kind, "email"');
-    expect(appSource).toContain('data-submit="campaign-create" class="ref-campaign-form"');
+    expect(appSource).toContain('data-submit="campaign-create" data-campaign-studio');
     expect(appSource).not.toContain('${campaignCreateModalMarkup()}</main><aside');
-    expect(stylesSource).toContain('.ref-builder-actions{position:static!important');
+    expect(stylesSource).toContain('.campaign-studio-actions{display:grid');
   });
 
   it("wires test sends and email synchronization to authenticated provider routes", () => {

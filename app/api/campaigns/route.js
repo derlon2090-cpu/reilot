@@ -26,7 +26,7 @@ export async function GET(request) {
   if (["whatsapp","email"].includes(channel)) { values.push(channel); where.push(`channel=$${values.length}`); }
   if (search) { values.push(`%${search.toLowerCase()}%`); where.push(`lower(name) LIKE $${values.length}`); }
   values.push(limit, (page - 1) * limit);
-  const [campaigns, stats, activity, channels, groups, templates, metaTemplates, products] = await Promise.all([
+  const [campaigns, stats, activity, channels, groups, templates, metaTemplates, products, audience] = await Promise.all([
     query(`SELECT c.id,c.name,c.description,c.channel,c.status,c.subject,c.schedule_mode AS "scheduleMode",c.scheduled_for AS "scheduledFor",
                   c.total_recipients AS "totalRecipients",c.eligible_recipients AS "eligibleRecipients",c.queued_count AS "queuedCount",
                   c.sent_count AS "sentCount",c.delivered_count AS "deliveredCount",c.read_count AS "readCount",c.failed_count AS "failedCount",
@@ -56,7 +56,18 @@ export async function GET(request) {
                   COALESCE(NULLIF(display_name,''),NULLIF(device_name,''),NULLIF(phone_number,''),'جهاز واتساب') AS name
              FROM whatsapp_channels WHERE tenant_id=$1 AND provider IN ('meta','meta_cloud_api')
             ORDER BY CASE status WHEN 'connected' THEN 0 ELSE 1 END,updated_at DESC`, [auth.session.tenantId]),
-    query(`SELECT ct.id,ct.name,ct.color,count(cta.contact_id)::int AS "contactsCount"
+    query(`SELECT ct.id,ct.name,ct.color,
+                  count(DISTINCT cta.contact_id)::int AS "contactsCount",
+                  count(DISTINCT cta.contact_id) FILTER (WHERE EXISTS (
+                    SELECT 1 FROM contacts c JOIN contact_points cp ON cp.contact_id=c.id AND cp.tenant_id=c.tenant_id
+                     WHERE c.id=cta.contact_id AND c.tenant_id=ct.tenant_id AND c.status='active'
+                       AND cp.channel='whatsapp' AND cp.status='active' AND cp.consent_status <> 'revoked'
+                  ))::int AS "whatsappContactsCount",
+                  count(DISTINCT cta.contact_id) FILTER (WHERE EXISTS (
+                    SELECT 1 FROM contacts c JOIN contact_points cp ON cp.contact_id=c.id AND cp.tenant_id=c.tenant_id
+                     WHERE c.id=cta.contact_id AND c.tenant_id=ct.tenant_id AND c.status='active'
+                       AND cp.channel='email' AND cp.status='active' AND cp.consent_status <> 'revoked'
+                  ))::int AS "emailContactsCount"
              FROM contact_tags ct LEFT JOIN contact_tag_assignments cta ON cta.tag_id=ct.id AND cta.tenant_id=ct.tenant_id
             WHERE ct.tenant_id=$1 GROUP BY ct.id ORDER BY lower(ct.name)`, [auth.session.tenantId]),
     query(`SELECT id,name,channel,title AS subject,body FROM notification_templates
@@ -68,7 +79,17 @@ export async function GET(request) {
             ORDER BY mt.updated_at DESC`, [auth.session.tenantId]),
     query(`SELECT id,salla_product_id AS "productId",salla_variant_id AS "variantId",sku,name,price,currency,status,
                   thumbnail_url AS "thumbnailUrl",customer_url AS "customerUrl",is_available AS "isAvailable"
-             FROM salla_products WHERE tenant_id=$1 AND is_available=true ORDER BY name,sku`, [auth.session.tenantId])
+             FROM salla_products WHERE tenant_id=$1 AND is_available=true ORDER BY name,sku`, [auth.session.tenantId]),
+    query(`SELECT
+             count(*) FILTER (WHERE EXISTS (
+               SELECT 1 FROM contact_points cp WHERE cp.tenant_id=c.tenant_id AND cp.contact_id=c.id
+                 AND cp.channel='whatsapp' AND cp.status='active' AND cp.consent_status <> 'revoked'
+             ))::int AS whatsapp,
+             count(*) FILTER (WHERE EXISTS (
+               SELECT 1 FROM contact_points cp WHERE cp.tenant_id=c.tenant_id AND cp.contact_id=c.id
+                 AND cp.channel='email' AND cp.status='active' AND cp.consent_status <> 'revoked'
+             ))::int AS email
+           FROM contacts c WHERE c.tenant_id=$1 AND c.status='active'`, [auth.session.tenantId])
   ]);
   const summary = stats.rows[0];
   summary.deliveryRate = Number(summary.sent) > 0 ? Number(((Number(summary.delivered) / Number(summary.sent)) * 100).toFixed(1)) : 0;
@@ -84,6 +105,7 @@ export async function GET(request) {
       templates: templates.rows,
       metaTemplates: metaTemplates.rows,
       products: products.rows,
+      audience: audience.rows[0] || { whatsapp: 0, email: 0 },
       email: {
         connected: Boolean(process.env.RESEND_API_KEY && emailSender),
         sender: emailSender
@@ -123,6 +145,17 @@ export async function POST(request) {
           AND (local_status='approved' OR upper(COALESCE(meta_status,''))='APPROVED')`, [auth.session.tenantId, parsed.data.metaTemplateId]);
       if (!owned.rows[0] || owned.rows[0].meta_integration_id !== parsed.data.whatsappChannelId) {
         throw Object.assign(new Error("اختر قالب Meta معتمدًا على الجهاز المحدد."), { code: "invalid_meta_template" });
+      }
+    }
+    const campaignCards = Array.isArray(parsed.data.audienceFilter?.cards) ? parsed.data.audienceFilter.cards : [];
+    const productIds = [...new Set(campaignCards.filter((card) => card?.sourceType === "store_product").map((card) => card.productId).filter(Boolean))];
+    if (productIds.length) {
+      const ownedProducts = await client.query(
+        `SELECT id FROM salla_products WHERE tenant_id=$1 AND id=ANY($2::uuid[]) AND is_available=true`,
+        [auth.session.tenantId, productIds]
+      );
+      if (ownedProducts.rowCount !== productIds.length) {
+        throw Object.assign(new Error("تحتوي الحملة على منتج غير متاح أو غير تابع لهذا المتجر."), { code: "invalid_campaign_product" });
       }
     }
     const audienceFilter = campaignAudienceFilter(parsed.data);

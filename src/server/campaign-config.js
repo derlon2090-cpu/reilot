@@ -2,6 +2,16 @@ import { z } from "zod";
 
 const campaignKeywordSchema = z.string().trim().min(1).max(80);
 const campaignDaySchema = z.coerce.number().int().min(0).max(6);
+const campaignHttpUrlSchema = z.string().trim().max(2048).url().refine((value) => /^https?:\/\//i.test(value), "استخدم رابط HTTP أو HTTPS صالحًا.");
+const campaignCardSchema = z.object({
+  sourceType: z.enum(["store_product", "custom"]),
+  productId: z.string().uuid().optional().nullable(),
+  imageUrl: z.union([campaignHttpUrlSchema, z.literal("")]).optional().default(""),
+  title: z.string().trim().max(60).optional().default(""),
+  bodyText: z.string().trim().min(1).max(200),
+  buttonText: z.string().trim().min(1).max(25),
+  buttonUrl: campaignHttpUrlSchema
+});
 
 export const campaignCreateSchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -38,6 +48,31 @@ export const campaignCreateSchema = z.object({
   }
   const messageIssue = validateCampaignMessage(value.body);
   if (messageIssue) context.addIssue({ code: "custom", path: ["body"], message: messageIssue });
+  const cards = value.audienceFilter?.cards;
+  const campaignKind = value.audienceFilter?.campaignKind;
+  if (["product", "custom"].includes(campaignKind) && (!Array.isArray(cards) || cards.length < 1 || cards.length > 10)) {
+    context.addIssue({ code: "custom", path: ["audienceFilter", "cards"], message: "أضف من بطاقة واحدة إلى 10 بطاقات للحملة." });
+  } else if (Array.isArray(cards)) {
+    cards.forEach((card, index) => {
+      const parsedCard = campaignCardSchema.safeParse(card);
+      if (!parsedCard.success) {
+        context.addIssue({ code: "custom", path: ["audienceFilter", "cards", index], message: parsedCard.error.issues[0]?.message || "بيانات البطاقة غير صالحة." });
+      } else if (parsedCard.data.sourceType === "store_product" && !parsedCard.data.productId) {
+        context.addIssue({ code: "custom", path: ["audienceFilter", "cards", index, "productId"], message: "بطاقة المتجر يجب أن ترتبط بمنتج فعلي." });
+      }
+    });
+  }
+  const socialLinks = value.audienceFilter?.socialLinks;
+  if (socialLinks && typeof socialLinks === "object" && !Array.isArray(socialLinks)) {
+    for (const [name, url] of Object.entries(socialLinks)) {
+      if (!campaignHttpUrlSchema.safeParse(url).success) {
+        context.addIssue({ code: "custom", path: ["audienceFilter", "socialLinks", name], message: "تحقق من صحة رابط التواصل الاجتماعي." });
+      }
+    }
+  }
+  if (String(value.audienceFilter?.htmlContent || "").length > 500_000) {
+    context.addIssue({ code: "custom", path: ["audienceFilter", "htmlContent"], message: "حجم قالب HTML أكبر من الحد المسموح." });
+  }
 });
 
 export function validateCampaignMessage(value) {

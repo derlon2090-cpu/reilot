@@ -740,6 +740,11 @@ state.campaignBuilderKind = "custom";
 state.productCampaignChannel = null;
 state.customCampaignChannel = null;
 state.campaignBuilderProduct = null;
+state.campaignBuilderProducts = [];
+state.campaignBuilderCards = [];
+state.campaignBuilderDraft = null;
+state.campaignBuilderDraftTimer = null;
+state.campaignBuilderPreviewMode = "desktop";
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -1460,6 +1465,13 @@ function dashboardIcon(name) {
     email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
     code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
     add: '<path d="M12 5v14M5 12h14"/>',
+    drag: '<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/>',
+    up: '<path d="m6 15 6-6 6 6"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
+    desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    tablet: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/>',
+    mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M15 8l2 2M17 6l2 2"/>',
     webhook: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8.7 7.5 10.8 15M15.3 7.5 13.2 15M9 6h6"/>',
     refresh: '<path d="M20 6v5h-5"/><path d="M4 18v-5h5"/><path d="M18.4 9A7 7 0 0 0 6.3 6.3L4 9M5.6 15A7 7 0 0 0 17.7 17.7L20 15"/>',
@@ -4149,7 +4161,7 @@ function campaignCreateModalMarkup() {
   </form>`;
 }
 
-function campaignBuilderPage() {
+function legacyCampaignBuilderPage() {
   const channel = state.campaignBuilderChannel === "email" ? "email" : state.campaignBuilderChannel === "whatsapp" ? "whatsapp" : null;
   const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
   const options = state.campaignsOverview?.createOptions || {};
@@ -4196,6 +4208,188 @@ function campaignBuilderPage() {
       <div class="campaign-form-actions ref-builder-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-preview">${dashboardIcon("eye")} معاينة الرسالة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-test">${dashboardIcon("send")} إرسال تجريبي</button><button class="btn btn-ghost" type="button" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة</button></div>
     </form></main><aside class="suite-card campaign-preview-card" tabindex="-1"><div class="suite-card-head"><div><h2>معاينة ${channel === "email" ? "البريد الإلكتروني" : "رسالة واتساب"}</h2><p>تتكيّف المعاينة مع نوع الحملة المختار.</p></div></div>${preview}</aside></div>
   </section>`);
+}
+
+function campaignStudioCardFromProduct(product) {
+  return {
+    sourceType: "store_product",
+    productId: String(product?.id || ""),
+    imageUrl: safeStoreLogoUrl(product?.thumbnailUrl) || "",
+    title: String(product?.name || ""),
+    bodyText: String(product?.name || ""),
+    buttonText: "عرض المنتج",
+    buttonUrl: String(product?.customerUrl || ""),
+    price: product?.price ?? null,
+    currency: String(product?.currency || ""),
+    sku: String(product?.sku || "")
+  };
+}
+
+function campaignStudioBlankCard() {
+  return { sourceType:"custom", productId:"", imageUrl:"", title:"", bodyText:"", buttonText:"", buttonUrl:"", price:null, currency:"", sku:"" };
+}
+
+function campaignStudioCards(kind) {
+  if (state.campaignBuilderCards.length) return state.campaignBuilderCards;
+  state.campaignBuilderCards = kind === "product"
+    ? (state.campaignBuilderProducts || []).map(campaignStudioCardFromProduct).slice(0, 10)
+    : [campaignStudioBlankCard(), campaignStudioBlankCard()];
+  return state.campaignBuilderCards;
+}
+
+function campaignStudioCardMarkup(card, index, kind) {
+  const product = kind === "product";
+  const imageUrl = safeStoreLogoUrl(card.imageUrl);
+  const price = card.price != null ? `${escapeHtml(card.price)} ${escapeHtml(card.currency || "")}` : "";
+  return `<article class="campaign-studio-card-editor" data-campaign-card data-card-index="${index}">
+    <header><button type="button" class="campaign-card-drag" aria-label="سحب البطاقة">${dashboardIcon("drag")}</button><strong>بطاقة ${suiteNumber(index + 1)}</strong><span class="campaign-card-source">${product ? "منتج من المتجر" : "بطاقة مخصصة"}</span><button type="button" class="campaign-card-remove" data-action="campaign-studio-card-remove" title="حذف البطاقة">${dashboardIcon("close")} حذف</button></header>
+    <div class="campaign-studio-card-fields">
+      <div class="campaign-studio-image-field ${imageUrl ? "has-image" : ""}" data-campaign-card-image-wrap>${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || "صورة البطاقة")}" data-campaign-card-image-preview>` : `<span data-campaign-card-image-placeholder>${dashboardIcon(product ? "storeBag" : "upload")}<small>${product ? "صورة المنتج الفعلية" : "ارفع صورة البطاقة"}</small></span>`}<input type="hidden" name="cardImageUrl" value="${escapeHtml(card.imageUrl || "")}">${product ? "" : `<input type="file" accept="image/png,image/jpeg,image/webp" data-action="campaign-studio-image-file" hidden><button type="button" class="btn btn-ghost" data-action="campaign-studio-image-pick">${dashboardIcon("upload")} رفع صورة</button>`}</div>
+      <div class="campaign-studio-card-copy"><label class="field"><span>${product ? "اسم المنتج" : "عنوان اختياري"}</span><input class="input" name="cardTitle" maxlength="60" value="${escapeHtml(card.title || "")}" ${product ? "readonly" : ""}><small><b data-count-for="cardTitle">${String(card.title || "").length}</b>/60</small></label><label class="field"><span>نص البطاقة</span><textarea class="textarea" name="cardBody" rows="2" maxlength="200" required placeholder="اكتب نص البطاقة">${escapeHtml(card.bodyText || "")}</textarea><small><b data-count-for="cardBody">${String(card.bodyText || "").length}</b>/200</small></label></div>
+      <label class="field"><span>نص الزر</span><input class="input" name="cardButtonText" maxlength="25" required value="${escapeHtml(card.buttonText || "")}" placeholder="نص الزر"><small><b data-count-for="cardButtonText">${String(card.buttonText || "").length}</b>/25</small></label>
+      <label class="field"><span>رابط الزر</span><input class="input" name="cardButtonUrl" type="url" dir="ltr" required value="${escapeHtml(card.buttonUrl || "")}" placeholder="https://"><input type="hidden" name="cardProductId" value="${escapeHtml(card.productId || "")}"><input type="hidden" name="cardSourceType" value="${escapeHtml(card.sourceType || (product ? "store_product" : "custom"))}"></label>
+      <div class="campaign-studio-card-tools"><button type="button" class="btn btn-ghost" data-action="campaign-studio-card-up" title="تحريك للأعلى">${dashboardIcon("up")} للأعلى</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-card-down" title="تحريك للأسفل">${dashboardIcon("down")} للأسفل</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-card-copy" title="نسخ البطاقة">${dashboardIcon("copy")} نسخ</button>${price ? `<span class="campaign-card-price">${price}</span>` : ""}${card.sku ? `<small dir="ltr">SKU: ${escapeHtml(card.sku)}</small>` : ""}</div>
+    </div>
+  </article>`;
+}
+
+function campaignStudioPreviewCards(cards, channel) {
+  if (!cards.length) return `<div class="campaign-studio-preview-empty">أضف بطاقة لتظهر في المعاينة.</div>`;
+  return `<div class="campaign-studio-preview-cards">${cards.map((card, index) => {
+    const imageUrl = safeStoreLogoUrl(card.imageUrl);
+    return `<article class="campaign-studio-preview-card" data-preview-card-index="${index}">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || "")}">` : `<span>${dashboardIcon(card.sourceType === "store_product" ? "storeBag" : "payments")}</span>`}<strong>${escapeHtml(card.title || "عنوان البطاقة")}</strong><p>${escapeHtml(card.bodyText || "سيظهر نص البطاقة هنا")}</p><b>${escapeHtml(card.buttonText || (channel === "email" ? "زر الإجراء" : "عرض التفاصيل"))} ${dashboardIcon("link")}</b></article>`;
+  }).join("")}</div>`;
+}
+
+function campaignStudioEmailTemplates(templates) {
+  if (!templates.length) return `<div class="campaign-studio-template-empty">لا توجد قوالب بريد محفوظة حتى الآن. يمكنك إنشاء المحتوى يدويًا وحفظه كمسودة.</div>`;
+  return `<div class="campaign-studio-template-strip">${templates.map((template, index) => `<label class="campaign-studio-template-choice"><input type="radio" name="templateId" value="${escapeHtml(template.id)}" data-action="campaign-template" data-template-body="${escapeHtml(template.body || "")}" data-template-subject="${escapeHtml(template.subject || template.name || "")}" ${index === 0 ? "" : ""}><span><i>${dashboardIcon("email")}</i><b>${escapeHtml(template.name)}</b><small>${escapeHtml(template.subject || "قالب بريد محفوظ")}</small></span></label>`).join("")}</div>`;
+}
+
+function campaignStudioFormCards(form) {
+  return [...(form?.querySelectorAll("[data-campaign-card]") || [])].map((node) => ({
+    sourceType: node.querySelector('[name="cardSourceType"]')?.value || "custom",
+    productId: node.querySelector('[name="cardProductId"]')?.value || "",
+    imageUrl: node.querySelector('[name="cardImageUrl"]')?.value || "",
+    title: node.querySelector('[name="cardTitle"]')?.value?.trim() || "",
+    bodyText: node.querySelector('[name="cardBody"]')?.value?.trim() || "",
+    buttonText: node.querySelector('[name="cardButtonText"]')?.value?.trim() || "",
+    buttonUrl: node.querySelector('[name="cardButtonUrl"]')?.value?.trim() || ""
+  }));
+}
+
+function captureCampaignStudioDraft(form) {
+  if (!form) return null;
+  const values = {};
+  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
+  state.campaignBuilderCards = campaignStudioFormCards(form);
+  state.campaignBuilderDraft = { values, cards:state.campaignBuilderCards, updatedAt:new Date().toISOString() };
+  return state.campaignBuilderDraft;
+}
+
+function refreshCampaignStudioPreview(form) {
+  if (!form) return;
+  const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
+  const cards = campaignStudioFormCards(form);
+  const previewCards = document.querySelector("[data-campaign-studio-preview-cards]");
+  if (previewCards) previewCards.innerHTML = campaignStudioPreviewCards(cards, channel);
+  const count = form.querySelectorAll("[data-campaign-card]").length;
+  document.querySelectorAll("[data-campaign-card-count]").forEach((node) => { node.textContent = String(count); });
+  const add = form.querySelector('[data-action="campaign-studio-card-add"]');
+  if (add) add.disabled = count >= 10;
+  form.querySelectorAll("[data-campaign-card]").forEach((card, index) => {
+    card.dataset.cardIndex = String(index);
+    const title = card.querySelector("header>strong");
+    if (title) title.textContent = `بطاقة ${suiteNumber(index + 1)}`;
+  });
+}
+
+function scheduleCampaignStudioDraft(form) {
+  if (!form) return;
+  const statusNode = document.querySelector("[data-campaign-draft-status]");
+  if (statusNode) statusNode.innerHTML = `${dashboardIcon("clock")} جارٍ حفظ المسودة...`;
+  clearTimeout(state.campaignBuilderDraftTimer);
+  state.campaignBuilderDraftTimer = setTimeout(() => {
+    const draft = captureCampaignStudioDraft(form);
+    const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
+    const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
+    storage.set(`renvix.campaign-studio.${channel}.${kind}`, draft);
+    if (statusNode) statusNode.innerHTML = `${dashboardIcon("success")} تم حفظ المسودة`;
+  }, 700);
+}
+
+function campaignStudioGeneratedHtml(form) {
+  const cards = campaignStudioFormCards(form);
+  const subject = String(form?.elements.subject?.value || form?.elements.name?.value || "").trim();
+  const previewText = String(form?.elements.previewText?.value || "").trim();
+  const body = String(form?.elements.body?.value || "").trim();
+  const footer = String(form?.elements.footer?.value || "").trim();
+  const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:#0b3f3b;font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#0b3f3b;color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5f8f7"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f8f7"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:#0b3f3b;font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:#526763;font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table><p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
+}
+
+function campaignStudioDraftValue(name, fallback = "") {
+  return state.campaignBuilderDraft?.values?.[name] ?? fallback;
+}
+
+function campaignStudioPage() {
+  const channel = state.campaignBuilderChannel === "email" ? "email" : state.campaignBuilderChannel === "whatsapp" ? "whatsapp" : null;
+  const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
+  if (channel && !state.campaignBuilderDraft) {
+    const savedDraft = storage.get(`renvix.campaign-studio.${channel}.${kind}`, null);
+    if (savedDraft?.values && Array.isArray(savedDraft.cards)) {
+      state.campaignBuilderDraft = savedDraft;
+      if (kind === "custom") state.campaignBuilderCards = savedDraft.cards.slice(0, 10);
+    }
+  }
+  const options = state.campaignsOverview?.createOptions || {};
+  const devices = (options.devices || []).filter((item) => item.status === "connected");
+  const groups = Array.isArray(options.groups) ? options.groups : [];
+  const templates = (options.templates || []).filter((item) => item.channel === "email");
+  const metaTemplates = (options.metaTemplates || []).filter((item) => devices.some((device) => device.id === item.channelId));
+  const emailSender = options.email?.connected ? options.email.sender : null;
+  const channelReady = channel === "whatsapp" ? devices.length > 0 : channel === "email" ? Boolean(emailSender) : false;
+  const products = state.campaignBuilderProducts || [];
+  if (!channel || !channelReady || (kind === "product" && !products.length)) {
+    const message = !channel ? "اختر قناة الإرسال من بطاقة إنشاء الحملة أولًا." : !channelReady ? (channel === "whatsapp" ? "يجب ربط قناة واتساب الرسمية أولًا قبل إنشاء الحملة." : "يجب إعداد قناة البريد الموثقة أولًا قبل إنشاء الحملة.") : "اختر منتجًا فعليًا من كتالوج متجرك أولًا.";
+    return dashboardShell(`<section class="suite-page campaign-builder-guard">${pageTitle("إنشاء حملة")}<div class="suite-card suite-mini-empty"><span>${dashboardIcon("campaigns")}</span><strong>تعذر فتح المحرر</strong><p>${message}</p><button class="btn btn-primary" data-action="campaign-builder-exit">العودة إلى الحملات</button></div></section>`);
+  }
+  const cards = campaignStudioCards(kind);
+  const start = new Date(Date.now() + 10 * 60_000);
+  const localStart = new Date(start.getTime() - start.getTimezoneOffset() * 60_000).toISOString();
+  const startDate = campaignStudioDraftValue("startDate", localStart.slice(0, 10));
+  const startTime = campaignStudioDraftValue("startTime", localStart.slice(11, 16));
+  const audienceTotal = Number(options.audience?.[channel] || 0);
+  const title = channel === "whatsapp" ? "حملات واتساب" : "حملات البريد الإلكتروني";
+  const subtitle = channel === "whatsapp" ? "إنشاء حملة واتساب احترافية وإرسالها وفق جاهزية قناة Meta الرسمية." : "إنشاء وإدارة حملة بريد إلكتروني باحترافية مع تخصيص كامل ومعاينة حية.";
+  const modeLabel = kind === "product" ? "منتج من المتجر" : "بطاقة مخصصة";
+  const groupOptions = groups.map((group) => {
+    const count = Number(group[channel === "whatsapp" ? "whatsappContactsCount" : "emailContactsCount"] ?? group.contactsCount ?? 0);
+    return `<option value="${escapeHtml(group.id)}" data-count="${count}" ${campaignStudioDraftValue("groupId") === group.id ? "selected" : ""}>${escapeHtml(group.name)} — ${suiteNumber(count)}</option>`;
+  }).join("");
+  const socialFields = channel === "email" ? `<details class="campaign-studio-section" open><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>اختيارية، ولا تظهر في البريد إلا عند إدخال رابط صحيح.</small></span></summary><div class="campaign-social-grid">${[["instagram","Instagram"],["x","X"],["linkedin","LinkedIn"],["youtube","YouTube"],["snapchat","Snapchat"],["facebook","Facebook"]].map(([name,label]) => `<label class="field"><span>${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
+  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>HTML آمن للبريد بتخطيط جداول وCSS مضمّن، دون JavaScript.</small></span></summary><div class="campaign-html-tools"><div><button type="button" class="btn btn-secondary" data-action="campaign-studio-generate-html">${dashboardIcon("code")} توليد الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="8" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea></div></details>` : "";
+  const channelFields = channel === "whatsapp"
+    ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
+    : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
+  const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>قوالب البريد الاحترافية</h2><p>اختر من القوالب المحفوظة فعليًا في حسابك.</p></div></header>${campaignStudioEmailTemplates(templates)}</section>` : "";
+  const preview = channel === "whatsapp" ? `<div class="campaign-phone campaign-studio-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message"><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر النص الرئيسي هنا."))}</p><time>11:00 ص</time></div><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>` : `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode}"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان البريد"))}</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div></section><footer data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</footer></div>`;
+  return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}">
+    <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
+    <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
+      <section class="campaign-studio-section" open><header><span>${dashboardIcon("template")}</span><div><h2>أساسيات الحملة</h2><p>القناة والنوع محددان مسبقًا ولا يظهر أي اختيار مكرر.</p></div></header><div class="campaign-studio-basics"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required value="${escapeHtml(campaignStudioDraftValue("name"))}" placeholder="اكتب اسمًا داخليًا للحملة"><small>للاستخدام الداخلي ولا يُرسل للعميل.</small></label>${channelFields}<label class="field"><span>الجمهور المستهدف</span><select class="select" name="groupId" data-action="campaign-studio-audience"><option value="" data-count="${audienceTotal}">جميع جهات الاتصال المؤهلة — ${suiteNumber(audienceTotal)}</option>${groupOptions}</select><small><b data-campaign-audience-count>${suiteNumber(audienceTotal)}</b> جهة مؤهلة عبر ${channel === "email" ? "البريد" : "واتساب"}</small></label><div class="field campaign-send-schedule"><span>جدولة الإرسال</span><div><label><input type="radio" name="sendTiming" value="now" ${campaignStudioDraftValue("sendTiming", "now") === "now" ? "checked" : ""}> إرسال فوري</label><label><input type="radio" name="sendTiming" value="later" ${campaignStudioDraftValue("sendTiming") === "later" ? "checked" : ""}> جدولة لاحقًا</label></div><div class="campaign-schedule-fields" ${campaignStudioDraftValue("sendTiming", "now") === "later" ? "" : "hidden"}><input class="input" type="date" name="startDate" value="${startDate}" min="${localStart.slice(0, 10)}"><input class="input" type="time" name="startTime" value="${startTime}"></div></div></div></section>
+      ${templatesSection}
+      <section class="campaign-studio-section campaign-main-message"><header><span>${dashboardIcon("edit")}</span><div><h2>${channel === "whatsapp" ? "النص الرئيسي" : "محتوى البريد"}</h2><p>${channel === "whatsapp" ? "يظهر أعلى بطاقات الحملة ويلتزم بحدود قالب Meta." : "عنوان رئيسي ونص تمهيدي يتحدثان مباشرة في المعاينة."}</p></div></header><label class="field"><textarea class="textarea" name="body" data-campaign-preview-field="body" rows="5" maxlength="1024" required placeholder="اكتب محتوى الحملة هنا">${escapeHtml(campaignStudioDraftValue("body"))}</textarea><small><b data-count-for="body">${String(campaignStudioDraftValue("body")).length}</b>/1024</small></label>${channel === "email" ? `<label class="field"><span>Footer Text</span><input class="input" name="footer" data-campaign-preview-field="footer" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("footer"))}" placeholder="نص تذييل البريد"></label>` : ""}</section>
+      <section class="campaign-studio-section campaign-card-builder"><header><span>${dashboardIcon(kind === "product" ? "storeBag" : "payments")}</span><div><h2>${kind === "product" ? (channel === "email" ? "منتجات من المتجر" : "بطاقات المنتجات") : "بطاقات مخصصة"}</h2><p>${kind === "product" ? "المنتجات الفعلية المختارة من كتالوج المتجر، ويمكن تخصيص النص والزر." : "ابدأ ببطاقتين فارغتين وأضف صورة وعنوانًا ونصًا وزرًا لكل بطاقة."}</p></div><b class="campaign-card-counter"><span data-campaign-card-count>${cards.length}</span> / 10</b></header><div class="campaign-studio-card-list" data-campaign-card-list>${cards.map((card,index) => campaignStudioCardMarkup(card,index,kind)).join("")}</div><button type="button" class="campaign-add-card" data-action="campaign-studio-card-add" data-kind="${kind}" ${cards.length >= 10 ? "disabled" : ""}>${dashboardIcon("add")} <span>${kind === "product" ? "إضافة منتج" : "إضافة بطاقة"}</span><small>الحد الأقصى 10 بطاقات</small></button></section>
+      ${socialFields}${htmlBuilder}
+      <details class="campaign-studio-section campaign-optional-settings"><summary>${dashboardIcon("settings")}<span><strong>إعدادات اختيارية</strong><small>التفعيل والتتبع ووسوم الحملة والملاحظات الداخلية.</small></span></summary><div class="campaign-option-grid"><label><input type="checkbox" name="isEnabled"> تفعيل الحملة بعد الحفظ</label><label><input type="checkbox" name="trackClicks" checked> تفعيل تتبع النقرات</label><label><input type="checkbox" name="appendUtm"> إضافة UTM للروابط</label><label class="field"><span>وسم الحملة</span><input class="input" name="campaignTag" maxlength="80"></label><label class="field"><span>ملاحظات داخلية</span><input class="input" name="internalNotes" maxlength="240"></label></div></details>
+      <div class="campaign-studio-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ الحملة</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-preview">${dashboardIcon("eye")} ${channel === "email" ? "معاينة البريد" : "معاينة الرسالة"}</button><button class="btn btn-secondary" type="button" data-action="campaign-builder-test">${dashboardIcon("send")} إرسال تجريبي</button><button class="btn btn-ghost" type="button" data-action="campaign-builder-exit">${dashboardIcon("back")} رجوع</button></div>
+    </form></main><aside class="campaign-studio-preview" tabindex="-1"><header><div><h2>معاينة ${channel === "email" ? "البريد الإلكتروني" : "رسالة واتساب"}</h2><p>تتحدث مباشرة مع كل تعديل.</p></div>${channel === "email" ? `<div class="campaign-preview-modes"><button data-action="campaign-studio-preview-mode" data-mode="desktop" class="${state.campaignBuilderPreviewMode === "desktop" ? "active" : ""}">${dashboardIcon("desktop")}</button><button data-action="campaign-studio-preview-mode" data-mode="tablet" class="${state.campaignBuilderPreviewMode === "tablet" ? "active" : ""}">${dashboardIcon("tablet")}</button><button data-action="campaign-studio-preview-mode" data-mode="mobile" class="${state.campaignBuilderPreviewMode === "mobile" ? "active" : ""}">${dashboardIcon("mobile")}</button></div>` : ""}</header><div data-campaign-studio-preview>${preview}</div></aside></div>
+  </section>`);
+}
+
+function campaignBuilderPage() {
+  return campaignStudioPage();
 }
 
 function legacyCampaignsPage() {
@@ -7056,11 +7250,14 @@ async function handleAction(target) {
     if (!availability[channel]) return toast(channel === "whatsapp" ? "قناة واتساب غير متصلة." : "قناة البريد غير مهيأة.", "warning");
     if (kind === "product") {
       if (!availability.products.length) return toast("لا توجد منتجات متاحة في كتالوج المتجر. زامن منتجات سلة أولًا.", "warning");
-      return openModal("اختيار منتج من المتجر", `<form data-submit="campaign-product-select" class="grid campaign-product-picker"><input type="hidden" name="channel" value="${channel}"><label class="field"><span>المنتج المتاح</span><select class="select" name="productId" required><option value="">اختر منتجًا فعليًا</option>${availability.products.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name || item.sku || item.productId)}${item.price != null ? ` — ${escapeHtml(item.price)} ${escapeHtml(item.currency || "")}` : ""}</option>`).join("")}</select><small>تظهر المنتجات المتاحة والمزامنة مع حسابك فقط.</small></label><button class="btn btn-primary" type="submit">متابعة إلى محرر الحملة</button></form>`);
+      return openModal("اختيار منتجات من المتجر", `<form data-submit="campaign-product-select" class="campaign-product-picker"><input type="hidden" name="channel" value="${channel}"><div class="campaign-product-picker-head"><div><strong>اختر حتى 10 منتجات</strong><small>تظهر المنتجات المتاحة والمزامنة مع حسابك فقط.</small></div><span><b data-product-picker-count>0</b> / 10</span></div><div class="campaign-product-picker-grid">${availability.products.map((item) => { const image=safeStoreLogoUrl(item.thumbnailUrl);return `<label class="campaign-product-picker-card"><input type="checkbox" name="productIds" value="${escapeHtml(item.id)}" data-action="campaign-product-choice"><span>${image?`<img src="${escapeHtml(image)}" alt="${escapeHtml(item.name||"")}">`:`${dashboardIcon("storeBag")}`}<strong>${escapeHtml(item.name || item.sku || item.productId)}</strong>${item.price != null ? `<b>${escapeHtml(item.price)} ${escapeHtml(item.currency || "")}</b>` : ""}<small dir="ltr">${escapeHtml(item.sku || "")}</small></span></label>`; }).join("")}</div><button class="btn btn-primary" type="submit">متابعة إلى محرر الحملة</button></form>`);
     }
     state.campaignBuilderKind = "custom";
     state.campaignBuilderChannel = channel;
     state.campaignBuilderProduct = null;
+    state.campaignBuilderProducts = [];
+    state.campaignBuilderCards = [];
+    state.campaignBuilderDraft = null;
     return navigate("/dashboard/campaigns/new");
   }
   if (action === "campaign-builder-exit") {
@@ -7068,6 +7265,9 @@ async function handleAction(target) {
     state.customCampaignChannel = null;
     state.campaignBuilderChannel = null;
     state.campaignBuilderProduct = null;
+    state.campaignBuilderProducts = [];
+    state.campaignBuilderCards = [];
+    state.campaignBuilderDraft = null;
     state.campaignBuilderKind = "custom";
     closePortal();
     return navigate("/dashboard/campaigns");
@@ -7095,7 +7295,7 @@ async function handleAction(target) {
     return;
   }
   if (action === "campaign-builder-preview") {
-    const preview = document.querySelector(".campaign-preview-card");
+    const preview = document.querySelector(".campaign-studio-preview, .campaign-preview-card");
     preview?.scrollIntoView({ behavior: "smooth", block: "center" });
     preview?.focus({ preventScroll: true });
     preview?.classList.add("is-previewing");
@@ -7109,6 +7309,73 @@ async function handleAction(target) {
     const destinationLabel = channel === "email" ? "البريد المستلم" : "رقم واتساب بصيغة دولية";
     const destinationType = channel === "email" ? "email" : "tel";
     return openModal("إرسال تجريبي", `<form data-submit="campaign-draft-test" class="grid"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="channelId" value="${escapeHtml(form.elements.whatsappChannelId?.value || "")}"><input type="hidden" name="subject" value="${escapeHtml(form.elements.subject?.value || form.elements.name?.value || "اختبار حملة")}"><textarea hidden name="body">${escapeHtml(form.elements.body?.value || "")}</textarea><label class="field"><span>${destinationLabel}</span><input class="input" type="${destinationType}" name="destination" required ${channel === "whatsapp" ? 'placeholder="9665XXXXXXXX" inputmode="tel"' : ""}></label><p class="inline-notice info">ستُرسل رسالة حقيقية عبر القناة المحددة، ولن تُضاف إلى جمهور الحملة.</p><button class="btn btn-primary" type="submit">${dashboardIcon("send")} إرسال الاختبار</button></form>`);
+  }
+  if (action === "campaign-product-choice") {
+    const form = target.closest("form");
+    const selected = [...(form?.querySelectorAll('input[name="productIds"]:checked') || [])];
+    if (selected.length > 10) { target.checked = false; return toast("الحد الأقصى المسموح 10 منتجات.", "warning"); }
+    const counter = form?.querySelector("[data-product-picker-count]");
+    if (counter) counter.textContent = String(selected.length);
+    return;
+  }
+  if (action === "campaign-studio-card-add") {
+    const form = target.closest("form[data-campaign-studio]");
+    const list = form?.querySelector("[data-campaign-card-list]");
+    const count = list?.querySelectorAll("[data-campaign-card]").length || 0;
+    if (!form || !list || count >= 10) return toast("الحد الأقصى المسموح 10 بطاقات.", "warning");
+    if (target.dataset.kind === "product") {
+      captureCampaignStudioDraft(form);
+      const chosen = new Set(campaignStudioFormCards(form).map((card) => card.productId).filter(Boolean));
+      const available = campaignCreationAvailability().products.filter((item) => !chosen.has(String(item.id)));
+      if (!available.length) return toast("لا توجد منتجات إضافية متاحة في الكتالوج.", "warning");
+      const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
+      return openModal("إضافة منتجات للحملة", `<form data-submit="campaign-product-append" class="campaign-product-picker"><input type="hidden" name="channel" value="${channel}"><div class="campaign-product-picker-head"><div><strong>اختر منتجات إضافية</strong><small>يمكن إضافة ${10-count} بطاقات أخرى.</small></div><span><b data-product-picker-count>0</b> / ${10-count}</span></div><div class="campaign-product-picker-grid">${available.map((item) => { const image=safeStoreLogoUrl(item.thumbnailUrl);return `<label class="campaign-product-picker-card"><input type="checkbox" name="productIds" value="${escapeHtml(item.id)}" data-action="campaign-product-choice"><span>${image?`<img src="${escapeHtml(image)}" alt="${escapeHtml(item.name||"")}">`:dashboardIcon("storeBag")}<strong>${escapeHtml(item.name||item.sku||item.productId)}</strong>${item.price!=null?`<b>${escapeHtml(item.price)} ${escapeHtml(item.currency||"")}</b>`:""}</span></label>`; }).join("")}</div><button class="btn btn-primary" type="submit">إضافة المنتجات المختارة</button></form>`);
+    }
+    list.insertAdjacentHTML("beforeend", campaignStudioCardMarkup(campaignStudioBlankCard(), count, "custom"));
+    refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
+  }
+  if (action === "campaign-studio-card-remove") {
+    const form = target.closest("form[data-campaign-studio]");
+    const card = target.closest("[data-campaign-card]");
+    if (!card || !form) return;
+    if (!window.confirm("هل تريد حذف هذه البطاقة؟")) return;
+    card.remove(); refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
+  }
+  if (action === "campaign-studio-card-copy") {
+    const form = target.closest("form[data-campaign-studio]");
+    const card = target.closest("[data-campaign-card]");
+    const list = card?.parentElement;
+    if (!form || !card || !list) return;
+    if (list.querySelectorAll("[data-campaign-card]").length >= 10) return toast("الحد الأقصى المسموح 10 بطاقات.", "warning");
+    card.insertAdjacentElement("afterend", card.cloneNode(true)); refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
+  }
+  if (action === "campaign-studio-card-up" || action === "campaign-studio-card-down") {
+    const form = target.closest("form[data-campaign-studio]");
+    const card = target.closest("[data-campaign-card]");
+    if (!card || !form) return;
+    if (action.endsWith("up") && card.previousElementSibling) card.parentElement.insertBefore(card, card.previousElementSibling);
+    if (action.endsWith("down") && card.nextElementSibling) card.parentElement.insertBefore(card.nextElementSibling, card);
+    refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
+  }
+  if (action === "campaign-studio-image-pick") { target.closest("[data-campaign-card]")?.querySelector('[data-action="campaign-studio-image-file"]')?.click(); return; }
+  if (action === "campaign-studio-preview-mode") {
+    state.campaignBuilderPreviewMode = ["desktop","tablet","mobile"].includes(target.dataset.mode) ? target.dataset.mode : "desktop";
+    document.querySelectorAll('[data-action="campaign-studio-preview-mode"]').forEach((button) => button.classList.toggle("active", button.dataset.mode === state.campaignBuilderPreviewMode));
+    const preview = document.querySelector(".campaign-studio-email-preview");
+    if (preview) preview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode}`;
+    return;
+  }
+  if (action === "campaign-studio-generate-html") {
+    const form = target.closest("form[data-campaign-studio]");
+    if (!form?.reportValidity()) return;
+    form.elements.htmlContent.value = campaignStudioGeneratedHtml(form);
+    scheduleCampaignStudioDraft(form); toast("تم توليد قالب HTML آمن للبريد."); return;
+  }
+  if (action === "campaign-studio-copy-html") {
+    const form = target.closest("form[data-campaign-studio]");
+    const value = String(form?.elements.htmlContent?.value || "");
+    if (!value) return toast("ولّد كود HTML أولًا.", "warning");
+    navigator.clipboard.writeText(value).then(() => toast("تم نسخ كود HTML.")).catch(() => toast("تعذر نسخ الكود.", "danger")); return;
   }
   if (action === "contact-create") {
     return openModal("إضافة جهة اتصال", `<form data-submit="contact-create" class="grid"><label class="field"><span>الاسم</span><input class="input" name="displayName" maxlength="160"></label><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" inputmode="tel" placeholder="+966 5X XXX XXXX"></label><label class="field"><span>الشركة (اختياري)</span><input class="input" name="companyName" maxlength="160"></label><label class="field"><span>الموافقة على التواصل</span><select class="select" name="consentStatus"><option value="unknown">غير محددة</option><option value="granted">موافق</option><option value="revoked">سحب الموافقة</option></select></label><button class="btn btn-primary">حفظ جهة الاتصال</button></form>`);
@@ -8804,16 +9071,31 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "campaign-product-select") {
-    const product = (state.campaignsOverview?.createOptions?.products || []).find((item) => item.id === data.productId && item.isAvailable !== false);
+    const selectedIds = [...new FormData(form).getAll("productIds")].map(String);
+    const products = (state.campaignsOverview?.createOptions?.products || []).filter((item) => selectedIds.includes(String(item.id)) && item.isAvailable !== false).slice(0, 10);
     const channel = data.channel === "email" ? "email" : "whatsapp";
     const availability = campaignCreationAvailability();
-    if (!product) return toast("المنتج المحدد لم يعد متاحًا. حدّث قائمة المنتجات وحاول مجددًا.", "warning");
+    if (!products.length) return toast("اختر منتجًا واحدًا على الأقل من الكتالوج.", "warning");
     if (!availability[channel]) return toast(channel === "whatsapp" ? "قناة واتساب غير متصلة." : "قناة البريد غير مهيأة.", "warning");
     state.campaignBuilderKind = "product";
     state.campaignBuilderChannel = channel;
-    state.campaignBuilderProduct = product;
+    state.campaignBuilderProducts = products;
+    state.campaignBuilderProduct = products[0];
+    state.campaignBuilderCards = products.map(campaignStudioCardFromProduct);
+    state.campaignBuilderDraft = null;
     closePortal();
     return navigate("/dashboard/campaigns/new");
+  }
+  if (type === "campaign-product-append") {
+    const selectedIds = [...new FormData(form).getAll("productIds")].map(String);
+    const current = state.campaignBuilderCards || [];
+    const room = Math.max(0, 10 - current.length);
+    const products = (state.campaignsOverview?.createOptions?.products || []).filter((item) => selectedIds.includes(String(item.id)) && item.isAvailable !== false).slice(0, room);
+    if (!products.length) return toast(room ? "اختر منتجًا واحدًا على الأقل." : "وصلت إلى الحد الأقصى للبطاقات.", "warning");
+    state.campaignBuilderProducts = [...(state.campaignBuilderProducts || []), ...products];
+    state.campaignBuilderCards = [...current, ...products.map(campaignStudioCardFromProduct)].slice(0, 10);
+    if (state.campaignBuilderDraft) state.campaignBuilderDraft.cards = state.campaignBuilderCards;
+    closePortal(); render(); toast("تمت إضافة المنتجات إلى الحملة."); return;
   }
   if (type === "campaign-draft-test") {
     const button = form.querySelector("button[type='submit']");
@@ -8833,14 +9115,28 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "campaign-create") {
+    const completedKind = state.campaignBuilderKind === "product" ? "product" : "custom";
     const allowedDays = [...new FormData(form).getAll("allowedDays")].map(Number);
     const contactKeywords = [...new FormData(form).getAll("contactKeywords")].map(String);
     const customKeywords = String(data.customKeywords || "").split(/\r?\n|،|,/).map((item) => item.trim()).filter(Boolean);
     const minDelaySeconds = Number(data.minDelaySeconds || 20);
     const maxDelaySeconds = Number(data.maxDelaySeconds || 120);
+    const campaignCards = campaignStudioFormCards(form);
+    if (!campaignCards.length) return toast("أضف بطاقة واحدة على الأقل للحملة.", "warning");
+    if (campaignCards.length > 10) return toast("الحد الأقصى المسموح 10 بطاقات.", "warning");
+    for (const card of campaignCards) {
+      if (!card.bodyText || !card.buttonText || !card.buttonUrl) return toast("أكمل نص البطاقة ونص الزر ورابطه في جميع البطاقات.", "warning");
+      try { const url = new URL(card.buttonUrl); if (!/^https?:$/.test(url.protocol)) throw new Error(); }
+      catch { return toast("تحقق من صحة روابط الأزرار في البطاقات.", "warning"); }
+    }
+    const socialLinks = Object.fromEntries(["instagram","x","linkedin","youtube","snapchat","facebook"].map((name) => [name, String(data[name] || "").trim()]).filter(([,value]) => value));
+    for (const value of Object.values(socialLinks)) {
+      try { const url = new URL(value); if (!/^https?:$/.test(url.protocol)) throw new Error(); }
+      catch { return toast("تحقق من صحة روابط التواصل الاجتماعي.", "warning"); }
+    }
     if (!allowedDays.length) return toast("اختر يومًا واحدًا على الأقل لتشغيل الحملة.", "warning");
     if (maxDelaySeconds < minDelaySeconds) return toast("أقصى وقت بين الرسائل يجب أن يكون أكبر من أقل وقت أو مساويًا له.", "warning");
-    const scheduledDate = new Date(`${data.startDate}T${data.startTime}`);
+    const scheduledDate = data.sendTiming === "later" ? new Date(`${data.startDate}T${data.startTime}`) : new Date(Date.now() + 90_000);
     if (Number.isNaN(scheduledDate.getTime())) return toast("تحقق من تاريخ ووقت بدء الحملة.", "warning");
     try {
       await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
@@ -8867,7 +9163,17 @@ async function handleSubmit(form, event) {
           previewText: data.previewText || null,
           ctaLabel: data.ctaLabel || null,
           footer: data.footer || null,
-          headerType: data.headerType || null
+          headerType: data.headerType || null,
+          senderName: data.fromName || null,
+          senderEmail: data.fromEmail || null,
+          replyTo: data.replyTo || null,
+          cards: campaignCards,
+          socialLinks,
+          htmlContent: data.htmlContent || null,
+          trackClicks: Boolean(form.elements.trackClicks?.checked),
+          appendUtm: Boolean(form.elements.appendUtm?.checked),
+          campaignTag: data.campaignTag || null,
+          internalNotes: data.internalNotes || null
         }
       }) });
       closePortal(); state.campaignsOverview=null;
@@ -8875,7 +9181,11 @@ async function handleSubmit(form, event) {
       state.customCampaignChannel = null;
       state.campaignBuilderChannel = null;
       state.campaignBuilderProduct = null;
+      state.campaignBuilderProducts = [];
+      state.campaignBuilderCards = [];
+      state.campaignBuilderDraft = null;
       state.campaignBuilderKind = "custom";
+      localStorage.removeItem(`renvix.campaign-studio.${data.channel}.${completedKind}`);
       if (state.route === "/dashboard/campaigns/new") await navigate("/dashboard/campaigns");
       else await syncRouteData(true);
       toast(form.elements.isEnabled?.checked ? "تم إنشاء الحملة وتفعيل جدولها بنجاح." : "تم حفظ الحملة كمسودة غير مفعلة.");
@@ -10214,6 +10524,13 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
+  if (campaignStudioForm) {
+    const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
+    if (counter) counter.textContent = String(target.value?.length || 0);
+    refreshCampaignStudioPreview(campaignStudioForm);
+    scheduleCampaignStudioDraft(campaignStudioForm);
+  }
   if (target.dataset.campaignPreviewField) {
     const field = target.dataset.campaignPreviewField;
     const selector = field === "body" ? "[data-campaign-live-body]" : field === "subject" ? "[data-campaign-live-subject]" : field === "preheader" ? "[data-campaign-live-preheader]" : field === "cta" ? "[data-campaign-live-cta]" : "[data-campaign-live-footer]";
@@ -10391,6 +10708,53 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "campaign-studio-image-file" && target.files?.[0]) {
+    void (async () => {
+      const form = target.closest("form[data-campaign-studio]");
+      const card = target.closest("[data-campaign-card]");
+      const wrap = card?.querySelector("[data-campaign-card-image-wrap]");
+      try {
+        const file = target.files[0];
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
+        if (file.size > 5 * 1024 * 1024) throw new Error("يجب ألا يتجاوز حجم صورة البطاقة 5 ميجابايت.");
+        wrap?.classList.add("is-uploading");
+        const formData = new FormData();
+        formData.append("file", file);
+        const payload = await fetchJson("/api/campaigns/assets", { method:"POST", body:formData });
+        const hidden = card?.querySelector('[name="cardImageUrl"]');
+        if (hidden) hidden.value = payload.imageUrl;
+        const current = card?.querySelector("[data-campaign-card-image-preview]");
+        if (current) current.src = payload.imageUrl;
+        else {
+          card?.querySelector("[data-campaign-card-image-placeholder]")?.remove();
+          wrap?.insertAdjacentHTML("afterbegin", `<img src="${escapeHtml(payload.imageUrl)}" alt="صورة البطاقة" data-campaign-card-image-preview>`);
+        }
+        wrap?.classList.add("has-image");
+        refreshCampaignStudioPreview(form);
+        scheduleCampaignStudioDraft(form);
+        toast("تم رفع صورة البطاقة بنجاح.");
+      } catch (error) {
+        toast(error.message || "تعذر رفع صورة البطاقة.", "danger");
+      } finally {
+        wrap?.classList.remove("is-uploading");
+        target.value = "";
+      }
+    })();
+    return;
+  }
+  const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
+  if (campaignStudioForm) {
+    if (target.dataset.action === "campaign-studio-audience") {
+      const count = target.selectedOptions?.[0]?.dataset.count || "0";
+      const output = campaignStudioForm.querySelector("[data-campaign-audience-count]");
+      if (output) output.textContent = suiteNumber(Number(count));
+    }
+    if (target.name === "sendTiming") {
+      campaignStudioForm.querySelector(".campaign-schedule-fields")?.toggleAttribute("hidden", target.value !== "later");
+    }
+    refreshCampaignStudioPreview(campaignStudioForm);
+    scheduleCampaignStudioDraft(campaignStudioForm);
+  }
   if (target.dataset.action === "contact-status-filter") {
     state.contactStatusFilter=target.value||"all";
     render();
@@ -10443,7 +10807,7 @@ document.addEventListener("change", (event) => {
   }
   if (target.dataset.action === "campaign-template") {
     const form = target.closest("form");
-    const selected = target.selectedOptions?.[0];
+    const selected = target.matches('input[type="radio"]') ? target : target.selectedOptions?.[0];
     const body = form?.elements.body;
     const subject = form?.elements.subject;
     const whatsappChannel = form?.elements.whatsappChannelId;
@@ -10455,6 +10819,10 @@ document.addEventListener("change", (event) => {
     if (subject && selected?.dataset.templateSubject) {
       subject.value = selected.dataset.templateSubject;
       document.querySelectorAll("[data-campaign-live-subject]").forEach((node) => { node.textContent = subject.value; });
+    }
+    if (form?.matches("[data-campaign-studio]")) {
+      refreshCampaignStudioPreview(form);
+      scheduleCampaignStudioDraft(form);
     }
     return;
   }
