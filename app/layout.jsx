@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-relocated-v50" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-relocated-v51" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-dark-system-v50" />
       </head>
       <body>
