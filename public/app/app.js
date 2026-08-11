@@ -4074,7 +4074,7 @@ function sallaAutomationTemplateEditorPage() {
           ${metaPanel}${emailPanel}
           ${abandoned}${completed}${review}${invoice}${digital}
         </article>
-        <div class="salla-template-preview-slot">${sallaTemplatePreviewPanel(item, storeProfile)}</div>
+        ${sallaTemplatePreviewPanel(item, storeProfile)}
       </div>
       <div class="salla-editor-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button><button class="btn btn-secondary" type="button" data-action="preview-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} تحديث المعاينة</button><button class="btn btn-secondary" type="button" data-action="test-salla-template" data-salla-test-button data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("orderLink")} إرسال اختبار</button></div>
     </form>`);
