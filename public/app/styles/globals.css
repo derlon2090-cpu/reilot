@@ -19,6 +19,72 @@ body {
   letter-spacing: 0;
 }
 
+/* Salla workspace navigation and verified commerce reports */
+.salla-workspace-nav{margin:0 0 24px;padding:8px;display:grid;grid-template-columns:repeat(2,minmax(0,260px));justify-content:start;gap:10px;border:1px solid #E8F1F0;border-radius:18px;background:#fff;box-shadow:0 8px 28px rgba(11,63,59,.04)}
+.salla-workspace-nav button{min-height:70px;padding:12px 16px;display:flex;align-items:center;gap:12px;color:#61758a;border:1px solid transparent;border-radius:13px;background:transparent;text-align:start;cursor:pointer;transition:.18s ease}
+.salla-workspace-nav button:hover{color:#0B3F3B;background:#F3F8F7}
+.salla-workspace-nav button.active{color:#fff;border-color:#0B3F3B;background:#0B3F3B;box-shadow:0 8px 20px rgba(11,63,59,.16)}
+.salla-workspace-nav .line-icon{width:25px;height:25px;flex:0 0 25px}
+.salla-workspace-nav span{display:grid;gap:3px}
+.salla-workspace-nav strong{font-size:16px}
+.salla-workspace-nav small{color:inherit;opacity:.74;font-size:11px;font-weight:500}
+.salla-linked-primary-actions{display:grid!important;grid-template-columns:repeat(2,minmax(160px,1fr));gap:10px!important}
+.salla-linked-primary-actions .btn{min-height:52px;color:#fff!important;border-color:#0B3F3B!important;background:#0B3F3B!important}
+.salla-report-head-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.salla-report-head-actions .select{width:auto;min-width:160px}
+.salla-report-custom-dates{margin-bottom:18px;padding:14px;display:flex;align-items:end;flex-wrap:wrap;gap:12px;border:1px solid #E8F1F0;border-radius:14px;background:#F3F8F7}
+.salla-report-custom-dates label{display:grid;gap:6px;color:#0B3F3B;font-size:12px;font-weight:800}
+.salla-report-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin:22px 0}
+.salla-report-metrics article{min-height:150px;padding:20px;display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.salla-report-metrics article>span{width:54px;height:54px;display:grid;place-items:center;flex:0 0 54px;color:#0B3F3B;border-radius:50%;background:#F3F8F7}
+.salla-report-metrics article>span .line-icon{width:27px;height:27px}
+.salla-report-metrics article>div{min-width:0;display:grid;gap:7px}
+.salla-report-metrics h2{margin:0;color:#254642;font-size:14px}
+.salla-report-metrics strong{color:#0B3F3B;font-size:clamp(25px,2.5vw,35px);font-variant-numeric:tabular-nums}
+.salla-report-metrics small{color:#8090a4;line-height:1.6}
+.salla-report-performance{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(270px,.75fr);gap:16px;margin-bottom:18px}
+.salla-report-performance>.card{padding:20px}
+.salla-report-metric-tabs{padding:4px;display:flex;flex-wrap:wrap;gap:4px;border:1px solid #E8F1F0;border-radius:12px;background:#F3F8F7}
+.salla-report-metric-tabs button{padding:8px 11px;color:#64778c;border:0;border-radius:9px;background:transparent;cursor:pointer;font-size:12px;font-weight:800}
+.salla-report-metric-tabs button.active{color:#fff;background:#0B3F3B}
+.salla-report-chart{height:270px;padding:25px 8px 0;display:flex;align-items:end;gap:8px;overflow-x:auto;border-bottom:1px solid #E8F1F0}
+.salla-report-chart-column{height:100%;min-width:42px;flex:1;display:grid;grid-template-rows:22px minmax(0,1fr) 36px;align-items:end;justify-items:center;gap:5px}
+.salla-report-chart-value{max-width:70px;overflow:hidden;color:#0B3F3B;font-size:10px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}
+.salla-report-chart-column i{width:min(28px,70%);height:var(--bar-height);min-height:3px;border-radius:7px 7px 0 0;background:#0B3F3B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.salla-report-chart-column small{color:#78899e;font-size:9px;white-space:nowrap;writing-mode:horizontal-tb}
+.salla-report-summary h2{margin:0 0 12px;color:#062B28;font-size:18px}
+.salla-report-summary dl{margin:0;display:grid}
+.salla-report-summary dl div{padding:14px 0;display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #E8F1F0}
+.salla-report-summary dt{color:#71829b;font-size:12px}
+.salla-report-summary dd{margin:0;color:#0B3F3B;font-weight:850;text-align:end}
+.salla-report-summary>p{margin:18px 0 0;padding:12px;color:#64778c;border-radius:10px;background:#F3F8F7;font-size:11px;line-height:1.8}
+.salla-report-table-card{padding:20px}
+.salla-report-filters{margin:14px 0 18px;display:grid;grid-template-columns:minmax(230px,1.5fr) repeat(4,minmax(120px,.7fr)) auto auto;align-items:center;gap:9px}
+.salla-report-search{position:relative;display:block}
+.salla-report-search>.line-icon{width:18px;height:18px;position:absolute;inset:50% 12px auto auto;z-index:1;transform:translateY(-50%);color:#789}
+.salla-report-search .input{padding-inline-start:14px;padding-inline-end:40px}
+.salla-report-table td>strong{display:block;color:#183c38}
+.salla-report-table td>small{display:block;margin-top:3px;color:#8190a4}
+.salla-report-channel{display:inline-flex;align-items:center;gap:6px;color:#0B3F3B;font-weight:750;white-space:nowrap}
+.salla-report-channel .line-icon{width:18px;height:18px}
+.salla-report-connected-empty{min-height:330px;padding:40px;display:grid;place-items:center;align-content:center;gap:10px;text-align:center}
+.salla-report-connected-empty>.line-icon{width:55px;height:55px;padding:13px;color:#0B3F3B;border-radius:50%;background:#F3F8F7}
+.salla-report-connected-empty h2,.salla-report-connected-empty p{margin:0}
+.salla-report-connected-empty p{color:#71829b}
+.salla-report-skeleton{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.salla-report-skeleton i{height:150px;border-radius:16px;background:linear-gradient(90deg,#F3F8F7,#fff,#F3F8F7);background-size:220% 100%;animation:salla-report-pulse 1.3s linear infinite}
+@keyframes salla-report-pulse{to{background-position:-220% 0}}
+.salla-cart-products{display:grid;gap:9px}
+.salla-cart-products article{padding:10px;display:flex;align-items:center;gap:11px;border:1px solid #E8F1F0;border-radius:11px}
+.salla-cart-products img,.salla-cart-products article>span{width:48px;height:48px;display:grid;place-items:center;object-fit:cover;border-radius:9px;background:#F3F8F7}
+.salla-cart-products div{display:grid;gap:4px}.salla-cart-products small{color:#71829b}
+.salla-cart-timeline article{display:flex;gap:12px}.salla-cart-timeline article>span{width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px;color:#0B3F3B;border-radius:50%;background:#F3F8F7}
+:root[data-theme="dark"] .salla-workspace-nav,:root[data-theme="dark"] .salla-report-performance>.card,:root[data-theme="dark"] .salla-report-table-card,:root[data-theme="dark"] .salla-report-metrics article,:root[data-theme="dark"] .salla-report-connected-empty{border-color:#244c48;background:#0c2926}
+:root[data-theme="dark"] .salla-report-metric-tabs,:root[data-theme="dark"] .salla-report-summary>p,:root[data-theme="dark"] .salla-report-custom-dates{border-color:#244c48;background:#13332f}
+:root[data-theme="dark"] .salla-report-metrics h2,:root[data-theme="dark"] .salla-report-summary h2,:root[data-theme="dark"] .salla-report-table td>strong{color:#e7f3f1}
+@media(max-width:1100px){.salla-report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.salla-report-performance{grid-template-columns:1fr}.salla-report-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.salla-report-search{grid-column:span 2}}
+@media(max-width:720px){.salla-workspace-nav{grid-template-columns:1fr 1fr;padding:6px}.salla-workspace-nav button{min-height:62px;padding:9px;justify-content:center}.salla-workspace-nav button span{display:none}.salla-linked-primary-actions{grid-template-columns:1fr!important;width:100%}.salla-report-head-actions{width:100%;justify-content:stretch}.salla-report-head-actions>*{flex:1}.salla-report-metrics,.salla-report-skeleton{grid-template-columns:1fr}.salla-report-metrics article{min-height:125px}.salla-report-filters{grid-template-columns:1fr 1fr}.salla-report-search{grid-column:1/-1}.salla-report-filters .btn{width:100%}.salla-report-custom-dates{align-items:stretch;flex-direction:column}.salla-report-custom-dates label,.salla-report-custom-dates .btn{width:100%}.salla-report-metric-tabs{width:100%}.salla-report-metric-tabs button{flex:1}.salla-report-chart{height:235px}.salla-report-table-card{padding:14px}}
+
 /* ===== Final reference-accurate marketing polish (desktop + iPad) ===== */
 @media (min-width:641px){
   .public-site .public-nav .brand-logo-image{

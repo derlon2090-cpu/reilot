@@ -766,6 +766,16 @@ state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
 state.sallaAutomationTemplates = null;
 state.sallaAutomationTemplate = null;
+state.sallaReports = null;
+state.sallaReportPeriod = "30";
+state.sallaReportDateFrom = "";
+state.sallaReportDateTo = "";
+state.sallaReportSearch = "";
+state.sallaReportStatus = "all";
+state.sallaReportChannel = "all";
+state.sallaReportMinValue = "";
+state.sallaReportMaxValue = "";
+state.sallaReportMetric = "abandoned";
 state.renewalOptionMode = "automatic";
 state.sallaRuleDrafts = null;
 state.sallaSettingsOpen = false;
@@ -1235,6 +1245,17 @@ function syncRouteData(force = false) {
   }
   if (state.route === "/dashboard/apps/salla/templates" && (force || state.sallaAutomationTemplates === null)) {
     queue("sallaAutomationTemplates", "/api/apps/salla/templates", "sallaAutomationTemplates");
+  }
+  if (state.route === "/dashboard/apps/salla/reports" && (force || state.sallaReports === null)) {
+    const params = new URLSearchParams({ period: state.sallaReportPeriod || "30" });
+    if (state.sallaReportDateFrom) params.set("dateFrom", state.sallaReportDateFrom);
+    if (state.sallaReportDateTo) params.set("dateTo", state.sallaReportDateTo);
+    if (state.sallaReportSearch.trim()) params.set("search", state.sallaReportSearch.trim());
+    if (state.sallaReportStatus !== "all") params.set("status", state.sallaReportStatus);
+    if (state.sallaReportChannel !== "all") params.set("channel", state.sallaReportChannel);
+    if (state.sallaReportMinValue !== "") params.set("minValue", state.sallaReportMinValue);
+    if (state.sallaReportMaxValue !== "") params.set("maxValue", state.sallaReportMaxValue);
+    queue("sallaReports", `/api/apps/salla/reports?${params}`, "sallaReports");
   }
   const sallaTemplateKey = state.route.match(/^\/dashboard\/apps\/salla\/templates\/([^/]+)$/)?.[1];
   if (sallaTemplateKey && (force || state.sallaAutomationTemplate?.item?.templateKey !== sallaTemplateKey)) {
@@ -3391,6 +3412,10 @@ function floatingActionMenuItems(menuKey) {
     const item = (state.contactsOverview?.items || []).find((row) => String(row.id) === id);
     return { id, actions: item ? contactActions(item) : [] };
   }
+  if (kind === "salla-cart") {
+    const item = (state.sallaReports?.items || []).find((row) => String(row.id) === id);
+    return { id, actions: item ? sallaReportCartActions(item) : [] };
+  }
   if (menuKey === "channel:whatsapp") {
     const item = state.channelsOverview?.channels?.whatsapp?.items?.find((row) => row.status === "connected") || state.channelsOverview?.channels?.whatsapp?.items?.[0];
     return { id: item?.id || "", actions: [["فتح صفحة القناة", "open-whatsapp-channel", "eye"], ["مزامنة الحالة", "device-sync-all", "reports"], ["القوالب المعتمدة", "open-approved-templates", "template"], ["إنشاء حملة", "campaign-create-whatsapp", "campaigns"], ["فصل واتساب", "disconnect-channel-confirm", "close", true]] };
@@ -3606,12 +3631,110 @@ function sallaTemplateActivationTitle(item) {
   return labels[item.templateKey] || `تفعيل رسالة ${item.name}`;
 }
 
+function sallaWorkspaceNav() {
+  const templatesActive = state.route.startsWith("/dashboard/apps/salla/templates");
+  const reportsActive = state.route === "/dashboard/apps/salla/reports";
+  return `<nav class="salla-workspace-nav" aria-label="أقسام تكامل سلة">
+    <button class="${templatesActive ? "active" : ""}" data-link="/dashboard/apps/salla/templates">${dashboardIcon("template")}<span><strong>معاينة وتحرير</strong><small>قوالب الرسائل والأتمتة</small></span></button>
+    <button class="${reportsActive ? "active" : ""}" data-link="/dashboard/apps/salla/reports">${dashboardIcon("reports")}<span><strong>تقارير سلة</strong><small>السلات المتروكة والاستعادة</small></span></button>
+  </nav>`;
+}
+
+function sallaReportStateLabel(value) {
+  return ({ abandoned: "متروكة", recovering: "قيد الاستعادة", recovered: "تمت الاستعادة", purchased_later: "تم الشراء لاحقًا", expired: "انتهت", excluded: "مستبعدة" })[value] || value || "—";
+}
+
+function sallaReportStateBadge(value) {
+  const tone = value === "recovered" ? "success" : value === "recovering" ? "warning" : value === "excluded" || value === "expired" ? "neutral" : value === "purchased_later" ? "info" : "warning";
+  return `<span class="status ${tone}">${escapeHtml(sallaReportStateLabel(value))}</span>`;
+}
+
+function sallaReportChannel(value) {
+  if (value === "email") return `<span class="salla-report-channel">${dashboardIcon("email")} البريد</span>`;
+  if (value === "whatsapp") return `<span class="salla-report-channel">${dashboardIcon("whatsapp")} واتساب</span>`;
+  return "—";
+}
+
+function sallaReportMoney(value, currency = "SAR") {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+  return `${Number(value).toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ${currency === "SAR" ? "ر.س" : escapeHtml(currency)}`;
+}
+
+function sallaReportQueryString({ exportFormat = "" } = {}) {
+  const params = new URLSearchParams({ period: state.sallaReportPeriod || "30" });
+  if (state.sallaReportDateFrom) params.set("dateFrom", state.sallaReportDateFrom);
+  if (state.sallaReportDateTo) params.set("dateTo", state.sallaReportDateTo);
+  if (state.sallaReportSearch.trim()) params.set("search", state.sallaReportSearch.trim());
+  if (state.sallaReportStatus !== "all") params.set("status", state.sallaReportStatus);
+  if (state.sallaReportChannel !== "all") params.set("channel", state.sallaReportChannel);
+  if (state.sallaReportMinValue !== "") params.set("minValue", state.sallaReportMinValue);
+  if (state.sallaReportMaxValue !== "") params.set("maxValue", state.sallaReportMaxValue);
+  if (exportFormat) params.set("format", exportFormat);
+  return params.toString();
+}
+
+function sallaReportChart(items) {
+  const metric = state.sallaReportMetric || "abandoned";
+  if (!items.length) return emptyState("لا توجد بيانات كافية لهذه الفترة", "سيظهر الرسم بعد وصول أحداث سلات حقيقية من المتجر.");
+  const values = items.map((item) => Number(item[metric] ?? 0));
+  const max = Math.max(...values, 1);
+  return `<div class="salla-report-chart" role="img" aria-label="أداء استعادة السلات">
+    ${items.map((item, index) => `<div class="salla-report-chart-column"><span class="salla-report-chart-value">${metric === "recoveredValue" ? sallaReportMoney(item[metric]) : Number(item[metric] || 0).toLocaleString("ar-SA")}</span><i style="--bar-height:${Math.max(values[index] ? 8 : 2, (values[index] / max) * 100)}%"></i><small>${new Date(`${item.date}T00:00:00`).toLocaleDateString("ar-SA", { day: "numeric", month: "short" })}</small></div>`).join("")}
+  </div>`;
+}
+
+function sallaReportCartActions(item) {
+  const actions = [["عرض التفاصيل", "salla-cart-details", "eye"], ["عرض سجل الاستعادة", "salla-cart-timeline", "reports"]];
+  if (item.customerId) actions.push(["عرض العميل", "salla-cart-customer", "customers"]);
+  if (!["recovered", "purchased_later", "excluded", "expired"].includes(item.state)) actions.push(["استبعاد من الاستعادة", "salla-cart-exclude", "close", true]);
+  return actions;
+}
+
+function sallaCartDetailsMarkup(item) {
+  const customer = item.customerName || item.customerEmail || item.customerPhone;
+  const products = Array.isArray(item.items) && item.items.length
+    ? `<div class="salla-cart-products">${item.items.map((product) => `<article>${product.image ? `<img src="${escapeHtml(product.image)}" alt="">` : `<span>${dashboardIcon("storeBag")}</span>`}<div><strong>${escapeHtml(product.name || "منتج")}</strong><small>${product.quantity !== null ? `الكمية: ${Number(product.quantity).toLocaleString("ar-SA")}` : ""}${product.price !== null ? ` · ${sallaReportMoney(product.price, item.currency)}` : ""}</small></div></article>`).join("")}</div>`
+    : `<p class="muted">لا توجد تفاصيل منتجات محفوظة لهذه السلة.</p>`;
+  return `<div class="suite-detail-drawer salla-cart-detail-drawer"><div class="suite-detail-title"><span>${dashboardIcon("storeBag")}</span><div><h3>${customer ? escapeHtml(customer) : "عميل غير معروف"}</h3><p>معرّف السلة: <span dir="ltr">${escapeHtml(item.externalCartId)}</span></p></div>${sallaReportStateBadge(item.state)}</div><dl><div><dt>قيمة السلة</dt><dd>${sallaReportMoney(item.cartValue, item.currency)}</dd></div><div><dt>وقت الترك</dt><dd>${item.abandonedAt ? new Date(item.abandonedAt).toLocaleString("ar-SA") : "—"}</dd></div><div><dt>القناة</dt><dd>${sallaReportChannel(item.channel)}</dd></div><div><dt>الطلب المرتبط</dt><dd>${escapeHtml(item.orderNumber || item.convertedOrderId || "—")}</dd></div></dl><section><h3>محتوى السلة</h3>${products}</section></div>`;
+}
+
+function sallaCartTimelineMarkup(item) {
+  const events = [{ title: "تم تسجيل السلة المتروكة", at: item.abandonedAt, icon: "storeBag" }, ...(item.deliveries || []).map((delivery) => ({ title: `${delivery.channel === "email" ? "البريد" : "واتساب"} — ${sallaReportStateLabel(delivery.status)}`, at: delivery.at, icon: delivery.channel === "email" ? "email" : "whatsapp", detail: delivery.failureMessage || delivery.failureCode || "" }))];
+  if (item.convertedOrderId) events.push({ title: item.state === "recovered" ? "تمت مطابقة طلب مستعاد" : "تم الشراء لاحقًا دون إسناد مؤكد", at: item.lastUpdatedAt, icon: "success" });
+  return `<div class="timeline salla-cart-timeline">${events.filter((event) => event.at).map((event) => `<article><span>${dashboardIcon(event.icon)}</span><div><strong>${escapeHtml(event.title)}</strong>${event.detail ? `<p>${escapeHtml(event.detail)}</p>` : ""}<small>${new Date(event.at).toLocaleString("ar-SA")}</small></div></article>`).join("") || `<p class="muted">لا يوجد نشاط مسجل حتى الآن.</p>`}</div>`;
+}
+
+function sallaReportsPage() {
+  const payload = state.sallaReports;
+  const shell = (content) => dashboardShell(`${sallaWorkspaceNav()}${content}`);
+  if (!payload) return shell(`${pageTitle("تقارير سلة")}<section class="salla-report-skeleton" aria-label="جاري تحميل التقرير">${Array.from({ length: 4 }, () => `<i></i>`).join("")}</section>`);
+  if (payload.error) return shell(`${pageTitle("تقارير سلة")} ${emptyState("تعذر تحميل تقارير سلة", payload.error, "إعادة المحاولة", "reload-salla-reports")}`);
+  if (!payload.available) return shell(`${pageTitle("تقارير سلة")} ${emptyState("اربط متجر سلة لعرض التقارير", "تظهر التقارير بعد نجاح الربط ووصول بيانات متجرك الفعلية.", "ربط سلة", "connect-salla")}`);
+  const summary = payload.summary || {};
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  const hasData = items.length > 0;
+  const metricCards = [
+    ["السلات المتروكة", hasData ? Number(summary.abandoned || 0).toLocaleString("ar-SA") : "—", "سلة تنطبق عليها شروط الترك", "storeBag"],
+    ["السلات المستعادة", hasData ? Number(summary.recovered || 0).toLocaleString("ar-SA") : "—", "طلب مكتمل مطابق لعملية الاستعادة", "subscriptions"],
+    ["قيمة المبيعات المستعادة", hasData ? sallaReportMoney(summary.recoveredValue) : "—", "قيمة مؤكدة للطلبات المستعادة", "billing"],
+    ["معدل الاستعادة", hasData && summary.recoveryRate !== null ? `${Number(summary.recoveryRate).toLocaleString("ar-SA", { maximumFractionDigits: 1 })}%` : "—", "السلات المستعادة ÷ السلات المتروكة", "reports"]
+  ];
+  const rows = items.map((item) => `<tr><td><strong>${escapeHtml(item.customerName || "عميل غير معروف")}</strong>${item.customerEmail ? `<small dir="ltr">${escapeHtml(item.customerEmail)}</small>` : item.customerPhone ? `<small dir="ltr">${escapeHtml(item.customerPhone)}</small>` : ""}</td><td>${sallaReportMoney(item.cartValue, item.currency)}</td><td>${item.abandonedAt ? new Date(item.abandonedAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "—"}</td><td>${sallaReportStateBadge(item.state)}</td><td>${sallaReportChannel(item.channel)}</td><td>${item.lastAttemptAt ? new Date(item.lastAttemptAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "—"}</td><td>${escapeHtml(item.orderNumber || item.convertedOrderId || "—")}</td><td class="suite-menu-cell"><button class="suite-more" data-action="action-menu" data-menu="salla-cart:${escapeHtml(item.id)}" aria-label="إجراءات السلة">•••</button>${actionMenuMarkup(item.id, sallaReportCartActions(item), "salla-cart")}</td></tr>`).join("");
+  const customDates = state.sallaReportPeriod === "custom" ? `<label><span>من</span><input class="input" type="date" data-action="salla-report-date-from" value="${escapeHtml(state.sallaReportDateFrom)}"></label><label><span>إلى</span><input class="input" type="date" data-action="salla-report-date-to" value="${escapeHtml(state.sallaReportDateTo)}"></label>` : "";
+  return shell(`${pageTitle("تقارير سلة", `<div class="salla-report-head-actions"><span class="status success">متصل · ${escapeHtml(payload.store?.storeName || "متجر سلة")}</span><select class="select" data-action="salla-report-period"><option value="7" ${state.sallaReportPeriod === "7" ? "selected" : ""}>آخر 7 أيام</option><option value="30" ${state.sallaReportPeriod === "30" ? "selected" : ""}>آخر 30 يومًا</option><option value="90" ${state.sallaReportPeriod === "90" ? "selected" : ""}>آخر 90 يومًا</option><option value="custom" ${state.sallaReportPeriod === "custom" ? "selected" : ""}>فترة مخصصة</option></select><button class="btn btn-primary" data-action="salla-report-export">${dashboardIcon("download")} تصدير التقرير</button></div>`) }
+    <p class="page-kicker">تحليل أداء المتجر وعمليات استعادة السلات بالاعتماد على بيانات متجرك الفعلية.</p>
+    ${customDates ? `<section class="salla-report-custom-dates">${customDates}<button class="btn btn-secondary" data-action="apply-salla-report-filters">تطبيق الفترة</button></section>` : ""}
+    <section class="salla-report-metrics">${metricCards.map(([title, value, caption, icon]) => `<article class="card"><span>${dashboardIcon(icon)}</span><div><h2>${title}</h2><strong>${value}</strong><small>${caption}</small></div></article>`).join("")}</section>
+    ${!hasData ? `<section class="card salla-report-connected-empty">${dashboardIcon("success")}<h2>تم ربط المتجر بنجاح</h2><p>لا توجد بيانات تقارير بعد. ستظهر البيانات هنا بعد وصول أحداث سلات حقيقية من سلة.</p></section>` : `<section class="salla-report-performance"><article class="card"><div class="section-head"><div><h2>أداء استعادة السلات</h2><p>بيانات زمنية حقيقية للفترة المحددة.</p></div><div class="salla-report-metric-tabs">${[["abandoned","السلات المتروكة"],["recovered","السلات المستعادة"],["recoveredValue","القيمة المستعادة"]].map(([key, label]) => `<button class="${state.sallaReportMetric === key ? "active" : ""}" data-action="salla-report-metric" data-metric="${key}">${label}</button>`).join("")}</div></div>${sallaReportChart(payload.timeline || [])}</article><aside class="card salla-report-summary"><h2>ملخص الاستعادة</h2><dl><div><dt>عدد عمليات الاستعادة</dt><dd>${Number(summary.recovered || 0).toLocaleString("ar-SA")}</dd></div><div><dt>قيمة المبيعات المستعادة</dt><dd>${sallaReportMoney(summary.recoveredValue)}</dd></div><div><dt>متوسط الطلب المستعاد</dt><dd>${sallaReportMoney(summary.averageRecoveredValue)}</dd></div><div><dt>أفضل قناة استعادة</dt><dd>${summary.bestChannel ? (summary.bestChannel === "email" ? "البريد الإلكتروني" : "واتساب") : "—"}</dd></div></dl><p>لا يُنسب الاسترجاع إلى Renvix إلا عند مطابقة الطلب مع السلة ومحاولة إرسال ناجحة مرتبطة بها.</p></aside></section>
+    <section class="card salla-report-table-card"><div class="section-head"><div><h2>السلات المتروكة</h2><p>السلات المسجلة فعليًا داخل فترة التقرير.</p></div></div><div class="salla-report-filters"><label class="salla-report-search">${dashboardIcon("reports")}<input class="input" data-action="salla-report-search" value="${escapeHtml(state.sallaReportSearch)}" placeholder="بحث بالعميل أو رقم الطلب..."></label><select class="select" data-action="salla-report-status"><option value="all">كل الحالات</option>${[["abandoned","متروكة"],["recovering","قيد الاستعادة"],["recovered","تمت الاستعادة"],["purchased_later","تم الشراء لاحقًا"],["expired","انتهت"],["excluded","مستبعدة"]].map(([value,label]) => `<option value="${value}" ${state.sallaReportStatus === value ? "selected" : ""}>${label}</option>`).join("")}</select><select class="select" data-action="salla-report-channel"><option value="all">كل القنوات</option><option value="whatsapp" ${state.sallaReportChannel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${state.sallaReportChannel === "email" ? "selected" : ""}>البريد</option></select><input class="input" type="number" min="0" data-action="salla-report-min" value="${escapeHtml(state.sallaReportMinValue)}" placeholder="القيمة من"><input class="input" type="number" min="0" data-action="salla-report-max" value="${escapeHtml(state.sallaReportMaxValue)}" placeholder="القيمة إلى"><button class="btn btn-secondary" data-action="apply-salla-report-filters">تطبيق</button><button class="btn btn-ghost" data-action="clear-salla-report-filters">مسح الفلاتر</button></div>${rows ? `<div class="suite-table-scroll"><table class="suite-table salla-report-table"><thead><tr><th>العميل</th><th>قيمة السلة</th><th>تاريخ الترك</th><th>حالة الاستعادة</th><th>القناة</th><th>آخر محاولة</th><th>الطلب المستعاد</th><th>الإجراءات</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("لا توجد بيانات كافية لهذه الفترة", "جرّب تغيير الفترة أو مسح الفلاتر.")}</section>`}`);
+}
+
 function sallaAutomationTemplatesPage() {
   const payload = state.sallaAutomationTemplates;
-  if (!payload) return dashboardShell(`${pageTitle("قوالب سلة")}<div class="loading-state">جاري تحميل القوالب المرتبطة بمتجر سلة...</div>`);
-  if (payload.error) return dashboardShell(`${pageTitle("قوالب سلة")} ${emptyState("تعذر تحميل قوالب سلة", payload.error, "إعادة المحاولة", "reload-salla-templates")}`);
+  if (!payload) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("قوالب سلة")}<div class="loading-state">جاري تحميل القوالب المرتبطة بمتجر سلة...</div>`);
+  if (payload.error) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("قوالب سلة")} ${emptyState("تعذر تحميل قوالب سلة", payload.error, "إعادة المحاولة", "reload-salla-templates")}`);
   if (!payload.available) {
-    return dashboardShell(`${pageTitle("قوالب سلة")}
+    return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("قوالب سلة")}
       <section class="card salla-templates-locked">
         <span class="salla-template-lock-logo"><img src="/assets/salla-logo.svg" alt="سلة"></span>
         <h2>قوالب سلة غير متاحة</h2>
@@ -3630,7 +3753,7 @@ function sallaAutomationTemplatesPage() {
     <span class="status ${item.isEnabled ? "success" : "neutral"}">${item.isEnabled ? "نشط" : "غير مفعل"} <i></i></span>
     <footer><small>آخر تحديث: ${item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—"}</small><div><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("template")} تحرير</button></div></footer>
   </article>`).join("");
-  return dashboardShell(`<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div><div class="salla-templates-page-head">${pageTitle("قوالب سلة", `<button class="btn btn-primary" data-link="/dashboard/apps/salla/templates/${escapeHtml(items[0]?.templateKey || "processing")}">${dashboardIcon("template")} تخصيص قالب</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/salla_invoice_ready">${dashboardIcon("billing")} رابط الفاتورة</button><button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة الحالات</button>`)}</div>
+  return dashboardShell(`${sallaWorkspaceNav()}<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div><div class="salla-templates-page-head">${pageTitle("قوالب سلة", `<button class="btn btn-primary" data-link="/dashboard/apps/salla/templates/${escapeHtml(items[0]?.templateKey || "processing")}">${dashboardIcon("template")} تخصيص قالب</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/salla_invoice_ready">${dashboardIcon("billing")} رابط الفاتورة</button><button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة الحالات</button>`)}</div>
     <p class="page-kicker">إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة. فعّل القالب وخصص محتواه والقناة بسهولة.</p>
     <section class="inline-notice info salla-templates-notice">${dashboardIcon("info")}<span>هذه قوالب خاصة بمتجرك فقط. يتم إرسال الرسائل عبر القناة المختارة لكل قالب بعد وصول حدث موثق من سلة.</span></section>
     <section class="salla-templates-grid">${cards}</section>`);
@@ -3750,8 +3873,8 @@ function refreshSallaTemplatePreview(form, {
 
 function sallaAutomationTemplateEditorPage() {
   const payload = state.sallaAutomationTemplate;
-  if (!payload) return dashboardShell(`${pageTitle("إعداد قالب سلة")}<div class="loading-state">جاري تحميل القالب...</div>`);
-  if (payload.error) return dashboardShell(`${pageTitle("إعداد قالب سلة")} ${emptyState("تعذر تحميل القالب", payload.error, "العودة للقوالب", "back-salla-templates")}`);
+  if (!payload) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("إعداد قالب سلة")}<div class="loading-state">جاري تحميل القالب...</div>`);
+  if (payload.error) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("إعداد قالب سلة")} ${emptyState("تعذر تحميل القالب", payload.error, "العودة للقوالب", "back-salla-templates")}`);
   if (!payload.available || !payload.item) return sallaAutomationTemplatesPage();
   const item = payload.item;
   const storeProfile = payload.storeProfile || {};
@@ -3772,7 +3895,7 @@ function sallaAutomationTemplateEditorPage() {
   const invoice = item.templateKey === "salla_invoice_ready" ? `<section class="salla-special-settings"><div class="section-head"><div><h2>رابط الفاتورة الآمن</h2><p>محتوى الرسالة والمعاينة يعرضان رابطًا فقط؛ وتُقرأ بيانات الفاتورة الحقيقية من سلة داخل الصفحة الآمنة.</p></div>${dashboardIcon("billing")}</div><input type="hidden" name="invoiceTrigger" value="invoice.created"></section>` : "";
   const digital = item.templateKey === "digital_product_delivery" ? `<section class="salla-special-settings salla-digital-settings"><div class="section-head"><div><h2>صفحة تسليم المنتج الرقمي</h2><p>يُنشأ رابط سري مستقل لكل طلب من الحقل المعتمد في سلة، ولا تُرسل الأسرار داخل الرسالة.</p></div>${dashboardIcon("security")}</div><label class="setting-line"><span><strong>إرفاق رابط التسليم الآمن</strong><small>عند إيقافه تظهر معاينة القناة فقط.</small></span><input type="checkbox" name="secureLinkEnabled" ${settings.secureLinkEnabled !== false ? "checked" : ""}></label><div class="salla-link-options" data-salla-link-options ${settings.secureLinkEnabled === false ? "hidden" : ""}><div class="salla-link-options-title"><strong>خيارات الرابط</strong><small>خصص تصميم صفحة التسليم ومحتواها لهذا القالب فقط.</small></div><div class="form-grid two"><label class="field"><span>عنوان صفحة الرابط</span><input class="input" name="linkPageTitle" maxlength="160" value="${escapeHtml(settings.linkPageTitle || "منتجاتك الرقمية جاهزة")}"></label><label class="field"><span>لون الصفحة</span><input class="input salla-theme-color" type="color" name="themeColor" value="${escapeHtml(settings.themeColor || settings.branding?.themeColor || "#0B3F3B")}"></label></div><label class="field"><span>محتوى صفحة الرابط</span><textarea class="textarea" name="linkPageContent" maxlength="5000">${escapeHtml(settings.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.")}</textarea></label><div class="salla-digital-branding"><div><strong>شعار صفحة الرابط</strong><small>يُستخدم شعار المتجر المحفوظ نفسه داخل البريد وصفحة التسليم الآمنة.</small></div><button class="btn btn-secondary" type="button" data-action="choose-salla-email-logo">${dashboardIcon("upload")} ${storeProfile.logoUrl ? "تغيير الشعار" : "إضافة شعار المتجر"}</button></div><label class="field"><span>تصميم صفحة التسليم</span><select class="select" name="deliveryPageDesign"><option value="classic" ${settings.deliveryPageDesign === "classic" || !settings.deliveryPageDesign ? "selected" : ""}>كلاسيكي</option><option value="cards" ${settings.deliveryPageDesign === "cards" ? "selected" : ""}>بطاقات واضحة</option><option value="compact" ${settings.deliveryPageDesign === "compact" ? "selected" : ""}>مدمج وعملي</option></select></label><label class="field salla-css-code-editor"><span>كود تصميم صفحة الرابط (CSS آمن) — اختياري</span><textarea class="textarea" name="deliveryPageCustomCss" dir="ltr" spellcheck="false" maxlength="4000" placeholder="--salla-page-background: #f4fbf9;&#10;--salla-card-radius: 24px;&#10;--salla-button-radius: 12px;">${escapeHtml(settings.deliveryPageCustomCss || "")}</textarea><small>اختياري؛ اتركه فارغًا لاستخدام التصميم المحدد أعلاه. يسمح بمتغيرات التصميم المعتمدة فقط ويمنع الروابط والأكواد التنفيذية تلقائيًا.</small></label><label class="setting-line"><span><strong>عرض مدة المنتج</strong><small>تظهر فقط عند وجود مدة صريحة وموثقة في بيانات المنتج أو حقل التسليم.</small></span><input type="checkbox" name="showDuration" ${settings.showDuration === true ? "checked" : ""}></label></div></section>` : "";
   const updatedAtLabel = item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—";
-  return dashboardShell(`<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div>${pageTitle(item.name)}
+  return dashboardShell(`${sallaWorkspaceNav()}<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div>${pageTitle(item.name)}
     <p class="page-kicker">${escapeHtml(item.description)}</p>
     <p class="salla-template-updated-at">آخر تحديث: <strong>${escapeHtml(updatedAtLabel)}</strong></p>
     <section class="inline-notice info salla-template-editor-notice">${dashboardIcon("info")}<span>سيؤثر الحفظ على الرسائل المستقبلية فقط. لا يتم إرسال أي رسالة من المعاينة.</span></section>
@@ -3808,7 +3931,7 @@ function linkedAppsSection(connection, customIntegrations = []) {
     entries.push(`<article class="linked-app-card">
       <span class="integration-logo integration-logo--salla"><img src="/assets/salla-logo.svg" alt="شعار سلة"></span>
       <div class="linked-app-copy"><span class="status ${sallaConnected ? "success" : "warning"}">${sallaStatusLabel}</span><h3>سلة</h3><p>${escapeHtml(connection.storeName || "متجر سلة")}</p><small>آخر مزامنة: ${connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString("ar-SA") : "لم تتم المزامنة بعد"}</small></div>
-      <div class="linked-app-actions"><button class="btn btn-secondary" data-action="preview-salla-connection">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-action="open-salla-settings">${dashboardIcon("settings")} تحرير</button></div>
+      <div class="linked-app-actions salla-linked-primary-actions"><button class="btn btn-primary" data-link="/dashboard/apps/salla/templates">${dashboardIcon("template")} معاينة وتحرير</button><button class="btn btn-primary" data-link="/dashboard/apps/salla/reports">${dashboardIcon("reports")} تقارير سلة</button></div>
     </article>`);
   }
   customIntegrations.slice(0, 1).forEach((integration) => {
@@ -7697,6 +7820,76 @@ async function handleAction(target) {
     return render();
   }
   if (action === "back-salla-templates") return navigate("/dashboard/apps/salla/templates");
+  if (action === "reload-salla-reports") {
+    state.sallaReports = null;
+    syncRouteData(true);
+    render();
+    return;
+  }
+  if (action === "salla-report-metric") {
+    state.sallaReportMetric = ["abandoned", "recovered", "recoveredValue"].includes(target.dataset.metric) ? target.dataset.metric : "abandoned";
+    render();
+    return;
+  }
+  if (action === "apply-salla-report-filters") {
+    state.sallaReports = null;
+    syncRouteData(true);
+    render();
+    return;
+  }
+  if (action === "clear-salla-report-filters") {
+    state.sallaReportSearch = "";
+    state.sallaReportStatus = "all";
+    state.sallaReportChannel = "all";
+    state.sallaReportMinValue = "";
+    state.sallaReportMaxValue = "";
+    state.sallaReports = null;
+    syncRouteData(true);
+    render();
+    return;
+  }
+  if (action === "salla-report-export") {
+    target.disabled = true;
+    const original = target.innerHTML;
+    target.textContent = "جاري التصدير...";
+    try {
+      const response = await fetch(`/api/apps/salla/reports?${sallaReportQueryString({ exportFormat: "csv" })}`, { credentials: "same-origin" });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || "تعذر تصدير التقرير.");
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `salla-carts-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      toast("تم تصدير تقرير سلة بنجاح ✓");
+    } catch (error) { toast(error.message || "تعذر تصدير التقرير.", "danger"); }
+    finally { target.disabled = false; target.innerHTML = original; }
+    return;
+  }
+  if (["salla-cart-details", "salla-cart-timeline", "salla-cart-customer", "salla-cart-exclude"].includes(action)) {
+    const item = (state.sallaReports?.items || []).find((row) => String(row.id) === String(target.dataset.id));
+    if (!item) return toast("تعذر العثور على السلة.", "warning");
+    if (action === "salla-cart-details") return openDrawer("تفاصيل السلة", sallaCartDetailsMarkup(item));
+    if (action === "salla-cart-timeline") return openDrawer("سجل الاستعادة", sallaCartTimelineMarkup(item));
+    if (action === "salla-cart-customer") {
+      state.search = item.customerName || item.customerEmail || item.customerPhone || "";
+      state.dbCustomers = null;
+      return navigate("/dashboard/customers");
+    }
+    return openModal("استبعاد السلة من الاستعادة؟", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<div><strong>${escapeHtml(item.customerName || "عميل غير معروف")}</strong><p>ستُلغى الرسائل المؤجلة لهذه السلة، ولن تُحتسب ضمن عمليات الاستعادة المستقبلية.</p></div></div>`, `<button class="btn btn-secondary" data-action="close-modal">إلغاء</button><button class="btn btn-danger" data-action="salla-cart-exclude-confirm" data-id="${escapeHtml(item.id)}">استبعاد من الاستعادة</button>`);
+  }
+  if (action === "salla-cart-exclude-confirm") {
+    target.disabled = true;
+    target.textContent = "جاري الاستبعاد...";
+    try {
+      await fetchJson(`/api/apps/salla/reports/carts/${encodeURIComponent(target.dataset.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "exclude" }) });
+      closePortal();
+      state.sallaReports = null;
+      await syncRouteData(true);
+      toast("تم استبعاد السلة من الاستعادة ✓");
+    } catch (error) { target.disabled = false; target.textContent = "استبعاد من الاستعادة"; toast(error.message || "تعذر استبعاد السلة.", "danger"); }
+    return;
+  }
   if (action === "sync-salla-statuses") {
     target.disabled = true;
     try {
@@ -10484,6 +10677,8 @@ function render() {
         ? sallaProductRenewalPage
         : state.route === "/dashboard/apps/salla/templates"
           ? sallaAutomationTemplatesPage
+          : state.route === "/dashboard/apps/salla/reports"
+            ? sallaReportsPage
           : /^\/dashboard\/apps\/salla\/templates\/[^/]+$/.test(state.route)
             ? sallaAutomationTemplateEditorPage
         : pages[state.route] || dashboardHome;
@@ -10985,6 +11180,18 @@ document.addEventListener("input", (event) => {
     refreshDashboardQuickSearch(target);
     return;
   }
+  if (target.dataset.action === "salla-report-search") {
+    state.sallaReportSearch = target.value;
+    return;
+  }
+  if (target.dataset.action === "salla-report-min") {
+    state.sallaReportMinValue = target.value;
+    return;
+  }
+  if (target.dataset.action === "salla-report-max") {
+    state.sallaReportMaxValue = target.value;
+    return;
+  }
   if (target.dataset.action === "support-search" && state.route === "/support") {
     state.search = target.value;
     refreshSupportSearchResults(target);
@@ -11062,6 +11269,21 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "salla-report-period") {
+    state.sallaReportPeriod = target.value;
+    if (target.value !== "custom") {
+      state.sallaReportDateFrom = "";
+      state.sallaReportDateTo = "";
+      state.sallaReports = null;
+      syncRouteData(true);
+    }
+    render();
+    return;
+  }
+  if (target.dataset.action === "salla-report-date-from") { state.sallaReportDateFrom = target.value; return; }
+  if (target.dataset.action === "salla-report-date-to") { state.sallaReportDateTo = target.value; return; }
+  if (target.dataset.action === "salla-report-status") { state.sallaReportStatus = target.value || "all"; return; }
+  if (target.dataset.action === "salla-report-channel") { state.sallaReportChannel = target.value || "all"; return; }
   if (target.dataset.action === "campaign-studio-image-file" && target.files?.[0]) {
     void (async () => {
       const form = target.closest("form[data-campaign-studio]");
