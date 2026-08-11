@@ -1619,9 +1619,16 @@
 .adminPlatformAppFeatures span { padding: 5px 8px; border-radius: 8px; color: #0B3F3B; background: #F3F8F7; font-size: 9px; }
 .adminPlatformAppFooter { margin-top: 17px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .adminPlatformAppFooter small { color: #0B3F3B; font-size: 9px; }
+.adminPlatformAppFooterActions { display: grid; grid-template-columns: repeat(2, minmax(105px, 1fr)); gap: 8px; }
 .adminPlatformAppFooter a,
 .adminPlatformAppFooter button { min-height: 36px; padding: 0 13px; border: 1px solid #E8F1F0; border-radius: 9px; color: #fff; background: var(--brand-primary); font: inherit; font-size: 10px; font-weight: 800; text-decoration: none; cursor: pointer; }
 .adminPlatformAppFooter button:disabled { color: #8796aa; border-color: #E8F1F0; background: #F3F8F7; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+  .adminPlatformAppFooter { align-items: stretch; flex-direction: column; }
+  .adminPlatformAppFooterActions { grid-template-columns: 1fr; }
+  .adminPlatformAppFooterActions a { display: grid; place-items: center; }
+}
 
 .adminHealthSection { margin-top: 18px; }
 

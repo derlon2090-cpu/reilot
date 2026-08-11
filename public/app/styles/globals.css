@@ -32,6 +32,7 @@ body {
 .salla-linked-primary-actions .btn{min-height:52px;color:#fff!important;border-color:#0B3F3B!important;background:#0B3F3B!important}
 .salla-report-head-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
 .salla-report-head-actions .select{width:auto;min-width:160px}
+.salla-report-head-actions .btn:disabled{color:#667b77!important;border-color:#d9e7e4!important;background:#edf4f3!important;box-shadow:none!important;cursor:not-allowed;opacity:1}
 .salla-report-custom-dates{margin-bottom:18px;padding:14px;display:flex;align-items:end;flex-wrap:wrap;gap:12px;border:1px solid #E8F1F0;border-radius:14px;background:#F3F8F7}
 .salla-report-custom-dates label{display:grid;gap:6px;color:#0B3F3B;font-size:12px;font-weight:800}
 .salla-report-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin:22px 0}
@@ -79,6 +80,13 @@ body {
 .salla-cart-products img,.salla-cart-products article>span{width:48px;height:48px;display:grid;place-items:center;object-fit:cover;border-radius:9px;background:#F3F8F7}
 .salla-cart-products div{display:grid;gap:4px}.salla-cart-products small{color:#71829b}
 .salla-cart-timeline article{display:flex;gap:12px}.salla-cart-timeline article>span{width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px;color:#0B3F3B;border-radius:50%;background:#F3F8F7}
+.salla-report-preview-empty{min-height:220px;display:grid;place-items:center;align-content:center;gap:8px;color:#71829b;text-align:center}
+.salla-report-preview-empty.compact{min-height:180px}
+.salla-report-preview-empty .line-icon{width:42px;height:42px;padding:10px;color:#0B3F3B;border-radius:50%;background:#F3F8F7}
+.salla-report-preview-empty h3,.salla-report-preview-empty p{margin:0}.salla-report-preview-empty h3{color:#254642;font-size:16px}.salla-report-preview-empty p{max-width:500px;line-height:1.8}
+.salla-report-preview-table{overflow:hidden;border:1px solid #E8F1F0;border-radius:13px}
+.salla-report-preview-table-head{min-width:900px;padding:13px 16px;display:grid;grid-template-columns:1.3fr repeat(7,1fr);gap:12px;color:#254642;background:#F8FBFA;font-size:11px;font-weight:850}
+:root[data-theme="dark"] .salla-report-preview-table{border-color:#244c48}:root[data-theme="dark"] .salla-report-preview-table-head{color:#dcebea;background:#13332f}
 :root[data-theme="dark"] .salla-workspace-nav,:root[data-theme="dark"] .salla-report-performance>.card,:root[data-theme="dark"] .salla-report-table-card,:root[data-theme="dark"] .salla-report-metrics article,:root[data-theme="dark"] .salla-report-connected-empty{border-color:#244c48;background:#0c2926}
 :root[data-theme="dark"] .salla-report-metric-tabs,:root[data-theme="dark"] .salla-report-summary>p,:root[data-theme="dark"] .salla-report-custom-dates{border-color:#244c48;background:#13332f}
 :root[data-theme="dark"] .salla-report-metrics h2,:root[data-theme="dark"] .salla-report-summary h2,:root[data-theme="dark"] .salla-report-table td>strong{color:#e7f3f1}

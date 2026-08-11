@@ -880,7 +880,7 @@ function Integrations({ data }) {
       <div className={styles.adminIntegrationGrid}>{catalog.map((app) => <article key={app.provider} className={`${styles.adminPlatformAppCard} ${app.available ? "" : styles.adminPlatformAppCardDisabled}`}>
         <div className={styles.adminPlatformAppTop}><PlatformAppLogo provider={app.provider} /><span className={`${styles.adminPlatformAppStatus} ${app.available ? "" : styles.adminPlatformAppStatusLocked}`}>{app.available ? "متاح للأدمن" : "غير متاح حاليًا"}</span></div>
         <h3>{app.name}</h3><p>{app.description}</p><div className={styles.adminPlatformAppFeatures}>{app.features.map((feature) => <span key={feature}>{feature}</span>)}</div>
-        <footer className={styles.adminPlatformAppFooter}><small>{app.available ? "لا يحتاج ربطًا للمعاينة الإدارية" : "الربط مقفل للمستخدم والأدمن"}</small>{app.available ? <a href="/admin/integrations/salla">معاينة وتحرير</a> : <button type="button" disabled>غير متاح</button>}</footer>
+        <footer className={styles.adminPlatformAppFooter}><small>{app.available ? "لا يحتاج ربطًا للمعاينة الإدارية" : "الربط مقفل للمستخدم والأدمن"}</small>{app.available ? <div className={styles.adminPlatformAppFooterActions}><a href="/admin/integrations/salla">معاينة وتحرير</a><a href="/admin/integrations/salla/reports">تقارير سلة</a></div> : <button type="button" disabled>غير متاح</button>}</footer>
       </article>)}</div>
     </section>
     <section className={`${styles.adminSurface} ${styles.adminHealthSection}`}>
