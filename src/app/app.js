@@ -3732,15 +3732,6 @@ function sallaTemplateActivationTitle(item) {
   return labels[item.templateKey] || `تفعيل رسالة ${item.name}`;
 }
 
-function sallaWorkspaceNav() {
-  const templatesActive = state.route.startsWith("/dashboard/apps/salla/templates");
-  const reportsActive = state.route === "/dashboard/apps/salla/reports";
-  return `<nav class="salla-workspace-nav" aria-label="أقسام تكامل سلة">
-    <button class="${templatesActive ? "active" : ""}" data-link="/dashboard/apps/salla/templates">${dashboardIcon("template")}<span><strong>معاينة وتحرير</strong><small>قوالب الرسائل والأتمتة</small></span></button>
-    <button class="${reportsActive ? "active" : ""}" data-link="/dashboard/apps/salla/reports">${dashboardIcon("reports")}<span><strong>تقارير سلة</strong><small>السلات المتروكة والاستعادة</small></span></button>
-  </nav>`;
-}
-
 function sallaReportStateLabel(value) {
   return ({ abandoned: "متروكة", recovering: "قيد الاستعادة", recovered: "تمت الاستعادة", purchased_later: "تم الشراء لاحقًا", expired: "انتهت", excluded: "مستبعدة" })[value] || value || "—";
 }
@@ -3807,7 +3798,7 @@ function sallaCartTimelineMarkup(item) {
 
 function sallaReportsPage() {
   const payload = state.sallaReports;
-  const shell = (content) => dashboardShell(`${sallaWorkspaceNav()}${content}`);
+  const shell = (content) => dashboardShell(content);
   if (!payload) return shell(`${pageTitle("تقارير سلة")}<section class="salla-report-skeleton" aria-label="جاري تحميل التقرير">${Array.from({ length: 4 }, () => `<i></i>`).join("")}</section>`);
   if (payload.error) return shell(`${pageTitle("تقارير سلة")} ${emptyState("تعذر تحميل تقارير سلة", payload.error, "إعادة المحاولة", "reload-salla-reports")}`);
   if (!payload.available) return shell(`${pageTitle("تقارير سلة")} ${emptyState("اربط متجر سلة لعرض التقارير", "تظهر التقارير بعد نجاح الربط ووصول بيانات متجرك الفعلية.", "ربط سلة", "connect-salla")}`);
@@ -3832,10 +3823,10 @@ function sallaReportsPage() {
 
 function sallaAutomationTemplatesPage() {
   const payload = state.sallaAutomationTemplates;
-  if (!payload) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("قوالب سلة")}<div class="loading-state">جاري تحميل القوالب المرتبطة بمتجر سلة...</div>`);
-  if (payload.error) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("قوالب سلة")} ${emptyState("تعذر تحميل قوالب سلة", payload.error, "إعادة المحاولة", "reload-salla-templates")}`);
+  if (!payload) return dashboardShell(`${pageTitle("قوالب سلة")}<div class="loading-state">جاري تحميل القوالب المرتبطة بمتجر سلة...</div>`);
+  if (payload.error) return dashboardShell(`${pageTitle("قوالب سلة")} ${emptyState("تعذر تحميل قوالب سلة", payload.error, "إعادة المحاولة", "reload-salla-templates")}`);
   if (!payload.available) {
-    return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("قوالب سلة")}
+    return dashboardShell(`${pageTitle("قوالب سلة")}
       <section class="card salla-templates-locked">
         <span class="salla-template-lock-logo"><img src="/assets/salla-logo.svg" alt="سلة"></span>
         <h2>قوالب سلة غير متاحة</h2>
@@ -3854,7 +3845,7 @@ function sallaAutomationTemplatesPage() {
     <span class="status ${item.isEnabled ? "success" : "neutral"}">${item.isEnabled ? "نشط" : "غير مفعل"} <i></i></span>
     <footer><small>آخر تحديث: ${item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—"}</small><div><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("template")} تحرير</button></div></footer>
   </article>`).join("");
-  return dashboardShell(`${sallaWorkspaceNav()}<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div><div class="salla-templates-page-head">${pageTitle("قوالب سلة", `<button class="btn btn-primary" data-link="/dashboard/apps/salla/templates/${escapeHtml(items[0]?.templateKey || "processing")}">${dashboardIcon("template")} تخصيص قالب</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/salla_invoice_ready">${dashboardIcon("billing")} رابط الفاتورة</button><button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة الحالات</button>`)}</div>
+  return dashboardShell(`<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div><div class="salla-templates-page-head">${pageTitle("قوالب سلة", `<button class="btn btn-primary" data-link="/dashboard/apps/salla/templates/${escapeHtml(items[0]?.templateKey || "processing")}">${dashboardIcon("template")} تخصيص قالب</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/salla_invoice_ready">${dashboardIcon("billing")} رابط الفاتورة</button><button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة الحالات</button>`)}</div>
     <p class="page-kicker">إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة. فعّل القالب وخصص محتواه والقناة بسهولة.</p>
     <section class="inline-notice info salla-templates-notice">${dashboardIcon("info")}<span>هذه قوالب خاصة بمتجرك فقط. يتم إرسال الرسائل عبر القناة المختارة لكل قالب بعد وصول حدث موثق من سلة.</span></section>
     <section class="salla-templates-grid">${cards}</section>`);
@@ -3974,8 +3965,8 @@ function refreshSallaTemplatePreview(form, {
 
 function sallaAutomationTemplateEditorPage() {
   const payload = state.sallaAutomationTemplate;
-  if (!payload) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("إعداد قالب سلة")}<div class="loading-state">جاري تحميل القالب...</div>`);
-  if (payload.error) return dashboardShell(`${sallaWorkspaceNav()}${pageTitle("إعداد قالب سلة")} ${emptyState("تعذر تحميل القالب", payload.error, "العودة للقوالب", "back-salla-templates")}`);
+  if (!payload) return dashboardShell(`${pageTitle("إعداد قالب سلة")}<div class="loading-state">جاري تحميل القالب...</div>`);
+  if (payload.error) return dashboardShell(`${pageTitle("إعداد قالب سلة")} ${emptyState("تعذر تحميل القالب", payload.error, "العودة للقوالب", "back-salla-templates")}`);
   if (!payload.available || !payload.item) return sallaAutomationTemplatesPage();
   const item = payload.item;
   const storeProfile = payload.storeProfile || {};
@@ -3996,7 +3987,7 @@ function sallaAutomationTemplateEditorPage() {
   const invoice = item.templateKey === "salla_invoice_ready" ? `<section class="salla-special-settings"><div class="section-head"><div><h2>رابط الفاتورة الآمن</h2><p>محتوى الرسالة والمعاينة يعرضان رابطًا فقط؛ وتُقرأ بيانات الفاتورة الحقيقية من سلة داخل الصفحة الآمنة.</p></div>${dashboardIcon("billing")}</div><input type="hidden" name="invoiceTrigger" value="invoice.created"></section>` : "";
   const digital = item.templateKey === "digital_product_delivery" ? `<section class="salla-special-settings salla-digital-settings"><div class="section-head"><div><h2>صفحة تسليم المنتج الرقمي</h2><p>يُنشأ رابط سري مستقل لكل طلب من الحقل المعتمد في سلة، ولا تُرسل الأسرار داخل الرسالة.</p></div>${dashboardIcon("security")}</div><label class="setting-line"><span><strong>إرفاق رابط التسليم الآمن</strong><small>عند إيقافه تظهر معاينة القناة فقط.</small></span><input type="checkbox" name="secureLinkEnabled" ${settings.secureLinkEnabled !== false ? "checked" : ""}></label><div class="salla-link-options" data-salla-link-options ${settings.secureLinkEnabled === false ? "hidden" : ""}><div class="salla-link-options-title"><strong>خيارات الرابط</strong><small>خصص تصميم صفحة التسليم ومحتواها لهذا القالب فقط.</small></div><div class="form-grid two"><label class="field"><span>عنوان صفحة الرابط</span><input class="input" name="linkPageTitle" maxlength="160" value="${escapeHtml(settings.linkPageTitle || "منتجاتك الرقمية جاهزة")}"></label><label class="field"><span>لون الصفحة</span><input class="input salla-theme-color" type="color" name="themeColor" value="${escapeHtml(settings.themeColor || settings.branding?.themeColor || "#0B3F3B")}"></label></div><label class="field"><span>محتوى صفحة الرابط</span><textarea class="textarea" name="linkPageContent" maxlength="5000">${escapeHtml(settings.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.")}</textarea></label><div class="salla-digital-branding"><div><strong>شعار صفحة الرابط</strong><small>يُستخدم شعار المتجر المحفوظ نفسه داخل البريد وصفحة التسليم الآمنة.</small></div><button class="btn btn-secondary" type="button" data-action="choose-salla-email-logo">${dashboardIcon("upload")} ${storeProfile.logoUrl ? "تغيير الشعار" : "إضافة شعار المتجر"}</button></div><label class="field"><span>تصميم صفحة التسليم</span><select class="select" name="deliveryPageDesign"><option value="classic" ${settings.deliveryPageDesign === "classic" || !settings.deliveryPageDesign ? "selected" : ""}>كلاسيكي</option><option value="cards" ${settings.deliveryPageDesign === "cards" ? "selected" : ""}>بطاقات واضحة</option><option value="compact" ${settings.deliveryPageDesign === "compact" ? "selected" : ""}>مدمج وعملي</option></select></label><label class="field salla-css-code-editor"><span>كود تصميم صفحة الرابط (CSS آمن) — اختياري</span><textarea class="textarea" name="deliveryPageCustomCss" dir="ltr" spellcheck="false" maxlength="4000" placeholder="--salla-page-background: #f4fbf9;&#10;--salla-card-radius: 24px;&#10;--salla-button-radius: 12px;">${escapeHtml(settings.deliveryPageCustomCss || "")}</textarea><small>اختياري؛ اتركه فارغًا لاستخدام التصميم المحدد أعلاه. يسمح بمتغيرات التصميم المعتمدة فقط ويمنع الروابط والأكواد التنفيذية تلقائيًا.</small></label><label class="setting-line"><span><strong>عرض مدة المنتج</strong><small>تظهر فقط عند وجود مدة صريحة وموثقة في بيانات المنتج أو حقل التسليم.</small></span><input type="checkbox" name="showDuration" ${settings.showDuration === true ? "checked" : ""}></label></div></section>` : "";
   const updatedAtLabel = item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—";
-  return dashboardShell(`${sallaWorkspaceNav()}<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div>${pageTitle(item.name)}
+  return dashboardShell(`<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div>${pageTitle(item.name)}
     <p class="page-kicker">${escapeHtml(item.description)}</p>
     <p class="salla-template-updated-at">آخر تحديث: <strong>${escapeHtml(updatedAtLabel)}</strong></p>
     <section class="inline-notice info salla-template-editor-notice">${dashboardIcon("info")}<span>سيؤثر الحفظ على الرسائل المستقبلية فقط. لا يتم إرسال أي رسالة من المعاينة.</span></section>

@@ -19,17 +19,9 @@ body {
   letter-spacing: 0;
 }
 
-/* Salla workspace navigation and verified commerce reports */
-.salla-workspace-nav{margin:0 0 24px;padding:8px;display:grid;grid-template-columns:repeat(2,minmax(0,260px));justify-content:start;gap:10px;border:1px solid #E8F1F0;border-radius:18px;background:#fff;box-shadow:0 8px 28px rgba(11,63,59,.04)}
-.salla-workspace-nav button{min-height:70px;padding:12px 16px;display:flex;align-items:center;gap:12px;color:#61758a;border:1px solid transparent;border-radius:13px;background:transparent;text-align:start;cursor:pointer;transition:.18s ease}
-.salla-workspace-nav button:hover{color:#0B3F3B;background:#F3F8F7}
-.salla-workspace-nav button.active{color:#fff;border-color:#0B3F3B;background:#0B3F3B;box-shadow:0 8px 20px rgba(11,63,59,.16)}
-.salla-workspace-nav .line-icon{width:25px;height:25px;flex:0 0 25px}
-.salla-workspace-nav span{display:grid;gap:3px}
-.salla-workspace-nav strong{font-size:16px}
-.salla-workspace-nav small{color:inherit;opacity:.74;font-size:11px;font-weight:500}
+/* Salla integration actions and verified commerce reports */
 .salla-linked-primary-actions{display:grid!important;grid-template-columns:repeat(2,minmax(160px,1fr));gap:10px!important}
-.salla-linked-primary-actions .btn{min-height:52px;color:#fff!important;border-color:#0B3F3B!important;background:#0B3F3B!important}
+.salla-linked-primary-actions .btn{min-height:52px;display:inline-flex!important;align-items:center;justify-content:center;gap:8px;color:#fff!important;border-color:#0B3F3B!important;background:#0B3F3B!important;text-align:center;line-height:1.35}
 .salla-report-head-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
 .salla-report-head-actions .select{width:auto;min-width:160px}
 .salla-report-head-actions .btn:disabled{color:#667b77!important;border-color:#d9e7e4!important;background:#edf4f3!important;box-shadow:none!important;cursor:not-allowed;opacity:1}
@@ -87,11 +79,11 @@ body {
 .salla-report-preview-table{overflow:hidden;border:1px solid #E8F1F0;border-radius:13px}
 .salla-report-preview-table-head{min-width:900px;padding:13px 16px;display:grid;grid-template-columns:1.3fr repeat(7,1fr);gap:12px;color:#254642;background:#F8FBFA;font-size:11px;font-weight:850}
 :root[data-theme="dark"] .salla-report-preview-table{border-color:#244c48}:root[data-theme="dark"] .salla-report-preview-table-head{color:#dcebea;background:#13332f}
-:root[data-theme="dark"] .salla-workspace-nav,:root[data-theme="dark"] .salla-report-performance>.card,:root[data-theme="dark"] .salla-report-table-card,:root[data-theme="dark"] .salla-report-metrics article,:root[data-theme="dark"] .salla-report-connected-empty{border-color:#244c48;background:#0c2926}
+:root[data-theme="dark"] .salla-report-performance>.card,:root[data-theme="dark"] .salla-report-table-card,:root[data-theme="dark"] .salla-report-metrics article,:root[data-theme="dark"] .salla-report-connected-empty{border-color:#244c48;background:#0c2926}
 :root[data-theme="dark"] .salla-report-metric-tabs,:root[data-theme="dark"] .salla-report-summary>p,:root[data-theme="dark"] .salla-report-custom-dates{border-color:#244c48;background:#13332f}
 :root[data-theme="dark"] .salla-report-metrics h2,:root[data-theme="dark"] .salla-report-summary h2,:root[data-theme="dark"] .salla-report-table td>strong{color:#e7f3f1}
 @media(max-width:1100px){.salla-report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.salla-report-performance{grid-template-columns:1fr}.salla-report-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.salla-report-search{grid-column:span 2}}
-@media(max-width:720px){.salla-workspace-nav{grid-template-columns:1fr 1fr;padding:6px}.salla-workspace-nav button{min-height:62px;padding:9px;justify-content:center}.salla-workspace-nav button span{display:none}.salla-linked-primary-actions{grid-template-columns:1fr!important;width:100%}.salla-report-head-actions{width:100%;justify-content:stretch}.salla-report-head-actions>*{flex:1}.salla-report-metrics,.salla-report-skeleton{grid-template-columns:1fr}.salla-report-metrics article{min-height:125px}.salla-report-filters{grid-template-columns:1fr 1fr}.salla-report-search{grid-column:1/-1}.salla-report-filters .btn{width:100%}.salla-report-custom-dates{align-items:stretch;flex-direction:column}.salla-report-custom-dates label,.salla-report-custom-dates .btn{width:100%}.salla-report-metric-tabs{width:100%}.salla-report-metric-tabs button{flex:1}.salla-report-chart{height:235px}.salla-report-table-card{padding:14px}}
+@media(max-width:720px){.salla-linked-primary-actions{grid-template-columns:1fr!important;width:100%}.salla-report-head-actions{width:100%;justify-content:stretch}.salla-report-head-actions>*{flex:1}.salla-report-metrics,.salla-report-skeleton{grid-template-columns:1fr}.salla-report-metrics article{min-height:125px}.salla-report-filters{grid-template-columns:1fr 1fr}.salla-report-search{grid-column:1/-1}.salla-report-filters .btn{width:100%}.salla-report-custom-dates{align-items:stretch;flex-direction:column}.salla-report-custom-dates label,.salla-report-custom-dates .btn{width:100%}.salla-report-metric-tabs{width:100%}.salla-report-metric-tabs button{flex:1}.salla-report-chart{height:235px}.salla-report-table-card{padding:14px}}
 
 /* ===== Final reference-accurate marketing polish (desktop + iPad) ===== */
 @media (min-width:641px){

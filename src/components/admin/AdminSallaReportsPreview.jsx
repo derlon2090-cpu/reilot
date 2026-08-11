@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import AdminSallaWorkspaceNav from "./AdminSallaWorkspaceNav.jsx";
 import styles from "./AdminPortal.module.css";
 
 function ReportIcon({ name }) {
@@ -30,8 +29,6 @@ export default function AdminSallaReportsPreview({ admin }) {
 
   return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
     <div className="salla-template-editor-top"><a className="btn btn-secondary" href="/admin/integrations">العودة إلى التطبيقات</a></div>
-    <AdminSallaWorkspaceNav active="reports" />
-
     <div className="page-title">
       <div><h1>تقارير سلة</h1><p className="muted">معاينة إدارية مطابقة للواجهة التي تظهر للمستخدم بعد ربط متجر سلة بنجاح.</p></div>
       <div className="salla-report-head-actions">
