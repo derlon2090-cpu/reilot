@@ -3090,6 +3090,17 @@ function authReferenceVisual(kind) {
   const featureConnectors = kind === "login" || kind === "register"
     ? `<span class="auth-showcase-feature-connectors" aria-hidden="true"><i class="auth-feature-connector auth-feature-connector--alerts"></i><i class="auth-feature-connector auth-feature-connector--reports"></i><i class="auth-feature-connector auth-feature-connector--automation"></i><i class="auth-feature-connector auth-feature-connector--campaigns"></i><i class="auth-feature-connector auth-feature-connector--channels"></i><i class="auth-feature-connector auth-feature-connector--security"></i></span>`
     : "";
+  const referenceFeatureLabels = kind === "login" || kind === "register"
+    ? [
+        ["alerts", localizedCopy("تذكيرات ذكية", "Smart reminders")],
+        ["reports", localizedCopy("تقارير وتحليلات", "Reports and analytics")],
+        ["automation", localizedCopy("أتمتة التجديدات", "Renewal automation")],
+        ["campaigns", localizedCopy("حملات مخصصة", "Custom campaigns")]
+      ]
+    : [];
+  const referenceFeatureLabelMarkup = referenceFeatureLabels.length
+    ? `<span class="auth-reference-feature-labels" aria-hidden="true">${referenceFeatureLabels.map(([position, label]) => `<span class="auth-reference-feature-label auth-reference-feature-label--${position}"><b>${label}</b></span>`).join("")}</span>`
+    : "";
   const relocatedFeatureLabels = {
     channels: localizedCopy("قنوات متصلة", "Connected channels"),
     security: localizedCopy("أمان وموثوقية", "Security and reliability")
@@ -3102,7 +3113,7 @@ function authReferenceVisual(kind) {
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${featureConnectors}${relocatedFeatures}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
+    <div class="auth-showcase-art">${featureConnectors}${relocatedFeatures}${referenceFeatureLabelMarkup}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
   </div>`;
 }
 

@@ -10917,7 +10917,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 /* Preserve the original artwork quality; connectors are a separate layer behind it. */
-.auth-showcase-feature-connectors,.auth-showcase-relocated-features{display:none}
+.auth-showcase-feature-connectors,.auth-showcase-relocated-features,.auth-reference-feature-labels{display:none}
 @media (min-width:744px){
   .auth-showcase--login .auth-showcase-reference-art,
   .auth-showcase--register .auth-showcase-reference-art{
@@ -10966,6 +10966,38 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     pointer-events:none;
     transform:translate(-50%,-50%);
   }
+  .auth-showcase--login .auth-reference-feature-labels,
+  .auth-showcase--register .auth-reference-feature-labels{
+    position:absolute;
+    z-index:7;
+    top:50%;
+    left:50%;
+    height:min(100%,380px);
+    aspect-ratio:1127/1038;
+    display:block;
+    overflow:visible;
+    pointer-events:none;
+    transform:translate(-50%,-50%);
+  }
+  .auth-reference-feature-label{
+    position:absolute;
+    display:grid;
+    place-items:center;
+    box-sizing:border-box;
+    min-height:20px;
+    padding:3px 6px 2px;
+    color:#073f3a;
+    text-align:center;
+    direction:rtl;
+    background:radial-gradient(ellipse at center,#eef8f6 0 68%,rgba(238,248,246,.98) 78%,rgba(238,248,246,0) 100%);
+  }
+  .auth-reference-feature-label>b,
+  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}
+  .auth-reference-feature-label>b{white-space:normal}
+  .auth-reference-feature-label--alerts{top:15.1%;left:9.8%;width:76px;transform:translate(-50%,-50%)}
+  .auth-reference-feature-label--reports{top:16%;left:91.7%;width:88px;transform:translate(-50%,-50%)}
+  .auth-reference-feature-label--automation{top:48%;left:7.4%;width:64px;transform:translate(-50%,-50%)}
+  .auth-reference-feature-label--campaigns{top:83.1%;left:7.4%;width:62px;transform:translate(-50%,-50%)}
   .auth-relocated-feature{
     position:absolute;
     z-index:2;
@@ -10989,9 +11021,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     box-shadow:0 8px 18px rgba(6,43,40,.1);
   }
   .auth-relocated-feature svg{width:23px;height:23px}
-  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0;white-space:nowrap}
-  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature{direction:ltr}
-  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature>b{font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}
+  .auth-relocated-feature>b{white-space:nowrap}
+  .auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label,.auth-relocated-feature){direction:ltr}
+  .auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label>b,.auth-relocated-feature>b){font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}
   .auth-relocated-connectors{
     position:absolute;
     z-index:0;
@@ -11020,6 +11052,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
   }
+  .auth-suite-page[data-auth-theme="dark"] .auth-reference-feature-label{
+    color:#edf8f5;
+    background:radial-gradient(ellipse at center,var(--brand-primary) 0 68%,rgba(6,43,40,.98) 78%,rgba(6,43,40,0) 100%);
+  }
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature{color:#edf8f5}
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature>i{color:#8bd9cd;border-color:#31514b;background:#0b2825}
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-connectors{color:rgba(119,211,197,.72)}
@@ -11029,11 +11065,17 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--register .auth-showcase-feature-connectors{height:min(100%,330px)}
   .auth-showcase--login .auth-showcase-relocated-features,
   .auth-showcase--register .auth-showcase-relocated-features{height:min(100%,330px)}
+  .auth-showcase--login .auth-reference-feature-labels,
+  .auth-showcase--register .auth-reference-feature-labels{height:min(100%,330px)}
   .auth-feature-connector{height:1.5px}
   .auth-relocated-feature{width:66px}
   .auth-relocated-feature>i{width:38px;height:38px}
   .auth-relocated-feature svg{width:21px;height:21px}
-  .auth-relocated-feature>b{font-size:9px}
+  .auth-reference-feature-label>b,.auth-relocated-feature>b{font-size:9px}
+  .auth-reference-feature-label--alerts{width:70px}
+  .auth-reference-feature-label--reports{width:82px}
+  .auth-reference-feature-label--automation{width:58px}
+  .auth-reference-feature-label--campaigns{width:56px}
 }
 
 /* Shared Renvix operational icon system: one brand treatment across every dashboard family. */
