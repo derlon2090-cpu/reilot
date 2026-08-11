@@ -380,7 +380,9 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
           whatsappDefault?.body || definition.body,
           emailDefault?.subject || definition.emailSubject || null,
           JSON.stringify({ ...(definition.settings || {}), ...(whatsappDefault?.settings || {}), ...(emailDefault?.settings || {}) }), legacyKey,
-          emailDefault?.body || definition.body]
+          emailDefault?.settings?.emailContentMode === "html" && emailDefault?.settings?.emailHtmlContent
+            ? emailDefault.settings.emailHtmlContent
+            : emailDefault?.body || definition.body]
       );
     }
     const store = await client.query(

@@ -76,4 +76,44 @@ describe("admin Salla catalog route", () => {
     expect(response.status).toBe(400);
     expect(mocks.saveTemplate).not.toHaveBeenCalled();
   });
+
+  it("sanitizes and stores the same optional HTML email source exposed to users", async () => {
+    const response = await PUT(new Request("http://localhost/api/admin/integrations/salla/templates", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateKey: "processing",
+        channel: "email",
+        subject: "طلبك قيد التنفيذ",
+        body: "نسخة نصية",
+        settings: {
+          emailDesign: "editorial",
+          emailContentMode: "html",
+          emailThemeColor: "#0B3F3B",
+          emailHtmlContent: '<section dir="rtl"><h2>تحديث الطلب</h2><p>مرحبًا {{customer_name}}</p></section>'
+        }
+      })
+    }));
+    expect(response.status).toBe(200);
+    expect(mocks.saveTemplate).toHaveBeenCalledWith(expect.objectContaining({
+      settings: expect.objectContaining({ emailContentMode: "html", emailHtmlContent: expect.stringContaining("تحديث الطلب") })
+    }));
+  });
+
+  it("rejects unsafe HTML before it becomes a platform default", async () => {
+    const response = await PUT(new Request("http://localhost/api/admin/integrations/salla/templates", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateKey: "processing",
+        channel: "email",
+        subject: "عنوان",
+        body: "نسخة نصية",
+        settings: { emailContentMode: "html", emailHtmlContent: "<script>alert(1)</script>" }
+      })
+    }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).reason).toBe("invalid_email_html");
+    expect(mocks.saveTemplate).not.toHaveBeenCalled();
+  });
 });

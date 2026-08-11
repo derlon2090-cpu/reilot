@@ -1659,45 +1659,6 @@
 .adminSallaSuccess { color: #12724f; border: 1px solid #bfead6; background: #edfbf4; }
 .adminSallaAdminIdentity { margin: -14px 0 16px; color: #0B3F3B; font-size: 10px; }
 
-/* Keep the admin preview bounded by the fields card only; actions live in row two. */
-.adminSallaBoundedLayout { align-items: start; }
-.adminSallaBoundedForm { grid-column: 1; grid-row: 1; min-width: 0; margin: 0; align-self: start; }
-.adminSallaPreviewSlot { position: relative; grid-column: 2; grid-row: 1; align-self: stretch; min-width: 0; min-height: 0; }
-.adminSallaPreviewSlot > .adminSallaBoundedPreview { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
-.adminSallaBoundedActions { grid-column: 1; grid-row: 2; align-self: start; margin: 0; }
-.adminSallaBoundedPreview { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; overflow: hidden; }
-.adminSallaBoundedPreview > :global(.section-head) { margin: 0; }
-.adminSallaPreviewScroller { min-height: 0; padding: 2px 6px 8px 2px; display: grid; align-content: start; gap: 28px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #9bb8b3 transparent; }
-.adminSallaPreviewScroller::-webkit-scrollbar { width: 7px; }
-.adminSallaPreviewScroller::-webkit-scrollbar-track { background: transparent; }
-.adminSallaPreviewScroller::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #9bb8b3; background-clip: padding-box; }
-.adminSallaChannelPreview { min-width: 0; padding: 0; border: 0; }
-.adminSallaPreviewScrollerDigital { gap: 32px; }
-.adminSallaPreviewScrollerDigital > .adminSallaChannelPreview,
-.adminSallaPreviewScrollerDigital > .adminSallaDigitalLinkPreview { position: relative; min-height: 0; }
-.adminSallaPreviewScrollerDigital > .adminSallaDigitalLinkPreview::before { content: ""; position: absolute; top: -17px; right: 7%; left: 7%; height: 1px; background: linear-gradient(90deg, transparent, #bfd4d1 18%, #bfd4d1 82%, transparent); }
-.adminSallaDigitalLinkPreview { scroll-margin-block: 20px; animation: adminSallaLinkPreviewReveal .52s cubic-bezier(.2,.8,.2,1) both; box-shadow: 0 12px 30px rgba(6, 43, 40, .08); }
-
-@keyframes adminSallaLinkPreviewReveal {
-  from { opacity: 0; transform: translateY(16px) scale(.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .adminSallaDigitalLinkPreview { animation: none; }
-}
-
-@media (max-width: 1100px) {
-  .adminSallaBoundedForm { grid-column: 1; grid-row: 1; }
-  .adminSallaPreviewSlot { grid-column: 1; grid-row: 2; min-height: min(780px, 82vh); }
-  .adminSallaPreviewSlot > .adminSallaBoundedPreview { position: absolute; inset: 0; height: 100%; }
-  .adminSallaBoundedActions { grid-column: 1; grid-row: 3; }
-}
-
-@media (max-width: 700px) {
-  .adminSallaPreviewSlot { min-height: min(680px, 78vh); }
-}
-
 .adminSallaCatalogIntro { margin-bottom: 16px; padding: 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 1px solid #E8F1F0; border-radius: 14px; background: #fff; }
 .adminSallaCatalogIntro h2 { margin: 0 0 6px; font-size: 18px; }
 .adminSallaCatalogIntro p { margin: 0; max-width: 800px; color: #0B3F3B; font-size: 11px; line-height: 1.8; }

@@ -13,6 +13,7 @@ import {
 
 const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/app/app.js"), "utf8");
 const adminCatalogSource = fs.readFileSync(path.resolve(process.cwd(), "src/components/admin/AdminSallaCatalog.jsx"), "utf8");
+const sharedUiSource = fs.readFileSync(path.resolve(process.cwd(), "src/data/sallaTemplateUi.js"), "utf8");
 const styles = fs.readFileSync(path.resolve(process.cwd(), "src/styles/globals.css"), "utf8");
 const serverSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/salla-templates.js"), "utf8");
 const resendSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/email/resend.service.js"), "utf8");
@@ -163,11 +164,13 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('/api/apps/salla/templates/${encodeURIComponent(templateKey)}/image');
     expect(appSource).not.toContain('refreshSallaTemplatePreview(form, { logoUrl: payload.logoUrl, whatsappImageUrl: payload.logoUrl })');
     expect(appSource).toContain('name="emailDesign"');
-    expect(appSource).toContain('const SALLA_EMAIL_DESIGN_IDS = ["editorial", "commerce", "executive"]');
+    expect(appSource).toContain('SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js"');
+    expect(adminCatalogSource).toContain('SALLA_EMAIL_DESIGN_IDS,');
+    expect(sharedUiSource).toContain('SALLA_EMAIL_DESIGN_IDS = Object.freeze(["editorial", "commerce", "executive"])');
     expect(appSource).toContain('presetIds: SALLA_EMAIL_DESIGN_IDS');
-    expect(appSource).toContain('{ id: "editorial"');
-    expect(appSource).toContain('{ id: "commerce"');
-    expect(appSource).toContain('{ id: "executive"');
+    expect(sharedUiSource).toContain('{ id: "editorial"');
+    expect(sharedUiSource).toContain('{ id: "commerce"');
+    expect(sharedUiSource).toContain('{ id: "executive"');
     expect(appSource).toContain('name="emailThemeColor"');
     expect(appSource).toContain('data-action="set-email-theme-color"');
     expect(appSource).toContain('class="email-design-workspace"');

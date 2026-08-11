@@ -22,6 +22,7 @@ export function mergeSallaAdminCatalog(rows = []) {
       isEnabled: true,
       whatsappContent: whatsapp?.body || definition.body,
       emailTextContent: email?.body || definition.body,
+      emailHtmlContent: email?.settings?.emailHtmlContent || "",
       emailSubject: email?.subject || definition.emailSubject || definition.name,
       settings: { ...(definition.settings || {}), ...(whatsapp?.settings || {}), ...(email?.settings || {}) },
       updatedAt: [whatsapp?.updatedAt, email?.updatedAt].filter(Boolean).sort().at(-1) || null

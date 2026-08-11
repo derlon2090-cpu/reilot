@@ -1,5 +1,6 @@
 import { features, knowledgeBase } from "../data/publicData.js?v=20260811-central-plan-catalog-v1";
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
+import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -3875,21 +3876,6 @@ function sallaAutomationTemplatesPage() {
     <section class="salla-templates-grid">${cards}</section>`);
 }
 
-const SALLA_TEMPLATE_PREVIEW_GUIDANCE = Object.freeze({
-  processing: "اربط القالب بحالة «قيد التنفيذ» الفعلية في متجرك قبل تشغيل الأتمتة.",
-  under_review: "راجع اسم حالة المراجعة في سلة حتى لا تصل الرسالة قبل انتقال الطلب إليها فعلًا.",
-  delivered: "تأكد من اعتماد حالة التسليم النهائية قبل طلب أي إجراء إضافي من العميل.",
-  out_for_delivery: "تحقق من توفر بيانات شركة الشحن ورابط التتبع قبل بدء الإرسال التلقائي.",
-  completed: "راجع اكتمال بيانات الطلب والرابط الآمن قبل اعتماد رسالة التنفيذ.",
-  review_request: "اختر حالة بدء طلب التقييم والمهلة المناسبة لتجربة العميل في متجرك.",
-  abandoned_cart: "اضبط مهلة التذكير بعناية، وتأكد من توقفه تلقائيًا عند إتمام الشراء.",
-  cancelled: "راجع سياسة الإلغاء وسبب الإلغاء الظاهر للعميل قبل تفعيل القالب.",
-  return_in_progress: "طابق حدث بدء الاسترجاع مع رحلة الإرجاع المعتمدة في متجرك.",
-  returned: "تأكد من اكتمال بيانات المبلغ وطريقة الاسترداد قبل إرسال التأكيد.",
-  shipped: "تحقق من رقم التتبع وشركة الشحن قبل اعتماد رسالة الشحن.",
-  salla_invoice_ready: "تأكد من توفر الفاتورة ورابطها الآمن في بيانات سلة قبل تفعيل الإرسال."
-});
-
 function sallaTemplatePreviewPanel(item, storeProfile = {}) {
   const isEmail = item.channel === "email";
   const settings = { ...(item.settings || {}) };
@@ -5548,19 +5534,6 @@ const localDefaultEmailTemplate = {
   emailHtmlContent: ""
 };
 
-const EMAIL_DESIGN_PRESETS = [
-  { id: "classic", name: "كلاسيكي أنيق", caption: "بطاقة واضحة وهوية متوازنة" },
-  { id: "modern", name: "حديث مميز", caption: "مساحات مريحة ولمسة عصرية" },
-  { id: "minimal", name: "بسيط راقٍ", caption: "محتوى خفيف يركز على الرسالة" },
-  { id: "premium", name: "فاخر داكن", caption: "تباين قوي للعروض المهمة" },
-  { id: "editorial", name: "تحريري عالمي", caption: "أسلوب المجلات والعلامات الراقية" },
-  { id: "commerce", name: "تجارة احترافية", caption: "مثالي للطلبات والمنتجات والعروض" },
-  { id: "aurora", name: "أورورا متدرج", caption: "هوية حيوية بتدرج لوني ناعم" },
-  { id: "executive", name: "تنفيذي رسمي", caption: "طابع مؤسسي واضح وموثوق" }
-];
-
-const SALLA_EMAIL_DESIGN_IDS = ["editorial", "commerce", "executive"];
-
 function inspectEmailHtmlClient(value) {
   const source = String(value || "").trim();
   const errors = [];
@@ -5623,7 +5596,7 @@ function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset"
   const mode = contentMode === "html" ? "html" : "preset";
   const showThemeControl = themeColor !== null || Boolean(sampleCode);
   const selectedTheme = safeEmailTheme(themeColor || state.sallaAutomationTemplate?.item?.settings?.emailThemeColor || "#0B3F3B");
-  const themePalette = ["#0B3F3B", "#2563EB", "#7C3AED", "#DB2777", "#EA580C", "#0F766E"];
+  const themePalette = EMAIL_THEME_PALETTE;
   const codeExample = sampleCode || `<section style="padding:28px;background-color:#f4f9f8;border-radius:20px;text-align:right" dir="rtl">\n  <h2 style="margin:0 0 14px;color:#062b28">حان وقت تجديد اشتراكك</h2>\n  <p style="margin:0 0 18px;line-height:1.9">مرحبًا {{customer_name}}، اشتراكك في {{service_name}} يقترب من الانتهاء.</p>\n  <a href="{{renewal_link}}" style="display:inline-block;padding:12px 22px;background-color:#0b3f3b;color:#ffffff;border-radius:10px;text-decoration:none">جدد الآن</a>\n</section>`;
   return `<section class="email-design-builder ${Array.isArray(presetIds) ? "is-salla-catalog" : ""} ${showThemeControl ? "has-theme-control" : ""}" data-email-design-builder>
     <input type="hidden" name="emailDesign" value="${escapeHtml(design)}">
