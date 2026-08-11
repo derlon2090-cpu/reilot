@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { sallaPageCssVariables } from "../../data/sallaPageCss.js";
-import AdminSallaWorkspaceNav from "./AdminSallaWorkspaceNav.jsx";
 import styles from "./AdminPortal.module.css";
 
 function DashboardIcon({ name }) {
@@ -198,7 +197,6 @@ export default function AdminSallaCatalog({ admin }) {
 
   return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
     <div className="salla-template-editor-top">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
-    <AdminSallaWorkspaceNav active="templates" />
     <div className="salla-templates-page-head">
       <div className="page-title">
         <div><h1>{selected ? selected.name : "قوالب سلة"}</h1><p className="muted">{selected ? selected.description : "إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة، بنفس الواجهة التي تظهر للمستخدم بعد الربط."}</p></div>
