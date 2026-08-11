@@ -72,6 +72,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain("data-campaign-social-preview");
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
+    expect(appSource).toContain('data.htmlContent || campaignStudioGeneratedHtml(form)');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });
 

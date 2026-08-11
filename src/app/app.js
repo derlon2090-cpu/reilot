@@ -9277,7 +9277,7 @@ async function handleSubmit(form, event) {
           emailDesign: data.channel === "email" ? data.emailDesign || "showcase" : null,
           cards: campaignCards,
           socialLinks,
-          htmlContent: data.htmlContent || null,
+          htmlContent: data.channel === "email" ? data.htmlContent || campaignStudioGeneratedHtml(form) : null,
           trackClicks: Boolean(form.elements.trackClicks?.checked),
           appendUtm: Boolean(form.elements.appendUtm?.checked),
           campaignTag: data.campaignTag || null,
