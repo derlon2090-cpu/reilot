@@ -159,6 +159,11 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).not.toContain("auth-relocated-mask");
     expect(stylesSource).not.toContain(".auth-relocated-mask");
     expect(stylesSource).toContain("clip-path:polygon(0 0,100% 0,100% 100%,92% 100%,92% 83%,25% 83%,25% 100%,0 100%)");
+    expect(appSource).toContain('id="auth-dashboard-label-clip" clipPathUnits="objectBoundingBox"');
+    expect(appSource).toContain('fill-rule="evenodd" clip-rule="evenodd"');
+    expect(stylesSource).toContain('clip-path:url("#auth-dashboard-label-clip")');
+    expect(stylesSource).toContain('background:transparent;');
+    expect(stylesSource).not.toContain('background:radial-gradient(ellipse at center,#eef8f6');
     expect(stylesSource).toContain('.auth-reference-feature-label>b,\n  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}');
     expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label,.auth-relocated-feature){direction:ltr}');
     expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label>b,.auth-relocated-feature>b){font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}');

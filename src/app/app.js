@@ -3101,6 +3101,9 @@ function authReferenceVisual(kind) {
   const referenceFeatureLabelMarkup = referenceFeatureLabels.length
     ? `<span class="auth-reference-feature-labels" aria-hidden="true">${referenceFeatureLabels.map(([position, label]) => `<span class="auth-reference-feature-label auth-reference-feature-label--${position}"><b>${label}</b></span>`).join("")}</span>`
     : "";
+  const referenceArtworkClip = referenceFeatureLabels.length
+    ? `<svg class="auth-reference-clip-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><clipPath id="auth-dashboard-label-clip" clipPathUnits="objectBoundingBox"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 0H1V1H0Z M.02 .132H.185V.185H.02Z M.835 .14H1V.195H.835Z M.005 .448H.15V.535H.005Z M.005 .79H.15V.89H.005Z M.25 .83H.92V1H.25Z"></path></clipPath></defs></svg>`
+    : "";
   const relocatedFeatureLabels = {
     channels: localizedCopy("قنوات متصلة", "Connected channels"),
     security: localizedCopy("أمان وموثوقية", "Security and reliability")
@@ -3113,7 +3116,7 @@ function authReferenceVisual(kind) {
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${featureConnectors}${relocatedFeatures}${referenceFeatureLabelMarkup}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
+    <div class="auth-showcase-art">${featureConnectors}${relocatedFeatures}${referenceFeatureLabelMarkup}${referenceArtworkClip}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
   </div>`;
 }
 
