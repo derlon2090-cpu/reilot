@@ -19,8 +19,8 @@ describe("iPad home operations layout", () => {
       expect(markup).toContain("w>=641&&w<=1700");
       expect(markup).toContain("_tablet_layout");
     }
-    expect(rootLayout).toContain("ipad-touch-layout-v61");
-    expect(staticIndex).toContain("ipad-touch-layout-v61");
+    expect(rootLayout).toContain("ipad-touch-layout-v62");
+    expect(staticIndex).toContain("ipad-touch-layout-v62");
   });
 
   it("keeps only the six reference cards visible on iPad", () => {
@@ -56,7 +56,7 @@ describe("iPad home operations layout", () => {
 
   it("lifts the iPad scene and separates the automation card from its wire", () => {
     expect(tabletRules).toContain("marketing-v3-hero-visual{position:relative;top:-16px");
-    expect(tabletRules).toContain(".ops-automation{top:76px!important");
+    expect(tabletRules).toContain(".ops-automation{top:48px!important");
   });
 
   it("ships the tablet rules in the public stylesheet", () => {
