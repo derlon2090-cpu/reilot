@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-ipad-renewals-spacing-v71" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-line-anchors-v72" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-auth-art-cleanup-v68" />
       </head>
       <body>

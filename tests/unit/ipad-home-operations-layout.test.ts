@@ -19,8 +19,8 @@ describe("iPad home operations layout", () => {
       expect(markup).toContain("w>=641&&w<=1700");
       expect(markup).toContain("_tablet_layout");
     }
-    expect(rootLayout).toContain("ipad-renewals-spacing-v71");
-    expect(staticIndex).toContain("ipad-renewals-spacing-v71");
+    expect(rootLayout).toContain("auth-line-anchors-v72");
+    expect(staticIndex).toContain("auth-line-anchors-v72");
   });
 
   it("keeps only the six reference cards visible on iPad", () => {
