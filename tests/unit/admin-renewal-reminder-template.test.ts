@@ -6,6 +6,7 @@ const migration = readFileSync(resolve("drizzle/0067_admin_subscription_renewal_
 const delivery = readFileSync(resolve("src/server/admin-template-events.js"), "utf8");
 const samples = readFileSync(resolve("app/api/admin/templates/[templateKey]/samples/route.js"), "utf8");
 const editor = readFileSync(resolve("src/components/admin/AdminTemplateEditor.jsx"), "utf8");
+const editorPage = readFileSync(resolve("app/admin/templates/[templateKey]/page.jsx"), "utf8");
 
 describe("admin subscription renewal reminder template", () => {
   it("seeds a professional editable system template with safe approved variables", () => {
@@ -32,5 +33,12 @@ describe("admin subscription renewal reminder template", () => {
     expect(samples).toContain("days_remaining:");
     expect(editor).toContain('days_remaining: "الأيام المتبقية"');
     expect(editor).toContain('renewal_url: "رابط تجديد الاشتراك"');
+  });
+
+  it("opens every persisted admin template instead of rejecting new templates with a stale allowlist", () => {
+    expect(editorPage).toContain("FROM admin_message_templates");
+    expect(editorPage).toContain("WHERE template_key=$1");
+    expect(editorPage).toContain("if (!template.rows[0]) notFound()");
+    expect(editorPage).not.toContain("const TEMPLATE_KEYS = new Set");
   });
 });
