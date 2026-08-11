@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-global-display-v65" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-ipad-automation-spacing-v66" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-auth-global-display-v65" />
       </head>
       <body>
