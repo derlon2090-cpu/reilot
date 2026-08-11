@@ -29,8 +29,8 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-manual-connectors-v38" />
-        <script type="module" src="/app/app.js?v=20260811-auth-manual-connectors-v38"></script>
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-ipad-six-card-v40" />
+        <script type="module" src="/app/app.js?v=20260811-ipad-six-card-v40"></script>
       </head>
       <body>{children}</body>
     </html>
