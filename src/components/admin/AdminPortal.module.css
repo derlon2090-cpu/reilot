@@ -1898,7 +1898,7 @@
   box-shadow: 0 9px 30px rgba(6, 43, 40, .04);
 }
 
-.adminNotificationPreview { position: sticky; top: 92px; }
+.adminNotificationPreview { position: static; top: auto; align-self: start; }
 
 .adminFormField { display: grid; gap: 7px; margin-bottom: 13px; }
 .adminFormField > span { color: #062B28; font-size: 12px; font-weight: 800; }
@@ -2199,7 +2199,7 @@
 .adminTestFinalPreview pre { max-height: 190px; overflow: auto; margin: 0; white-space: pre-wrap; color: #0B3F3B; font: inherit; font-size: 12px; line-height: 1.8; }
 .adminTestModal footer { display: flex; gap: 9px; margin-top: 16px; }
 
-.adminTemplatePreviewCard { position: sticky; top: 18px; }
+.adminTemplatePreviewCard { position: static; top: auto; align-self: start; }
 .adminTemplatePreviewCard > div:first-child { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .adminTemplatePreviewCard h2 { margin: 0; font-size: 16px; }
 .adminTemplatePreviewCard > div:first-child span { color: #12a66a; font-size: 10px; }
@@ -2743,7 +2743,7 @@
 .adminSupportStatus { color:#0B3F3B;background:#F3F8F7 }.adminSupportPriority_LOW{color:#16804e;background:#eaf8f0}.adminSupportPriority_NORMAL{color:#946718;background:#fff7df}.adminSupportPriority_HIGH,.adminSupportPriority_URGENT{color:#cc3434;background:#fff0f0}
 .adminSupportDetailsButton{white-space:nowrap;border:1px solid #E8F1F0;border-radius:8px;background:#fff;color:#0B3F3B;padding:7px 10px;font:inherit;cursor:pointer}
 
-.adminSupportPreview { position:sticky;top:88px;padding:15px;max-height:calc(100vh - 110px);overflow:auto }
+.adminSupportPreview { position:static;top:auto;align-self:start;padding:15px;max-height:none;overflow:visible }
 .adminSupportPreview>header { display:flex;align-items:center;gap:9px;padding-bottom:12px;border-bottom:1px solid #F3F8F7 }
 .adminSupportPreview>header>div:nth-child(2){display:grid;gap:2px;min-width:0;flex:1}.adminSupportPreview>header strong{font-size:13px}.adminSupportPreview>header span{color:#0B3F3B;font-size:10px;overflow:hidden;text-overflow:ellipsis}
 .adminSupportPreview>header>span:last-child{padding:5px 8px;border-radius:7px;background:#F3F8F7;color:#0B3F3B;white-space:nowrap}
@@ -2789,7 +2789,7 @@
 .adminCampaignFields label small{font-weight:500;color:#718985;margin-inline-start:5px}
 .adminCampaignFields input,.adminCampaignFields textarea{width:100%;box-sizing:border-box;border:1px solid #d8e5e3;border-radius:12px;background:#fff;color:#123f3a;font:inherit;font-weight:500;padding:12px 14px;outline:none;resize:vertical}
 .adminCampaignFields input:focus,.adminCampaignFields textarea:focus{border-color:#0b7d72;box-shadow:0 0 0 3px rgba(11,125,114,.1)}
-.adminCampaignPreview{position:sticky;top:20px;padding:26px;overflow:hidden;background:linear-gradient(150deg,#f8fcfb,#edf8f6)}
+.adminCampaignPreview{position:static;top:auto;align-self:start;padding:26px;overflow:hidden;background:linear-gradient(150deg,#f8fcfb,#edf8f6)}
 .adminCampaignPreviewIcon{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#0b6f66;color:#fff;box-shadow:0 10px 25px rgba(11,111,102,.2)}
 .adminCampaignPreviewIcon svg{width:23px;height:23px}
 .adminCampaignPreview>small{display:block;margin-top:18px;color:#68807c}
