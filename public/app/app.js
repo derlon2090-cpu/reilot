@@ -3903,6 +3903,10 @@ function sallaTemplatePreviewPanel(item, storeProfile = {}) {
   const emailLogo = logoUrl
     ? `<span class="salla-email-store-logo"><img src="${escapeHtml(logoUrl)}" alt="شعار ${escapeHtml(storeProfile.storeName || "المتجر")}" style="--salla-logo-radius:${logoRadius}px"></span>`
     : `<span class="salla-email-store-logo is-empty">${dashboardIcon("apps")}</span>`;
+  const whatsappStoreName = storeProfile.storeName || "Renvix";
+  const whatsappAvatar = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="شعار ${escapeHtml(whatsappStoreName)}">`
+    : `<strong>${escapeHtml(String(whatsappStoreName).trim().slice(0, 1) || "R")}</strong>`;
   const deliveryPageStyle = Object.entries(sallaPageCssVariables(settings.deliveryPageCustomCss))
     .map(([property, value]) => `${property}:${escapeHtml(value)}`)
     .join(";");
@@ -3916,7 +3920,10 @@ function sallaTemplatePreviewPanel(item, storeProfile = {}) {
     <div class="salla-template-preview-stack">
     <div class="${isEmail ? `salla-email-preview design-${emailDesign} ${customInspection?.ok ? "uses-custom-html" : ""}` : "salla-whatsapp-preview"}" data-salla-preview-frame style="--email-theme:${emailThemeColor}">
       <div class="salla-whatsapp-preview-canvas" data-salla-preview-head="whatsapp" ${isEmail ? "hidden" : ""}>
+        <div class="salla-whatsapp-phone-header"><span class="salla-whatsapp-phone-avatar">${whatsappAvatar}</span><div><strong>${escapeHtml(whatsappStoreName)}</strong><small>حساب أعمال</small></div><span class="salla-whatsapp-phone-more" aria-hidden="true">•••</span></div>
+        <span class="salla-whatsapp-phone-day">اليوم</span>
         <div class="salla-whatsapp-bubble">${settings.whatsappImageEnabled === true && whatsappImageUrl ? `<img class="salla-whatsapp-message-image" data-salla-whatsapp-image src="${escapeHtml(whatsappImageUrl)}" alt="صورة رسالة واتساب">` : `<img class="salla-whatsapp-message-image" data-salla-whatsapp-image alt="صورة رسالة واتساب" hidden>`}<div class="salla-preview-message" data-salla-preview-message>${body}</div><button type="button" tabindex="-1" class="salla-preview-cta" data-salla-preview-cta ${buttonEnabled ? "" : "hidden"}>${dashboardIcon("orderLink")} <span>${escapeHtml(settings.buttonLabel || item.previewAction || "عرض التفاصيل")}</span></button><small>11:30 ص ✓✓</small></div>
+        <div class="salla-whatsapp-phone-composer"><span>اكتب رسالة</span>${dashboardIcon("send")}</div>
       </div>
       <div class="salla-email-preview-canvas" data-salla-preview-head="email" ${isEmail ? "" : "hidden"}>
         <div class="salla-email-preview-head">${emailLogo}<div><small>${escapeHtml(storeProfile.storeName || "متجري")}</small><strong data-salla-email-subject>${escapeHtml(item.emailSubject || "عنوان الرسالة")}</strong></div></div>
@@ -4054,20 +4061,18 @@ function sallaAutomationTemplateEditorPage() {
       action: "salla-template-toggle",
       key: item.templateKey
     })}
-    <section class="salla-template-editor-layout">
-      <form id="salla-template-editor-form" class="grid" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
-        <article class="card salla-template-form-card">
+    <form id="salla-template-editor-form" class="salla-template-editor-layout" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
+      <article class="card salla-template-form-card">
           <div class="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div>${dashboardIcon("template")}</div>
           <div class="form-grid two"><label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(item.name)}" disabled></label>${item.templateKey === "review_request" ? "" : statusField}</div>
           <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label></fieldset>
           ${item.templateKey === "review_request" ? `<div class="salla-review-trigger-field">${statusField}</div>` : ""}
           ${metaPanel}${emailPanel}
           ${abandoned}${completed}${review}${invoice}${digital}
-        </article>
-        <div class="salla-editor-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button><button class="btn btn-secondary" type="button" data-action="preview-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} تحديث المعاينة</button><button class="btn btn-secondary" type="button" data-action="test-salla-template" data-salla-test-button data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("orderLink")} إرسال اختبار</button></div>
-      </form>
+      </article>
       ${sallaTemplatePreviewPanel(item, storeProfile)}
-    </section>`);
+      <div class="salla-editor-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button><button class="btn btn-secondary" type="button" data-action="preview-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} تحديث المعاينة</button><button class="btn btn-secondary" type="button" data-action="test-salla-template" data-salla-test-button data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("orderLink")} إرسال اختبار</button></div>
+    </form>`);
 }
 
 function linkedAppsSection(connection, customIntegrations = []) {

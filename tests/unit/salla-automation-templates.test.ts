@@ -120,11 +120,26 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain("تأكد من اعتماد بريد المرسل قبل تفعيل الإرسال التلقائي.");
     expect(appSource).toContain('data-salla-preview-channel-readiness');
     expect(appSource).toContain('isDigitalDelivery ? "" : `<section class="salla-preview-important-note"');
-    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:stretch");
+    expect(appSource).toContain('<form id="salla-template-editor-form" class="salla-template-editor-layout"');
+    expect(appSource).not.toContain('<section class="salla-template-editor-layout">');
+    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:12px 20px;align-items:stretch");
+    expect(styles).toContain(".salla-template-form-card{grid-column:1;grid-row:1");
+    expect(styles).toContain(".salla-template-live-preview{grid-column:2;grid-row:1}");
+    expect(styles).toContain(".salla-editor-actions{grid-column:1;grid-row:2}");
     expect(styles).toContain(".salla-template-preview-sticky{position:sticky;top:92px");
     expect(styles).toContain('[data-theme="dark"] .salla-preview-important-note');
     expect(styles).toContain(".salla-template-live-preview.is-digital-delivery .salla-template-preview-stack:has(.salla-digital-link-preview:not([hidden]))");
     expect(styles).toContain("grid-template-rows:repeat(2,minmax(470px,1fr))");
+  });
+
+  it("keeps Salla header icons compact and uses a roomy white WhatsApp phone preview", () => {
+    expect(appSource).toContain('class="salla-whatsapp-phone-header"');
+    expect(appSource).toContain('class="salla-whatsapp-phone-avatar"');
+    expect(appSource).toContain('class="salla-whatsapp-phone-composer"');
+    expect(styles).toContain(".salla-template-editor-layout .section-head>svg{width:24px!important;height:24px!important;min-width:24px!important;max-width:24px!important");
+    expect(styles).toContain(".salla-whatsapp-preview-canvas{position:relative;width:100%;max-width:520px;min-height:580px");
+    expect(styles).toContain("border:7px solid #0B3F3B;border-radius:36px;background:#fff");
+    expect(styles).toContain(".salla-whatsapp-phone-composer{");
   });
 
   it("places three professional Salla email designs below the image with an adjacent color editor", () => {
