@@ -10786,9 +10786,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     transform-origin:right center;
   }
   .auth-relocated-feature--channels{top:41%;left:95%;transform:translate(-8%,-50%)}
-  .auth-relocated-feature--channels::before{width:47px;transform:rotate(26.3deg)}
+  .auth-relocated-feature--channels::before{width:47px;clip-path:inset(0 0 0 34%);transform:rotate(26.3deg)}
   .auth-relocated-feature--security{top:76%;left:95%;transform:translate(-8%,-50%)}
-  .auth-relocated-feature--security::before{width:49px;transform:rotate(32.5deg)}
+  .auth-relocated-feature--security::before{width:49px;clip-path:inset(0 0 0 34%);transform:rotate(32.5deg)}
   .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector{
     background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
