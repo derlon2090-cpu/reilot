@@ -32,12 +32,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-salla-preview-height-v87" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-feature-labels-v88" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-auth-independent-v80" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260811-salla-preview-height-v87" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260811-auth-feature-labels-v88" strategy="afterInteractive" />
       </body>
     </html>
   );

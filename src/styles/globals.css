@@ -10989,7 +10989,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     box-shadow:0 8px 18px rgba(6,43,40,.1);
   }
   .auth-relocated-feature svg{width:23px;height:23px}
-  .auth-relocated-feature>b{font-family:"IBM Plex Sans Arabic","Tajawal",system-ui,sans-serif;font-size:10px;font-weight:600;line-height:1.35;white-space:nowrap}
+  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0;white-space:nowrap}
+  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature{direction:ltr}
+  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature>b{font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}
   .auth-relocated-connectors{
     position:absolute;
     z-index:0;

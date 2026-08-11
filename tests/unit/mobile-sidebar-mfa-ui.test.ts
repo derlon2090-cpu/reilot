@@ -157,13 +157,17 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).not.toContain("auth-relocated-mask");
     expect(stylesSource).not.toContain(".auth-relocated-mask");
     expect(stylesSource).toContain("clip-path:polygon(0 0,100% 0,100% 100%,92% 100%,92% 83%,25% 83%,25% 100%,0 100%)");
-    expect(stylesSource).toContain('.auth-relocated-feature>b{font-family:"IBM Plex Sans Arabic","Tajawal",system-ui,sans-serif;font-size:10px;font-weight:600;line-height:1.35;white-space:nowrap}');
+    expect(stylesSource).toContain('.auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0;white-space:nowrap}');
+    expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] .auth-relocated-feature{direction:ltr}');
+    expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] .auth-relocated-feature>b{font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}');
     expect(stylesSource).toContain(".auth-relocated-feature>b{font-size:9px}");
     expect(appSource).toContain('class="auth-relocated-connectors"');
     expect(appSource).toContain('x1="910" y1="334" x2="984" y2="384"');
     expect(appSource).toContain('circle cx="910" cy="334" r="4"');
     expect(appSource).toContain('x1="910" y1="671" x2="984" y2="734"');
     expect(appSource).toContain('circle cx="910" cy="671" r="4"');
+    expect(appSource).toContain('localizedCopy("قنوات متصلة", "Connected channels")');
+    expect(appSource).toContain('localizedCopy("أمان وموثوقية", "Security and reliability")');
     expect(stylesSource).toContain(".auth-relocated-connectors line{");
     expect(stylesSource).toContain("stroke-linecap:round;");
     expect(stylesSource).toContain("vector-effect:non-scaling-stroke;");
