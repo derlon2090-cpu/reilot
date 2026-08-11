@@ -33,5 +33,8 @@ describe("shared dashboard icon treatment", () => {
     expect(sourceStyles).toContain(".dashboard-main .stat-card:is(.info,.success,.warning,.danger,.purple,.neutral) .stat-card-icon,");
     expect(sourceStyles).toContain(".dashboard-main .suite-metric:is(.info,.success,.warning,.danger,.purple,.teal) .suite-metric-icon,");
     expect(sourceStyles).toContain("stroke:currentColor!important");
+    expect(sourceStyles).toContain(".salla-template-card:nth-child(n) .salla-template-card-icon{border:1px solid #d8ebe7;background:#edf8f6;color:#087267}");
+    expect(sourceStyles).not.toContain(".salla-template-card:nth-child(4n+2) .salla-template-card-icon");
+    expect(sourceStyles).not.toContain(".suite-metric.info .suite-metric-icon{color:#2d6fb3");
   });
 });
