@@ -27,7 +27,7 @@ export default function AdminSallaReportsPreview({ admin }) {
   const [metric, setMetric] = useState("abandoned");
   const [search, setSearch] = useState("");
 
-  return <main className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
+  return <div className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
     <div className="salla-template-editor-top"><a className="btn btn-secondary" href="/admin/integrations">العودة إلى التطبيقات</a></div>
     <div className="page-title">
       <div><h1>تقارير سلة</h1><p className="muted">معاينة إدارية مطابقة للواجهة التي تظهر للمستخدم بعد ربط متجر سلة بنجاح.</p></div>
@@ -51,5 +51,5 @@ export default function AdminSallaReportsPreview({ admin }) {
     </section>
 
     <section className="card salla-report-table-card"><div className="section-head"><div><h2>السلات المتروكة</h2><p>الجدول نفسه المستخدم في حساب المتجر، دون إنشاء سجلات تجريبية.</p></div></div><div className="salla-report-filters"><label className="salla-report-search"><ReportIcon name="cart" /><input className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث بالعميل أو رقم الطلب..." /></label><select className="select" defaultValue="all"><option value="all">كل الحالات</option><option>متروكة</option><option>قيد الاستعادة</option><option>تمت الاستعادة</option><option>انتهت</option><option>مستبعدة</option></select><select className="select" defaultValue="all"><option value="all">كل القنوات</option><option>واتساب</option><option>البريد</option></select><input className="input" type="number" min="0" placeholder="القيمة من" /><input className="input" type="number" min="0" placeholder="القيمة إلى" /><button className="btn btn-secondary" type="button">تطبيق</button><button className="btn btn-ghost" type="button" onClick={() => setSearch("")}>مسح الفلاتر</button></div><div className="salla-report-preview-table"><div className="salla-report-preview-table-head"><span>العميل</span><span>قيمة السلة</span><span>تاريخ الترك</span><span>حالة الاستعادة</span><span>القناة</span><span>آخر محاولة</span><span>الطلب المستعاد</span><span>الإجراءات</span></div><div className="salla-report-preview-empty compact"><ReportIcon name="cart" /><h3>لا توجد بيانات في المعاينة الإدارية</h3><p>لن تظهر سجلات إلا داخل حساب متجر مرتبط يملك سلات فعلية.</p></div></div></section>
-  </main>;
+  </div>;
 }

@@ -141,7 +141,7 @@ function DataTable({ title, description, columns, rows, empty = "لا توجد �
   </section>;
 }
 
-function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
+function Dashboard({ admin, onLogout, initialPanel = "overview", children = null }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState(initialPanel);
@@ -322,6 +322,7 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
         </header>
 
         <div className={styles.content}>
+          {children ? children : <>
           <div className={styles.pageHeading}>
             <div>
               <h1>{panelCopy[0]}</h1>
@@ -407,13 +408,14 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
               </section> : null}
             </>
           )}
+          </>}
         </div>
       </section>
     </main>
   );
 }
 
-export default function AdminPortal({ initialAdmin, initialPanel = "overview" }) {
+export default function AdminPortal({ initialAdmin, initialPanel = "overview", children = null }) {
   if (!initialAdmin) return null;
-  return <Dashboard admin={initialAdmin} initialPanel={initialPanel} onLogout={() => window.location.assign("/advanced-pro-control")} />;
+  return <Dashboard admin={initialAdmin} initialPanel={initialPanel} onLogout={() => window.location.assign("/advanced-pro-control")}>{children}</Dashboard>;
 }

@@ -7,6 +7,9 @@ const integrationsSource = fs.readFileSync("src/components/admin/AdminSections.j
 const userAppSource = fs.readFileSync("src/app/app.js", "utf8");
 const adminStylesSource = fs.readFileSync("src/components/admin/AdminPortal.module.css", "utf8");
 const globalStylesSource = fs.readFileSync("src/styles/globals.css", "utf8");
+const adminPortalSource = fs.readFileSync("src/components/admin/AdminPortal.jsx", "utf8");
+const catalogPageSource = fs.readFileSync("app/admin/integrations/salla/page.jsx", "utf8");
+const reportsPageSource = fs.readFileSync("app/admin/integrations/salla/reports/page.jsx", "utf8");
 
 describe("Salla admin user-experience preview", () => {
   it("keeps Salla pages inside the normal dashboard without a redundant local bar", () => {
@@ -14,6 +17,9 @@ describe("Salla admin user-experience preview", () => {
     expect(reportsSource).not.toContain("AdminSallaWorkspaceNav");
     expect(userAppSource).not.toContain("function sallaWorkspaceNav");
     expect(userAppSource).toContain("const shell = (content) => dashboardShell(content);");
+    expect(adminPortalSource).toContain("children ? children");
+    expect(catalogPageSource).toContain('<AdminPortal initialAdmin={initialAdmin} initialPanel="integrations">');
+    expect(reportsPageSource).toContain('<AdminPortal initialAdmin={initialAdmin} initialPanel="integrations">');
   });
 
   it("exposes both Salla actions from the admin integrations catalog", () => {
