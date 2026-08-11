@@ -8791,8 +8791,10 @@ input[type="password"]::-webkit-textfield-decoration-container {
 @keyframes fpReveal{from{opacity:0;transform:translateY(22px) scale(.985)}to{opacity:1;transform:none}}@keyframes fpRevealFallback{from{opacity:.01;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes fpOrbitSpin{to{transform:rotate(360deg)}}@keyframes fpPulseRing{50%{opacity:.4;transform:scale(1.04)}}
 
 .marketing-home-v3 .ops-tablet-only{display:none!important}
-/* iPad-only hero: six-card portrait network matched to the supplied reference. */
-@media (min-width:641px) and (max-width:1180px){
+/* iPad-only hero: six-card network matched to the supplied reference.
+   The second branch catches wide touch tablets without changing 1280px laptops. */
+@media (min-width:641px) and (max-width:1180px),
+  (min-width:1181px) and (max-width:1366px) and (hover:none) and (pointer:coarse){
   .marketing-home-v3 .marketing-v3-hero-visual{position:relative;display:block!important;max-width:none;margin-inline:auto;overflow:visible;padding:0}
   .marketing-home-v3 .home-ops-scene--hero{position:absolute!important;top:0;left:0;display:block!important;width:1000px!important;min-height:920px!important;margin:0!important;overflow:visible;transform-origin:top left!important}
   .marketing-home-v3 .home-ops-scene--hero .home-ops-wires{position:absolute;display:block!important;inset:0;width:100%;height:100%;z-index:1;overflow:visible}
@@ -8880,6 +8882,11 @@ input[type="password"]::-webkit-textfield-decoration-container {
 }
 @media (min-width:1121px) and (max-width:1180px){
   .marketing-home-v3 .marketing-v3-hero-visual{width:640px;height:589px}
+  .marketing-home-v3 .home-ops-scene--hero{transform:scale(.64)!important}
+}
+@media (min-width:1181px) and (max-width:1366px) and (hover:none) and (pointer:coarse){
+  .marketing-home-v3 .marketing-v3-hero-grid{grid-template-columns:minmax(0,1.3fr) minmax(390px,.7fr);gap:18px 14px}
+  .marketing-home-v3 .marketing-v3-hero-visual{width:640px;height:589px;justify-self:start;margin-inline:0}
   .marketing-home-v3 .home-ops-scene--hero{transform:scale(.64)!important}
 }
 
