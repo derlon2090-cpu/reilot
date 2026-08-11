@@ -2404,13 +2404,14 @@ html:has(.security-dashboard-page)::-webkit-scrollbar-thumb:active { background:
 .subscription-preferences-list > div:not(.section-head) { display:grid; grid-template-columns:minmax(180px,1.5fr) 1fr .6fr auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
 .subscription-preferences-list span strong,.subscription-preferences-list span small { display:block; }
 .subscription-preferences-list small { color:var(--muted); }
-.subscription-settings-panel { padding: 20px; }
-.subscription-settings-form { margin-top: 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.subscription-settings-panel { padding: 28px; }
+.subscription-settings-panel > .section-head { margin-bottom: 22px; }
+.subscription-settings-form { margin-top: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .subscription-settings-form .field { min-width: 0; }
 .subscription-settings-form .field > small,
 .subscription-settings-form .delivery-mode-field > small { min-height: 34px; display: block; margin-top: 7px; color: #0B3F3B; font-size: 11px; line-height: 1.55; }
 .subscription-settings-form .delivery-mode-field { margin: 0; }
-.subscription-settings-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.subscription-settings-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; padding-top: 20px; border-top: 1px solid var(--border); }
 [data-theme="dark"] .subscription-settings-panel { background: #062B28; }
 .subscription-template-bridge { min-height:360px; display:grid; place-items:center; text-align:center; }
 .subscription-template-bridge > div { max-width:620px; }
@@ -2424,7 +2425,7 @@ html:has(.security-dashboard-page)::-webkit-scrollbar-thumb:active { background:
 :root[data-theme="dark"] .dashboard-line-tabs button::after { background:#7FD7C7; }
 :root[data-theme="dark"] .upcoming-renewal-row b { background:#3b2c13; color:#ffc366; }
 @media (max-width:1180px) { .subscription-server-filters { grid-template-columns:repeat(3,1fr); } .subscription-search { grid-column:span 2; } .subscription-workspace { grid-template-columns:1fr; } .subscription-side-column { grid-template-columns:1fr 1fr; } }
-@media (max-width:720px) { .subscription-server-filters { grid-template-columns:1fr 1fr; } .subscription-search { grid-column:1/-1; } .subscription-side-column { grid-template-columns:1fr; } .subscription-preferences-list > div:not(.section-head) { grid-template-columns:1fr; } }
+@media (max-width:720px) { .subscription-server-filters { grid-template-columns:1fr 1fr; } .subscription-search { grid-column:1/-1; } .subscription-side-column { grid-template-columns:1fr; } .subscription-preferences-list > div:not(.section-head) { grid-template-columns:1fr; } .subscription-settings-panel { padding:18px 16px; } .subscription-settings-panel > .section-head { margin-bottom:18px; } }
 @media (max-width:900px) { .subscription-settings-form { grid-template-columns: 1fr; } .subscription-settings-actions { grid-column: auto; } }
 [data-theme="dark"] .subscription-delivery-settings { border-color: #062B28; background: var(--brand-primary-soft); }
 [data-theme="dark"] .subscription-delivery-heading strong { color: #F3F8F7; }
@@ -3220,7 +3221,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .side-link.active::after { width: 3px; position: absolute; inset-block: 8px; inset-inline-end: -1px; content: ""; border-radius: 999px; background: #0B3F3B; }
 .sidebar-support-link {
   width: 100%; min-height: 42px; margin-top: auto; padding: 0 13px; display: flex; align-items: center; justify-content: flex-start; gap: 10px;
-  color: #0B3F3B; border: 1px solid #E8F1F0; border-radius: 8px; background: var(--brand-primary); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+  color: #fff; border: 1px solid #E8F1F0; border-radius: 8px; background: var(--brand-primary); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
 }
 .sidebar-support-link .line-icon { width: 18px; height: 18px; }
 .template-breadcrumb { margin: 0 0 10px; display: flex; align-items: center; gap: 10px; justify-content: flex-start; color: #0B3F3B; font-size: 12px; }
@@ -6135,7 +6136,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .message-activation-switch.active~.message-activation-status i,.message-activation-control:has(input:checked) .message-activation-status i{background:#16b364}
 .message-activation-switch.active~.message-activation-status .message-activation-status-on,.message-activation-control:has(input:checked) .message-activation-status-on{display:inline}
 .message-activation-switch.active~.message-activation-status .message-activation-status-off,.message-activation-control:has(input:checked) .message-activation-status-off{display:none}
-.subscription-settings-form>.message-activation-card{grid-column:1/-1;margin:0 0 2px}
+.subscription-settings-form>.message-activation-card{grid-column:1/-1;margin:0 0 4px;padding:16px 18px}
 .switch-button{border:0;background:#F3F8F7;color:#66758f;padding:7px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:inherit}
 .switch-button span{width:38px;height:22px;background:#E8F1F0;border-radius:999px;position:relative}
 .switch-button span:after{content:"";width:16px;height:16px;border-radius:50%;background:white;position:absolute;top:3px;inset-inline-start:3px;box-shadow:0 2px 5px rgba(0,0,0,.2)}
