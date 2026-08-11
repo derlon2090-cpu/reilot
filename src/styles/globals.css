@@ -11034,6 +11034,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-relocated-feature>b{white-space:nowrap}
   .auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label,.auth-relocated-feature){direction:ltr}
   .auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label>b,.auth-relocated-feature>b){font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}
+  .auth-suite-page[data-auth-language="en"] .auth-reference-feature-label>b,
+  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature>b{
+    max-width:100%;
+    font-size:8px;
+    line-height:1.2;
+    white-space:normal;
+    text-wrap:balance;
+  }
   .auth-relocated-connectors{
     position:absolute;
     z-index:0;
@@ -11061,10 +11069,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     border-color:rgba(119,211,197,.72);
     background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
-  }
-  .auth-suite-page[data-auth-theme="dark"] .auth-reference-feature-label{
-    color:#edf8f5;
-    background:radial-gradient(ellipse at center,var(--brand-primary) 0 68%,rgba(6,43,40,.98) 78%,rgba(6,43,40,0) 100%);
   }
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature{color:#edf8f5}
   .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature>i{color:#8bd9cd;border-color:#31514b;background:#0b2825}

@@ -162,6 +162,9 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain('.auth-reference-feature-label>b,\n  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}');
     expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label,.auth-relocated-feature){direction:ltr}');
     expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label>b,.auth-relocated-feature>b){font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}');
+    expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] .auth-reference-feature-label>b,\n  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature>b{');
+    expect(stylesSource).toContain('font-size:8px;\n    line-height:1.2;\n    white-space:normal;\n    text-wrap:balance;');
+    expect(stylesSource).not.toContain('.auth-suite-page[data-auth-theme="dark"] .auth-reference-feature-label{');
     expect(stylesSource).toContain(".auth-reference-feature-label>b,.auth-relocated-feature>b{font-size:9px}");
     expect(stylesSource).toContain(".auth-reference-feature-label--alerts{top:15.1%;left:9.8%");
     expect(stylesSource).toContain(".auth-reference-feature-label--reports{top:16%;left:91.7%");
