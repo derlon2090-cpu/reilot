@@ -10864,6 +10864,49 @@ function dashboardSupportPage() {
     </section>`);
 }
 
+let sallaTemplatePreviewResizeObserver = null;
+let sallaTemplatePreviewResizeFrame = 0;
+
+function syncSallaTemplatePreviewBoundary() {
+  const editor = document.querySelector("#salla-template-editor-form");
+  const formCard = editor?.querySelector(".salla-template-form-card");
+  const preview = editor?.querySelector(".salla-template-live-preview");
+  if (!editor || !formCard || !preview) return;
+  const isStacked = window.matchMedia("(max-width: 1100px)").matches;
+  if (isStacked) {
+    preview.style.removeProperty("height");
+    preview.style.removeProperty("max-height");
+    return;
+  }
+  const formHeight = formCard.getBoundingClientRect().height;
+  if (formHeight <= 0) return;
+  preview.style.setProperty("height", `${formHeight}px`, "important");
+  preview.style.setProperty("max-height", `${formHeight}px`, "important");
+}
+
+function initSallaTemplatePreviewBoundary() {
+  if (sallaTemplatePreviewResizeFrame) cancelAnimationFrame(sallaTemplatePreviewResizeFrame);
+  sallaTemplatePreviewResizeObserver?.disconnect();
+  sallaTemplatePreviewResizeObserver = null;
+  const editor = document.querySelector("#salla-template-editor-form");
+  const formCard = editor?.querySelector(".salla-template-form-card");
+  if (!editor || !formCard) return;
+  sallaTemplatePreviewResizeFrame = requestAnimationFrame(() => {
+    sallaTemplatePreviewResizeFrame = 0;
+    syncSallaTemplatePreviewBoundary();
+  });
+  if ("ResizeObserver" in window) {
+    sallaTemplatePreviewResizeObserver = new ResizeObserver(() => {
+      if (sallaTemplatePreviewResizeFrame) cancelAnimationFrame(sallaTemplatePreviewResizeFrame);
+      sallaTemplatePreviewResizeFrame = requestAnimationFrame(() => {
+        sallaTemplatePreviewResizeFrame = 0;
+        syncSallaTemplatePreviewBoundary();
+      });
+    });
+    sallaTemplatePreviewResizeObserver.observe(formCard);
+  }
+}
+
 function render() {
   disposeMarketingMotion();
   applyPreferences();
@@ -10915,6 +10958,7 @@ function render() {
     localizeElement(app);
     ensurePasswordToggles();
     bindQrImageState();
+    initSallaTemplatePreviewBoundary();
     syncRouteData();
     return;
   }
@@ -11860,6 +11904,14 @@ window.addEventListener("popstate", () => {
   render();
   requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
 });
+window.addEventListener("resize", () => {
+  if (!document.querySelector("#salla-template-editor-form")) return;
+  if (sallaTemplatePreviewResizeFrame) cancelAnimationFrame(sallaTemplatePreviewResizeFrame);
+  sallaTemplatePreviewResizeFrame = requestAnimationFrame(() => {
+    sallaTemplatePreviewResizeFrame = 0;
+    initSallaTemplatePreviewBoundary();
+  });
+}, { passive: true });
 document.addEventListener("paste", (event) => {
   const target = event.target.closest?.("[data-otp-digit]");
   if (!target) return;

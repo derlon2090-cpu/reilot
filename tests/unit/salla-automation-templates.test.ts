@@ -128,7 +128,7 @@ describe("Salla automation templates", () => {
     expect(styles).toContain(".salla-template-form-card{grid-column:1;grid-row:1");
     expect(styles).toContain(".salla-template-live-preview{grid-column:2;grid-row:1}");
     expect(styles).not.toContain(".salla-editor-actions{grid-column:1;grid-row:2}");
-    expect(styles).toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0;padding:18px;overflow:visible;contain:size");
+    expect(styles).toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0;padding:18px;overflow:hidden;contain:size");
     expect(styles).not.toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:100%;min-height:100%");
     expect(styles).toContain(".salla-template-preview-sticky{position:sticky;top:92px");
     expect(styles).toContain('[data-theme="dark"] .salla-preview-important-note');
@@ -136,7 +136,14 @@ describe("Salla automation templates", () => {
     expect(styles).toContain("grid-template-rows:repeat(2,minmax(0,1fr))");
     expect(styles).toContain("align-content:stretch;gap:32px");
     expect(styles).toContain("animation:sallaDigitalPagePreviewIn .52s cubic-bezier(.22,1,.36,1) both");
+    expect(styles).toContain("overflow:auto;scrollbar-width:thin");
     expect(styles).toContain("@keyframes sallaDigitalPagePreviewIn");
+    expect(appSource).toContain("function syncSallaTemplatePreviewBoundary()");
+    expect(appSource).toContain('preview.style.setProperty("height", `${formHeight}px`, "important")');
+    expect(appSource).toContain('preview.style.setProperty("max-height", `${formHeight}px`, "important")');
+    expect(appSource).toContain("sallaTemplatePreviewResizeObserver.observe(formCard)");
+    expect(appSource).toContain("initSallaTemplatePreviewBoundary();");
+    expect(appSource).toContain('window.addEventListener("resize", () => {');
   });
 
   it("keeps Salla header icons compact and uses a roomy white WhatsApp phone preview", () => {
