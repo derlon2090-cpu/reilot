@@ -2636,8 +2636,8 @@ function marketingResourcePage() {
 
   const guidePage = () => {
     const categories = [["البدء", "خطوات البداية وإنشاء الحساب.", "star", "8 أدلة"], ["الاشتراكات", "إدارة الباقات والفوترة.", "infinity", "12 دليل"], ["الحملات", "إنشاء الحملات والمتابعة.", "send", "14 دليل"], ["التكاملات", "ربط المنصات والقنوات.", "puzzle", "15 دليل"], ["الأجهزة", "إدارة الأجهزة وتسجيل الدخول.", "devices", "6 أدلة"], ["الأمان", "إعدادات الأمان والتحقق.", "security", "9 أدلة"], ["API / Webhooks", "وثائق الواجهات البرمجية.", "code", "10 أدلة"]];
-    return `<main class="footer-showcase-page fp-guide">${pageHero("دليل المستخدم", "كل ما تحتاجه للبدء والنجاح مع Renvix. استكشف أدلة عملية خطوة بخطوة وتعرّف على الميزات والإعدادات وأفضل الممارسات.", `<label class="fp-hero-search">${dashboardIcon("search")}<input placeholder="ابحث عن موضوع أو دليل..."></label><div class="fp-search-suggestions"><span>أكثر البحث:</span><button>ربط المتجر</button><button>إنشاء حملة</button><button>إعداد API</button><button>إدارة الاشتراكات</button><button>التقارير</button></div>`)}<div class="container fp-page-stack">
-      <section>${sectionTitle("تصفح أدلة الاستخدام")}<div class="fp-guide-categories">${categories.map(([title,body,icon,count],index)=>`<article data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p><b>${count}</b></article>`).join("")}</div></section>
+    return `<main class="footer-showcase-page fp-guide">${pageHero("دليل المستخدم", "كل ما تحتاجه للبدء والنجاح مع Renvix. استكشف أدلة عملية خطوة بخطوة وتعرّف على الميزات والإعدادات وأفضل الممارسات.", `<label class="fp-hero-search">${dashboardIcon("search")}<input type="search" data-action="footer-guide-search" aria-label="البحث في دليل المستخدم" autocomplete="off" placeholder="ابحث عن موضوع أو دليل..."></label><div class="fp-search-suggestions"><span>أكثر البحث:</span>${["ربط المتجر","إنشاء حملة","إعداد API","إدارة الاشتراكات","التقارير"].map((query)=>`<button type="button" data-action="footer-guide-suggestion" data-query="${query}">${query}</button>`).join("")}</div><p class="fp-filter-status" data-footer-guide-status aria-live="polite"></p>`)}<div class="container fp-page-stack">
+      <section>${sectionTitle("تصفح أدلة الاستخدام")}<div class="fp-guide-categories" data-footer-guide-results>${categories.map(([title,body,icon,count],index)=>`<article data-guide-result data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p><b>${count}</b></article>`).join("")}</div></section>
       <section>${sectionTitle("أدلة مقترحة")}<div class="fp-five-grid">${[["إنشاء حملتك الأولى", "تعلم كيفية إنشاء حملة خطوة بخطوة.", "customers"], ["ربط متجرك في 5 دقائق", "ربط Salla وShopify بسهولة.", "store"], ["إعداد طرق الدفع", "إضافة وإدارة وسائل الدفع.", "subscriptions"], ["تقارير الأداء والتحليلات", "فهم التقارير وقياس الأداء.", "reports"], ["الأتمتة والرسائل الذكية", "أتمتة الرسائل وإعداد السيناريوهات.", "bolt"]].map(iconCard).join("")}</div></section>
       <section>${sectionTitle("ابدأ بسرعة")} ${steps([["أنشئ حسابك", "سجل حسابك وأدخل بياناتك.", "customers"], ["أكمل إعدادات الحساب", "أضف بيانات متجرك وفريقك.", "settings"], ["اربط تطبيقاتك", "اربط القنوات المطلوبة.", "puzzle"], ["أنشئ حملتك الأولى", "اختر الجمهور والقالب.", "send"], ["تابع النتائج وقِس", "راقب الأداء وحسّن النتائج.", "reports"]])}</section>
       <section>${sectionTitle("آخر التحديثات في الدليل")}<div class="fp-guide-table">${[["دليل إعداد Webhooks خطوة بخطوة", "API / Webhooks", "منذ يومين"], ["تحديث تجربة إنشاء الحملات", "الحملات", "منذ 3 أيام"], ["دعم الدفع عبر Apple Pay", "الاشتراكات", "منذ 5 أيام"], ["تحسينات في تقارير الأداء", "التقارير", "منذ أسبوع"]].map(([title,type,time])=>`<button data-link="/blog"><span><strong>${title}</strong><small>${type}</small></span><time>${time}</time>${dashboardIcon("arrowLeft")}</button>`).join("")}</div></section>
@@ -2650,52 +2650,69 @@ function marketingResourcePage() {
         title: "ما هو Renvix وكيف يعمل؟",
         answer: "Renvix منصة موحّدة لإدارة الاشتراكات والتجديدات والتذكيرات والحملات. تجمع بيانات العميل والخدمة وموعد التجديد وقنوات التواصل في سجل واحد، ثم تشغّل التنبيهات تلقائيًا وتعرض نتائج الإرسال والتجديد داخل لوحة متابعة واضحة.",
         icon: "infinity",
+        category: "all",
         actions: [["استكشف المنصة", "/features"], ["ابدأ مع الدليل", "/user-guide"]]
       },
       {
         title: "كيف يمكنني تجربة Renvix؟",
         answer: "أنشئ حسابًا جديدًا وأكمل بيانات مساحة العمل، ثم أضف أول عميل واشتراك واربط القناة التي تريد استخدامها. يمكنك تجربة رحلة العمل الأساسية ومراجعة النتائج قبل تشغيل أي حملة فعلية، ولن تحتاج إلى إدخال بيانات دفع أثناء خطوات البداية المتاحة.",
         icon: "star",
+        category: "all",
         actions: [["إنشاء حساب", "/register"], ["خطوات البدء", "/user-guide"]]
       },
       {
         title: "ما هي خطط الأسعار المتاحة؟",
         answer: "تختلف الخطط بحسب حجم قاعدة العملاء وعدد الرسائل والقنوات والميزات المطلوبة. صفحة الباقات تعرض الحدود والمزايا بوضوح، ويمكنك البدء بالخطة المناسبة ثم الترقية عند نمو الاستخدام دون فقدان بياناتك أو إعداداتك.",
         icon: "subscriptions",
+        category: "subscriptions",
         actions: [["عرض الباقات", "/pricing"]]
       },
       {
         title: "كيف تتم عملية الفوترة والدفع؟",
         answer: "تُصدر الفاتورة وفق دورة الاشتراك المحددة في حسابك، وتظهر قيمتها وحالتها وتاريخ الاستحقاق داخل قسم الفوترة قبل تأكيد الدفع. بعد نجاح العملية يتم تحديث حالة الباقة وإضافة إيصال الدفع إلى سجل الحساب، ويمكن للمستخدم المخوّل مراجعة السجل في أي وقت.",
-        icon: "document"
+        icon: "document",
+        category: "billing"
       },
       {
         title: "ما هي طرق الدفع المدعومة؟",
         answer: "تعتمد الطرق المتاحة على بلد الحساب ومزوّد الدفع المرتبط بالخدمة، وتظهر لك الخيارات المدعومة مباشرة عند إتمام العملية. عادةً تشمل البطاقات البنكية ووسائل الدفع الرقمية المتاحة محليًا، مع معالجة آمنة وعدم تخزين بيانات البطاقة الكاملة داخل Renvix.",
-        icon: "payments"
+        icon: "payments",
+        category: "billing"
       },
       {
         title: "كيف أربط Renvix مع الأدوات الأخرى؟",
         answer: "انتقل إلى صفحة التكاملات، اختر المنصة أو القناة، ثم امنح الصلاحيات المطلوبة فقط وأكمل اختبار الاتصال. يدعم Renvix القنوات التجارية وواتساب والبريد وواجهات API وWebhooks، مع سجل حالة يساعدك على متابعة المزامنة ومعالجة أي انقطاع.",
         icon: "link",
+        category: "integrations",
         actions: [["استكشف التكاملات", "/integrations"], ["دليل الربط", "/user-guide"]]
       },
       {
         title: "هل بياناتي آمنة ومشفرة؟",
         answer: "نعم، تُحمى البيانات أثناء النقل عبر اتصال مشفّر، وتُطبّق صلاحيات وصول منفصلة داخل مساحة العمل مع تسجيل للعمليات الحساسة. نوصي كذلك بتفعيل وسائل الحماية المتاحة للحساب، ومراجعة المستخدمين والأجهزة الموثوقة بصورة دورية.",
         icon: "security",
+        category: "security",
         actions: [["سياسة الخصوصية", "/privacy"]]
+      },
+      {
+        title: "كيف أبدأ حملة وأتابع نتائجها؟",
+        answer: "أنشئ الحملة من لوحة التحكم، وحدد القناة والجمهور والقالب ووقت الإرسال، ثم راجع المعاينة قبل التشغيل. بعد الإطلاق ستظهر حالات الإرسال والتسليم والتفاعل داخل تقارير الحملة لتتمكن من تحسين النسخة التالية.",
+        icon: "send",
+        category: "campaigns",
+        actions: [["دليل الحملات", "/user-guide"], ["إنشاء حساب", "/register"]]
       },
       {
         title: "كيف يمكنني التواصل مع الدعم الفني؟",
         answer: "ابدأ بالبحث في مركز المساعدة للوصول إلى المقال المناسب، وإن استمرت المشكلة أرسل طلب دعم يتضمن وصف الحالة والخطوات التي سبقتها والنتيجة المتوقعة. سيصل الطلب إلى الفريق المختص، ويمكن متابعة الرد من البريد الإلكتروني أو قناة التواصل المرتبطة بالحساب.",
         icon: "support",
+        category: "support",
         actions: [["مركز المساعدة", "/support"], ["تواصل معنا", "/contact"]]
       }
     ];
-    return `<main class="footer-showcase-page fp-faq">${pageHero("الأسئلة الشائعة", "إجابات سريعة على أكثر الأسئلة شيوعًا حول Renvix واشتراكك والتكاملات والدعم الفني.", `<label class="fp-hero-search">${dashboardIcon("search")}<input placeholder="ابحث عن سؤال أو موضوع..."></label>`)}<div class="container fp-page-stack">
-      <div class="fp-filter-row">${[["الكل","store"],["الاشتراكات","subscriptions"],["الفوترة","document"],["التكاملات","link"],["الأمان","security"],["الحملات","send"],["الدعم","support"]].map(([name,icon],index)=>`<button class="${index===0?"active":""}">${dashboardIcon(icon)}${name}</button>`).join("")}</div>
-      <section class="fp-faq-layout"><aside data-reveal><h2>أكثر المواضيع شيوعًا</h2>${[["بداية سريعة","إنشاء حسابك الأول في دقائق","star"],["إدارة الاشتراكات","إضافة وإدارة الخطط","subscriptions"],["التكاملات","ربط Renvix مع أدواتك","link"],["الحملات والأتمتة","إنشاء حملات ذكية","send"],["الأمان والخصوصية","حماية بياناتك بأعلى المعايير","security"],["الفوترة والدفع","كل ما يخص الدفع","document"]].map(([t,b,i])=>`<button>${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span>${dashboardIcon("arrowLeft")}</button>`).join("")}<footer><strong>لم تجد الإجابة؟</strong><p>ابحث في مركز المساعدة الكامل.</p><button data-link="/support">زيارة مركز المساعدة</button></footer></aside><div class="fp-faq-list">${questions.map((item,index)=>`<details ${index===0?"open":""} data-reveal style="--fp-delay:${index*.04}s"><summary>${item.title}<i>${index===0?"−":"+"}</i></summary><div><span>${dashboardIcon(item.icon)}</span><p>${item.answer}</p>${item.actions?.length?`<div>${item.actions.map(([label,path])=>`<button data-link="${path}">${label}</button>`).join("")}</div>`:""}</div></details>`).join("")}</div></section>
+    const faqFilters = [["all","الكل","store"],["subscriptions","الاشتراكات","subscriptions"],["billing","الفوترة","document"],["integrations","التكاملات","link"],["security","الأمان","security"],["campaigns","الحملات","send"],["support","الدعم","support"]];
+    const popularTopics = [["بداية سريعة","إنشاء حسابك الأول في دقائق","star","كيف يمكنني تجربة Renvix؟"],["إدارة الاشتراكات","إضافة وإدارة الخطط","subscriptions","خطط الأسعار"],["التكاملات","ربط Renvix مع أدواتك","link","كيف أربط Renvix"],["الحملات والأتمتة","إنشاء حملات ذكية","send","كيف أبدأ حملة"],["الأمان والخصوصية","حماية بياناتك بأعلى المعايير","security","هل بياناتي آمنة"],["الفوترة والدفع","كل ما يخص الدفع","document","الفوترة والدفع"]];
+    return `<main class="footer-showcase-page fp-faq">${pageHero("الأسئلة الشائعة", "إجابات سريعة على أكثر الأسئلة شيوعًا حول Renvix واشتراكك والتكاملات والدعم الفني.", `<label class="fp-hero-search">${dashboardIcon("search")}<input type="search" data-action="footer-faq-search" aria-label="البحث في الأسئلة الشائعة" autocomplete="off" placeholder="ابحث عن سؤال أو موضوع..."></label><p class="fp-filter-status" data-footer-faq-status aria-live="polite"></p>`)}<div class="container fp-page-stack">
+      <div class="fp-filter-row" aria-label="تصنيفات الأسئلة">${faqFilters.map(([key,name,icon],index)=>`<button type="button" data-action="footer-faq-filter" data-filter="${key}" aria-pressed="${index===0?"true":"false"}" class="${index===0?"active":""}">${dashboardIcon(icon)}${name}</button>`).join("")}</div>
+      <section class="fp-faq-layout"><aside data-reveal><h2>أكثر المواضيع شيوعًا</h2>${popularTopics.map(([t,b,i,query])=>`<button type="button" data-action="footer-faq-topic" data-query="${query}">${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span>${dashboardIcon("arrowLeft")}</button>`).join("")}<footer><strong>لم تجد الإجابة؟</strong><p>ابحث في مركز المساعدة الكامل.</p><button data-link="/support">زيارة مركز المساعدة</button></footer></aside><div class="fp-faq-list">${questions.map((item,index)=>`<details data-faq-item data-category="${item.category}" data-search="${escapeHtml(`${item.title} ${item.answer}`)}" ${index===0?"open":""} data-reveal style="--fp-delay:${index*.04}s"><summary>${item.title}<i aria-hidden="true"></i></summary><div><span>${dashboardIcon(item.icon)}</span><p>${item.answer}</p>${item.actions?.length?`<div>${item.actions.map(([label,path])=>`<button data-link="${path}">${label}</button>`).join("")}</div>`:""}</div></details>`).join("")}<p class="fp-filter-empty" data-footer-faq-empty hidden>لا توجد أسئلة مطابقة. جرّب كلمة أخرى أو اختر «الكل».</p></div></section>
       <section>${sectionTitle("ما زلت تحتاج مساعدة؟")}<div class="fp-four-grid">${[["طلب مكالمة", "احصل على مساعدة من أحد خبرائنا.", "document"], ["مركز المساعدة", "تصفح مئات المقالات والشروحات.", "helpBook"], ["البريد الإلكتروني", "أرسل لنا وسنرد خلال يوم عمل.", "email"], ["الدعم عبر واتساب", "تحدث مع فريقنا مباشرة.", "whatsapp"]].map(iconCard).join("")}</div></section>
       ${actionBanner("استكشف دليل Renvix الشامل", "دليل خطوة بخطوة يساعدك على البدء بسرعة وتحقيق أقصى استفادة.", "استكشف الدليل", "/user-guide", "infinity")}</div></main>`;
   };
@@ -2708,10 +2725,11 @@ function marketingResourcePage() {
     ${actionBanner("اربط جميع أدواتك في مكان واحد", "اكتشف التكاملات المتاحة وابدأ بربط الأدوات التي تستخدمها.", "استكشف التكاملات", "/register", "infinity")}</div></main>`;
 
   const templatesPage = () => {
-    const cards = [["إشعار مستند جديد","إشعار بالوثائق المتاحة للعميل.","notifications"],["عرض خاص للتجديد","عرض مخصص لتشجيع التجديد.","send"],["تجديد وشيك","إشعار اقتراب موعد التجديد.","email"],["تذكير تجديد الباقة","تذكير مؤكد وسهل الاستخدام.","whatsapp"],["تنبيه موعد الدفع","تنبيه في الوقت المناسب.","notifications"],["حملة موسم الصيف","حملة تسويقية جاهزة.","send"],["متابعة ما بعد التجديد","متابعة لرفع رضا العميل.","whatsapp"],["شكر بعد الشراء","رسالة شكر تعزز الولاء.","email"]];
-    return `<main class="footer-showcase-page fp-templates">${pageHero("قوالب الإرسال", "مجموعة جاهزة من القوالب الاحترافية للتذكيرات والحملات والتواصل مع عملائك عبر واتساب والبريد الإلكتروني.")}<div class="container fp-page-stack"><div class="fp-filter-row">${[["الكل","store"],["واتساب","whatsapp"],["البريد الإلكتروني","email"],["تذكيرات التجديد","settings"],["الحملات","send"],["الإشعارات","notifications"]].map(([n,i],x)=>`<button class="${x===0?"active":""}">${dashboardIcon(i)}${n}</button>`).join("")}</div>
-      <div class="fp-template-grid">${cards.map(([t,b,i],index)=>`<article data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(i)}</span><h3>${t}</h3><em>${index%2?"البريد الإلكتروني":"واتساب"}</em><p>${b}</p><ul><li>قابل للتخصيص</li><li>متوافق مع القناة</li></ul><footer><button>معاينة</button><button class="primary" data-link="/register">استخدام</button></footer></article>`).join("")}</div>
-      <section class="fp-template-preview" data-reveal><div class="fp-phone"><header>Renvix</header><article><strong>مرحبًا أحمد 👋</strong><p>نود تذكيرك بأن موعد تجديد باقتك قريب. حافظ على استمرارية خدمتك وجدّد الآن.</p><button>جدد الآن</button><time>10:00 ص</time></article></div><div><span>معاينة قالب مميز</span><h2>تذكير تجديد الباقة</h2><p>شاهد كيف سيظهر القالب للعميل قبل إرساله، وعدّل النص والمتغيرات بما يناسب علامتك.</p><ul><li>${dashboardIcon("success")} تخصيص تلقائي باسم العميل</li><li>${dashboardIcon("success")} متوافق مع جميع الأجهزة</li><li>${dashboardIcon("success")} مراجعة قبل الإرسال</li></ul></div><aside><h3>متغيرات متاحة</h3>${["{{الاسم}}","{{اسم_الخدمة}}","{{تاريخ_الانتهاء}}","{{رقم_الفاتورة}}","{{رابط_التجديد}}"].map(x=>`<code>${x}</code>`).join("")}</aside></section>
+    const cards = [["إشعار مستند جديد","إشعار بالوثائق المتاحة للعميل.","notifications","واتساب","whatsapp notifications"],["عرض خاص للتجديد","عرض مخصص لتشجيع التجديد.","send","البريد الإلكتروني","email renewal campaigns"],["تجديد وشيك","إشعار اقتراب موعد التجديد.","email","البريد الإلكتروني","email renewal notifications"],["تذكير تجديد الباقة","تذكير مؤكد وسهل الاستخدام.","whatsapp","واتساب","whatsapp renewal"],["تنبيه موعد الدفع","تنبيه في الوقت المناسب.","notifications","واتساب","whatsapp notifications"],["حملة موسم الصيف","حملة تسويقية جاهزة.","send","البريد الإلكتروني","email campaigns"],["متابعة ما بعد التجديد","متابعة لرفع رضا العميل.","whatsapp","واتساب","whatsapp renewal"],["شكر بعد الشراء","رسالة شكر تعزز الولاء.","email","البريد الإلكتروني","email notifications"]];
+    const templateFilters = [["all","الكل","store"],["whatsapp","واتساب","whatsapp"],["email","البريد الإلكتروني","email"],["renewal","تذكيرات التجديد","settings"],["campaigns","الحملات","send"],["notifications","الإشعارات","notifications"]];
+    return `<main class="footer-showcase-page fp-templates">${pageHero("قوالب الإرسال", "مجموعة جاهزة من القوالب الاحترافية للتذكيرات والحملات والتواصل مع عملائك عبر واتساب والبريد الإلكتروني.")}<div class="container fp-page-stack"><div class="fp-filter-row" aria-label="تصنيفات قوالب الإرسال">${templateFilters.map(([key,n,i],x)=>`<button type="button" data-action="footer-template-filter" data-filter="${key}" aria-pressed="${x===0?"true":"false"}" class="${x===0?"active":""}">${dashboardIcon(i)}${n}</button>`).join("")}</div>
+      <div class="fp-template-grid">${cards.map(([t,b,i,channel,categories],index)=>`<article data-template-card data-categories="${categories}" data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(i)}</span><h3>${t}</h3><em>${channel}</em><p>${b}</p><ul><li>قابل للتخصيص</li><li>متوافق مع القناة</li></ul><footer><button type="button" data-action="footer-template-preview" data-title="${escapeHtml(t)}" data-body="${escapeHtml(b)}" data-channel="${escapeHtml(channel)}">معاينة</button><button class="primary" data-link="/register">استخدام</button></footer></article>`).join("")}<p class="fp-filter-empty" data-footer-template-empty hidden>لا توجد قوالب ضمن هذا التصنيف.</p></div>
+      <section class="fp-template-preview" data-footer-template-preview data-reveal tabindex="-1"><div class="fp-phone"><header>Renvix</header><article><strong data-footer-template-message-title>مرحبًا أحمد 👋</strong><p data-footer-template-message>نود تذكيرك بأن موعد تجديد باقتك قريب. حافظ على استمرارية خدمتك وجدّد الآن.</p><button>جدد الآن</button><time>10:00 ص</time></article></div><div><span data-footer-template-channel>واتساب · معاينة قالب مميز</span><h2 data-footer-template-title>تذكير تجديد الباقة</h2><p data-footer-template-body>شاهد كيف سيظهر القالب للعميل قبل إرساله، وعدّل النص والمتغيرات بما يناسب علامتك.</p><ul><li>${dashboardIcon("success")} تخصيص تلقائي باسم العميل</li><li>${dashboardIcon("success")} متوافق مع جميع الأجهزة</li><li>${dashboardIcon("success")} مراجعة قبل الإرسال</li></ul></div><aside><h3>متغيرات متاحة</h3>${["{{الاسم}}","{{اسم_الخدمة}}","{{تاريخ_الانتهاء}}","{{رقم_الفاتورة}}","{{رابط_التجديد}}"].map(x=>`<code>${x}</code>`).join("")}</aside></section>
       <section>${sectionTitle("لماذا تستخدم قوالب الإرسال؟")}<div class="fp-four-grid">${[["تجربة عملاء أفضل","رسائل واضحة ومتناسقة.","customers"],["توفير الوقت والجهد","قوالب جاهزة وسريعة.","support"],["اتساق العلامة التجارية","هوية موحدة في كل الرسائل.","security"],["زيادة معدل الاستجابة","رسائل محسنة تزيد التفاعل.","reports"]].map(iconCard).join("")}</div></section>
       <section>${sectionTitle("كيف تبدأ باستخدام القوالب")} ${steps([["اختر قالبًا","تصفح القوالب واختر الأنسب.","document"],["خصص القالب","عدّل النص والمتغيرات.","settings"],["راجع المعاينة","تأكد من الشكل النهائي.","star"],["أطلق الإرسال","اختر الجمهور وأرسل.","send"]])}</section>
       ${actionBanner("ابدأ الآن بقوالب احترافية جاهزة", "اختر من مكتبة القوالب وابدأ التواصل بذكاء واحترافية.", "استكشف القوالب", "/register", "infinity")}</div></main>`;
@@ -2734,6 +2752,84 @@ function marketingResourcePage() {
 
   const pages = {"/product-updates":updatesPage,"/partners":partnersPage,"/user-guide":guidePage,"/faq":faqPage,"/integrations":integrationsPage,"/message-templates":templatesPage,"/careers":careersPage,"/contact":contactPage};
   return publicShell((pages[state.route] || integrationsPage)());
+}
+
+function normalizeFooterSearch(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .toLowerCase()
+    .trim();
+}
+
+function refreshFooterGuideResults(input) {
+  const root = input?.closest(".fp-guide");
+  if (!root) return;
+  const query = normalizeFooterSearch(input.value);
+  const results = [...root.querySelectorAll("[data-guide-result],.fp-five-grid .fp-icon-card,.fp-guide-table button")];
+  let visible = 0;
+  results.forEach((item) => {
+    const matches = !query || normalizeFooterSearch(item.textContent).includes(query);
+    item.hidden = !matches;
+    if (matches) visible += 1;
+  });
+  const status = root.querySelector("[data-footer-guide-status]");
+  if (status) status.textContent = query ? (visible ? `${visible.toLocaleString("ar-SA")} نتيجة مطابقة` : "لا توجد نتائج مطابقة. جرّب كلمة أقصر.") : "";
+}
+
+function refreshFooterFaqResults(root = document.querySelector(".fp-faq")) {
+  if (!root) return;
+  const input = root.querySelector('[data-action="footer-faq-search"]');
+  const query = normalizeFooterSearch(input?.value);
+  const category = root.querySelector('[data-action="footer-faq-filter"].active')?.dataset.filter || "all";
+  const items = [...root.querySelectorAll("[data-faq-item]")];
+  let visible = 0;
+  items.forEach((item) => {
+    const categoryMatches = category === "all" || item.dataset.category === category || item.dataset.category === "all";
+    const queryMatches = !query || normalizeFooterSearch(item.dataset.search || item.textContent).includes(query);
+    const matches = categoryMatches && queryMatches;
+    item.hidden = !matches;
+    if (matches) visible += 1;
+  });
+  const firstVisible = items.find((item) => !item.hidden);
+  if (firstVisible && !items.some((item) => !item.hidden && item.open)) firstVisible.open = true;
+  const empty = root.querySelector("[data-footer-faq-empty]");
+  if (empty) empty.hidden = visible !== 0;
+  const status = root.querySelector("[data-footer-faq-status]");
+  if (status) status.textContent = query || category !== "all" ? (visible ? `${visible.toLocaleString("ar-SA")} إجابة مطابقة` : "لا توجد إجابة مطابقة.") : "";
+}
+
+function refreshFooterTemplateResults(root = document.querySelector(".fp-templates")) {
+  if (!root) return;
+  const filter = root.querySelector('[data-action="footer-template-filter"].active')?.dataset.filter || "all";
+  const cards = [...root.querySelectorAll("[data-template-card]")];
+  let visible = 0;
+  cards.forEach((card) => {
+    const matches = filter === "all" || String(card.dataset.categories || "").split(/\s+/).includes(filter);
+    card.hidden = !matches;
+    if (matches) visible += 1;
+  });
+  const empty = root.querySelector("[data-footer-template-empty]");
+  if (empty) empty.hidden = visible !== 0;
+}
+
+function previewFooterTemplate(target) {
+  const root = target.closest(".fp-templates");
+  const preview = root?.querySelector("[data-footer-template-preview]");
+  if (!preview) return;
+  const title = target.dataset.title || "قالب رسالة";
+  const body = target.dataset.body || "معاينة محتوى القالب.";
+  const channel = target.dataset.channel || "قالب إرسال";
+  preview.querySelector("[data-footer-template-title]").textContent = title;
+  preview.querySelector("[data-footer-template-body]").textContent = body;
+  preview.querySelector("[data-footer-template-channel]").textContent = `${channel} · معاينة مباشرة`;
+  preview.querySelector("[data-footer-template-message-title]").textContent = title;
+  preview.querySelector("[data-footer-template-message]").textContent = body;
+  preview.scrollIntoView({ behavior: "smooth", block: "center" });
+  preview.focus({ preventScroll: true });
 }
 
 function policyPage() {
@@ -7356,6 +7452,52 @@ async function handleAction(target) {
   }
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "footer-guide-suggestion") {
+    const input = target.closest(".fp-guide")?.querySelector('[data-action="footer-guide-search"]');
+    if (!input) return;
+    input.value = target.dataset.query || "";
+    refreshFooterGuideResults(input);
+    input.focus();
+    return;
+  }
+  if (action === "footer-faq-filter") {
+    const root = target.closest(".fp-faq");
+    root?.querySelectorAll('[data-action="footer-faq-filter"]').forEach((button) => {
+      const active = button === target;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    refreshFooterFaqResults(root);
+    return;
+  }
+  if (action === "footer-faq-topic") {
+    const root = target.closest(".fp-faq");
+    const input = root?.querySelector('[data-action="footer-faq-search"]');
+    if (!input) return;
+    input.value = target.dataset.query || "";
+    root.querySelectorAll('[data-action="footer-faq-filter"]').forEach((button) => {
+      const active = button.dataset.filter === "all";
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    refreshFooterFaqResults(root);
+    input.focus();
+    return;
+  }
+  if (action === "footer-template-filter") {
+    const root = target.closest(".fp-templates");
+    root?.querySelectorAll('[data-action="footer-template-filter"]').forEach((button) => {
+      const active = button === target;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    refreshFooterTemplateResults(root);
+    return;
+  }
+  if (action === "footer-template-preview") {
+    previewFooterTemplate(target);
+    return;
+  }
   if (action === "action-menu") {
     return openFloatingActionMenu(target);
   }
@@ -11195,6 +11337,14 @@ document.addEventListener("input", (event) => {
   if (target.dataset.action === "support-search" && state.route === "/support") {
     state.search = target.value;
     refreshSupportSearchResults(target);
+    return;
+  }
+  if (target.dataset.action === "footer-guide-search") {
+    refreshFooterGuideResults(target);
+    return;
+  }
+  if (target.dataset.action === "footer-faq-search") {
+    refreshFooterFaqResults(target.closest(".fp-faq"));
     return;
   }
   if (target.dataset.action === "blog-search") {
