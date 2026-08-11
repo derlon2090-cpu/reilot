@@ -10640,3 +10640,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     transform:translateY(0)!important;
   }
 }
+
+/* Login/register only: reveal the artwork's native icon-to-device paths without detached overlays. */
+@media (min-width:744px){
+  .auth-showcase--login .auth-showcase-reference-art,
+  .auth-showcase--register .auth-showcase-reference-art{
+    filter:drop-shadow(0 0 1px rgba(5,101,92,.9)) drop-shadow(0 0 .4px rgba(5,101,92,.75)) drop-shadow(0 14px 20px rgba(6,43,40,.1))!important;
+  }
+}

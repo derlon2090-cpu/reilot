@@ -2882,6 +2882,21 @@ function authDashboardScene() {
   </div>`;
 }
 
+function prioritizeAuthReference(source) {
+  if (typeof document === "undefined" || !window.matchMedia("(min-width: 744px)").matches) return;
+  const absoluteSource = new URL(source, window.location.href).href;
+  const alreadyQueued = [...document.head.querySelectorAll('link[data-auth-reference-preload]')]
+    .some((link) => link.href === absoluteSource);
+  if (alreadyQueued) return;
+  const preload = document.createElement("link");
+  preload.rel = "preload";
+  preload.as = "image";
+  preload.href = source;
+  preload.fetchPriority = "high";
+  preload.dataset.authReferencePreload = "true";
+  document.head.append(preload);
+}
+
 function authReferenceVisual(kind) {
   const showcases = {
     login: {
@@ -2938,11 +2953,12 @@ function authReferenceVisual(kind) {
     loginOtp: "/app/assets/auth-reference/login-otp-v2.png?v=20260810-auth-art-v29"
   };
   const referenceAsset = referenceAssets[kind] || referenceAssets.login;
+  prioritizeAuthReference(referenceAsset);
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art"><img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" decoding="async">${illustration}</div>
+    <div class="auth-showcase-art"><img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
   </div>`;
 }
 

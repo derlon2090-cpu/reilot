@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const appSource = fs.readFileSync(path.join(root, "src/app/app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(root, "src/styles/globals.css"), "utf8");
+const layoutSource = fs.readFileSync(path.join(root, "app/layout.jsx"), "utf8");
+const staticIndexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const setupRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mfa/setup/route.js"), "utf8");
 const disableRoute = fs.readFileSync(path.join(root, "app/api/settings/security/mfa/disable/route.js"), "utf8");
 
@@ -101,6 +103,9 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).not.toContain('class="auth-showcase-feature-lines"');
     expect(appSource).not.toContain('auth-feature-line--alerts');
     expect(appSource).toContain('class="auth-showcase-reference-art"');
+    expect(appSource).toContain("function prioritizeAuthReference");
+    expect(appSource).toContain('loading="eager" decoding="sync" fetchpriority="high"');
+    expect(appSource).toContain('width="1127" height="1038"');
     for (const asset of ["dashboard-v2.png", "mfa-v2.png", "reset-v2.png", "login-otp-v2.png", "signup-otp-v2.png"]) {
       expect(appSource).toContain(`/app/assets/auth-reference/${asset}`);
       expect(fs.existsSync(path.join(root, "public/app/assets/auth-reference", asset))).toBe(true);
@@ -135,7 +140,21 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("Clean artwork balance: the reference asset owns its precisely attached connector paths.");
     expect(stylesSource).toContain("Keep every reference illustration fully visible inside the approved fixed panel.");
     expect(stylesSource).toContain("Stable access artwork: one panel size for sign-in/register, using embedded connectors.");
+    expect(stylesSource).toContain("Login/register only: reveal the artwork's native icon-to-device paths without detached overlays.");
+    expect(stylesSource).toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
+  });
+
+  it("prioritizes only the active desktop or tablet authentication artwork before first render", () => {
+    for (const source of [layoutSource, staticIndexSource]) {
+      expect(source).toContain("(min-width:744px)");
+      expect(source).toContain("authReferencePreload");
+      expect(source).toContain("fetchPriority='high'");
+      for (const asset of ["dashboard-v2.png", "mfa-v2.png", "reset-v2.png", "login-otp-v2.png", "signup-otp-v2.png"]) {
+        expect(source).toContain(asset);
+      }
+    }
+    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-stable-load-v37"></script>');
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {

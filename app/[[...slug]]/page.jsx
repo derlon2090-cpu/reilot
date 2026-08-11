@@ -1,4 +1,3 @@
-import Script from "next/script";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "../../src/server/session.js";
@@ -18,7 +17,6 @@ export default async function SpaPage({ params }) {
     <>
       <div id="app" />
       <div id="portal" />
-      <Script src="/app/app.js?v=20260811-auth-connectors-v36" type="module" strategy="afterInteractive" />
     </>
   );
 }
