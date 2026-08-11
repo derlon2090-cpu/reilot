@@ -2948,7 +2948,7 @@ function authSuiteFrame(content, pageClass = "auth-light-page") {
   const language = state.language === "en" ? "en" : "ar";
   const theme = resolvedInterfaceTheme();
   const arabic = language === "ar";
-  return `<main class="${pageClass} auth-suite-page" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div></header>${content}</div></main>`;
+  return `<main class="${pageClass} auth-suite-page" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls" role="group" aria-label="${arabic ? "اللغة والمظهر" : "Language and theme"}"><button type="button" class="${arabic ? "active" : ""}" data-action="language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="theme" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div></main>`;
 }
 
 function authModeTabs(activeMode) {
@@ -3065,7 +3065,7 @@ function authReferenceVisual(kind) {
     ? `<span class="auth-showcase-feature-connectors" aria-hidden="true"><i class="auth-feature-connector auth-feature-connector--alerts"></i><i class="auth-feature-connector auth-feature-connector--reports"></i><i class="auth-feature-connector auth-feature-connector--automation"></i><i class="auth-feature-connector auth-feature-connector--campaigns"></i><i class="auth-feature-connector auth-feature-connector--channels"></i><i class="auth-feature-connector auth-feature-connector--security"></i></span>`
     : "";
   const relocatedFeatures = kind === "login" || kind === "register"
-    ? `<span class="auth-showcase-relocated-features" aria-hidden="true"><span class="auth-relocated-feature auth-relocated-feature--channels"><i>${dashboardIcon("cloud")}</i><b>قنوات متصلة</b></span><span class="auth-relocated-feature auth-relocated-feature--security"><i>${dashboardIcon("security")}</i><b>أمان وموثوقية</b></span></span>`
+    ? `<span class="auth-showcase-relocated-features" aria-hidden="true"><svg class="auth-relocated-connectors" viewBox="0 0 1000 1000" preserveAspectRatio="none" focusable="false"><line x1="892" y1="334" x2="984" y2="384"></line><line x1="892" y1="671" x2="984" y2="734"></line></svg><span class="auth-relocated-feature auth-relocated-feature--channels"><i>${dashboardIcon("cloud")}</i><b>قنوات متصلة</b></span><span class="auth-relocated-feature auth-relocated-feature--security"><i>${dashboardIcon("security")}</i><b>أمان وموثوقية</b></span></span>`
     : "";
   prioritizeAuthReference(referenceAsset);
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
