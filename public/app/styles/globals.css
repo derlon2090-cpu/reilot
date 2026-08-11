@@ -10816,26 +10816,70 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-relocated-feature--security::before{width:44px}
 }
 
-/* Shared Renvix metric treatment: pale circular icon tile and tabular teal values. */
+/* Shared Renvix operational icon system: one brand treatment across every dashboard family. */
 .dashboard-main{
   --metric-icon-surface:#edf8f6;
   --metric-icon-ink:#087267;
+  --metric-icon-border:#d8ebe7;
+  --metric-icon-shadow:0 7px 18px rgba(7,79,71,.07);
   --metric-value-ink:#087267;
 }
 .dashboard-main .stat-card-icon,
+.dashboard-main .suite-metric-icon,
 .dashboard-main .template-summary-icon,
+.dashboard-main .template-brand-icon,
 .dashboard-main .apps-stat-icon,
 .dashboard-main .billing-stat>span,
 .dashboard-main .security-summary-icon,
 .dashboard-main .security-main-icon,
-.dashboard-main .capi-summary-card>span{
+.dashboard-main .capi-summary-card>span,
+.dashboard-main .salla-template-card-icon,
+.dashboard-main .message-activation-icon{
   border-radius:50%;
-  color:var(--metric-icon-ink);
-  background:var(--metric-icon-surface);
+  color:var(--metric-icon-ink)!important;
+  border-color:var(--metric-icon-border)!important;
+  background:var(--metric-icon-surface)!important;
+  box-shadow:var(--metric-icon-shadow);
 }
 .dashboard-main .salla-template-card-icon,
 .dashboard-main .salla-template-lock-logo{
   border-radius:50%;
+}
+.dashboard-main .salla-template-card:nth-child(n) .salla-template-card-icon,
+.dashboard-main .stat-card:is(.info,.success,.warning,.danger,.purple,.neutral) .stat-card-icon,
+.dashboard-main .suite-metric:is(.info,.success,.warning,.danger,.purple,.teal) .suite-metric-icon,
+.dashboard-main .apps-overview-stat:is(.info,.success,.warning,.danger,.purple) .apps-stat-icon,
+.dashboard-main .template-summary-icon:is(.success,.warning),
+.dashboard-main .template-brand-icon:is(.whatsapp,.email){
+  color:var(--metric-icon-ink)!important;
+  border-color:var(--metric-icon-border)!important;
+  background:var(--metric-icon-surface)!important;
+}
+.dashboard-main :is(
+  .stat-card-icon,
+  .suite-metric-icon,
+  .template-summary-icon,
+  .template-brand-icon,
+  .apps-stat-icon,
+  .billing-stat>span,
+  .security-summary-icon,
+  .security-main-icon,
+  .capi-summary-card>span,
+  .salla-template-card-icon,
+  .message-activation-icon
+) .line-icon{
+  color:inherit!important;
+  opacity:1!important;
+  stroke:currentColor!important;
+}
+.dashboard-main :is(
+  .salla-template-enable>div>svg,
+  .salla-template-form-card>.section-head>svg,
+  .salla-template-live-preview>.section-head>svg
+){
+  color:var(--metric-icon-ink)!important;
+  opacity:1!important;
+  stroke:currentColor!important;
 }
 .dashboard-main .stat-card strong,
 .dashboard-main .template-summary-grid strong,
@@ -10858,19 +10902,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   font-weight:750;
   font-variant-numeric:tabular-nums;
 }
-.dashboard-main .template-summary-icon.warning,
-.dashboard-main .stat-card.warning .stat-card-icon,
-.dashboard-main .apps-overview-stat.warning .apps-stat-icon{
-  color:#c88318;
-  background:#fff6e6;
-}
-.dashboard-main .stat-card.danger .stat-card-icon{
-  color:#c94b55;
-  background:#fff0f1;
-}
 :root[data-theme="dark"] .dashboard-main{
   --metric-icon-surface:#123f3b;
   --metric-icon-ink:#7fd7c7;
+  --metric-icon-border:#285b55;
+  --metric-icon-shadow:none;
   --metric-value-ink:#7fd7c7;
 }
 
