@@ -11740,6 +11740,115 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .topbar .dashboard-search { transform: none; }
 }
 
+/* Desktop-only, no-layout-shift interaction for user dashboard navigation. */
+@media (min-width: 981px) and (hover: hover) and (pointer: fine) {
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link) {
+    --sidebar-icon-shift: -2px;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    cursor: pointer;
+    transform: translateZ(0);
+    transition: transform 180ms ease-out, color 180ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out;
+    will-change: transform;
+  }
+  [dir="ltr"] .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link) { --sidebar-icon-shift: 2px; }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link)::after {
+    width: 3px;
+    height: 0;
+    position: absolute;
+    inset-block: auto;
+    inset-block-start: 50%;
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+    content: "";
+    border-radius: 999px;
+    background: #15957F;
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: height 180ms ease-out, opacity 160ms ease-out;
+    pointer-events: none;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link) .line-icon {
+    transform-origin: center;
+    transition: transform 180ms ease-out, color 180ms ease-out;
+    will-change: transform;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link) > span {
+    transition: color 180ms ease-out, text-shadow 180ms ease-out;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):not(.active):is(:hover, :focus-visible) {
+    color: #062B28;
+    border-color: rgba(11, 63, 59, .07);
+    background: #EEF8F6;
+    box-shadow: 0 6px 16px rgba(6, 43, 40, .07);
+    transform: translateY(-1px);
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):is(:hover, :focus-visible)::after,
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link).active::after {
+    height: calc(100% - 14px);
+    opacity: 1;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):is(:hover, :focus-visible) > span {
+    color: inherit;
+    text-shadow: 0 0 .35px currentColor;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):is(:hover, :focus-visible) .line-icon {
+    transform: translateX(var(--sidebar-icon-shift)) scale(1.06);
+  }
+  .dashboard-shell .sidebar [data-sidebar-icon="campaigns"] { --sidebar-icon-shift: -3px; }
+  [dir="ltr"] .dashboard-shell .sidebar [data-sidebar-icon="campaigns"] { --sidebar-icon-shift: 3px; }
+  .dashboard-shell .sidebar [data-sidebar-icon="settings"]:is(:hover, :focus-visible) .line-icon {
+    transform: translateX(var(--sidebar-icon-shift)) scale(1.05) rotate(10deg);
+  }
+  .dashboard-shell .sidebar [data-sidebar-icon="reports"]:is(:hover, :focus-visible) .line-icon {
+    transform: translate(var(--sidebar-icon-shift), -2px) scale(1.05);
+  }
+  .dashboard-shell .sidebar :is([data-sidebar-icon="customers"], [data-sidebar-icon="contacts"]):is(:hover, :focus-visible) .line-icon {
+    transform: translateX(var(--sidebar-icon-shift)) scale(1.08);
+  }
+  .dashboard-shell .sidebar [data-sidebar-icon="notifications"]:is(:hover, :focus-visible) .line-icon {
+    transform: translateX(var(--sidebar-icon-shift)) scale(1.05) rotate(-7deg);
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link).active {
+    color: #FFFFFF !important;
+    border-color: #0B3F3B !important;
+    background: #0B3F3B !important;
+    box-shadow: 0 5px 14px rgba(6, 43, 40, .13);
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link).active::after { background: #73B8AF; }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link).active :is(.line-icon, span) { color: #FFFFFF; }
+  .dashboard-shell.sidebar-collapsed .side-link.active::after { display: block; }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):active {
+    background: #E4F1EF;
+    transform: translateY(0) scale(.985);
+    transition-duration: 90ms;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):active .line-icon {
+    transform: scale(.98);
+    transition-duration: 90ms;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link).active:active { background: #062B28 !important; }
+  :root[data-theme="dark"] .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):not(.active):is(:hover, :focus-visible) {
+    color: #FFFFFF;
+    border-color: rgba(115, 184, 175, .18);
+    background: rgba(115, 184, 175, .11);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .15);
+  }
+  :root[data-theme="dark"] .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):active { background: rgba(115, 184, 175, .17); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link),
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link)::after,
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link) .line-icon,
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link) > span {
+    transition: none !important;
+  }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):is(:hover, :focus-visible, :active) { transform: none; }
+  .dashboard-shell .sidebar :is(.side-link, .sidebar-support-link):is(:hover, :focus-visible, :active) .line-icon { transform: none; }
+}
+
 /* Campaign Studio reference layout: product/custom × WhatsApp/email. */
 .campaign-studio[data-campaign-channel][data-campaign-kind]{width:100%;max-width:none;margin-inline:auto;padding-bottom:54px}
 .campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-heading{min-height:92px;margin-bottom:14px}

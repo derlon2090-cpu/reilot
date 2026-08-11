@@ -3332,7 +3332,7 @@ function dashboardShell(content) {
   const links = routeGroups.map((group) => {
     const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => {
       const localizedLabel = state.language === "ar" ? label : englishLabels[label];
-      return `<button class="side-link ${state.route === path || (path === "/dashboard/apps" && state.route.startsWith("/dashboard/apps/")) ? "active" : ""}" data-link="${path}" aria-label="${escapeHtml(localizedLabel)}" title="${escapeHtml(localizedLabel)}">${dashboardIcon(mark)}<span>${localizedLabel}</span></button>`;
+      return `<button class="side-link ${state.route === path || (path === "/dashboard/apps" && state.route.startsWith("/dashboard/apps/")) ? "active" : ""}" data-link="${path}" data-sidebar-icon="${mark}" aria-label="${escapeHtml(localizedLabel)}" title="${escapeHtml(localizedLabel)}">${dashboardIcon(mark)}<span>${localizedLabel}</span></button>`;
     }).join("");
     return `<div class="side-group">${group.label ? `<span class="side-group-title">${group.label}</span>` : ""}${items}</div>`;
   }).join("");
@@ -3358,7 +3358,7 @@ function dashboardShell(content) {
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       <div class="sidebar-brand">${logo(state.sidebarCollapsed)}</div>
       <nav class="side-links">${links}</nav>
-      <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support" aria-label="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}" title="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
+      <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support" data-sidebar-icon="support" aria-label="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}" title="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
     </aside>
     ${state.sidebarOpen ? `<button class="sidebar-backdrop" data-action="close-sidebar" aria-label="إغلاق القائمة"></button>` : ""}
     <main class="dashboard-main">
