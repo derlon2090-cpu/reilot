@@ -9,7 +9,7 @@ const stickyAppPreviews = {
   "meta-approved-preview": 88,
   "email-preview-v2": 88,
   "salla-live-preview": 96,
-  "salla-template-live-preview": 92,
+  "salla-template-preview-sticky": 92,
   "campaign-preview-card": 82,
   "campaign-studio-preview": 82
 };

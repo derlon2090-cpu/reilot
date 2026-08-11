@@ -111,6 +111,22 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain("refreshSallaTemplatePreview(form)");
   });
 
+  it("stretches every Salla preview beside its form with contextual guidance", () => {
+    expect(appSource).toContain("SALLA_TEMPLATE_PREVIEW_GUIDANCE");
+    expect(appSource).toContain('class="salla-template-preview-sticky"');
+    expect(appSource).toContain('class="salla-template-preview-stack"');
+    expect(appSource).toContain('class="salla-preview-important-note" role="note"');
+    expect(appSource).toContain("تأكد من اتصال جهاز واتساب قبل تفعيل الإرسال التلقائي.");
+    expect(appSource).toContain("تأكد من اعتماد بريد المرسل قبل تفعيل الإرسال التلقائي.");
+    expect(appSource).toContain('data-salla-preview-channel-readiness');
+    expect(appSource).toContain('isDigitalDelivery ? "" : `<section class="salla-preview-important-note"');
+    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:stretch");
+    expect(styles).toContain(".salla-template-preview-sticky{position:sticky;top:92px");
+    expect(styles).toContain('[data-theme="dark"] .salla-preview-important-note');
+    expect(styles).toContain(".salla-template-live-preview.is-digital-delivery .salla-template-preview-stack:has(.salla-digital-link-preview:not([hidden]))");
+    expect(styles).toContain("grid-template-rows:repeat(2,minmax(470px,1fr))");
+  });
+
   it("places three professional Salla email designs below the image with an adjacent color editor", () => {
     const customerEmailPanel = appSource.slice(
       appSource.indexOf("const emailPanel ="),

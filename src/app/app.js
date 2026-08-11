@@ -3856,6 +3856,21 @@ function sallaAutomationTemplatesPage() {
     <section class="salla-templates-grid">${cards}</section>`);
 }
 
+const SALLA_TEMPLATE_PREVIEW_GUIDANCE = Object.freeze({
+  processing: "اربط القالب بحالة «قيد التنفيذ» الفعلية في متجرك قبل تشغيل الأتمتة.",
+  under_review: "راجع اسم حالة المراجعة في سلة حتى لا تصل الرسالة قبل انتقال الطلب إليها فعلًا.",
+  delivered: "تأكد من اعتماد حالة التسليم النهائية قبل طلب أي إجراء إضافي من العميل.",
+  out_for_delivery: "تحقق من توفر بيانات شركة الشحن ورابط التتبع قبل بدء الإرسال التلقائي.",
+  completed: "راجع اكتمال بيانات الطلب والرابط الآمن قبل اعتماد رسالة التنفيذ.",
+  review_request: "اختر حالة بدء طلب التقييم والمهلة المناسبة لتجربة العميل في متجرك.",
+  abandoned_cart: "اضبط مهلة التذكير بعناية، وتأكد من توقفه تلقائيًا عند إتمام الشراء.",
+  cancelled: "راجع سياسة الإلغاء وسبب الإلغاء الظاهر للعميل قبل تفعيل القالب.",
+  return_in_progress: "طابق حدث بدء الاسترجاع مع رحلة الإرجاع المعتمدة في متجرك.",
+  returned: "تأكد من اكتمال بيانات المبلغ وطريقة الاسترداد قبل إرسال التأكيد.",
+  shipped: "تحقق من رقم التتبع وشركة الشحن قبل اعتماد رسالة الشحن.",
+  salla_invoice_ready: "تأكد من توفر الفاتورة ورابطها الآمن في بيانات سلة قبل تفعيل الإرسال."
+});
+
 function sallaTemplatePreviewPanel(item, storeProfile = {}) {
   const isEmail = item.channel === "email";
   const settings = { ...(item.settings || {}) };
@@ -3876,8 +3891,14 @@ function sallaTemplatePreviewPanel(item, storeProfile = {}) {
   const deliveryPageStyle = Object.entries(sallaPageCssVariables(settings.deliveryPageCustomCss))
     .map(([property, value]) => `${property}:${escapeHtml(value)}`)
     .join(";");
-  return `<aside class="card salla-template-live-preview">
+  const isDigitalDelivery = item.templateKey === "digital_product_delivery";
+  const previewGuidance = SALLA_TEMPLATE_PREVIEW_GUIDANCE[item.templateKey] || "راجع حالة التشغيل ومحتوى الرسالة قبل تفعيل الإرسال التلقائي.";
+  const whatsappReadiness = "تأكد من اتصال جهاز واتساب قبل تفعيل الإرسال التلقائي.";
+  const emailReadiness = "تأكد من اعتماد بريد المرسل قبل تفعيل الإرسال التلقائي.";
+  return `<aside class="card salla-template-live-preview ${isDigitalDelivery ? "is-digital-delivery" : "has-important-note"}">
+    <div class="salla-template-preview-sticky">
     <div class="section-head"><div><h2 data-salla-preview-title>${isEmail ? "معاينة البريد" : "معاينة واتساب"}</h2><p>معاينة موحدة وآمنة — لن يتم إرسال أي رسالة.</p></div>${dashboardIcon(isEmail ? "template" : "eye")}</div>
+    <div class="salla-template-preview-stack">
     <div class="${isEmail ? `salla-email-preview design-${emailDesign} ${customInspection?.ok ? "uses-custom-html" : ""}` : "salla-whatsapp-preview"}" data-salla-preview-frame style="--email-theme:${emailThemeColor}">
       <div class="salla-whatsapp-preview-canvas" data-salla-preview-head="whatsapp" ${isEmail ? "hidden" : ""}>
         <div class="salla-whatsapp-bubble">${settings.whatsappImageEnabled === true && whatsappImageUrl ? `<img class="salla-whatsapp-message-image" data-salla-whatsapp-image src="${escapeHtml(whatsappImageUrl)}" alt="صورة رسالة واتساب">` : `<img class="salla-whatsapp-message-image" data-salla-whatsapp-image alt="صورة رسالة واتساب" hidden>`}<div class="salla-preview-message" data-salla-preview-message>${body}</div><button type="button" tabindex="-1" class="salla-preview-cta" data-salla-preview-cta ${buttonEnabled ? "" : "hidden"}>${dashboardIcon("orderLink")} <span>${escapeHtml(settings.buttonLabel || item.previewAction || "عرض التفاصيل")}</span></button><small>11:30 ص ✓✓</small></div>
@@ -3890,8 +3911,11 @@ function sallaTemplatePreviewPanel(item, storeProfile = {}) {
         <footer>هذه رسالة آلية آمنة من ${escapeHtml(storeProfile.storeName || "متجرك")}</footer>
       </div>
     </div>
-    ${item.templateKey === "digital_product_delivery" ? `<section class="salla-digital-link-preview design-${escapeHtml(settings.deliveryPageDesign || "classic")}" data-salla-link-preview style="--salla-link-theme:${escapeHtml(settings.themeColor || settings.branding?.themeColor || "#0B3F3B")};${deliveryPageStyle}" ${settings.secureLinkEnabled === false ? "hidden" : ""}><div class="salla-digital-link-head">${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="شعار المتجر">` : dashboardIcon("security")}<div><small>الرابط الخاص بالطلب #10025</small><strong data-salla-link-title>${escapeHtml(settings.linkPageTitle || "منتجاتك الرقمية جاهزة")}</strong></div></div><p data-salla-link-content>${escapeHtml(settings.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.")}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article><div class="salla-digital-countdown" data-salla-link-countdown ${settings.showDuration === true ? "" : "hidden"}>مدة المنتج <strong>30 يومًا</strong></div><small>تُرتب بيانات الكود أو البريد وكلمة المرور تلقائيًا حسب الحقل المعتمد في طلب سلة.</small></section>` : ""}
+    ${isDigitalDelivery ? `<section class="salla-digital-link-preview design-${escapeHtml(settings.deliveryPageDesign || "classic")}" data-salla-link-preview style="--salla-link-theme:${escapeHtml(settings.themeColor || settings.branding?.themeColor || "#0B3F3B")};${deliveryPageStyle}" ${settings.secureLinkEnabled === false ? "hidden" : ""}><div class="salla-digital-link-head">${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="شعار المتجر">` : dashboardIcon("security")}<div><small>الرابط الخاص بالطلب #10025</small><strong data-salla-link-title>${escapeHtml(settings.linkPageTitle || "منتجاتك الرقمية جاهزة")}</strong></div></div><p data-salla-link-content>${escapeHtml(settings.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان.")}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article><div class="salla-digital-countdown" data-salla-link-countdown ${settings.showDuration === true ? "" : "hidden"}>مدة المنتج <strong>30 يومًا</strong></div><small>تُرتب بيانات الكود أو البريد وكلمة المرور تلقائيًا حسب الحقل المعتمد في طلب سلة.</small></section>` : ""}
+    </div>
+    ${isDigitalDelivery ? "" : `<section class="salla-preview-important-note" role="note">${dashboardIcon("info")}<div><strong>ملاحظة مهمة</strong><p><span data-salla-preview-channel-readiness data-whatsapp-text="${escapeHtml(whatsappReadiness)}" data-email-text="${escapeHtml(emailReadiness)}">${escapeHtml(isEmail ? emailReadiness : whatsappReadiness)}</span> ${escapeHtml(previewGuidance)}</p></div></section>`}
     ${item.lastFailureAt ? `<div class="inline-notice danger"><strong>آخر خطأ</strong><span>${escapeHtml(item.lastFailureCode || "provider_failed")}</span></div>` : ""}
+    </div>
   </aside>`;
 }
 
@@ -3924,6 +3948,8 @@ function refreshSallaTemplatePreview(form, {
   frame?.classList.toggle("uses-custom-html", Boolean(customInspection?.ok));
   const title = document.querySelector("[data-salla-preview-title]");
   if (title) title.textContent = isEmail ? "معاينة البريد" : "معاينة واتساب";
+  const readiness = document.querySelector("[data-salla-preview-channel-readiness]");
+  if (readiness) readiness.textContent = isEmail ? readiness.dataset.emailText : readiness.dataset.whatsappText;
   const buttonEnabled = form.elements.buttonEnabled?.checked !== false;
   document.querySelectorAll("[data-salla-preview-cta]").forEach((button) => {
     button.toggleAttribute("hidden", !buttonEnabled);
