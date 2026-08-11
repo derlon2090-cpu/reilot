@@ -113,13 +113,19 @@ async function scheduleSubscriptionReminders(client, subscription, plan, { enabl
     scheduled.setUTCHours(6, 0, 0, 0);
     if (scheduled <= new Date()) continue;
     const type = day === 0 ? "on_expiry" : `before_${day}_days`;
-    const key = reminderIdempotencyKey({ subscriptionId: subscription.id, type, scheduledFor: scheduled, channel: subscription.preferred_channel });
+    const deliveryMode = subscription.reminder_delivery_mode === "both" ? "both" : "single";
+    const key = reminderIdempotencyKey({ subscriptionId: subscription.id, type, scheduledFor: scheduled,
+      channel: deliveryMode === "both" ? "both" : subscription.preferred_channel });
     const inserted = await client.query(
       `INSERT INTO subscription_reminders
          (tenant_id, subscription_id, reminder_type, original_expires_at, scheduled_for,
           channel, fallback_channel, status, idempotency_key)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'scheduled',$8)
-       ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`,
+       ON CONFLICT (idempotency_key) DO UPDATE SET
+         scheduled_for=EXCLUDED.scheduled_for,channel=EXCLUDED.channel,fallback_channel=EXCLUDED.fallback_channel,
+         status='scheduled',queue_job_id=NULL,sent_at=NULL,failed_at=NULL,failure_reason=NULL,updated_at=now()
+       WHERE subscription_reminders.status IN ('cancelled','failed','skipped','paused')
+       RETURNING id`,
       [subscription.tenant_id, subscription.id, type, subscription.expires_at, scheduled,
         subscription.preferred_channel, subscription.fallback_channel, key]
     );
@@ -317,6 +323,7 @@ export async function listSubscriptionOperations(tenantId, options = {}) {
             sp.name AS "planName", cs.plan_id AS "planId", cs.starts_at AS "startDate",
             cs.expires_at AS "endDate", cs.status, cs.amount AS price, cs.currency,
             cs.preferred_channel AS "reminderChannel", cs.fallback_channel AS "fallbackChannel",
+            cs.reminder_delivery_mode AS "reminderDeliveryMode",
             cs.reminder_mode AS "reminderMode", cs.reminder_enabled AS "reminderEnabled",
             COALESCE((cs.reminder_days->>0)::int,7) AS "reminderDaysBefore",
             cs.next_reminder_at AS "nextReminderAt",

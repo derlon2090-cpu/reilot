@@ -10,6 +10,7 @@ const operationsSource = fs.readFileSync(path.resolve(process.cwd(), "src/server
 const remindersSource = fs.readFileSync(path.resolve(process.cwd(), "src/server/renewal-reminders.js"), "utf8");
 const lifecycleSource = fs.readFileSync(path.resolve(process.cwd(), "src/lib/subscription-lifecycle.js"), "utf8");
 const reminderActivationMigration = fs.readFileSync(path.resolve(process.cwd(), "drizzle/0048_subscription_reminder_activation.sql"), "utf8");
+const dualChannelMigration = fs.readFileSync(path.resolve(process.cwd(), "drizzle/0070_subscription_reminder_delivery_mode.sql"), "utf8");
 const subscriptionFormSource = appSource.slice(
   appSource.indexOf("function subscriptionForm("),
   appSource.indexOf("function customerForm(")
@@ -37,6 +38,24 @@ describe("manual subscription delivery form", () => {
     expect(reminderSettingsSource).toContain('name="reminderMode"');
     expect(reminderSettingsSource).toContain('name="reminderDaysBefore"');
     expect(reminderSettingsSource).not.toContain("الاشتراك المحدد");
+  });
+
+  it("offers a durable both-channels mode with graceful single-channel delivery", () => {
+    expect(reminderSettingsSource).toContain('<option value="both"');
+    expect(reminderSettingsSource).toContain("كلاهما — واتساب والبريد");
+    expect(reminderSettingsSource).toContain("يستخدم القناة المتاحة تلقائيًا");
+    expect(updateRoute).toContain('body.reminderChannel === "both"');
+    expect(updateRoute).toContain('reminder_delivery_mode=$12');
+    expect(operationsSource).toContain('cs.reminder_delivery_mode AS "reminderDeliveryMode"');
+    expect(remindersSource).toContain('["whatsapp", "email"].map');
+    expect(remindersSource).toContain('deliveryContext(tenantId, subscriptionId, channel, { createLink: true, strictChannel: true })');
+    expect(remindersSource).toContain("partial: unavailableChannels.length > 0 || failures.length > 0");
+    expect(dualChannelMigration).toContain("CHECK (reminder_delivery_mode IN ('single', 'both'))");
+  });
+
+  it("reactivates an existing cancelled schedule when reminder settings are saved", () => {
+    expect(operationsSource).toContain("ON CONFLICT (idempotency_key) DO UPDATE SET");
+    expect(operationsSource).toContain("status='scheduled'");
   });
 
   it("loads every subscription by default and keeps reminder settings independent from list filters", () => {

@@ -28,6 +28,14 @@ describe("subscription lifecycle", () => {
     expect(validateSubscriptionDeliveryContact({ channel: "email", whatsappNumber: "", email: "USER@Example.com" }))
       .toMatchObject({ ok: true, channel: "email", email: "user@example.com" });
   });
+  it("accepts either available contact when both reminder channels are selected", () => {
+    expect(validateSubscriptionDeliveryContact({ channel: "both", whatsappNumber: "", email: "USER@Example.com" }))
+      .toMatchObject({ ok: true, channel: "both", phone: null, email: "user@example.com" });
+    expect(validateSubscriptionDeliveryContact({ channel: "both", whatsappNumber: "0501234567", email: "" }))
+      .toMatchObject({ ok: true, channel: "both", phone: "+966501234567", email: null });
+    expect(validateSubscriptionDeliveryContact({ channel: "both", whatsappNumber: "", email: "" }))
+      .toMatchObject({ ok: false, reason: "delivery_contact_required" });
+  });
   it("extracts contact and every Salla order item", () => {
     const order = normalizeSallaSubscriptionOrder({ data: { id: 9, reference_id: 22, payment: { status: "paid" }, customer: { id: 4, name: "محمد", mobile: "0501234567", email: "M@EXAMPLE.COM" }, items: [{ id: 1, product: { id: 11 }, variant_id: 33, sku: "A" }, { id: 2, product_id: 12, sku: "B" }] } });
     expect(order.customer).toMatchObject({ externalId: "4", phone: "+966501234567", email: "m@example.com" });

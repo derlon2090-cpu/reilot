@@ -30,6 +30,7 @@ describe("subscription workspace cleanup", () => {
   it("uses readable support text and comfortable reminder settings spacing", () => {
     for (const styles of [stylesSource, publicStylesSource]) {
       expect(styles).toContain(".subscription-settings-panel { padding: 28px; }");
+      expect(styles).toContain(".dashboard-main .subscription-settings-panel{padding:28px}");
       expect(styles).toContain(".subscription-settings-panel > .section-head { margin-bottom: 22px; }");
       expect(styles).toMatch(/\.sidebar-support-link \{[\s\S]*?color: #fff;/);
       expect(styles).toContain(".subscription-settings-form>.message-activation-card{grid-column:1/-1;margin:0 0 4px;padding:16px 18px}");

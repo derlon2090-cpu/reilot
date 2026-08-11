@@ -58,7 +58,7 @@ async function renewalUrlForChannel(tenantId, subscriptionId, channel, createLin
   return link.ok ? link.url : null;
 }
 
-async function deliveryContext(tenantId, subscriptionId, requestedChannel = null, { createLink = false } = {}) {
+async function deliveryContext(tenantId, subscriptionId, requestedChannel = null, { createLink = false, strictChannel = false } = {}) {
   const result = await query(
     `SELECT cs.*, sc.full_name AS customer_name, sc.email, sc.phone_e164, sc.email_eligible,
             sc.whatsapp_eligible, sc.legacy_customer_id, sp.name AS plan_name, sp.salla_product_url,
@@ -81,7 +81,8 @@ async function deliveryContext(tenantId, subscriptionId, requestedChannel = null
     return { ok: false, reason: "reminder_disabled", message: "رسالة التذكير متوقفة من إعدادات الاشتراك." };
   }
   const preferred = requestedChannel || row.preferred_channel;
-  const candidates = [preferred, row.fallback_channel].filter((channel, index, list) => channel && list.indexOf(channel) === index);
+  const candidates = (strictChannel && requestedChannel ? [requestedChannel] : [preferred, row.fallback_channel])
+    .filter((channel, index, list) => channel && list.indexOf(channel) === index);
   let channel = null;
   for (const candidate of candidates) {
     if (candidate === "whatsapp" && row.whatsapp_eligible && row.phone_e164 && row.whatsapp_status === "connected" && Number(row.whatsapp_risk || 0) < 80) { channel = candidate; break; }
@@ -132,22 +133,62 @@ async function fallbackPayload(tenantId, subscriptionId, primaryChannel) {
   const selected = await query("SELECT fallback_channel FROM customer_subscriptions WHERE id=$1 AND tenant_id=$2", [subscriptionId, tenantId]);
   const fallback = selected.rows[0]?.fallback_channel;
   if (!fallback || fallback === primaryChannel) return null;
-  const context = await deliveryContext(tenantId, subscriptionId, fallback, { createLink: true });
+  const context = await deliveryContext(tenantId, subscriptionId, fallback, { createLink: true, strictChannel: true });
   return context.ok ? context : null;
 }
 
-export async function getSubscriptionReminderPreview(tenantId, subscriptionId) {
-  const context = await deliveryContext(tenantId, subscriptionId);
-  if (!context.ok) return context;
-  return { ok: true, preview: { channel: context.channel, recipient: context.maskedDestination,
-    subject: context.subject, body: context.body, templateName: context.template.name } };
+async function configuredDeliveryMode(tenantId, subscriptionId) {
+  const selected = await query(
+    "SELECT reminder_delivery_mode FROM customer_subscriptions WHERE id=$1 AND tenant_id=$2",
+    [subscriptionId, tenantId]
+  );
+  return selected.rows[0]?.reminder_delivery_mode === "both" ? "both" : "single";
 }
 
-export async function queueSubscriptionReminder({ tenantId, subscriptionId, reminderId = null, sourceMode = "manual" }) {
-  const context = await deliveryContext(tenantId, subscriptionId, null, { createLink: true });
-  if (!context.ok) return context;
-  const fallback = await fallbackPayload(tenantId, subscriptionId, context.channel);
-  const queued = await enqueueMessage({
+function previewFromContext(context) {
+  return {
+    channel: context.channel,
+    recipient: context.maskedDestination,
+    subject: context.subject,
+    body: context.body,
+    templateName: context.template.name
+  };
+}
+
+function emailTemplateSnapshot(context) {
+  if (context.channel !== "email") return null;
+  return {
+    type: "renewal_email_v1",
+    data: {
+      customerName: context.row.customer_name,
+      serviceName: context.row.plan_name,
+      endDate: context.variables.expiry_date,
+      remainingDays: context.variables.days_remaining,
+      renewalLink: context.variables.renewal_url,
+      supportUrl: context.variables.support_url,
+      orderNumber: context.row.order_number,
+      storeName: context.template.storeName || context.row.store_name
+    },
+    template: {
+      storeName: context.template.storeName || context.row.store_name,
+      storeImageUrl: context.template.storeImageUrl || "",
+      storeImageRadius: Number(context.template.storeImageRadius ?? 16),
+      title: context.subject,
+      body: context.body,
+      themeColor: context.template.themeColor || "#062B28",
+      buttonLabel: context.template.buttonLabel || "جدد اشتراكك الآن",
+      footerText: context.template.footerText || "شكرًا لثقتك بنا",
+      emailDesign: context.template.contentJson?.emailDesign || "classic",
+      emailContentMode: context.template.contentJson?.emailContentMode || "preset",
+      emailHtmlContent: context.template.contentJson?.emailHtmlContent || ""
+    }
+  };
+}
+
+function enqueueReminderContext(context, {
+  tenantId, subscriptionId, reminderId, sourceMode, fallback = null, triggerSuffix = ""
+}) {
+  return enqueueMessage({
     tenantId,
     customerId: context.row.legacy_customer_id || null,
     customerSubscriptionId: subscriptionId,
@@ -160,35 +201,12 @@ export async function queueSubscriptionReminder({ tenantId, subscriptionId, remi
     emailTo: context.channel === "email" ? context.destination : null,
     subject: context.subject,
     messageBody: context.body,
-    templateSnapshot: context.channel === "email" ? {
-      type: "renewal_email_v1",
-      data: {
-        customerName: context.row.customer_name,
-        serviceName: context.row.plan_name,
-        endDate: context.variables.expiry_date,
-        remainingDays: context.variables.days_remaining,
-        renewalLink: context.variables.renewal_url,
-        supportUrl: context.variables.support_url,
-        orderNumber: context.row.order_number,
-        storeName: context.template.storeName || context.row.store_name
-      },
-      template: {
-        storeName: context.template.storeName || context.row.store_name,
-        storeImageUrl: context.template.storeImageUrl || "",
-        storeImageRadius: Number(context.template.storeImageRadius ?? 16),
-        title: context.subject,
-        body: context.body,
-        themeColor: context.template.themeColor || "#062B28",
-        buttonLabel: context.template.buttonLabel || "جدد اشتراكك الآن",
-        footerText: context.template.footerText || "شكرًا لثقتك بنا",
-        emailDesign: context.template.contentJson?.emailDesign || "classic",
-        emailContentMode: context.template.contentJson?.emailContentMode || "preset",
-        emailHtmlContent: context.template.contentJson?.emailHtmlContent || ""
-      }
-    } : null,
+    templateSnapshot: emailTemplateSnapshot(context),
     referenceType: "customer_subscription",
     referenceId: subscriptionId,
-    triggerKey: reminderId ? `reminder:${reminderId}` : `manual:${subscriptionId}:${Date.now()}`,
+    triggerKey: reminderId
+      ? `reminder:${reminderId}${triggerSuffix}`
+      : `manual:${subscriptionId}:${context.channel}:${Date.now()}${triggerSuffix}`,
     sourceMode,
     maxAttempts: context.channel === "whatsapp" ? 2 : 3,
     enforceConnected: context.channel === "whatsapp",
@@ -197,6 +215,74 @@ export async function queueSubscriptionReminder({ tenantId, subscriptionId, remi
     fallbackDestination: fallback?.destination || null,
     fallbackSubject: fallback?.subject || null,
     fallbackMessageBody: fallback?.body || null
+  });
+}
+
+export async function getSubscriptionReminderPreview(tenantId, subscriptionId) {
+  const deliveryMode = await configuredDeliveryMode(tenantId, subscriptionId);
+  if (deliveryMode === "both") {
+    const results = await Promise.all(["whatsapp", "email"].map((channel) =>
+      deliveryContext(tenantId, subscriptionId, channel, { strictChannel: true })
+    ));
+    const contexts = results.filter((item) => item.ok);
+    if (!contexts.length) return results.find((item) => !item.ok) || { ok: false, reason: "missing_contact_channel" };
+    const previews = contexts.map(previewFromContext);
+    return { ok: true, preview: {
+      channel: previews.length === 2 ? "both" : previews[0].channel,
+      recipient: previews.map((item) => item.recipient).join(" · "),
+      subject: previews.find((item) => item.channel === "email")?.subject || null,
+      body: previews[0].body,
+      templateName: previews.map((item) => item.templateName).join(" · "),
+      channels: previews
+    } };
+  }
+  const context = await deliveryContext(tenantId, subscriptionId);
+  if (!context.ok) return context;
+  return { ok: true, preview: previewFromContext(context) };
+}
+
+export async function queueSubscriptionReminder({ tenantId, subscriptionId, reminderId = null, sourceMode = "manual" }) {
+  const deliveryMode = await configuredDeliveryMode(tenantId, subscriptionId);
+  if (deliveryMode === "both") {
+    const results = await Promise.all(["whatsapp", "email"].map((channel) =>
+      deliveryContext(tenantId, subscriptionId, channel, { createLink: true, strictChannel: true })
+    ));
+    const contexts = results.filter((item) => item.ok);
+    if (!contexts.length) return results.find((item) => !item.ok) || { ok: false, reason: "missing_contact_channel" };
+    const unavailableChannels = ["whatsapp", "email"].filter((_, index) => !results[index]?.ok);
+    const queuedItems = [];
+    const failures = [];
+    for (const context of contexts) {
+      const queued = await enqueueReminderContext(context, {
+        tenantId,
+        subscriptionId,
+        reminderId: queuedItems.length === 0 ? reminderId : null,
+        sourceMode,
+        triggerSuffix: `:${context.channel}`
+      });
+      if (queued.ok) queuedItems.push({ ...queued, channel: context.channel });
+      else failures.push({ ...queued, channel: context.channel });
+    }
+    if (!queuedItems.length) return failures[0] || { ok: false, reason: "queue_failed" };
+    if (reminderId) await query(
+      "UPDATE subscription_reminders SET status='queued',queue_job_id=$2,updated_at=now() WHERE id=$1 AND tenant_id=$3",
+      [reminderId, queuedItems[0].queueId, tenantId]
+    );
+    return {
+      ok: true,
+      queueId: queuedItems[0].queueId,
+      queueIds: queuedItems.map((item) => item.queueId),
+      channels: queuedItems.map((item) => item.channel),
+      scheduledFor: queuedItems.map((item) => item.scheduledFor).sort()[0],
+      partial: unavailableChannels.length > 0 || failures.length > 0,
+      skippedChannels: [...unavailableChannels, ...failures.map((item) => item.channel)]
+    };
+  }
+  const context = await deliveryContext(tenantId, subscriptionId, null, { createLink: true });
+  if (!context.ok) return context;
+  const fallback = await fallbackPayload(tenantId, subscriptionId, context.channel);
+  const queued = await enqueueReminderContext(context, {
+    tenantId, subscriptionId, reminderId, sourceMode, fallback
   });
   if (queued.ok && reminderId) await query(
     "UPDATE subscription_reminders SET status='queued',queue_job_id=$2,updated_at=now() WHERE id=$1 AND tenant_id=$3",

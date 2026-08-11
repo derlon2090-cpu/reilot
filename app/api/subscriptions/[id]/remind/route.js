@@ -22,7 +22,14 @@ export async function POST(req, { params }) {
   await query(
     `INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata)
      VALUES ($1,$2,'subscription.reminder_queued','Renewal reminder queued',$3::jsonb)`,
-    [auth.session.tenantId, auth.session.userId, JSON.stringify({ subscriptionId: id, queueId: queued.queueId, scheduledFor: queued.scheduledFor })]
+    [auth.session.tenantId, auth.session.userId, JSON.stringify({
+      subscriptionId: id,
+      queueId: queued.queueId,
+      queueIds: queued.queueIds || [queued.queueId],
+      channels: queued.channels || [],
+      scheduledFor: queued.scheduledFor,
+      partial: queued.partial === true
+    })]
   );
   await createInAppNotification({
     tenantId: auth.session.tenantId,
@@ -33,8 +40,16 @@ export async function POST(req, { params }) {
     entityType: "subscription",
     entityId: id,
     actionUrl: `/dashboard/subscriptions?subscriptionId=${id}`,
-    metadata: { queueId: queued.queueId, scheduledFor: queued.scheduledFor },
+    metadata: { queueId: queued.queueId, queueIds: queued.queueIds || [queued.queueId], channels: queued.channels || [], scheduledFor: queued.scheduledFor },
     dedupeKey: `manual-reminder:${queued.queueId}`
   }).catch(() => null);
-  return Response.json({ ok: true, queueId: queued.queueId, scheduledFor: queued.scheduledFor }, { status: 202 });
+  return Response.json({
+    ok: true,
+    queueId: queued.queueId,
+    queueIds: queued.queueIds || [queued.queueId],
+    channels: queued.channels || [],
+    partial: queued.partial === true,
+    skippedChannels: queued.skippedChannels || [],
+    scheduledFor: queued.scheduledFor
+  }, { status: 202 });
 }

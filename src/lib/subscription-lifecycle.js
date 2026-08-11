@@ -54,7 +54,7 @@ export function normalizeSubscriptionPhone(value, countryCode = "SA") {
 }
 
 export function validateSubscriptionDeliveryContact({ channel, whatsappNumber, email } = {}) {
-  const selectedChannel = channel === "email" ? "email" : "whatsapp";
+  const selectedChannel = channel === "email" ? "email" : channel === "both" ? "both" : "whatsapp";
   const rawPhone = String(whatsappNumber || "").trim();
   const rawEmail = String(email || "").trim();
   const phone = normalizeSubscriptionPhone(rawPhone);
@@ -71,6 +71,9 @@ export function validateSubscriptionDeliveryContact({ channel, whatsappNumber, e
   }
   if (selectedChannel === "email" && !normalizedEmail) {
     return { ok: false, reason: "email_required", message: "البريد الإلكتروني مطلوب عند اختيار قناة البريد الإلكتروني." };
+  }
+  if (selectedChannel === "both" && !phone && !normalizedEmail) {
+    return { ok: false, reason: "delivery_contact_required", message: "أضف رقم واتساب أو بريدًا إلكترونيًا واحدًا على الأقل لاستخدام الإرسال عبر القناتين." };
   }
 
   return { ok: true, channel: selectedChannel, phone, email: normalizedEmail };

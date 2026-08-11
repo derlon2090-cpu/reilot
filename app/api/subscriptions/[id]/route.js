@@ -35,14 +35,24 @@ export async function PATCH(req, { params }) {
     const start = body.startDate || row.starts_at;
     const end = body.endDate || row.expires_at;
     if (new Date(end) < new Date(start)) throw new Error("invalid_dates");
-    const preferred = channels.has(body.reminderChannel) ? body.reminderChannel : row.preferred_channel;
+    const hasChannelChoice = Object.prototype.hasOwnProperty.call(body, "reminderChannel");
+    const requestedDeliveryMode = body.reminderChannel === "both"
+      ? "both"
+      : channels.has(body.reminderChannel) ? "single" : null;
+    const deliveryMode = requestedDeliveryMode || (row.reminder_delivery_mode === "both" ? "both" : "single");
+    const preferred = body.reminderChannel === "both"
+      ? "whatsapp"
+      : channels.has(body.reminderChannel) ? body.reminderChannel : row.preferred_channel;
     const contact = validateSubscriptionDeliveryContact({
-      channel: preferred,
+      channel: deliveryMode === "both" ? "both" : preferred,
       whatsappNumber: Object.prototype.hasOwnProperty.call(body, "whatsappNumber") ? body.whatsappNumber : row.contact_phone,
       email: Object.prototype.hasOwnProperty.call(body, "email") ? body.email : row.contact_email
     });
     if (!contact.ok) return { validationError: contact };
-    const fallback = channels.has(body.fallbackChannel) && body.fallbackChannel !== preferred ? body.fallbackChannel : null;
+    const fallback = deliveryMode === "both"
+      ? (preferred === "whatsapp" ? "email" : "whatsapp")
+      : channels.has(body.fallbackChannel) && body.fallbackChannel !== preferred ? body.fallbackChannel
+        : hasChannelChoice ? null : row.fallback_channel;
     const reminderMode = body.reminderMode === "manual" || body.reminderMode === "automatic"
       ? body.reminderMode
       : row.reminder_mode;
@@ -51,14 +61,16 @@ export async function PATCH(req, { params }) {
       : row.reminder_enabled !== false;
     const result = await client.query(
       `UPDATE customer_subscriptions SET service_name=$2,starts_at=$3,expires_at=$4,status=$5,
-        amount=$6,reminder_mode=$7,reminder_enabled=$8,reminder_days=$9::jsonb,preferred_channel=$10,fallback_channel=$11,updated_at=now()
+        amount=$6,reminder_mode=$7,reminder_enabled=$8,reminder_days=$9::jsonb,preferred_channel=$10,fallback_channel=$11,
+        reminder_delivery_mode=$12,updated_at=now()
        WHERE id=$1 RETURNING id,order_number AS "orderNumber",reminder_mode AS "reminderMode",
-        reminder_enabled AS "reminderEnabled",preferred_channel AS "reminderChannel",fallback_channel AS "fallbackChannel"`,
+        reminder_enabled AS "reminderEnabled",preferred_channel AS "reminderChannel",fallback_channel AS "fallbackChannel",
+        reminder_delivery_mode AS "reminderDeliveryMode"`,
       [id, body.serviceName || row.service_name, start, end,
         statuses.has(body.status) ? body.status : row.status, Number(body.price ?? row.amount ?? 0),
         reminderMode,
         reminderEnabled,
-        JSON.stringify([Math.max(0,Math.min(90,Number(body.reminderDaysBefore ?? row.reminder_days?.[0] ?? 7)))]), preferred, fallback]
+        JSON.stringify([Math.max(0,Math.min(90,Number(body.reminderDaysBefore ?? row.reminder_days?.[0] ?? 7)))]), preferred, fallback, deliveryMode]
     );
     if (row.legacy_subscription_id) await client.query(
       `UPDATE subscriptions SET service_name=$2,start_date=$3,end_date=$4,status=$5,price=$6,
