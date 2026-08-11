@@ -169,7 +169,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
         expect(source).toContain(asset);
       }
     }
-    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=');
+    expect(layoutSource).toContain('<Script type="module" src="/app/app.js?v=');
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
