@@ -126,6 +126,8 @@ describe("Salla automation templates", () => {
     expect(styles).toContain(".salla-template-form-card{grid-column:1;grid-row:1");
     expect(styles).toContain(".salla-template-live-preview{grid-column:2;grid-row:1}");
     expect(styles).toContain(".salla-editor-actions{grid-column:1;grid-row:2}");
+    expect(styles).toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0");
+    expect(styles).not.toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:100%;min-height:100%");
     expect(styles).toContain(".salla-template-preview-sticky{position:sticky;top:92px");
     expect(styles).toContain('[data-theme="dark"] .salla-preview-important-note');
     expect(styles).toContain(".salla-template-live-preview.is-digital-delivery .salla-template-preview-stack:has(.salla-digital-link-preview:not([hidden]))");
