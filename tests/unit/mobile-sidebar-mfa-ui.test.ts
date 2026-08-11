@@ -144,8 +144,14 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("Preserve the original artwork quality; connectors are a separate layer behind it.");
     expect(stylesSource).toContain(".auth-showcase--login .auth-showcase-feature-connectors");
     expect(stylesSource).toContain(".auth-feature-connector--security");
-    expect(stylesSource).toContain(".auth-feature-connector--channels{top:85.6%;left:38.3%;width:7%;transform:rotate(-32deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--security{top:87%;left:72.9%;width:6.8%;transform:rotate(-148deg)}");
+    expect(stylesSource).toContain("z-index:6;");
+    expect(stylesSource).toContain(".auth-feature-connector::before");
+    expect(stylesSource).toContain(".auth-feature-connector--alerts{top:9.65%;left:13.7%;width:6.15%;transform:rotate(26deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--reports{top:10.9%;left:87.8%;width:10.25%;transform:rotate(166deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--automation{top:36.2%;left:11.2%;width:8.9%;transform:rotate(-27deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--campaigns{top:70.2%;left:11%;width:9.6%;transform:rotate(-31deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--channels{top:85.5%;left:38.4%;width:5.9%;transform:rotate(-37deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--security{top:87.3%;left:72.8%;width:6.6%;transform:rotate(-144deg)}");
     expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
   });
@@ -159,7 +165,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
         expect(source).toContain(asset);
       }
     }
-    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-bottom-connectors-v41"></script>');
+    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-connectors-v43"></script>');
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {

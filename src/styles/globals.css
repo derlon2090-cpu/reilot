@@ -10691,7 +10691,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--login .auth-showcase-feature-connectors,
   .auth-showcase--register .auth-showcase-feature-connectors{
     position:absolute;
-    z-index:4;
+    z-index:6;
     top:50%;
     left:50%;
     height:min(100%,380px);
@@ -10702,27 +10702,43 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   }
   .auth-feature-connector{
     position:absolute;
-    height:0;
-    border-top:1.5px dashed rgba(8,111,101,.5);
+    height:1.5px;
+    border:0;
     border-radius:999px;
+    background:repeating-linear-gradient(90deg,rgba(8,111,101,.62) 0 4px,transparent 4px 8px);
     transform-origin:left center;
     filter:drop-shadow(0 1px 0 rgba(255,255,255,.9));
   }
-  .auth-feature-connector--alerts{top:9.2%;left:12.2%;width:8%;transform:rotate(26deg)}
-  .auth-feature-connector--reports{top:10.1%;left:87.8%;width:10%;transform:rotate(164deg)}
-  .auth-feature-connector--automation{top:37.5%;left:11.1%;width:9%;transform:rotate(-27deg)}
-  .auth-feature-connector--campaigns{top:72.1%;left:11.3%;width:10%;transform:rotate(-39deg)}
-  .auth-feature-connector--channels{top:85.6%;left:38.3%;width:7%;transform:rotate(-32deg)}
-  .auth-feature-connector--security{top:87%;left:72.9%;width:6.8%;transform:rotate(-148deg)}
+  .auth-feature-connector::before,
+  .auth-feature-connector::after{
+    content:"";
+    position:absolute;
+    top:50%;
+    width:3px;
+    height:3px;
+    border-radius:50%;
+    background:#087267;
+    transform:translateY(-50%);
+  }
+  .auth-feature-connector::before{left:-1px}
+  .auth-feature-connector::after{right:-1px}
+  .auth-feature-connector--alerts{top:9.65%;left:13.7%;width:6.15%;transform:rotate(26deg)}
+  .auth-feature-connector--reports{top:10.9%;left:87.8%;width:10.25%;transform:rotate(166deg)}
+  .auth-feature-connector--automation{top:36.2%;left:11.2%;width:8.9%;transform:rotate(-27deg)}
+  .auth-feature-connector--campaigns{top:70.2%;left:11%;width:9.6%;transform:rotate(-31deg)}
+  .auth-feature-connector--channels{top:85.5%;left:38.4%;width:5.9%;transform:rotate(-37deg)}
+  .auth-feature-connector--security{top:87.3%;left:72.8%;width:6.6%;transform:rotate(-144deg)}
   .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector{
-    border-top-color:rgba(119,211,197,.58);
+    background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
   }
+  .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector::before,
+  .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector::after{background:#77d3c5}
 }
 @media (min-width:744px) and (max-width:1100px){
   .auth-showcase--login .auth-showcase-feature-connectors,
   .auth-showcase--register .auth-showcase-feature-connectors{height:min(100%,330px)}
-  .auth-feature-connector{border-top-width:1px}
+  .auth-feature-connector{height:1.5px}
 }
 
 /* Shared Renvix metric treatment: pale circular icon tile and tabular teal values. */
