@@ -8400,6 +8400,11 @@ input[type="password"]::-webkit-textfield-decoration-container {
 
 /* Crisp, professional hero stagger without making users wait for the cards. */
 @keyframes marketingHeroCardFallback{to{opacity:1}}
+.marketing-home-v3 .home-ops-scene--hero{visibility:hidden;opacity:0}
+.marketing-home-v3 .home-ops-scene--hero.is-geometry-ready{visibility:visible;opacity:1;transition:opacity .2s ease}
+.marketing-home-v3 .home-ops-scene--hero .home-ops-card[data-reveal]{opacity:1!important;transform:none;animation:none!important}
+.marketing-home-v3 .home-ops-scene--hero .ops-automation[data-reveal],.marketing-home-v3 .home-ops-scene--hero .ops-live[data-reveal]{transform:translateX(-50%)}
+.marketing-home-v3 .home-ops-scene--hero .ops-automation[data-reveal].is-visible:hover,.marketing-home-v3 .home-ops-scene--hero .ops-live[data-reveal].is-visible:hover{transform:translateX(-50%) translateY(-3px)}
 .marketing-home-v3 .home-ops-card[data-reveal]{animation:marketingHeroCardFallback .5s ease forwards}
 .marketing-home-v3 .ops-renewals[data-reveal]{transition-delay:.06s!important;animation-delay:.06s}
 .marketing-home-v3 .ops-automation[data-reveal]{transition-delay:.12s!important;animation-delay:.12s}

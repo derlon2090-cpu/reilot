@@ -1794,6 +1794,7 @@ function initMarketingMotion() {
 
   root.querySelectorAll(".home-ops-scene--hero").forEach((network) => {
     syncHomeFlowGeometry(network);
+    network.classList.add("is-geometry-ready");
     const settleGeometry = () => requestAnimationFrame(() => syncHomeFlowGeometry(network));
     network.addEventListener("transitionend", settleGeometry);
     disposers.push(() => network.removeEventListener("transitionend", settleGeometry));
