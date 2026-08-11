@@ -1523,6 +1523,7 @@ function dashboardIcon(name) {
     passwordReset: '<path d="M20 11a8 8 0 1 0 1 4"/><path d="M20 4v7h-7"/><rect x="8" y="10" width="8" height="8" rx="2"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/>',
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
     "eye-off": '<path d="m3 3 18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.1 3.8M6.2 6.2C3.6 8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 3.2-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    back: '<path d="m15 18-6-6 6-6"/><path d="M9 12h11"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>'
   };
@@ -4552,6 +4553,31 @@ function campaignStudioPreviewCards(cards, channel) {
   }).join("")}</div>`;
 }
 
+function campaignStudioWhatsappPreview(cards) {
+  return `<div class="campaign-phone campaign-studio-phone">
+    <div class="campaign-phone-top"><b>9:41</b><span aria-hidden="true">▮▮▮ ◉ ▰</span></div>
+    <div class="campaign-phone-brand"><button type="button" tabindex="-1" aria-hidden="true">${dashboardIcon("back")}</button><img src="/assets/renvix-mark-deep-teal.svg" alt=""><div><strong>Renvix ${dashboardIcon("security")}</strong><small>حساب أعمال رسمي</small></div><button type="button" tabindex="-1" aria-hidden="true">${dashboardIcon("menu")}</button></div>
+    <div class="campaign-chat"><span class="campaign-chat-day">اليوم</span><div class="campaign-chat-message"><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر النص الرئيسي هنا."))}</p><time>11:00 ص</time></div><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "whatsapp")}</div><div class="campaign-preview-pagination" aria-hidden="true"><b></b><i></i><i></i></div><small class="campaign-preview-swipe-hint">اسحب لمشاهدة المزيد</small></div>
+    <div class="campaign-phone-input"><button type="button" tabindex="-1" aria-hidden="true">☺</button><span>اكتب رسالة</span>${dashboardIcon("attachment")}${dashboardIcon("upload")}<b>${dashboardIcon("send")}</b></div>
+  </div>`;
+}
+
+function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind) {
+  const firstCard = cards[0] || {};
+  const firstImage = safeStoreLogoUrl(firstCard.imageUrl);
+  const heroMedia = firstImage
+    ? `<img src="${escapeHtml(firstImage)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
+    : `<span>${dashboardIcon(kind === "product" ? "storeBag" : "upload")}<small>تظهر صورة الحملة هنا</small></span>`;
+  const fromName = campaignStudioDraftValue("fromName", "Renvix");
+  return `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${escapeHtml(emailDesign)}">
+    <div class="campaign-email-windowbar"><span aria-hidden="true"><i></i><i></i><i></i></span><b>Renvix Mail</b><small>البريد الوارد</small></div>
+    <div class="campaign-email-message-meta"><span>${dashboardIcon("customers")}</span><div><strong data-campaign-live-from>${escapeHtml(fromName || "Renvix")}</strong><small dir="ltr">&lt;${escapeHtml(emailSender || "")}&gt;</small></div><time>10:30 ص</time>${dashboardIcon("heart")}${dashboardIcon("back")}${dashboardIcon("menu")}</div>
+    <div class="campaign-email-brand"><img src="/assets/renvix-logo-exact.png" alt="Renvix"></div>
+    <section><div class="campaign-email-hero"><div><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p></div><div class="campaign-email-hero-media ${firstImage ? "has-image" : ""}" data-campaign-email-hero-media>${heroMedia}</div></div><h3 class="campaign-email-cards-title">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h3><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "email")}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section>
+    <footer><span data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</span><small>Renvix</small></footer>
+  </div>`;
+}
+
 function campaignEmailDesignOptions() {
   return [
     { id:"luxury", name:"عرض فاخر", caption:"واجهة داكنة وبطاقات راقية", accent:"#0b3f3b" },
@@ -4636,6 +4662,17 @@ function refreshCampaignStudioPreview(form) {
     if (emailPreview) {
       campaignEmailDesignOptions().forEach((item) => emailPreview.classList.remove(`design-${item.id}`));
       emailPreview.classList.add(`design-${design}`);
+    }
+    const fromNode = document.querySelector("[data-campaign-live-from]");
+    if (fromNode) fromNode.textContent = form.elements.fromName?.value?.trim() || "Renvix";
+    const heroMedia = document.querySelector("[data-campaign-email-hero-media]");
+    if (heroMedia) {
+      const firstCard = cards[0] || {};
+      const imageUrl = safeStoreLogoUrl(firstCard.imageUrl);
+      heroMedia.classList.toggle("has-image", Boolean(imageUrl));
+      heroMedia.innerHTML = imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
+        : `<span>${dashboardIcon(firstCard.sourceType === "store_product" ? "storeBag" : "upload")}<small>تظهر صورة الحملة هنا</small></span>`;
     }
     const socialPreview = document.querySelector("[data-campaign-social-preview]");
     if (socialPreview) {
@@ -4729,8 +4766,8 @@ function campaignStudioPage() {
     : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
   const emailDesign = campaignStudioDraftValue("emailDesign", "showcase");
   const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>تصميم البريد الإلكتروني</h2><p>اختر شكل وتخطيط البريد؛ الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
-  const preview = channel === "whatsapp" ? `<div class="campaign-phone campaign-studio-phone"><div class="campaign-phone-top"><b>9:41</b><span>● ● ●</span></div><div class="campaign-phone-brand"><span class="campaign-preview-logo">∞</span><div><strong>Renvix</strong><small>حساب أعمال رسمي</small></div>${dashboardIcon("whatsapp")}</div><div class="campaign-chat"><div class="campaign-chat-message"><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر النص الرئيسي هنا."))}</p><time>11:00 ص</time></div><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div></div><div class="campaign-phone-input">☺ <span>اكتب رسالة</span> ${dashboardIcon("send")}</div></div>` : `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${escapeHtml(emailDesign)}"><div class="campaign-email-toolbar">${dashboardIcon("email")} <span data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان البريد"))}</span></div><div class="campaign-email-brand"><span>∞</span><strong>Renvix</strong></div><section><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, channel)}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section><footer data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</footer></div>`;
-  return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}">
+  const preview = channel === "whatsapp" ? campaignStudioWhatsappPreview(cards) : campaignStudioEmailPreview(cards, emailDesign, emailSender, kind);
+  return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}" data-campaign-channel="${channel}" data-campaign-kind="${kind}">
     <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
     <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
       <section class="campaign-studio-section" open><header><span>${dashboardIcon("template")}</span><div><h2>أساسيات الحملة</h2><p>القناة والنوع محددان مسبقًا ولا يظهر أي اختيار مكرر.</p></div></header><div class="campaign-studio-basics"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required value="${escapeHtml(campaignStudioDraftValue("name"))}" placeholder="اكتب اسمًا داخليًا للحملة"><small>للاستخدام الداخلي ولا يُرسل للعميل.</small></label>${channelFields}<label class="field"><span>الجمهور المستهدف</span><select class="select" name="groupId" data-action="campaign-studio-audience"><option value="" data-count="${audienceTotal}">جميع جهات الاتصال المؤهلة — ${suiteNumber(audienceTotal)}</option>${groupOptions}</select><small><b data-campaign-audience-count>${suiteNumber(audienceTotal)}</b> جهة مؤهلة عبر ${channel === "email" ? "البريد" : "واتساب"}</small></label><div class="field campaign-send-schedule"><span>جدولة الإرسال</span><div><label><input type="radio" name="sendTiming" value="now" ${campaignStudioDraftValue("sendTiming", "now") === "now" ? "checked" : ""}> إرسال فوري</label><label><input type="radio" name="sendTiming" value="later" ${campaignStudioDraftValue("sendTiming") === "later" ? "checked" : ""}> جدولة لاحقًا</label></div><div class="campaign-schedule-fields" ${campaignStudioDraftValue("sendTiming", "now") === "later" ? "" : "hidden"}><input class="input" type="date" name="startDate" value="${startDate}" min="${localStart.slice(0, 10)}"><input class="input" type="time" name="startTime" value="${startTime}"></div></div></div></section>
@@ -7947,7 +7984,11 @@ async function handleAction(target) {
     state.campaignBuilderPreviewMode = ["desktop","tablet","mobile"].includes(target.dataset.mode) ? target.dataset.mode : "desktop";
     document.querySelectorAll('[data-action="campaign-studio-preview-mode"]').forEach((button) => button.classList.toggle("active", button.dataset.mode === state.campaignBuilderPreviewMode));
     const preview = document.querySelector(".campaign-studio-email-preview");
-    if (preview) preview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode}`;
+    if (preview) {
+      const form = target.closest("form[data-campaign-studio]") || document.querySelector("form[data-campaign-studio]");
+      const design = String(form?.elements.emailDesign?.value || "showcase");
+      preview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${design}`;
+    }
     return;
   }
   if (action === "campaign-studio-generate-html") {
