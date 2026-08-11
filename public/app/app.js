@@ -4064,16 +4064,18 @@ function sallaAutomationTemplateEditorPage() {
       action: "salla-template-toggle",
       key: item.templateKey
     })}
-    <form id="salla-template-editor-form" class="salla-template-editor-layout" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
-      <article class="card salla-template-form-card">
+    <form id="salla-template-editor-form" class="salla-template-editor-form" data-submit="salla-automation-template" data-template-key="${escapeHtml(item.templateKey)}">
+      <div class="salla-template-editor-layout">
+        <article class="card salla-template-form-card">
           <div class="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div>${dashboardIcon("template")}</div>
           <div class="form-grid two"><label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(item.name)}" disabled></label>${item.templateKey === "review_request" ? "" : statusField}</div>
           <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label></fieldset>
           ${item.templateKey === "review_request" ? `<div class="salla-review-trigger-field">${statusField}</div>` : ""}
           ${metaPanel}${emailPanel}
           ${abandoned}${completed}${review}${invoice}${digital}
-      </article>
-      ${sallaTemplatePreviewPanel(item, storeProfile)}
+        </article>
+        ${sallaTemplatePreviewPanel(item, storeProfile)}
+      </div>
       <div class="salla-editor-actions"><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button><button class="btn btn-secondary" type="button" data-action="preview-salla-template" data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} تحديث المعاينة</button><button class="btn btn-secondary" type="button" data-action="test-salla-template" data-salla-test-button data-key="${escapeHtml(item.templateKey)}">${dashboardIcon("orderLink")} إرسال اختبار</button></div>
     </form>`);
 }

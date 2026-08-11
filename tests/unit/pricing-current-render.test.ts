@@ -25,8 +25,8 @@ describe("current pricing catalog renderer", () => {
 
   it("busts both Next and static caches with the same current pricing version", () => {
     for (const markup of [rootLayout, staticIndex]) {
-      expect(markup).toContain("globals.css?v=20260811-auth-svg-mask-v94");
-      expect(markup).toContain("app.js?v=20260811-auth-svg-mask-v94");
+      expect(markup).toContain("globals.css?v=20260811-salla-boundary-structure-v95");
+      expect(markup).toContain("app.js?v=20260811-salla-boundary-structure-v95");
     }
   });
 });

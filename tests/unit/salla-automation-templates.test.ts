@@ -120,12 +120,14 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain("تأكد من اعتماد بريد المرسل قبل تفعيل الإرسال التلقائي.");
     expect(appSource).toContain('data-salla-preview-channel-readiness');
     expect(appSource).toContain('isDigitalDelivery ? "" : `<section class="salla-preview-important-note"');
-    expect(appSource).toContain('<form id="salla-template-editor-form" class="salla-template-editor-layout"');
+    expect(appSource).toContain('<form id="salla-template-editor-form" class="salla-template-editor-form"');
+    expect(appSource).toContain('<div class="salla-template-editor-layout">');
     expect(appSource).not.toContain('<section class="salla-template-editor-layout">');
-    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:12px 20px;align-items:stretch");
+    expect(styles).toContain(".salla-template-editor-form{display:grid;gap:12px;margin:0");
+    expect(styles).toContain(".salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:stretch");
     expect(styles).toContain(".salla-template-form-card{grid-column:1;grid-row:1");
     expect(styles).toContain(".salla-template-live-preview{grid-column:2;grid-row:1}");
-    expect(styles).toContain(".salla-editor-actions{grid-column:1;grid-row:2}");
+    expect(styles).not.toContain(".salla-editor-actions{grid-column:1;grid-row:2}");
     expect(styles).toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0");
     expect(styles).not.toContain(".salla-template-live-preview{position:relative;align-self:stretch;height:100%;min-height:100%");
     expect(styles).toContain(".salla-template-preview-sticky{position:sticky;top:92px");

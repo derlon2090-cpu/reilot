@@ -6289,11 +6289,11 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-card footer>div{display:flex;gap:8px}
 .salla-template-card footer .btn{min-height:36px;padding:7px 12px}
 .salla-template-card footer svg{width:17px;height:17px}
-.salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:12px 20px;align-items:stretch;margin:0;direction:rtl}
+.salla-template-editor-form{display:grid;gap:12px;margin:0;direction:rtl}
+.salla-template-editor-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.86fr);gap:20px;align-items:stretch;margin:0;direction:rtl}
 .salla-template-editor-layout>*{direction:rtl}
 .salla-template-form-card{grid-column:1;grid-row:1;align-self:start;padding:24px}
 .salla-template-live-preview{grid-column:2;grid-row:1}
-.salla-editor-actions{grid-column:1;grid-row:2}
 .salla-template-editor-layout .section-head>svg{width:24px!important;height:24px!important;min-width:24px!important;max-width:24px!important;min-height:24px!important;max-height:24px!important;flex:0 0 24px!important;color:#0B3F3B}
 .salla-template-editor-top{display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:14px;direction:ltr}
 .salla-template-editor-top .btn{direction:rtl}.salla-template-editor-top svg{width:18px;height:18px}
@@ -6433,8 +6433,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
   .salla-templates-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .salla-template-editor-layout{grid-template-columns:1fr;align-items:start}
   .salla-template-form-card{grid-column:1;grid-row:1}
-  .salla-editor-actions{grid-column:1;grid-row:2}
-  .salla-template-live-preview{grid-column:1;grid-row:3;height:auto;min-height:0}
+  .salla-template-live-preview{grid-column:1;grid-row:2;height:auto;min-height:0}
   .salla-template-preview-sticky{position:static}
   .salla-template-live-preview.is-digital-delivery .salla-template-preview-sticky{height:auto;grid-template-rows:auto}
   .salla-template-live-preview.is-digital-delivery .salla-template-preview-stack:has(.salla-digital-link-preview:not([hidden])){height:auto;grid-template-rows:auto}
