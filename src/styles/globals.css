@@ -4099,7 +4099,6 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .public-trial-banner > div { display: grid; gap: 4px; text-align: right; }
 .public-trial-banner strong { color: #0B3F3B; font-size: 15px; }
 .public-trial-banner span { color: #72839c; font-size: 11px; }
-.pricing-catalog-loading { min-height: 260px; display: grid; place-items: center; color: #718199; border: 1px solid #E4ECEB; border-radius: 10px; background: #fff; }
 .pricing-public-grid { max-width: 1160px; margin-inline: auto; padding: 0; }
 .pricing-public-grid > .grid { gap: 16px; align-items: stretch; }
 .pricing-public-grid .pricing-card {
@@ -11416,6 +11415,16 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .pricing-trial-footnote span{display:flex;align-items:center;justify-content:center;gap:6px}
 .pricing-trial-footnote small{color:inherit;font-size:inherit}
 .plan-desktop-icon{display:none}
+.pricing-card-loading{overflow:hidden;pointer-events:none;animation:none!important}
+.pricing-card-loading:hover{transform:none!important;border-color:#dfe9e7!important;box-shadow:0 9px 26px rgba(8,61,55,.065)!important}
+.pricing-skeleton-line{display:block;min-height:8px;border-radius:999px;background:linear-gradient(100deg,#e7efed 15%,#f7faf9 38%,#e7efed 62%);background-size:230% 100%;animation:pricingSkeletonSweep 1.35s ease-in-out infinite}
+.skeleton-badge{width:38px;min-height:7px}
+.skeleton-title{width:74%;min-height:16px}
+.skeleton-copy{width:92%;margin-top:8px}
+.skeleton-price{width:48%;min-height:24px}
+.skeleton-caption{width:34%;margin-top:7px}
+.skeleton-feature{width:calc(88% - var(--skeleton-item,0) * 4%);min-height:7px}
+.skeleton-button{width:42%;min-height:8px;margin:auto}
 
 @media (min-width:744px){
   .pricing-reference-page{background:linear-gradient(180deg,#fbfdfc 0,#f5f9f8 100%)}
@@ -11527,6 +11536,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   to{opacity:1;transform:translateY(0) scale(1)}
 }
 
+@keyframes pricingSkeletonSweep{
+  from{background-position:100% 0}
+  to{background-position:-130% 0}
+}
+
 @media (prefers-reduced-motion:reduce){
-  .pricing-public-grid .pricing-card{animation:none!important;transition:none!important}
+  .pricing-public-grid .pricing-card,.pricing-skeleton-line{animation:none!important;transition:none!important}
 }

@@ -1946,8 +1946,20 @@ function featureGrid(limit = features.length) {
   </article>`).join("")}</div>`;
 }
 
+function pricingCardsLoading() {
+  const loadingIcons = ["store", "star", "success", "payments"];
+  return `<div class="grid grid-4 pricing-current-loading" role="status" aria-label="جاري تحميل الباقات الحالية" aria-busy="true">${loadingIcons.map((planIcon, index) => `<article class="card pricing-card pricing-card-loading" style="--pricing-index:${index}" aria-hidden="true">
+      <span class="badge available"><span class="pricing-skeleton-line skeleton-badge"></span></span>
+      <span class="plan-mobile-icon">${dashboardIcon(planIcon)}</span>
+      <div class="plan-card-identity"><span class="plan-desktop-icon">${dashboardIcon(planIcon)}</span><div><span class="pricing-skeleton-line skeleton-title"></span><span class="pricing-skeleton-line skeleton-copy"></span></div></div>
+      <div class="price"><strong class="pricing-skeleton-line skeleton-price"></strong><small class="pricing-skeleton-line skeleton-caption"></small></div>
+      <ul class="plan-feature-list">${Array.from({ length: 7 }, (_, itemIndex) => `<li class="included">${dashboardIcon("success")}<span class="pricing-skeleton-line skeleton-feature" style="--skeleton-item:${itemIndex}"></span></li>`).join("")}</ul>
+      <button class="btn btn-secondary" type="button" tabindex="-1" disabled><span class="pricing-skeleton-line skeleton-button"></span></button>
+    </article>`).join("")}</div>`;
+}
+
 function pricingCards(short = false, billingCycle = state.billing) {
-  if (state.publicPlans === null) return `<div class="pricing-catalog-loading" role="status">جاري تحميل الباقات الفعلية...</div>`;
+  if (state.publicPlans === null) return pricingCardsLoading();
   if (state.publicPlans?.error) return emptyState("تعذر تحميل الباقات", "لم نعرض أي أسعار افتراضية. أعد المحاولة لاسترجاع سجل الباقات الفعلي.", "إعادة المحاولة", "public-plans-reload");
   const plans = Array.isArray(state.publicPlans?.plans) ? state.publicPlans.plans : [];
   if (!plans.length) return emptyState("لا توجد باقات متاحة حاليًا", "يرجى التواصل معنا لاختيار الحل المناسب.", "تواصل معنا", "/contact");

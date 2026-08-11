@@ -85,10 +85,9 @@
 :root[data-theme="dark"] .pricing-reference-extras .faq-compact details{border-color:var(--dark-line)!important}
 :root[data-theme="dark"] .pricing-reference-extras .faq-compact summary{color:var(--dark-text)!important}
 :root[data-theme="dark"] .pricing-reference-extras .faq-compact p{color:var(--dark-muted)!important}
-:root[data-theme="dark"] .public-trial-banner,
-:root[data-theme="dark"] .pricing-catalog-loading{color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important}
-:root[data-theme="dark"] .public-trial-banner span,
-:root[data-theme="dark"] .pricing-catalog-loading{color:var(--dark-muted)!important}
+:root[data-theme="dark"] .public-trial-banner{color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important}
+:root[data-theme="dark"] .public-trial-banner span{color:var(--dark-muted)!important}
+:root[data-theme="dark"] .pricing-card-loading .pricing-skeleton-line{background:linear-gradient(100deg,#17433d 15%,#26564f 38%,#17433d 62%)!important;background-size:230% 100%!important}
 :root[data-theme="dark"] .public-site main :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){color:var(--dark-text)!important;caret-color:var(--dark-icon)!important;border-color:var(--dark-line)!important;background:var(--dark-surface-raised)!important}
 :root[data-theme="dark"] .public-site main :is(input,textarea)::placeholder{color:var(--dark-faint)!important;opacity:1}
 :root[data-theme="dark"] .public-site main :is(.btn-secondary,.btn-ghost){color:var(--dark-text)!important;border-color:var(--dark-line-strong)!important;background:var(--dark-surface-raised)!important}
