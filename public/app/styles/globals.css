@@ -10932,11 +10932,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--login .auth-showcase-reference-art,
   .auth-showcase--register .auth-showcase-reference-art{
     filter:drop-shadow(0 14px 20px rgba(6,43,40,.1))!important;
-    clip-path:polygon(0 0,100% 0,100% 100%,92% 100%,92% 83%,25% 83%,25% 100%,0 100%);
-    clip-path:url("#auth-dashboard-label-clip");
-    -webkit-clip-path:url("#auth-dashboard-label-clip");
   }
-  .auth-reference-clip-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
   .auth-showcase--login .auth-showcase-feature-connectors,
   .auth-showcase--register .auth-showcase-feature-connectors{
     position:absolute;

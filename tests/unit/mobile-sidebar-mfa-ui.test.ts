@@ -158,10 +158,13 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain(".auth-relocated-feature--security{top:76%;left:95%");
     expect(appSource).not.toContain("auth-relocated-mask");
     expect(stylesSource).not.toContain(".auth-relocated-mask");
-    expect(stylesSource).toContain("clip-path:polygon(0 0,100% 0,100% 100%,92% 100%,92% 83%,25% 83%,25% 100%,0 100%)");
-    expect(appSource).toContain('id="auth-dashboard-label-clip" clipPathUnits="objectBoundingBox"');
-    expect(appSource).toContain('fill-rule="evenodd" clip-rule="evenodd"');
-    expect(stylesSource).toContain('clip-path:url("#auth-dashboard-label-clip")');
+    expect(appSource).toContain('id="auth-dashboard-label-mask"');
+    expect(appSource).toContain('maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse"');
+    expect(appSource).toContain('mask="url(#auth-dashboard-label-mask)"');
+    expect(appSource).toContain('<rect x="20" y="137" width="190" height="58" fill="#000"></rect>');
+    expect(appSource).toContain('<rect x="940" y="145" width="187" height="62" fill="#000"></rect>');
+    expect(appSource).toContain('<rect x="5" y="465" width="165" height="98" fill="#000"></rect>');
+    expect(appSource).toContain('<rect x="5" y="820" width="165" height="106" fill="#000"></rect>');
     expect(stylesSource).toContain('background:transparent;');
     expect(stylesSource).not.toContain('background:radial-gradient(ellipse at center,#eef8f6');
     expect(stylesSource).toContain('.auth-reference-feature-label>b,\n  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}');
