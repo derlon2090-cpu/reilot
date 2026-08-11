@@ -7,7 +7,7 @@ const ROLE_PERMISSIONS = {
   operations_admin: {
     overview: ["read"], subscriptions: ["read", "update"], customers: ["read", "update"],
     stores: ["read", "update"], notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
-    templates: ["read", "update"], campaigns: ["read", "update"], contacts: ["read", "update"],
+    templates: ["read", "update"], campaigns: ["read", "create", "send"], contacts: ["read", "update"],
     devices: ["read", "update", "create", "pair", "reconnect", "logout", "delete", "view_metrics", "view_phone"],
     "evolution.devices": ["view", "create", "pair", "reconnect", "logout", "delete"],
     "evolution.metrics": ["view"],
@@ -25,7 +25,7 @@ const ROLE_PERMISSIONS = {
     stores: ["read", "update"],
     templates: ["read", "update"],
     notifications: ["read", "create", "publish", "schedule", "cancel", "archive"],
-    campaigns: ["read", "update"],
+    campaigns: ["read", "create", "send"],
     contacts: ["read", "update"],
     integrations: ["read", "update"],
     billing: ["read", "update"],

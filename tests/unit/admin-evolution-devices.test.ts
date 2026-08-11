@@ -39,12 +39,11 @@ describe("admin Evolution device presentation", () => {
     expect(isAdminPairingExpired("2026-08-03T10:01:00.000Z", Date.parse("2026-08-03T10:00:01.000Z"))).toBe(false);
   });
 
-  it("keeps the admin page limited to three KPIs and on-demand pairing", () => {
+  it("keeps the admin page limited to platform-owned devices and on-demand pairing", () => {
     const source = readFileSync(resolve("src/components/admin/AdminSections.jsx"), "utf8");
-    expect(source).toContain("adminDeviceKpis");
-    expect(source).toContain("إجمالي الأجهزة");
-    expect(source).toContain("الأجهزة المتصلة");
-    expect(source).toContain("تحتاج متابعة");
+    expect(source).toContain("أجهزة الإدارة فقط");
+    expect(source).toContain("لن يرتبط الجهاز بأي متجر أو حساب عميل");
+    expect(source).not.toContain("المتجر المرتبط");
     expect(source).not.toContain("الإدارة المركزية عبر Evolution Admin");
     expect(source).not.toContain("ربط المستخدمين عبر Meta Cloud API");
     expect(source).toContain('runAction(selected, "qr")');
@@ -54,7 +53,8 @@ describe("admin Evolution device presentation", () => {
   it("does not persist QR images or pairing codes in the admin device service", () => {
     const source = readFileSync(resolve("src/server/admin-evolution-devices.js"), "utf8");
     expect(source).not.toMatch(/qr_code_cache\s*=\s*\$|pairing_code\s*=\s*\$/);
-    expect(source).toContain("qrBase64: null");
+    expect(source).toContain("platform_messaging_channels");
+    expect(source).not.toContain("FROM whatsapp_channels");
   });
 });
 

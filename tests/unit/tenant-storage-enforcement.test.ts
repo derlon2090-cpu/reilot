@@ -52,6 +52,21 @@ describe("tenant storage enforcement", () => {
       remainingBytes: 536_576
     });
   });
+
+  it("treats the negative enterprise quota as custom unlimited storage", async () => {
+    const runner = {
+      query: vi.fn(async () => ({ rows: [{ usedBytes: 9_437_184, limitMb: -1 }] }))
+    };
+    await expect(getTenantStorageLimitState("tenant-enterprise", runner)).resolves.toMatchObject({
+      limitMb: -1,
+      limitBytes: -1,
+      remainingBytes: -1,
+      percent: 0,
+      isUnlimited: true,
+      isLimitReached: false,
+      isOverLimit: false
+    });
+  });
 });
 
 describe("storage limit upgrade navigation", () => {

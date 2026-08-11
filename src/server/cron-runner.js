@@ -11,6 +11,7 @@ import { query, transaction } from "./db.js";
 import { sendQueuedEmail } from "./email/resend.service.js";
 import { evolutionConnectionState, evolutionSendText } from "./evolution-client.js";
 import { runAdminTemplateEventWorker } from "./admin-template-events.js";
+import { runAdminCampaignWorker } from "./admin-campaigns.js";
 import { enqueueMessage } from "./message-queue.js";
 import { safeErrorMessage } from "./security.js";
 import { runDueSubscriptionReminders } from "./renewal-reminders.js";
@@ -472,13 +473,21 @@ export async function runCleanup() {
   return { expiredSessions: sessions.rowCount, expiredResetCodes: resets.rowCount, oldQueueItems: queue.rowCount };
 }
 
+export async function runAdminMessaging() {
+  const [templates, campaigns] = await Promise.all([
+    runAdminTemplateEventWorker(),
+    runAdminCampaignWorker()
+  ]);
+  return { templates, campaigns };
+}
+
 export async function runCronJob(jobName) {
   const runners = {
     "renewal-reminders": runRenewalReminders,
     "message-retry": runMessageRetry,
     "message-worker": runMessageRetry,
     "platform-notifications": runPlatformNotificationWorker,
-    "admin-template-events": runAdminTemplateEventWorker,
+    "admin-template-events": runAdminMessaging,
     "whatsapp-health-check": runWhatsAppHealthCheck,
     "usage-reset": runUsageReset,
     cleanup: runCleanup

@@ -12,6 +12,8 @@ import {
 } from "./smart-delivery-content.js";
 import { durationWindow, resolveProductDurationWithDeepSeek } from "./product-duration-resolver.js";
 import { normalizeSallaPageCssCode } from "../data/sallaPageCss.js";
+import { inspectCustomEmailHtml, supportedEmailContentMode, supportedEmailDesign } from "../lib/email/custom-email-html.js";
+import { escapeEmailHtml } from "../lib/email/templates/base-email.js";
 
 export const SALLA_TEMPLATE_KEYS = Object.freeze({
   DIGITAL_PRODUCT_DELIVERY: "digital_product_delivery",
@@ -221,6 +223,11 @@ function apiError(message, code = "SALLA_TEMPLATE_ERROR", status = 400) {
   return error;
 }
 
+function hasOnlyTemplateVariables(value, allowed = []) {
+  const variables = [...String(value || "").matchAll(/{{\s*([^{}]+?)\s*}}/g)].map((match) => match[1]);
+  return variables.every((variable) => allowed.includes(variable));
+}
+
 function cleanSettings(input, current = {}) {
   const settings = input && typeof input === "object" && !Array.isArray(input) ? input : {};
   const cleanLabel = (value, fallback, max = 80) => String(value ?? fallback ?? "").trim().slice(0, max);
@@ -228,8 +235,8 @@ function cleanSettings(input, current = {}) {
   const delays = Array.isArray(settings.delaysMinutes)
     ? settings.delaysMinutes.slice(0, 3).map((item) => Math.max(5, Math.min(2880, Number(item) || 60)))
     : current.delaysMinutes;
-  const emailDesign = ["classic", "modern", "minimal"].includes(settings.emailDesign)
-    ? settings.emailDesign : (current.emailDesign || "classic");
+  const emailDesign = supportedEmailDesign(settings.emailDesign, supportedEmailDesign(current.emailDesign));
+  const emailContentMode = supportedEmailContentMode(settings.emailContentMode, supportedEmailContentMode(current.emailContentMode));
   const deliveryPageDesign = ["classic", "cards", "compact"].includes(settings.deliveryPageDesign)
     ? settings.deliveryPageDesign : (current.deliveryPageDesign || "classic");
   const reviewTriggerStatus = ["shipped", "delivered", "completed"].includes(settings.reviewTriggerStatus)
@@ -244,6 +251,7 @@ function cleanSettings(input, current = {}) {
     reviewDelayMinutes: Math.max(5, Math.min(2880, Number(settings.reviewDelayMinutes ?? current.reviewDelayMinutes) || 1440)),
     reviewTriggerStatus,
     emailDesign,
+    emailContentMode,
     deliveryPageDesign,
     deliveryPageCustomCss: normalizeSallaPageCssCode(settings.deliveryPageCustomCss ?? current.deliveryPageCustomCss ?? ""),
     whatsappImageEnabled: settings.whatsappImageEnabled == null
@@ -483,6 +491,10 @@ export async function saveSallaAutomationTemplate({ tenantId, userId, templateKe
     definition,
     channel
   });
+  if (channel === "email" && supportedEmailContentMode(input.settings?.emailContentMode) === "html"
+      && !hasOnlyTemplateVariables(emailHtmlContent, definition.variables)) {
+    throw apiError("كود البريد يحتوي متغيرًا غير معتمد لهذا القالب.", "INVALID_EMAIL_VARIABLE");
+  }
   const body = channel === "email" ? emailTextContent : whatsappContent;
   if (!body) throw apiError("محتوى قناة الإرسال المحددة مطلوب.", "MESSAGE_REQUIRED");
   const settings = cleanSettings(input.settings, current.rows[0]?.settings || definition.settings || {});
@@ -706,6 +718,10 @@ export function normalizeSallaTemplateEvent(payload) {
   };
 }
 
+function renderSallaTemplateHtml(body, variables = {}) {
+  return String(body || "").replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_, key) => escapeEmailHtml(variables[key] ?? "")).trim();
+}
+
 export function resolveSallaChannelContent({ input = {}, previous = {}, definition = {}, channel = null }) {
   const whatsappContent = String(
     input.whatsappContent ?? (channel === "whatsapp" ? input.messageBody : previous.whatsappContent) ?? definition.body ?? ""
@@ -713,7 +729,13 @@ export function resolveSallaChannelContent({ input = {}, previous = {}, definiti
   const emailTextContent = String(
     input.emailTextContent ?? (channel === "email" ? input.messageBody : previous.emailTextContent) ?? definition.body ?? ""
   ).trim().slice(0, 10000);
-  const emailHtmlContent = String(input.emailHtmlContent ?? previous.emailHtmlContent ?? emailTextContent).trim().slice(0, 30000);
+  const rawHtml = String(input.emailHtmlContent ?? previous.emailHtmlContent ?? "").trim().slice(0, 30000);
+  const emailContentMode = supportedEmailContentMode(input.settings?.emailContentMode, supportedEmailContentMode(previous.settings?.emailContentMode));
+  const inspection = rawHtml ? inspectCustomEmailHtml(rawHtml) : { ok: false, html: "", errors: ["أدخل كود HTML قبل اعتماده."] };
+  if (channel === "email" && emailContentMode === "html" && !inspection.ok) {
+    throw apiError(inspection.errors[0], "INVALID_EMAIL_HTML");
+  }
+  const emailHtmlContent = inspection.ok ? inspection.html : String(previous.emailHtmlContent || "").trim().slice(0, 30000);
   return { whatsappContent, emailTextContent, emailHtmlContent };
 }
 
@@ -1225,6 +1247,10 @@ export async function processSallaTemplateEvent(payload) {
         provider: "resend",
         sallaTemplateKey: template.template_key,
         emailDesign: template.settings?.emailDesign || "classic",
+        emailContentMode: template.settings?.emailContentMode || "preset",
+        emailHtmlContent: template.settings?.emailContentMode === "html"
+          ? renderSallaTemplateHtml(template.email_html_content || "", variables)
+          : "",
         branding: {
           brandName: variables.store_name || brandProfile.storeName || "Renvix",
           logoUrl: brandProfile.logoUrl || "",
@@ -1303,6 +1329,11 @@ export async function processSallaTemplateEvent(payload) {
               provider: "resend",
               sallaTemplateKey: template.template_key,
               abandonedCartMessageIndex: messageIndex,
+              emailDesign: template.settings?.emailDesign || "classic",
+              emailContentMode: template.settings?.emailContentMode || "preset",
+              emailHtmlContent: template.settings?.emailContentMode === "html"
+                ? renderSallaTemplateHtml(template.email_html_content || "", variables)
+                : "",
               branding: {
                 brandName: variables.store_name || brandProfile.storeName || "Renvix",
                 logoUrl: brandProfile.logoUrl || "",

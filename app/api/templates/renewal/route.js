@@ -5,6 +5,11 @@ import { safeErrorMessage } from "../../../../src/server/security.js";
 import { ensureDefaultTemplates } from "../../../../src/server/default-templates.js";
 import { assertPlanFeature, planEntitlementResponse } from "../../../../src/server/plan-entitlements.js";
 import {
+  inspectCustomEmailHtml,
+  supportedEmailContentMode,
+  supportedEmailDesign
+} from "../../../../src/lib/email/custom-email-html.js";
+import {
   PLAN_MESSAGE_LIMIT_REACHED,
   consumeReservedQuotaWithClient,
   releaseReservedQuota,
@@ -26,7 +31,10 @@ const defaultEmailTemplate = {
   themeColor: "#062B28",
   body: "مرحبًا {{اسم_العميل}}،\n\nنود تذكيرك بأن اشتراكك في {{اسم_الخدمة}} سينتهي بتاريخ {{تاريخ_الانتهاء}}.\n\nلضمان استمرار الخدمة دون انقطاع، يرجى تجديد اشتراكك الآن.",
   buttonLabel: "جدد اشتراكك الآن",
-  footerText: "شكرًا لثقتك بنا"
+  footerText: "شكرًا لثقتك بنا",
+  emailDesign: "classic",
+  emailContentMode: "preset",
+  emailHtmlContent: ""
 };
 
 function sanitizePlainText(value, maxLength) {
@@ -61,6 +69,25 @@ function structuredContent(text) {
   };
 }
 
+function emailContentSettings(input, messageBody) {
+  const emailDesign = supportedEmailDesign(input.emailDesign);
+  const emailContentMode = supportedEmailContentMode(input.emailContentMode);
+  const inspection = emailContentMode === "html"
+    ? inspectCustomEmailHtml(input.emailHtmlContent)
+    : { ok: true, html: "", errors: [], warnings: [] };
+  return {
+    ok: inspection.ok,
+    errors: inspection.errors,
+    contentJson: {
+      ...structuredContent(messageBody),
+      emailDesign,
+      emailContentMode,
+      emailHtmlContent: inspection.html,
+      validationWarnings: inspection.warnings
+    }
+  };
+}
+
 function templateSelect() {
   return `SELECT id, template_key AS "templateKey", template_group AS "templateGroup", name, channel, title, body, variables,
                  store_name AS "storeName", theme_color AS "themeColor",
@@ -91,7 +118,14 @@ export async function GET(req) {
       [auth.session.tenantId]
     )
   ]);
-  const templates = templatesResult.rows.filter((item, index, rows) => rows.findIndex((row) => row.templateKey === item.templateKey) === index);
+  const templates = templatesResult.rows
+    .filter((item, index, rows) => rows.findIndex((row) => row.templateKey === item.templateKey) === index)
+    .map((item) => ({
+      ...item,
+      emailDesign: item.contentJson?.emailDesign || "classic",
+      emailContentMode: item.contentJson?.emailContentMode || "preset",
+      emailHtmlContent: item.contentJson?.emailHtmlContent || ""
+    }));
   const rules = rulesResult.rows.filter((item, index, rows) => rows.findIndex((row) => row.channel === item.channel) === index);
   const template = templates.find((item) => item.channel === "whatsapp") || templates[0] || null;
   const rule = rules.find((item) => item.templateId === template?.id) || null;
@@ -134,7 +168,14 @@ export async function PUT(req) {
     footerText = sanitizePlainText(input.footerText, 300);
     themeColor = colorPattern.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#062B28";
     variables = emailVariables;
-    contentJson = structuredContent(messageBody);
+    const emailContent = emailContentSettings(input, messageBody);
+    if (!emailContent.ok) {
+      return Response.json({ ok: false, code: "INVALID_EMAIL_HTML", message: emailContent.errors[0], errors: emailContent.errors }, { status: 400 });
+    }
+    contentJson = emailContent.contentJson;
+    if (contentJson.emailContentMode === "html" && !hasOnlyAllowedVariables(contentJson.emailHtmlContent, allTemplateVariables)) {
+      return Response.json({ ok: false, code: "INVALID_EMAIL_VARIABLE", message: "كود البريد يحتوي متغيرًا غير معتمد." }, { status: 400 });
+    }
     if (!title || !storeName || !buttonLabel || !footerText) {
       return Response.json({ ok: false, message: "أكمل جميع حقول قالب البريد الإلكتروني" }, { status: 400 });
     }
@@ -244,8 +285,19 @@ export async function POST(req) {
     storeName: sanitizePlainText(input.storeName, 100) || defaultEmailTemplate.storeName,
     themeColor: colorPattern.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : defaultEmailTemplate.themeColor,
     buttonLabel: sanitizePlainText(input.buttonLabel, 80) || defaultEmailTemplate.buttonLabel,
-    footerText: sanitizePlainText(input.footerText, 300) || defaultEmailTemplate.footerText
+    footerText: sanitizePlainText(input.footerText, 300) || defaultEmailTemplate.footerText,
+    emailDesign: supportedEmailDesign(input.emailDesign),
+    emailContentMode: supportedEmailContentMode(input.emailContentMode),
+    emailHtmlContent: ""
   };
+  if (template.emailContentMode === "html") {
+    const inspection = inspectCustomEmailHtml(input.emailHtmlContent);
+    if (!inspection.ok) return Response.json({ ok: false, code: "INVALID_EMAIL_HTML", message: inspection.errors[0], errors: inspection.errors }, { status: 400 });
+    template.emailHtmlContent = inspection.html;
+    if (!hasOnlyAllowedVariables(template.emailHtmlContent, allTemplateVariables)) {
+      return Response.json({ ok: false, code: "INVALID_EMAIL_VARIABLE", message: "كود البريد يحتوي متغيرًا غير معتمد." }, { status: 400 });
+    }
+  }
   if (![template.title, template.body, template.buttonLabel, template.footerText].every((value) => hasOnlyAllowedVariables(value, emailVariables))) {
     return Response.json({ ok: false, message: "يحتوي القالب على متغير غير معتمد" }, { status: 400 });
   }

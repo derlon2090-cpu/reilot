@@ -12,6 +12,8 @@ export async function GET(req) {
             COALESCE(s.language, 'ar') AS language, COALESCE(s.theme, 'light') AS theme,
             COALESCE(s.interface_density, 'comfortable') AS "interfaceDensity",
             u.mfa_enabled AS "mfaEnabled",
+            (salla.status = 'connected') AS "storeCustomerSyncAvailable",
+            COALESCE(salla.auto_sync_customers, false) AS "storeCustomerSyncEnabled",
             (COALESCE(s.notification_channels, '{}'::jsonb) - 'sms') AS "notificationChannels",
             COALESCE(s.security, '{}'::jsonb) AS security,
             jsonb_build_object(
@@ -25,6 +27,14 @@ export async function GET(req) {
        LEFT JOIN LATERAL (SELECT name FROM stores WHERE tenant_id = u.tenant_id ORDER BY created_at LIMIT 1) st ON true
        LEFT JOIN settings s ON s.tenant_id = u.tenant_id
        LEFT JOIN user_notification_preferences np ON np.user_id = u.id
+       LEFT JOIN LATERAL (
+         SELECT ac.status, scs.auto_sync_customers
+           FROM app_connections ac
+           LEFT JOIN salla_connection_settings scs
+             ON scs.connection_id = ac.id AND scs.tenant_id = ac.tenant_id
+          WHERE ac.tenant_id = u.tenant_id AND ac.provider = 'salla'
+          LIMIT 1
+       ) salla ON true
       WHERE u.id = $1 AND u.tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
   ), getTenantStorage(auth.session.tenantId), getOrCreateNewsletterProfile(auth.session.tenantId, auth.session.userId)]);

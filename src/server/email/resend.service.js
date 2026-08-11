@@ -7,6 +7,7 @@ import { passwordChangedEmail } from "../../lib/email/templates/password-changed
 import { renewalReminderEmail } from "../../lib/email/templates/renewal-reminder.js";
 import { loginEmailOtp } from "../../lib/email/templates/login-email-otp.js";
 import { supportReplyEmail } from "../../lib/email/templates/support-reply.js";
+import { inspectCustomEmailHtml, supportedEmailContentMode, supportedEmailDesign } from "../../lib/email/custom-email-html.js";
 
 export async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes = 10, locale = "ar" }) {
   return sendEmail({ to, ...forgotPasswordCodeEmail({ code, expiresInMinutes, locale }) });
@@ -56,14 +57,17 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
     ? templateSnapshot.branding
     : {};
   const safeText = escapeEmailHtml(text).replace(/\n/g, "<br>");
-  const design = ["classic", "modern", "minimal"].includes(templateSnapshot?.emailDesign)
-    ? templateSnapshot.emailDesign
-    : "classic";
+  const design = supportedEmailDesign(templateSnapshot?.emailDesign);
   const designedBody = design === "modern"
     ? `<div style="padding:24px;border-radius:18px;background:#f3f8f7;border-top:5px solid #0b3f3b;color:#062b28;line-height:1.9">${safeText}</div>`
     : design === "minimal"
       ? `<div style="padding:8px 0;color:#062b28;line-height:1.9">${safeText}</div>`
-      : `<div style="padding:20px;border:1px solid #e8f1f0;border-radius:14px;color:#062b28;line-height:1.9">${safeText}</div>`;
+      : design === "premium"
+        ? `<div style="padding:26px;border:1px solid #315b56;border-radius:18px;background:#071f1d;color:#f8fffe;line-height:1.9">${safeText}</div>`
+        : `<div style="padding:20px;border:1px solid #e8f1f0;border-radius:14px;color:#062b28;line-height:1.9">${safeText}</div>`;
+  const customInspection = supportedEmailContentMode(templateSnapshot?.emailContentMode) === "html"
+    ? inspectCustomEmailHtml(templateSnapshot?.emailHtmlContent)
+    : null;
   return sendEmail({
     to,
     subject: subject || "إشعار من Renvix",
@@ -74,7 +78,7 @@ export async function sendQueuedEmail({ to, subject, text, templateSnapshot = nu
       brandName: branding.brandName || "Renvix",
       brandImageUrl: branding.logoUrl || brandImageUrl,
       brandImageRadius: Number(branding.logoBorderRadius ?? 16),
-      children: designedBody
+      children: customInspection?.ok ? customInspection.html : designedBody
     })
   });
 }

@@ -38,7 +38,7 @@ describe("strict Meta and Evolution Admin separation", () => {
       expect(adminAuth).toContain(`\"${permission}\"`);
     }
     expect(adminUi).toContain("/api/admin/evolution/devices");
-    expect(adminUi).toContain("حماية إرسال Evolution");
+    expect(adminUi).toContain("أجهزة الإدارة فقط");
   });
 
   it("migrates legacy Evolution rows to an explicit admin provider and seeds per-device policies", () => {

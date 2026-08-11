@@ -42,6 +42,9 @@ export async function POST(request, { params }) {
         provider: "resend",
         sallaTemplateKey: item.templateKey,
         test: true,
+        emailDesign: item.settings?.emailDesign || "classic",
+        emailContentMode: item.settings?.emailContentMode || "preset",
+        emailHtmlContent: item.settings?.emailContentMode === "html" ? item.emailHtmlContent || "" : "",
         branding: {
           brandName: payload.storeProfile?.storeName || payload.integration?.storeName || "Renvix",
           logoUrl: payload.storeProfile?.logoUrl || "",

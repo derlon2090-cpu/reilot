@@ -46,7 +46,7 @@ const PANEL_COPY = {
   billing: ["الفوترة والباقات", "الباقات والاشتراكات والإيرادات من السجلات الفعلية."],
   messages: ["الرسائل", "متابعة الإرسال والتسليم وحالة طابور الرسائل."],
   support: ["الرسائل والشكاوى", "عرض وإدارة رسائل المستخدمين والشكاوى والرد عليها من مكان واحد."],
-  campaigns: ["الحملات", "متابعة حملات جميع مساحات العمل ومؤشرات التسليم الفعلية."],
+  campaigns: ["حملات الإدارة", "إنشاء وإرسال حملات الأدمن عبر القنوات الإدارية المعزولة عن حملات العملاء."],
   contacts: ["جهات الاتصال", "جمهور حملات المتاجر، منفصل عن حسابات مستخدمي المنصة."],
   notifications: ["إدارة إشعارات المنصة", "إنشاء الإشعارات الداخلية ومعاينتها وجدولتها ومتابعة وصولها للمستخدمين."]
 };
@@ -348,7 +348,6 @@ function Dashboard({ admin, onLogout, initialPanel = "overview" }) {
               {activePanel === "provisioning" ? <DataTable title="تفعيل حسابات سلة" description="كل وظيفة مرتبطة بطلب سلة، مع عرض حالات البريد والأخطاء دون بيانات تجريبية." columns={[["orderId","رقم الطلب"],["customerName","العميل"],["email","البريد"],["planName","الباقة"],["status","حالة التفعيل"],["emailStatus","حالة البريد"],["failureCode","سبب التعثر"],["createdAt","تاريخ الإنشاء"]]} rows={data.provisioningJobs} empty="لا توجد وظائف تفعيل حسابات سلة حتى الآن." /> : null}
               {activePanel === "billing" ? <DataTable title="اشتراكات العملاء والفوترة" description="الاشتراكات والباقات الفعلية فقط." columns={[["tenantName","مساحة العمل"],["planName","الباقة"],["billingCycle","الدورة"],["status","الحالة"],["paymentProvider","مزود الدفع"],["startsAt","البداية"],["expiresAt","النهاية"]]} rows={data.subscriptions} /> : null}
               {activePanel === "messages" ? <DataTable title="سجل الرسائل" description="حالة الرسائل من الطابور الفعلي دون بيانات تجريبية." columns={[["action","الإجراء"],["resource","المورد"],["status","الحالة"],["createdAt","الوقت"]]} rows={auditItems.filter((item) => String(item.resource || "").toLowerCase().includes("message") || String(item.resource || "").includes("رسالة"))} empty="لا توجد عمليات رسائل مسجلة حتى الآن." /> : null}
-              {activePanel === "campaigns" ? <DataTable title="الحملات" description="حملات المستخدمين عبر واتساب والبريد، مع حالات وأرقام حقيقية فقط." columns={[["name","الحملة"],["tenantName","مساحة العمل"],["channel","القناة"],["status","الحالة"],["totalRecipients","الجمهور"],["sentCount","تم الإرسال"],["deliveredCount","تم التسليم"],["failedCount","فشل"],["scheduledFor","الموعد"]]} rows={data.campaigns} empty="لا توجد حملات محفوظة حتى الآن." /> : null}
               {activePanel === "contacts" ? <DataTable title="جهات اتصال الحملات" description="هذه جهات اتصال جمهور الحملات وليست حسابات مستخدمي Renvix." columns={[["displayName","جهة الاتصال"],["tenantName","مساحة العمل"],["companyName","الشركة"],["source","المصدر"],["hasEmail","بريد"],["hasWhatsapp","واتساب"],["status","الحالة"],["createdAt","الإنشاء"]]} rows={data.campaignContacts} empty="لا توجد جهات اتصال حملات محفوظة حتى الآن." /> : null}
 
               {activePanel === "roles" ? (

@@ -15,7 +15,6 @@ export async function GET(request) {
       admin: auth.admin,
       search: url.searchParams.get("search") || "",
       status: url.searchParams.get("status") || "",
-      storeId: url.searchParams.get("storeId") || "",
       page: url.searchParams.get("page") || 1,
       pageSize: url.searchParams.get("pageSize") || 20
     });
@@ -37,17 +36,16 @@ export async function POST(request) {
   if (Number(recent.rows[0]?.count || 0) >= 5) return Response.json({ ok: false, reason: "rate_limited" }, { status: 429 });
   const body = await request.json().catch(() => ({}));
   const displayName = String(body.displayName || "").trim();
-  const storeId = String(body.storeId || "").trim();
   const phoneNumber = String(body.phoneNumber || "").replace(/\D/g, "");
-  if (!displayName || displayName.length > 100 || !/^[0-9a-f-]{36}$/i.test(storeId) || (phoneNumber && !/^\d{8,15}$/.test(phoneNumber))) {
+  if (!displayName || displayName.length > 100 || (phoneNumber && !/^\d{8,15}$/.test(phoneNumber))) {
     return Response.json({ ok: false, reason: "validation_error" }, { status: 400 });
   }
   try {
-    const device = await createAdminEvolutionDevice({ storeId, displayName, phoneNumber, adminId: auth.admin.adminId });
-    await auditAdmin(request, { admin: auth.admin, action: "admin.device.created", resource: device.id, metadata: { storeId, instanceName: device.instanceName } });
+    const device = await createAdminEvolutionDevice({ displayName, phoneNumber, adminId: auth.admin.adminId });
+    await auditAdmin(request, { admin: auth.admin, action: "admin.device.created", resource: device.id, metadata: { scope: "platform_admin", instanceName: device.instanceName } });
     return Response.json({ ok: true, device }, { status: 201 });
   } catch (error) {
-    await auditAdmin(request, { admin: auth.admin, action: "admin.device.created", resource: storeId, status: "failed", metadata: { reason: error?.code || "create_failed" } });
-    return Response.json({ ok: false, reason: error?.code || "device_create_failed", message: safeErrorMessage(error) }, { status: error?.code === "store_not_found" ? 404 : 400 });
+    await auditAdmin(request, { admin: auth.admin, action: "admin.device.created", resource: "platform_admin", status: "failed", metadata: { reason: error?.code || "create_failed" } });
+    return Response.json({ ok: false, reason: error?.code || "device_create_failed", message: safeErrorMessage(error) }, { status: 400 });
   }
 }

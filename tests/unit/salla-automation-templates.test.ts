@@ -105,7 +105,7 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain("refreshSallaTemplatePreview(form)");
   });
 
-  it("supports per-template WhatsApp images and three email preview designs", () => {
+  it("supports per-template WhatsApp images and four adoptable email preview designs", () => {
     expect(appSource).toContain('name="whatsappImageEnabled"');
     expect(appSource).toContain('data-salla-whatsapp-image');
     expect(appSource).toContain('data-salla-whatsapp-image-editor');
@@ -118,11 +118,18 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('/api/apps/salla/templates/${encodeURIComponent(templateKey)}/image');
     expect(appSource).not.toContain('refreshSallaTemplatePreview(form, { logoUrl: payload.logoUrl, whatsappImageUrl: payload.logoUrl })');
     expect(appSource).toContain('name="emailDesign"');
-    expect(appSource).toContain('value="modern"');
-    expect(appSource).toContain('value="minimal"');
+    expect(appSource).toContain('{ id: "modern"');
+    expect(appSource).toContain('{ id: "minimal"');
+    expect(appSource).toContain('data-action="adopt-email-design"');
+    expect(appSource).toContain('data-action="adopt-email-html"');
+    expect(appSource).toContain('name="emailHtmlContent"');
+    expect(appSource).toContain('name="emailContentMode"');
     expect(serverSource).toContain("whatsappImageEnabled");
     expect(serverSource).toContain("emailDesign");
+    expect(serverSource).toContain("emailContentMode");
+    expect(serverSource).toContain("inspectCustomEmailHtml");
     expect(resendSource).toContain('design === "modern"');
+    expect(resendSource).toContain("customInspection?.ok ? customInspection.html : designedBody");
     expect(metaSource).toContain("export async function sendMetaImageMessage");
     expect(metaSource).toContain('type: "image"');
     expect(cronSource).toContain("item.template_snapshot?.whatsappImageEnabled");

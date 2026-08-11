@@ -44,5 +44,10 @@ describe("templates catalog UI", () => {
     expect(stylesSource).toContain(".template-editor-v2-email");
     expect(stylesSource).toContain(".template-editor-v2-email > * { direction: rtl;");
     expect(stylesSource).toContain(".store-logo-editor");
+    expect(appSource).toContain("function emailDesignBuilder");
+    expect(appSource).toContain('data-action="adopt-email-html"');
+    expect(appSource).toContain('name="emailContentMode"');
+    expect(stylesSource).toContain(".email-builder-form");
+    expect(stylesSource).toContain(".email-design-presets");
   });
 });

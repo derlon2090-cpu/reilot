@@ -128,7 +128,7 @@ export async function registerSallaOperationalWebhooks(accessToken, origin) {
   const desired = [
     "order.created", "order.updated", "order.payment.updated", "order.status.updated",
     "order.cancelled", "order.refunded", "order.deleted", "order.products.updated",
-    "customer.created", "customer.updated", "abandoned.cart", "invoice.created",
+    "customer.created", "customer.updated", "customer.login", "abandoned.cart", "invoice.created",
     "order.return.created", "order.return.updated"
   ].filter((event) => available.size === 0 || available.has(event));
   const callbackUrl = `${String(origin).replace(/\/$/, "")}/api/webhooks/salla`;
@@ -140,6 +140,32 @@ export async function registerSallaOperationalWebhooks(accessToken, origin) {
     if (!response.ok) throw new Error(`Salla webhook registration failed for ${event} (${response.status})`);
   }
   return { registered: desired.length, events: desired };
+}
+
+export async function ensureSallaCustomerLoginWebhook(accessToken, origin) {
+  const base = (process.env.SALLA_API_BASE_URL || "https://api.salla.dev/admin/v2").replace(/\/$/, "");
+  const headers = { authorization: `Bearer ${accessToken}`, accept: "application/json", "content-type": "application/json" };
+  const activeResponse = await fetch(`${base}/webhooks`, { headers });
+  const activePayload = await activeResponse.json().catch(() => ({}));
+  if (!activeResponse.ok) throw new Error(`Salla active webhooks request failed (${activeResponse.status})`);
+  const activeRows = Array.isArray(activePayload.data)
+    ? activePayload.data
+    : Array.isArray(activePayload.data?.data) ? activePayload.data.data : [];
+  if (activeRows.some((item) => String(item.event || "") === "customer.login")) {
+    return { registered: false, event: "customer.login" };
+  }
+  const response = await fetch(`${base}/webhooks/subscribe`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      name: "Renvix customer.login",
+      event: "customer.login",
+      url: `${String(origin).replace(/\/$/, "")}/api/webhooks/salla`,
+      version: 2
+    })
+  });
+  if (!response.ok) throw new Error(`Salla webhook registration failed for customer.login (${response.status})`);
+  return { registered: true, event: "customer.login" };
 }
 
 export async function getSallaDashboard(tenantId) {
@@ -302,7 +328,7 @@ export async function processSallaEvent(payload, { sendNotifications = true } = 
     await query("UPDATE app_connections SET status = 'disconnected', updated_at = now() WHERE id = $1", [connection.id]);
     return { ok: true };
   }
-  const isCustomer = event === "customer.created" || event === "customer.updated";
+  const isCustomer = ["customer.created", "customer.updated", "customer.login"].includes(event);
   const isOrder = ["order.created", "order.updated", "order.payment.updated", "order.status.updated", "order.cancelled", "order.refunded", "order.deleted", "order.products.updated"].includes(event);
   if (!isCustomer && !isOrder) return { ok: true, skipped: true };
   if (isCustomer && !connection.auto_sync_customers) {

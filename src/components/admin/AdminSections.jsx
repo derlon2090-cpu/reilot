@@ -52,7 +52,8 @@ function humanStatus(value) {
     not_configured: "غير مهيأ", sent: "تم الإرسال", failed: "فشل", disabled: "معطل",
     scheduled: "مجدول", queueing: "قيد الجدولة", sending: "قيد الإرسال", draft: "مسودة",
     validating: "جارٍ التحقق", preparing: "تجهيز الجمهور", publishing: "قيد النشر",
-    published: "تم النشر", partially_published: "نشر جزئي", cancelled: "ملغي", archived: "مؤرشف"
+    published: "تم النشر", partially_published: "نشر جزئي", partial: "مكتملة جزئيًا", cancelled: "ملغي", archived: "مؤرشف",
+    processing: "قيد الإرسال", completed: "مكتملة"
   }[value] || value || "—";
 }
 
@@ -549,10 +550,9 @@ function AdminDeviceStatus({ device }) {
 }
 
 function Devices() {
-  const [payload, setPayload] = useState({ devices: [], stores: [], stats: { total: 0, connected: 0, attention: 0, messagesToday: 0 }, pagination: { page: 1, pageSize: 20, total: 0 } });
+  const [payload, setPayload] = useState({ devices: [], pagination: { page: 1, pageSize: 20, total: 0 } });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const [storeId, setStoreId] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -565,10 +565,7 @@ function Devices() {
   const [pairing, setPairing] = useState({ qrCode: "", pairingCode: "", expiresAt: 0 });
   const [pairingPhone, setPairingPhone] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [detailsTab, setDetailsTab] = useState("details");
-  const [policyForm, setPolicyForm] = useState(null);
-  const [createStep, setCreateStep] = useState(1);
-  const [createForm, setCreateForm] = useState({ displayName: "", storeId: "", phoneNumber: "", method: "qr" });
+  const [createForm, setCreateForm] = useState({ displayName: "", phoneNumber: "", method: "qr" });
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -577,7 +574,6 @@ function Devices() {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (search.trim()) params.set("search", search.trim());
       if (status) params.set("status", status);
-      if (storeId) params.set("storeId", storeId);
       const result = await adminDeviceRequest(`/api/admin/evolution/devices?${params}`);
       setPayload(result);
     } catch {
@@ -585,7 +581,7 @@ function Devices() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, status, storeId]);
+  }, [page, search, status]);
 
   useEffect(() => {
     const timer = setTimeout(loadDevices, search ? 280 : 0);
@@ -602,13 +598,11 @@ function Devices() {
 
   async function openDetails(device) {
     setDrawer("details");
-    setDetailsTab("details");
     setSelected(device);
     setBusy("details");
     try {
       const result = await adminDeviceRequest(`/api/admin/evolution/devices/${encodeURIComponent(device.id)}`);
       setSelected(result.device);
-      setPolicyForm(result.device.policy || null);
     } catch {
       setNotice("تعذر تحميل تفاصيل الجهاز.");
     } finally {
@@ -662,8 +656,7 @@ function Devices() {
       setPairingTab(createForm.method);
       setPairingPhone(createForm.phoneNumber);
       setDrawer("pairing");
-      setCreateStep(1);
-      setCreateForm({ displayName: "", storeId: "", phoneNumber: "", method: "qr" });
+      setCreateForm({ displayName: "", phoneNumber: "", method: "qr" });
       await loadDevices();
     } catch {
       setNotice("تعذر إنشاء الجهاز. تحقق من إعداد Evolution وعدم تكرار الجلسة.");
@@ -688,54 +681,27 @@ function Devices() {
     }
   }
 
-  async function savePolicy() {
-    if (!selected?.id || !policyForm) return;
-    setBusy("policy");
-    setNotice("");
-    try {
-      const result = await adminDeviceRequest(`/api/admin/evolution/devices/${encodeURIComponent(selected.id)}/sending-policy`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(policyForm)
-      });
-      setPolicyForm(result.policy);
-      setSelected((value) => ({ ...value, policy: result.policy }));
-      setNotice("تم حفظ سياسة حماية الإرسال لهذا الجهاز فقط.");
-    } catch (policyError) {
-      setNotice(policyError.status === 403 ? "لا تملك صلاحية إدارة سياسة الإرسال." : "تعذر حفظ سياسة الإرسال. راجع القيم وحاول مجددًا.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  const hasFilters = Boolean(search || status || storeId);
+  const hasFilters = Boolean(search || status);
   const pages = Math.max(1, Math.ceil(payload.pagination.total / payload.pagination.pageSize));
   return <>
     <div className={styles.adminDevicesToolbar}>
-      <button type="button" className={styles.adminPrimaryButton} onClick={() => { setDrawer("create"); setCreateStep(1); setNotice(""); }}><Glyph name="device" /> إضافة جهاز</button>
+      <button type="button" className={styles.adminPrimaryButton} onClick={() => { setDrawer("create"); setNotice(""); }}><Glyph name="device" /> ربط جهاز الأدمن</button>
       <button type="button" className={styles.adminOutlineButton} onClick={loadDevices} disabled={loading}><Glyph name="refresh" /> تحديث الحالات</button>
     </div>
 
-    <section className={styles.adminDeviceKpis} aria-label="مؤشرات الأجهزة">
-      <article><span><Glyph name="device" /></span><div><small>إجمالي الأجهزة</small><strong>{ar(payload.stats.total)}</strong><p>{ar(payload.stats.messagesToday)} رسالة اليوم</p></div></article>
-      <article><span className={styles.adminDeviceKpiGreen}><Glyph name="check" /></span><div><small>الأجهزة المتصلة</small><strong>{ar(payload.stats.connected)}</strong><p>جاهزة للإرسال</p></div></article>
-      <article><span className={styles.adminDeviceKpiOrange}><Glyph name="alert" /></span><div><small>تحتاج متابعة</small><strong>{ar(payload.stats.attention)}</strong><p>اقتران أو اتصال مطلوب</p></div></article>
-    </section>
-
     <section className={`${styles.adminSurface} ${styles.adminDevicesSurface}`}>
+      <div className={styles.adminDeviceScopeNotice}><Glyph name="shield" /><div><strong>أجهزة الإدارة فقط</strong><p>هذه القنوات مملوكة للوحة الإدارة ومعزولة تمامًا عن أجهزة ومتاجر العملاء.</p></div></div>
       <div className={styles.adminDeviceFilters}>
-        <label className={styles.adminDeviceSearch}><Glyph name="chart" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="ابحث باسم الجهاز، المتجر أو رقم الهاتف..." /></label>
+        <label className={styles.adminDeviceSearch}><Glyph name="chart" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="ابحث باسم جهاز الأدمن أو رقم الهاتف..." /></label>
         <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} aria-label="تصفية حسب الحالة">{ADMIN_DEVICE_STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        <select value={storeId} onChange={(event) => { setStoreId(event.target.value); setPage(1); }} aria-label="تصفية حسب المتجر"><option value="">جميع المتاجر</option>{payload.stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select>
-        {hasFilters ? <button type="button" className={styles.adminResetButton} onClick={() => { setSearch(""); setStatus(""); setStoreId(""); setPage(1); }}><Glyph name="refresh" /> مسح الفلاتر</button> : null}
+        {hasFilters ? <button type="button" className={styles.adminResetButton} onClick={() => { setSearch(""); setStatus(""); setPage(1); }}><Glyph name="refresh" /> مسح الفلاتر</button> : null}
       </div>
       {notice ? <div className={styles.adminDeviceNotice}>{notice}</div> : null}
       {error ? <div className={styles.adminDeviceError}>{error}</div> : null}
-      {loading ? <div className={styles.adminDeviceLoading}>جارٍ تحميل الأجهزة...</div> : !payload.devices.length ? <Empty title="لا توجد أجهزة Evolution إدارية" description="أضف جهازًا جديدًا ثم أنشئ رمز QR أو رمز اقتران عند الحاجة." /> : <div className={styles.adminDevicesTableWrap}><table><thead><tr><th>الجهاز</th><th>المتجر المرتبط</th><th>رقم واتساب</th><th>الحالة</th><th>آخر ظهور</th><th>الرسائل</th><th>الإجراءات</th></tr></thead><tbody>{payload.devices.map((device) => <tr key={device.id}>
+      {loading ? <div className={styles.adminDeviceLoading}>جارٍ تحميل أجهزة الإدارة...</div> : !payload.devices.length ? <Empty title="لا يوجد جهاز إداري مرتبط" description="اربط جهاز واتساب الخاص بالأدمن عبر QR أو رمز الاقتران لبدء إرسال الحملات الإدارية." /> : <div className={styles.adminDevicesTableWrap}><table><thead><tr><th>جهاز الأدمن</th><th>رقم واتساب</th><th>الحالة</th><th>آخر فحص</th><th>الإجراءات</th></tr></thead><tbody>{payload.devices.map((device) => <tr key={device.id}>
         <td><div className={styles.adminDeviceName}><span><Glyph name="device" /></span><div><strong>{device.displayName}</strong><small dir="ltr">{device.instanceName}</small></div></div></td>
-        <td>{device.storeName}</td><td dir="ltr">{device.phoneNumber}</td><td><AdminDeviceStatus device={device} /></td>
+        <td dir="ltr">{device.phoneNumber}</td><td><AdminDeviceStatus device={device} /></td>
         <td><strong className={styles.adminDeviceRelative}>{relativeAdminTime(device.lastSeenAt)}</strong></td>
-        <td><strong>{ar(device.metrics.sent)}</strong><small className={styles.adminDeviceCellHint}>{ar(device.metrics.today)} اليوم</small></td>
         <td><div className={styles.adminDeviceActions}><button type="button" onClick={() => openDetails(device)}>التفاصيل</button><div><button type="button" aria-label="المزيد من الإجراءات" onClick={() => setMenuId(menuId === device.id ? "" : device.id)}>•••</button>{menuId === device.id ? <div className={styles.adminDeviceMenu}>
           <button type="button" onClick={() => runAction(device, "refresh")}>تحديث الحالة</button>
           <button type="button" onClick={() => runAction(device, "reconnect")}>إعادة الاتصال</button>
@@ -748,34 +714,18 @@ function Devices() {
     </section>
 
     {drawer ? <div className={styles.adminDeviceDrawerOverlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setDrawer(""); }}><aside className={styles.adminDeviceDrawer} aria-label={drawer === "create" ? "إضافة جهاز" : drawer === "pairing" ? "اقتران الجهاز" : "تفاصيل الجهاز"}>
-      <header><div><span><Glyph name={drawer === "pairing" ? "link" : "device"} /></span><div><h2>{drawer === "create" ? "إضافة جهاز جديد" : drawer === "pairing" ? "ربط جهاز واتساب" : selected?.displayName}</h2><p>{drawer === "create" ? `الخطوة ${createStep} من 2` : selected?.instanceName}</p></div></div><button type="button" aria-label="إغلاق" onClick={() => setDrawer("")}>×</button></header>
+      <header><div><span><Glyph name={drawer === "pairing" ? "link" : "device"} /></span><div><h2>{drawer === "create" ? "إضافة جهاز الأدمن" : drawer === "pairing" ? "ربط جهاز واتساب" : selected?.displayName}</h2><p>{drawer === "create" ? "قناة إدارية مركزية ومعزولة" : selected?.instanceName}</p></div></div><button type="button" aria-label="إغلاق" onClick={() => setDrawer("")}>×</button></header>
       <div className={styles.adminDeviceDrawerBody}>
-        {drawer === "create" ? <>
-          {createStep === 1 ? <div className={styles.adminDeviceForm}>
-            <label>اسم الجهاز<input value={createForm.displayName} onChange={(event) => setCreateForm((value) => ({ ...value, displayName: event.target.value }))} placeholder="مثال: جهاز الدعم الرئيسي" /></label>
-            <label>المتجر<select value={createForm.storeId} onChange={(event) => setCreateForm((value) => ({ ...value, storeId: event.target.value }))}><option value="">اختر المتجر</option>{payload.stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
-            <label>رقم واتساب (اختياري)<input dir="ltr" inputMode="tel" value={createForm.phoneNumber} onChange={(event) => setCreateForm((value) => ({ ...value, phoneNumber: event.target.value.replace(/\D/g, "") }))} placeholder="9665XXXXXXXX" /></label>
-            <button type="button" className={styles.adminPrimaryButton} disabled={!createForm.displayName.trim() || !createForm.storeId} onClick={() => setCreateStep(2)}>التالي</button>
-          </div> : <div className={styles.adminDeviceForm}>
-            <h3>اختر طريقة الربط</h3><div className={styles.adminPairingChoice}><button type="button" className={createForm.method === "qr" ? styles.adminPairingChoiceActive : ""} onClick={() => setCreateForm((value) => ({ ...value, method: "qr" }))}><Glyph name="chart" /><strong>رمز QR</strong><small>مسح الرمز من واتساب</small></button><button type="button" className={createForm.method === "code" ? styles.adminPairingChoiceActive : ""} onClick={() => setCreateForm((value) => ({ ...value, method: "code" }))}><Glyph name="link" /><strong>رمز اقتران</strong><small>ربط باستخدام رقم الهاتف</small></button></div>
-            {notice ? <div className={styles.adminDeviceError}>{notice}</div> : null}<div className={styles.adminDeviceFormActions}><button type="button" className={styles.adminOutlineButton} onClick={() => setCreateStep(1)}>السابق</button><button type="button" className={styles.adminPrimaryButton} disabled={busy === "create" || (createForm.method === "code" && !/^\d{8,15}$/.test(createForm.phoneNumber))} onClick={createDevice}>{busy === "create" ? "جارٍ الإنشاء..." : "إنشاء وبدء الربط"}</button></div>
-          </div>}
-        </> : null}
+        {drawer === "create" ? <div className={styles.adminDeviceForm}>
+          <div className={styles.adminDeviceScopeNotice}><Glyph name="shield" /><div><strong>خاص بالأدمن</strong><p>لن يرتبط الجهاز بأي متجر أو حساب عميل.</p></div></div>
+          <label>اسم الجهاز<input value={createForm.displayName} onChange={(event) => setCreateForm((value) => ({ ...value, displayName: event.target.value }))} placeholder="مثال: جهاز حملات الإدارة" /></label>
+          <label>رقم واتساب (اختياري)<input dir="ltr" inputMode="tel" value={createForm.phoneNumber} onChange={(event) => setCreateForm((value) => ({ ...value, phoneNumber: event.target.value.replace(/\D/g, "") }))} placeholder="9665XXXXXXXX" /></label>
+          <h3>طريقة الربط</h3><div className={styles.adminPairingChoice}><button type="button" className={createForm.method === "qr" ? styles.adminPairingChoiceActive : ""} onClick={() => setCreateForm((value) => ({ ...value, method: "qr" }))}><Glyph name="chart" /><strong>رمز QR</strong><small>مسح الرمز من واتساب</small></button><button type="button" className={createForm.method === "code" ? styles.adminPairingChoiceActive : ""} onClick={() => setCreateForm((value) => ({ ...value, method: "code" }))}><Glyph name="link" /><strong>رمز اقتران</strong><small>باستخدام رقم الهاتف</small></button></div>
+          {notice ? <div className={styles.adminDeviceError}>{notice}</div> : null}<button type="button" className={styles.adminPrimaryButton} disabled={busy === "create" || !createForm.displayName.trim() || (createForm.method === "code" && !/^\d{8,15}$/.test(createForm.phoneNumber))} onClick={createDevice}>{busy === "create" ? "جارٍ الإنشاء..." : "إنشاء وبدء الربط"}</button>
+        </div> : null}
 
         {drawer === "details" && selected ? <div className={styles.adminDeviceDetails}>
-          <nav className={styles.adminDeviceDetailsTabs} aria-label="أقسام تفاصيل الجهاز"><button type="button" className={detailsTab === "details" ? styles.adminDeviceDetailsTabActive : ""} onClick={() => setDetailsTab("details")}>تفاصيل الجهاز</button><button type="button" className={detailsTab === "policy" ? styles.adminDeviceDetailsTabActive : ""} onClick={() => setDetailsTab("policy")}>حماية الإرسال</button></nav>
-          {busy === "details" ? <div className={styles.adminDeviceLoading}>جارٍ تحميل التفاصيل...</div> : detailsTab === "details" ? <>
-            <section><h3>معلومات الجهاز</h3><dl><div><dt>اسم الجلسة</dt><dd dir="ltr">{selected.instanceName}</dd></div><div><dt>المتجر</dt><dd>{selected.storeName}</dd></div><div><dt>رقم واتساب</dt><dd dir="ltr">{selected.phoneNumber}</dd></div><div><dt>الحالة</dt><dd><AdminDeviceStatus device={selected} /></dd></div><div><dt>المزود</dt><dd>evolution_admin</dd></div><div><dt>آخر ظهور</dt><dd>{relativeAdminTime(selected.lastSeenAt)}</dd></div><div><dt>Webhook</dt><dd>{selected.webhookStatus}</dd></div><div><dt>API</dt><dd>{selected.apiStatus}</dd></div></dl></section>
-            <section><h3>الإرسال</h3><div className={styles.adminDeviceMetricGrid}><div><strong>{ar(selected.metrics?.sent)}</strong><span>إجمالي المرسل</span></div><div><strong>{ar(selected.metrics?.today)}</strong><span>اليوم</span></div><div><strong>{ar(selected.metrics?.delivered)}</strong><span>تم التسليم</span></div><div><strong>{selected.metrics?.successRate == null ? "لا توجد بيانات" : `${selected.metrics.successRate}%`}</strong><span>نسبة النجاح</span></div></div></section>
-            <section><h3>مستوى الخطر</h3><div className={styles.adminEvolutionRisk}><strong>{selected.risk?.riskLevel || "low"}</strong><span>{selected.risk?.score ?? 0}/100</span><small>{selected.risk?.action === "pause_device" ? "الجهاز متوقف وقائيًا" : selected.risk?.action === "hold_batches" ? "الدفعات الجديدة موقوفة للمراجعة" : selected.risk?.action === "reduce_rate" ? "تم تخفيض معدل الإرسال" : "الإرسال يعمل ضمن السياسة"}</small></div></section>
-            <section><h3>آخر النشاطات</h3>{selected.activity?.length ? <ul className={styles.adminDeviceActivity}>{selected.activity.map((item) => <li key={item.id}><span><Glyph name="check" /></span><div><strong>{item.title}</strong><small>{relativeAdminTime(item.createdAt)}</small></div></li>)}</ul> : <p className={styles.adminDeviceMuted}>لا توجد نشاطات مسجلة لهذا الجهاز.</p>}</section>
-          </> : policyForm ? <section className={styles.adminEvolutionPolicy}><header><div><h3>حماية إرسال Evolution</h3><p>سياسات داخلية لتنظيم الإرسال عبر الجهاز الإداري وحمايته من الانقطاع أو الحظر.</p></div><label className={styles.adminPolicySwitch}><input type="checkbox" checked={policyForm.enabled} onChange={(event) => setPolicyForm((value) => ({ ...value, enabled: event.target.checked }))} /><span>{policyForm.enabled ? "مفعلة" : "متوقفة"}</span></label></header>
-            <fieldset><legend>الفاصل بين الرسائل</legend><div className={styles.adminPolicyGrid}><label>القيمة الأساسية بالثواني<input type="number" min="1" max="86400" value={policyForm.baseDelaySeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, baseDelaySeconds: Number(event.target.value) }))} /></label><label>أقل نطاق عشوائي<input type="number" min="0" max="86400" value={policyForm.jitterMinSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, jitterMinSeconds: Number(event.target.value) }))} /></label><label>أعلى نطاق عشوائي<input type="number" min="0" max="86400" value={policyForm.jitterMaxSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, jitterMaxSeconds: Number(event.target.value) }))} /></label></div><small>يُحجز الموعد داخل Queue مؤجلة دون تنفيذ sleep داخل الطلب.</small></fieldset>
-            <fieldset><legend>حدود الإرسال</legend><div className={styles.adminPolicyGrid}><label>الحد في الساعة<input type="number" min="1" value={policyForm.hourlyLimit} onChange={(event) => setPolicyForm((value) => ({ ...value, hourlyLimit: Number(event.target.value) }))} /></label><label>الحد اليومي<input type="number" min="1" value={policyForm.dailyLimit} onChange={(event) => setPolicyForm((value) => ({ ...value, dailyLimit: Number(event.target.value) }))} /></label><label>حد الدفعة<input type="number" min="1" value={policyForm.batchLimit} onChange={(event) => setPolicyForm((value) => ({ ...value, batchLimit: Number(event.target.value) }))} /></label><label>فترة التهدئة بالثواني<input type="number" min="0" value={policyForm.cooldownSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, cooldownSeconds: Number(event.target.value) }))} /></label></div></fieldset>
-            <fieldset><legend>منع التكرار</legend><label>نافذة منع الرسالة نفسها لنفس المستلم بالثواني<input type="number" min="0" value={policyForm.duplicateWindowSeconds} onChange={(event) => setPolicyForm((value) => ({ ...value, duplicateWindowSeconds: Number(event.target.value) }))} /></label><small>يعتمد المفتاح على المستلم وبصمة المحتوى والجهاز الإداري.</small></fieldset>
-            <fieldset><legend>الحماية والفحص</legend><div className={styles.adminPolicyChecks}>{[["stopOnHighRisk", "إيقاف مؤقت عند ارتفاع الخطر"], ["reduceOnMediumRisk", "تخفيض سرعة الإرسال عند الخطر المتوسط"], ["blockNewCampaignsOnHighRisk", "منع الحملات الجديدة عند الخطر المرتفع"], ["notifyAdminOnRisk", "تنبيه الأدمن"], ["pauseOnDisconnect", "إيقاف الإرسال عند انقطاع الجهاز"], ["validateTemplates", "فحص الرسائل والمتغيرات"], ["blockUnsafeLinks", "منع الروابط غير الآمنة"]].map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(policyForm[key])} onChange={(event) => setPolicyForm((value) => ({ ...value, [key]: event.target.checked }))} />{label}</label>)}</div></fieldset>
-            <button type="button" className={styles.adminPrimaryButton} disabled={busy === "policy"} onClick={savePolicy}>{busy === "policy" ? "جارٍ الحفظ..." : "حفظ سياسة الجهاز"}</button>
-          </section> : <div className={styles.adminDeviceLoading}>لا توجد سياسة مهيأة لهذا الجهاز.</div>}
+          {busy === "details" ? <div className={styles.adminDeviceLoading}>جارٍ تحميل التفاصيل...</div> : <section><h3>معلومات جهاز الإدارة</h3><dl><div><dt>اسم الجلسة</dt><dd dir="ltr">{selected.instanceName}</dd></div><div><dt>النطاق</dt><dd>لوحة الإدارة فقط</dd></div><div><dt>رقم واتساب</dt><dd dir="ltr">{selected.phoneNumber}</dd></div><div><dt>الحالة</dt><dd><AdminDeviceStatus device={selected} /></dd></div><div><dt>المزود</dt><dd>Evolution Admin</dd></div><div><dt>آخر فحص</dt><dd>{relativeAdminTime(selected.lastSeenAt)}</dd></div><div><dt>Webhook</dt><dd>{selected.webhookStatus}</dd></div><div><dt>API</dt><dd>{selected.apiStatus}</dd></div></dl></section>}
         </div> : null}
 
         {drawer === "pairing" && selected ? <div className={styles.adminPairingPanel}>
@@ -791,6 +741,104 @@ function Devices() {
         </div> : null}
       </div>
     </aside></div> : null}
+  </>;
+}
+
+function Campaigns() {
+  const [payload, setPayload] = useState({ campaigns: [], whatsappDevice: null, whatsappReady: false });
+  const [form, setForm] = useState({ name: "", channel: "evolution_whatsapp", subject: "", body: "", recipients: "", scheduledFor: "" });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/admin/campaigns", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "campaigns_load_failed");
+      setPayload(data);
+      setError("");
+    } catch {
+      setError("تعذر تحميل حملات الإدارة حاليًا.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const recipientCount = useMemo(() => new Set(form.recipients.split(/[\n,;]+/).map((value) => value.trim()).filter(Boolean)).size, [form.recipients]);
+  const whatsappBlocked = form.channel === "evolution_whatsapp" && !payload.whatsappReady;
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice("");
+    setError("");
+    try {
+      const response = await fetch("/api/admin/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, scheduledFor: form.scheduledFor ? new Date(form.scheduledFor).toISOString() : null })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "تعذر إنشاء الحملة.");
+      setNotice(result.delivery?.sent ? `تم إنشاء الحملة وإرسال ${ar(result.delivery.sent)} رسالة في الدفعة الأولى.` : "تم حفظ الحملة في طابور الإرسال الإداري.");
+      setForm({ name: "", channel: form.channel, subject: "", body: "", recipients: "", scheduledFor: "" });
+      await load();
+    } catch (submitError) {
+      setError(submitError.message || "تعذر إنشاء الحملة.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <>
+    <section className={styles.adminCampaignStudio}>
+      <form className={`${styles.adminSurface} ${styles.adminCampaignComposer}`} onSubmit={submit}>
+        <PanelTitle title="إرسال حملة إدارية" description="حملة مستقلة يرسلها الأدمن عبر قناة الإدارة فقط، دون عرض أو استخدام حملات المتاجر." />
+        <div className={styles.adminCampaignChannelTabs}>
+          <button type="button" className={form.channel === "evolution_whatsapp" ? styles.adminCampaignChannelActive : ""} onClick={() => setForm((value) => ({ ...value, channel: "evolution_whatsapp" }))}><Glyph name="device" /> واتساب الإداري</button>
+          <button type="button" className={form.channel === "email" ? styles.adminCampaignChannelActive : ""} onClick={() => setForm((value) => ({ ...value, channel: "email" }))}><Glyph name="mail" /> البريد الإلكتروني</button>
+        </div>
+        {form.channel === "evolution_whatsapp" ? <div className={`${styles.adminCampaignDeviceState} ${payload.whatsappReady ? styles.adminCampaignDeviceReady : styles.adminCampaignDeviceMissing}`}><Glyph name={payload.whatsappReady ? "check" : "alert"} /><div><strong>{payload.whatsappReady ? payload.whatsappDevice?.displayName : "لا يوجد جهاز أدمن متصل"}</strong><p>{payload.whatsappReady ? `${payload.whatsappDevice?.phoneMasked || ""} · جاهز للإرسال` : "اربط جهاز الأدمن من قسم الأجهزة قبل إرسال حملة واتساب."}</p></div></div> : null}
+        <div className={styles.adminCampaignFields}>
+          <label>اسم الحملة<input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} maxLength="120" placeholder="مثال: إعلان تحديثات Renvix" required /></label>
+          {form.channel === "email" ? <label>عنوان البريد<input value={form.subject} onChange={(event) => setForm((value) => ({ ...value, subject: event.target.value }))} maxLength="200" placeholder="عنوان واضح وجذاب" required /></label> : null}
+          <label>المستلمون <small>{ar(recipientCount)} مستلم</small><textarea dir="ltr" value={form.recipients} onChange={(event) => setForm((value) => ({ ...value, recipients: event.target.value }))} rows="6" placeholder={form.channel === "email" ? "name@company.com\nteam@company.com" : "9665XXXXXXXX\n9665XXXXXXXX"} required /></label>
+          <label>محتوى الحملة<textarea value={form.body} onChange={(event) => setForm((value) => ({ ...value, body: event.target.value }))} rows="7" maxLength="10000" placeholder="اكتب رسالة الحملة الإدارية هنا..." required /></label>
+          <label>موعد الإرسال <small>اختياري</small><input type="datetime-local" value={form.scheduledFor} onChange={(event) => setForm((value) => ({ ...value, scheduledFor: event.target.value }))} /></label>
+        </div>
+        {notice ? <div className={styles.adminDeviceNotice}>{notice}</div> : null}
+        {error ? <div className={styles.adminDeviceError}>{error}</div> : null}
+        <button type="submit" className={styles.adminPrimaryButton} disabled={busy || whatsappBlocked || recipientCount < 1}>{busy ? "جارٍ تجهيز الحملة..." : form.scheduledFor ? "جدولة الحملة" : "إرسال الحملة"}</button>
+      </form>
+
+      <aside className={`${styles.adminSurface} ${styles.adminCampaignPreview}`}>
+        <span className={styles.adminCampaignPreviewIcon}><Glyph name={form.channel === "email" ? "mail" : "send"} /></span>
+        <small>معاينة الحملة</small><h3>{form.subject || form.name || "عنوان الحملة"}</h3>
+        <p>{form.body || "سيظهر محتوى الحملة هنا قبل الإرسال."}</p>
+        <div><span>القناة</span><strong>{form.channel === "email" ? "البريد الإلكتروني" : "واتساب الإداري"}</strong></div>
+        <div><span>المستلمون</span><strong>{ar(recipientCount)}</strong></div>
+        <div><span>الإرسال</span><strong>{form.scheduledFor ? formatDate(form.scheduledFor, true) : "فوري"}</strong></div>
+      </aside>
+    </section>
+
+    <section className={styles.adminSurface}>
+      <PanelTitle title="سجل حملات الإدارة" description="يعرض حملات الأدمن فقط، ولا يتضمن حملات أو إحصاءات العملاء." action="تحديث" onAction={load} />
+      {loading ? <div className={styles.adminDeviceLoading}>جارٍ تحميل الحملات...</div> : <SimpleTable rows={payload.campaigns} emptyTitle="لا توجد حملات إدارية بعد" columns={[
+        { key: "name", label: "الحملة" },
+        { key: "channel", label: "القناة", render: (value) => value === "email" ? "بريد إلكتروني" : "واتساب إداري" },
+        { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> },
+        { key: "totalRecipients", label: "المستلمون", render: ar },
+        { key: "sentCount", label: "تم الإرسال", render: ar },
+        { key: "failedCount", label: "تعذر", render: ar },
+        { key: "scheduledFor", label: "الموعد", render: (value) => formatDate(value, true) },
+        { key: "adminName", label: "بواسطة" }
+      ]} />}
+    </section>
   </>;
 }
 
@@ -1109,13 +1157,13 @@ function Settings({ data, stats, admin }) {
   </>;
 }
 
-export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "devices", "integrations", "security", "reports", "settings"]);
+export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "campaigns", "devices", "integrations", "security", "reports", "settings"]);
 
 export default function AdminSectionView({ panel, data, stats, admin, onRefresh }) {
   if (!data || !stats) return null;
   const components = {
     overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, notifications: Notifications, support: Support, templates: Templates,
-    devices: Devices, integrations: Integrations, security: Security, reports: Reports, settings: Settings
+    campaigns: Campaigns, devices: Devices, integrations: Integrations, security: Security, reports: Reports, settings: Settings
   };
   const Component = components[panel];
   return Component ? <Component data={data} stats={stats} admin={admin} onRefresh={onRefresh} /> : null;

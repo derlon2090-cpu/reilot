@@ -62,6 +62,30 @@ describe("central paid plan catalog", () => {
     expect(app).not.toContain('id: "free"');
   });
 
+  it("keeps the new prices, storage limits, and responsive pricing reference explicit", async () => {
+    const [migration, app, styles] = await Promise.all([
+      readFile("drizzle/0066_commercial_plan_prices_and_limits.sql", "utf8"),
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(migration).toContain("WHEN 'starter' THEN 30");
+    expect(migration).toContain("WHEN 'professional' THEN 79");
+    expect(migration).toContain("WHEN 'business' THEN 189");
+    expect(migration).toContain("WHEN 'business' THEN 5120");
+    expect(migration).toContain("'enterprise','database_storage_bytes',true,-1::bigint");
+    expect(app).not.toContain('class="whatsapp-usage-note"');
+    const pricingPage = app.slice(app.indexOf("function marketingPricingPage()"), app.indexOf("function blogPage()"));
+    expect(pricingPage).toContain('class="pricing-trial-footnote"');
+    expect(pricingPage.indexOf('class="pricing-trial-footnote"')).toBeGreaterThan(pricingPage.indexOf('class="pricing-public-grid"'));
+    expect(pricingPage).toContain("ابدأ بتجربة مجانية لمدة 7 أيام");
+    expect(pricingPage).toContain("جرّب Renvix قبل اختيار باقتك. لا توجد باقة مجانية دائمة.");
+    expect(pricingPage).not.toContain("شحن رصيد البريد");
+    expect(pricingPage).not.toContain("emailTopup");
+    expect(styles).toContain("@media (min-width:744px)");
+    expect(styles).toContain("grid-template-columns:repeat(4,minmax(0,1fr))");
+    expect(styles).toContain("@media (max-width:640px)");
+  });
+
   it("provisions signup as a seven-day trial rather than a Free subscription", async () => {
     const registration = await readFile("src/server/email-otp-v2.js", "utf8");
     expect(registration).toContain("interval '7 days'");

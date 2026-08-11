@@ -63,19 +63,22 @@ function planStorageSql() {
 
 function storageResult(usedBytesValue, limitMbValue) {
   const usedBytes = Math.max(0, Number(usedBytesValue || 0));
-  const limitMb = Math.max(1, Number(limitMbValue || 1));
-  const limitBytes = limitMb * 1024 * 1024;
-  const percent = limitBytes > 0 ? Math.round((usedBytes / limitBytes) * 1000) / 10 : 0;
+  const configuredLimitMb = Number(limitMbValue ?? 1);
+  const isUnlimited = Number.isFinite(configuredLimitMb) && configuredLimitMb < 0;
+  const limitMb = isUnlimited ? -1 : Math.max(1, Number(configuredLimitMb || 1));
+  const limitBytes = isUnlimited ? -1 : limitMb * 1024 * 1024;
+  const percent = isUnlimited ? 0 : Math.round((usedBytes / limitBytes) * 1000) / 10;
   return {
     usedBytes,
     usedMb: Math.round((usedBytes / 1024 / 1024) * 100) / 100,
     limitBytes,
     limitMb,
-    remainingBytes: Math.max(0, limitBytes - usedBytes),
+    remainingBytes: isUnlimited ? -1 : Math.max(0, limitBytes - usedBytes),
     percent,
     progressPercent: Math.min(100, percent),
-    isLimitReached: usedBytes >= limitBytes,
-    isOverLimit: usedBytes > limitBytes
+    isUnlimited,
+    isLimitReached: !isUnlimited && usedBytes >= limitBytes,
+    isOverLimit: !isUnlimited && usedBytes > limitBytes
   };
 }
 

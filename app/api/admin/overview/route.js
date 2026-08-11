@@ -180,14 +180,7 @@ export async function GET(request) {
   ]);
 
   const queueStats = queue.rows[0] || {};
-  const [campaignSummary, recentCampaigns, contactSummary, recentCampaignContacts] = await Promise.all([
-    query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status IN ('scheduled','queueing','sending'))::int AS active,
-                  COALESCE(sum(sent_count),0)::int AS sent,COALESCE(sum(delivered_count),0)::int AS delivered,
-                  COALESCE(sum(failed_count),0)::int AS failed FROM campaigns`),
-    query(`SELECT c.id,c.name,c.channel,c.status,c.total_recipients AS "totalRecipients",c.sent_count AS "sentCount",
-                  c.delivered_count AS "deliveredCount",c.failed_count AS "failedCount",c.scheduled_for AS "scheduledFor",
-                  c.created_at AS "createdAt",t.name AS "tenantName"
-             FROM campaigns c JOIN tenants t ON t.id=c.tenant_id ORDER BY c.created_at DESC LIMIT 30`),
+  const [contactSummary, recentCampaignContacts] = await Promise.all([
     query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status='active')::int AS active,
                   count(*) FILTER(WHERE status='merge_review')::int AS "needsReview" FROM contacts`),
     query(`SELECT c.id,c.display_name AS "displayName",c.company_name AS "companyName",c.source,c.status,
@@ -252,7 +245,7 @@ export async function GET(request) {
         critical: number(risks.rows[0]?.critical)
       },
       unreadNotifications: number(notifications.rows[0]?.count),
-      campaigns: campaignSummary.rows[0],
+      campaigns: { total: 0, active: 0, sent: 0, delivered: 0, failed: 0 },
       contacts: contactSummary.rows[0]
     },
     recentAudit: canAudit ? audit.rows : [],
@@ -267,7 +260,7 @@ export async function GET(request) {
     adminTemplates: adminCan(auth.admin, "templates", "read") ? adminTemplates.rows : [],
     integrationHealth: adminCan(auth.admin, "integrations", "read") ? integrationHealth.rows : [],
     adminMessages: adminCan(auth.admin, "reports", "read") ? adminMessages.rows : [],
-    campaigns: adminCan(auth.admin, "campaigns", "read") ? recentCampaigns.rows : [],
+    campaigns: [],
     campaignContacts: adminCan(auth.admin, "contacts", "read") ? recentCampaignContacts.rows : [],
     dailyMetrics: dailyMetrics.rows.reverse()
   });
