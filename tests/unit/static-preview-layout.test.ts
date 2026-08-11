@@ -4,22 +4,22 @@ import { describe, expect, it } from "vitest";
 const appStyles = readFileSync("src/styles/globals.css", "utf8");
 const adminStyles = readFileSync("src/components/admin/AdminPortal.module.css", "utf8");
 
-const fixedAppPreviews = [
-  "email-preview-side",
-  "meta-approved-preview",
-  "email-preview-v2",
-  "salla-live-preview",
-  "salla-template-live-preview",
-  "campaign-preview-card",
-  "campaign-studio-preview"
-];
+const stickyAppPreviews = {
+  "email-preview-side": 92,
+  "meta-approved-preview": 88,
+  "email-preview-v2": 88,
+  "salla-live-preview": 96,
+  "salla-template-live-preview": 92,
+  "campaign-preview-card": 82,
+  "campaign-studio-preview": 82
+};
 
-const fixedAdminPreviews = [
-  "adminNotificationPreview",
-  "adminTemplatePreviewCard",
-  "adminSupportPreview",
-  "adminCampaignPreview"
-];
+const stickyAdminPreviews = {
+  adminNotificationPreview: 92,
+  adminTemplatePreviewCard: 18,
+  adminSupportPreview: 88,
+  adminCampaignPreview: 20
+};
 
 function declarationsFor(source: string, className: string) {
   const matches = [...source.matchAll(new RegExp(`\\.${className}[^,{]*\\{([^}]*)\\}`, "g"))];
@@ -27,17 +27,17 @@ function declarationsFor(source: string, className: string) {
   return matches.map((match) => match[1] || "");
 }
 
-describe("stationary preview layout", () => {
-  it.each(fixedAppPreviews)("keeps .%s in its layout position", (className) => {
+describe("anchored preview layout", () => {
+  it.each(Object.entries(stickyAppPreviews))("keeps .%s visible at its professional offset", (className, top) => {
     const declarations = declarationsFor(appStyles, className);
-    expect(declarations.some((declaration) => /position\s*:\s*static/.test(declaration))).toBe(true);
-    expect(declarations.join("\n")).not.toMatch(/position\s*:\s*sticky/);
+    expect(declarations.some((declaration) => /position\s*:\s*sticky/.test(declaration))).toBe(true);
+    expect(declarations.some((declaration) => new RegExp(`top\\s*:\\s*${top}px`).test(declaration))).toBe(true);
   });
 
-  it.each(fixedAdminPreviews)("keeps admin .%s in its layout position", (className) => {
+  it.each(Object.entries(stickyAdminPreviews))("keeps admin .%s visible at its professional offset", (className, top) => {
     const declarations = declarationsFor(adminStyles, className);
-    expect(declarations.some((declaration) => /position\s*:\s*static/.test(declaration))).toBe(true);
-    expect(declarations.join("\n")).not.toMatch(/position\s*:\s*sticky/);
+    expect(declarations.some((declaration) => /position\s*:\s*sticky/.test(declaration))).toBe(true);
+    expect(declarations.some((declaration) => new RegExp(`top\\s*:\\s*${top}px`).test(declaration))).toBe(true);
   });
 
   it("does not animate preview viewport changes", () => {
