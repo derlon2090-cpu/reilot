@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-ipad-touch-layout-v60" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-ipad-touch-layout-v61" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-dark-system-v50" />
       </head>
       <body>
