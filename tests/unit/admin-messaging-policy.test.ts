@@ -20,17 +20,19 @@ describe("admin messaging provider isolation", () => {
   it("maps each immutable system template to exactly one committed domain event", () => {
     expect(ADMIN_TEMPLATE_KEYS).toEqual({
       ACCOUNT_CREATED: "admin_account_created",
+      SUBSCRIPTION_RENEWAL_REMINDER: "admin_subscription_renewal_reminder",
       SUBSCRIPTION_RENEWED: "admin_subscription_renewed",
       NUMBER_DISCONNECTED: "admin_number_disconnected",
       SALLA_INSTALLED: "admin_salla_installed"
     });
     expect(EVENT_TEMPLATE_MAP).toEqual({
       "account.provisioned": "admin_account_created",
+      "subscription.renewal_due": "admin_subscription_renewal_reminder",
       "subscription.renewed": "admin_subscription_renewed",
       "channel.disconnected": "admin_number_disconnected",
       "salla.integration.ready": "admin_salla_installed"
     });
-    expect(new Set(Object.values(EVENT_TEMPLATE_MAP)).size).toBe(4);
+    expect(new Set(Object.values(EVENT_TEMPLATE_MAP)).size).toBe(5);
   });
 
   it("refuses an active send when a required value is missing", () => {

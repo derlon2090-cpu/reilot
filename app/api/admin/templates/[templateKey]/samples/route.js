@@ -42,6 +42,38 @@ export async function GET(request, { params }) {
         support_url: `${appUrl()}/support`
       }
     }));
+  } else if (templateKey === "admin_subscription_renewal_reminder") {
+    const result = await query(
+      `SELECT ps.id,ps.current_period_end,pp.name AS plan_name,
+              COALESCE(s.name,t.name,'Renvix') AS store_name,
+              COALESCE(owner.name,t.name,'عميل Renvix') AS customer_name
+         FROM platform_subscriptions ps
+         JOIN platform_plans pp ON pp.id=ps.plan_id
+         JOIN tenants t ON t.id=ps.tenant_id
+         JOIN LATERAL (
+           SELECT u.name FROM tenant_members tm JOIN users u ON u.id=tm.user_id
+            WHERE tm.tenant_id=ps.tenant_id AND tm.role='owner' AND tm.status='active'
+            ORDER BY tm.created_at LIMIT 1
+         ) owner ON true
+         LEFT JOIN LATERAL (
+           SELECT name FROM stores WHERE tenant_id=ps.tenant_id ORDER BY created_at LIMIT 1
+         ) s ON true
+        WHERE ps.status='active' AND ps.current_period_end>now()
+        ORDER BY ps.current_period_end LIMIT 20`
+    );
+    rows = result.rows.map((row) => ({
+      id: row.id,
+      label: `${row.customer_name} — ${row.plan_name}`,
+      values: {
+        customer_name: row.customer_name,
+        plan_name: row.plan_name,
+        store_name: row.store_name,
+        expiry_date: displayDate(row.current_period_end),
+        days_remaining: Math.max(1, Math.ceil((new Date(row.current_period_end).getTime() - Date.now()) / 86_400_000)),
+        renewal_url: `${appUrl()}/dashboard/billing`,
+        support_url: `${appUrl()}/support`
+      }
+    }));
   } else if (templateKey === "admin_subscription_renewed") {
     const result = await query(
       `SELECT sr.id,sr.previous_expires_at,sr.new_expires_at,sc.full_name,sp.name AS plan_name,

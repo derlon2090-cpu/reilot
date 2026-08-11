@@ -10,6 +10,7 @@ import { generateTemporaryPassword } from "./temporary-credentials.js";
 
 export const ADMIN_TEMPLATE_KEYS = Object.freeze({
   ACCOUNT_CREATED: "admin_account_created",
+  SUBSCRIPTION_RENEWAL_REMINDER: "admin_subscription_renewal_reminder",
   SUBSCRIPTION_RENEWED: "admin_subscription_renewed",
   NUMBER_DISCONNECTED: "admin_number_disconnected",
   SALLA_INSTALLED: "admin_salla_installed"
@@ -17,6 +18,7 @@ export const ADMIN_TEMPLATE_KEYS = Object.freeze({
 
 export const EVENT_TEMPLATE_MAP = Object.freeze({
   "account.provisioned": ADMIN_TEMPLATE_KEYS.ACCOUNT_CREATED,
+  "subscription.renewal_due": ADMIN_TEMPLATE_KEYS.SUBSCRIPTION_RENEWAL_REMINDER,
   "subscription.renewed": ADMIN_TEMPLATE_KEYS.SUBSCRIPTION_RENEWED,
   "channel.disconnected": ADMIN_TEMPLATE_KEYS.NUMBER_DISCONNECTED,
   "salla.integration.ready": ADMIN_TEMPLATE_KEYS.SALLA_INSTALLED
@@ -96,6 +98,41 @@ export async function enqueueAdminDomainEvent(client, {
     [eventType, aggregateType, String(aggregateId), JSON.stringify(payloadRefs), idempotencyKey]
   );
   return { queued: Boolean(result.rows[0]), eventId: result.rows[0]?.id || null };
+}
+
+export async function enqueueAdminRenewalReminderEvents({ daysBefore = 3, limit = 100 } = {}) {
+  const reminderDays = Math.min(30, Math.max(1, Number(daysBefore) || 3));
+  const batchLimit = Math.min(500, Math.max(1, Number(limit) || 100));
+  const result = await query(
+    `INSERT INTO admin_event_outbox
+       (event_type,aggregate_type,aggregate_id,payload_refs,idempotency_key,status,available_at)
+     SELECT 'subscription.renewal_due','platform_subscription',ps.id::text,
+            jsonb_build_object(
+              'subscriptionId',ps.id,
+              'periodEnd',ps.current_period_end,
+              'daysBefore',$1::int
+            ),
+            'subscription.renewal_due:' || ps.id::text || ':' ||
+              extract(epoch FROM ps.current_period_end)::bigint::text,
+            'pending',now()
+       FROM platform_subscriptions ps
+      WHERE ps.status='active'
+        AND ps.current_period_end > now()
+        AND ps.current_period_end <= now() + ($1::int * interval '1 day')
+        AND NOT EXISTS (
+          SELECT 1
+            FROM admin_event_outbox existing
+           WHERE existing.idempotency_key =
+             'subscription.renewal_due:' || ps.id::text || ':' ||
+             extract(epoch FROM ps.current_period_end)::bigint::text
+        )
+      ORDER BY ps.current_period_end
+      LIMIT $2
+     ON CONFLICT (idempotency_key) DO NOTHING
+     RETURNING id`,
+    [reminderDays, batchLimit]
+  );
+  return Number(result.rowCount || result.rows?.length || 0);
 }
 
 async function loadTemplate(templateKey) {
@@ -252,6 +289,50 @@ async function resolveRenewalEvent(event, channel) {
   };
 }
 
+export async function resolveRenewalReminderEvent(event, channel) {
+  const subscriptionId = event.payload_refs?.subscriptionId || event.aggregate_id;
+  const expectedPeriodEnd = event.payload_refs?.periodEnd || null;
+  const result = await query(
+    `SELECT ps.id,ps.current_period_end AS "periodEnd",pp.name AS "planName",
+            COALESCE(s.name,t.name,'Renvix') AS "storeName",
+            COALESCE(owner.name,t.name,'عميل Renvix') AS "customerName",
+            owner.email,s.support_phone AS phone
+       FROM platform_subscriptions ps
+       JOIN platform_plans pp ON pp.id=ps.plan_id
+       JOIN tenants t ON t.id=ps.tenant_id
+       JOIN LATERAL (
+         SELECT u.name,u.email FROM tenant_members tm JOIN users u ON u.id=tm.user_id
+          WHERE tm.tenant_id=ps.tenant_id AND tm.role='owner' AND tm.status='active'
+          ORDER BY tm.created_at LIMIT 1
+       ) owner ON true
+       LEFT JOIN LATERAL (
+         SELECT name,support_phone FROM stores WHERE tenant_id=ps.tenant_id ORDER BY created_at LIMIT 1
+       ) s ON true
+      WHERE ps.id=$1 AND ps.status='active' AND ps.current_period_end > now()
+        AND ($2::timestamptz IS NULL OR ps.current_period_end=$2::timestamptz)
+      LIMIT 1`,
+    [subscriptionId, expectedPeriodEnd]
+  );
+  const row = result.rows[0];
+  if (!row) return { skip: "renewal_reminder_no_longer_due" };
+  const recipient = channelRecipient(channel, { email: row.email, phone: row.phone });
+  if (!recipient) return { skip: missingRecipientReason(channel) };
+  const daysRemaining = Math.max(1, Math.ceil((new Date(row.periodEnd).getTime() - Date.now()) / 86_400_000));
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://renvix.app";
+  return {
+    recipient,
+    variables: {
+      customer_name: row.customerName,
+      plan_name: row.planName,
+      store_name: row.storeName,
+      expiry_date: dateValue(row.periodEnd),
+      days_remaining: daysRemaining,
+      renewal_url: `${appUrl}/dashboard/billing`,
+      support_url: `${appUrl}/support`
+    }
+  };
+}
+
 async function resolveDisconnectEvent(event, channel) {
   const channelId = event.payload_refs?.channelId || event.aggregate_id;
   const result = await query(
@@ -337,6 +418,7 @@ async function resolveSallaEvent(event, channel) {
 
 async function resolveEvent(event, channel) {
   if (event.event_type === "account.provisioned") return resolveAccountEvent(event, channel);
+  if (event.event_type === "subscription.renewal_due") return resolveRenewalReminderEvent(event, channel);
   if (event.event_type === "subscription.renewed") return resolveRenewalEvent(event, channel);
   if (event.event_type === "channel.disconnected") return resolveDisconnectEvent(event, channel);
   if (event.event_type === "salla.integration.ready") return resolveSallaEvent(event, channel);
@@ -515,6 +597,7 @@ async function sendEvent(event) {
 }
 
 export async function runAdminTemplateEventWorker({ limit = 20 } = {}) {
+  const scheduled = await enqueueAdminRenewalReminderEvents();
   const claimed = await transaction(async (client) => {
     const result = await client.query(
       `WITH candidates AS (
@@ -530,7 +613,7 @@ export async function runAdminTemplateEventWorker({ limit = 20 } = {}) {
     );
     return result.rows;
   });
-  const summary = { claimed: claimed.length, completed: 0, failed: 0, skipped: 0, duplicate: 0 };
+  const summary = { scheduled, claimed: claimed.length, completed: 0, failed: 0, skipped: 0, duplicate: 0 };
   for (const event of claimed) {
     try {
       const result = await sendEvent(event);
