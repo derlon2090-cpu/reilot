@@ -109,7 +109,7 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain("refreshSallaTemplatePreview(form)");
   });
 
-  it("supports per-template WhatsApp images and eight adoptable global email designs", () => {
+  it("places three professional Salla email designs below the image with an adjacent color editor", () => {
     expect(appSource).toContain('name="whatsappImageEnabled"');
     expect(appSource).toContain('data-salla-whatsapp-image');
     expect(appSource).toContain('data-salla-whatsapp-image-editor');
@@ -122,16 +122,18 @@ describe("Salla automation templates", () => {
     expect(appSource).toContain('/api/apps/salla/templates/${encodeURIComponent(templateKey)}/image');
     expect(appSource).not.toContain('refreshSallaTemplatePreview(form, { logoUrl: payload.logoUrl, whatsappImageUrl: payload.logoUrl })');
     expect(appSource).toContain('name="emailDesign"');
-    expect(appSource).toContain('{ id: "modern"');
-    expect(appSource).toContain('{ id: "minimal"');
+    expect(appSource).toContain('const SALLA_EMAIL_DESIGN_IDS = ["editorial", "commerce", "executive"]');
+    expect(appSource).toContain('presetIds: SALLA_EMAIL_DESIGN_IDS');
     expect(appSource).toContain('{ id: "editorial"');
     expect(appSource).toContain('{ id: "commerce"');
-    expect(appSource).toContain('{ id: "aurora"');
     expect(appSource).toContain('{ id: "executive"');
     expect(appSource).toContain('name="emailThemeColor"');
     expect(appSource).toContain('data-action="set-email-theme-color"');
+    expect(appSource).toContain('class="email-design-workspace"');
+    expect(appSource).toContain("تعديل لون القالب");
     expect(styles).toContain(".salla-email-builder-panel > .salla-email-logo-editor { order: 3");
     expect(styles).toContain(".salla-email-builder-panel > .email-design-builder { order: 4");
+    expect(styles).toContain(".email-design-builder.is-salla-catalog .email-design-workspace { grid-template-columns:");
     expect(appSource).toContain('data-action="adopt-email-design"');
     expect(appSource).toContain('data-action="adopt-email-html"');
     expect(appSource).toContain('name="emailHtmlContent"');

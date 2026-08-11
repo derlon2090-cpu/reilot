@@ -3498,6 +3498,7 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .email-design-builder-head p { margin: 4px 0 0; color: #0B3F3B; font-size: 10.5px; line-height: 1.65; }
 .email-source-status { flex: 0 0 auto; padding: 7px 10px; color: #0B3F3B; border: 1px solid #bcded8; border-radius: 999px; background: #eefaf7; font-size: 9.5px; font-weight: 800; white-space: nowrap; }
 .email-source-status.is-code { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+.email-design-workspace { display: grid; gap: 12px; }
 .email-design-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
 .email-design-preset { min-width: 0; padding: 11px; display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 3px 10px; border: 1px solid #dbe8e6; border-radius: 13px; background: #fff; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
 .email-design-preset:hover { transform: translateY(-1px); border-color: #91bbb5; }
@@ -3577,6 +3578,10 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 .salla-email-builder-panel > .salla-email-logo-editor { order: 3; margin-top: 0; }
 .salla-email-builder-panel > .email-design-builder { order: 4; }
 .salla-email-builder-panel > .email-fallback-editor { order: 5; }
+.salla-email-builder-panel .email-design-builder.is-salla-catalog .email-design-workspace { grid-template-columns: minmax(0, 1fr) minmax(210px, .58fr); align-items: start; }
+.salla-email-builder-panel .email-design-builder.is-salla-catalog .email-design-presets { grid-template-columns: 1fr; }
+.salla-email-builder-panel .email-design-builder.is-salla-catalog .email-template-theme { min-height: 100%; display: grid; align-content: start; justify-items: stretch; gap: 16px; }
+.salla-email-builder-panel .email-design-builder.is-salla-catalog .email-theme-palette { align-self: end; }
 .salla-email-builder-panel .email-fallback-editor { padding-top: 15px; }
 .salla-email-preview.design-premium .salla-email-preview-canvas { color: #eafffb; background: #071f1d; }
 .salla-email-preview.design-premium .salla-email-preview-head { border-color: #315b56; background: #0d2b28; }
@@ -3682,6 +3687,8 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
   .template-actions { width: 100%; }
   .template-editor-v2-footer .btn { flex: 1; min-width: 0; }
   .email-design-builder-head { align-items: stretch; flex-direction: column; }
+  .salla-email-builder-panel .email-design-builder.is-salla-catalog .email-design-workspace { grid-template-columns: 1fr; }
+  .salla-email-builder-panel .email-design-builder.is-salla-catalog .email-template-theme { min-height: 0; }
   .email-source-status { width: max-content; max-width: 100%; white-space: normal; }
   .email-design-presets { grid-template-columns: 1fr; }
   .email-code-actions { display: grid; grid-template-columns: 1fr; }
