@@ -2925,14 +2925,11 @@ function authReferenceVisual(kind) {
     loginOtp: "/app/assets/auth-reference/login-otp-v2.png?v=20260810-auth-art-v29"
   };
   const referenceAsset = referenceAssets[kind] || referenceAssets.login;
-  const featureLines = kind === "login" || kind === "register"
-    ? `<span class="auth-showcase-feature-lines" aria-hidden="true"><i class="auth-feature-line auth-feature-line--alerts"></i><i class="auth-feature-line auth-feature-line--reports"></i><i class="auth-feature-line auth-feature-line--automation"></i><i class="auth-feature-line auth-feature-line--campaigns"></i><i class="auth-feature-line auth-feature-line--channels"></i><i class="auth-feature-line auth-feature-line--security"></i></span>`
-    : "";
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${featureLines}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" decoding="async">${illustration}</div>
+    <div class="auth-showcase-art"><img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" decoding="async">${illustration}</div>
   </div>`;
 }
 

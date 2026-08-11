@@ -10505,9 +10505,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   }
 }
 
-/* Clean artwork balance: no lower caption card, with reference-style feature connectors. */
-.auth-showcase-feature-lines{display:none}
-
+/* Clean artwork balance: the reference asset owns its precisely attached connector paths. */
 @media (min-width:744px){
   .auth-showcase{
     padding-bottom:20px!important;
@@ -10516,36 +10514,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     margin-bottom:0!important;
     overflow:visible!important;
   }
-  .auth-showcase--login .auth-showcase-feature-lines,
-  .auth-showcase--register .auth-showcase-feature-lines{
-    position:absolute;
-    z-index:4;
-    inset:0;
-    display:block;
-    pointer-events:none;
-  }
-  .auth-feature-line{
-    position:absolute;
-    height:0;
-    border-top:2px dashed rgba(8,111,101,.38);
-    transform-origin:left center;
-    filter:drop-shadow(0 1px 0 rgba(255,255,255,.8));
-  }
-  .auth-feature-line--alerts{top:18%;left:7%;width:22%;transform:rotate(25deg)}
-  .auth-feature-line--reports{top:18%;right:7%;width:22%;transform:rotate(155deg)}
-  .auth-feature-line--automation{top:49%;left:5%;width:22%;transform:rotate(7deg)}
-  .auth-feature-line--campaigns{top:76%;left:6%;width:27%;transform:rotate(-18deg)}
-  .auth-feature-line--channels{top:90%;left:39%;width:18%;transform:rotate(-72deg)}
-  .auth-feature-line--security{top:89%;left:73%;width:18%;transform:rotate(-104deg)}
-  .auth-suite-page[data-auth-theme="dark"] .auth-feature-line{
-    border-top-color:rgba(119,211,197,.48);
-    filter:none;
-  }
 }
 
 @media (min-width:744px) and (max-width:1100px){
   .auth-showcase{padding-bottom:14px!important}
-  .auth-feature-line{border-top-width:1.5px}
 }
 
 /* Keep every reference illustration fully visible inside the approved fixed panel. */
@@ -10571,7 +10543,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   }
 }
 
-/* Stable access artwork: one panel size for sign-in/register, connectors nowhere else. */
+/* Stable access artwork: one panel size for sign-in/register, using embedded connectors. */
 @media (min-width:744px){
   html:has(.auth-suite-shell.login),
   html:has(.auth-suite-shell.register),
@@ -10605,7 +10577,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--register .auth-showcase-reference-art{
     width:min(calc(100% - 4px),540px)!important;
     max-height:380px!important;
-    transform:translateY(-14px)!important;
+    transform:translateY(0)!important;
   }
 }
 
@@ -10620,6 +10592,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--register .auth-showcase-reference-art{
     width:min(calc(100% - 18px),470px)!important;
     max-height:330px!important;
-    transform:translateY(-12px)!important;
+    transform:translateY(0)!important;
   }
 }

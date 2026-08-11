@@ -2925,14 +2925,11 @@ function authReferenceVisual(kind) {
     loginOtp: "/app/assets/auth-reference/login-otp-v2.png?v=20260810-auth-art-v29"
   };
   const referenceAsset = referenceAssets[kind] || referenceAssets.login;
-  const featureLines = kind === "login" || kind === "register"
-    ? `<span class="auth-showcase-feature-lines" aria-hidden="true"><i class="auth-feature-line auth-feature-line--alerts"></i><i class="auth-feature-line auth-feature-line--reports"></i><i class="auth-feature-line auth-feature-line--automation"></i><i class="auth-feature-line auth-feature-line--campaigns"></i><i class="auth-feature-line auth-feature-line--channels"></i><i class="auth-feature-line auth-feature-line--security"></i></span>`
-    : "";
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${featureLines}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" decoding="async">${illustration}</div>
+    <div class="auth-showcase-art"><img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" decoding="async">${illustration}</div>
   </div>`;
 }
 
@@ -2943,7 +2940,7 @@ function authPublicPage() {
       ${isRegister ? `<label class="field"><span>الاسم الكامل</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>اسم الشركة (اختياري)</span><input class="input" name="companyName" autocomplete="organization"></label>` : ""}
       <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label><label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="${isRegister ? "new-password" : "current-password"}" placeholder="${isRegister ? "اختر كلمة مرور قوية" : "أدخل كلمة المرور"}" required></label>
       ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
-      <button class="btn btn-primary auth-submit">${isRegister ? localizedCopy("إنشاء الحساب", "Create account") : localizedCopy("تسجيل الدخول", "Sign in")} ${dashboardIcon("arrow-left")}</button><p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p></form></article>
+      <button class="btn btn-primary auth-submit">${isRegister ? localizedCopy("ابدأ تجربتك المجانية", "Start your free trial") : localizedCopy("تسجيل الدخول", "Sign in")} ${dashboardIcon("arrow-left")}</button><p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p></form></article>
     <aside class="card auth-light-visual auth-suite-visual ${isRegister ? "auth-suite-register-visual" : "auth-suite-login-visual"}">${authReferenceVisual(isRegister ? "register" : "login")}</aside>
   </section>`);
 }
