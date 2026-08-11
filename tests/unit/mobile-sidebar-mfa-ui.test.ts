@@ -144,6 +144,8 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("Preserve the original artwork quality; connectors are a separate layer behind it.");
     expect(stylesSource).toContain(".auth-showcase--login .auth-showcase-feature-connectors");
     expect(stylesSource).toContain(".auth-feature-connector--security");
+    expect(stylesSource).toContain(".auth-feature-connector--channels{top:85.6%;left:38.3%;width:7%;transform:rotate(-32deg)}");
+    expect(stylesSource).toContain(".auth-feature-connector--security{top:87%;left:72.9%;width:6.8%;transform:rotate(-148deg)}");
     expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
     expect(stylesSource).toContain("max-height:330px!important");
   });
@@ -157,7 +159,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
         expect(source).toContain(asset);
       }
     }
-    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-manual-connectors-v38"></script>');
+    expect(layoutSource).toContain('<script type="module" src="/app/app.js?v=20260811-auth-bottom-connectors-v41"></script>');
   });
 
   it("keeps password controls, recovery art, and email OTP sizing aligned with the auth references", () => {
