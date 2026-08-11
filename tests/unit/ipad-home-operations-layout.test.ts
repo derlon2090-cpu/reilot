@@ -15,6 +15,7 @@ describe("iPad home operations layout", () => {
     for (const markup of [rootLayout, staticIndex]) {
       expect(markup).toContain("navigator.maxTouchPoints");
       expect(markup).toContain("data-home-tablet-layout");
+      expect(markup).toContain("setAttribute('data-home-tablet-layout','true')");
       expect(markup).toContain("w>=641&&w<=1700");
       expect(markup).toContain("_tablet_layout");
     }
