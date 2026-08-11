@@ -10714,7 +10714,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-feature-connector--automation{top:37.1%;left:10.56%;width:10.2%;transform:rotate(-26.3deg)}
   .auth-feature-connector--campaigns{top:70.91%;left:10.38%;width:11.1%;transform:rotate(-32.5deg)}
   .auth-feature-connector--channels{top:88%;left:38.4%;width:7.5%;transform:rotate(-51deg)}
-  .auth-feature-connector--security{top:88.05%;left:73.4%;width:8.5%;transform:rotate(-143.5deg)}
+  .auth-feature-connector--security{top:88.05%;left:73.4%;width:10.7%;transform:rotate(-143.5deg)}
   .auth-suite-page[data-auth-theme="dark"] .auth-feature-connector{
     background:repeating-linear-gradient(90deg,rgba(119,211,197,.72) 0 4px,transparent 4px 8px);
     filter:none;
