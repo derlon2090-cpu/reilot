@@ -43,32 +43,37 @@ function SallaLogo() {
 
 function TemplatePreview({ item, channel, draft, logoUrl }) {
   const isEmail = channel === "email";
+  const isDigitalDelivery = item.templateKey === "digital_product_delivery";
   const body = isEmail ? draft.emailTextContent : draft.whatsappContent;
-  return <aside className="card salla-template-live-preview">
+  return <aside className={`card salla-template-live-preview ${styles.adminSallaBoundedPreview}`} data-admin-salla-bounded-preview>
     <div className="section-head">
       <div><h2>{isEmail ? "معاينة البريد" : "معاينة واتساب"}</h2><p>معاينة موحدة وآمنة — لن يتم إرسال أي رسالة.</p></div>
       <DashboardIcon name={isEmail ? "template" : "eye"} />
     </div>
-    <div className={isEmail ? `salla-email-preview design-${draft.emailDesign || "classic"}` : "salla-whatsapp-preview"}>
-      {!isEmail ? <div className="salla-whatsapp-preview-canvas">
-        <div className="salla-whatsapp-bubble">
-          {draft.whatsappImageEnabled && draft.whatsappImageUrl ? <img className="salla-whatsapp-message-image" src={draft.whatsappImageUrl} alt="صورة رسالة واتساب" /> : null}
-          <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
-          {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta"><DashboardIcon name="action" /><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
-          <small>11:30 ص ✓✓</small>
+    <div className={`${styles.adminSallaPreviewScroller} ${isDigitalDelivery && draft.secureLinkEnabled ? styles.adminSallaPreviewScrollerDigital : ""}`} data-admin-salla-preview-scroller>
+      <section className={styles.adminSallaChannelPreview} data-admin-salla-channel-preview>
+        <div className={isEmail ? `salla-email-preview design-${draft.emailDesign || "classic"}` : "salla-whatsapp-preview"}>
+          {!isEmail ? <div className="salla-whatsapp-preview-canvas">
+            <div className="salla-whatsapp-bubble">
+              {draft.whatsappImageEnabled && draft.whatsappImageUrl ? <img className="salla-whatsapp-message-image" src={draft.whatsappImageUrl} alt="صورة رسالة واتساب" /> : null}
+              <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
+              {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta"><DashboardIcon name="action" /><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
+              <small>11:30 ص ✓✓</small>
+            </div>
+          </div> : <div className="salla-email-preview-canvas">
+            <div className="salla-email-preview-head">
+              {logoUrl ? <span className="salla-email-store-logo"><img src={logoUrl} alt="شعار المتجر في المعاينة" /></span> : <SallaLogo />}
+              <div><small>متجري</small><strong>{draft.emailSubject || "عنوان الرسالة"}</strong></div>
+            </div>
+            <div className="salla-email-hero"><DashboardIcon name="template" /><strong>{item.name}</strong></div>
+            <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
+            {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta primary"><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
+            <footer>هذه رسالة آلية آمنة من متجرك</footer>
+          </div>}
         </div>
-      </div> : <div className="salla-email-preview-canvas">
-        <div className="salla-email-preview-head">
-          {logoUrl ? <span className="salla-email-store-logo"><img src={logoUrl} alt="شعار المتجر في المعاينة" /></span> : <SallaLogo />}
-          <div><small>متجري</small><strong>{draft.emailSubject || "عنوان الرسالة"}</strong></div>
-        </div>
-        <div className="salla-email-hero"><DashboardIcon name="template" /><strong>{item.name}</strong></div>
-        <div className="salla-preview-message">{body || "اكتب محتوى الرسالة ليظهر هنا."}</div>
-        {draft.buttonEnabled ? <button type="button" tabIndex={-1} className="salla-preview-cta primary"><span>{draft.buttonLabel || item.previewAction || "عرض التفاصيل"}</span></button> : null}
-        <footer>هذه رسالة آلية آمنة من متجرك</footer>
-      </div>}
+      </section>
+      {isDigitalDelivery && draft.secureLinkEnabled ? <section key={`${draft.deliveryPageDesign || "classic"}-${draft.themeColor || "#0B3F3B"}`} className={`salla-digital-link-preview design-${draft.deliveryPageDesign || "classic"} ${styles.adminSallaDigitalLinkPreview}`} data-admin-salla-link-preview style={{ "--salla-link-theme": draft.themeColor || "#0B3F3B", ...sallaPageCssVariables(draft.deliveryPageCustomCss) }}><div className="salla-digital-link-head">{logoUrl ? <img src={logoUrl} alt="شعار المتجر" /> : <DashboardIcon name="action" />}<div><small>الرابط الخاص بالطلب #10025</small><strong>{draft.linkPageTitle || "منتجاتك الرقمية جاهزة"}</strong></div></div><p>{draft.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article>{draft.showCountdown ? <div className="salla-digital-countdown">متاح لمدة <strong>23:59:59</strong></div> : null}<small>يُنشأ الرابط لكل طلب وتُرتب بيانات الاعتماد تلقائيًا.</small></section> : null}
     </div>
-    {item.templateKey === "digital_product_delivery" && draft.secureLinkEnabled ? <section className={`salla-digital-link-preview design-${draft.deliveryPageDesign || "classic"}`} style={{ "--salla-link-theme": draft.themeColor || "#0B3F3B", ...sallaPageCssVariables(draft.deliveryPageCustomCss) }}><div className="salla-digital-link-head">{logoUrl ? <img src={logoUrl} alt="شعار المتجر" /> : <DashboardIcon name="action" />}<div><small>الرابط الخاص بالطلب #10025</small><strong>{draft.linkPageTitle || "منتجاتك الرقمية جاهزة"}</strong></div></div><p>{draft.linkPageContent || "استخدم البيانات التالية للوصول إلى منتجك الرقمي بأمان."}</p><article><strong>المنتج الرقمي</strong><dl><div><dt>كود التفعيل</dt><dd>RVX-2026-DEMO</dd></div><div><dt>البريد</dt><dd>customer@example.com</dd></div><div><dt>كلمة المرور</dt><dd>••••••••••</dd></div></dl><a>فتح المنتج بأمان</a></article>{draft.showCountdown ? <div className="salla-digital-countdown">متاح لمدة <strong>23:59:59</strong></div> : null}<small>يُنشأ الرابط لكل طلب وتُرتب بيانات الاعتماد تلقائيًا.</small></section> : null}
   </aside>;
 }
 
@@ -226,8 +231,8 @@ export default function AdminSallaCatalog({ admin }) {
         <div className="message-activation-control"><label className="message-activation-switch"><input type="checkbox" checked readOnly aria-label={`تفعيل رسالة ${selected.name}`} /><span /></label><span className="message-activation-status"><i /><b className="message-activation-status-on">مفعل</b><b className="message-activation-status-off">متوقف</b></span></div>
       </section>
 
-      <section className="salla-template-editor-layout">
-        <form id="admin-salla-template-form" className="grid" onSubmit={save}>
+      <section className={`salla-template-editor-layout ${styles.adminSallaBoundedLayout}`} data-admin-salla-editor-layout>
+        <form id="admin-salla-template-form" className={`grid ${styles.adminSallaBoundedForm}`} onSubmit={save}>
           <article className="card salla-template-form-card">
             <div className="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div><DashboardIcon name="template" /></div>
             <div className="form-grid two"><label className="field"><span>اسم القالب</span><input className="input" value={selected.name} disabled /></label><label className="field"><span>حدث التشغيل</span><input className="input" value={selected.templateKey} disabled dir="ltr" /></label></div>
@@ -262,9 +267,11 @@ export default function AdminSallaCatalog({ admin }) {
               </div> : null}
             </section> : null}
           </article>
-          <div className="salla-editor-actions"><button className="btn btn-primary" type="submit" disabled={busy}><DashboardIcon name="save" /> {busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button><button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button></div>
         </form>
-        <TemplatePreview item={selected} channel={channel} draft={draft} logoUrl={logoUrl} />
+        <div className={styles.adminSallaPreviewSlot} data-admin-salla-preview-slot>
+          <TemplatePreview item={selected} channel={channel} draft={draft} logoUrl={logoUrl} />
+        </div>
+        <div className={`salla-editor-actions ${styles.adminSallaBoundedActions}`}><button className="btn btn-primary" type="submit" form="admin-salla-template-form" disabled={busy}><DashboardIcon name="save" /> {busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button><button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button></div>
       </section>
     </>}
   </div>;

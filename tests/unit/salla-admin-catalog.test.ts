@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mergeSallaAdminCatalog, platformSallaTemplateKey } from "../../src/server/salla-admin-catalog.js";
 
 const adminCatalogSource = fs.readFileSync("src/components/admin/AdminSallaCatalog.jsx", "utf8");
+const adminPortalStyles = fs.readFileSync("src/components/admin/AdminPortal.module.css", "utf8");
 
 describe("Salla admin application catalog", () => {
   it("always exposes the 12 canonical Salla templates without a store connection", () => {
@@ -66,5 +67,23 @@ describe("Salla admin application catalog", () => {
   it("keeps the applications return action in a dedicated upper-left row", () => {
     expect(adminCatalogSource).toContain('className="salla-template-editor-top"');
     expect(adminCatalogSource).toContain('href="/admin/integrations"');
+  });
+
+  it("bounds every admin preview to the fields row instead of the action buttons", () => {
+    expect(adminCatalogSource).toContain("data-admin-salla-editor-layout");
+    expect(adminCatalogSource).toContain("data-admin-salla-preview-slot");
+    expect(adminCatalogSource).toContain('form="admin-salla-template-form"');
+    expect(adminPortalStyles).toContain(".adminSallaPreviewSlot { position: relative; grid-column: 2; grid-row: 1;");
+    expect(adminPortalStyles).toContain(".adminSallaBoundedActions { grid-column: 1; grid-row: 2;");
+    expect(adminPortalStyles).toContain(".adminSallaPreviewSlot > .adminSallaBoundedPreview { position: absolute; inset: 0;");
+  });
+
+  it("separates and animates the digital delivery link preview inside its own scroll area", () => {
+    expect(adminCatalogSource).toContain("data-admin-salla-channel-preview");
+    expect(adminCatalogSource).toContain("data-admin-salla-link-preview");
+    expect(adminPortalStyles).toContain(".adminSallaPreviewScrollerDigital { gap: 32px; }");
+    expect(adminPortalStyles).toContain("animation: adminSallaLinkPreviewReveal .52s");
+    expect(adminPortalStyles).toContain("overflow-y: auto;");
+    expect(adminPortalStyles).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });
