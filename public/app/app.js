@@ -1442,6 +1442,7 @@ function dashboardIcon(name) {
     message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
     attachment: '<path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.7 9.7a2 2 0 0 1-2.8-2.8l8.9-8.9"/>',
     upload: '<path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+    cloud: '<path d="M5.5 19h12a4.5 4.5 0 0 0 .7-8.94A6.5 6.5 0 0 0 5.8 8.4 5.3 5.3 0 0 0 5.5 19Z"/>',
     download: '<path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 20h14"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     helpBook: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
@@ -2968,12 +2969,15 @@ function authReferenceVisual(kind) {
   const featureConnectors = kind === "login" || kind === "register"
     ? `<span class="auth-showcase-feature-connectors" aria-hidden="true"><i class="auth-feature-connector auth-feature-connector--alerts"></i><i class="auth-feature-connector auth-feature-connector--reports"></i><i class="auth-feature-connector auth-feature-connector--automation"></i><i class="auth-feature-connector auth-feature-connector--campaigns"></i><i class="auth-feature-connector auth-feature-connector--channels"></i><i class="auth-feature-connector auth-feature-connector--security"></i></span>`
     : "";
+  const relocatedFeatures = kind === "login" || kind === "register"
+    ? `<span class="auth-showcase-relocated-features" aria-hidden="true"><i class="auth-relocated-mask auth-relocated-mask--channels"></i><i class="auth-relocated-mask auth-relocated-mask--security"></i><span class="auth-relocated-feature auth-relocated-feature--channels"><i>${dashboardIcon("cloud")}</i><b>قنوات متصلة</b></span><span class="auth-relocated-feature auth-relocated-feature--security"><i>${dashboardIcon("security")}</i><b>أمان وموثوقية</b></span></span>`
+    : "";
   prioritizeAuthReference(referenceAsset);
   return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
     <span class="auth-showcase-orb auth-showcase-orb--top"></span>
     <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
     <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${featureConnectors}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
+    <div class="auth-showcase-art">${featureConnectors}${relocatedFeatures}<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">${illustration}</div>
   </div>`;
 }
 
