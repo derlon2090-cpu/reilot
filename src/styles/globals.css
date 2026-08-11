@@ -10724,3 +10724,61 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-showcase--register .auth-showcase-feature-connectors{height:min(100%,330px)}
   .auth-feature-connector{border-top-width:1px}
 }
+
+/* Shared Renvix metric treatment: pale circular icon tile and tabular teal values. */
+.dashboard-main{
+  --metric-icon-surface:#edf8f6;
+  --metric-icon-ink:#087267;
+  --metric-value-ink:#087267;
+}
+.dashboard-main .stat-card-icon,
+.dashboard-main .template-summary-icon,
+.dashboard-main .apps-stat-icon,
+.dashboard-main .billing-stat>span,
+.dashboard-main .security-summary-icon,
+.dashboard-main .security-main-icon,
+.dashboard-main .capi-summary-card>span{
+  border-radius:50%;
+  color:var(--metric-icon-ink);
+  background:var(--metric-icon-surface);
+}
+.dashboard-main .salla-template-card-icon,
+.dashboard-main .salla-template-lock-logo{
+  border-radius:50%;
+}
+.dashboard-main .stat-card strong,
+.dashboard-main .template-summary-grid strong,
+.dashboard-main .apps-overview-stat b,
+.dashboard-main .billing-stat strong,
+.dashboard-main .channel-usage-summary strong,
+.dashboard-main .email-credit-package strong,
+.dashboard-main .email-credit-package span,
+.dashboard-main .security-summary-value,
+.dashboard-main .capi-summary-card strong,
+.dashboard-main .dashboard-plan .plan-price{
+  color:var(--metric-value-ink);
+  font-family:var(--font-latin),var(--font-arabic),sans-serif;
+  font-weight:750;
+  font-variant-numeric:tabular-nums;
+}
+.pricing-public-grid .pricing-card .price strong{
+  color:#087267;
+  font-family:var(--font-latin),var(--font-arabic),sans-serif;
+  font-weight:750;
+  font-variant-numeric:tabular-nums;
+}
+.dashboard-main .template-summary-icon.warning,
+.dashboard-main .stat-card.warning .stat-card-icon,
+.dashboard-main .apps-overview-stat.warning .apps-stat-icon{
+  color:#c88318;
+  background:#fff6e6;
+}
+.dashboard-main .stat-card.danger .stat-card-icon{
+  color:#c94b55;
+  background:#fff0f1;
+}
+:root[data-theme="dark"] .dashboard-main{
+  --metric-icon-surface:#123f3b;
+  --metric-icon-ink:#7fd7c7;
+  --metric-value-ink:#7fd7c7;
+}
