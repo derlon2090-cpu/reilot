@@ -30,6 +30,7 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="stylesheet" href="/app/styles/globals.css?v=20260811-auth-security-v47" />
+        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-dark-system-v48" />
         <script type="module" src="/app/app.js?v=20260811-auth-connectors-v45"></script>
       </head>
       <body>{children}</body>
