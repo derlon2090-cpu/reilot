@@ -2175,17 +2175,17 @@ const publicBlogPosts = [
 
 function marketingHomePage() {
   const heroMetrics = [
-    ["4.9/5", localizedCopy("تقييم العملاء", "Customer rating"), localizedCopy("رضا مرتفع", "High satisfaction"), "heart"],
-    ["98.7%", localizedCopy("معدل نجاح التسليم", "Delivery success"), localizedCopy("تحسن مستمر", "Always improving"), "reports"],
-    [localizedCopy("رسمي", "Official"), localizedCopy("تكامل رسمي مع Meta", "Official Meta integration"), localizedCopy("واتساب موثق", "Verified WhatsApp"), "whatsapp"],
-    ["24/7", localizedCopy("دعم عربي", "Arabic support"), localizedCopy("استجابة سريعة", "Fast response"), "support"]
+    ["4.9/5", localizedCopy("تقييم العملاء", "Customer rating"), localizedCopy("رضا مرتفع", "High satisfaction"), "heart", "success"],
+    ["98.7%", localizedCopy("معدل نجاح التسليم", "Delivery success"), localizedCopy("تحسن مستمر", "Always improving"), "reports", "reports"],
+    [localizedCopy("رسمي", "Official"), localizedCopy("تكامل رسمي مع Meta", "Official Meta integration"), localizedCopy("واتساب موثق", "Verified WhatsApp"), "infinity", "success"],
+    ["24/7", localizedCopy("دعم عربي", "Arabic support"), localizedCopy("استجابة سريعة", "Fast response"), "support", "bolt"]
   ];
   return publicShell(`<main class="marketing-v3 marketing-home-v3">
     <section class="marketing-v3-hero"><div class="container marketing-v3-hero-grid">
       <div class="marketing-v3-copy" data-reveal><span class="marketing-v3-kicker"><i></i>${localizedCopy("اشتراكات منظمة، تجديدات في وقتها", "Organized subscriptions, timely renewals")} ${dashboardIcon("infinity")}</span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات", "Manage subscriptions and renewals")}<br>${localizedCopy("عملائك بذكاء مع", "intelligently with")} <span>Renvix</span></h1><p>${localizedCopy("منصة متكاملة لإدارة الاشتراكات والتذكيرات والحملات التسويقية عبر واتساب Meta والبريد الإلكتروني وقنوات متعددة.", "One intelligent platform for subscriptions, reminders, and campaigns across Meta WhatsApp, email, and multiple channels.")}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}${dashboardIcon("arrowLeft")}</button><button class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}${dashboardIcon("play")}</button></div><div class="marketing-v3-assurances"><span>${dashboardIcon("check")}${localizedCopy("دون بطاقة ائتمان", "No credit card")}</span><span>${dashboardIcon("check")}${localizedCopy("إعداد سريع في دقائق", "Setup in minutes")}</span><span>${dashboardIcon("check")}${localizedCopy("دعم عربي 24/7", "24/7 Arabic support")}</span></div></div>
       <div class="marketing-v3-hero-visual" data-reveal>${marketingHomeOperationsScene({ compact: true })}</div>
       ${marketingMobileHomeNetwork()}
-      <div class="marketing-hero-metrics" aria-label="${localizedCopy("مؤشرات المنصة", "Platform highlights")}">${heroMetrics.map(([value, label, note, icon]) => `<article><span>${dashboardIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><em>${note}</em></div></article>`).join("")}</div>
+      <div class="marketing-hero-metrics" aria-label="${localizedCopy("مؤشرات المنصة", "Platform highlights")}">${heroMetrics.map(([value, label, note, icon, noteIcon]) => `<article data-static-hero-metric><span aria-hidden="true">${dashboardIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><em>${note}${dashboardIcon(noteIcon)}</em></div></article>`).join("")}</div>
     </div></section>
     <section class="marketing-v3-section marketing-steps-section"><div class="container">${marketingSectionHeading(localizedCopy("4 خطوات للبدء مع Renvix", "Start with Renvix in four steps"), localizedCopy("مسار واضح من إنشاء الحساب حتى تشغيل الأتمتة.", "A clear path from account creation to live automation."))}${marketingSteps()}</div></section>
     ${marketingMobileToolsAndCta()}
