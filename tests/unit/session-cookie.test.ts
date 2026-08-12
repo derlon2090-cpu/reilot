@@ -3,11 +3,20 @@ import { sessionCookie } from "../../src/server/session.js";
 
 const originalNodeEnv = process.env.NODE_ENV;
 const originalCookieSecure = process.env.COOKIE_SECURE;
+const originalAuthCookieDomain = process.env.AUTH_COOKIE_DOMAIN;
+const originalAppUrl = process.env.APP_URL;
+const originalAuthUrl = process.env.AUTH_URL;
 
 afterEach(() => {
   process.env.NODE_ENV = originalNodeEnv;
   if (originalCookieSecure === undefined) delete process.env.COOKIE_SECURE;
   else process.env.COOKIE_SECURE = originalCookieSecure;
+  if (originalAuthCookieDomain === undefined) delete process.env.AUTH_COOKIE_DOMAIN;
+  else process.env.AUTH_COOKIE_DOMAIN = originalAuthCookieDomain;
+  if (originalAppUrl === undefined) delete process.env.APP_URL;
+  else process.env.APP_URL = originalAppUrl;
+  if (originalAuthUrl === undefined) delete process.env.AUTH_URL;
+  else process.env.AUTH_URL = originalAuthUrl;
 });
 
 describe("session cookie security", () => {
@@ -30,5 +39,23 @@ describe("session cookie security", () => {
     process.env.COOKIE_SECURE = "false";
 
     expect(sessionCookie("token")).not.toContain("; Secure");
+  });
+
+  it("infers the shared Renvix domain in production when the deployment variable is missing", () => {
+    process.env.NODE_ENV = "production";
+    process.env.APP_URL = "https://renvix.app";
+    process.env.AUTH_URL = "https://accounts.renvix.app";
+    delete process.env.AUTH_COOKIE_DOMAIN;
+
+    expect(sessionCookie("token")).toContain("; Domain=.renvix.app");
+  });
+
+  it("does not attach the Renvix domain to unrelated preview hosts", () => {
+    process.env.NODE_ENV = "production";
+    process.env.APP_URL = "https://preview.example.net";
+    process.env.AUTH_URL = "https://preview.example.net";
+    delete process.env.AUTH_COOKIE_DOMAIN;
+
+    expect(sessionCookie("token")).not.toContain("; Domain=");
   });
 });

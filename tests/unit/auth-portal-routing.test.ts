@@ -76,4 +76,10 @@ describe("accounts authentication portal", () => {
     expect(appSource).toContain("if (enterAuthPortal(to)) return;");
     expect(appSource).toContain("location.assign(new URL(`${requested.pathname}${requested.search}${requested.hash}`, authOrigin).toString())");
   });
+
+  it("migrates an accounts-only session before redirecting to the app host", () => {
+    const pageSource = readFileSync("app/[[...slug]]/page.jsx", "utf8");
+    expect(pageSource).toContain('new URL("/api/auth/session/continue", authBaseUrl())');
+    expect(pageSource).not.toContain('redirect(new URL("/dashboard", appBaseUrl()).toString())');
+  });
 });

@@ -20,6 +20,8 @@ Render/backend:
 
 Render is the single source of truth for the Google Web OAuth client ID. Its config endpoint returns the normalized public client ID to the browser; the client secret, ID tokens, and authorization codes remain server-only and are never logged. Do not prefix `GOOGLE_CLIENT_ID` with `https://`; the backend accepts and normalizes that legacy mistake, but the canonical value is `123...apps.googleusercontent.com`.
 
+Keep `AUTH_COOKIE_DOMAIN=.renvix.app` configured on both Vercel and Render. The application also infers this domain from the production Renvix URLs as a fail-safe, and automatically upgrades older host-only sessions before sending an authenticated user from `accounts.renvix.app` to the dashboard.
+
 ## Production routing requirements
 
 Attach a custom hostname under the shared cookie domain (recommended: `api.renvix.app`) to the Render service. A raw `*.onrender.com` hostname cannot set a cookie for `.renvix.app`.

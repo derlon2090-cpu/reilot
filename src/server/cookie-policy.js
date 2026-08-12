@@ -5,11 +5,38 @@ export function secureCookieEnabled() {
 }
 
 export function sharedCookieDomainAttribute() {
-  const configured = String(process.env.AUTH_COOKIE_DOMAIN || "").trim().toLowerCase();
+  const configured = configuredSharedCookieDomain();
   if (!configured) return "";
   const normalized = configured.startsWith(".") ? configured.slice(1) : configured;
   if (normalized === "localhost" || !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(normalized)) {
     throw new Error("AUTH_COOKIE_DOMAIN is invalid");
   }
   return `; Domain=.${normalized}`;
+}
+
+function configuredSharedCookieDomain() {
+  const explicit = String(process.env.AUTH_COOKIE_DOMAIN || "").trim().toLowerCase();
+  if (explicit) return explicit;
+  if (process.env.NODE_ENV !== "production") return "";
+
+  const publicUrls = [
+    process.env.APP_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.AUTH_URL,
+    process.env.BETTER_AUTH_URL,
+    process.env.API_PUBLIC_URL
+  ];
+  const usesRenvixDomain = publicUrls.some((value) => {
+    try {
+      const hostname = new URL(String(value || "").trim()).hostname.toLowerCase();
+      return hostname === "renvix.app" || hostname.endsWith(".renvix.app");
+    } catch {
+      return false;
+    }
+  });
+
+  // Renvix uses separate app, accounts, and API hosts. Falling back to the
+  // shared production domain prevents a missing Render/Vercel variable from
+  // silently creating host-only sessions and a redirect loop.
+  return usesRenvixDomain ? "renvix.app" : "";
 }

@@ -6,10 +6,11 @@ import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-polic
 export const SESSION_COOKIE = "renewpilot_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 14;
 
-function cookieValue(req, name) {
+function cookieValues(req, name) {
   const cookie = req.headers.get("cookie") || "";
-  const match = cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+  return [...new Set(cookie.split(";").map((item) => item.trim()).filter((item) => item.startsWith(`${name}=`)).map((item) => {
+    try { return decodeURIComponent(item.slice(name.length + 1)); } catch { return ""; }
+  }).filter(Boolean))];
 }
 export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
   const secure = secureCookieEnabled() ? "; Secure" : "";
@@ -34,24 +35,36 @@ export async function createSession(client, { userId, ipAddress, userAgent, maxA
   return { token: rawToken, expiresAt };
 }
 
-export async function getSession(req, { allowInactiveTenant = false } = {}) {
-  const rawToken = cookieValue(req, SESSION_COOKIE);
-  if (!rawToken) return null;
+export async function getSessionWithToken(req, { allowInactiveTenant = false } = {}) {
+  const rawTokens = cookieValues(req, SESSION_COOKIE);
+  if (!rawTokens.length) return null;
+  const tokenHashes = rawTokens.map((token) => sha256(token));
   const tenantJoin = allowInactiveTenant
     ? "LEFT JOIN tenants t ON t.id = u.tenant_id"
     : "JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'";
   const result = await query(
-    `SELECT s.id, s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.must_change_password AS "mustChangePassword",
+    `SELECT s.id, s.token AS "_tokenHash", s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.must_change_password AS "mustChangePassword",
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        ${tenantJoin}
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-      WHERE s.token = $1 AND s.expires_at > now()
+      WHERE s.token = ANY($1::text[]) AND s.expires_at > now()
+      ORDER BY array_position($1::text[], s.token)
       LIMIT 1`,
-    [sha256(rawToken)]
+    [tokenHashes]
   );
-  return result.rows[0] || null;
+  const row = result.rows[0];
+  if (!row) return null;
+  const tokenIndex = tokenHashes.indexOf(row._tokenHash);
+  const session = { ...row };
+  delete session._tokenHash;
+  return { session, token: tokenIndex >= 0 ? rawTokens[tokenIndex] : "" };
+}
+
+export async function getSession(req, options = {}) {
+  const resolved = await getSessionWithToken(req, options);
+  return resolved?.session || null;
 }
 
 export async function requireSession(req) {
@@ -67,6 +80,6 @@ export async function requireSession(req) {
 }
 
 export async function destroySession(req) {
-  const rawToken = cookieValue(req, SESSION_COOKIE);
-  if (rawToken) await query("DELETE FROM sessions WHERE token = $1", [sha256(rawToken)]);
+  const tokenHashes = cookieValues(req, SESSION_COOKIE).map((token) => sha256(token));
+  if (tokenHashes.length) await query("DELETE FROM sessions WHERE token = ANY($1::text[])", [tokenHashes]);
 }

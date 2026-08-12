@@ -4,6 +4,7 @@ import { createSession } from "./session.js";
 import { sendLoginEmailOtp } from "./email/resend.service.js";
 import { ensureDefaultTemplates } from "./default-templates.js";
 import { sha256 } from "./security.js";
+import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 import {
   TRUSTED_BROWSER_COOKIE,
   TRUSTED_BROWSER_DEV_COOKIE,
@@ -27,15 +28,10 @@ function otpPepper() {
   return value;
 }
 
-function secureCookieEnabled() {
-  const publicUrl = process.env.APP_URL || process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
-  return process.env.COOKIE_SECURE !== "false"
-    && (process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production" || publicUrl.startsWith("https://"));
-}
-
 function cookie(name, value, maxAge, { forceSecure = false } = {}) {
   const secure = forceSecure || secureCookieEnabled() ? "; Secure" : "";
-  return `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}; HttpOnly${secure}`;
+  const domain = sharedCookieDomainAttribute();
+  return `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}; HttpOnly${domain}${secure}`;
 }
 
 export function challengeCookie(value) {

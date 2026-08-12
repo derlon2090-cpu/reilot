@@ -4,6 +4,7 @@ import { createSession } from "./session.js";
 import { decryptMfaSecret, matchingTotpCounter } from "./mfa.js";
 import { sha256 } from "./security.js";
 import { trustBrowserForUser } from "./trusted-browser.js";
+import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 
 export const MFA_LOGIN_CHALLENGE_COOKIE = "renvix_mfa_login_challenge";
 const MFA_LOGIN_TTL_SECONDS = 5 * 60;
@@ -31,15 +32,10 @@ export function mfaChallengeSigningConfigured() {
   );
 }
 
-function secureCookieEnabled() {
-  const publicUrl = process.env.APP_URL || process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
-  return process.env.COOKIE_SECURE !== "false"
-    && (process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production" || publicUrl.startsWith("https://"));
-}
-
 function cookie(value, maxAge) {
   const secure = secureCookieEnabled() ? "; Secure" : "";
-  return `${MFA_LOGIN_CHALLENGE_COOKIE}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}; HttpOnly${secure}`;
+  const domain = sharedCookieDomainAttribute();
+  return `${MFA_LOGIN_CHALLENGE_COOKIE}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}; HttpOnly${domain}${secure}`;
 }
 
 function signChallengeId(id) {

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "../../src/server/session.js";
-import { appBaseUrl, authBaseUrl } from "../../src/server/app-url.js";
+import { authBaseUrl } from "../../src/server/app-url.js";
 import { isAuthPath, safeReturnTo } from "../../src/shared/auth-portal.js";
 
 const authTitles = {
@@ -35,7 +35,11 @@ export default async function SpaPage({ params }) {
       login.searchParams.set("returnTo", safeReturnTo(path));
       redirect(login.toString());
     }
-    if (authPath && session && (path === "/login" || path === "/register")) redirect(new URL("/dashboard", appBaseUrl()).toString());
+    if (authPath && session && (path === "/login" || path === "/register")) {
+      const continuation = new URL("/api/auth/session/continue", authBaseUrl());
+      continuation.searchParams.set("returnTo", "/dashboard");
+      redirect(continuation.toString());
+    }
   }
 
   return (
