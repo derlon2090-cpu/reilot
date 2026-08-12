@@ -12525,10 +12525,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading{
   position:relative;
   z-index:5;
-  margin:0 0 22px;
+  width:min(100%,780px);
+  margin:0 auto 22px;
   text-align:center;
 }
-.marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading[data-reveal]{transition-duration:.65s}
+.marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading[data-reveal]{opacity:1;transform:none;transition:none}
 .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading h2{
   margin:0;
   color:var(--home-lower-ink);
@@ -12675,12 +12676,20 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .marketing-home-v3 .marketing-step.is-visible:hover .marketing-step-card,
 .marketing-home-v3 .marketing-steps.is-running .marketing-step:hover .marketing-step-card{transform:translateY(-6px);border-color:#91cfc6;box-shadow:0 22px 42px rgba(6,91,82,.14)}
-.marketing-home-v3 .marketing-step:hover .marketing-step-icon{transform:scale(1.055);filter:drop-shadow(0 6px 9px rgba(6,112,102,.14))}
+.marketing-home-v3 .marketing-step:hover .marketing-step-icon{filter:drop-shadow(0 6px 9px rgba(6,112,102,.14))}
 .marketing-home-v3 .marketing-step.is-visible>b{animation:homeApprovedNumberIn .62s var(--home-lower-ease) calc(var(--motion-index) * 145ms + .58s) both}
-.marketing-home-v3 .marketing-step--account.is-visible .marketing-step-icon{animation:homeApprovedAccount .7s var(--home-lower-ease) .72s both}
-.marketing-home-v3 .marketing-step--link.is-visible .marketing-step-icon{animation:homeApprovedLink .7s var(--home-lower-ease) .86s both}
-.marketing-home-v3 .marketing-step--settings.is-visible .marketing-step-icon{animation:homeApprovedSettings .72s var(--home-lower-ease) 1s both}
-.marketing-home-v3 .marketing-step--rocket.is-visible .marketing-step-icon{animation:homeApprovedRocket .78s var(--home-lower-ease) 1.14s both}
+.marketing-home-v3 .marketing-step--account.is-visible .marketing-step-icon{animation:homeApprovedAccount .7s var(--home-lower-ease) .72s backwards}
+.marketing-home-v3 .marketing-step--link.is-visible .marketing-step-icon{animation:homeApprovedLink .7s var(--home-lower-ease) .86s backwards}
+.marketing-home-v3 .marketing-step--settings.is-visible .marketing-step-icon{animation:homeApprovedSettings .72s var(--home-lower-ease) 1s backwards}
+.marketing-home-v3 .marketing-step--rocket.is-visible .marketing-step-icon{animation:homeApprovedRocket .78s var(--home-lower-ease) 1.14s backwards}
+.marketing-home-v3 .marketing-step--account:hover .marketing-step-icon{animation:homeApprovedAccountHover .62s var(--home-lower-ease) both}
+.marketing-home-v3 .marketing-step--link:hover .marketing-step-icon{animation:homeApprovedLinkHover .62s var(--home-lower-ease) both}
+.marketing-home-v3 .marketing-step--settings:hover .marketing-step-icon{animation:homeApprovedSettingsHover .72s var(--home-lower-ease) both}
+.marketing-home-v3 .marketing-step--rocket .marketing-step-icon{overflow:visible;background:radial-gradient(circle,#fff 28%,#edf9f7 100%)}
+.marketing-home-v3 .marketing-step--rocket .marketing-step-icon .line-icon{width:45px;height:45px;stroke-width:1.55}
+.marketing-home-v3 .marketing-step--rocket .marketing-step-icon::after{position:absolute;left:8px;bottom:10px;width:11px;height:6px;border-radius:70% 12% 70% 12%;background:linear-gradient(90deg,rgba(11,139,126,0),#25bba7);content:"";transform:rotate(-43deg) scaleX(.55);transform-origin:right center;opacity:0}
+.marketing-home-v3 .marketing-step--rocket:hover .marketing-step-icon{animation:homeApprovedRocketHover .72s var(--home-lower-ease) both}
+.marketing-home-v3 .marketing-step--rocket:hover .marketing-step-icon::after{animation:homeApprovedRocketFlame .72s ease-out both}
 
 .marketing-home-v3 .marketing-renewal-journey{padding:24px 0 48px}
 .marketing-home-v3 .renewal-journey-flow{
@@ -12729,46 +12738,50 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .renewal-journey-stage.is-visible:hover{transform:translateY(-4px)}
 .marketing-home-v3 .renewal-journey-stage:hover .renewal-journey-marker{transform:scale(1.04);box-shadow:0 0 0 11px rgba(37,183,163,.075),0 18px 34px rgba(7,96,87,.18)}
 .marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage .renewal-journey-marker{animation:homeApprovedJourneyFocus 7.8s ease-in-out calc(var(--motion-index) * 1.45s + 1.8s) infinite}
+.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage:nth-child(2) .renewal-journey-marker .line-icon{animation:homeApprovedCloudFloat 3.8s ease-in-out infinite}
+.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage:nth-child(4) .renewal-journey-marker .line-icon{animation:homeApprovedSendFlight 4.6s var(--home-lower-ease) .5s infinite}
+.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage:nth-child(6) .renewal-journey-marker .line-icon{animation:homeApprovedStarTwinkle 3.4s ease-in-out 1s infinite}
 
 .marketing-home-v3 .marketing-commerce-ecosystem{padding:28px 0 46px;border-top:1px solid #edf3f2}
 .marketing-home-v3 .marketing-commerce-ecosystem .marketing-v3-heading{margin-bottom:20px}
-.marketing-home-v3 .commerce-carousel{position:relative;display:grid;grid-template-columns:42px minmax(0,1fr) 42px;align-items:center;gap:12px}
+.marketing-home-v3 .commerce-carousel{--commerce-gap:16px;position:relative;display:grid;grid-template-columns:42px minmax(0,1fr) 42px;align-items:center;gap:12px}
 .marketing-home-v3 .commerce-carousel-window{
   min-width:0;
-  overflow-x:auto;
-  overflow-y:hidden;
-  padding:8px 3px 18px;
-  scroll-behavior:smooth;
-  scroll-snap-type:x mandatory;
-  scrollbar-width:none;
-  overscroll-behavior-inline:contain;
+  overflow:hidden;
+  padding:16px 10px 24px;
+  direction:ltr;
+  touch-action:pan-y;
 }
 .marketing-home-v3 .commerce-carousel-window::-webkit-scrollbar{display:none}
-.marketing-home-v3 .commerce-store-track{display:flex;width:max-content;gap:16px;direction:rtl}
+.marketing-home-v3 .commerce-store-track{display:flex;width:max-content;gap:var(--commerce-gap);direction:ltr;will-change:transform}
+.marketing-home-v3 .commerce-store-track.is-stepping{transition:transform .62s var(--home-lower-ease)}
+.marketing-home-v3 .commerce-store-set{display:flex;flex:0 0 auto;gap:var(--commerce-gap);direction:rtl}
 .marketing-home-v3 .commerce-store-track article{
   position:relative;
   display:grid;
-  width:clamp(145px,13.2vw,176px);
+  width:var(--commerce-card-width,164px);
   min-height:126px;
-  flex:0 0 clamp(145px,13.2vw,176px);
+  flex:0 0 var(--commerce-card-width,164px);
   place-items:center;
   align-content:center;
   gap:13px;
+  box-sizing:border-box;
   padding:18px 12px;
   border:1px solid var(--home-lower-border);
   border-radius:16px;
   background:rgba(255,255,255,.97);
   box-shadow:0 10px 25px rgba(6,68,62,.06);
-  scroll-snap-align:center;
-  transition:opacity .55s var(--home-lower-ease),transform .55s var(--home-lower-ease),border-color .3s ease,box-shadow .3s ease;
-  transition-delay:calc(var(--motion-index) * 80ms);
+  opacity:0;
+  transition:transform .36s var(--home-lower-ease),border-color .3s ease,box-shadow .3s ease;
   will-change:transform,opacity;
 }
+.marketing-home-v3 .commerce-store-track article.is-whole{opacity:1}
 .marketing-home-v3 .commerce-store-track article::before{position:absolute;top:18px;left:50%;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,rgba(24,169,151,.1),transparent 70%);content:"";transform:translateX(-50%) scale(.82);opacity:0;transition:opacity .3s ease,transform .3s ease}
 .marketing-home-v3 .commerce-store-track article>span{position:relative;z-index:1;display:grid;width:54px;height:54px;place-items:center;color:var(--home-lower-ink);transition:transform .35s var(--home-lower-ease)}
 .marketing-home-v3 .commerce-store-track article svg{width:42px;height:42px;stroke-width:1.55}
 .marketing-home-v3 .commerce-store-track article strong{position:relative;z-index:1;color:var(--home-lower-ink);font-size:11px;text-align:center}
-.marketing-home-v3 .commerce-store-track article.is-visible:hover{transform:translateY(-5px);border-color:#99d0c8;box-shadow:0 19px 36px rgba(6,90,81,.13)}
+.marketing-home-v3 .marketing-commerce-ecosystem.is-in-view .commerce-store-set:first-child article.is-whole{animation:homeApprovedStoreIn .64s var(--home-lower-ease) calc(var(--motion-index) * 65ms) both}
+.marketing-home-v3 .commerce-store-track article:hover{transform:translateY(-5px);border-color:#99d0c8;box-shadow:0 19px 36px rgba(6,90,81,.13)}
 .marketing-home-v3 .commerce-store-track article:hover::before{opacity:1;transform:translateX(-50%) scale(1)}
 .marketing-home-v3 .commerce-store-track article:hover>span{transform:scale(1.055)}
 .marketing-home-v3 .commerce-carousel-arrow{
@@ -12801,8 +12814,17 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @keyframes homeApprovedAccount{0%{opacity:0;transform:scale(.84) rotate(-3deg)}70%{opacity:1;transform:scale(1.06) rotate(2deg)}100%{transform:scale(1)}}
 @keyframes homeApprovedLink{0%{opacity:0;transform:scale(.88)}60%{opacity:1;transform:scaleX(.9) scaleY(1.06)}100%{transform:scale(1)}}
 @keyframes homeApprovedSettings{0%{opacity:0;transform:translateX(0) scale(.9)}55%{opacity:1;transform:translateX(3px) scale(1.05)}100%{transform:none}}
-@keyframes homeApprovedRocket{0%{opacity:0;transform:translateY(5px) scale(.9);filter:drop-shadow(0 0 0 transparent)}65%{opacity:1;transform:translateY(-4px) scale(1.04);filter:drop-shadow(0 7px 6px rgba(8,123,111,.18))}100%{transform:none;filter:none}}
+@keyframes homeApprovedRocket{0%{opacity:0;transform:translate(-7px,8px) scale(.84);filter:drop-shadow(0 0 0 transparent)}65%{opacity:1;transform:translate(2px,-4px) scale(1.06);filter:drop-shadow(-4px 8px 7px rgba(8,123,111,.18))}100%{transform:none;filter:none}}
+@keyframes homeApprovedAccountHover{0%,100%{transform:scale(1)}45%{transform:translateY(-3px) scale(1.075)}70%{transform:translateY(1px) scale(1.02)}}
+@keyframes homeApprovedLinkHover{0%,100%{transform:scale(1)}40%{transform:scaleX(1.11) scaleY(.94)}72%{transform:scaleX(.96) scaleY(1.04)}}
+@keyframes homeApprovedSettingsHover{0%,100%{transform:rotate(0) scale(1)}55%{transform:rotate(28deg) scale(1.07)}}
+@keyframes homeApprovedRocketHover{0%,100%{transform:none}55%{transform:translate(5px,-7px) rotate(2deg) scale(1.075)}}
+@keyframes homeApprovedRocketFlame{0%,100%{opacity:0;transform:rotate(-43deg) scaleX(.45)}28%,70%{opacity:.9;transform:rotate(-43deg) scaleX(1.15)}}
 @keyframes homeApprovedJourneyFocus{0%,15%,100%{transform:scale(1);box-shadow:0 0 0 9px rgba(37,183,163,.055),0 12px 28px rgba(7,96,87,.13)}4%,11%{transform:scale(1.055);box-shadow:0 0 0 13px rgba(37,183,163,.09),0 16px 32px rgba(7,96,87,.18)}}
+@keyframes homeApprovedCloudFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes homeApprovedSendFlight{0%,75%,100%{transform:none}84%{transform:translate(4px,-4px) rotate(2deg)}92%{transform:translate(-1px,1px)}}
+@keyframes homeApprovedStarTwinkle{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(9deg) scale(1.12)}}
+@keyframes homeApprovedStoreIn{0%{opacity:0;transform:translateY(13px) scale(.96)}100%{opacity:1;transform:none}}
 
 @media (min-width:641px) and (max-width:1100px){
   .marketing-home-v3 .marketing-steps-section{padding:48px 0 38px}
@@ -12815,7 +12837,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .renewal-journey-marker{width:70px;height:70px}.marketing-home-v3 .renewal-journey-marker .line-icon{width:32px;height:32px}
   .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:54px;height:54px;margin-top:8px}
   .marketing-home-v3 .renewal-journey-stage h3{font-size:10px}.marketing-home-v3 .renewal-journey-stage p{padding-inline:4px;font-size:7.5px}
-  .marketing-home-v3 .commerce-carousel{grid-template-columns:34px minmax(0,1fr) 34px;gap:7px}
+  .marketing-home-v3 .commerce-carousel{--commerce-gap:12px;grid-template-columns:34px minmax(0,1fr) 34px;gap:7px}
   .marketing-home-v3 .commerce-carousel-arrow{width:32px;height:32px}
 }
 
@@ -12842,10 +12864,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:52px;height:52px;margin-top:7px}
   .marketing-home-v3 .renewal-journey-stage h3{font-size:10px}.marketing-home-v3 .renewal-journey-stage p{font-size:7.5px}
   .marketing-home-v3 .marketing-commerce-ecosystem{padding:23px 0 30px}
-  .marketing-home-v3 .commerce-carousel{grid-template-columns:30px minmax(0,1fr) 30px;gap:4px}
+  .marketing-home-v3 .commerce-carousel{--commerce-gap:9px;grid-template-columns:30px minmax(0,1fr) 30px;gap:4px}
   .marketing-home-v3 .commerce-carousel-window{padding-bottom:14px}
-  .marketing-home-v3 .commerce-store-track{gap:9px}
-  .marketing-home-v3 .commerce-store-track article{width:132px;min-height:105px;flex-basis:132px;padding:13px 8px;border-radius:13px}
+  .marketing-home-v3 .commerce-store-track article{min-height:105px;padding:13px 8px;border-radius:13px}
   .marketing-home-v3 .commerce-store-track article>span{width:44px;height:44px}.marketing-home-v3 .commerce-store-track article svg{width:34px;height:34px}.marketing-home-v3 .commerce-store-track article strong{font-size:9px}
   .marketing-home-v3 .commerce-carousel-arrow{width:29px;height:29px}.marketing-home-v3 .commerce-carousel-arrow .line-icon{width:14px;height:14px}
 }
@@ -12856,7 +12877,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .marketing-step-ground,
   .marketing-home-v3 .marketing-step>b,
   .marketing-home-v3 .marketing-step-icon,
-  .marketing-home-v3 .renewal-journey-marker{animation:none!important}
+  .marketing-home-v3 .renewal-journey-marker,
+  .marketing-home-v3 .renewal-journey-marker .line-icon,
+  .marketing-home-v3 .commerce-store-set article{animation:none!important}
   .marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.commerce-store-track article){transition:opacity .3s ease!important;transform:none!important}
 }
 

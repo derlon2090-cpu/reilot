@@ -1545,7 +1545,12 @@ function dashboardIcon(name) {
     helpBook: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
     faq: '<path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.5 4.5 8.4 8.4 0 0 1-4-.95L3 21l1.95-5.5A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 8.5 4a8.4 8.4 0 0 1 4-.95H13a8.5 8.5 0 0 1 8 8.45Z"/><path d="M10.1 9.2a2.2 2.2 0 1 1 3.65 1.65c-.8.6-1.25 1-1.25 2.15"/><path d="M12.5 16h.01"/>',
     chat: '<path d="M5 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h1M19 17h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-1"/><path d="M5 10a7 7 0 0 1 14 0v7a4 4 0 0 1-4 4h-3"/><path d="M8 13h.01M12 13h.01M16 13h.01"/>',
-    rocket: '<path d="M4.5 16.5c-1.5 1.25-2 5-2 5s3.75-.5 5-2"/><path d="M9 15 5 11s4.5-7.5 11-8l5 5c-.5 6.5-8 11-8 11z"/><path d="m9 15-1 4 4-1M5 11l-4 1 4 4"/><circle cx="15" cy="9" r="2"/>',
+    rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.32 12.32 0 0 1 21 2c0 2.72-.78 7.5-6.05 11A22.35 22.35 0 0 1 12 15Z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><circle cx="16" cy="8" r="1.25"/>',
+    perfume: '<path d="M9 2h6v4H9zM8 6h8l2 4v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10Z"/><path d="M6 11h12M9 15h6"/>',
+    fashion: '<path d="M9 3c0 2 1 3 3 3s3-1 3-3l4 4-3 3v11H8V10L5 7Z"/><path d="m8 10 2-2M16 10l-2-2"/>',
+    coffee: '<path d="M4 7h13v8a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5Z"/><path d="M17 9h2a3 3 0 0 1 0 6h-2M6 3v2M10 3v2M14 3v2"/>',
+    sparkles: '<path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3ZM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8ZM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8Z"/>',
+    gift: '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M7.5 8C5.6 8 4 6.9 4 5.5S5.2 3 6.8 3C9.3 3 12 8 12 8M16.5 8C18.4 8 20 6.9 20 5.5S18.8 3 17.2 3C14.7 3 12 8 12 8"/>',
     puzzle: '<path d="M19 13h-2.5a1.5 1.5 0 0 0-1.5 1.5V17h-3v-2.5a1.5 1.5 0 0 0-1.5-1.5H8V10h2.5A1.5 1.5 0 0 0 12 8.5V6h3v2.5a1.5 1.5 0 0 0 1.5 1.5H19z"/><path d="M8 10V7a2 2 0 1 0-4 0v3H2v4h2v3a2 2 0 1 0 4 0v-4"/><path d="M19 10h1a2 2 0 1 0 0-4h-2V3h-4v3"/>',
     payments: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><rect x="13" y="12" width="5" height="4" rx="1"/><path d="M7 14h2"/>',
     barChart: '<path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7M2 20h20"/>',
@@ -1761,18 +1766,24 @@ function marketingCommerceEcosystem() {
     [localizedCopy("اللياقة والصحة", "Fitness and wellness"), "heart"],
     [localizedCopy("الاشتراكات الرقمية", "Digital subscriptions"), "play"],
     [localizedCopy("متاجر التقنية", "Technology stores"), "devices"],
-    [localizedCopy("متاجر العطور", "Perfume stores"), "bolt"],
-    [localizedCopy("متاجر الأزياء", "Fashion stores"), "storeBag"],
+    [localizedCopy("متاجر العطور", "Perfume stores"), "perfume"],
+    [localizedCopy("متاجر الأزياء", "Fashion stores"), "fashion"],
     [localizedCopy("متاجر المنزل", "Home stores"), "publicHome"],
-    [localizedCopy("متاجر الإلكترونيات", "Electronics stores"), "support"]
+    [localizedCopy("متاجر الإلكترونيات", "Electronics stores"), "support"],
+    [localizedCopy("المقاهي والمطاعم", "Cafes and restaurants"), "coffee"],
+    [localizedCopy("الجمال والعناية", "Beauty and care"), "sparkles"],
+    [localizedCopy("التعليم والدورات", "Education and courses"), "helpBook"],
+    [localizedCopy("الهدايا والمناسبات", "Gifts and occasions"), "gift"],
+    [localizedCopy("الخدمات والعضويات", "Services and memberships"), "subscriptions"]
   ];
+  const storeSet = (duplicate = false) => `<div class="commerce-store-set"${duplicate ? ' aria-hidden="true"' : ""}>${stores.map(([title, icon], index) => `<article style="--motion-index:${index}"><span>${dashboardIcon(icon)}</span><strong>${title}</strong></article>`).join("")}</div>`;
   return `<section class="marketing-commerce-ecosystem" data-motion-scene>
     <div class="container">
       ${marketingSectionHeading(localizedCopy("منصات وأعمال تنمو مع Renvix", "Platforms and businesses grow with Renvix"), "")}
       <div class="commerce-carousel" data-commerce-carousel>
         <button class="commerce-carousel-arrow commerce-carousel-arrow--previous" type="button" data-carousel-direction="-1" aria-label="${localizedCopy("العناصر السابقة", "Previous items")}">${dashboardIcon("chevronDown")}</button>
-        <div class="commerce-carousel-window" data-commerce-carousel-window tabindex="0">
-          <div class="commerce-store-track">${stores.map(([title, icon], index) => `<article style="--motion-index:${index}" data-reveal><span>${dashboardIcon(icon)}</span><strong>${title}</strong></article>`).join("")}</div>
+        <div class="commerce-carousel-window" data-commerce-carousel-window tabindex="0" aria-label="${localizedCopy("متاجر ومنصات مدعومة", "Supported stores and platforms")}">
+          <div class="commerce-store-track" data-commerce-marquee>${storeSet()}${storeSet(true)}</div>
         </div>
         <button class="commerce-carousel-arrow commerce-carousel-arrow--next" type="button" data-carousel-direction="1" aria-label="${localizedCopy("العناصر التالية", "Next items")}">${dashboardIcon("chevronDown")}</button>
         <div class="commerce-carousel-pagination" aria-hidden="true"><i class="is-active"></i><i></i><i></i></div>
@@ -2000,29 +2011,61 @@ function initMarketingMotion() {
 
   root.querySelectorAll("[data-commerce-carousel]").forEach((carousel) => {
     const viewport = carousel.querySelector("[data-commerce-carousel-window]");
-    const cards = [...carousel.querySelectorAll(".commerce-store-track article")];
+    const track = carousel.querySelector("[data-commerce-marquee]");
+    const firstSet = track?.querySelector(".commerce-store-set");
+    const cards = [...(firstSet?.querySelectorAll("article") || [])];
     const dots = [...carousel.querySelectorAll(".commerce-carousel-pagination i")];
     const arrows = [...carousel.querySelectorAll("[data-carousel-direction]")];
-    if (!viewport || !cards.length) return;
+    if (!viewport || !track || !firstSet || !cards.length) return;
     let segment = 0;
     let paused = false;
+    let position = 0;
+    let pointerStart = null;
+    const loopWidth = () => firstSet.getBoundingClientRect().width + (Number.parseFloat(getComputedStyle(track).gap || "0") || 0);
+    const renderPosition = () => { track.style.transform = `translate3d(${position}px,0,0)`; };
+    const normalizePosition = () => {
+      const width = loopWidth();
+      if (!width) return;
+      while (position <= -width) position += width;
+      while (position > 0) position -= width;
+      renderPosition();
+    };
+    const syncCardWidth = () => {
+      const styles = getComputedStyle(viewport);
+      const horizontalPadding = (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
+      const available = Math.max(260, viewport.clientWidth - horizontalPadding);
+      const gap = Number.parseFloat(getComputedStyle(firstSet).gap || "16") || 16;
+      const visibleCards = available >= 1040 ? 7 : available >= 760 ? 5 : available >= 520 ? 4 : 2;
+      track.style.setProperty("--commerce-card-width", `${Math.max(128, (available - gap * (visibleCards - 1)) / visibleCards)}px`);
+      position = 0;
+      track.classList.remove("is-stepping");
+      renderPosition();
+    };
     const updateDots = (nextSegment) => {
       segment = (nextSegment + dots.length) % dots.length;
       dots.forEach((dot, index) => dot.classList.toggle("is-active", index === segment));
     };
     const advance = (direction = 1) => {
       const card = cards[0];
-      const styles = getComputedStyle(viewport);
-      const gap = Number.parseFloat(styles.columnGap || styles.gap || "16") || 16;
-      const distance = (card.getBoundingClientRect().width + gap) * Math.max(1, Math.round(viewport.clientWidth / Math.max(1, card.getBoundingClientRect().width + gap)) - 1);
-      const rtlDirection = getComputedStyle(viewport).direction === "rtl" ? -1 : 1;
-      const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-      const current = Math.abs(viewport.scrollLeft);
-      if ((direction > 0 && current >= maxScroll - 8) || (direction < 0 && current <= 8)) {
-        viewport.scrollTo({ left: direction > 0 ? 0 : rtlDirection * maxScroll, behavior: "smooth" });
-      } else {
-        viewport.scrollBy({ left: rtlDirection * direction * distance, behavior: "smooth" });
+      const gap = Number.parseFloat(getComputedStyle(firstSet).gap || "16") || 16;
+      const distance = card.getBoundingClientRect().width + gap;
+      const width = loopWidth();
+      if (direction < 0 && position > -distance * .5) {
+        track.classList.remove("is-stepping");
+        position -= width;
+        renderPosition();
       }
+      requestAnimationFrame(() => {
+        track.classList.add("is-stepping");
+        position -= direction * distance;
+        renderPosition();
+        const timer = setTimeout(() => {
+          timers.delete(timer);
+          track.classList.remove("is-stepping");
+          normalizePosition();
+        }, 650);
+        timers.add(timer);
+      });
       updateDots(segment + direction);
     };
     arrows.forEach((button) => {
@@ -2032,23 +2075,53 @@ function initMarketingMotion() {
     });
     const pause = () => { paused = true; };
     const resume = () => { paused = false; };
+    const pointerDown = (event) => { paused = true; pointerStart = event.clientX; };
+    const pointerUp = (event) => {
+      const distance = pointerStart === null ? 0 : event.clientX - pointerStart;
+      pointerStart = null;
+      if (Math.abs(distance) > 34) advance(distance < 0 ? 1 : -1);
+      paused = false;
+    };
+    const pointerCancel = () => { pointerStart = null; paused = false; };
     carousel.addEventListener("mouseenter", pause);
     carousel.addEventListener("mouseleave", resume);
     carousel.addEventListener("focusin", pause);
     carousel.addEventListener("focusout", resume);
-    carousel.addEventListener("pointerdown", pause);
-    carousel.addEventListener("pointerup", resume);
+    carousel.addEventListener("pointerdown", pointerDown);
+    carousel.addEventListener("pointerup", pointerUp);
+    carousel.addEventListener("pointercancel", pointerCancel);
     disposers.push(() => {
       carousel.removeEventListener("mouseenter", pause);
       carousel.removeEventListener("mouseleave", resume);
       carousel.removeEventListener("focusin", pause);
       carousel.removeEventListener("focusout", resume);
-      carousel.removeEventListener("pointerdown", pause);
-      carousel.removeEventListener("pointerup", resume);
+      carousel.removeEventListener("pointerdown", pointerDown);
+      carousel.removeEventListener("pointerup", pointerUp);
+      carousel.removeEventListener("pointercancel", pointerCancel);
     });
-    if (!reducedMotion && viewport.scrollWidth > viewport.clientWidth + 8) {
-      const timer = setInterval(() => { if (!paused && document.visibilityState === "visible") advance(1); }, 4800);
+    syncCardWidth();
+    const allCards = [...track.querySelectorAll("article")];
+    if ("IntersectionObserver" in window) {
+      const visibilityObserver = new IntersectionObserver((entries) => entries.forEach((entry) => {
+        entry.target.classList.toggle("is-whole", entry.intersectionRatio >= .995);
+      }), { root: viewport, threshold: [.99, .995, 1] });
+      allCards.forEach((card) => visibilityObserver.observe(card));
+      disposers.push(() => visibilityObserver.disconnect());
+    } else {
+      allCards.forEach((card) => card.classList.add("is-whole"));
+    }
+    if ("ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(syncCardWidth);
+      resizeObserver.observe(viewport);
+      disposers.push(() => resizeObserver.disconnect());
+    }
+    if (!reducedMotion) {
+      const timer = setInterval(() => {
+        if (!paused && !track.classList.contains("is-stepping") && document.visibilityState === "visible") advance(1);
+      }, 2850);
       timers.add(timer);
+    } else {
+      track.style.transform = "none";
     }
   });
 
