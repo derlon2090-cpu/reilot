@@ -25,6 +25,10 @@ describe("Salla admin user-experience preview", () => {
   it("exposes both Salla actions from the admin integrations catalog", () => {
     expect(integrationsSource).toContain('href="/admin/integrations/salla"');
     expect(integrationsSource).toContain('href="/admin/integrations/salla/reports"');
+    expect(integrationsSource.indexOf('href="/admin/integrations/salla/reports"')).toBeLessThan(integrationsSource.indexOf('href="/admin/integrations/salla"'));
+
+    const userActions = userAppSource.match(/<div class="linked-app-actions salla-linked-primary-actions">([\s\S]*?)<\/div>/)?.[1] || "";
+    expect(userActions.indexOf('data-link="/dashboard/apps/salla/reports"')).toBeLessThan(userActions.indexOf('data-link="/dashboard/apps/salla/templates"'));
   });
 
   it("centers the labels of both Salla integration actions", () => {
@@ -36,5 +40,19 @@ describe("Salla admin user-experience preview", () => {
     expect(reportsSource).toContain("لا تملك جلسة الأدمن بيانات متجر مستخدم");
     expect(reportsSource).toContain("<strong>—</strong>");
     expect(reportsSource).not.toMatch(/2,845|1,128|221,450|39\.6%/);
+  });
+
+  it("shows real zeros and a professional empty chart for connected stores without events", () => {
+    expect(userAppSource).toContain('Number(summary.abandoned || 0).toLocaleString("ar-SA")');
+    expect(userAppSource).toContain('sallaReportMoney(summary.recoveredValue ?? 0)');
+    expect(userAppSource).toContain('لا توجد بيانات سلات ضمن الفترة المحددة');
+    expect(userAppSource).toContain('hasTimelineData ? sallaReportChart(timeline)');
+    expect(userAppSource).not.toContain('!hasData ? `<section class="card salla-report-connected-empty"');
+  });
+
+  it("keeps the completed template card free of redundant delivery chips", () => {
+    expect(catalogSource).not.toContain('className="salla-mode-chips"');
+    expect(userAppSource).not.toContain('class="salla-mode-chips"');
+    expect(globalStylesSource).not.toContain(".salla-mode-chips");
   });
 });

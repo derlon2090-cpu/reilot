@@ -287,7 +287,6 @@ export default function AdminSallaCatalog({ admin }) {
           <div><span className="salla-chip">سلة</span><h2>{item.name}</h2></div>
         </div>
         <p>{item.description}</p>
-        {item.templateKey === "completed" ? <div className="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div> : null}
         <div className="salla-template-card-meta">
           <span className={`status ${item.isEnabled ? "success" : "danger"}`}>{item.isEnabled ? "مفعّل" : "غير مفعّل"} <i /></span>
           <span className={`salla-channel-badge ${item.channel === "email" ? "email" : "whatsapp"}`} title="قناة الإرسال المعتمدة"><DashboardIcon name={item.channel === "email" ? "template" : "send"} /><strong>{item.channel === "email" ? "بريد" : "واتساب"}</strong></span>
