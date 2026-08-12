@@ -1535,6 +1535,7 @@ function dashboardIcon(name) {
     support: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M18 19h-2v-7h4v5a2 2 0 0 1-2 2ZM6 19H4a2 2 0 0 1-2-2v-5h4v7Z"/><path d="M16 19c0 1.1-.9 2-2 2h-2"/>',
     infinity: '<path d="M18.2 6.5c-2.3 0-4.2 1.8-6.2 5.5-2-3.7-3.9-5.5-6.2-5.5C3.2 6.5 1.5 8.7 1.5 12s1.7 5.5 4.3 5.5c2.3 0 4.2-1.8 6.2-5.5 2 3.7 3.9 5.5 6.2 5.5 2.6 0 4.3-2.2 4.3-5.5s-1.7-5.5-4.3-5.5Z"/>',
     heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>',
+    play: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z"/>',
     message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
     attachment: '<path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.7 9.7a2 2 0 0 1-2.8-2.8l8.9-8.9"/>',
     upload: '<path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
@@ -1725,12 +1726,59 @@ function marketingHomeOperationsScene({ compact = false } = {}) {
 
 function marketingSteps() {
   const steps = [
-    [localizedCopy("أنشئ حسابك", "Create your account"), localizedCopy("سجل خلال دقائق وابدأ رحلتك الآن.", "Register in minutes and get started."), "customers"],
-    [localizedCopy("اختر طريقة الربط", "Choose a connection"), localizedCopy("اربط المنصة والقناة التي تناسب عملك.", "Connect the platform and channel you need."), "link"],
-    [localizedCopy("خصص إعداداتك", "Customize settings"), localizedCopy("حدد التذكيرات والرسائل وآلية العمل.", "Set reminders, messages, and workflows."), "settings"],
-    [localizedCopy("ابدأ على الفور", "Go live"), localizedCopy("شغّل الأتمتة وراقب النتائج من مكان واحد.", "Run automation and monitor results."), "rocket"]
+    [localizedCopy("أنشئ حسابك", "Create your account"), localizedCopy("سجل بسهولة وفعّل متجرك خلال دقائق معدودة.", "Register easily and activate your store in minutes."), "customers", "account"],
+    [localizedCopy("اختر طريقة الربط", "Choose a connection"), localizedCopy("اربط متجرك بمنصتك المفضلة (Salla، Shopify، Woo...).", "Connect Salla, Shopify, Woo, or your preferred platform."), "link", "link"],
+    [localizedCopy("خصص إعداداتك", "Customize settings"), localizedCopy("حدد خطط الاشتراكات والتجديد والإشعارات الآلية.", "Set subscription plans, renewals, and automated alerts."), "settings", "settings"],
+    [localizedCopy("ابدأ على الفور", "Go live"), localizedCopy("شغّل الأتمتة وتمتع بتجربة موثوقة ومتكاملة.", "Launch automation with a reliable, connected experience."), "rocket", "rocket"]
   ];
-  return `<div class="marketing-steps" data-steps-scene>${steps.map(([title, body, icon], index) => `<article class="marketing-step" data-step-index="${index}"><b>${index + 1}</b><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}<div class="marketing-step-line"><i></i></div></div>`;
+  return `<div class="marketing-steps" data-steps-scene data-motion-scene>
+    <svg class="marketing-step-route" viewBox="0 0 1200 150" preserveAspectRatio="none" aria-hidden="true"><path class="home-lower-route-base" d="M1110 34 C1050 4 1008 8 974 72 S865 135 812 70 S682 8 620 70 S487 136 430 70 S282 6 96 72"/><path pathLength="1" class="home-lower-route-draw" d="M1110 34 C1050 4 1008 8 974 72 S865 135 812 70 S682 8 620 70 S487 136 430 70 S282 6 96 72"/><path pathLength="1" class="home-lower-route-flow" d="M1110 34 C1050 4 1008 8 974 72 S865 135 812 70 S682 8 620 70 S487 136 430 70 S282 6 96 72"/></svg>
+    ${steps.map(([title, body, icon, motion], index) => `<article class="marketing-step marketing-step--${motion}" style="--motion-index:${index}" data-step-index="${index}" data-reveal><b>${String(index + 1).padStart(2, "0")}</b><div class="marketing-step-card"><span class="marketing-step-icon">${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></div><i class="marketing-step-ground" aria-hidden="true"></i></article>`).join("")}
+  </div>`;
+}
+
+function marketingRenewalJourney() {
+  const stages = [
+    [localizedCopy("استيراد الطلبات والعملاء", "Import orders and customers"), localizedCopy("استورد بيانات الطلبات والعملاء من متجرك بسهولة وأمان.", "Import order and customer data securely."), "cloud", "icon", ""],
+    [localizedCopy("جدولة التذكيرات والقواعد", "Schedule reminders and rules"), localizedCopy("أنشئ قواعد ذكية وجدول التذكيرات بناءً على سلوك عملائك.", "Create smart rules based on customer behavior."), "notifications", "number", "02"],
+    [localizedCopy("الإرسال عبر واتساب والبريد", "Send through WhatsApp and email"), localizedCopy("أرسل تذكيرات وتحديثات تلقائية عبر القنوات المفضلة لعملائك.", "Send automatic updates through preferred channels."), "send", "icon", "03"],
+    [localizedCopy("متابعة النتائج والتجديدات", "Track results and renewals"), localizedCopy("راقب الأداء والتجديدات لحظة بلحظة واتخذ قرارات أفضل.", "Monitor performance and renewals in real time."), "barChart", "number", "04"],
+    [localizedCopy("زيادة الإيرادات والولاء", "Grow revenue and loyalty"), localizedCopy("قلل فقد التجديدات وزد الإيرادات وولاء عملائك.", "Reduce missed renewals and grow customer loyalty."), "publicFeatures", "icon", ""]
+  ];
+  return `<section class="marketing-renewal-journey" data-motion-scene>
+    <div class="container">
+      ${marketingSectionHeading(localizedCopy("رحلة التجديد الذكية", "The smart renewal journey"), localizedCopy("رحلة متكاملة تبدأ من بياناتك وتنتهي بتجديدات أكثر ورضا أعلى لعملائك.", "A connected journey from your data to more renewals and happier customers."))}
+      <div class="renewal-journey-flow">
+        <svg class="renewal-journey-route" viewBox="0 0 1200 130" preserveAspectRatio="none" aria-hidden="true"><path class="home-lower-route-base" d="M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54"/><path pathLength="1" class="home-lower-route-draw" d="M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54"/><path pathLength="1" class="home-lower-route-flow" d="M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54"/></svg>
+        ${stages.map(([title, body, icon, marker, sequence], index) => `<article class="renewal-journey-stage renewal-journey-stage--${marker}" style="--motion-index:${index}" data-reveal><span class="renewal-journey-marker">${marker === "number" ? `<strong>${sequence}</strong>` : dashboardIcon(icon)}${sequence && marker === "icon" ? `<b>${sequence}</b>` : ""}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}
+      </div>
+    </div>
+  </section>`;
+}
+
+function marketingCommerceEcosystem() {
+  const stores = [
+    [localizedCopy("اللياقة والصحة", "Fitness and wellness"), "heart"],
+    [localizedCopy("الاشتراكات الرقمية", "Digital subscriptions"), "play"],
+    [localizedCopy("متاجر التقنية", "Technology stores"), "devices"],
+    [localizedCopy("متاجر العطور", "Perfume stores"), "bolt"],
+    [localizedCopy("متاجر الأزياء", "Fashion stores"), "storeBag"],
+    [localizedCopy("متاجر المنزل", "Home stores"), "publicHome"],
+    [localizedCopy("متاجر الإلكترونيات", "Electronics stores"), "support"]
+  ];
+  return `<section class="marketing-commerce-ecosystem" data-motion-scene>
+    <div class="container">
+      ${marketingSectionHeading(localizedCopy("منصات وأعمال تنمو مع Renvix", "Platforms and businesses grow with Renvix"), "")}
+      <div class="commerce-carousel" data-commerce-carousel>
+        <button class="commerce-carousel-arrow commerce-carousel-arrow--previous" type="button" data-carousel-direction="-1" aria-label="${localizedCopy("العناصر السابقة", "Previous items")}">${dashboardIcon("chevronDown")}</button>
+        <div class="commerce-carousel-window" data-commerce-carousel-window tabindex="0">
+          <div class="commerce-store-track">${stores.map(([title, icon], index) => `<article style="--motion-index:${index}" data-reveal><span>${dashboardIcon(icon)}</span><strong>${title}</strong></article>`).join("")}</div>
+        </div>
+        <button class="commerce-carousel-arrow commerce-carousel-arrow--next" type="button" data-carousel-direction="1" aria-label="${localizedCopy("العناصر التالية", "Next items")}">${dashboardIcon("chevronDown")}</button>
+        <div class="commerce-carousel-pagination" aria-hidden="true"><i class="is-active"></i><i></i><i></i></div>
+      </div>
+    </div>
+  </section>`;
 }
 
 let marketingMotionDisposer = null;
@@ -1949,6 +1997,60 @@ function initMarketingMotion() {
     if (!entry.isIntersecting) return entry.target.classList.remove("is-running");
     entry.target.classList.add("is-running");
   }, { threshold: .35 });
+
+  root.querySelectorAll("[data-commerce-carousel]").forEach((carousel) => {
+    const viewport = carousel.querySelector("[data-commerce-carousel-window]");
+    const cards = [...carousel.querySelectorAll(".commerce-store-track article")];
+    const dots = [...carousel.querySelectorAll(".commerce-carousel-pagination i")];
+    const arrows = [...carousel.querySelectorAll("[data-carousel-direction]")];
+    if (!viewport || !cards.length) return;
+    let segment = 0;
+    let paused = false;
+    const updateDots = (nextSegment) => {
+      segment = (nextSegment + dots.length) % dots.length;
+      dots.forEach((dot, index) => dot.classList.toggle("is-active", index === segment));
+    };
+    const advance = (direction = 1) => {
+      const card = cards[0];
+      const styles = getComputedStyle(viewport);
+      const gap = Number.parseFloat(styles.columnGap || styles.gap || "16") || 16;
+      const distance = (card.getBoundingClientRect().width + gap) * Math.max(1, Math.round(viewport.clientWidth / Math.max(1, card.getBoundingClientRect().width + gap)) - 1);
+      const rtlDirection = getComputedStyle(viewport).direction === "rtl" ? -1 : 1;
+      const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      const current = Math.abs(viewport.scrollLeft);
+      if ((direction > 0 && current >= maxScroll - 8) || (direction < 0 && current <= 8)) {
+        viewport.scrollTo({ left: direction > 0 ? 0 : rtlDirection * maxScroll, behavior: "smooth" });
+      } else {
+        viewport.scrollBy({ left: rtlDirection * direction * distance, behavior: "smooth" });
+      }
+      updateDots(segment + direction);
+    };
+    arrows.forEach((button) => {
+      const click = () => advance(Number(button.dataset.carouselDirection || 1));
+      button.addEventListener("click", click);
+      disposers.push(() => button.removeEventListener("click", click));
+    });
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
+    carousel.addEventListener("mouseenter", pause);
+    carousel.addEventListener("mouseleave", resume);
+    carousel.addEventListener("focusin", pause);
+    carousel.addEventListener("focusout", resume);
+    carousel.addEventListener("pointerdown", pause);
+    carousel.addEventListener("pointerup", resume);
+    disposers.push(() => {
+      carousel.removeEventListener("mouseenter", pause);
+      carousel.removeEventListener("mouseleave", resume);
+      carousel.removeEventListener("focusin", pause);
+      carousel.removeEventListener("focusout", resume);
+      carousel.removeEventListener("pointerdown", pause);
+      carousel.removeEventListener("pointerup", resume);
+    });
+    if (!reducedMotion && viewport.scrollWidth > viewport.clientWidth + 8) {
+      const timer = setInterval(() => { if (!paused && document.visibilityState === "visible") advance(1); }, 4800);
+      timers.add(timer);
+    }
+  });
 
   marketingMotionDisposer = () => {
     timers.forEach((timer) => clearTimeout(timer));
@@ -2254,6 +2356,8 @@ function marketingHomePage() {
       <div class="marketing-hero-metrics" aria-label="${localizedCopy("مؤشرات المنصة", "Platform highlights")}">${heroMetrics.map(([value, label, note, icon, noteIcon]) => `<article data-static-hero-metric><span aria-hidden="true">${dashboardIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><em>${note}${dashboardIcon(noteIcon)}</em></div></article>`).join("")}</div>
     </div></section>
     <section class="marketing-v3-section marketing-steps-section"><div class="container">${marketingSectionHeading(localizedCopy("4 خطوات للبدء مع Renvix", "Start with Renvix in four steps"), localizedCopy("مسار واضح من إنشاء الحساب حتى تشغيل الأتمتة.", "A clear path from account creation to live automation."))}${marketingSteps()}</div></section>
+    ${marketingRenewalJourney()}
+    ${marketingCommerceEcosystem()}
     ${marketingMobileToolsAndCta()}
   </main>`);
 }
