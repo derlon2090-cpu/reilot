@@ -1175,6 +1175,8 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       } else {
         state.customIntegrations = payload;
       }
+    } else if (target === "supportTicket") {
+      state.supportTicket = payload.item || null;
     } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
       ? payload
       : target === "orderLinkProfile"
@@ -1199,7 +1201,9 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       };
     }
   } catch (error) {
-    state[target] = { error: error.message || "تعذر تحميل البيانات" };
+    state[target] = target === "supportTicket"
+      ? { id: state.supportSelectedId || state.query.get("ticket") || "", error: error.message || "تعذر تحميل المحادثة" }
+      : { error: error.message || "تعذر تحميل البيانات" };
   } finally {
     state.remoteLoading[key] = false;
     if (renderOnComplete) render();
@@ -7808,7 +7812,6 @@ async function handleAction(target) {
   if (action === "support-filter") {
     state.supportFilter = target.dataset.filter || "all";
     state.supportTickets = null;
-    syncRouteData(true);
     return render();
   }
   if (action === "support-open") {
@@ -7817,17 +7820,44 @@ async function handleAction(target) {
     const url = new URL(location.href);
     if (state.supportSelectedId) url.searchParams.set("ticket", state.supportSelectedId);
     history.replaceState({}, "", url);
+    fetchJson(`/api/support/tickets/${encodeURIComponent(state.supportSelectedId)}/read`, { method: "POST" })
+      .then(() => { state.supportTickets = null; syncRouteData(); })
+      .catch(() => {});
+    return render();
+  }
+  if (action === "support-reload-ticket") {
+    state.supportTicket = null;
+    syncRouteData();
+    return;
+  }
+  if (action === "support-close") {
+    const id = target.dataset.id || "";
+    return openModal("إغلاق التذكرة", `<div class="support-close-confirm">${dashboardIcon("success")}<div><strong>هل تم حل المشكلة أو الاستفسار؟</strong><p>سيتم إغلاق التذكرة وإيقاف الردود الجديدة عليها، وستبقى المحادثة محفوظة في قسم التذاكر المغلقة.</p></div></div>`, `<button class="btn btn-primary" data-action="support-close-confirm" data-id="${escapeHtml(id)}">تأكيد الإغلاق</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (action === "support-close-confirm") {
+    const id = target.dataset.id || "";
+    target.disabled = true;
+    target.textContent = "جاري الإغلاق...";
     try {
-      await fetchJson(`/api/support/tickets/${encodeURIComponent(state.supportSelectedId)}/read`, { method: "POST" });
-    } catch {}
-    await syncRouteData(true);
+      await fetchJson(`/api/support/tickets/${encodeURIComponent(id)}/close`, { method: "POST" });
+      closePortal();
+      state.supportSelectedId = id;
+      state.supportTicket = null;
+      state.supportTickets = null;
+      syncRouteData();
+      toast("تم إغلاق التذكرة وحفظ المحادثة");
+    } catch (error) {
+      target.disabled = false;
+      target.textContent = "تأكيد الإغلاق";
+      toast(error.message || "تعذر إغلاق التذكرة", "danger");
+    }
     return;
   }
   if (action === "support-reopen") {
     try {
       await fetchJson(`/api/support/tickets/${encodeURIComponent(target.dataset.id)}/reopen`, { method: "POST" });
       state.supportTicket = null; state.supportTickets = null;
-      await syncRouteData(true);
+      syncRouteData();
       toast("تمت إعادة فتح التذكرة");
     } catch (error) { toast(error.message || "تعذر إعادة فتح التذكرة", "danger"); }
     return;
@@ -9659,7 +9689,7 @@ async function handleSubmit(form, event) {
       state.supportSelectedId = payload.item.id;
       history.replaceState({}, "", `/dashboard/support?ticket=${encodeURIComponent(payload.item.id)}`);
       state.supportTickets = null; state.supportTicket = null;
-      await syncRouteData(true);
+      syncRouteData();
       appToast.success("تم إرسال رسالتك", { description: `رقم التذكرة ${payload.item.ticketNumber}`, id: "support-created" });
     } catch (error) {
       appToast.error("تعذر إرسال الرسالة", { description: error.message, id: "support-create-error" });
@@ -9676,7 +9706,7 @@ async function handleSubmit(form, event) {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: data.body })
       });
       form.reset(); state.supportTicket = null; state.supportTickets = null;
-      await syncRouteData(true);
+      syncRouteData();
     } catch (error) {
       toast(error.message || "تعذر إرسال الرد", "danger");
       setSubmitBusy(button, false, "إرسال الرد");
@@ -10999,13 +11029,18 @@ function supportTypeLabel(value) {
 }
 
 function supportConversation(ticket) {
-  if (!ticket) return `<div class="support-empty-conversation">${dashboardIcon("support")}<strong>اختر رسالة لعرض المحادثة</strong><p>ستظهر الردود وتحديثات فريق الدعم هنا.</p></div>`;
+  if (!ticket) return state.supportSelectedId
+    ? `<div class="support-empty-conversation">${dashboardIcon("support")}<strong>جاري فتح المحادثة...</strong><p>يتم الآن تحميل الرسائل والردود.</p></div>`
+    : `<div class="support-empty-conversation">${dashboardIcon("support")}<strong>اختر رسالة لعرض المحادثة</strong><p>ستظهر الردود وتحديثات فريق الدعم هنا.</p></div>`;
+  if (ticket.error) return `<div class="support-empty-conversation support-conversation-error">${dashboardIcon("warning")}<strong>تعذر فتح المحادثة</strong><p>${escapeHtml(ticket.error)}</p><button class="btn btn-secondary" data-action="support-reload-ticket">إعادة المحاولة</button></div>`;
   const messages = Array.isArray(ticket.messages) ? ticket.messages.filter((item) => !item.isInternalNote) : [];
   const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
+  const isClosed = ticket.status === "CLOSED";
+  const isResolved = ticket.status === "RESOLVED";
   return `<section class="support-thread" aria-label="المحادثة">
-    <header><div><strong>${escapeHtml(ticket.subject)}</strong><span>${escapeHtml(ticket.ticketNumber)} · ${supportStatusLabel(ticket.status)}</span></div>${["RESOLVED","CLOSED"].includes(ticket.status) ? `<button class="btn btn-secondary" data-action="support-reopen" data-id="${ticket.id}">إعادة فتح التذكرة</button>` : ""}</header>
+    <header><div><strong>${escapeHtml(ticket.subject)}</strong><span>رقم التذكرة <code dir="ltr">${escapeHtml(ticket.ticketNumber)}</code> · ${supportStatusLabel(ticket.status)}</span></div><div class="support-thread-actions">${!isClosed ? `<button class="btn btn-secondary support-close-ticket" data-action="support-close" data-id="${escapeHtml(ticket.id)}">${dashboardIcon("success")} إغلاق التذكرة</button>` : ""}${isResolved ? `<button class="btn btn-secondary" data-action="support-reopen" data-id="${escapeHtml(ticket.id)}">إعادة فتح التذكرة</button>` : ""}</div></header>
     <div class="support-thread-messages">${messages.map((message) => `<article class="support-bubble ${message.senderType === "USER" ? "support-bubble-user" : "support-bubble-admin"}"><b>${message.senderType === "USER" ? "أنت" : escapeHtml(message.senderName || "فريق الدعم")}</b><p>${escapeHtml(message.body).replace(/\n/g, "<br>")}</p>${attachments.filter((file) => file.messageId === message.id).map((file) => `<a class="support-attachment-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${dashboardIcon("attachment")} ${escapeHtml(file.originalName)}</a>`).join("")}<time>${new Date(message.createdAt).toLocaleString("ar-SA")}</time></article>`).join("")}</div>
-    ${["CLOSED"].includes(ticket.status) ? `<p class="support-closed-note">هذه التذكرة مغلقة. يمكنك إعادة فتحها خلال المدة المتاحة.</p>` : `<form class="support-reply-form" data-submit="support-reply" data-ticket-id="${ticket.id}"><textarea name="body" maxlength="2000" minlength="2" placeholder="اكتب ردك..." required></textarea><button class="btn btn-primary" type="submit">إرسال الرد</button></form>`}
+    ${isClosed ? `<p class="support-closed-note">${dashboardIcon("success")} هذه التذكرة مغلقة، والمحادثة محفوظة للرجوع إليها.</p>` : `<form class="support-reply-form" data-submit="support-reply" data-ticket-id="${escapeHtml(ticket.id)}"><textarea name="body" maxlength="2000" minlength="2" placeholder="اكتب ردك..." required></textarea><button class="btn btn-primary" type="submit">إرسال الرد</button></form>`}
   </section>`;
 }
 
@@ -11014,6 +11049,7 @@ function dashboardSupportPage() {
   const tickets = Array.isArray(payload?.items) ? payload.items : [];
   const counts = payload?.counts || {};
   const selected = state.supportTicket?.id ? state.supportTicket : null;
+  const selectedId = selected?.id || state.supportSelectedId;
   const filters = [["all","الكل",counts.total],["new","جديدة",counts.new],["replied","تم الرد",counts.replied],["closed","مغلقة",counts.closed]];
   return dashboardShell(`
     <section class="dashboard-support-page">
@@ -11022,7 +11058,7 @@ function dashboardSupportPage() {
         <section class="support-conversations card">
           <div class="support-section-title"><div><h2>الإشعارات والردود</h2><p>متابعة جميع رسائلك مع فريق الدعم.</p></div>${dashboardIcon("message")}</div>
           <nav class="support-tabs">${filters.map(([key,label,count]) => `<button class="${state.supportFilter === key ? "active" : ""}" data-action="support-filter" data-filter="${key}">${label}<span>${Number(count || 0)}</span></button>`).join("")}</nav>
-          ${payload === null ? `<div class="loading-state">جاري تحميل الرسائل...</div>` : tickets.length ? `<div class="support-ticket-list">${tickets.map((ticket) => `<button class="support-ticket-row ${selected?.id === ticket.id ? "active" : ""}" data-action="support-open" data-id="${ticket.id}"><span class="support-ticket-mark">${dashboardIcon(ticket.type === "COMPLAINT" ? "warning" : "message")}</span><span><b>${escapeHtml(ticket.subject)}</b><small>${supportTypeLabel(ticket.type)} · ${supportStatusLabel(ticket.status)}</small><em>${escapeHtml(ticket.lastMessage || "")}</em></span><time>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</time>${Number(ticket.userUnreadCount || 0) ? `<i>${Number(ticket.userUnreadCount)}</i>` : ""}</button>`).join("")}</div>` : `<div class="support-empty-conversation"><strong>لا توجد رسائل بعد</strong><p>أرسل رسالة جديدة وسيظهر سجلها هنا.</p></div>`}
+          ${payload === null ? `<div class="loading-state">جاري تحميل الرسائل...</div>` : tickets.length ? `<div class="support-ticket-list">${tickets.map((ticket) => `<button class="support-ticket-row ${selectedId === ticket.id ? "active" : ""} ${ticket.status === "CLOSED" ? "is-closed" : ""} ${Number(ticket.userUnreadCount || 0) ? "has-unread" : ""}" data-action="support-open" data-id="${escapeHtml(ticket.id)}"><span class="support-ticket-mark">${dashboardIcon(ticket.type === "COMPLAINT" ? "warning" : "message")}</span><span><span class="support-ticket-row-head"><b>${escapeHtml(ticket.subject)}</b><code dir="ltr">${escapeHtml(ticket.ticketNumber)}</code></span><small><span>${supportTypeLabel(ticket.type)}</span><span class="support-ticket-state ${ticket.status === "CLOSED" ? "closed" : ticket.status === "RESOLVED" ? "resolved" : ticket.status === "WAITING_FOR_USER" ? "replied" : "open"}">${supportStatusLabel(ticket.status)}</span></small><em>${escapeHtml(ticket.lastMessage || "")}</em></span><time>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</time>${Number(ticket.userUnreadCount || 0) ? `<i>${Number(ticket.userUnreadCount)}</i>` : ""}</button>`).join("")}</div>` : `<div class="support-empty-conversation"><strong>لا توجد رسائل بعد</strong><p>أرسل رسالة جديدة وسيظهر سجلها هنا.</p></div>`}
           ${supportConversation(selected)}
         </section>
         <section class="support-compose card">
@@ -12067,7 +12103,7 @@ setInterval(() => {
   if (state.route !== "/dashboard/support" || document.visibilityState !== "visible") return;
   state.supportTickets = null;
   if (state.supportSelectedId) state.supportTicket = null;
-  void syncRouteData(true);
+  void syncRouteData();
 }, 25_000);
 render();
 if (state.route === "/dashboard/devices") void syncLinkedDevice();

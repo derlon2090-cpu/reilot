@@ -27,4 +27,15 @@ describe("dashboard profile and support layout", () => {
     expect(styles).toContain(".support-main-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:18px;align-items:start;direction:ltr}");
     expect(styles).toContain(".support-main-grid>*{direction:rtl}");
   });
+
+  it("opens support conversations without a render loop and exposes professional ticket controls", () => {
+    expect(appSource).toContain('target === "supportTicket"');
+    expect(appSource).toContain("state.supportTicket = payload.item || null");
+    expect(appSource).toContain('data-action="support-close"');
+    expect(appSource).toContain('/api/support/tickets/${encodeURIComponent(id)}/close');
+    expect(appSource).toContain('class="support-ticket-row-head"');
+    expect(appSource).toContain("رقم التذكرة");
+    expect(styles).toContain(".support-ticket-row:hover,.support-ticket-row:focus-visible");
+    expect(styles).toContain("transform:none!important");
+  });
 });

@@ -15,7 +15,7 @@ vi.mock("../../src/server/db.js", () => database);
 vi.mock("../../src/server/email/resend.service.js", () => mailer);
 vi.mock("../../src/server/in-app-notifications.js", () => notifications);
 
-import { adminReply, createPublicTicket } from "../../src/server/support-tickets.js";
+import { adminReply, closeUserTicket, createPublicTicket } from "../../src/server/support-tickets.js";
 
 describe("public support ticket workflow", () => {
   beforeEach(() => {
@@ -108,5 +108,24 @@ describe("public support ticket workflow", () => {
 
     expect(mailer.sendSupportReplyEmail).not.toHaveBeenCalled();
     expect(result.emailDelivery).toEqual({ status: "not_required" });
+  });
+
+  it("lets the ticket owner close a resolved conversation and records the transition", async () => {
+    const client = { query: vi.fn() };
+    database.transaction.mockImplementation(async (callback) => callback(client));
+    client.query
+      .mockResolvedValueOnce({ rows: [{ id: "ticket-id", status: "RESOLVED" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "ticket-id", status: "CLOSED" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await closeUserTicket(
+      { tenantId: "tenant-id", userId: "user-id" },
+      "ticket-id"
+    );
+
+    expect(result).toEqual({ id: "ticket-id", status: "CLOSED" });
+    expect(client.query.mock.calls[0][0]).toContain("created_by_user_id=$3 FOR UPDATE");
+    expect(client.query.mock.calls[1][0]).toContain("status='CLOSED'");
+    expect(client.query.mock.calls[2][0]).toContain("'user_closed'");
   });
 });

@@ -269,6 +269,33 @@ export async function reopenUserTicket(session, ticketId) {
   });
 }
 
+export async function closeUserTicket(session, ticketId) {
+  return transaction(async (client) => {
+    const locked = await client.query(
+      `SELECT id,status FROM support_tickets
+       WHERE id=$1 AND tenant_id=$2 AND created_by_user_id=$3 FOR UPDATE`,
+      [ticketId, session.tenantId, session.userId]
+    );
+    const ticket = locked.rows[0];
+    if (!ticket) throw Object.assign(new Error("التذكرة غير موجودة."), { status: 404 });
+    if (ticket.status === "CLOSED") return { id: ticketId, status: "CLOSED" };
+    const closed = await client.query(
+      `UPDATE support_tickets
+       SET status='CLOSED',closed_at=now(),updated_at=now(),user_unread_count=0,
+           admin_unread_count=admin_unread_count+1
+       WHERE id=$1 RETURNING id,status`,
+      [ticketId]
+    );
+    await client.query(
+      `INSERT INTO support_ticket_status_history
+        (ticket_id,tenant_id,from_status,to_status,changed_by_type,changed_by_user_id,reason)
+       VALUES($1,$2,$3,'CLOSED','USER',$4,'user_closed')`,
+      [ticketId, session.tenantId, ticket.status, session.userId]
+    );
+    return closed.rows[0];
+  });
+}
+
 export async function adminListTickets(input = {}) {
   const { page, limit } = pageArgs(input);
   const status = SUPPORT_STATUSES.includes(input.status) ? input.status : "";
