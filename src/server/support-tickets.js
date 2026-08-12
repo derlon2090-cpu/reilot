@@ -1,6 +1,7 @@
 import { query, transaction } from "./db.js";
 import { createInAppNotification } from "./in-app-notifications.js";
 import { sendSupportReplyEmail } from "./email/resend.service.js";
+import { publishSupportChange } from "./support-events.js";
 
 export const SUPPORT_TYPES = ["INQUIRY","TECHNICAL_ISSUE","SUGGESTION","COMPLAINT","BILLING","INTEGRATION","ACCOUNT","OTHER"];
 export const SUPPORT_STATUSES = ["NEW","OPEN","IN_PROGRESS","WAITING_FOR_USER","WAITING_FOR_SUPPORT","RESOLVED","CLOSED","REOPENED"];
@@ -74,6 +75,9 @@ export async function createTicket(session, input) {
        VALUES ($1,$2,'NEW','USER',$3,'ticket_created')`,
       [ticketId, session.tenantId, session.userId]
     );
+    await publishSupportChange(client, {
+      kind: "ticket-created", ticketId, tenantId: session.tenantId, userId: session.userId, status: "NEW"
+    });
     return { id: ticketId, messageId: message.rows[0].id, ticketNumber };
   });
 }
@@ -126,6 +130,7 @@ export async function createPublicTicket(input, { requestFingerprint = "" } = {}
        VALUES ($1,NULL,'NEW','USER','public_ticket_created')`,
       [ticketId]
     );
+    await publishSupportChange(client, { kind: "ticket-created", ticketId, status: "NEW" });
     return {
       id: ticketId,
       messageId: message.rows[0].id,
@@ -231,6 +236,9 @@ export async function userReply(session, ticketId, input) {
     const message = await client.query(`INSERT INTO support_ticket_messages(ticket_id,tenant_id,sender_type,sender_user_id,body) VALUES($1,$2,'USER',$3,$4) RETURNING id`, [ticketId, session.tenantId, session.userId, body]);
     const next = ticket.status === "RESOLVED" ? "REOPENED" : "WAITING_FOR_SUPPORT";
     await client.query(`UPDATE support_tickets SET status=$2,admin_unread_count=admin_unread_count+1,last_user_message_at=now(),updated_at=now(),reopened_at=CASE WHEN $2='REOPENED' THEN now() ELSE reopened_at END WHERE id=$1`, [ticketId, next]);
+    await publishSupportChange(client, {
+      kind: "message", ticketId, tenantId: session.tenantId, userId: session.userId, status: next
+    });
     return { id: message.rows[0].id, status: next };
   });
 }
@@ -265,6 +273,9 @@ export async function reopenUserTicket(session, ticketId) {
        VALUES($1,$2,'RESOLVED','REOPENED','USER',$3,'user_reopened')`,
       [ticketId, session.tenantId, session.userId]
     );
+    await publishSupportChange(client, {
+      kind: "status", ticketId, tenantId: session.tenantId, userId: session.userId, status: "REOPENED"
+    });
     return { id: ticketId, status: "REOPENED" };
   });
 }
@@ -292,6 +303,9 @@ export async function closeUserTicket(session, ticketId) {
        VALUES($1,$2,$3,'CLOSED','USER',$4,'user_closed')`,
       [ticketId, session.tenantId, ticket.status, session.userId]
     );
+    await publishSupportChange(client, {
+      kind: "status", ticketId, tenantId: session.tenantId, userId: session.userId, status: "CLOSED"
+    });
     return closed.rows[0];
   });
 }
@@ -376,6 +390,14 @@ export async function adminReply(admin, ticketId, input) {
       VALUES($1,$2,'ADMIN',$3,$4,$5,$6) RETURNING id`,
       [ticketId,ticket.tenant_id,admin.adminId,body,internal,internal ? "not_required" : "pending"]);
     if (!internal) await client.query(`UPDATE support_tickets SET status='WAITING_FOR_USER',user_unread_count=user_unread_count+1,admin_unread_count=0,last_admin_message_at=now(),first_response_at=COALESCE(first_response_at,now()),updated_at=now() WHERE id=$1`, [ticketId]);
+    await publishSupportChange(client, {
+      kind: internal ? "internal-note" : "message",
+      ticketId,
+      tenantId: ticket.tenant_id,
+      userId: ticket.created_by_user_id,
+      status: internal ? ticket.status : "WAITING_FOR_USER",
+      internal
+    });
     return { id: message.rows[0].id, ticket };
   });
   let emailDelivery = { status: "not_required" };
@@ -447,6 +469,13 @@ export async function updateAdminTicket(admin, ticketId, input) {
         [ticketId, current.tenant_id, current.status, nextStatus, admin.adminId]
       );
     }
+    await publishSupportChange(client, {
+      kind: "ticket-updated",
+      ticketId,
+      tenantId: current.tenant_id,
+      userId: current.created_by_user_id,
+      status: nextStatus || current.status
+    });
     return result.rows[0];
   });
 }

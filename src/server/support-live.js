@@ -1,9 +1,74 @@
-import { query } from "./db.js";
+import { getPool, query } from "./db.js";
+import { SUPPORT_EVENT_CHANNEL } from "./support-events.js";
 
 const encoder = new TextEncoder();
+const supportBroker = globalThis.__renvixSupportBroker || {
+  client: null,
+  connecting: null,
+  retryTimer: null,
+  subscribers: new Set()
+};
+globalThis.__renvixSupportBroker = supportBroker;
 
 function eventChunk(event, data) {
   return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+function broadcastSupportNotification(payload) {
+  for (const subscriber of supportBroker.subscribers) {
+    try { subscriber(payload); } catch {}
+  }
+}
+
+function scheduleSupportListenerReconnect() {
+  if (supportBroker.retryTimer || supportBroker.subscribers.size === 0) return;
+  supportBroker.retryTimer = setTimeout(() => {
+    supportBroker.retryTimer = null;
+    void ensureSupportNotificationListener();
+  }, 750);
+}
+
+function resetSupportListener(client) {
+  if (supportBroker.client !== client) return;
+  supportBroker.client = null;
+  supportBroker.connecting = null;
+  try { client.release(true); } catch {}
+  scheduleSupportListenerReconnect();
+}
+
+async function ensureSupportNotificationListener() {
+  if (supportBroker.client || supportBroker.connecting || supportBroker.subscribers.size === 0) return;
+  supportBroker.connecting = (async () => {
+    const client = await getPool().connect();
+    const onNotification = (message) => {
+      if (message.channel !== SUPPORT_EVENT_CHANNEL) return;
+      try { broadcastSupportNotification(JSON.parse(message.payload || "{}")); } catch {}
+    };
+    const onDisconnect = () => resetSupportListener(client);
+    client.on("notification", onNotification);
+    client.on("error", onDisconnect);
+    client.on("end", onDisconnect);
+    try {
+      await client.query(`LISTEN ${SUPPORT_EVENT_CHANNEL}`);
+      supportBroker.client = client;
+    } catch (error) {
+      try { client.release(true); } catch {}
+      throw error;
+    }
+  })();
+  try {
+    await supportBroker.connecting;
+  } catch {
+    scheduleSupportListenerReconnect();
+  } finally {
+    supportBroker.connecting = null;
+  }
+}
+
+export function subscribeSupportNotifications(subscriber) {
+  supportBroker.subscribers.add(subscriber);
+  void ensureSupportNotificationListener();
+  return () => supportBroker.subscribers.delete(subscriber);
 }
 
 export async function userSupportVersion(session) {
@@ -40,13 +105,14 @@ export async function adminSupportVersion() {
 }
 
 export function createSupportEventStream(request, getVersion, options = {}) {
-  const pollMs = Math.max(250, Number(options.pollMs || 1_500));
+  const pollMs = Math.max(250, Number(options.pollMs || 5_000));
   const heartbeatMs = Math.max(1_000, Number(options.heartbeatMs || 15_000));
   let timer = null;
   let controllerRef = null;
   let closed = false;
   let lastVersion = null;
   let lastHeartbeat = 0;
+  let unsubscribe = null;
 
   const enqueue = (chunk) => {
     if (closed || !controllerRef) return;
@@ -56,14 +122,23 @@ export function createSupportEventStream(request, getVersion, options = {}) {
     if (closed) return;
     closed = true;
     if (timer) clearTimeout(timer);
+    unsubscribe?.();
+    unsubscribe = null;
     try { controllerRef?.close(); } catch {}
   };
 
   const stream = new ReadableStream({
     start(controller) {
       controllerRef = controller;
-      enqueue(encoder.encode("retry: 1500\n\n"));
+      enqueue(encoder.encode("retry: 600\n\n"));
       request.signal?.addEventListener("abort", close, { once: true });
+      const subscribe = options.subscribe || subscribeSupportNotifications;
+      unsubscribe = subscribe((payload) => {
+        if (closed || (options.filter && !options.filter(payload))) return;
+        lastVersion = null;
+        lastHeartbeat = Date.now();
+        enqueue(eventChunk("support-change", { ...payload, transport: "postgres-notify" }));
+      });
 
       const tick = async () => {
         if (closed) return;
@@ -93,6 +168,8 @@ export function createSupportEventStream(request, getVersion, options = {}) {
     cancel() {
       closed = true;
       if (timer) clearTimeout(timer);
+      unsubscribe?.();
+      unsubscribe = null;
     }
   });
 

@@ -50,6 +50,10 @@ describe("public support ticket workflow", () => {
     expect(client.query.mock.calls[2][1]).toContain("وليد علي");
     expect(client.query.mock.calls[3][0]).toContain("'USER'");
     expect(client.query.mock.calls[4][0]).toContain("'public_ticket_created'");
+    expect(client.query.mock.calls[5]).toEqual([
+      "SELECT pg_notify($1,$2)",
+      ["renvix_support_events", expect.stringContaining('"kind":"ticket-created"')]
+    ]);
   });
 
   it("emails an admin reply and records the provider delivery id", async () => {
@@ -86,6 +90,10 @@ describe("public support ticket workflow", () => {
     );
     expect(result.emailDelivery).toEqual({ status: "sent", providerId: "resend-email-id" });
     expect(notifications.createInAppNotification).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith(
+      "SELECT pg_notify($1,$2)",
+      ["renvix_support_events", expect.stringContaining('"kind":"message"')]
+    );
   });
 
   it("never emails internal admin notes", async () => {
@@ -127,5 +135,6 @@ describe("public support ticket workflow", () => {
     expect(client.query.mock.calls[0][0]).toContain("created_by_user_id=$3 FOR UPDATE");
     expect(client.query.mock.calls[1][0]).toContain("status='CLOSED'");
     expect(client.query.mock.calls[2][0]).toContain("'user_closed'");
+    expect(client.query.mock.calls[3][0]).toBe("SELECT pg_notify($1,$2)");
   });
 });
