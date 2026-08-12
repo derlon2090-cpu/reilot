@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createGoogleNonce, googleAutoLinkAllowed, verifyGoogleCredential } from "../../src/server/google-auth.js";
+import { createGoogleNonce, googleAutoLinkAllowed, googleClientId, normalizeGoogleClientId, verifyGoogleCredential } from "../../src/server/google-auth.js";
 import { sha256 } from "../../src/server/security.js";
 
 const originalClientId = process.env.GOOGLE_CLIENT_ID;
@@ -28,6 +28,13 @@ describe("Google identity verification", () => {
     expect(first.nonce).not.toBe(second.nonce);
     expect(first.digest).toBe(sha256(first.nonce));
     expect(first.digest).not.toContain(first.nonce);
+  });
+
+  it("normalizes a legacy URL-prefixed client ID without accepting paths or arbitrary hosts", () => {
+    process.env.GOOGLE_CLIENT_ID = "https://web-client.apps.googleusercontent.com/";
+    expect(googleClientId()).toBe("web-client.apps.googleusercontent.com");
+    expect(normalizeGoogleClientId("https://web-client.apps.googleusercontent.com/callback")).toBe("");
+    expect(normalizeGoogleClientId("https://example.com")).toBe("");
   });
 
   it("accepts a verified Google token with the expected nonce and audience", async () => {

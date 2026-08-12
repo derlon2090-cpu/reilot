@@ -13,7 +13,10 @@ export async function GET(req) {
   const clientId = googleClientId();
   if (!clientId) return Response.json({ ok: false, reason: "google_not_configured" }, { status: 503 });
   return Response.json(
-    { ok: true, clientIdFingerprint: fingerprint(clientId) },
+    // OAuth client IDs are public identifiers. Returning the normalized value here
+    // keeps GOOGLE_CLIENT_SECRET and all Google credentials on Render while making
+    // the backend the single source of truth for the browser configuration.
+    { ok: true, clientId, clientIdFingerprint: fingerprint(clientId) },
     { headers: { ...authCorsHeaders(req), "Cache-Control": "no-store" } }
   );
 }

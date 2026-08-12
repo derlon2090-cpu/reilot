@@ -41,8 +41,13 @@ export function clearGoogleNonceCookie() {
   return googleNonceCookie("", 0);
 }
 
+export function normalizeGoogleClientId(value) {
+  const candidate = String(value || "").trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  return /^[a-z0-9][a-z0-9._-]*\.apps\.googleusercontent\.com$/i.test(candidate) ? candidate : "";
+}
+
 export function googleClientId() {
-  return String(process.env.GOOGLE_CLIENT_ID || "").trim();
+  return normalizeGoogleClientId(process.env.GOOGLE_CLIENT_ID);
 }
 
 export async function verifyGoogleCredential({ credential, expectedNonceDigest, verifier = oauthClient }) {

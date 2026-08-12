@@ -20,6 +20,11 @@ function authApiUrl(path) {
   return new URL(path, baseUrl).toString();
 }
 
+function normalizeGoogleClientId(value) {
+  const candidate = String(value || "").trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  return /^[a-z0-9][a-z0-9._-]*\.apps\.googleusercontent\.com$/i.test(candidate) ? candidate : "";
+}
+
 function languageFor(element) {
   return element?.closest?.("[data-auth-language]")?.dataset.authLanguage === "en" ? "en" : "ar";
 }
@@ -156,17 +161,13 @@ async function requestNonce() {
   return payload.nonce;
 }
 
-async function sha256Hex(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function assertBackendClientId(clientId) {
+async function requestGoogleConfig() {
   const response = await fetch(authApiUrl("/api/auth/google/config"), { credentials: "include", cache: "no-store", mode: "cors" });
   const payload = await response.json().catch(() => null);
-  if (!response.ok || !payload?.clientIdFingerprint) throw new Error(payload?.reason || "google_backend_unavailable");
-  if (payload.clientIdFingerprint !== await sha256Hex(clientId)) throw new Error("google_client_mismatch");
+  if (!response.ok) throw new Error(payload?.reason || "google_backend_unavailable");
+  const clientId = normalizeGoogleClientId(payload?.clientId);
+  if (!clientId) throw new Error("google_backend_not_configured");
+  return { clientId };
 }
 
 function setGoogleStatus(host, message = "", tone = "error") {
@@ -209,17 +210,11 @@ async function submitCredential(host, credential) {
 
 async function mountGoogleButton(host) {
   if (host.dataset.googleMounted === "true") return;
-  const clientId = String(config().googleClientId || "").trim();
   const english = languageFor(host) === "en";
-  if (!clientId) {
-    host.dataset.googleMounted = "recovery";
-    setGoogleStatus(host, english ? "Google sign-in is not configured in this frontend." : "إعداد Google غير مكتمل في الواجهة.");
-    activateRecovery(host, english, "missing_client_id");
-    return;
-  }
   host.dataset.googleMounted = "true";
   try {
-    const [google, nonce] = await Promise.all([loadGoogleIdentity(), requestNonce(), assertBackendClientId(clientId)]);
+    const { clientId } = await requestGoogleConfig();
+    const [google, nonce] = await Promise.all([loadGoogleIdentity(), requestNonce()]);
     google.accounts.id.initialize({
       client_id: clientId,
       nonce,
@@ -248,8 +243,9 @@ async function mountGoogleButton(host) {
     const reason = String(error?.message || "google_unavailable");
     const messages = {
       auth_backend_required: english ? "The Render authentication backend URL is not configured." : "عنوان خادم المصادقة على Render غير مضبوط.",
-      google_client_mismatch: english ? "Google Client ID differs between Vercel and Render." : "معرّف Google مختلف بين Vercel وRender.",
       google_backend_unavailable: english ? "The authentication backend is temporarily unavailable." : "خادم المصادقة غير متاح مؤقتًا.",
+      google_backend_not_configured: english ? "Google is not configured correctly on the authentication backend." : "إعداد Google غير مكتمل أو غير صالح على خادم المصادقة.",
+      google_not_configured: english ? "Google is not configured correctly on the authentication backend." : "إعداد Google غير مكتمل أو غير صالح على خادم المصادقة.",
       google_library_unavailable: english ? "Google was blocked by the browser. Disable content blocking or try a private window, then retry." : "حجب المتصفح Google. عطّل مانع المحتوى أو جرّب نافذة خاصة، ثم أعد المحاولة."
     };
     setGoogleStatus(host, messages[reason] || (english ? "Google could not be loaded. Retry or use the secure Google page." : "تعذّر تحميل Google. أعد المحاولة أو استخدم صفحة Google الآمنة."));

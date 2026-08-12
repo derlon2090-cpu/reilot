@@ -30,7 +30,6 @@ export default function RootLayout({ children }) {
               authApiUrl,
               turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "",
               turnstileDiagnostics: process.env.TURNSTILE_DIAGNOSTICS_ENABLED === "true",
-              googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
               metaWhatsAppEnabled: Boolean(process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL),
               metaWhatsAppConnectUrl: process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL || ""
             }).replace(/</g, "\\u003c")};`
