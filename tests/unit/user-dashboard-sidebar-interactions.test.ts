@@ -21,6 +21,8 @@ describe("user dashboard desktop sidebar interactions", () => {
     expect(desktopMotion).toContain("transition-duration: 90ms");
     expect(desktopMotion).toContain("height: calc(100% - 14px)");
     expect(desktopMotion).toContain("inset-inline-start: 0");
+    expect(desktopMotion).toContain("background: #0B3F3B;");
+    expect(desktopMotion).toContain(".active::after { background: #73B8AF; }");
     expect(desktopMotion).toContain('data-sidebar-icon="settings"');
     expect(desktopMotion).toContain('data-sidebar-icon="reports"');
     expect(desktopMotion).toContain('data-sidebar-icon="campaigns"');

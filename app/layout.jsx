@@ -5,9 +5,9 @@ export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
   description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات.",
   icons: {
-    icon: [{ url: "/assets/renvix-mark-deep-teal.svg", type: "image/svg+xml", sizes: "any" }],
-    shortcut: "/assets/renvix-mark-deep-teal.svg",
-    apple: "/assets/renvix-mark-deep-teal.png"
+    icon: [{ url: "/assets/renvix-favicon.svg?v=20260812-brand-v105", type: "image/svg+xml", sizes: "any" }],
+    shortcut: "/assets/renvix-favicon.svg?v=20260812-brand-v105",
+    apple: "/assets/renvix-favicon.svg?v=20260812-brand-v105"
   }
 };
 
@@ -40,12 +40,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-auth-dark-v104" />
-         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-auth-dark-v104" />
+         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-brand-v105" />
+         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-brand-v105" />
       </head>
       <body>
         {children}
-         <Script type="module" src="/app/app.js?v=20260812-auth-dark-v104" strategy="afterInteractive" />
+         <Script type="module" src="/app/app.js?v=20260812-brand-v105" strategy="afterInteractive" />
       </body>
     </html>
   );
