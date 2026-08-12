@@ -10,7 +10,7 @@ function languageFor(element) {
   return element?.closest?.("[data-auth-language]")?.dataset.authLanguage === "en" ? "en" : "ar";
 }
 
-function loadGoogleIdentity(language) {
+function loadGoogleIdentity() {
   if (window.google?.accounts?.id) return Promise.resolve(window.google);
   if (scriptPromise) return scriptPromise;
   scriptPromise = new Promise((resolve, reject) => {
@@ -20,17 +20,30 @@ function loadGoogleIdentity(language) {
     script.addEventListener("load", done, { once: true });
     script.addEventListener("error", () => reject(new Error("google_library_unavailable")), { once: true });
     if (!existing) {
-      script.src = `${GOOGLE_SCRIPT_URL}?hl=${language === "en" ? "en" : "ar"}`;
+      script.src = GOOGLE_SCRIPT_URL;
       script.async = true;
       script.defer = true;
-      script.crossOrigin = "anonymous";
       document.head.appendChild(script);
     }
   }).catch((error) => {
+    document.querySelector(`script[src^="${GOOGLE_SCRIPT_URL}"]`)?.remove();
     scriptPromise = undefined;
     throw error;
   });
   return scriptPromise;
+}
+
+function activateRedirectFallback(host, english, reason = "") {
+  const button = host.querySelector(".auth-google-placeholder");
+  if (reason) host.dataset.googleSdkStatus = reason;
+  if (!button || button.dataset.googleRedirect === "true") return;
+  button.disabled = false;
+  button.dataset.googleRedirect = "true";
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    host.closest(".auth-google-area")?.classList.add("is-busy");
+    window.location.assign(`/api/auth/google/start?locale=${english ? "en" : "ar"}`);
+  }, { once: true });
 }
 
 function readKnownAccount() {
@@ -148,13 +161,14 @@ async function mountGoogleButton(host) {
   if (host.dataset.googleMounted === "true") return;
   const clientId = String(config().googleClientId || "").trim();
   const english = languageFor(host) === "en";
+  activateRedirectFallback(host, english);
   if (!clientId) {
-    setGoogleStatus(host, english ? "Google sign-in is temporarily unavailable." : "تسجيل الدخول عبر Google غير متاح مؤقتًا.");
+    host.dataset.googleMounted = "fallback";
     return;
   }
   host.dataset.googleMounted = "true";
   try {
-    const [google, nonce] = await Promise.all([loadGoogleIdentity(english ? "en" : "ar"), requestNonce()]);
+    const [google, nonce] = await Promise.all([loadGoogleIdentity(), requestNonce()]);
     google.accounts.id.initialize({
       client_id: clientId,
       nonce,
@@ -178,9 +192,10 @@ async function mountGoogleButton(host) {
       width: Math.max(240, Math.min(420, Math.floor(host.getBoundingClientRect().width || 420))),
       locale: english ? "en" : "ar"
     });
-  } catch {
-    host.dataset.googleMounted = "false";
-    setGoogleStatus(host, english ? "Google sign-in is temporarily unavailable." : "تعذر تحميل تسجيل الدخول عبر Google مؤقتًا.");
+  } catch (error) {
+    host.dataset.googleMounted = "fallback";
+    activateRedirectFallback(host, english, error?.message === "google_library_unavailable" ? "sdk_blocked" : "sdk_unavailable");
+    setGoogleStatus(host, "", "info");
   }
 }
 

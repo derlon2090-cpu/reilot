@@ -5,9 +5,9 @@ export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
   description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات.",
   icons: {
-    icon: [{ url: "/assets/renvix-favicon.svg?v=20260812-google-v106", type: "image/svg+xml", sizes: "any" }],
-    shortcut: "/assets/renvix-favicon.svg?v=20260812-google-v106",
-    apple: "/assets/renvix-favicon.svg?v=20260812-google-v106"
+    icon: [{ url: "/assets/renvix-favicon.svg?v=20260812-google-v107", type: "image/svg+xml", sizes: "any" }],
+    shortcut: "/assets/renvix-favicon.svg?v=20260812-google-v107",
+    apple: "/assets/renvix-favicon.svg?v=20260812-google-v107"
   }
 };
 
@@ -41,12 +41,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-google-v106" />
-        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-google-v106" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-google-v107" />
+        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-google-v107" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260812-google-v106" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260812-google-v107" strategy="afterInteractive" />
       </body>
     </html>
   );

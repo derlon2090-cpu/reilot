@@ -12361,3 +12361,71 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-known-account{margin-bottom:9px}.auth-known-account-card{min-height:58px;padding:8px 11px}.auth-known-account-avatar{width:40px;height:40px}
   .auth-known-account-another{min-height:43px}.auth-google-area{gap:6px}.auth-google-legal{font-size:9.5px}
 }
+
+/* Desktop/iPad auth viewport: the approved artwork stays fixed; only the form pane scrolls. */
+@media (min-width:821px){
+  html:has(.auth-suite-page),
+  body:has(.auth-suite-page),
+  html:has(.auth-suite-shell.register),
+  body:has(.auth-suite-shell.register){
+    height:100%!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+  .auth-suite-page,
+  .auth-suite-page:has(.auth-suite-shell.register){
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+  }
+  .auth-suite-page .auth-suite-stage,
+  .auth-suite-page:has(.auth-suite-shell.register) .auth-suite-stage{
+    width:min(1180px,100%)!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:100%!important;
+    grid-template-rows:58px minmax(0,1fr)!important;
+    overflow:hidden!important;
+  }
+  .auth-suite-page .auth-suite-shell.login,
+  .auth-suite-page .auth-suite-shell.register{
+    height:100%!important;
+    min-height:0!important;
+    max-height:100%!important;
+    align-items:stretch!important;
+    overflow:hidden!important;
+  }
+  .auth-suite-page .auth-suite-shell.login>.auth-suite-visual,
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-visual{
+    height:var(--auth-showcase-height)!important;
+    min-height:var(--auth-showcase-height)!important;
+    max-height:var(--auth-showcase-height)!important;
+    align-self:start!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+  .auth-suite-page .auth-suite-shell.login>.auth-suite-panel,
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-panel{
+    height:var(--auth-showcase-height)!important;
+    min-height:0!important;
+    max-height:var(--auth-showcase-height)!important;
+    padding-top:clamp(42px,5.5dvh,58px)!important;
+    padding-bottom:28px!important;
+    align-self:start!important;
+    align-content:start!important;
+    justify-content:flex-start!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    overscroll-behavior-y:contain!important;
+    scrollbar-gutter:stable;
+  }
+  .auth-suite-page .auth-suite-shell.login>.auth-suite-panel{scrollbar-width:thin;scrollbar-color:#b8cfcb transparent}
+  .auth-suite-page .auth-suite-shell.register>.auth-suite-panel{scrollbar-width:thin;scrollbar-color:#b8cfcb transparent}
+  .auth-suite-page .auth-suite-mode-tabs{flex:0 0 auto!important;margin-bottom:20px!important}
+}
+
+.auth-google-placeholder:not(:disabled){cursor:pointer}
+.auth-google-placeholder:not(:disabled):hover{border-color:#718d88;background:#fbfdfd}
