@@ -62,6 +62,7 @@ function message(slot, text) {
 export const AuthTurnstile = {
   async mountAll(root = document) {
     const siteKey = String(window.__RENVIX_CONFIG__?.turnstileSiteKey || document.querySelector('meta[name="renvix-turnstile-site-key"]')?.content || "").trim();
+    const diagnosticsEnabled = window.__RENVIX_CONFIG__?.turnstileDiagnostics === true;
     const actionByForm = {
       login: "login",
       register: "register",
@@ -95,7 +96,14 @@ export const AuthTurnstile = {
         if (!slot.isConnected) continue;
         const input = form.querySelector('input[name="turnstileToken"]');
         const page = form.closest("[data-auth-theme]");
-        const widgetId = api.render(slot.querySelector("[data-turnstile-widget]"), {
+        let widgetId;
+        const requestFreshToken = () => {
+          setReady(form, false);
+          queueMicrotask(() => {
+            try { api.reset(widgetId); } catch { /* a later mount can create a fresh widget */ }
+          });
+        };
+        widgetId = api.render(slot.querySelector("[data-turnstile-widget]"), {
           sitekey: siteKey,
           action: slot.dataset.authTurnstile,
           appearance: "interaction-only",
@@ -108,11 +116,12 @@ export const AuthTurnstile = {
             setReady(form, true);
           },
           "expired-callback"() {
-            setReady(form, false);
+            requestFreshToken();
             message(slot, page?.dataset.authLanguage === "en" ? "Verification expired. Please try again." : "انتهت صلاحية التحقق. حاول مرة أخرى.");
           },
-          "error-callback"() {
-            setReady(form, false);
+          "error-callback"(errorCode) {
+            if (diagnosticsEnabled && errorCode) console.error("[Renvix Turnstile]", { errorCode: String(errorCode) });
+            requestFreshToken();
             message(slot, page?.dataset.authLanguage === "en" ? "Security verification failed. Please try again." : "تعذر إكمال التحقق الأمني. حاول مرة أخرى.");
           }
         });

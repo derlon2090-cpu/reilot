@@ -21,6 +21,16 @@ function cloudflareClientIp(request) {
   return request?.headers?.get?.("cf-connecting-ip")?.trim() || "";
 }
 
+function logDiagnostic(payload, env) {
+  if (env.TURNSTILE_DIAGNOSTICS_ENABLED !== "true") return;
+  console.info("[Renvix Turnstile]", {
+    success: payload?.success === true,
+    errorCodes: Array.isArray(payload?.["error-codes"]) ? payload["error-codes"] : [],
+    hostname: String(payload?.hostname || ""),
+    action: String(payload?.action || "")
+  });
+}
+
 export async function verifyTurnstileToken({ token, expectedAction, request, env = process.env, fetchImpl = fetch }) {
   const secret = String(env.TURNSTILE_SECRET_KEY || "").trim();
   // Every environment fails closed. Automated tests use Cloudflare's official
@@ -48,6 +58,8 @@ export async function verifyTurnstileToken({ token, expectedAction, request, env
   } catch {
     return { ok: false, reason: "verification_unavailable" };
   }
+
+  logDiagnostic(payload, env);
 
   if (payload?.success !== true) return { ok: false, reason: "challenge_failed" };
   if (String(payload.action || "") !== expectedAction) return { ok: false, reason: "action_mismatch" };

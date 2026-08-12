@@ -18,6 +18,8 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('size: "flexible"');
     expect(componentSource).toContain('theme: page?.dataset.authTheme');
     expect(componentSource).toContain("scriptPromise = undefined");
+    expect(componentSource).toContain('"error-callback"(errorCode)');
+    expect(componentSource).toContain("api.reset(widgetId)");
   });
 
   it("does not add a default widget to email OTP or MFA forms", () => {

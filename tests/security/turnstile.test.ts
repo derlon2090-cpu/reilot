@@ -66,4 +66,30 @@ describe("Cloudflare Turnstile server verification", () => {
       fetchImpl: siteverify({})
     })).resolves.toEqual({ ok: false, reason: "configuration_error" });
   });
+
+  it("emits only safe diagnostic fields when explicitly enabled", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const env = { ...testEnv, TURNSTILE_DIAGNOSTICS_ENABLED: "true" };
+    await verifyTurnstileToken({
+      token: "sensitive-token",
+      expectedAction: TURNSTILE_ACTIONS.login,
+      request: request(),
+      env,
+      fetchImpl: siteverify({
+        success: false,
+        hostname: "accounts.renvix.app",
+        action: "login",
+        "error-codes": ["timeout-or-duplicate"]
+      })
+    });
+
+    expect(info).toHaveBeenCalledWith("[Renvix Turnstile]", {
+      success: false,
+      errorCodes: ["timeout-or-duplicate"],
+      hostname: "accounts.renvix.app",
+      action: "login"
+    });
+    expect(JSON.stringify(info.mock.calls)).not.toContain("sensitive-token");
+    expect(JSON.stringify(info.mock.calls)).not.toContain(testEnv.TURNSTILE_SECRET_KEY);
+  });
 });

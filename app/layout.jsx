@@ -26,6 +26,7 @@ export default function RootLayout({ children }) {
               appUrl,
               authUrl,
               turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "",
+              turnstileDiagnostics: process.env.TURNSTILE_DIAGNOSTICS_ENABLED === "true",
               metaWhatsAppEnabled: Boolean(process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL),
               metaWhatsAppConnectUrl: process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL || ""
             }).replace(/</g, "\\u003c")};`
@@ -39,12 +40,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-complete-backlog-v103" />
-         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-complete-backlog-v103" />
+         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-auth-dark-v104" />
+         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-auth-dark-v104" />
       </head>
       <body>
         {children}
-         <Script type="module" src="/app/app.js?v=20260812-complete-backlog-v103" strategy="afterInteractive" />
+         <Script type="module" src="/app/app.js?v=20260812-auth-dark-v104" strategy="afterInteractive" />
       </body>
     </html>
   );
