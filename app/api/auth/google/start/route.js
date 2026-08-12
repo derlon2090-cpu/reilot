@@ -2,7 +2,14 @@ import { createGoogleNonce, googleClientId, googleNonceCookie } from "../../../.
 import { createGoogleOAuthChallenge, googleOAuthAuthorizationUrl, googleOAuthChallengeCookies } from "../../../../../src/server/google-oauth.js";
 
 export async function GET(req) {
-  if (!googleClientId() || !String(process.env.GOOGLE_CLIENT_SECRET || "").trim()) return Response.redirect(new URL("/login?google_error=not_configured", req.url), 302);
+  const missingClientId = !googleClientId();
+  const missingClientSecret = !String(process.env.GOOGLE_CLIENT_SECRET || "").trim();
+  if (missingClientId || missingClientSecret) {
+    // Expose only the missing variable name for deployment diagnostics; never its value.
+    const target = new URL("/login", req.url);
+    target.searchParams.set("google_error", missingClientId ? "missing_client_id" : "missing_client_secret");
+    return Response.redirect(target, 302);
+  }
   const url = new URL(req.url);
   const locale = url.searchParams.get("locale") === "en" ? "en" : "ar";
   const oauth = createGoogleOAuthChallenge();
