@@ -12097,3 +12097,131 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .campaign-email-message-meta{grid-template-columns:30px minmax(0,1fr) auto 16px 16px 16px;padding-inline:8px}
   .campaign-studio-email-preview .campaign-email-brand img{width:100px}
 }
+
+/* Canonical accounts.renvix.app dark theme. This replaces every legacy auth-dark
+   treatment without changing the approved illustration geometry or connector paths. */
+.auth-suite-page[data-auth-theme="dark"]{
+  --auth-night-page:#070d14;
+  --auth-night-panel:#091016;
+  --auth-night-visual:#081b1f;
+  --auth-night-surface:#0b1219;
+  --auth-night-line:#24313a;
+  --auth-night-text:#f4f7f8;
+  --auth-night-muted:#8d969e;
+  --auth-night-teal:#16a894;
+  min-height:100dvh!important;
+  color:var(--auth-night-text)!important;
+  background:var(--auth-night-page)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-stage,.auth-suite-brandbar,.auth-suite-shell,.auth-suite-reset,.auth-suite-otp){
+  background:transparent!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-panel,.email-otp-panel,.email-otp-invalid){
+  color:var(--auth-night-text)!important;
+  border-color:transparent!important;
+  background:var(--auth-night-page)!important;
+  box-shadow:none!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-visual,.auth-suite-email-visual,.auth-showcase){
+  color:var(--auth-night-text)!important;
+  border:1px solid #203039!important;
+  background:var(--auth-night-visual)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.018)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] .auth-showcase-art{
+  isolation:isolate;
+  background:radial-gradient(circle at 52% 52%,rgba(20,143,128,.11),transparent 54%)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] .auth-showcase-reference-art{
+  filter:invert(.91) hue-rotate(136deg) saturate(.78) brightness(.64) contrast(1.18) drop-shadow(0 18px 25px rgba(0,0,0,.32))!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-showcase-copy h2,.auth-suite-intro h1,.auth-suite-panel h1,.field>span,.email-otp-form>label){
+  color:var(--auth-night-text)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-showcase-copy p,.auth-suite-intro p,.remember,.auth-switch,.policy-check,.email-otp-remember,.auth-suite-note,.email-otp-help){
+  color:var(--auth-night-muted)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-form .input,.auth-suite-panel .input,.email-otp-panel .input,.email-otp-digit){
+  color:var(--auth-night-text)!important;
+  caret-color:#5fd7c6!important;
+  border-color:var(--auth-night-line)!important;
+  background:var(--auth-night-surface)!important;
+  box-shadow:none!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-form .input,.auth-suite-panel .input,.email-otp-panel .input)::placeholder{
+  color:#69747c!important;
+  opacity:1!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-form .input,.auth-suite-panel .input,.email-otp-digit):focus{
+  border-color:#1ab09c!important;
+  box-shadow:0 0 0 3px rgba(26,176,156,.1)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-mode-tabs{
+  border-color:var(--auth-night-line)!important;
+  background:var(--auth-night-surface)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-mode-tabs button{color:#a4adb4!important;background:transparent!important}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-mode-tabs button.active{
+  color:#fff!important;
+  background:#087b6e!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.25)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-submit,.email-otp-submit,.btn-primary){
+  color:#fff!important;
+  border-color:#0a8d7e!important;
+  background:#087b6e!important;
+  box-shadow:0 10px 25px rgba(0,0,0,.22)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-submit,.email-otp-submit,.btn-primary):is(:hover,:focus-visible){background:#0a8e7f!important}
+.auth-suite-page[data-auth-theme="dark"] .btn-secondary{
+  color:#dfe7e7!important;
+  border-color:var(--auth-night-line)!important;
+  background:transparent!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.email-otp-resend-row,.auth-suite-note,.email-otp-help){
+  border-color:var(--auth-night-line)!important;
+  background:var(--auth-night-surface)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(a,.link-button,.auth-switch button){color:#22b7a2!important}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-controls>button{color:#8e989f!important}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-controls>button.active{color:#24b8a3!important}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-controls>span{background:#2a363e!important}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-controls .auth-suite-theme-button{
+  color:#d9e1e2!important;
+  border-color:#28343c!important;
+  background:#0b1219!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.24)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-logo .brand-logo-image{
+  content:url("/assets/renvix-logo-auth-dark.svg")!important;
+  filter:none!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-benefits,.auth-suite-feature-strip){
+  color:var(--auth-night-muted)!important;
+  border-color:var(--auth-night-line)!important;
+  background:rgba(7,13,20,.34)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-benefits>div,.auth-suite-feature-strip>div){
+  color:var(--auth-night-muted)!important;
+  border-color:var(--auth-night-line)!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-benefits,.auth-suite-feature-strip) :is(.line-icon,svg){
+  color:#42c9b7!important;
+  background:#0b2021!important;
+}
+.auth-suite-page[data-auth-theme="dark"] input[type="checkbox"]{accent-color:#18a893}
+.auth-suite-page[data-auth-theme="dark"] input:-webkit-autofill,
+.auth-suite-page[data-auth-theme="dark"] input:-webkit-autofill:hover,
+.auth-suite-page[data-auth-theme="dark"] input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--auth-night-text)!important;
+  box-shadow:0 0 0 1000px var(--auth-night-surface) inset!important;
+}
+.auth-suite-page[data-auth-language="en"] :is(.auth-switch,.inline-actions,.auth-suite-note,.email-otp-help,.auth-showcase-copy){
+  direction:ltr!important;
+  unicode-bidi:plaintext;
+}
+@media (max-width:820px){
+  .auth-suite-page[data-auth-theme="dark"],
+  .auth-suite-page[data-auth-theme="dark"] .auth-suite-stage{background:var(--auth-night-page)!important}
+  .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-panel,.email-otp-panel){background:transparent!important}
+}
