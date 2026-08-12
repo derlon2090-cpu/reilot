@@ -42,10 +42,14 @@ describe("Salla admin user-experience preview", () => {
     expect(reportsSource).not.toMatch(/2,845|1,128|221,450|39\.6%/);
   });
 
-  it("shows real zeros and a professional empty chart for connected stores without events", () => {
+  it("shows real zeros and a professional baseline chart for connected stores without events", () => {
     expect(userAppSource).toContain('Number(summary.abandoned || 0).toLocaleString("ar-SA")');
     expect(userAppSource).toContain('sallaReportMoney(summary.recoveredValue ?? 0)');
-    expect(userAppSource).toContain('لا توجد بيانات سلات ضمن الفترة المحددة');
+    expect(userAppSource).toContain('function sallaReportZeroChart()');
+    expect(userAppSource).toContain('hasTimelineData ? sallaReportChart(timeline) : sallaReportZeroChart()');
+    expect(reportsSource).toContain('data-zero-report-chart');
+    expect(globalStylesSource).toContain('.salla-report-zero-state .abandoned{background:#0B3F3B}');
+    expect(globalStylesSource).toContain('.salla-report-zero-state .recovered{background:#72D89A}');
     expect(userAppSource).toContain('hasTimelineData ? sallaReportChart(timeline)');
     expect(userAppSource).not.toContain('!hasData ? `<section class="card salla-report-connected-empty"');
   });
