@@ -7,6 +7,7 @@ import {
   safeReturnTo
 } from "../../src/shared/auth-portal.js";
 import { sessionCookie } from "../../src/server/session.js";
+import { readFileSync } from "node:fs";
 
 describe("accounts authentication portal", () => {
   it("normalizes transitional verification routes", () => {
@@ -62,5 +63,10 @@ describe("accounts authentication portal", () => {
       if (previous.auth === undefined) delete process.env.AUTH_URL; else process.env.AUTH_URL = previous.auth;
       if (previous.domain === undefined) delete process.env.AUTH_COOKIE_DOMAIN; else process.env.AUTH_COOKIE_DOMAIN = previous.domain;
     }
+  });
+
+  it("keeps authentication static modules on the accounts host", () => {
+    const middlewareSource = readFileSync("middleware.js", "utf8");
+    expect(middlewareSource).toContain("|app/|assets/|data/");
   });
 });
