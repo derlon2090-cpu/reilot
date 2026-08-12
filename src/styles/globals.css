@@ -12617,7 +12617,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .marketing-step-card{
   position:relative;
   display:flex;
-  min-height:214px;
+  min-height:222px;
   align-items:center;
   flex-direction:column;
   padding:55px 22px 24px;
