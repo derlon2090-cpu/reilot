@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { queryMock, auditMock } = vi.hoisted(() => ({
+const { queryMock, auditMock, emailChallengeMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
-  auditMock: vi.fn()
+  auditMock: vi.fn(),
+  emailChallengeMock: vi.fn()
 }));
 
 vi.mock("../../src/server/admin-auth.js", () => ({
@@ -16,9 +19,11 @@ vi.mock("../../src/server/db.js", () => ({
 }));
 vi.mock("../../src/server/password.js", () => ({ verifyPassword: vi.fn(async () => true) }));
 vi.mock("../../src/server/session.js", () => ({
-  createSession: vi.fn(async () => ({ token: "admin-session" })),
-  destroySession: vi.fn(async () => undefined),
-  sessionCookie: () => "renewpilot_session=admin-session; HttpOnly"
+  destroySession: vi.fn(async () => undefined)
+}));
+vi.mock("../../src/server/email-otp-v2.js", () => ({
+  createLoginEmailOtpChallenge: emailChallengeMock,
+  challengeCookie: (value: string) => `renvix_email_otp_challenge=${value}; HttpOnly`
 }));
 
 import { classifyAdminAuthFailure, POST } from "../../app/api/admin/auth/login/route.js";
@@ -27,6 +32,15 @@ describe("admin login identifiers", () => {
   beforeEach(() => {
     queryMock.mockReset();
     auditMock.mockReset();
+    emailChallengeMock.mockReset();
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_OTP_PEPPER = "admin-login-email-otp-pepper-is-long-enough";
+    emailChallengeMock.mockResolvedValue({
+      challengeCookie: "signed-admin-challenge",
+      maskedEmail: "ad•••@renvix.app",
+      expiresAt: new Date(Date.now() + 300_000),
+      resendAt: new Date(Date.now() + 60_000)
+    });
   });
 
   it("accepts the permanent administrator username without weakening credential verification", async () => {
@@ -40,7 +54,8 @@ describe("admin login identifiers", () => {
         adminId: "admin-1",
         adminRole: "super_admin",
         status: "active",
-        mfaEnabled: false,
+        mfaEnabled: true,
+        mfaSecret: "configured-totp-secret",
         expiresAt: null
       }] })
       .mockResolvedValue({ rows: [] });
@@ -51,10 +66,23 @@ describe("admin login identifiers", () => {
       body: JSON.stringify({ email: "renvix_root_7X9K", password: "A-very-strong-password", rememberMe: false })
     }));
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
     expect(queryMock.mock.calls[1][0]).toContain("lower(a.account_id)");
-    expect(auditMock).toHaveBeenCalledWith(expect.any(Request), expect.objectContaining({ action: "admin.login.success" }));
+    expect(emailChallengeMock).toHaveBeenCalledWith(expect.objectContaining({ purpose: "admin_login" }));
+    await expect(response.json()).resolves.toMatchObject({ ok: true, requiresEmailOtp: true });
+  });
+
+  it("never accepts a trusted browser or creates a direct admin session", () => {
+    const source = readFileSync(resolve("app/api/admin/auth/login/route.js"), "utf8");
+    const verificationSource = readFileSync(resolve("src/server/email-otp-v2.js"), "utf8");
+    expect(source).not.toContain("readTrustedBrowserCookie");
+    expect(source).not.toContain("resolveSecondFactor");
+    expect(source).not.toContain("createSession");
+    expect(source).toContain('purpose: "admin_login"');
+    expect(verificationSource).toContain('const adminLogin = parsed.kind === "admin_login"');
+    expect(verificationSource).toContain('? { rawToken: null, expiresAt: null }');
+    expect(verificationSource).toContain('sessionCookieMaxAge: adminLogin ? null : undefined');
   });
 
   it("identifies email OTP provider failures instead of reporting a database outage", () => {

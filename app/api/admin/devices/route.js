@@ -1,5 +1,5 @@
 import { auditAdmin, requireAdminPermission } from "../../../../src/server/admin-auth.js";
-import { createAdminEvolutionDevice, listAdminEvolutionDevices } from "../../../../src/server/admin-evolution-devices.js";
+import { adminEvolutionFailureStatus, createAdminEvolutionDevice, listAdminEvolutionDevices } from "../../../../src/server/admin-evolution-devices.js";
 import { query } from "../../../../src/server/db.js";
 import { sameOriginRequest } from "../../../../src/server/platform-notifications.js";
 import { safeErrorMessage } from "../../../../src/server/security.js";
@@ -46,6 +46,6 @@ export async function POST(request) {
     return Response.json({ ok: true, device }, { status: 201 });
   } catch (error) {
     await auditAdmin(request, { admin: auth.admin, action: "admin.device.created", resource: "platform_admin", status: "failed", metadata: { reason: error?.code || "create_failed" } });
-    return Response.json({ ok: false, reason: error?.code || "device_create_failed", message: safeErrorMessage(error) }, { status: 400 });
+    return Response.json({ ok: false, reason: error?.code || "device_create_failed", message: safeErrorMessage(error) }, { status: adminEvolutionFailureStatus(error) });
   }
 }

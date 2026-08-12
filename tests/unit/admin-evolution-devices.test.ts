@@ -82,6 +82,35 @@ describe("EvolutionAdminAdapter pairing", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/instance/connect/admin_device_01"), expect.objectContaining({ headers: expect.objectContaining({ apikey: "test-key" }) }));
   });
 
+  it("creates a Baileys instance with QR enabled using the Evolution v2 contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ instance: { instanceName: "admin_device_01" } }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new EvolutionAdminAdapter().createInstance({ instanceName: "admin_device_01", phoneNumber: "966512345678" });
+
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const request = calls[0]?.[1];
+    expect(JSON.parse(String(request?.body))).toEqual({
+      instanceName: "admin_device_01",
+      integration: "WHATSAPP-BAILEYS",
+      qrcode: true,
+      number: "966512345678"
+    });
+  });
+
+  it("recreates a missing provider instance before pairing", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ instance: { instanceName: "admin_device_01" } }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await new EvolutionAdminAdapter().ensureInstance({ instanceName: "admin_device_01" });
+
+    expect(result).toMatchObject({ existing: false, recreated: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe("https://evolution.test/instance/create");
+  });
+
   it("extracts a pairing code without logging or persisting it", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ pairingCode: "A8K3-7M2Q" }), { status: 200 })));
     const result = await new EvolutionAdminAdapter().generatePairingCode({ instanceName: "admin_device_01", phoneNumber: "966512345678" });

@@ -6,7 +6,6 @@ import styles from "../admin/AdminPortal.module.css";
 export default function AdminLoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -47,7 +46,7 @@ export default function AdminLoginForm() {
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         cache: "no-store",
-        body: JSON.stringify({ email, password, rememberMe })
+        body: JSON.stringify({ email, password })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -127,7 +126,7 @@ export default function AdminLoginForm() {
           {fieldErrors.password?.[0] ? <small className={styles.fieldError}>{fieldErrors.password[0]}</small> : null}
         </label>
         <div className={styles.loginOptions}>
-          <label className={styles.rememberRow}><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} /> <span>تذكرني على هذا الجهاز</span></label>
+          <span className={styles.rememberRow}>يُطلب رمز بريد جديد عند كل تسجيل دخول</span>
           <a href="/advanced-pro-control/forgot-password">نسيت كلمة المرور؟</a>
         </div>
         <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "جارٍ التحقق..." : "دخول إلى لوحة الأدمن"} <span aria-hidden="true">↲</span></button>

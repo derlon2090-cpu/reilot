@@ -53,6 +53,15 @@ export function isAdminPairingExpired(expiresAt, now = Date.now()) {
   return !Number.isFinite(value) || value <= now;
 }
 
+export function adminEvolutionFailureStatus(error) {
+  const code = String(error?.code || "");
+  if (code === "device_not_found" || code === "EVOLUTION_ADMIN_INSTANCE_NOT_FOUND") return 404;
+  if (code === "EVOLUTION_ADMIN_INSTANCE_EXISTS") return 409;
+  if (["EVOLUTION_ADMIN_NOT_CONFIGURED", "EVOLUTION_ADMIN_AUTH_FAILED"].includes(code)) return 503;
+  if (["EVOLUTION_ADMIN_TIMEOUT", "EVOLUTION_ADMIN_UNREACHABLE", "EVOLUTION_ADMIN_REQUEST_FAILED"].includes(code)) return 502;
+  return 400;
+}
+
 function safePage(value, fallback, max) {
   return Math.min(max, Math.max(1, Number(value) || fallback));
 }
@@ -124,9 +133,22 @@ export async function getAdminEvolutionDevice(deviceId) {
 }
 
 export async function createAdminEvolutionDevice({ displayName, phoneNumber = "", adminId = "" }) {
-  const instanceName = adminInstanceName(adminId);
   const idempotencyKey = crypto.createHash("sha256").update(`${adminId}:${displayName}:${Date.now()}`).digest("hex");
-  await evolutionAdminAdapter.createInstance({ instanceName, phoneNumber, idempotencyKey });
+  let instanceName = "";
+  let providerCreated = false;
+  // Generated names are already unique, but retrying provider-side conflicts
+  // also recovers safely from stale/orphaned Evolution sessions.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    instanceName = adminInstanceName(adminId);
+    try {
+      await evolutionAdminAdapter.createInstance({ instanceName, phoneNumber, idempotencyKey: `${idempotencyKey}:${attempt}` });
+      providerCreated = true;
+      break;
+    } catch (error) {
+      if (error?.code !== "EVOLUTION_ADMIN_INSTANCE_EXISTS" || attempt === 2) throw error;
+    }
+  }
+  if (!providerCreated) throw Object.assign(new Error("Evolution instance could not be created"), { code: "EVOLUTION_ADMIN_CREATE_FAILED" });
   try {
     const inserted = await query(
       `INSERT INTO platform_messaging_channels
@@ -147,12 +169,14 @@ export async function adminEvolutionDeviceAction({ deviceId, action, phoneNumber
   if (!device) throw Object.assign(new Error("Device not found"), { code: "device_not_found" });
   const instanceName = device.instanceName;
   if (action === "qr") {
+    await evolutionAdminAdapter.ensureInstance({ instanceName });
     const result = await evolutionAdminAdapter.getQrCode({ instanceName });
     if (!result.qrCode) throw Object.assign(new Error("QR unavailable"), { code: "qr_unavailable" });
     await query("UPDATE platform_messaging_channels SET status='connecting',last_health_check_at=now(),updated_at=now() WHERE id=$1", [deviceId]);
     return result;
   }
   if (action === "pairing_code") {
+    await evolutionAdminAdapter.ensureInstance({ instanceName, phoneNumber });
     const result = await evolutionAdminAdapter.generatePairingCode({ instanceName, phoneNumber });
     if (!result.pairingCode) throw Object.assign(new Error("Pairing code unavailable"), { code: "pairing_unavailable" });
     await query("UPDATE platform_messaging_channels SET status='connecting',phone_masked=$2,last_health_check_at=now(),updated_at=now() WHERE id=$1", [deviceId, maskAdminDevicePhone(phoneNumber)]);

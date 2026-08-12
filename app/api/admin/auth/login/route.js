@@ -1,21 +1,18 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
-import { databaseFailureReason, query, transaction } from "../../../../../src/server/db.js";
+import { databaseFailureReason, query } from "../../../../../src/server/db.js";
 import { verifyPassword } from "../../../../../src/server/password.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
-import { createSession, destroySession, sessionCookie } from "../../../../../src/server/session.js";
-import { createMfaLoginChallenge, mfaChallengeCookie } from "../../../../../src/server/login-mfa.js";
-import { createLoginEmailOtpChallenge, challengeCookie, readTrustedBrowserCookie } from "../../../../../src/server/email-otp-v2.js";
-import { resolveSecondFactor } from "../../../../../src/server/second-factor-router.js";
+import { destroySession } from "../../../../../src/server/session.js";
+import { createLoginEmailOtpChallenge, challengeCookie } from "../../../../../src/server/email-otp-v2.js";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني أو اسم المستخدم.").refine(
     (value) => isValidEmail(value) || /^[a-zA-Z][a-zA-Z0-9._-]{5,63}$/.test(value),
     "يرجى إدخال بريد إلكتروني أو اسم مستخدم صحيح."
   ),
-  password: z.string().min(1, "يرجى إدخال كلمة المرور."),
-  rememberMe: z.boolean().optional().default(false)
+  password: z.string().min(1, "يرجى إدخال كلمة المرور.")
 });
 
 function adminEmailOtpConfigured() {
@@ -112,88 +109,36 @@ export async function POST(request) {
     return Response.json({ ok: false, reason: "invalid_credentials", message: "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول إلى لوحة الأدمن." }, { status: 401 });
   }
 
-  authStage = "second_factor_routing";
-  const factor = await resolveSecondFactor({
-    user: { id: admin.userId, mfaEnabled: admin.mfaEnabled, mfaSecret: admin.mfaSecret },
-    rawBrowserToken: readTrustedBrowserCookie(request),
-    riskDetected: Number(failures.rows[0]?.count || 0) >= 3
-  });
-  if (factor.method === "totp") {
-    authStage = "mfa_challenge";
-    try {
-      const challenge = await createMfaLoginChallenge({
-        user: { id: admin.userId, tenantId: admin.tenantId }, ipAddress: ip,
-        userAgent: request.headers.get("user-agent"), targetPath: "/admin",
-        loginAttemptId: loginAttempt.rows[0]?.id
-      });
-      return Response.json({ ok: true, requiresMfa: true, expiresAt: challenge.expiresAt }, {
-        status: 202, headers: { "Set-Cookie": mfaChallengeCookie(challenge.challengeCookie) }
-      });
-    } catch (mfaError) {
-      // Never bypass the second factor. If the TOTP challenge store is
-      // temporarily unavailable, require the independently verified email
-      // factor so an administrator can still recover access safely.
-      console.error("admin TOTP challenge unavailable; requiring email fallback", {
-        requestId,
-        code: String(mfaError?.code || "MFA_CHALLENGE_ERROR")
-      });
-      if (!adminEmailOtpConfigured()) throw mfaError;
-      authStage = "email_otp_fallback_challenge";
-      const challenge = await createLoginEmailOtpChallenge({
-        user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
-        ipAddress: ip, userAgent: request.headers.get("user-agent"), purpose: "admin_login",
-        loginAttemptId: loginAttempt.rows[0]?.id
-      });
-      return Response.json({
-        ok: true,
-        requiresEmailOtp: true,
-        fallbackFrom: "totp",
-        maskedEmail: challenge.maskedEmail,
-        expiresAt: challenge.expiresAt,
-        resendAt: challenge.resendAt
-      }, {
-        status: 202, headers: { "Set-Cookie": challengeCookie(challenge.challengeCookie) }
-      });
-    }
-  }
-  if (factor.method === "email_otp") {
-    if (!adminEmailOtpConfigured()) {
-      return Response.json({ ok: false, reason: "email_otp_unavailable", requestId }, {
-        status: 503,
-        headers: { "X-Renvix-Request-Id": requestId }
-      });
-    }
-    authStage = "email_otp_challenge";
-    const challenge = await createLoginEmailOtpChallenge({
-      user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
-      ipAddress: ip, userAgent: request.headers.get("user-agent"), purpose: "admin_login",
-      loginAttemptId: loginAttempt.rows[0]?.id
-    });
-    return Response.json({ ok: true, requiresEmailOtp: true, maskedEmail: challenge.maskedEmail, expiresAt: challenge.expiresAt, resendAt: challenge.resendAt }, {
-      status: 202, headers: { "Set-Cookie": challengeCookie(challenge.challengeCookie) }
+  // Administrator access is deliberately stricter than the customer portal:
+  // every credential sign-in must complete a fresh email OTP challenge. A
+  // remembered browser, TOTP preference, or previous session may never bypass
+  // this gate.
+  if (!adminEmailOtpConfigured()) {
+    return Response.json({ ok: false, reason: "email_otp_unavailable", requestId }, {
+      status: 503,
+      headers: { "X-Renvix-Request-Id": requestId }
     });
   }
-  if (factor.method === "unavailable") {
-    return Response.json({ ok: false, reason: "second_factor_unavailable" }, { status: 503 });
-  }
-
-  authStage = "session_creation";
+  authStage = "session_invalidation";
   await destroySession(request);
-  const maxAgeSeconds = parsed.data.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
-  const session = await transaction(async (client) => {
-    const created = await createSession(client, { userId: admin.userId, ipAddress: ip, userAgent: request.headers.get("user-agent"), maxAgeSeconds });
-    await client.query(
-      "UPDATE admin_users SET last_login_at = now(), last_login_ip = $2, updated_at = now() WHERE id = $1",
-      [admin.adminId, ip || null]
-    );
-    return created;
+  authStage = "email_otp_challenge";
+  const challenge = await createLoginEmailOtpChallenge({
+    user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
+    ipAddress: ip,
+    userAgent: request.headers.get("user-agent"),
+    purpose: "admin_login",
+    loginAttemptId: loginAttempt.rows[0]?.id
   });
-  await auditAdmin(request, { admin, action: "admin.login.success", resource: "admin_portal", metadata: { role: admin.adminRole } });
-    return Response.json({
-      ok: true,
-      redirectUrl: "/admin",
-      admin: { name: admin.name, email: admin.email, role: admin.adminRole }
-    }, { headers: { "Set-Cookie": sessionCookie(session.token, parsed.data.rememberMe ? maxAgeSeconds : null) } });
+  return Response.json({
+    ok: true,
+    requiresEmailOtp: true,
+    maskedEmail: challenge.maskedEmail,
+    expiresAt: challenge.expiresAt,
+    resendAt: challenge.resendAt
+  }, {
+    status: 202,
+    headers: { "Set-Cookie": challengeCookie(challenge.challengeCookie) }
+  });
   } catch (error) {
     if (error && typeof error === "object" && !error.authStage) error.authStage = authStage;
     const failure = classifyAdminAuthFailure(error);

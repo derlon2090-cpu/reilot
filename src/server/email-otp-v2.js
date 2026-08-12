@@ -292,7 +292,7 @@ export async function getEmailOtpStatus(rawCookie) {
     expiresAt: challenge.expires_at,
     resendAt: new Date(new Date(challenge.last_sent_at).getTime() + EMAIL_OTP_RESEND_SECONDS * 1000),
     attemptsRemaining: Math.max(0, Number(challenge.max_attempts) - Number(challenge.attempts)),
-    trustedBrowserHours: 48
+    trustedBrowserHours: challenge.challengeKind === "admin_login" ? 0 : 48
   };
 }
 
@@ -405,14 +405,29 @@ export async function verifyEmailOtp({ rawCookie, code, ipAddress, userAgent, ex
     const verified = await verifyLockedChallenge(client, row, parsed.id, "auth_email_otp_challenges", normalizedCode);
     if (!verified.ok) return verified;
     await client.query("UPDATE auth_email_otp_challenges SET consumed_at=now(),updated_at=now() WHERE id=$1", [parsed.id]);
-    const browser = await trustBrowserForUser({ userId: row.user_id, tenantId: row.tenant_id, rawToken: existingBrowserToken, ipAddress, userAgent, client });
-    const session = await createSession(client, { userId: row.user_id, ipAddress, userAgent });
-    await audit(client, { tenantId: row.tenant_id, userId: row.user_id, type: "auth.email_otp.verified", title: "Email OTP verified", metadata: { purpose: row.purpose, trustedBrowserHours: trustedBrowserEnabled() ? 48 : 0 } });
+    const adminLogin = parsed.kind === "admin_login";
+    const browser = adminLogin
+      ? { rawToken: null, expiresAt: null }
+      : await trustBrowserForUser({ userId: row.user_id, tenantId: row.tenant_id, rawToken: existingBrowserToken, ipAddress, userAgent, client });
+    if (adminLogin) {
+      await client.query(
+        "UPDATE admin_users SET last_login_at=now(),last_login_ip=$2,updated_at=now() WHERE user_id=$1 AND status='active'",
+        [row.user_id, ipAddress || null]
+      );
+    }
+    const session = await createSession(client, {
+      userId: row.user_id,
+      ipAddress,
+      userAgent,
+      ...(adminLogin ? { maxAgeSeconds: 12 * 60 * 60 } : {})
+    });
+    await audit(client, { tenantId: row.tenant_id, userId: row.user_id, type: "auth.email_otp.verified", title: "Email OTP verified", metadata: { purpose: parsed.kind, trustedBrowserHours: adminLogin ? 0 : trustedBrowserEnabled() ? 48 : 0 } });
     return {
       ok: true,
       status: 200,
       user: { id: row.user_id, tenantId: row.tenant_id, email: row.email, name: row.name, role: row.role, mustChangePassword: row.mustChangePassword },
       session,
+      sessionCookieMaxAge: adminLogin ? null : undefined,
       trustedToken: browser.rawToken,
       trustedUntil: browser.expiresAt,
       redirectUrl: parsed.kind === "admin_login" ? "/admin" : "/dashboard"

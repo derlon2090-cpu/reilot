@@ -549,6 +549,20 @@ function AdminDeviceStatus({ device }) {
   return <span className={`${styles.adminDeviceStatus} ${styles[`adminDeviceStatus_${device.status}`] || ""}`}><i />{device.statusLabel}</span>;
 }
 
+function adminEvolutionErrorMessage(error, operation = "action") {
+  if (error?.reason === "rate_limited") return "تم بلوغ حد المحاولات المؤقت. حاول لاحقًا.";
+  if (error?.reason === "EVOLUTION_ADMIN_NOT_CONFIGURED") return "إعداد Evolution غير مكتمل في الخادم. أضف رابط الخدمة ومفتاح API ثم أعد المحاولة.";
+  if (error?.reason === "EVOLUTION_ADMIN_AUTH_FAILED") return "رفض خادم Evolution مفتاح API. تحقق من المفتاح المخصص للخادم.";
+  if (error?.reason === "EVOLUTION_ADMIN_TIMEOUT") return "تأخر خادم Evolution عن الاستجابة. أعد المحاولة بعد لحظات.";
+  if (error?.reason === "EVOLUTION_ADMIN_UNREACHABLE") return "لا يمكن الوصول إلى خادم Evolution من المنصة حاليًا.";
+  if (error?.reason === "EVOLUTION_ADMIN_INVALID_REQUEST" || error?.reason === "EVOLUTION_ADMIN_INVALID_PHONE") return "بيانات الجهاز أو رقم الهاتف غير صالحة لخادم Evolution.";
+  if (error?.reason === "qr_unavailable") return "أنشأ Evolution الجلسة، لكنه لم يُرجع رمز QR. اضغط تحديث الرمز.";
+  if (error?.reason === "pairing_unavailable") return "أنشأ Evolution الجلسة، لكنه لم يُرجع كود الاقتران. تحقق من الرقم وأعد المحاولة.";
+  return operation === "create"
+    ? "تعذر إنشاء جلسة Evolution حاليًا. راجع اتصال الخادم ثم أعد المحاولة."
+    : "تعذر تنفيذ العملية على خادم Evolution حاليًا.";
+}
+
 function Devices() {
   const [payload, setPayload] = useState({ devices: [], pagination: { page: 1, pageSize: 20, total: 0 } });
   const [search, setSearch] = useState("");
@@ -635,7 +649,7 @@ function Devices() {
       }
       return result;
     } catch (actionError) {
-      setNotice(actionError.reason === "rate_limited" ? "تم بلوغ حد المحاولات المؤقت. حاول لاحقًا." : "تعذر تنفيذ العملية. تحقق من إعداد Evolution وحالة الاتصال.");
+      setNotice(adminEvolutionErrorMessage(actionError));
       return null;
     } finally {
       setBusy("");
@@ -660,8 +674,8 @@ function Devices() {
       await runAction(result.device, pairingAction, pairingAction === "pairing_code" ? { phoneNumber: createForm.phoneNumber } : {});
       setCreateForm({ displayName: "", phoneNumber: "", method: "qr" });
       await loadDevices();
-    } catch {
-      setNotice("تعذر إنشاء الجهاز. تحقق من إعداد Evolution وعدم تكرار الجلسة.");
+    } catch (createError) {
+      setNotice(adminEvolutionErrorMessage(createError, "create"));
     } finally {
       setBusy("");
     }

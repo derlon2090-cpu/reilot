@@ -35,8 +35,24 @@ async function evolutionAdminRequest(path, init = {}) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(`Evolution Admin request failed (${response.status})`);
-    error.code = response.status === 401 || response.status === 403 ? "EVOLUTION_ADMIN_AUTH_FAILED" : "EVOLUTION_ADMIN_REQUEST_FAILED";
+    const providerMessage = [body?.message, body?.error, body?.response?.message]
+      .flat()
+      .filter(Boolean)
+      .map(String)
+      .join(" ")
+      .slice(0, 500);
+    const duplicate = response.status === 409 || /already exists|already in use|duplicate|instance.*exist/i.test(providerMessage);
+    error.code = response.status === 401 || response.status === 403
+      ? "EVOLUTION_ADMIN_AUTH_FAILED"
+      : duplicate
+        ? "EVOLUTION_ADMIN_INSTANCE_EXISTS"
+        : response.status === 404
+          ? "EVOLUTION_ADMIN_INSTANCE_NOT_FOUND"
+          : response.status === 422
+            ? "EVOLUTION_ADMIN_INVALID_REQUEST"
+            : "EVOLUTION_ADMIN_REQUEST_FAILED";
     error.status = response.status;
+    error.providerReason = providerMessage;
     throw error;
   }
   return body;
@@ -84,21 +100,51 @@ export class EvolutionAdminAdapter {
   async createInstance({ instanceName, phoneNumber = "", idempotencyKey = "" }) {
     const name = cleanInstanceName(instanceName);
     const number = cleanPhone(phoneNumber);
-    const webhook = adminWebhookConfig();
     const created = await evolutionAdminRequest("/instance/create", {
       method: "POST",
       headers: idempotencyKey ? { "Idempotency-Key": String(idempotencyKey).slice(0, 120) } : {},
       body: JSON.stringify({
         instanceName: name,
         integration: "WHATSAPP-BAILEYS",
-        qrcode: false,
-        ...(number ? { number } : {}),
-        ...(webhook ? { webhook } : {})
+        qrcode: true,
+        ...(number ? { number } : {})
       }),
       timeoutMs: 20_000
     });
-    if (webhook) await this.configureWebhook({ instanceName: name });
-    return created;
+    // Webhook configuration is a separate Evolution v2 operation. A temporary
+    // webhook failure must not discard a valid WhatsApp instance or prevent
+    // the administrator from completing QR/pairing-code setup.
+    const webhook = adminWebhookConfig();
+    if (!webhook) return created;
+    try {
+      await this.configureWebhook({ instanceName: name });
+      return { ...created, webhookConfigured: true };
+    } catch (error) {
+      console.warn("Evolution Admin instance created; webhook setup deferred", {
+        instanceName: name,
+        code: String(error?.code || "EVOLUTION_ADMIN_WEBHOOK_FAILED")
+      });
+      return { ...created, webhookConfigured: false };
+    }
+  }
+
+  async ensureInstance({ instanceName, phoneNumber = "" }) {
+    const name = cleanInstanceName(instanceName);
+    try {
+      const existing = await this.fetchInstanceDetails({ instanceName: name });
+      if (existing) return { existing: true, instance: existing };
+    } catch (error) {
+      if (error?.code !== "EVOLUTION_ADMIN_INSTANCE_NOT_FOUND") throw error;
+    }
+    try {
+      const created = await this.createInstance({ instanceName: name, phoneNumber });
+      return { existing: false, recreated: true, instance: created };
+    } catch (error) {
+      // Another request may have healed the same record between the lookup and
+      // create operations. Treat the provider's duplicate response as success.
+      if (error?.code === "EVOLUTION_ADMIN_INSTANCE_EXISTS") return { existing: true, raced: true };
+      throw error;
+    }
   }
 
   connectInstance({ instanceName, phoneNumber = "" }) {
@@ -146,7 +192,7 @@ export class EvolutionAdminAdapter {
     if (!webhook) return Promise.resolve({ skipped: true, reason: "webhook_not_configured" });
     return evolutionAdminRequest(`/webhook/set/${encodeURIComponent(cleanInstanceName(instanceName))}`, {
       method: "POST",
-      body: JSON.stringify(webhook)
+      body: JSON.stringify({ webhook })
     });
   }
 

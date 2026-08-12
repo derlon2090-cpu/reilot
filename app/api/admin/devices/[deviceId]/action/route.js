@@ -1,5 +1,5 @@
 import { auditAdmin, requireAdminPermission } from "../../../../../../src/server/admin-auth.js";
-import { adminEvolutionDeviceAction } from "../../../../../../src/server/admin-evolution-devices.js";
+import { adminEvolutionDeviceAction, adminEvolutionFailureStatus } from "../../../../../../src/server/admin-evolution-devices.js";
 import { query } from "../../../../../../src/server/db.js";
 import { sameOriginRequest } from "../../../../../../src/server/platform-notifications.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
@@ -27,6 +27,6 @@ export async function POST(request, { params }) {
     return Response.json({ ok: true, ...result }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     await auditAdmin(request, { admin: auth.admin, action: `admin.device.${action}`, resource: deviceId, status: "failed", metadata: { reason: error?.code || "action_failed" } });
-    return Response.json({ ok: false, reason: error?.code || "device_action_failed", message: safeErrorMessage(error) }, { status: error?.code === "device_not_found" ? 404 : 400 });
+    return Response.json({ ok: false, reason: error?.code || "device_action_failed", message: safeErrorMessage(error) }, { status: adminEvolutionFailureStatus(error) });
   }
 }

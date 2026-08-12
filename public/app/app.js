@@ -3164,14 +3164,15 @@ function collectEmailOtpCode(form) {
 
 function emailOtpPage() {
   const statusData = state.emailOtpStatus;
+  const adminVerification = statusData?.purpose === "admin_login";
   if (statusData?.error) {
-    return authSuiteFrame(`<section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-link="/login">العودة إلى تسجيل الدخول</button></section>`, "email-otp-page");
+    return authSuiteFrame(`<section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-link="${adminVerification ? "/advanced-pro-control" : "/login"}">العودة إلى تسجيل الدخول</button></section>`, "email-otp-page");
   }
   const maskedEmail = statusData?.maskedEmail || "جارٍ التحقق من طلب تسجيل الدخول...";
   const signupVerification = statusData?.purpose === "signup" || statusData?.purpose === "registration";
   const digitInputs = Array.from({ length: 6 }, (_, index) => `<input class="email-otp-digit" name="digit${index}" data-otp-digit="${index}" inputmode="numeric" pattern="[0-9٠-٩۰-۹]*" autocomplete="${index === 0 ? "one-time-code" : "off"}" maxlength="${index === 0 ? 6 : 1}" aria-label="الرقم ${index + 1} من رمز التحقق" ${statusData ? "" : "disabled"}>`).join("");
   return authSuiteFrame(`<section class="email-otp-shell auth-suite-shell auth-suite-otp">
-    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("email")}</span><h1>تحقق من بريدك الإلكتروني</h1><p>أرسلنا رمز تحقق إلى بريدك الإلكتروني المسجل${signupVerification ? " لتوثيق البريد وإكمال إنشاء الحساب" : " لإكمال تسجيل الدخول"}.</p></div><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><p class="email-otp-remember">بعد نجاح التحقق سيُوثق هذا المتصفح لمدة 48 ساعة ثابتة.</p><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق ومتابعة ${dashboardIcon("arrow-left")}</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div></div></article>
+    <article class="email-otp-panel"><span class="email-otp-secure-badge">${dashboardIcon("security")} تحقق آمن</span><div class="email-otp-panel-grid"><div class="email-otp-content">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("email")}</span><h1>تحقق من بريدك الإلكتروني</h1><p>أرسلنا رمز تحقق إلى بريدك الإلكتروني المسجل${signupVerification ? " لتوثيق البريد وإكمال إنشاء الحساب" : " لإكمال تسجيل الدخول"}.</p></div><label class="field email-otp-email"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(maskedEmail)}" readonly aria-label="البريد الإلكتروني المخفي"></label><form data-submit="email-otp" class="email-otp-form" novalidate><label>رمز التحقق (6 أرقام)</label><div class="email-otp-digits" dir="rtl">${digitInputs}</div><div class="email-otp-resend-row"><span>${dashboardIcon("clock")} <span data-otp-countdown>يمكن إعادة الإرسال بعد قليل</span></span><button type="button" class="link-button" data-action="email-otp-resend" disabled>إعادة إرسال الرمز ${dashboardIcon("send")}</button></div><p class="email-otp-remember">${adminVerification ? "سيُطلب رمز جديد عند كل تسجيل دخول إلى لوحة الإدارة." : "بعد نجاح التحقق سيُوثق هذا المتصفح لمدة 48 ساعة ثابتة."}</p><button class="btn btn-primary email-otp-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق ومتابعة ${dashboardIcon("arrow-left")}</button><button class="btn btn-secondary" type="button" data-action="email-otp-cancel">العودة إلى تسجيل الدخول</button></form><p class="email-otp-help">لم يصلك الرمز؟ <button class="link-button" data-action="email-otp-help">تحقق من البريد غير الهام</button></p></div></div></article>
     <aside class="email-otp-visual auth-suite-email-visual">${authReferenceVisual(signupVerification ? "signupOtp" : "loginOtp")}</aside>
   </section>`, "email-otp-page");
 }
@@ -8386,9 +8387,10 @@ async function handleAction(target) {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
   if (action === "email-otp-cancel") {
+    const returnPath = state.emailOtpStatus?.purpose === "admin_login" ? "/advanced-pro-control" : "/login";
     state.emailOtpStatus = null;
     void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
-    return navigate("/login");
+    return navigate(returnPath);
   }
   if (action === "mfa-login-cancel") {
     state.mfaLoginStatus = null;

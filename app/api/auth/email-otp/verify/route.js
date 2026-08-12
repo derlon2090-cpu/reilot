@@ -29,7 +29,7 @@ export async function POST(req) {
       );
     }
     const headers = new Headers();
-    headers.append("Set-Cookie", sessionCookie(result.session.token));
+    headers.append("Set-Cookie", sessionCookie(result.session.token, result.sessionCookieMaxAge));
     headers.append("Set-Cookie", clearChallengeCookie());
     if (result.trustedToken) headers.append("Set-Cookie", trustedDeviceCookie(result.trustedToken));
     return Response.json({ ok: true, user: result.user, redirectUrl: result.redirectUrl, trustedUntil: result.trustedUntil }, { headers });
