@@ -51,6 +51,13 @@ describe("admin Evolution device presentation", () => {
     expect(source).toContain('await runAction(result.device, pairingAction');
   });
 
+  it("keeps QR and pairing action icons compact inside their buttons", () => {
+    const css = readFileSync(resolve("src/components/admin/AdminPortal.module.css"), "utf8");
+    expect(css).toContain(".adminQrPanel > .adminPrimaryButton svg");
+    expect(css).toContain(".adminPairingCodePanel > .adminPrimaryButton svg");
+    expect(css).toMatch(/\.adminPairingCodePanel\s*>\s*\.adminPrimaryButton svg\s*\{[^}]*width:\s*18px;[^}]*height:\s*18px;[^}]*flex:\s*0 0 18px;/s);
+  });
+
   it("does not persist QR images or pairing codes in the admin device service", () => {
     const source = readFileSync(resolve("src/server/admin-evolution-devices.js"), "utf8");
     expect(source).not.toMatch(/qr_code_cache\s*=\s*\$|pairing_code\s*=\s*\$/);

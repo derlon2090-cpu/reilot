@@ -2569,6 +2569,10 @@
 .adminQrPanel,.adminPairingCodePanel { display: grid; gap: 14px; }
 .adminQrPanel > img { width: min(320px, 100%); aspect-ratio: 1; margin: 0 auto; padding: 12px; object-fit: contain; border: 1px solid #E8F1F0; border-radius: 14px; }
 .adminQrPanel > strong { color: #0B3F3B; text-align: center; font-size: 12px; }
+.adminQrPanel > .adminPrimaryButton,
+.adminPairingCodePanel > .adminPrimaryButton { width: 100%; min-height: 44px; }
+.adminQrPanel > .adminPrimaryButton svg,
+.adminPairingCodePanel > .adminPrimaryButton svg { width: 18px; height: 18px; flex: 0 0 18px; display: block; }
 .adminQrPlaceholder { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 10px; color: #7b8ba3; background: #F3F8F7; border: 1px dashed #E8F1F0; border-radius: 14px; }
 .adminQrPlaceholder svg { width: 44px; height: 44px; color: #0B3F3B; }
 .adminPairingCode { padding: 18px; display: grid; place-items: center; gap: 9px; background: #F3F8F7; border: 1px solid #E8F1F0; border-radius: 12px; }
