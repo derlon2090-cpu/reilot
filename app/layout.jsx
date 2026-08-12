@@ -19,12 +19,14 @@ export default function RootLayout({ children }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__RENVIX_CONFIG__=${JSON.stringify({
+              appUrl: process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://renvix.app" : "http://localhost:3000"),
+              authUrl: process.env.AUTH_URL || process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://renvix.app" : "http://localhost:3000"),
               metaWhatsAppEnabled: Boolean(process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL),
               metaWhatsAppConnectUrl: process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL || ""
             }).replace(/</g, "\\u003c")};`
           }}
         />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(!window.matchMedia('(min-width:744px)').matches)return;var p=location.pathname;var m={'/login':['dashboard-v2.png'],'/register':['dashboard-v2.png'],'/forgot-password':['reset-v2.png'],'/reset-password':['reset-v2.png'],'/auth/verify-mfa':['mfa-v2.png'],'/auth/verify-email':['signup-otp-v2.png','login-otp-v2.png']};(m[p]||[]).forEach(function(n){var l=document.createElement('link');l.rel='preload';l.as='image';l.fetchPriority='high';l.href='/app/assets/auth-reference/'+n+'?v=20260810-auth-art-v29';l.dataset.authReferencePreload='true';document.head.appendChild(l)})}catch(e){}})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(!window.matchMedia('(min-width:744px)').matches)return;var p=location.pathname;var m={'/login':['dashboard-v2.png'],'/register':['dashboard-v2.png'],'/forgot-password':['reset-v2.png'],'/reset-password':['reset-v2.png'],'/verify-mfa':['mfa-v2.png'],'/verify-email':['signup-otp-v2.png','login-otp-v2.png'],'/auth/verify-mfa':['mfa-v2.png'],'/auth/verify-email':['signup-otp-v2.png','login-otp-v2.png']};(m[p]||[]).forEach(function(n){var l=document.createElement('link');l.rel='preload';l.as='image';l.fetchPriority='high';l.href='/app/assets/auth-reference/'+n+'?v=20260812-auth-dark-v100';l.dataset.authReferencePreload='true';document.head.appendChild(l)})}catch(e){}})();` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -33,7 +35,7 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-complete-backlog-v101" />
-        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260811-auth-independent-v80" />
+        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-complete-backlog-v101" />
       </head>
       <body>
         {children}

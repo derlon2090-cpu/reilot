@@ -11,7 +11,7 @@ describe("site-wide dark theme system", () => {
     ]);
 
     for (const markup of [layout, index]) {
-      expect(markup).toContain("/app/styles/dark-system.css?v=20260811-auth-independent-v80");
+      expect(markup).toContain("/app/styles/dark-system.css?v=20260812-complete-backlog-v101");
       expect(markup.indexOf("globals.css")).toBeLessThan(markup.indexOf("dark-system.css"));
     }
   });
@@ -29,9 +29,10 @@ describe("site-wide dark theme system", () => {
     expect(css).toContain(".dashboard-main .suite-quick-center button>svg");
     expect(css).toContain(".dashboard-main .campaign-channel-choice.is-selected");
     expect(css).toContain(".dashboard-shell :is(.sidebar-brand,.sidebar-brand .brand,.sidebar .brand)");
-    expect(css).toContain(".auth-showcase-art");
-    expect(css).toContain('.auth-suite-page[data-auth-theme="dark"] .auth-showcase-art');
-    expect(css).not.toContain(':root[data-theme="dark"] .auth-suite-page[data-auth-theme="dark"] .auth-showcase-art');
+    const authCss = await readFile(`${root}/src/styles/globals.css`, "utf8");
+    expect(authCss).toContain("Canonical accounts.renvix.app dark theme");
+    expect(authCss).toContain('.auth-suite-page[data-auth-theme="dark"] .auth-showcase-art');
+    expect(css).not.toContain('background:radial-gradient(circle at 50% 48%,#f8fcfb');
   });
 
   it("uses the transparent logo assets in dark mode", async () => {

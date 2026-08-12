@@ -665,7 +665,7 @@ function readAuthDisplayPreference(key, fallback, allowed) {
 }
 
 const state = {
-  route: location.pathname,
+  route: ({ "/auth/verify-email": "/verify-email", "/auth/verify-mfa": "/verify-mfa" })[location.pathname] || location.pathname,
   query: new URLSearchParams(location.search),
   navOpen: false,
   sidebarOpen: false,
@@ -1364,6 +1364,7 @@ async function navigate(to, { sessionVerified = false } = {}) {
       url.search = "";
       appToast.warning("غيّر كلمة المرور المؤقتة", { description: "لحماية حسابك، يجب تعيين كلمة مرور جديدة قبل استخدام المنصة.", id: "must-change-password" });
     }
+    if (leaveAuthPortal(url.pathname + url.search)) return;
   }
   history.pushState({}, "", url.pathname + url.search);
   state.route = url.pathname;
@@ -1386,7 +1387,8 @@ async function navigate(to, { sessionVerified = false } = {}) {
 
 async function enterDashboardAfterSessionVerification() {
   if (!await browserSessionIsValid()) return false;
-  const destination = state.mustChangePassword ? "/dashboard/settings" : "/dashboard";
+  const destination = state.mustChangePassword ? "/dashboard/settings" : safeAuthReturnTo(state.query.get("returnTo"));
+  if (leaveAuthPortal(destination)) return true;
   history.pushState({}, "", destination);
   state.route = destination;
   state.query = new URLSearchParams();
@@ -1397,6 +1399,26 @@ async function enterDashboardAfterSessionVerification() {
   state.search = "";
   render();
   if (state.mustChangePassword) appToast.warning("غيّر كلمة المرور المؤقتة", { description: "لحماية حسابك، يجب تعيين كلمة مرور جديدة قبل استخدام المنصة.", id: "must-change-password", persistent: true });
+  return true;
+}
+
+function safeAuthReturnTo(value) {
+  const candidate = String(value || "").trim();
+  const path = candidate.split("?")[0];
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//") || path.startsWith("/auth/") || ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/verify-mfa", "/recovery"].includes(path)) return "/dashboard";
+  try {
+    const parsed = new URL(candidate, "https://renvix.app");
+    return parsed.origin === "https://renvix.app" ? `${parsed.pathname}${parsed.search}${parsed.hash}` : "/dashboard";
+  } catch { return "/dashboard"; }
+}
+
+function leaveAuthPortal(destination) {
+  const config = window.__RENVIX_CONFIG__ || {};
+  if (!config.appUrl || !config.authUrl || config.appUrl === config.authUrl) return false;
+  let authOrigin;
+  try { authOrigin = new URL(config.authUrl).origin; } catch { return false; }
+  if (location.origin !== authOrigin) return false;
+  location.assign(new URL(destination, config.appUrl).toString());
   return true;
 }
 
@@ -3036,43 +3058,43 @@ function prioritizeAuthReference(source) {
 function authReferenceVisual(kind) {
   const showcases = {
     login: {
-      title: "منصة ذكية لإدارة الاشتراكات والتجديدات",
-      description: "تابع اشتراكاتك، بسّط عملياتك، واتخذ قرارات أفضل لنمو عملك.",
+      title: localizedCopy("منصة ذكية لإدارة الاشتراكات والتجديدات", "Smart subscription and renewal management"),
+      description: localizedCopy("تابع اشتراكاتك، بسّط عملياتك، واتخذ قرارات أفضل لنمو عملك.", "Track subscriptions, streamline operations, and make better decisions for growth."),
       scene: "login",
       note: "لوحة تحكم متكاملة تمنحك رؤية واضحة لعملك وتساعدك على اتخاذ قرارات أفضل.",
       icon: "reports"
     },
     register: {
-      title: "منصة ذكية لإدارة الاشتراكات والتجديدات",
-      description: "أنشئ حسابك وابدأ بتنظيم اشتراكاتك وتجديدات عملائك بسهولة.",
+      title: localizedCopy("منصة ذكية لإدارة الاشتراكات والتجديدات", "Smart subscription and renewal management"),
+      description: localizedCopy("أنشئ حسابك وابدأ بتنظيم اشتراكاتك وتجديدات عملائك بسهولة.", "Create your account and organize customer subscriptions and renewals with ease."),
       scene: "register",
       note: "ابدأ اليوم بلوحة واضحة تجمع الاشتراكات والتجديدات والتنبيهات في مكان واحد.",
       icon: "star"
     },
     reset: {
-      title: "استعادة الوصول بسهولة",
-      description: "خطوة سريعة وآمنة لإرجاع الوصول إلى حسابك ومتابعة إدارة اشتراكاتك.",
+      title: localizedCopy("استعادة الوصول بسهولة", "Recover access with ease"),
+      description: localizedCopy("خطوة سريعة وآمنة لإرجاع الوصول إلى حسابك ومتابعة إدارة اشتراكاتك.", "A quick, secure step to regain access and continue managing your subscriptions."),
       scene: "reset",
       note: "صُممت عملية الاستعادة بحماية عالية لضمان سرية حسابك وأمان بياناتك.",
       icon: "security"
     },
     mfa: {
-      title: "المصادقة الثنائية تحمي حسابك",
-      description: "طبقة حماية إضافية تمنح حسابك أمانًا أعلى قبل الوصول إلى المنصة.",
+      title: localizedCopy("المصادقة الثنائية تحمي حسابك", "Two-factor authentication protects your account"),
+      description: localizedCopy("طبقة حماية إضافية تمنح حسابك أمانًا أعلى قبل الوصول إلى المنصة.", "An extra layer of protection before you access the platform."),
       scene: "mfa",
       note: "حتى عند معرفة كلمة مرورك، لن يتمكن أحد من الدخول دون رمز التحقق.",
       icon: "security"
     },
     signupOtp: {
-      title: "فعّل حسابك بثقة",
-      description: "تأكيد البريد الإلكتروني يضمن أمان الحساب وبدء استخدام المنصة مباشرة.",
+      title: localizedCopy("فعّل حسابك بثقة", "Activate your account with confidence"),
+      description: localizedCopy("تأكيد البريد الإلكتروني يضمن أمان الحساب وبدء استخدام المنصة مباشرة.", "Email verification protects your account and gets you started securely."),
       scene: "signupOtp",
       note: "تأكيد سريع، حماية متقدمة، وبداية آمنة لاستخدام حسابك.",
       icon: "email"
     },
     loginOtp: {
-      title: "تسجيل دخول آمن وموثوق",
-      description: "نضيف خطوة تحقق لحماية حسابك قبل الوصول إلى لوحة التحكم.",
+      title: localizedCopy("تسجيل دخول آمن وموثوق", "Secure and trusted sign-in"),
+      description: localizedCopy("نضيف خطوة تحقق لحماية حسابك قبل الوصول إلى لوحة التحكم.", "We add a verification step before granting access to your dashboard."),
       scene: "loginOtp",
       note: "تجربة موثوقة تحافظ على بياناتك وتمنحك حماية متقدمة.",
       icon: "security"
@@ -3198,7 +3220,7 @@ async function loadMfaLoginStatus(force = false) {
     state.mfaLoginStatus = { error: "تعذر الاتصال بخدمة التحقق. حاول مرة أخرى بعد قليل." };
   } finally {
     state.mfaLoginLoading = false;
-    if (state.route === "/auth/verify-mfa") render();
+    if (state.route === "/verify-mfa") render();
   }
 }
 
@@ -3215,12 +3237,12 @@ async function loadEmailOtpStatus(force = false) {
     state.emailOtpStatus = { error: "تعذر الاتصال بخدمة التحقق. حاول مرة أخرى بعد قليل." };
   } finally {
     state.emailOtpLoading = false;
-    if (state.route === "/auth/verify-email") render();
+    if (state.route === "/verify-email") render();
   }
 }
 
 function updateEmailOtpCountdown() {
-  if (state.route !== "/auth/verify-email" || !state.emailOtpStatus?.resendAt) return;
+  if (state.route !== "/verify-email" || !state.emailOtpStatus?.resendAt) return;
   const countdown = document.querySelector("[data-otp-countdown]");
   const button = document.querySelector('[data-action="email-otp-resend"]');
   const seconds = Math.max(0, Math.ceil((new Date(state.emailOtpStatus.resendAt).getTime() - Date.now()) / 1000));
@@ -10208,7 +10230,8 @@ async function handleSubmit(form, event) {
           attemptsRemaining: payload.attemptsRemaining
         };
         setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
-        history.pushState({}, "", "/auth/verify-mfa");
+        history.pushState({}, "", "/verify-mfa");
+        state.route = "/verify-mfa";
         render();
         requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]')?.focus());
         appToast.info("أدخل رمز تطبيق المصادقة", {
@@ -10226,7 +10249,8 @@ async function handleSubmit(form, event) {
           attemptsRemaining: 5
         };
         setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
-        history.pushState({}, "", "/auth/verify-email");
+        history.pushState({}, "", "/verify-email");
+        state.route = "/verify-email";
         render();
         requestAnimationFrame(() => document.querySelector('[data-otp-digit="0"]')?.focus());
         appToast.info("أرسلنا رمز التحقق إلى بريدك", {
@@ -10387,7 +10411,8 @@ async function handleSubmit(form, event) {
           resendAt: payload.resendAt,
           attemptsRemaining: 5
         };
-        history.pushState({}, "", "/auth/verify-email");
+        history.pushState({}, "", "/verify-email");
+        state.route = "/verify-email";
         render();
         requestAnimationFrame(() => document.querySelector('[data-otp-digit="0"]')?.focus());
         appToast.info("أرسلنا رمز توثيق البريد", { description: "أدخل الرمز لإكمال إنشاء الحساب بأمان.", id: "signup-email-otp" });
@@ -10981,8 +11006,9 @@ function render() {
     "/register": authPublicPage,
     "/forgot-password": forgotPublicPage,
     "/reset-password": forgotPublicPage,
-    "/auth/verify-email": emailOtpPage,
-    "/auth/verify-mfa": mfaLoginPage,
+    "/verify-email": emailOtpPage,
+    "/verify-mfa": mfaLoginPage,
+    "/recovery": mfaLoginPage,
     "/privacy": policyPage,
     "/terms": policyPage,
     "/refund-policy": policyPage
@@ -10998,7 +11024,7 @@ function render() {
         : state.route.startsWith("/o/")
           ? publicOrderPage
           : pages[state.route] || marketingHomePage;
-  const authRoute = ["/login", "/register", "/forgot-password", "/reset-password", "/auth/verify-email", "/auth/verify-mfa"].includes(state.route);
+  const authRoute = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/verify-mfa", "/recovery"].includes(state.route);
   const siteLanguage = state.language;
   if (authRoute) state.language = state.authDisplayLanguage;
   app.innerHTML = page();
@@ -11006,14 +11032,14 @@ function render() {
   if (authRoute) state.language = siteLanguage;
   ensurePasswordToggles();
   requestAnimationFrame(() => initMarketingMotion());
-  if (state.route === "/auth/verify-email") {
+  if (state.route === "/verify-email") {
     if (!state.emailOtpStatus) queueMicrotask(() => loadEmailOtpStatus());
     requestAnimationFrame(() => {
       updateEmailOtpCountdown();
       document.querySelector('[data-otp-digit="0"]:not([disabled])')?.focus();
     });
   }
-  if (state.route === "/auth/verify-mfa") {
+  if (state.route === "/verify-mfa") {
     if (!state.mfaLoginStatus) queueMicrotask(() => loadMfaLoginStatus());
     requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]:not([disabled])')?.focus());
   }

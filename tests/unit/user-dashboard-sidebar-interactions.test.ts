@@ -31,8 +31,11 @@ describe("user dashboard desktop sidebar interactions", () => {
   });
 
   it("keeps active navigation deep teal and respects reduced motion", () => {
-    expect(styles).toContain(".active {\n    color: #FFFFFF !important;");
-    expect(styles).toContain("background: #0B3F3B !important;");
+    const activeRuleStart = styles.indexOf(".dashboard-shell .sidebar :is(.side-link, .sidebar-support-link).active {");
+    const activeRule = styles.slice(activeRuleStart, styles.indexOf("}", activeRuleStart));
+    expect(activeRuleStart).toBeGreaterThanOrEqual(0);
+    expect(activeRule).toContain("color: #FFFFFF !important;");
+    expect(activeRule).toContain("background: #0B3F3B !important;");
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });

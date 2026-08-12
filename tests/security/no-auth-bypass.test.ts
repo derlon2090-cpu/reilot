@@ -13,8 +13,8 @@ describe("authentication boundary source", () => {
     expect(client).not.toContain('storage.get("renewpilot.linkedDevice"');
     expect(client).toContain("payload?.ok === true");
     expect(client).toContain("Boolean(payload.user?.id)");
-    expect(page).toContain('if (isDashboard)');
-    expect(page).toContain('if (!session) redirect("/login")');
+    expect(page).toContain('if (isDashboard || authPath)');
+    expect(page).toContain('new URL("/login", authBaseUrl())');
   });
 
   it("does not seed the legacy temporary administrator", () => {

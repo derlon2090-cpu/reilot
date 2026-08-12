@@ -193,22 +193,6 @@
 :root[data-theme="dark"] .dashboard-main .campaign-selected-product :is(strong,b){color:var(--dark-text)!important}
 :root[data-theme="dark"] .dashboard-main .campaign-selected-product :is(small,em){color:var(--dark-muted)!important}
 
-/* The authentication artwork contains dark labels in the source bitmap. Keep it on a
-   focused mint canvas so every embedded label and connector remains readable. */
-@media (min-width:744px){
-  .auth-suite-page[data-auth-theme="dark"] .auth-showcase-art{
-    isolation:isolate;
-    overflow:hidden!important;
-    border:1px solid #315d56!important;
-    border-radius:22px!important;
-    background:radial-gradient(circle at 50% 48%,#f8fcfb 0 42%,#edf8f5 68%,#deefeb 100%)!important;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.36),0 18px 36px rgba(0,0,0,.18)!important;
-  }
-  .auth-suite-page[data-auth-theme="dark"] .auth-showcase-reference-art{filter:drop-shadow(0 14px 20px rgba(6,43,40,.1))!important}
-  .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature{color:#073f3a!important}
-  .auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature>i{color:#08766c!important;border-color:rgba(8,111,101,.14)!important;background:#fff!important}
-}
-
 /* Dropdowns, notifications and overlays. */
 :root[data-theme="dark"] :is(.profile-menu,.notification-dropdown,.notification-dropdown-list,.modal,.drawer,.menu-pop){color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important}
 :root[data-theme="dark"] :is(.profile-menu,.notification-dropdown,.notification-dropdown-list,.modal,.drawer,.menu-pop) :is(h2,h3,strong){color:var(--dark-text)!important}

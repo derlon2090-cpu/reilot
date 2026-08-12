@@ -69,7 +69,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("includes a dedicated server-backed MFA login step", () => {
-    expect(appSource).toContain('"/auth/verify-mfa": mfaLoginPage');
+    expect(appSource).toContain('"/verify-mfa": mfaLoginPage');
     expect(appSource).toContain('fetch("/api/auth/mfa/verify"');
     expect(appSource).toContain("payload?.requiresMfa === true");
   });

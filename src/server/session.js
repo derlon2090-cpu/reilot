@@ -1,6 +1,7 @@
 import { query } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
 import { getTenantStorageLimitState, requestNeedsStorageCapacity, storageLimitResponse } from "./tenant-storage.js";
+import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 
 export const SESSION_COOKIE = "renewpilot_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 14;
@@ -11,15 +12,10 @@ function cookieValue(req, name) {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
 }
 export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
-  const publicUrl = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
-  const secureCookie = process.env.COOKIE_SECURE !== "false" && (
-    process.env.COOKIE_SECURE === "true"
-    || process.env.NODE_ENV === "production"
-    || publicUrl.startsWith("https://")
-  );
-  const secure = secureCookie ? "; Secure" : "";
+  const secure = secureCookieEnabled() ? "; Secure" : "";
+  const domain = sharedCookieDomainAttribute();
   const lifetime = maxAge === null ? "" : `; Max-Age=${Math.max(0, Number(maxAge) || 0)}`;
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${lifetime}${secure}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${lifetime}${domain}${secure}`;
 }
 
 export function clearSessionCookie() {

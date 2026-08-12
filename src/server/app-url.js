@@ -23,3 +23,23 @@ export function appBaseUrl() {
   }
   return parsed.origin;
 }
+
+export function authBaseUrl() {
+  // Split-host authentication is opt-in. Until accounts.renvix.app has DNS,
+  // TLS and an explicit AUTH_URL, keep sign-in on the working application host.
+  return safeBaseUrl(process.env.AUTH_URL || appBaseUrl(), "Authentication");
+}
+
+export function authPageUrl(pathname = "/login", returnTo = "") {
+  const url = new URL(pathname, authBaseUrl());
+  if (returnTo) url.searchParams.set("returnTo", returnTo);
+  return url.toString();
+}
+
+function safeBaseUrl(value, label) {
+  let parsed;
+  try { parsed = new URL(String(value || "").trim()); } catch { throw new Error(`${label} URL is invalid`); }
+  if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") throw new Error(`${label} URL must use HTTPS in production`);
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error(`${label} URL is not safe`);
+  return parsed.origin;
+}
