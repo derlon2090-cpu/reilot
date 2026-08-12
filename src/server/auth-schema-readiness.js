@@ -1,7 +1,7 @@
 import { query } from "./db.js";
 
 export const REQUIRED_AUTH_MIGRATION = "0062_platform_admin_auth_challenges.sql";
-export const REQUIRED_PASSWORD_MIGRATION = "0071_argon2id_password_hash_stage1.sql";
+export const REQUIRED_PASSWORD_MIGRATION = "0072_argon2id_password_hash_finalize.sql";
 
 const REQUIRED_COLUMNS = [
   "auth_email_otp_challenges.login_attempt_id",
@@ -24,6 +24,10 @@ export async function authSchemaHealth() {
          SELECT 1 FROM information_schema.columns
           WHERE table_schema = 'public' AND table_name = 'accounts' AND column_name = 'password_hash'
        ) AS password_hash_column_ready,
+       NOT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'accounts' AND column_name = 'password'
+       ) AS legacy_password_column_removed,
        to_regclass('public.auth_pending_registrations') IS NOT NULL AS pending_registration_table,
        EXISTS (
          SELECT 1
@@ -68,6 +72,7 @@ export async function authSchemaHealth() {
   const ok = row.migration_applied === true
     && row.password_migration_applied === true
     && row.password_hash_column_ready === true
+    && row.legacy_password_column_removed === true
     && row.pending_registration_table === true
     && row.purpose_constraint_ready === true
     && row.platform_admin_challenges_ready === true
@@ -79,6 +84,7 @@ export async function authSchemaHealth() {
     migrationApplied: row.migration_applied === true,
     passwordMigrationApplied: row.password_migration_applied === true,
     passwordHashColumnReady: row.password_hash_column_ready === true,
+    legacyPasswordColumnRemoved: row.legacy_password_column_removed === true,
     pendingRegistrationTable: row.pending_registration_table === true,
     purposeConstraintReady: row.purpose_constraint_ready === true,
     platformAdminChallengesReady: row.platform_admin_challenges_ready === true,

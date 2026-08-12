@@ -12,6 +12,7 @@ describe("authentication database schema readiness", () => {
       migration_applied: true,
       password_migration_applied: true,
       password_hash_column_ready: true,
+      legacy_password_column_removed: true,
       pending_registration_table: true,
       purpose_constraint_ready: true,
       platform_admin_challenges_ready: true,
@@ -31,7 +32,8 @@ describe("authentication database schema readiness", () => {
       ok: true,
       migration: REQUIRED_AUTH_MIGRATION,
       passwordMigration: REQUIRED_PASSWORD_MIGRATION,
-      passwordHashColumnReady: true
+      passwordHashColumnReady: true,
+      legacyPasswordColumnRemoved: true
     });
   });
 
@@ -40,6 +42,7 @@ describe("authentication database schema readiness", () => {
       migration_applied: false,
       password_migration_applied: false,
       password_hash_column_ready: false,
+      legacy_password_column_removed: false,
       pending_registration_table: false,
       purpose_constraint_ready: false,
       platform_admin_challenges_ready: false,

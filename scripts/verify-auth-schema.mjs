@@ -1,7 +1,7 @@
 import pg from "pg";
 
 const migration = "0062_platform_admin_auth_challenges.sql";
-const passwordMigration = "0071_argon2id_password_hash_stage1.sql";
+const passwordMigration = "0072_argon2id_password_hash_finalize.sql";
 const requiredColumns = new Set([
   "auth_email_otp_challenges.login_attempt_id",
   "auth_mfa_login_challenges.login_attempt_id",
@@ -25,6 +25,10 @@ try {
          SELECT 1 FROM information_schema.columns
           WHERE table_schema='public' AND table_name='accounts' AND column_name='password_hash'
        ) AS password_hash_column_ready,
+       NOT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='accounts' AND column_name='password'
+       ) AS legacy_password_column_removed,
        to_regclass('public.auth_pending_registrations') IS NOT NULL AS pending_registration_table,
        EXISTS (
          SELECT 1
@@ -62,11 +66,12 @@ try {
   const row = result.rows[0] || {};
   const available = new Set(row.available_columns || []);
   const missingColumns = [...requiredColumns].filter((column) => !available.has(column));
-  if (row.migration_applied !== true || row.password_migration_applied !== true || row.password_hash_column_ready !== true || row.pending_registration_table !== true || row.purpose_constraint_ready !== true || row.platform_admin_challenges_ready !== true || missingColumns.length) {
+  if (row.migration_applied !== true || row.password_migration_applied !== true || row.password_hash_column_ready !== true || row.legacy_password_column_removed !== true || row.pending_registration_table !== true || row.purpose_constraint_ready !== true || row.platform_admin_challenges_ready !== true || missingColumns.length) {
     console.error("Authentication schema is not ready", {
       migrationApplied: row.migration_applied === true,
       passwordMigrationApplied: row.password_migration_applied === true,
       passwordHashColumnReady: row.password_hash_column_ready === true,
+      legacyPasswordColumnRemoved: row.legacy_password_column_removed === true,
       pendingRegistrationTable: row.pending_registration_table === true,
       purposeConstraintReady: row.purpose_constraint_ready === true,
       platformAdminChallengesReady: row.platform_admin_challenges_ready === true,

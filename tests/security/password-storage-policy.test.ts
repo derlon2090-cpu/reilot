@@ -55,4 +55,12 @@ describe("password storage policy", () => {
     expect(migration).toContain("NOT VALID");
     expect(migration).not.toMatch(/DROP COLUMN\s+(?:IF EXISTS\s+)?password/i);
   });
+
+  it("finalizes only after validation and removes the legacy password column", () => {
+    const migration = read("drizzle/0072_argon2id_password_hash_finalize.sql");
+    expect(migration).toContain("provider_id = 'credential' AND password_hash IS NULL");
+    expect(migration).toContain("VALIDATE CONSTRAINT accounts_credential_password_hash_required");
+    expect(migration).toContain("DROP TRIGGER IF EXISTS accounts_password_hash_transition");
+    expect(migration).toMatch(/DROP COLUMN IF EXISTS password/);
+  });
 });
