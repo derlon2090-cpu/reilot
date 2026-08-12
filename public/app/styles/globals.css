@@ -6427,8 +6427,12 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-template-card-icon svg{width:27px;height:27px}
 .salla-chip{display:inline-flex;padding:4px 10px;border-radius:9px;background:#F3F8F7;color:#062B28;font-size:12px;font-weight:800}
 .salla-template-card>p{margin:0;color:#0B3F3B;font-size:12px;line-height:1.75;min-height:54px}
-.salla-template-card>.status{align-self:flex-start}
-.salla-template-card>.status i{width:7px;height:7px;border-radius:50%;background:currentColor;margin-inline-start:5px}
+.salla-template-card-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.salla-template-card-meta>.status{min-height:30px;padding-inline:12px;align-self:flex-start;font-size:12px}
+.salla-template-card-meta>.status i{width:7px;height:7px;border-radius:50%;background:currentColor;margin-inline-start:5px}
+.salla-channel-badge{min-height:30px;padding:0 11px;display:inline-flex;align-items:center;gap:6px;border-radius:999px;font-size:11px;font-weight:750;white-space:nowrap}
+.salla-channel-badge svg{width:15px;height:15px;flex:0 0 15px}.salla-channel-badge strong{font-weight:850}
+.salla-channel-badge.whatsapp{color:#087c4d;background:#e8f8ef}.salla-channel-badge.email{color:#2563a7;background:#eaf3ff}
 .salla-mode-chips{display:flex;gap:8px}
 .salla-mode-chips span{padding:4px 10px;border:1px solid #E8F1F0;border-radius:8px;color:#0B3F3B;font-size:12px}
 .salla-template-card footer{margin-top:auto;padding-top:16px;border-top:1px solid #F3F8F7;display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -6495,9 +6499,9 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-channel-choice legend{width:100%;margin-bottom:8px;color:#062B28;font-size:12px;font-weight:800}
 .salla-channel-choice label{display:block;cursor:pointer}.salla-channel-choice input{position:absolute;opacity:0;pointer-events:none}
 .salla-channel-choice span{min-height:46px;padding:11px 14px;display:flex;align-items:center;justify-content:center;gap:9px;color:#0B3F3B;border:1px solid #E8F1F0;border-radius:10px;background:#fff;font-size:12px;font-weight:750;transition:.18s ease;position:relative}
-.salla-channel-choice svg{width:18px;height:18px}.salla-channel-choice input:checked+span{color:#0B3F3B;border-color:#0B3F3B;background:#F3F8F7;box-shadow:0 0 0 2px rgba(11, 63, 59,.08)}
+.salla-channel-choice svg{width:18px;height:18px}.salla-channel-choice .whatsapp input:checked+span{color:#087c4d;border-color:#087c4d;background:#eefaf3;box-shadow:0 0 0 2px rgba(8,124,77,.08)}.salla-channel-choice .email input:checked+span{color:#2563a7;border-color:#2563a7;background:#f1f6fd;box-shadow:0 0 0 2px rgba(37,99,167,.08)}
 .salla-channel-choice span:after{content:"";width:18px;height:18px;position:absolute;inset-inline-start:12px;border:1px solid #E8F1F0;border-radius:50%;background:#fff}
-.salla-channel-choice input:checked+span:after{content:"✓";display:grid;place-items:center;color:#fff;border-color:#0B3F3B;background:#0B3F3B;font-size:11px;font-weight:900}
+.salla-channel-choice input:checked+span:after{content:"✓";display:grid;place-items:center;color:#fff;font-size:11px;font-weight:900}.salla-channel-choice .whatsapp input:checked+span:after{border-color:#087c4d;background:#087c4d}.salla-channel-choice .email input:checked+span:after{border-color:#2563a7;background:#2563a7}
 .salla-email-logo-editor{margin-top:14px;padding:14px;display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:14px;border:1px solid #E8F1F0;border-radius:13px;background:#fff}
 .salla-email-logo-editor strong,.salla-email-logo-editor p,.salla-email-logo-editor small{display:block;margin:0}
 .salla-email-logo-editor p{margin:4px 0 10px;color:#0B3F3B;font-size:11px;line-height:1.65}

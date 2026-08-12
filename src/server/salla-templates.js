@@ -358,7 +358,7 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
          )
          SELECT $1,$2,$3,COALESCE(legacy.is_enabled,false),$4,$5,
                 legacy.mapped_status_id,legacy.mapped_status_slug,legacy.mapped_status_name,
-                legacy.delivery_channel,legacy.whatsapp_template_id,
+                COALESCE(legacy.delivery_channel,'whatsapp'),legacy.whatsapp_template_id,
                 COALESCE(legacy.email_subject,$7),COALESCE(legacy.message_body,$6),
                 COALESCE(legacy.whatsapp_content,legacy.message_body,$6),
                 COALESCE(legacy.email_text_content,legacy.message_body,$10),
@@ -372,6 +372,7 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
            salla_integration_id=EXCLUDED.salla_integration_id,
            trigger_type=EXCLUDED.trigger_type,
            salla_event_name=COALESCE(tenant_salla_templates.salla_event_name,EXCLUDED.salla_event_name),
+           delivery_channel=COALESCE(tenant_salla_templates.delivery_channel,EXCLUDED.delivery_channel),
            whatsapp_content=COALESCE(tenant_salla_templates.whatsapp_content,EXCLUDED.whatsapp_content),
            email_text_content=COALESCE(tenant_salla_templates.email_text_content,EXCLUDED.email_text_content),
            email_html_content=COALESCE(tenant_salla_templates.email_html_content,EXCLUDED.email_html_content),

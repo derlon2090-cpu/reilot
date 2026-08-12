@@ -99,10 +99,14 @@ describe("Salla automation templates", () => {
     expect(serverSource).toContain('WHERE tenant_id=$1 AND template_key=$2');
     expect(serverSource).toContain('delivery_channel=$3');
     expect(appSource).toContain('name="channel" value="email" data-salla-channel-choice');
-    expect(appSource.indexOf('name="channel" value="email" data-salla-channel-choice')).toBeLessThan(
-      appSource.indexOf('name="channel" value="whatsapp" data-salla-channel-choice')
+    expect(appSource.indexOf('name="channel" value="whatsapp" data-salla-channel-choice')).toBeLessThan(
+      appSource.indexOf('name="channel" value="email" data-salla-channel-choice')
     );
     expect(appSource).toContain('const selectedChannel = item.channel || "whatsapp";');
+    expect(serverSource).toContain("COALESCE(legacy.delivery_channel,'whatsapp')");
+    expect(serverSource).toContain("delivery_channel=COALESCE(tenant_salla_templates.delivery_channel,EXCLUDED.delivery_channel)");
+    expect(appSource).toContain('class="salla-channel-badge ${selectedChannel}"');
+    expect(appSource).toContain('item.isEnabled ? "success" : "danger"');
   });
 
   it("updates the preview immediately when a template channel changes", () => {

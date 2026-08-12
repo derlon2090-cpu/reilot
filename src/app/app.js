@@ -3912,16 +3912,24 @@ function sallaAutomationTemplatesPage() {
       </section>`);
   }
   const items = Array.isArray(payload.items) ? payload.items : [];
-  const cards = items.map((item) => `<article class="card salla-template-card ${item.templateKey === "completed" ? "featured" : ""}">
+  const cards = items.map((item) => {
+    const selectedChannel = item.channel === "email" ? "email" : "whatsapp";
+    const channelLabel = selectedChannel === "email" ? "البريد الإلكتروني" : "واتساب";
+    const channelIcon = selectedChannel === "email" ? "template" : "send";
+    return `<article class="card salla-template-card ${item.templateKey === "completed" ? "featured" : ""}">
     <div class="salla-template-card-head">
       <span class="salla-template-card-icon">${sallaTemplateIcon(item)}</span>
       <div><span class="salla-chip">سلة</span><h2>${escapeHtml(item.name)}</h2></div>
     </div>
     <p>${escapeHtml(item.description)}</p>
     ${item.templateKey === "completed" ? `<div class="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div>` : ""}
-    <span class="status ${item.isEnabled ? "success" : "neutral"}">${item.isEnabled ? "نشط" : "غير مفعل"} <i></i></span>
+    <div class="salla-template-card-meta">
+      <span class="status ${item.isEnabled ? "success" : "danger"}">${item.isEnabled ? "مفعّل" : "غير مفعّل"} <i></i></span>
+      <span class="salla-channel-badge ${selectedChannel}" title="قناة الإرسال المعتمدة">${dashboardIcon(channelIcon)}<span>قناة الإرسال:</span><strong>${channelLabel}</strong></span>
+    </div>
     <footer><small>آخر تحديث: ${item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—"}</small><div><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("template")} تحرير</button></div></footer>
-  </article>`).join("");
+  </article>`;
+  }).join("");
   return dashboardShell(`<div class="salla-template-editor-top"><button class="btn btn-secondary" data-link="/dashboard/apps">${dashboardIcon("arrow-left")} العودة إلى التطبيقات</button></div><div class="salla-templates-page-head">${pageTitle("قوالب سلة", `<button class="btn btn-primary" data-link="/dashboard/apps/salla/templates/${escapeHtml(items[0]?.templateKey || "processing")}">${dashboardIcon("template")} تخصيص قالب</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/salla_invoice_ready">${dashboardIcon("billing")} رابط الفاتورة</button><button class="btn btn-secondary" data-action="sync-salla-statuses">${dashboardIcon("refresh")} مزامنة الحالات</button>`)}</div>
     <p class="page-kicker">إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة. فعّل القالب وخصص محتواه والقناة بسهولة.</p>
     <section class="inline-notice info salla-templates-notice">${dashboardIcon("info")}<span>هذه قوالب خاصة بمتجرك فقط. يتم إرسال الرسائل عبر القناة المختارة لكل قالب بعد وصول حدث موثق من سلة.</span></section>
@@ -4108,7 +4116,7 @@ function sallaAutomationTemplateEditorPage() {
         <article class="card salla-template-form-card">
           <div class="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div>${dashboardIcon("template")}</div>
           <div class="form-grid two"><label class="field"><span>اسم القالب</span><input class="input" value="${escapeHtml(item.name)}" disabled></label>${item.templateKey === "review_request" ? "" : statusField}</div>
-          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label><label><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label></fieldset>
+          <fieldset class="salla-channel-choice"><legend>قناة الإرسال</legend><label class="salla-channel-option whatsapp"><input type="radio" name="channel" value="whatsapp" data-salla-channel-choice ${selectedChannel === "whatsapp" ? "checked" : ""}><span>${dashboardIcon("send")} واتساب</span></label><label class="salla-channel-option email"><input type="radio" name="channel" value="email" data-salla-channel-choice ${selectedChannel === "email" ? "checked" : ""}><span>${dashboardIcon("template")} بريد إلكتروني</span></label></fieldset>
           ${item.templateKey === "review_request" ? `<div class="salla-review-trigger-field">${statusField}</div>` : ""}
           ${metaPanel}${emailPanel}
           ${abandoned}${completed}${review}${invoice}${digital}
