@@ -12128,7 +12128,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   --auth-night-surface:#0b1219;
   --auth-night-line:#24313a;
   --auth-night-text:#f4f7f8;
-  --auth-night-muted:#8d969e;
+  --auth-night-muted:#b0bac0;
   --auth-night-teal:#16a894;
   min-height:100dvh!important;
   color:var(--auth-night-text)!important;
@@ -12170,7 +12170,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   box-shadow:none!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-form .input,.auth-suite-panel .input,.email-otp-panel .input)::placeholder{
-  color:#69747c!important;
+  color:#929da5!important;
   opacity:1!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-form .input,.auth-suite-panel .input,.email-otp-digit):focus{
@@ -12228,14 +12228,18 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-logo .brand-logo-image{
   content:url("/assets/renvix-logo-exact.png")!important;
-  filter:none!important;
+  filter:brightness(0) invert(1)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-intro h1,.auth-suite-panel h1,.email-otp-panel h1){
   color:#f8fbfb!important;
   text-shadow:0 1px 0 rgba(255,255,255,.025)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-intro p,.email-otp-panel>p,.auth-suite-note,.email-otp-help){
-  color:#9ca6ad!important;
+  color:#b2bdc3!important;
+}
+.auth-suite-page[data-auth-theme="dark"] :is(.auth-reference-feature-label,.auth-relocated-feature){
+  color:#e8f3f1!important;
+  text-shadow:0 1px 8px rgba(0,0,0,.72)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.password-toggle,.email-otp-email svg,.email-otp-resend-row svg){
   color:#aeb9bf!important;

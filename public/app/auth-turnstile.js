@@ -5,12 +5,28 @@ let scriptPromise;
 function loadScript() {
   if (window.turnstile?.render) return Promise.resolve(window.turnstile);
   if (scriptPromise) return scriptPromise;
-  scriptPromise = new Promise((resolve, reject) => {
+  const pending = new Promise((resolve, reject) => {
     const existing = document.querySelector('script[data-renvix-turnstile]');
     const script = existing || document.createElement("script");
-    const finish = () => window.turnstile?.render ? resolve(window.turnstile) : reject(new Error("turnstile_unavailable"));
+    let timeoutId;
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      script.removeEventListener("load", finish);
+      script.removeEventListener("error", fail);
+    };
+    const finish = () => {
+      cleanup();
+      if (window.turnstile?.render) resolve(window.turnstile);
+      else fail();
+    };
+    const fail = () => {
+      cleanup();
+      if (script.isConnected) script.remove();
+      reject(new Error("turnstile_unavailable"));
+    };
     script.addEventListener("load", finish, { once: true });
-    script.addEventListener("error", () => reject(new Error("turnstile_unavailable")), { once: true });
+    script.addEventListener("error", fail, { once: true });
+    timeoutId = setTimeout(fail, 12000);
     if (!existing) {
       script.src = SCRIPT_URL;
       script.async = true;
@@ -18,6 +34,10 @@ function loadScript() {
       script.dataset.renvixTurnstile = "true";
       document.head.appendChild(script);
     }
+  });
+  scriptPromise = pending.catch((error) => {
+    scriptPromise = undefined;
+    throw error;
   });
   return scriptPromise;
 }

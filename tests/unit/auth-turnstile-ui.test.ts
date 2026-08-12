@@ -17,6 +17,7 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('appearance: "interaction-only"');
     expect(componentSource).toContain('size: "flexible"');
     expect(componentSource).toContain('theme: page?.dataset.authTheme');
+    expect(componentSource).toContain("scriptPromise = undefined");
   });
 
   it("does not add a default widget to email OTP or MFA forms", () => {
@@ -32,6 +33,7 @@ describe("authentication Turnstile UI integration", () => {
 
   it("keeps the approved Renvix logo asset and readable auth text in dark mode", () => {
     expect(stylesSource).toContain('content:url("/assets/renvix-logo-exact.png")!important');
+    expect(stylesSource).toContain("filter:brightness(0) invert(1)!important");
     expect(stylesSource).toContain("color:#f8fbfb!important");
     expect(stylesSource).toContain(".auth-suite-page[data-auth-theme=\"dark\"] .policy-check button");
   });
