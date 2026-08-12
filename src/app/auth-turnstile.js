@@ -66,19 +66,7 @@ function localized(page, english, arabic) {
   return page?.dataset.authLanguage === "en" ? english : arabic;
 }
 
-function status(slot, page, state, code = "") {
-  const title = slot.querySelector("[data-turnstile-status-title]");
-  const copy = slot.querySelector("[data-turnstile-status-copy]");
-  if (title) title.textContent = localized(page, "Security verification", "التحقق الأمني");
-  if (copy) {
-    const values = {
-      loading: localized(page, "Checking…", "جاري التحقق…"),
-      verified: localized(page, "Verified", "تم التحقق"),
-      pending: localized(page, "Refreshing…", "تحديث التحقق…"),
-      error: localized(page, `Retrying (${code || "unknown"})`, `إعادة المحاولة (${code || "unknown"})`)
-    };
-    copy.textContent = values[state] || values.loading;
-  }
+function status(slot, state) {
   slot.dataset.turnstileStatus = state;
 }
 
@@ -99,7 +87,7 @@ export const AuthTurnstile = {
       const slot = document.createElement("div");
       slot.className = "auth-turnstile-slot";
       slot.dataset.authTurnstile = action;
-      slot.innerHTML = '<input type="hidden" name="turnstileToken" value=""><div class="auth-turnstile-status" role="status"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.3 19 6v5.2c0 4.5-2.8 7.8-7 9.5-4.2-1.7-7-5-7-9.5V6l7-2.7Z"/><path d="m8.7 12 2.1 2.1 4.7-4.7"/></svg></i><span><strong data-turnstile-status-title></strong><small>Cloudflare Turnstile</small></span><b data-turnstile-status-copy></b></div><div class="auth-turnstile-widget" data-turnstile-widget></div><small class="auth-turnstile-message" data-turnstile-message aria-live="polite"></small>';
+      slot.innerHTML = '<input type="hidden" name="turnstileToken" value=""><div class="auth-turnstile-widget" data-turnstile-widget></div><small class="auth-turnstile-message" data-turnstile-message aria-live="polite"></small>';
       form.insertBefore(slot, submit);
     }
     const slots = [...root.querySelectorAll("[data-auth-turnstile]")];
@@ -110,10 +98,10 @@ export const AuthTurnstile = {
       if (!form || widgets.has(form)) continue;
       const page = form.closest("[data-auth-theme]");
       setReady(form, false);
-      status(slot, page, "loading");
+      status(slot, "loading");
       if (!siteKey) {
         console.error("[Renvix Turnstile]", { errorCode: "configuration" });
-        status(slot, page, "error", "configuration");
+        status(slot, "error");
         message(slot, localized(page, "Security verification is temporarily unavailable (configuration).", "تعذر تحميل التحقق الأمني مؤقتًا (رمز configuration)."), "error");
         continue;
       }
@@ -135,31 +123,31 @@ export const AuthTurnstile = {
           callback(token) {
             if (input) input.value = token;
             message(slot, "");
-            status(slot, page, "verified");
+            status(slot, "verified");
             setReady(form, true);
           },
           "expired-callback"() {
             setReady(form, false);
-            status(slot, page, "pending");
+            status(slot, "pending");
             message(slot, localized(page, "Verification expired. A fresh check is loading.", "انتهت صلاحية التحقق، ويجري تحميل تحقق جديد."), "pending");
           },
           "error-callback"(errorCode) {
             const code = String(errorCode || "unknown");
             console.error("[Renvix Turnstile]", { errorCode: code });
             setReady(form, false);
-            status(slot, page, "error", code);
+            status(slot, "error");
             message(slot, localized(page, `Security verification failed (code ${code}). Retrying automatically.`, `تعذر إكمال التحقق الأمني (الرمز ${code})، وستتم إعادة المحاولة تلقائيًا.`), "error");
             return false;
           },
           "timeout-callback"() {
             setReady(form, false);
-            status(slot, page, "pending");
+            status(slot, "pending");
             message(slot, localized(page, "The security check timed out. A fresh check is loading.", "انتهت مهلة التحقق الأمني، ويجري تحميل تحقق جديد."), "pending");
           },
           "unsupported-callback"() {
             console.error("[Renvix Turnstile]", { errorCode: "unsupported-browser" });
             setReady(form, false);
-            status(slot, page, "error", "unsupported-browser");
+            status(slot, "error");
             message(slot, localized(page, "This browser cannot complete the security check (unsupported-browser).", "هذا المتصفح لا يدعم التحقق الأمني (الرمز unsupported-browser)."), "error");
           }
         });
@@ -167,7 +155,7 @@ export const AuthTurnstile = {
       } catch {
         setReady(form, false);
         console.error("[Renvix Turnstile]", { errorCode: "script-load" });
-        status(slot, page, "error", "script-load");
+        status(slot, "error");
         message(slot, localized(page, "Security verification is temporarily unavailable (script-load).", "تعذر تحميل التحقق الأمني مؤقتًا (الرمز script-load)."), "error");
       }
     }

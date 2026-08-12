@@ -4,9 +4,7 @@ export const TURNSTILE_ACTIONS = Object.freeze({
   login: "login",
   register: "register",
   forgotPassword: "forgot_password",
-  resetPassword: "reset_password",
-  resendEmailOtp: "resend_email_otp",
-  resendMfa: "resend_mfa"
+  resetPassword: "reset_password"
 });
 
 function expectedHostname(env) {

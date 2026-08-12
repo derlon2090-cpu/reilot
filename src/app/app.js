@@ -1349,7 +1349,34 @@ async function browserSessionIsValid() {
   }
 }
 
+const authPortalPaths = new Set([
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/verify-mfa",
+  "/recovery"
+]);
+
+function enterAuthPortal(to) {
+  const config = window.__RENVIX_CONFIG__ || {};
+  if (!config.authUrl || config.authUrl === config.appUrl) return false;
+  let requested;
+  let authOrigin;
+  try {
+    requested = new URL(to, location.origin);
+    authOrigin = new URL(config.authUrl).origin;
+  } catch {
+    return false;
+  }
+  if (requested.origin !== location.origin || !authPortalPaths.has(requested.pathname) || location.origin === authOrigin) return false;
+  location.assign(new URL(`${requested.pathname}${requested.search}${requested.hash}`, authOrigin).toString());
+  return true;
+}
+
 async function navigate(to, { sessionVerified = false } = {}) {
+  if (enterAuthPortal(to)) return;
   const url = new URL(to, location.origin);
   url.pathname = dashboardAliases[url.pathname] || url.pathname;
   if (url.pathname.startsWith("/dashboard")) {

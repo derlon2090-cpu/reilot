@@ -23,6 +23,9 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('"error-callback"(errorCode)');
     expect(componentSource).toContain("return false");
     expect(componentSource).toContain('errorCode: "script-load"');
+    expect(componentSource).toContain('<div class="auth-turnstile-widget" data-turnstile-widget></div>');
+    expect(componentSource).not.toContain('<div class="auth-turnstile-status"');
+    expect(stylesSource).toContain('.auth-turnstile-slot{border:0;background:transparent}');
   });
 
   it("does not add a default widget to email OTP or MFA forms", () => {
@@ -34,6 +37,12 @@ describe("authentication Turnstile UI integration", () => {
   it("never exposes the server secret in browser code", () => {
     expect(componentSource).not.toContain("TURNSTILE_SECRET_KEY");
     expect(appSource).not.toContain("TURNSTILE_SECRET_KEY");
+  });
+
+  it("keeps mobile authentication pages naturally scrollable", () => {
+    expect(stylesSource).toContain('body:has(.auth-suite-page){');
+    expect(stylesSource).toContain('overflow-y:auto!important');
+    expect(stylesSource).toContain('overscroll-behavior-y:auto!important');
   });
 
   it("keeps the approved Renvix logo asset and readable auth text in dark mode", () => {

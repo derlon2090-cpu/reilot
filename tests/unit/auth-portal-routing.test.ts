@@ -69,4 +69,11 @@ describe("accounts authentication portal", () => {
     const middlewareSource = readFileSync("middleware.js", "utf8");
     expect(middlewareSource).toContain("|app/|assets/|data/");
   });
+
+  it("sends client-side authentication entry directly to the configured portal", () => {
+    const appSource = readFileSync("src/app/app.js", "utf8");
+    expect(appSource).toContain("function enterAuthPortal(to)");
+    expect(appSource).toContain("if (enterAuthPortal(to)) return;");
+    expect(appSource).toContain("location.assign(new URL(`${requested.pathname}${requested.search}${requested.hash}`, authOrigin).toString())");
+  });
 });
