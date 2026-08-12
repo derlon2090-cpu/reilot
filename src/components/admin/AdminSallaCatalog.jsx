@@ -276,10 +276,9 @@ export default function AdminSallaCatalog({ admin }) {
     {selected ? <>
       <p className="salla-template-updated-at">آخر تحديث: <strong>{selected.updatedAt ? new Date(selected.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—"}</strong></p>
       <section className="inline-notice info salla-template-editor-notice"><DashboardIcon name="info" /><span>سيؤثر الحفظ على الرسائل المستقبلية فقط. لا يتم إرسال أي رسالة من المعاينة.</span></section>
-    </> : <section className="inline-notice info salla-templates-notice"><DashboardIcon name="info" /><span>هذه هي واجهة قوالب سلة نفسها التي تظهر للمتجر، مع حفظ القيم الافتراضية للروابط الجديدة فقط.</span></section>}
+    </> : <section className="inline-notice info salla-templates-notice"><DashboardIcon name="info" /><span>كل تغيير محفوظ هنا يُطبّق كإعداد افتراضي على قوالب المستخدم عند ربط متجر سلة جديد، دون استبدال تخصيصات المتاجر المرتبطة سابقًا.</span></section>}
     <p className={styles.adminSallaAdminIdentity}>جلسة الأدمن: {admin.role}</p>
     {error ? <div className={styles.adminSallaError}>{error}</div> : null}
-    {notice ? <div className={styles.adminSallaSuccess}>{notice}</div> : null}
 
     {!selected ? <>
       {!items.length && !error ? <div className={styles.adminSallaLoading}>جارٍ تحميل القوالب...</div> : <section className="salla-templates-grid">{items.map((item) => <article key={item.templateKey} className={`card salla-template-card ${item.templateKey === "completed" ? "featured" : ""}`}>
@@ -290,15 +289,15 @@ export default function AdminSallaCatalog({ admin }) {
         <p>{item.description}</p>
         {item.templateKey === "completed" ? <div className="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div> : null}
         <div className="salla-template-card-meta">
-          <span className={`status ${item.isEnabled ? "success" : "danger"}`}>{item.isEnabled ? "القالب مفعّل" : "القالب غير مفعّل"} <i /></span>
-          <span className={`salla-channel-badge ${item.channel === "email" ? "email" : "whatsapp"}`} title="قناة الإرسال المعتمدة"><DashboardIcon name={item.channel === "email" ? "template" : "send"} /><span>قناة الإرسال:</span><strong>{item.channel === "email" ? "البريد الإلكتروني" : "واتساب"}</strong></span>
+          <span className={`status ${item.isEnabled ? "success" : "danger"}`}>{item.isEnabled ? "مفعّل" : "غير مفعّل"} <i /></span>
+          <span className={`salla-channel-badge ${item.channel === "email" ? "email" : "whatsapp"}`} title="قناة الإرسال المعتمدة"><DashboardIcon name={item.channel === "email" ? "template" : "send"} /><strong>{item.channel === "email" ? "بريد" : "واتساب"}</strong></span>
         </div>
         <footer><small>آخر تحديث: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "—"}</small><div><button className="btn btn-secondary" type="button" onClick={() => openEditor(item)}><DashboardIcon name="eye" /> معاينة</button><button className="btn btn-secondary" type="button" onClick={() => openEditor(item)}><DashboardIcon name="template" /> تحرير</button></div></footer>
       </article>)}</section>}
     </> : <>
       <section className="message-activation-card card">
         <div className="message-activation-copy"><span className="message-activation-icon"><DashboardIcon name="send" /></span><span><strong>تفعيل رسالة {selected.name}</strong><small>تُحفظ حالة القالب وتظهر مباشرة على بطاقته الخارجية.</small></span></div>
-        <div className="message-activation-control"><label className="message-activation-switch"><input type="checkbox" checked={draft.isEnabled} onChange={(event) => setDraft((current) => ({ ...current, isEnabled: event.target.checked }))} aria-label={`تفعيل رسالة ${selected.name}`} /><span /></label><span className="message-activation-status"><i /><b className="message-activation-status-on">القالب مفعّل</b><b className="message-activation-status-off">القالب غير مفعّل</b></span></div>
+        <div className="message-activation-control"><label className="message-activation-switch"><input type="checkbox" checked={draft.isEnabled} onChange={(event) => setDraft((current) => ({ ...current, isEnabled: event.target.checked }))} aria-label={`تفعيل رسالة ${selected.name}`} /><span /></label><span className="message-activation-status"><i /><b className="message-activation-status-on">مفعّل</b><b className="message-activation-status-off">غير مفعّل</b></span></div>
       </section>
 
       <form id="admin-salla-template-form" className="salla-template-editor-form" data-admin-salla-mirrors-user-editor onSubmit={save}>
@@ -343,7 +342,7 @@ export default function AdminSallaCatalog({ admin }) {
           </article>
           <TemplatePreview item={selected} channel={channel} draft={draft} logoUrl={logoUrl} />
         </div>
-        <div className="salla-editor-actions"><button className="btn btn-primary" type="submit" disabled={busy}><DashboardIcon name="save" /> {busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button><button className="btn btn-secondary" type="button" onClick={() => setNotice("المعاينة محدثة لحظيًا بنفس بيانات النموذج.")}><DashboardIcon name="eye" /> تحديث المعاينة</button><button className="btn btn-secondary" type="button" onClick={() => setNotice("الإرسال الاختباري يتم من حساب متجر مرتبط؛ معاينة الأدمن لا ترسل رسائل.")}><DashboardIcon name="action" /> إرسال اختبار</button></div>
+        <div className="salla-editor-action-area"><div className="salla-editor-actions"><button className="btn btn-primary" type="submit" disabled={busy}><DashboardIcon name="save" /> {busy ? "جارٍ الحفظ..." : "حفظ التغييرات"}</button><button className="btn btn-secondary" type="button" onClick={() => setNotice("المعاينة محدثة لحظيًا بنفس بيانات النموذج.")}><DashboardIcon name="eye" /> تحديث المعاينة</button><button className="btn btn-secondary" type="button" onClick={() => setNotice("الإرسال الاختباري يتم من حساب متجر مرتبط؛ معاينة الأدمن لا ترسل رسائل.")}><DashboardIcon name="action" /> إرسال اختبار</button></div>{notice ? <div className="salla-editor-save-notice" role="status" aria-live="polite"><span aria-hidden="true">✓</span><strong>{notice}</strong></div> : null}</div>
       </form>
     </>}
   </div>;

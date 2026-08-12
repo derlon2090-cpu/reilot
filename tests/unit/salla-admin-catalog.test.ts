@@ -8,6 +8,7 @@ const sharedUiSource = fs.readFileSync("src/data/sallaTemplateUi.js", "utf8");
 const globalStyles = fs.readFileSync("src/styles/globals.css", "utf8");
 const serverSource = fs.readFileSync("src/server/salla-admin-catalog.js", "utf8");
 const routeSource = fs.readFileSync("app/api/admin/integrations/salla/templates/route.js", "utf8");
+const tenantTemplateSource = fs.readFileSync("src/server/salla-templates.js", "utf8");
 
 describe("Salla admin application catalog", () => {
   it("always exposes the 12 canonical Salla templates without a store connection", () => {
@@ -47,11 +48,29 @@ describe("Salla admin application catalog", () => {
   it("mirrors the saved state on compact cards and opens the approved channel preview", () => {
     expect(adminCatalogSource).toContain('className="salla-template-card-meta"');
     expect(adminCatalogSource).toContain('item.isEnabled ? "success" : "danger"');
-    expect(adminCatalogSource).toContain('item.isEnabled ? "القالب مفعّل" : "القالب غير مفعّل"');
+    expect(adminCatalogSource).toContain('item.isEnabled ? "مفعّل" : "غير مفعّل"');
     expect(adminCatalogSource).toContain('className={`salla-channel-badge ${item.channel === "email" ? "email" : "whatsapp"}`}');
+    expect(adminCatalogSource).not.toContain("قناة الإرسال:</span>");
     expect(adminCatalogSource).toContain('setChannel(item.channel === "email" ? "email" : "whatsapp")');
     expect(adminCatalogSource.indexOf('name="channel" value="whatsapp"')).toBeLessThan(adminCatalogSource.indexOf('name="channel" value="email"'));
     expect(adminCatalogSource).toContain("checked={draft.isEnabled}");
+  });
+
+  it("shows the save result directly below every Salla editor action row", () => {
+    expect(adminCatalogSource).toContain('className="salla-editor-action-area"');
+    expect(adminCatalogSource).toContain('className="salla-editor-save-notice" role="status" aria-live="polite"');
+    expect(adminCatalogSource.indexOf('className="salla-editor-actions"')).toBeLessThan(adminCatalogSource.indexOf('className="salla-editor-save-notice"'));
+    expect(globalStyles).toContain(".salla-editor-save-notice{");
+  });
+
+  it("provisions newly connected stores from the latest complete admin default", () => {
+    expect(tenantTemplateSource).toContain('is_active AS "isActive",updated_at AS "updatedAt"');
+    expect(tenantTemplateSource).toContain("const approvedDefault = [whatsappDefault, emailDefault]");
+    expect(tenantTemplateSource).toContain('const approvedChannel = approvedDefault?.templateKey === `platform_salla_default_${definition.key}_email` ? "email" : "whatsapp"');
+    expect(tenantTemplateSource).toContain("COALESCE(legacy.is_enabled,$11)");
+    expect(tenantTemplateSource).toContain("COALESCE(legacy.delivery_channel,$12)");
+    expect(tenantTemplateSource).toContain("approvedDefault?.isActive !== false");
+    expect(adminCatalogSource).toContain("كل تغيير محفوظ هنا يُطبّق كإعداد افتراضي على قوالب المستخدم عند ربط متجر سلة جديد");
   });
 
   it("uses isolated storage keys per template and channel", () => {

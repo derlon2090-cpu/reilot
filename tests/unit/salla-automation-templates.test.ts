@@ -103,7 +103,7 @@ describe("Salla automation templates", () => {
       appSource.indexOf('name="channel" value="email" data-salla-channel-choice')
     );
     expect(appSource).toContain('const selectedChannel = item.channel || "whatsapp";');
-    expect(serverSource).toContain("COALESCE(legacy.delivery_channel,'whatsapp')");
+    expect(serverSource).toContain("COALESCE(legacy.delivery_channel,$12)");
     expect(serverSource).toContain("delivery_channel=COALESCE(tenant_salla_templates.delivery_channel,EXCLUDED.delivery_channel)");
     expect(appSource).toContain('class="salla-channel-badge ${selectedChannel}"');
     expect(appSource).toContain('item.isEnabled ? "success" : "danger"');

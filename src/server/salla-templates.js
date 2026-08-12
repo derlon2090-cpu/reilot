@@ -339,7 +339,7 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
       `platform_salla_default_${definition.key}_email`
     ]);
     const platformDefaults = await client.query(
-      `SELECT template_key AS "templateKey",subject,body,settings
+      `SELECT template_key AS "templateKey",subject,body,settings,is_active AS "isActive",updated_at AS "updatedAt"
          FROM admin_message_templates
         WHERE template_key=ANY($1::text[])`,
       [defaultKeys]
@@ -349,6 +349,16 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
       const legacyKey = legacyTemplateKeys[definition.key] || null;
       const whatsappDefault = defaultsByKey.get(`platform_salla_default_${definition.key}_whatsapp`);
       const emailDefault = defaultsByKey.get(`platform_salla_default_${definition.key}_email`);
+      const approvedDefault = [whatsappDefault, emailDefault]
+        .filter(Boolean)
+        .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())[0] || null;
+      const approvedChannel = approvedDefault?.templateKey === `platform_salla_default_${definition.key}_email` ? "email" : "whatsapp";
+      const approvedSettings = {
+        ...(definition.settings || {}),
+        ...(whatsappDefault?.settings || {}),
+        ...(emailDefault?.settings || {}),
+        ...(approvedDefault?.settings || {})
+      };
       await client.query(
         `INSERT INTO tenant_salla_templates (
            tenant_id,salla_integration_id,template_key,is_enabled,trigger_type,salla_event_name,
@@ -356,9 +366,9 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
            email_subject,message_body,whatsapp_content,email_text_content,email_html_content,settings,
            review_delay_minutes
          )
-         SELECT $1,$2,$3,COALESCE(legacy.is_enabled,false),$4,$5,
-                legacy.mapped_status_id,legacy.mapped_status_slug,legacy.mapped_status_name,
-                COALESCE(legacy.delivery_channel,'whatsapp'),legacy.whatsapp_template_id,
+         SELECT $1,$2,$3,COALESCE(legacy.is_enabled,$11),$4,$5,
+                 legacy.mapped_status_id,legacy.mapped_status_slug,legacy.mapped_status_name,
+                 COALESCE(legacy.delivery_channel,$12),legacy.whatsapp_template_id,
                 COALESCE(legacy.email_subject,$7),COALESCE(legacy.message_body,$6),
                 COALESCE(legacy.whatsapp_content,legacy.message_body,$6),
                 COALESCE(legacy.email_text_content,legacy.message_body,$10),
@@ -380,10 +390,12 @@ export async function ensureSallaAutomationTemplates(tenantId, connectionId = nu
         [tenantId, id, definition.key, definition.triggerType, definition.eventName || null,
           whatsappDefault?.body || definition.body,
           emailDefault?.subject || definition.emailSubject || null,
-          JSON.stringify({ ...(definition.settings || {}), ...(whatsappDefault?.settings || {}), ...(emailDefault?.settings || {}) }), legacyKey,
+          JSON.stringify(approvedSettings), legacyKey,
           emailDefault?.settings?.emailContentMode === "html" && emailDefault?.settings?.emailHtmlContent
             ? emailDefault.settings.emailHtmlContent
-            : emailDefault?.body || definition.body]
+            : emailDefault?.body || definition.body,
+          approvedDefault?.isActive !== false,
+          approvedChannel]
       );
     }
     const store = await client.query(

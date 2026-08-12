@@ -3914,7 +3914,7 @@ function sallaAutomationTemplatesPage() {
   const items = Array.isArray(payload.items) ? payload.items : [];
   const cards = items.map((item) => {
     const selectedChannel = item.channel === "email" ? "email" : "whatsapp";
-    const channelLabel = selectedChannel === "email" ? "البريد الإلكتروني" : "واتساب";
+    const channelLabel = selectedChannel === "email" ? "بريد" : "واتساب";
     const channelIcon = selectedChannel === "email" ? "template" : "send";
     return `<article class="card salla-template-card ${item.templateKey === "completed" ? "featured" : ""}">
     <div class="salla-template-card-head">
@@ -3925,7 +3925,7 @@ function sallaAutomationTemplatesPage() {
     ${item.templateKey === "completed" ? `<div class="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div>` : ""}
     <div class="salla-template-card-meta">
       <span class="status ${item.isEnabled ? "success" : "danger"}">${item.isEnabled ? "مفعّل" : "غير مفعّل"} <i></i></span>
-      <span class="salla-channel-badge ${selectedChannel}" title="قناة الإرسال المعتمدة">${dashboardIcon(channelIcon)}<span>قناة الإرسال:</span><strong>${channelLabel}</strong></span>
+      <span class="salla-channel-badge ${selectedChannel}" title="قناة الإرسال المعتمدة">${dashboardIcon(channelIcon)}<strong>${channelLabel}</strong></span>
     </div>
     <footer><small>آخر تحديث: ${item.updatedAt ? new Date(item.updatedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : "—"}</small><div><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="/dashboard/apps/salla/templates/${escapeHtml(item.templateKey)}">${dashboardIcon("template")} تحرير</button></div></footer>
   </article>`;

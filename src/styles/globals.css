@@ -6524,6 +6524,9 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .salla-special-settings .setting-line>span{min-width:0;display:grid;gap:5px}.salla-special-settings .setting-line strong,.salla-special-settings .setting-line small{display:block}.salla-special-settings .setting-line small{color:var(--muted);line-height:1.65}.salla-special-settings .setting-line>input{flex:0 0 auto}
 .salla-special-settings>.section-head>svg{width:24px!important;height:24px!important;flex:0 0 24px;color:#0B3F3B}
 .salla-editor-actions{display:flex;align-self:start;gap:10px;flex-wrap:wrap}
+.salla-editor-action-area{display:grid;gap:10px;justify-items:start}
+.salla-editor-save-notice{width:min(100%,680px);min-height:44px;padding:10px 13px;box-sizing:border-box;display:flex;align-items:center;gap:9px;color:#12724f;border:1px solid #bfead6;border-radius:11px;background:#edfbf4;font-size:11px;line-height:1.6;box-shadow:0 3px 10px rgba(18,114,79,.06)}
+.salla-editor-save-notice>span{width:22px;height:22px;display:grid;place-items:center;flex:0 0 22px;color:#fff;border-radius:50%;background:#16b364;font-size:12px;font-weight:900}.salla-editor-save-notice strong{font-weight:800}
 .salla-template-live-preview{position:relative;align-self:stretch;height:auto;min-height:0;padding:18px;overflow:visible}
 .salla-template-live-preview [hidden]{display:none!important}
 .salla-template-preview-sticky{position:sticky;top:92px;display:grid;gap:16px}
