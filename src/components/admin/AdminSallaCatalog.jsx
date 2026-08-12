@@ -131,7 +131,7 @@ export default function AdminSallaCatalog({ admin }) {
   const [items, setItems] = useState([]);
   const [selectedKey, setSelectedKey] = useState("");
   const [channel, setChannel] = useState("whatsapp");
-  const [draft, setDraft] = useState({ emailSubject: "", emailTextContent: "", emailHtmlContent: "", emailContentMode: "preset", emailThemeColor: "#0B3F3B", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: false, linkPageTitle: "", linkPageContent: "", showDuration: false, themeColor: "#0B3F3B", whatsappImageEnabled: false, whatsappImageUrl: "", emailDesign: "editorial", deliveryPageDesign: "classic", deliveryPageCustomCss: "", reviewTriggerStatus: "delivered", reviewDelayHours: 24, abandonedDelayHours: 1, stopOnConversion: true, showSubscriptionDuration: true });
+  const [draft, setDraft] = useState({ isEnabled: true, emailSubject: "", emailTextContent: "", emailHtmlContent: "", emailContentMode: "preset", emailThemeColor: "#0B3F3B", whatsappContent: "", buttonEnabled: true, buttonLabel: "", secureLinkEnabled: false, linkPageTitle: "", linkPageContent: "", showDuration: false, themeColor: "#0B3F3B", whatsappImageEnabled: false, whatsappImageUrl: "", emailDesign: "editorial", deliveryPageDesign: "classic", deliveryPageCustomCss: "", reviewTriggerStatus: "delivered", reviewDelayHours: 24, abandonedDelayHours: 1, stopOnConversion: true, showSubscriptionDuration: true });
   const [logoUrl, setLogoUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -152,8 +152,9 @@ export default function AdminSallaCatalog({ admin }) {
 
   const openEditor = (item) => {
     setSelectedKey(item.templateKey);
-    setChannel("whatsapp");
+    setChannel(item.channel === "email" ? "email" : "whatsapp");
     setDraft({
+      isEnabled: item.isEnabled !== false,
       emailSubject: item.emailSubject || "",
       emailTextContent: item.emailTextContent || "",
       emailHtmlContent: item.emailHtmlContent || item.settings?.emailHtmlContent || "",
@@ -204,6 +205,7 @@ export default function AdminSallaCatalog({ admin }) {
         body: JSON.stringify({
           templateKey: selected.templateKey,
           channel,
+          isEnabled: draft.isEnabled,
           subject: channel === "email" ? draft.emailSubject : null,
           body: channel === "email" ? draft.emailTextContent : draft.whatsappContent,
           settings: { buttonEnabled: draft.buttonEnabled, buttonLabel: draft.buttonLabel, secureLinkEnabled: draft.secureLinkEnabled, secureLinkOptIn: draft.secureLinkEnabled, linkPageTitle: draft.linkPageTitle, linkPageContent: draft.linkPageContent, showDuration: draft.showDuration, themeColor: draft.themeColor, whatsappImageEnabled: draft.whatsappImageEnabled, whatsappImageUrl: draft.whatsappImageEnabled && /^https:\/\//i.test(draft.whatsappImageUrl) ? draft.whatsappImageUrl : "", emailDesign: draft.emailDesign, emailContentMode: draft.emailContentMode, emailThemeColor: draft.emailThemeColor, emailHtmlContent: draft.emailHtmlContent, deliveryPageDesign: draft.deliveryPageDesign, deliveryPageCustomCss: draft.deliveryPageCustomCss, reviewTriggerStatus: draft.reviewTriggerStatus, reviewDelayMinutes: Math.min(48, Math.max(1, Number(draft.reviewDelayHours) || 24)) * 60, delaysMinutes: [Math.min(48, Math.max(1, Number(draft.abandonedDelayHours) || 1)) * 60], stopOnConversion: draft.stopOnConversion, completedDeliveryMode: "secure_order_page", showSubscriptionDuration: draft.showSubscriptionDuration }
@@ -287,13 +289,16 @@ export default function AdminSallaCatalog({ admin }) {
         </div>
         <p>{item.description}</p>
         {item.templateKey === "completed" ? <div className="salla-mode-chips"><span>واتساب</span><span>رابط صفحة آمنة</span></div> : null}
-        <span className="status success">نشط <i /></span>
+        <div className="salla-template-card-meta">
+          <span className={`status ${item.isEnabled ? "success" : "danger"}`}>{item.isEnabled ? "القالب مفعّل" : "القالب غير مفعّل"} <i /></span>
+          <span className={`salla-channel-badge ${item.channel === "email" ? "email" : "whatsapp"}`} title="قناة الإرسال المعتمدة"><DashboardIcon name={item.channel === "email" ? "template" : "send"} /><span>قناة الإرسال:</span><strong>{item.channel === "email" ? "البريد الإلكتروني" : "واتساب"}</strong></span>
+        </div>
         <footer><small>آخر تحديث: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "—"}</small><div><button className="btn btn-secondary" type="button" onClick={() => openEditor(item)}><DashboardIcon name="eye" /> معاينة</button><button className="btn btn-secondary" type="button" onClick={() => openEditor(item)}><DashboardIcon name="template" /> تحرير</button></div></footer>
       </article>)}</section>}
     </> : <>
       <section className="message-activation-card card">
-        <div className="message-activation-copy"><span className="message-activation-icon"><DashboardIcon name="send" /></span><span><strong>تفعيل رسالة {selected.name}</strong><small>هذه هي بطاقة التفعيل نفسها التي تظهر للمستخدم؛ التفعيل الفعلي يبقى خاصًا بكل متجر مرتبط.</small></span></div>
-        <div className="message-activation-control"><label className="message-activation-switch"><input type="checkbox" checked readOnly aria-label={`تفعيل رسالة ${selected.name}`} /><span /></label><span className="message-activation-status"><i /><b className="message-activation-status-on">مفعل</b><b className="message-activation-status-off">متوقف</b></span></div>
+        <div className="message-activation-copy"><span className="message-activation-icon"><DashboardIcon name="send" /></span><span><strong>تفعيل رسالة {selected.name}</strong><small>تُحفظ حالة القالب وتظهر مباشرة على بطاقته الخارجية.</small></span></div>
+        <div className="message-activation-control"><label className="message-activation-switch"><input type="checkbox" checked={draft.isEnabled} onChange={(event) => setDraft((current) => ({ ...current, isEnabled: event.target.checked }))} aria-label={`تفعيل رسالة ${selected.name}`} /><span /></label><span className="message-activation-status"><i /><b className="message-activation-status-on">القالب مفعّل</b><b className="message-activation-status-off">القالب غير مفعّل</b></span></div>
       </section>
 
       <form id="admin-salla-template-form" className="salla-template-editor-form" data-admin-salla-mirrors-user-editor onSubmit={save}>
@@ -302,8 +307,8 @@ export default function AdminSallaCatalog({ admin }) {
             <div className="section-head"><div><h2>بيانات القالب</h2><p>كل قناة تحتفظ بمحتواها المستقل، وتظهر المعاينة المطابقة فورًا.</p></div><DashboardIcon name="template" /></div>
             <div className="form-grid two"><label className="field"><span>اسم القالب</span><input className="input" value={selected.name} disabled /></label>{selected.templateKey !== "review_request" ? <label className="field"><span>حدث التشغيل</span><input className="input" value={selected.templateKey} disabled dir="ltr" /></label> : null}</div>
             <fieldset className="salla-channel-choice"><legend>قناة الإرسال</legend>
-              <label><input type="radio" name="channel" value="email" checked={channel === "email"} onChange={() => setChannel("email")} /><span><DashboardIcon name="template" /> بريد إلكتروني</span></label>
-              <label><input type="radio" name="channel" value="whatsapp" checked={channel === "whatsapp"} onChange={() => setChannel("whatsapp")} /><span><DashboardIcon name="send" /> واتساب</span></label>
+              <label className="salla-channel-option whatsapp"><input type="radio" name="channel" value="whatsapp" checked={channel === "whatsapp"} onChange={() => setChannel("whatsapp")} /><span><DashboardIcon name="send" /> واتساب</span></label>
+              <label className="salla-channel-option email"><input type="radio" name="channel" value="email" checked={channel === "email"} onChange={() => setChannel("email")} /><span><DashboardIcon name="template" /> بريد إلكتروني</span></label>
             </fieldset>
 
             {channel === "whatsapp" ? <section className="salla-channel-panel" data-channel-panel="whatsapp">

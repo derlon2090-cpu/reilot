@@ -6,6 +6,8 @@ const adminCatalogSource = fs.readFileSync("src/components/admin/AdminSallaCatal
 const userCatalogSource = fs.readFileSync("src/app/app.js", "utf8");
 const sharedUiSource = fs.readFileSync("src/data/sallaTemplateUi.js", "utf8");
 const globalStyles = fs.readFileSync("src/styles/globals.css", "utf8");
+const serverSource = fs.readFileSync("src/server/salla-admin-catalog.js", "utf8");
+const routeSource = fs.readFileSync("app/api/admin/integrations/salla/templates/route.js", "utf8");
 
 describe("Salla admin application catalog", () => {
   it("always exposes the 12 canonical Salla templates without a store connection", () => {
@@ -13,6 +15,7 @@ describe("Salla admin application catalog", () => {
     expect(items).toHaveLength(12);
     expect(new Set(items.map((item) => item.templateKey)).size).toBe(12);
     expect(items.every((item) => item.whatsappContent && item.emailTextContent && item.emailSubject)).toBe(true);
+    expect(items.every((item) => item.channel === "whatsapp" && item.isEnabled)).toBe(true);
   });
 
   it("keeps WhatsApp and email defaults independent", () => {
@@ -26,6 +29,29 @@ describe("Salla admin application catalog", () => {
     expect(item?.emailTextContent).toBe("محتوى بريد مخصص");
     expect(item?.emailSubject).toBe("عنوان بريد مخصص");
     expect(item?.updatedAt).toBe("2026-08-02T11:00:00.000Z");
+    expect(item?.channel).toBe("email");
+  });
+
+  it("persists the approved channel and active state shown on every admin card", () => {
+    const item = mergeSallaAdminCatalog([
+      { templateKey: platformSallaTemplateKey("processing", "email"), body: "بريد", isActive: true, updatedAt: "2026-08-02T10:00:00.000Z" },
+      { templateKey: platformSallaTemplateKey("processing", "whatsapp"), body: "واتساب", isActive: false, updatedAt: "2026-08-02T11:00:00.000Z" }
+    ]).find((row) => row.templateKey === "processing");
+    expect(item?.channel).toBe("whatsapp");
+    expect(item?.isEnabled).toBe(false);
+    expect(serverSource).toContain('is_active AS "isActive"');
+    expect(serverSource).toContain("is_active=EXCLUDED.is_active");
+    expect(routeSource).toContain("isEnabled: z.boolean()");
+  });
+
+  it("mirrors the saved state on compact cards and opens the approved channel preview", () => {
+    expect(adminCatalogSource).toContain('className="salla-template-card-meta"');
+    expect(adminCatalogSource).toContain('item.isEnabled ? "success" : "danger"');
+    expect(adminCatalogSource).toContain('item.isEnabled ? "القالب مفعّل" : "القالب غير مفعّل"');
+    expect(adminCatalogSource).toContain('className={`salla-channel-badge ${item.channel === "email" ? "email" : "whatsapp"}`}');
+    expect(adminCatalogSource).toContain('setChannel(item.channel === "email" ? "email" : "whatsapp")');
+    expect(adminCatalogSource.indexOf('name="channel" value="whatsapp"')).toBeLessThan(adminCatalogSource.indexOf('name="channel" value="email"'));
+    expect(adminCatalogSource).toContain("checked={draft.isEnabled}");
   });
 
   it("uses isolated storage keys per template and channel", () => {

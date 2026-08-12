@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 const inputSchema = z.object({
   templateKey: z.string().trim().min(1).max(100),
   channel: z.enum(["whatsapp", "email"]),
+  isEnabled: z.boolean(),
   subject: z.string().trim().max(300).optional().nullable(),
   body: z.string().trim().min(1).max(10000),
   settings: z.object({
