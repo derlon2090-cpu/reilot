@@ -41,6 +41,11 @@ describe("accounts authentication portal", () => {
     expect(isSplitHostEnabled(origins)).toBe(false);
   });
 
+  it("normalizes an internal Vercel app origin to the public production domain", () => {
+    const origins = configuredOrigins({ NODE_ENV: "production", APP_URL: "https://reilot.vercel.app" });
+    expect(origins).toEqual({ app: "https://renvix.app", auth: "https://renvix.app" });
+  });
+
   it("issues a shared secure HttpOnly session cookie", () => {
     const previous = { secure: process.env.COOKIE_SECURE, auth: process.env.AUTH_URL, domain: process.env.AUTH_COOKIE_DOMAIN };
     process.env.COOKIE_SECURE = "true";

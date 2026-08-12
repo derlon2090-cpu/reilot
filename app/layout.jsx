@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { appBaseUrl, authBaseUrl } from "../src/server/app-url.js";
 
 export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
@@ -11,10 +12,8 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://renvix.app" : "http://localhost:3000");
-  const authUrl = String(process.env.AUTH_SPLIT_HOST_ENABLED || "").toLowerCase() === "true"
-    ? (process.env.AUTH_URL || appUrl)
-    : appUrl;
+  const appUrl = appBaseUrl();
+  const authUrl = authBaseUrl();
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
@@ -38,12 +37,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-complete-backlog-v102" />
-         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-complete-backlog-v102" />
+         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-complete-backlog-v103" />
+         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-complete-backlog-v103" />
       </head>
       <body>
         {children}
-         <Script type="module" src="/app/app.js?v=20260812-complete-backlog-v102" strategy="afterInteractive" />
+         <Script type="module" src="/app/app.js?v=20260812-complete-backlog-v103" strategy="afterInteractive" />
       </body>
     </html>
   );

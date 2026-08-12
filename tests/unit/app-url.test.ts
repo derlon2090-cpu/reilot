@@ -47,4 +47,11 @@ describe("public application URL", () => {
     process.env.AUTH_SPLIT_HOST_ENABLED = "true";
     expect(authBaseUrl()).toBe("https://accounts.renvix.app");
   });
+
+  it("never exposes an internal Vercel deployment as the production application URL", () => {
+    process.env.NODE_ENV = "production";
+    process.env.NEXT_PUBLIC_APP_URL = "https://reilot.vercel.app";
+    expect(appBaseUrl()).toBe("https://renvix.app");
+    expect(authBaseUrl()).toBe("https://renvix.app");
+  });
 });

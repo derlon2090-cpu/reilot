@@ -21,6 +21,9 @@ export function appBaseUrl() {
   if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
     throw new Error("Application URL is not safe");
   }
+  if (process.env.NODE_ENV === "production" && parsed.hostname.endsWith(".vercel.app")) {
+    return PRODUCTION_APP_URL;
+  }
   return parsed.origin;
 }
 
