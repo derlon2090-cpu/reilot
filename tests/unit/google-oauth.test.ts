@@ -4,7 +4,8 @@ import { createGoogleOAuthChallenge, exchangeGoogleAuthorizationCode, googleOAut
 const original = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-  AUTH_URL: process.env.AUTH_URL
+  AUTH_URL: process.env.AUTH_URL,
+  API_PUBLIC_URL: process.env.API_PUBLIC_URL
 };
 
 describe("Google OAuth redirect fallback", () => {
@@ -12,6 +13,7 @@ describe("Google OAuth redirect fallback", () => {
     process.env.GOOGLE_CLIENT_ID = "web-client.apps.googleusercontent.com";
     process.env.GOOGLE_CLIENT_SECRET = "server-only-secret";
     process.env.AUTH_URL = "https://accounts.renvix.app";
+    process.env.API_PUBLIC_URL = "https://api.renvix.app";
   });
 
   afterEach(() => {
@@ -21,13 +23,13 @@ describe("Google OAuth redirect fallback", () => {
     }
   });
 
-  it("binds the redirect to state, nonce, PKCE and the configured accounts callback", () => {
+  it("binds the redirect to state, nonce, PKCE and the Render callback", () => {
     const challenge = createGoogleOAuthChallenge();
     expect(googleOAuthStateMatches(challenge.state, challenge.stateDigest)).toBe(true);
     expect(googleOAuthStateMatches("attacker-state", challenge.stateDigest)).toBe(false);
     const url = new URL(googleOAuthAuthorizationUrl({ state: challenge.state, nonce: "nonce", challenge: challenge.challenge }));
     expect(url.origin).toBe("https://accounts.google.com");
-    expect(url.searchParams.get("redirect_uri")).toBe("https://accounts.renvix.app/api/auth/google/callback");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://api.renvix.app/api/auth/google/callback");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("nonce")).toBe("nonce");
   });
@@ -42,7 +44,7 @@ describe("Google OAuth redirect fallback", () => {
     expect(result).toEqual({ ok: true, idToken: "verified-id-token" });
     const body = new URLSearchParams(requestBody);
     expect(body.get("code_verifier")).toBe("pkce-verifier");
-    expect(body.get("redirect_uri")).toBe("https://accounts.renvix.app/api/auth/google/callback");
+    expect(body.get("redirect_uri")).toBe("https://api.renvix.app/api/auth/google/callback");
     expect(body.get("client_secret")).toBe("server-only-secret");
   });
 });

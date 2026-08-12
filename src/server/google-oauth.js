@@ -19,7 +19,7 @@ function oauthCookie(name, value, maxAge = OAUTH_CHALLENGE_AGE_SECONDS) {
 }
 
 export function googleOAuthRedirectUri() {
-  const configured = process.env.AUTH_URL || process.env.BETTER_AUTH_URL || "";
+  const configured = process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || process.env.AUTH_URL || process.env.BETTER_AUTH_URL || "";
   const origin = configured ? new URL(configured).origin : "http://localhost:3000";
   return `${origin}/api/auth/google/callback`;
 }

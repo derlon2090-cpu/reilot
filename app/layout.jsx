@@ -1,5 +1,6 @@
 import Script from "next/script";
 import { appBaseUrl, authBaseUrl } from "../src/server/app-url.js";
+import { publicAuthApiOrigin } from "../src/server/auth-backend-runtime.js";
 
 export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
@@ -14,6 +15,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   const appUrl = appBaseUrl();
   const authUrl = authBaseUrl();
+  const authApiUrl = publicAuthApiOrigin();
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
@@ -25,6 +27,7 @@ export default function RootLayout({ children }) {
             __html: `window.__RENVIX_CONFIG__=${JSON.stringify({
               appUrl,
               authUrl,
+              authApiUrl,
               turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "",
               turnstileDiagnostics: process.env.TURNSTILE_DIAGNOSTICS_ENABLED === "true",
               googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",

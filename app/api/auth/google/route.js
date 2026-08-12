@@ -2,17 +2,8 @@ import { authenticateGoogle, clearGoogleNonceCookie, readGoogleNonceDigest, veri
 import { sessionCookie } from "../../../../src/server/session.js";
 import { challengeCookie, readTrustedBrowserCookie } from "../../../../src/server/email-otp-v2.js";
 import { mfaChallengeCookie } from "../../../../src/server/login-mfa.js";
-
-function allowedOrigins() {
-  return new Set([process.env.APP_URL, process.env.NEXT_PUBLIC_APP_URL, process.env.AUTH_URL, process.env.BETTER_AUTH_URL, "http://localhost:3000"]
-    .filter(Boolean).map((value) => { try { return new URL(value).origin; } catch { return ""; } }).filter(Boolean));
-}
-
-function corsHeaders(req) {
-  const origin = req.headers.get("origin");
-  if (!origin || !allowedOrigins().has(origin)) return {};
-  return { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true", Vary: "Origin" };
-}
+import { authCorsHeaders, authCorsPreflight, authOriginAllowed } from "../../../../src/server/auth-cors.js";
+import { authBackendUnavailableResponse, isRenderAuthRuntime } from "../../../../src/server/auth-backend-runtime.js";
 
 function appendCookies(headers, cookies) {
   cookies.filter(Boolean).forEach((cookie) => headers.append("Set-Cookie", cookie));
@@ -20,12 +11,12 @@ function appendCookies(headers, cookies) {
 }
 
 export async function POST(req) {
-  const origin = req.headers.get("origin");
-  if (origin && !allowedOrigins().has(origin)) return Response.json({ ok: false, reason: "origin_not_allowed" }, { status: 403 });
+  if (!isRenderAuthRuntime()) return authBackendUnavailableResponse();
+  if (!authOriginAllowed(req)) return Response.json({ ok: false, reason: "origin_not_allowed" }, { status: 403 });
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
   const verified = await verifyGoogleCredential({ credential: body.credential, expectedNonceDigest: readGoogleNonceDigest(req) });
-  const baseHeaders = new Headers({ ...corsHeaders(req), "Cache-Control": "no-store" });
+  const baseHeaders = new Headers({ ...authCorsHeaders(req), "Cache-Control": "no-store" });
   baseHeaders.append("Set-Cookie", clearGoogleNonceCookie());
   if (!verified.ok) return Response.json({ ok: false, reason: verified.reason }, { status: verified.status, headers: baseHeaders });
   try {
@@ -54,7 +45,5 @@ export async function POST(req) {
 }
 
 export async function OPTIONS(req) {
-  const origin = req.headers.get("origin");
-  if (!origin || !allowedOrigins().has(origin)) return new Response(null, { status: 403 });
-  return new Response(null, { status: 204, headers: { ...corsHeaders(req), "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" } });
+  return authCorsPreflight(req, "POST, OPTIONS");
 }

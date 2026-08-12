@@ -3,6 +3,7 @@ import { clearGoogleOAuthChallengeCookies, exchangeGoogleAuthorizationCode, goog
 import { sessionCookie } from "../../../../../src/server/session.js";
 import { challengeCookie, readTrustedBrowserCookie } from "../../../../../src/server/email-otp-v2.js";
 import { mfaChallengeCookie } from "../../../../../src/server/login-mfa.js";
+import { isRenderAuthRuntime } from "../../../../../src/server/auth-backend-runtime.js";
 
 function configuredOrigin(value, fallback) { return value ? new URL(value).origin : fallback; }
 function authOrigin(req) { return configuredOrigin(process.env.AUTH_URL || process.env.BETTER_AUTH_URL, new URL(req.url).origin); }
@@ -19,6 +20,7 @@ function failure(req, reason) {
 }
 
 export async function GET(req) {
+  if (!isRenderAuthRuntime()) return failure(req, "auth_backend_required");
   const url = new URL(req.url);
   if (url.searchParams.get("error")) return failure(req, "cancelled");
   const code = url.searchParams.get("code") || "";

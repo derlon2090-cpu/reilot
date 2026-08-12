@@ -1,24 +1,53 @@
-# Google authentication setup
+# Google authentication architecture
 
-Renvix uses Google Identity Services on `accounts.renvix.app`. The browser receives a Google ID credential, while the Renvix backend verifies it with Google's official library before creating the normal Renvix session.
+Google authentication is owned by the Node.js backend on Render. Vercel renders the authentication UI but never receives or reads `GOOGLE_CLIENT_SECRET`.
 
-## Required environment variables
+## Environment ownership
+
+Vercel/frontend:
 
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_API_BASE_URL=https://api.renvix.app` (a public URL, not a credential)
+
+Render/backend:
+
 - `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET` (server-only; required by the authorization-code fallback when a browser blocks the Google Identity Services script)
+- `GOOGLE_CLIENT_SECRET`
+- `API_PUBLIC_URL=https://api.renvix.app`
+- `AUTH_BACKEND_RUNTIME=render`
+- `APP_URL=https://renvix.app`
+- `AUTH_URL=https://accounts.renvix.app`
+- `AUTH_COOKIE_DOMAIN=.renvix.app`
 
-`NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_ID` must contain the same Web application client ID. Never expose `GOOGLE_CLIENT_SECRET` to the browser.
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_ID` must be the exact same Web OAuth client ID. The browser compares a SHA-256 fingerprint returned by Render before initializing Google; the full backend value, secret, and Google credential are never logged.
 
-## Google Cloud Console
+## Production routing requirements
 
-1. Configure the OAuth consent screen with the Renvix application name, verified domain, privacy policy, and terms URLs.
-2. Create an OAuth 2.0 Client ID of type **Web application**.
-3. Add the authorized JavaScript origin `https://accounts.renvix.app`.
-4. Optionally add `http://localhost:3000` only for local development.
-5. Add the authorized redirect URI `https://accounts.renvix.app/api/auth/google/callback` for the secure server fallback.
-6. Keep the requested identity scopes limited to the standard profile, email, and OpenID claims.
+Attach a custom hostname under the shared cookie domain (recommended: `api.renvix.app`) to the Render service. A raw `*.onrender.com` hostname cannot set a cookie for `.renvix.app`.
 
-The official GIS button is the primary flow. If a privacy extension blocks `https://accounts.google.com/gsi/client`, the same button falls back to the authorization-code route. That fallback requires both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the **Production** environment followed by a full redeploy.
+The Google Cloud OAuth client must contain:
 
-After updating Production environment variables, perform a full Production redeploy. Google accounts are linked by the stable Google `sub` claim; Google credentials and tokens are never stored.
+- JavaScript origins: `https://accounts.renvix.app`
+- Server fallback redirect URI: `https://api.renvix.app/api/auth/google/callback`
+
+If the public callback must remain `https://accounts.renvix.app/api/auth/google/callback`, configure an edge/path proxy for `/api/auth/google/*` to Render. DNS alone cannot route only that path. The code exchange still executes only on Render.
+
+## Request flow
+
+Primary GIS flow:
+
+1. Browser on `accounts.renvix.app` loads Google Identity Services using the public client ID.
+2. Browser requests a nonce and the backend Client ID fingerprint from `api.renvix.app`.
+3. Google returns an ID credential to the browser.
+4. Browser sends the credential to `api.renvix.app/api/auth/google` with credentials enabled.
+5. Render verifies the credential, creates the Renvix session, and sets the shared `.renvix.app` cookie.
+6. The portal redirects to `renvix.app/dashboard`.
+
+Blocked-SDK fallback:
+
+1. The UI reports that a browser extension blocked Google and offers Retry.
+2. The optional secure-page button opens `api.renvix.app/api/auth/google/start`.
+3. Google redirects only to the Render callback.
+4. Render exchanges the code with `GOOGLE_CLIENT_SECRET`, creates the session, and redirects to the dashboard.
+
+Vercel routes fail closed or redirect to the configured Render public origin; they never perform the authorization-code exchange.

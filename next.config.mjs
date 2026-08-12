@@ -1,3 +1,16 @@
+function configuredPublicApiOrigin() {
+  try {
+    const value = String(process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+    if (!value) return "";
+    const url = new URL(value);
+    return url.protocol === "https:" || process.env.NODE_ENV === "development" ? url.origin : "";
+  } catch {
+    return "";
+  }
+}
+
+const publicApiOrigin = configuredPublicApiOrigin();
+
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
@@ -7,7 +20,7 @@ const nextConfig = {
     const securityHeaders = [
       {
         key: "Content-Security-Policy",
-        value: `default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline'${developmentScriptPolicy} https://static.cloudflareinsights.com https://challenges.cloudflare.com https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://cloudflareinsights.com https://challenges.cloudflare.com https://accounts.google.com/gsi/; frame-src 'self' https://challenges.cloudflare.com https://accounts.google.com/gsi/; upgrade-insecure-requests`
+        value: `default-src 'self'; base-uri 'self'; form-action 'self'${publicApiOrigin ? ` ${publicApiOrigin}` : ""}; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline'${developmentScriptPolicy} https://static.cloudflareinsights.com https://challenges.cloudflare.com https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self'${publicApiOrigin ? ` ${publicApiOrigin}` : ""} https://cloudflareinsights.com https://challenges.cloudflare.com https://accounts.google.com/gsi/; frame-src 'self' https://challenges.cloudflare.com https://accounts.google.com/gsi/; upgrade-insecure-requests`
       },
       { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
       { key: "X-Content-Type-Options", value: "nosniff" },

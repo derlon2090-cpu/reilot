@@ -42,7 +42,7 @@ export function clearGoogleNonceCookie() {
 }
 
 export function googleClientId() {
-  return String(process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "").trim();
+  return String(process.env.GOOGLE_CLIENT_ID || "").trim();
 }
 
 export async function verifyGoogleCredential({ credential, expectedNonceDigest, verifier = oauthClient }) {

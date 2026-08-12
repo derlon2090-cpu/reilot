@@ -12342,12 +12342,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .auth-google-placeholder{width:100%;min-height:42px;display:flex;align-items:center;justify-content:center;gap:11px;color:#3c4043;border:1px solid #aeb9b7;border-radius:7px;background:#fff;font:600 13px/1.2 Tajawal,Arial,sans-serif;opacity:1}
 .auth-google-placeholder svg{width:18px;height:18px;flex:0 0 auto}
 .auth-google-status{margin:0;color:#b44343;font-size:11.5px;line-height:1.6;text-align:center}.auth-google-status[data-tone="info"]{color:#377a74}
+.auth-google-server-fallback{justify-self:center;border:0;background:none;color:#087f70;font:600 11.5px/1.5 Tajawal,Arial,sans-serif;text-decoration:underline;cursor:pointer}.auth-google-server-fallback:disabled{opacity:.55;cursor:wait}
 .auth-google-legal{margin:0;color:#7c8d8a;font-size:10.5px;line-height:1.6;text-align:center}
 
 .auth-suite-page[data-auth-theme="dark"] .auth-known-account-card,
 .auth-suite-page[data-auth-theme="dark"] .auth-known-account-another{color:#dce9e7;border-color:#244643;background:#102826}
 .auth-suite-page[data-auth-theme="dark"] .auth-known-account-another{background:transparent}
 .auth-suite-page[data-auth-theme="dark"] .auth-google-placeholder{color:#e6efed;border-color:#49635f;background:#101918}
+.auth-suite-page[data-auth-theme="dark"] .auth-google-server-fallback{color:#61d5c4}
 .auth-suite-page[data-auth-theme="dark"] .auth-known-account-copy small,
 .auth-suite-page[data-auth-theme="dark"] .auth-google-divider,
 .auth-suite-page[data-auth-theme="dark"] .auth-google-legal{color:#9db1ae}
