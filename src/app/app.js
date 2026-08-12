@@ -767,6 +767,12 @@ state.supportTickets = null;
 state.supportTicket = null;
 state.supportFilter = "all";
 state.supportSelectedId = state.query.get("ticket") || "";
+state.supportLiveSource = null;
+state.supportLiveStatus = "connecting";
+state.supportLiveFallbackTimer = null;
+state.supportLiveRefreshing = false;
+state.supportLiveRefreshPending = false;
+state.supportReplyDrafts = {};
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
 state.sallaAutomationTemplates = null;
@@ -9705,7 +9711,7 @@ async function handleSubmit(form, event) {
       await fetchJson(`/api/support/tickets/${encodeURIComponent(id)}/messages`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: data.body })
       });
-      form.reset(); state.supportTicket = null; state.supportTickets = null;
+      form.reset(); delete state.supportReplyDrafts[id]; state.supportTicket = null; state.supportTickets = null;
       syncRouteData();
     } catch (error) {
       toast(error.message || "تعذر إرسال الرد", "danger");
@@ -11028,6 +11034,111 @@ function supportTypeLabel(value) {
   }[value] || value || "رسالة";
 }
 
+function updateSupportLiveStatus(status) {
+  state.supportLiveStatus = status;
+  const badge = document.querySelector("[data-support-live-status]");
+  const label = document.querySelector("[data-support-live-label]");
+  if (badge) badge.dataset.supportLiveStatus = status;
+  if (label) label.textContent = status === "connected" ? "متصل مباشر" : status === "fallback" ? "تحديث تلقائي" : "جارٍ الاتصال...";
+}
+
+function stopSupportLiveFallback() {
+  if (!state.supportLiveFallbackTimer) return;
+  clearInterval(state.supportLiveFallbackTimer);
+  state.supportLiveFallbackTimer = null;
+}
+
+function startSupportLiveFallback() {
+  if (state.supportLiveFallbackTimer) return;
+  updateSupportLiveStatus("fallback");
+  state.supportLiveFallbackTimer = setInterval(() => {
+    if (state.route === "/dashboard/support" && document.visibilityState === "visible") void refreshSupportLiveData();
+  }, 7_000);
+}
+
+function closeSupportLiveConnection() {
+  stopSupportLiveFallback();
+  const source = state.supportLiveSource;
+  state.supportLiveSource = null;
+  if (!source) return;
+  source.onopen = null;
+  source.onerror = null;
+  source.close();
+}
+
+async function refreshSupportLiveData() {
+  if (state.route !== "/dashboard/support") return;
+  if (state.supportLiveRefreshing) {
+    state.supportLiveRefreshPending = true;
+    return;
+  }
+  if (document.visibilityState !== "visible") {
+    state.supportLiveRefreshPending = true;
+    return;
+  }
+  state.supportLiveRefreshing = true;
+  state.supportLiveRefreshPending = false;
+  const selectedId = state.supportSelectedId;
+  const replyField = document.querySelector('.support-reply-form textarea[name="body"]');
+  if (replyField && selectedId) state.supportReplyDrafts[selectedId] = replyField.value;
+  const thread = document.querySelector(".support-thread-messages");
+  const keepAtBottom = !thread || thread.scrollHeight - thread.scrollTop - thread.clientHeight < 72;
+  const previousMessageCount = Array.isArray(state.supportTicket?.messages) ? state.supportTicket.messages.length : 0;
+  try {
+    const requests = [fetchJson(`/api/support/tickets?filter=${encodeURIComponent(state.supportFilter)}&limit=25`)];
+    if (selectedId) requests.push(fetchJson(`/api/support/tickets/${encodeURIComponent(selectedId)}`));
+    const results = await Promise.allSettled(requests);
+    if (state.route !== "/dashboard/support" || selectedId !== state.supportSelectedId) return;
+    if (results[0]?.status === "fulfilled") state.supportTickets = results[0].value;
+    if (selectedId && results[1]?.status === "fulfilled") state.supportTicket = results[1].value.item || null;
+    if (selectedId && Number(state.supportTicket?.userUnreadCount || 0) > 0) {
+      state.supportTicket.userUnreadCount = 0;
+      const current = state.supportTickets?.items?.find((item) => item.id === selectedId);
+      if (current) current.userUnreadCount = 0;
+      void fetchJson(`/api/support/tickets/${encodeURIComponent(selectedId)}/read`, { method: "POST" }).catch(() => {});
+    }
+    render();
+    const nextMessageCount = Array.isArray(state.supportTicket?.messages) ? state.supportTicket.messages.length : 0;
+    if (keepAtBottom && nextMessageCount > previousMessageCount) {
+      requestAnimationFrame(() => {
+        const nextThread = document.querySelector(".support-thread-messages");
+        if (nextThread) nextThread.scrollTop = nextThread.scrollHeight;
+      });
+    }
+  } finally {
+    state.supportLiveRefreshing = false;
+    if (state.supportLiveRefreshPending) void refreshSupportLiveData();
+  }
+}
+
+function syncSupportLiveConnection() {
+  if (state.route !== "/dashboard/support") {
+    closeSupportLiveConnection();
+    return;
+  }
+  if (state.supportLiveSource) return;
+  if (!("EventSource" in window)) {
+    startSupportLiveFallback();
+    return;
+  }
+  updateSupportLiveStatus("connecting");
+  const source = new EventSource("/api/support/events");
+  state.supportLiveSource = source;
+  source.onopen = () => {
+    if (state.supportLiveSource !== source) return;
+    stopSupportLiveFallback();
+    updateSupportLiveStatus("connected");
+  };
+  source.addEventListener("support-change", () => {
+    if (state.supportLiveSource === source) void refreshSupportLiveData();
+  });
+  source.onerror = () => {
+    if (state.supportLiveSource !== source) return;
+    updateSupportLiveStatus("connecting");
+    startSupportLiveFallback();
+  };
+}
+
 function supportConversation(ticket) {
   if (!ticket) return state.supportSelectedId
     ? `<div class="support-empty-conversation">${dashboardIcon("support")}<strong>جاري فتح المحادثة...</strong><p>يتم الآن تحميل الرسائل والردود.</p></div>`
@@ -11040,7 +11151,7 @@ function supportConversation(ticket) {
   return `<section class="support-thread" aria-label="المحادثة">
     <header><div><strong>${escapeHtml(ticket.subject)}</strong><span>رقم التذكرة <code dir="ltr">${escapeHtml(ticket.ticketNumber)}</code> · ${supportStatusLabel(ticket.status)}</span></div><div class="support-thread-actions">${!isClosed ? `<button class="btn btn-secondary support-close-ticket" data-action="support-close" data-id="${escapeHtml(ticket.id)}">${dashboardIcon("success")} إغلاق التذكرة</button>` : ""}${isResolved ? `<button class="btn btn-secondary" data-action="support-reopen" data-id="${escapeHtml(ticket.id)}">إعادة فتح التذكرة</button>` : ""}</div></header>
     <div class="support-thread-messages">${messages.map((message) => `<article class="support-bubble ${message.senderType === "USER" ? "support-bubble-user" : "support-bubble-admin"}"><b>${message.senderType === "USER" ? "أنت" : escapeHtml(message.senderName || "فريق الدعم")}</b><p>${escapeHtml(message.body).replace(/\n/g, "<br>")}</p>${attachments.filter((file) => file.messageId === message.id).map((file) => `<a class="support-attachment-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${dashboardIcon("attachment")} ${escapeHtml(file.originalName)}</a>`).join("")}<time>${new Date(message.createdAt).toLocaleString("ar-SA")}</time></article>`).join("")}</div>
-    ${isClosed ? `<p class="support-closed-note">${dashboardIcon("success")} هذه التذكرة مغلقة، والمحادثة محفوظة للرجوع إليها.</p>` : `<form class="support-reply-form" data-submit="support-reply" data-ticket-id="${escapeHtml(ticket.id)}"><textarea name="body" maxlength="2000" minlength="2" placeholder="اكتب ردك..." required></textarea><button class="btn btn-primary" type="submit">إرسال الرد</button></form>`}
+    ${isClosed ? `<p class="support-closed-note">${dashboardIcon("success")} هذه التذكرة مغلقة، والمحادثة محفوظة للرجوع إليها.</p>` : `<form class="support-reply-form" data-submit="support-reply" data-ticket-id="${escapeHtml(ticket.id)}"><textarea name="body" maxlength="2000" minlength="2" placeholder="اكتب ردك..." required>${escapeHtml(state.supportReplyDrafts[ticket.id] || "")}</textarea><button class="btn btn-primary" type="submit">إرسال الرد</button></form>`}
   </section>`;
 }
 
@@ -11053,7 +11164,7 @@ function dashboardSupportPage() {
   const filters = [["all","الكل",counts.total],["new","جديدة",counts.new],["replied","تم الرد",counts.replied],["closed","مغلقة",counts.closed]];
   return dashboardShell(`
     <section class="dashboard-support-page">
-      <div class="support-page-heading"><div><span class="support-heading-icon">${dashboardIcon("support")}</span><div><h1>التواصل والمساعدة</h1><p>أرسل رسالتك إلى فريق الدعم وتابع الردود مباشرة من داخل المنصة.</p></div></div><span class="support-security-note">${dashboardIcon("security")} كل محادثاتك آمنة ومرئية بالكامل داخل المنصة</span></div>
+      <div class="support-page-heading"><div><span class="support-heading-icon">${dashboardIcon("support")}</span><div><h1>التواصل والمساعدة</h1><p>أرسل رسالتك إلى فريق الدعم وتابع الردود مباشرة من داخل المنصة.</p></div></div><div class="support-heading-badges"><span class="support-live-badge" data-support-live-status="${escapeHtml(state.supportLiveStatus)}"><i></i><span data-support-live-label>${state.supportLiveStatus === "connected" ? "متصل مباشر" : state.supportLiveStatus === "fallback" ? "تحديث تلقائي" : "جارٍ الاتصال..."}</span></span><span class="support-security-note">${dashboardIcon("security")} كل محادثاتك آمنة ومرئية بالكامل داخل المنصة</span></div></div>
       <div class="support-main-grid">
         <section class="support-conversations card">
           <div class="support-section-title"><div><h2>الإشعارات والردود</h2><p>متابعة جميع رسائلك مع فريق الدعم.</p></div>${dashboardIcon("message")}</div>
@@ -11085,6 +11196,7 @@ function render() {
   if (normalizedRoute !== requestedRoute) history.replaceState({}, "", normalizedRoute + location.search);
   state.route = normalizedRoute;
   state.query = new URLSearchParams(location.search);
+  if (state.route !== "/dashboard/support") closeSupportLiveConnection();
   if (state.route.startsWith("/dashboard")) {
     const pages = {
       "/dashboard": dashboardHome,
@@ -11129,6 +11241,7 @@ function render() {
     ensurePasswordToggles();
     bindQrImageState();
     syncRouteData();
+    syncSupportLiveConnection();
     return;
   }
   const pages = {
@@ -11520,6 +11633,10 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  const supportReplyForm = target.closest?.('form[data-submit="support-reply"]');
+  if (supportReplyForm && target.name === "body") {
+    state.supportReplyDrafts[supportReplyForm.dataset.ticketId] = target.value;
+  }
   const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
   if (campaignStudioForm) {
     const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
@@ -12099,11 +12216,11 @@ document.addEventListener("paste", (event) => {
   document.querySelector(`[data-otp-digit="${Math.min(5, digits.length - 1)}"]`)?.focus();
 });
 setInterval(updateEmailOtpCountdown, 1000);
-setInterval(() => {
-  if (state.route !== "/dashboard/support" || document.visibilityState !== "visible") return;
-  state.supportTickets = null;
-  if (state.supportSelectedId) state.supportTicket = null;
-  void syncRouteData();
-}, 25_000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && state.route === "/dashboard/support" && state.supportLiveRefreshPending) {
+    void refreshSupportLiveData();
+  }
+});
+window.addEventListener("pagehide", closeSupportLiveConnection);
 render();
 if (state.route === "/dashboard/devices") void syncLinkedDevice();

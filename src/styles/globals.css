@@ -7588,6 +7588,12 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .support-page-heading p,.support-section-title p{margin:0;color:#0B3F3B;font-size:13px}
 .support-heading-icon,.support-section-title>svg{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;color:#0B3F3B;background:#F3F8F7}
 .support-heading-icon svg,.support-section-title>svg{width:25px;height:25px}
+.support-heading-badges{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.support-live-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #CFE9E1;border-radius:999px;color:#176C62;background:#EFFAF6;font-size:11px;font-weight:800;white-space:nowrap}
+.support-live-badge>i{width:8px;height:8px;border-radius:50%;background:#20A36A;box-shadow:0 0 0 4px rgba(32,163,106,.12)}
+.support-live-badge[data-support-live-status="connecting"]{color:#8A651E;border-color:#EADDBE;background:#FFF9EB}.support-live-badge[data-support-live-status="connecting"]>i{background:#D69A25;box-shadow:0 0 0 4px rgba(214,154,37,.13);animation:support-live-pulse 1.5s ease-in-out infinite}
+.support-live-badge[data-support-live-status="fallback"]{color:#356A82;border-color:#D2E5ED;background:#F3F9FC}.support-live-badge[data-support-live-status="fallback"]>i{background:#4D8DAA;box-shadow:0 0 0 4px rgba(77,141,170,.12)}
+@keyframes support-live-pulse{50%{opacity:.45;transform:scale(.8)}}
 .support-security-note{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #E8F1F0;border-radius:10px;color:#0B3F3B;background:#F3F8F7;font-size:12px}
 .support-security-note svg,.support-bottom-note svg{width:17px;height:17px;color:#0B3F3B}
 .support-main-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:18px;align-items:start;direction:ltr}
@@ -7641,7 +7647,7 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .support-attachment-link svg{width:14px;height:14px}
 .support-send-button{width:100%;justify-content:center;min-height:46px}.support-send-button svg{width:18px;height:18px}
 .support-bottom-note{display:flex;justify-content:center;align-items:center;gap:8px;padding:10px;border:1px solid #E8F1F0;border-radius:10px;background:#F3F8F7;color:#0B3F3B;font-size:11px}
-@media(max-width:980px){.support-main-grid{grid-template-columns:1fr}.support-compose{grid-row:1}.support-page-heading{align-items:flex-start;flex-direction:column}.support-security-note{width:100%;justify-content:center}}
+@media(max-width:980px){.support-main-grid{grid-template-columns:1fr}.support-compose{grid-row:1}.support-page-heading{align-items:flex-start;flex-direction:column}.support-heading-badges{width:100%;justify-content:flex-start}.support-security-note{flex:1;justify-content:center}}
 @media(max-width:600px){.dashboard-support-page{gap:12px}.support-page-heading h1{font-size:22px}.support-conversations,.support-compose{padding:13px;border-radius:12px}.support-tabs{overflow:auto}.support-tabs button{min-width:78px}.support-ticket-row{grid-template-columns:36px minmax(0,1fr)}.support-ticket-row time{display:none}.support-ticket-row-head{align-items:flex-start;flex-direction:column;gap:4px;padding-inline-end:0}.support-thread>header{align-items:flex-start;flex-direction:column}.support-thread-actions{width:100%}.support-thread-actions .btn{flex:1}.support-reply-form{grid-template-columns:1fr}.support-bubble{width:90%}}
 
 /* Persisted interface density: comfortable remains the established default. */
@@ -7862,6 +7868,19 @@ input[type="password"]::-webkit-textfield-decoration-container {
   color: #F0C7CE;
   border-color: #5A3940;
   background: #352529;
+}
+
+:root[data-theme="dark"] .support-live-badge {
+  color: #A9E3D8;
+  border-color: #2B5A54;
+  background: #123632;
+}
+
+:root[data-theme="dark"] .support-live-badge[data-support-live-status="connecting"],
+:root[data-theme="dark"] .support-live-badge[data-support-live-status="fallback"] {
+  color: #E8D5A9;
+  border-color: #5E5134;
+  background: #352F22;
 }
 
 :root[data-theme="dark"] .input::placeholder,

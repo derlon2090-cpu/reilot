@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./AdminPortal.module.css";
 
 const ICONS = {
@@ -1000,6 +1000,8 @@ function Support({ admin }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [liveStatus, setLiveStatus] = useState("connecting");
+  const threadRef = useRef(null);
 
   const loadList = useCallback(async (quiet = false) => {
     if (!quiet) setBusy(true);
@@ -1024,8 +1026,14 @@ function Support({ admin }) {
     if (!id) { setDetail(null); return; }
     if (!quiet) setBusy(true);
     try {
+      const thread = threadRef.current;
+      const keepAtBottom = !thread || thread.scrollHeight - thread.scrollTop - thread.clientHeight < 72;
       const payload = await supportRequest(`/api/admin/support/tickets/${id}`);
       setDetail(payload.item || null);
+      if (keepAtBottom) requestAnimationFrame(() => {
+        const nextThread = threadRef.current;
+        if (nextThread) nextThread.scrollTop = nextThread.scrollHeight;
+      });
       if (Number(payload.item?.adminUnreadCount || 0) > 0) {
         await supportRequest(`/api/admin/support/tickets/${id}/read`, {
           method: "POST",
@@ -1044,11 +1052,41 @@ function Support({ admin }) {
   useEffect(() => { loadList(); }, [search, status, type]);
   useEffect(() => { loadDetail(selectedId); }, [selectedId, loadDetail]);
   useEffect(() => {
-    const timer = setInterval(() => {
-      loadList(true);
-      if (selectedId) loadDetail(selectedId, true);
-    }, 25_000);
-    return () => clearInterval(timer);
+    let fallbackTimer = null;
+    const refreshLive = () => {
+      void loadList(true);
+      if (selectedId) void loadDetail(selectedId, true);
+    };
+    const startFallback = () => {
+      if (fallbackTimer) return;
+      setLiveStatus("fallback");
+      fallbackTimer = window.setInterval(() => {
+        if (document.visibilityState === "visible") refreshLive();
+      }, 7_000);
+    };
+    const stopFallback = () => {
+      if (!fallbackTimer) return;
+      window.clearInterval(fallbackTimer);
+      fallbackTimer = null;
+    };
+    if (!("EventSource" in window)) {
+      startFallback();
+      return stopFallback;
+    }
+    const events = new EventSource("/api/admin/support/events");
+    events.onopen = () => {
+      stopFallback();
+      setLiveStatus("connected");
+    };
+    events.addEventListener("support-change", refreshLive);
+    events.onerror = () => {
+      setLiveStatus("connecting");
+      startFallback();
+    };
+    return () => {
+      stopFallback();
+      events.close();
+    };
   }, [selectedId, loadList, loadDetail]);
 
   async function sendReply(event) {
@@ -1110,6 +1148,7 @@ function Support({ admin }) {
       <label className={styles.adminSearchField}><Glyph name="mail" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث بالاسم أو البريد أو رقم التذكرة..." /></label>
       <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="حالة التذكرة"><option value="">جميع الحالات</option>{Object.entries(SUPPORT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       <select value={type} onChange={(event) => setType(event.target.value)} aria-label="نوع الرسالة"><option value="">كل الأنواع</option>{Object.entries(SUPPORT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <span className={`${styles.adminSupportLive} ${styles[`adminSupportLive_${liveStatus}`]}`}><i />{liveStatus === "connected" ? "متصل مباشر" : liveStatus === "fallback" ? "تحديث تلقائي" : "جارٍ الاتصال..."}</span>
       <button type="button" className={styles.adminOutlineButton} onClick={() => loadList()} disabled={busy}><Glyph name="refresh" /> تحديث</button>
     </section>
     <section className={styles.adminSupportLayout}>
@@ -1137,7 +1176,7 @@ function Support({ admin }) {
             <label><span>الأولوية</span><select value={selected.priority || "NORMAL"} onChange={(event) => updateTicket({ priority: event.target.value })}>{Object.entries(SUPPORT_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <button type="button" className={styles.adminSupportAssignButton} disabled={busy || selected.assignedAdminUserId === admin?.adminId} onClick={() => updateTicket({ assignedAdminUserId: admin?.adminId })}>{selected.assignedAdminUserId === admin?.adminId ? "مسندة إليك" : "إسناد إليّ"}</button>
           </div>
-          <div className={styles.adminSupportThread}>{(selected.messages || []).map((message) => <article key={message.id} className={`${message.senderType === "ADMIN" ? styles.adminSupportBubbleAdmin : styles.adminSupportBubbleUser} ${message.isInternalNote ? styles.adminSupportInternal : ""}`}><b>{message.isInternalNote ? "ملاحظة داخلية" : message.senderType === "ADMIN" ? message.senderName || "فريق الدعم" : message.senderName || selected.requesterName}</b><p>{message.body}</p>{attachments.filter((file) => file.messageId === message.id).map((file) => <a key={file.id} className={styles.adminSupportAttachment} href={file.url} target="_blank" rel="noreferrer"><Glyph name="document" />{file.originalName}</a>)}{message.senderType === "ADMIN" && !message.isInternalNote ? <small className={`${styles.adminSupportEmailStatus} ${message.emailDeliveryStatus === "failed" ? styles.adminSupportEmailFailed : ""}`}>{message.emailDeliveryStatus === "sent" ? "تم الإرسال إلى البريد" : message.emailDeliveryStatus === "failed" ? "تعذر إرسال البريد" : "جارٍ إرسال البريد"}</small> : null}<time>{formatDate(message.createdAt, true)}</time></article>)}</div>
+          <div ref={threadRef} className={styles.adminSupportThread}>{(selected.messages || []).map((message) => <article key={message.id} className={`${message.senderType === "ADMIN" ? styles.adminSupportBubbleAdmin : styles.adminSupportBubbleUser} ${message.isInternalNote ? styles.adminSupportInternal : ""}`}><b>{message.isInternalNote ? "ملاحظة داخلية" : message.senderType === "ADMIN" ? message.senderName || "فريق الدعم" : message.senderName || selected.requesterName}</b><p>{message.body}</p>{attachments.filter((file) => file.messageId === message.id).map((file) => <a key={file.id} className={styles.adminSupportAttachment} href={file.url} target="_blank" rel="noreferrer"><Glyph name="document" />{file.originalName}</a>)}{message.senderType === "ADMIN" && !message.isInternalNote ? <small className={`${styles.adminSupportEmailStatus} ${message.emailDeliveryStatus === "failed" ? styles.adminSupportEmailFailed : ""}`}>{message.emailDeliveryStatus === "sent" ? "تم الإرسال إلى البريد" : message.emailDeliveryStatus === "failed" ? "تعذر إرسال البريد" : "جارٍ إرسال البريد"}</small> : null}<time>{formatDate(message.createdAt, true)}</time></article>)}</div>
           <form className={styles.adminSupportReply} onSubmit={sendReply}>
             <textarea value={reply} onChange={(event) => setReply(event.target.value)} maxLength={2000} placeholder="اكتب ردك على الرسالة..." required />
             <label><input type="checkbox" checked={internal} onChange={(event) => setInternal(event.target.checked)} /> ملاحظة داخلية لا تظهر للمستخدم</label>
