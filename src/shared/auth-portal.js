@@ -40,7 +40,8 @@ export function safeReturnTo(value, fallback = "/dashboard") {
 
 export function configuredOrigins(env = process.env) {
   const app = safeOrigin(env.APP_URL || env.NEXT_PUBLIC_APP_URL, env.NODE_ENV === "production" ? "https://renvix.app" : "http://localhost:3000");
-  const auth = safeOrigin(env.AUTH_URL, app);
+  const splitHostEnabled = String(env.AUTH_SPLIT_HOST_ENABLED || "").toLowerCase() === "true";
+  const auth = splitHostEnabled ? safeOrigin(env.AUTH_URL, app) : app;
   return { app, auth };
 }
 

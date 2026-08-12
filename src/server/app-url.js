@@ -25,9 +25,9 @@ export function appBaseUrl() {
 }
 
 export function authBaseUrl() {
-  // Split-host authentication is opt-in. Until accounts.renvix.app has DNS,
-  // TLS and an explicit AUTH_URL, keep sign-in on the working application host.
-  return safeBaseUrl(process.env.AUTH_URL || appBaseUrl(), "Authentication");
+  // Split-host authentication is opt-in so a stale AUTH_URL cannot break login.
+  const splitHostEnabled = String(process.env.AUTH_SPLIT_HOST_ENABLED || "").toLowerCase() === "true";
+  return safeBaseUrl(splitHostEnabled ? (process.env.AUTH_URL || appBaseUrl()) : appBaseUrl(), "Authentication");
 }
 
 export function authPageUrl(pathname = "/login", returnTo = "") {

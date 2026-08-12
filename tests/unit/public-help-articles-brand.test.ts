@@ -41,7 +41,7 @@ describe("public help articles and Renvix browser identity", () => {
   });
 
   it("uses one cache version for the updated public script and styles", () => {
-    expect(layoutSource).toContain("20260812-complete-backlog-v101");
-    expect(staticIndexSource).toContain("20260812-complete-backlog-v101");
+    expect(layoutSource).toContain("20260812-complete-backlog-v102");
+    expect(staticIndexSource).toContain("20260812-complete-backlog-v102");
   });
 });

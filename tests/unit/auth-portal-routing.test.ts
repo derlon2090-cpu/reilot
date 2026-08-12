@@ -24,13 +24,19 @@ describe("accounts authentication portal", () => {
   });
 
   it("uses separate production app and authentication hosts", () => {
-    const origins = configuredOrigins({ NODE_ENV: "production", APP_URL: "https://renvix.app", AUTH_URL: "https://accounts.renvix.app" });
+    const origins = configuredOrigins({ NODE_ENV: "production", APP_URL: "https://renvix.app", AUTH_URL: "https://accounts.renvix.app", AUTH_SPLIT_HOST_ENABLED: "true" });
     expect(origins).toEqual({ app: "https://renvix.app", auth: "https://accounts.renvix.app" });
     expect(isSplitHostEnabled(origins)).toBe(true);
   });
 
   it("keeps authentication on the application host until AUTH_URL is configured", () => {
     const origins = configuredOrigins({ NODE_ENV: "production", APP_URL: "https://renvix.app" });
+    expect(origins).toEqual({ app: "https://renvix.app", auth: "https://renvix.app" });
+    expect(isSplitHostEnabled(origins)).toBe(false);
+  });
+
+  it("ignores a stale authentication host until split hosting is explicitly enabled", () => {
+    const origins = configuredOrigins({ NODE_ENV: "production", APP_URL: "https://renvix.app", AUTH_URL: "https://accounts.renvix.app" });
     expect(origins).toEqual({ app: "https://renvix.app", auth: "https://renvix.app" });
     expect(isSplitHostEnabled(origins)).toBe(false);
   });
