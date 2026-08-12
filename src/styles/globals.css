@@ -1428,15 +1428,35 @@ tbody tr:hover { background: #F3F8F7; }
   display:grid;
   align-items:center;
   overflow:hidden;
-  border:0;
-  background:transparent;
+  border:1px solid #dce8e6;
+  border-radius:10px;
+  background:#fff;
 }
 .auth-turnstile-widget,
 .auth-turnstile-widget>div,
 .auth-turnstile-widget iframe{width:100%!important;max-width:100%!important}
-.auth-turnstile-message{display:block;min-height:18px;margin-top:4px;color:#a13c35;font-size:12px;line-height:1.45}
+.auth-turnstile-status{min-height:64px;padding:10px 14px;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;color:#294b46;background:#f8fbfa}
+.auth-turnstile-status>i{width:36px;height:36px;display:grid;place-items:center;color:#08766b;border:1px solid #d2e8e3;border-radius:50%;background:#fff}
+.auth-turnstile-status svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.auth-turnstile-status>span{min-width:0;display:grid;gap:2px}
+.auth-turnstile-status strong{font-size:12px;line-height:1.3}
+.auth-turnstile-status small{color:#718783;font-size:9.5px;direction:ltr;text-align:start}
+.auth-turnstile-status>b{color:#687d79;font-size:10px;font-weight:700;white-space:nowrap}
+.auth-turnstile-slot[data-turnstile-status="verified"] .auth-turnstile-status>b{color:#0a8d72}
+.auth-turnstile-slot[data-turnstile-status="error"] .auth-turnstile-status>b{color:#b85048}
+.auth-turnstile-widget{min-height:0;display:grid;align-items:center}
+.auth-turnstile-widget:has(iframe){min-height:65px;border-top:1px solid #e1ecea}
+.auth-turnstile-message{display:block;min-height:18px;padding:0 10px 7px;color:#a13c35;font-size:12px;line-height:1.45}
 .auth-turnstile-message:empty{display:none}
+.auth-turnstile-message[data-state="pending"]{color:#6f817e}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-slot{border-color:#2a353e;background:#0d131a}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-status{color:#edf6f5;background:#0d151c}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-status>i{color:#55d1be;border-color:#29453f;background:#0a2222}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-status small{color:#8e9ba1}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-status>b{color:#aab5b9}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-widget:has(iframe){border-top-color:#2a353e}
 .auth-suite-page[data-auth-theme="dark"] .auth-turnstile-message{color:#f2a59f}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-message[data-state="pending"]{color:#9ca5ab}
 @media (max-width:743px){
   .auth-turnstile-slot{min-height:60px;margin:12px 0 14px}
 }
@@ -12157,7 +12177,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   image-rendering:auto;
   backface-visibility:hidden;
   transform-origin:center;
-  filter:invert(.78) hue-rotate(177deg) saturate(1.12) brightness(.74) contrast(1.1) drop-shadow(0 18px 25px rgba(0,0,0,.34))!important;
+  filter:invert(.78) sepia(.34) hue-rotate(150deg) saturate(1.42) brightness(1.02) contrast(1.08) drop-shadow(0 18px 25px rgba(0,0,0,.34))!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-showcase-copy h2,.auth-suite-intro h1,.auth-suite-panel h1,.field>span,.email-otp-form>label){
   color:var(--auth-night-text)!important;
@@ -12241,12 +12261,18 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   color:var(--auth-night-muted)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-reference-feature-label,.auth-relocated-feature){
-  color:#d8e1e2!important;
+  color:#edf5f4!important;
   text-shadow:0 1px 7px rgba(0,0,0,.6)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-reference-feature-label>b,.auth-relocated-feature>b){
   color:inherit!important;
   font-weight:500!important;
+}
+.auth-suite-page[data-auth-theme="dark"] .auth-relocated-feature>i{
+  color:#79d6c8!important;
+  border-color:#4d6665!important;
+  background:#344645!important;
+  box-shadow:0 8px 18px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.04)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.password-toggle,.email-otp-email svg,.email-otp-resend-row svg){
   color:#aeb9bf!important;

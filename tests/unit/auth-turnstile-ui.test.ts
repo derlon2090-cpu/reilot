@@ -13,13 +13,16 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('"reset-password": "reset_password"');
   });
 
-  it("uses the managed responsive interaction-only widget", () => {
-    expect(componentSource).toContain('appearance: "interaction-only"');
+  it("keeps the managed responsive widget visibly rendered and automatically recoverable", () => {
+    expect(componentSource).toContain('appearance: "always"');
     expect(componentSource).toContain('size: "flexible"');
     expect(componentSource).toContain('theme: page?.dataset.authTheme');
+    expect(componentSource).toContain('retry: "auto"');
+    expect(componentSource).toContain('"refresh-expired": "auto"');
     expect(componentSource).toContain("scriptPromise = undefined");
     expect(componentSource).toContain('"error-callback"(errorCode)');
-    expect(componentSource).toContain("api.reset(widgetId)");
+    expect(componentSource).toContain("return false");
+    expect(componentSource).toContain('errorCode: "script-load"');
   });
 
   it("does not add a default widget to email OTP or MFA forms", () => {

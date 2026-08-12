@@ -7,6 +7,7 @@
     "NEXT_PUBLIC_APP_URL": "https://renvix.app",
     "APP_URL": "https://renvix.app",
     "AUTH_URL": "https://accounts.renvix.app",
+    "AUTH_SPLIT_HOST_ENABLED": "true",
     "AUTH_COOKIE_DOMAIN": ".renvix.app",
     "BETTER_AUTH_URL": "https://accounts.renvix.app",
     "COOKIE_SECURE": "true",
