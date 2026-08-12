@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
 const layoutSource = fs.readFileSync(path.join(root, "app/layout.jsx"), "utf8");
-const routeSource = fs.readFileSync(path.join(root, "app/[[...slug]]/page.jsx"), "utf8");
+const staticIndexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const sitemapSource = fs.readFileSync(path.join(root, "app/sitemap.js"), "utf8");
 
 describe("public help articles and Renvix browser identity", () => {
@@ -41,7 +41,7 @@ describe("public help articles and Renvix browser identity", () => {
   });
 
   it("uses one cache version for the updated public script and styles", () => {
-    expect(layoutSource).toContain("20260731-support-guides-v12");
-    expect(routeSource).toContain("20260731-support-guides-v12");
+    expect(layoutSource).toContain("20260812-complete-backlog-v101");
+    expect(staticIndexSource).toContain("20260812-complete-backlog-v101");
   });
 });

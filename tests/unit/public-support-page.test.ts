@@ -12,7 +12,7 @@ const supportPageSource = appSource.slice(
 describe("public support page", () => {
   it("links articles to the blog and questions to the same page", () => {
     expect(supportPageSource).toContain('data-link="/blog"');
-    expect(supportPageSource).toContain('href="/support#faq"');
+    expect(supportPageSource).toContain('href="#faq"');
   });
 
   it("renders five actionable guides that open dedicated articles", () => {
@@ -48,8 +48,9 @@ describe("public support page", () => {
     expect(appSource).toContain("payload.item?.ticketNumber");
   });
 
-  it("restores the compact help-center layout without the expanded guides block", () => {
-    expect(supportPageSource).toContain('class="card help-center"');
+  it("keeps the help center structured without the legacy expanded guides block", () => {
+    expect(supportPageSource).toContain('class="support-v3-search"');
+    expect(supportPageSource).toContain('class="support-v3-categories"');
     expect(supportPageSource).not.toContain('class="card support-guides"');
     expect(supportPageSource).not.toContain("support-guide-${guide.id}");
     expect(appSource).not.toContain("toast(`تم فتح قسم ${target.dataset.term}`)");
