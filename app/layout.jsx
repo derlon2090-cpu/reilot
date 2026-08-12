@@ -5,9 +5,9 @@ export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
   description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات.",
   icons: {
-    icon: [{ url: "/assets/renvix-favicon.svg?v=20260812-brand-v105", type: "image/svg+xml", sizes: "any" }],
-    shortcut: "/assets/renvix-favicon.svg?v=20260812-brand-v105",
-    apple: "/assets/renvix-favicon.svg?v=20260812-brand-v105"
+    icon: [{ url: "/assets/renvix-favicon.svg?v=20260812-google-v106", type: "image/svg+xml", sizes: "any" }],
+    shortcut: "/assets/renvix-favicon.svg?v=20260812-google-v106",
+    apple: "/assets/renvix-favicon.svg?v=20260812-google-v106"
   }
 };
 
@@ -27,6 +27,7 @@ export default function RootLayout({ children }) {
               authUrl,
               turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "",
               turnstileDiagnostics: process.env.TURNSTILE_DIAGNOSTICS_ENABLED === "true",
+              googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
               metaWhatsAppEnabled: Boolean(process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL),
               metaWhatsAppConnectUrl: process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL || ""
             }).replace(/</g, "\\u003c")};`
@@ -40,12 +41,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-         <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-brand-v105" />
-         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-brand-v105" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-google-v106" />
+        <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-google-v106" />
       </head>
       <body>
         {children}
-         <Script type="module" src="/app/app.js?v=20260812-brand-v105" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260812-google-v106" strategy="afterInteractive" />
       </body>
     </html>
   );
