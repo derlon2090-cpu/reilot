@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/db.js", () => ({ query: vi.fn() }));
 import { query } from "../../src/server/db.js";
-import { authSchemaHealth, REQUIRED_AUTH_MIGRATION } from "../../src/server/auth-schema-readiness.js";
+import { authSchemaHealth, REQUIRED_AUTH_MIGRATION, REQUIRED_PASSWORD_MIGRATION } from "../../src/server/auth-schema-readiness.js";
 
 describe("authentication database schema readiness", () => {
   beforeEach(() => vi.mocked(query).mockReset());
@@ -10,6 +10,8 @@ describe("authentication database schema readiness", () => {
   it("accepts only the complete repaired authentication schema", async () => {
     vi.mocked(query).mockResolvedValue({ rows: [{
       migration_applied: true,
+      password_migration_applied: true,
+      password_hash_column_ready: true,
       pending_registration_table: true,
       purpose_constraint_ready: true,
       platform_admin_challenges_ready: true,
@@ -25,12 +27,19 @@ describe("authentication database schema readiness", () => {
         "users.mfa_last_verified_step"
       ]
     }] } as never);
-    await expect(authSchemaHealth()).resolves.toMatchObject({ ok: true, migration: REQUIRED_AUTH_MIGRATION });
+    await expect(authSchemaHealth()).resolves.toMatchObject({
+      ok: true,
+      migration: REQUIRED_AUTH_MIGRATION,
+      passwordMigration: REQUIRED_PASSWORD_MIGRATION,
+      passwordHashColumnReady: true
+    });
   });
 
   it("reports a missing pending-registration table or column", async () => {
     vi.mocked(query).mockResolvedValue({ rows: [{
       migration_applied: false,
+      password_migration_applied: false,
+      password_hash_column_ready: false,
       pending_registration_table: false,
       purpose_constraint_ready: false,
       platform_admin_challenges_ready: false,

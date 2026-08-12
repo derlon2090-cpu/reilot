@@ -1,12 +1,10 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import pg from "pg";
-import { promisify } from "node:util";
+import { hashPassword } from "../src/server/password.js";
 
 const { Pool } = pg;
-const scrypt = promisify(crypto.scrypt);
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
@@ -27,12 +25,6 @@ function isVeryStrongPassword(value, context) {
   ) return false;
   const normalized = password.toLowerCase();
   return !String(context || "").toLowerCase().split(/\s+/).filter((part) => part.length >= 5).some((part) => normalized.includes(part));
-}
-
-async function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const derived = await scrypt(String(password), salt, 64);
-  return `scrypt$${salt}$${Buffer.from(derived).toString("hex")}`;
 }
 
 let pool;
@@ -135,12 +127,12 @@ const result = await transaction(async (client) => {
   );
   if (credential.rows[0]) {
     await client.query(
-      "UPDATE accounts SET account_id = $2, password = $3, updated_at = now() WHERE id = $1",
+      "UPDATE accounts SET account_id = $2, password_hash = $3, updated_at = now() WHERE id = $1",
       [credential.rows[0].id, username, passwordHash]
     );
   } else {
     await client.query(
-      `INSERT INTO accounts (user_id, account_id, provider_id, password)
+      `INSERT INTO accounts (user_id, account_id, provider_id, password_hash)
        VALUES ($1, $2, 'credential', $3)`,
       [userId, username, passwordHash]
     );

@@ -1,17 +1,26 @@
 import { assertProviderAllowed } from "./admin-messaging.js";
-import { extractEvolutionPairingCode, extractEvolutionQr } from "./evolution-client.js";
+import { extractEvolutionPairingCode, extractEvolutionQr, normalizeEvolutionBaseUrl } from "./evolution-client.js";
 
 function configuration() {
   assertProviderAllowed({ scope: "platform_admin", provider: "evolution_admin" });
   // A dedicated administrator endpoint/key can be supplied in split deployments.
   // The self-hosted production stack intentionally reuses the same Evolution
   // server while keeping the administrator instance and database scope isolated.
-  const baseUrl = String(process.env.EVOLUTION_ADMIN_API_URL || process.env.EVOLUTION_API_URL || "").trim().replace(/\/$/, "");
+  const rawBaseUrl = String(process.env.EVOLUTION_ADMIN_API_URL || process.env.EVOLUTION_API_URL || "").trim();
   const apiKey = String(process.env.EVOLUTION_ADMIN_API_KEY || process.env.EVOLUTION_API_KEY || "").trim();
   const instanceName = String(process.env.EVOLUTION_ADMIN_INSTANCE || "");
-  if (!baseUrl || !apiKey) {
+  if (!rawBaseUrl || !apiKey) {
     const error = new Error("Evolution Admin is not configured");
     error.code = "EVOLUTION_ADMIN_NOT_CONFIGURED";
+    throw error;
+  }
+  let baseUrl;
+  try {
+    baseUrl = normalizeEvolutionBaseUrl(rawBaseUrl);
+  } catch (cause) {
+    const error = new Error("Evolution Admin URL is invalid");
+    error.code = "EVOLUTION_ADMIN_CONFIGURATION_ERROR";
+    error.cause = cause;
     throw error;
   }
   return { baseUrl, apiKey, instanceName };
@@ -27,8 +36,9 @@ async function evolutionAdminRequest(path, init = {}) {
       signal: AbortSignal.timeout(init.timeoutMs || 15_000)
     });
   } catch (cause) {
-    const error = new Error(cause?.name === "TimeoutError" ? "Evolution Admin request timed out" : "Evolution Admin is unreachable");
-    error.code = cause?.name === "TimeoutError" ? "EVOLUTION_ADMIN_TIMEOUT" : "EVOLUTION_ADMIN_UNREACHABLE";
+    const timedOut = ["AbortError", "TimeoutError"].includes(cause?.name) || /timed?\s*out|timeout/i.test(String(cause?.message || ""));
+    const error = new Error(timedOut ? "Evolution Admin request timed out" : "Evolution Admin is unreachable");
+    error.code = timedOut ? "EVOLUTION_ADMIN_TIMEOUT" : "EVOLUTION_ADMIN_UNREACHABLE";
     error.cause = cause;
     throw error;
   }

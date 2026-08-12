@@ -57,7 +57,7 @@ export function adminEvolutionFailureStatus(error) {
   const code = String(error?.code || "");
   if (code === "device_not_found" || code === "EVOLUTION_ADMIN_INSTANCE_NOT_FOUND") return 404;
   if (code === "EVOLUTION_ADMIN_INSTANCE_EXISTS") return 409;
-  if (["EVOLUTION_ADMIN_NOT_CONFIGURED", "EVOLUTION_ADMIN_AUTH_FAILED"].includes(code)) return 503;
+  if (["EVOLUTION_ADMIN_NOT_CONFIGURED", "EVOLUTION_ADMIN_CONFIGURATION_ERROR", "EVOLUTION_ADMIN_AUTH_FAILED"].includes(code)) return 503;
   if (["EVOLUTION_ADMIN_TIMEOUT", "EVOLUTION_ADMIN_UNREACHABLE", "EVOLUTION_ADMIN_REQUEST_FAILED"].includes(code)) return 502;
   return 400;
 }

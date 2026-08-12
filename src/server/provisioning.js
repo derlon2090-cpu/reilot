@@ -88,7 +88,7 @@ export async function provisionCustomerAccount(provisioningJobId) {
       );
       user = inserted.rows[0];
       await client.query(
-        "INSERT INTO accounts (user_id,account_id,provider_id,password) VALUES ($1,$2,'credential',$3)",
+        "INSERT INTO accounts (user_id,account_id,provider_id,password_hash) VALUES ($1,$2,'credential',$3)",
         [user.id, email, await hashPassword(initialSecret)]
       );
       await client.query(

@@ -552,6 +552,7 @@ function AdminDeviceStatus({ device }) {
 function adminEvolutionErrorMessage(error, operation = "action") {
   if (error?.reason === "rate_limited") return "تم بلوغ حد المحاولات المؤقت. حاول لاحقًا.";
   if (error?.reason === "EVOLUTION_ADMIN_NOT_CONFIGURED") return "إعداد Evolution غير مكتمل في الخادم. أضف رابط الخدمة ومفتاح API ثم أعد المحاولة.";
+  if (error?.reason === "EVOLUTION_ADMIN_CONFIGURATION_ERROR") return "رابط Evolution في إعدادات الخادم غير صالح. صحح EVOLUTION_API_URL كرابط كامل ثم أعد الفحص.";
   if (error?.reason === "EVOLUTION_ADMIN_AUTH_FAILED") return "رفض خادم Evolution مفتاح API. تحقق من المفتاح المخصص للخادم.";
   if (error?.reason === "EVOLUTION_ADMIN_TIMEOUT") return "تأخر خادم Evolution عن الاستجابة. أعد المحاولة بعد لحظات.";
   if (error?.reason === "EVOLUTION_ADMIN_UNREACHABLE") return "لا يمكن الوصول إلى خادم Evolution من المنصة حاليًا.";

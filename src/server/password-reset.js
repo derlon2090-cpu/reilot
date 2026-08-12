@@ -135,7 +135,7 @@ export async function resetPassword({ email, code, password }) {
     );
     if (!userResult.rows[0]) return { ok: false, status: 400, reason: "expired" };
     const updatedAccount = await client.query(
-      "UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential' RETURNING user_id",
+      "UPDATE accounts SET password_hash = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential' RETURNING user_id",
       [passwordHash, reset.userId]
     );
     if (!updatedAccount.rowCount) return { ok: false, status: 400, reason: "expired" };
@@ -143,7 +143,7 @@ export async function resetPassword({ email, code, password }) {
       "UPDATE users SET password_strength = $1, password_changed_at = now(), updated_at = now() WHERE id = $2",
       [classifyPasswordStrength(password, userResult.rows[0]?.email), reset.userId]
     );
-    await client.query("UPDATE password_reset_codes SET used_at = now() WHERE id = $1", [reset.id]);
+    await client.query("UPDATE password_reset_codes SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [reset.userId]);
     await client.query("DELETE FROM sessions WHERE user_id = $1", [reset.userId]);
     const optionalAuthTables = await client.query(
       `SELECT to_regclass('auth_trusted_devices') AS trusted_devices,

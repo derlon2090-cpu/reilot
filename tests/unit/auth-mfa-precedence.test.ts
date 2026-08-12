@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(), transaction: vi.fn(), verifyPassword: vi.fn(), createSession: vi.fn(),
+  query: vi.fn(), transaction: vi.fn(), hashPassword: vi.fn(), needsRehash: vi.fn(), verifyPassword: vi.fn(), createSession: vi.fn(),
   createMfaLoginChallenge: vi.fn(), createLoginEmailOtpChallenge: vi.fn(), resolveSecondFactor: vi.fn()
 }));
 
 vi.mock("../../src/server/db.js", () => ({ query: mocks.query, transaction: mocks.transaction }));
-vi.mock("../../src/server/password.js", () => ({ hashPassword: vi.fn(), verifyPassword: mocks.verifyPassword }));
+vi.mock("../../src/server/password.js", () => ({ hashPassword: mocks.hashPassword, needsRehash: mocks.needsRehash, verifyPassword: mocks.verifyPassword }));
 vi.mock("../../src/server/session.js", () => ({ createSession: mocks.createSession }));
 vi.mock("../../src/server/email-otp-v2.js", () => ({
   createLoginEmailOtpChallenge: mocks.createLoginEmailOtpChallenge,
@@ -17,7 +17,7 @@ vi.mock("../../src/server/second-factor-router.js", () => ({ resolveSecondFactor
 
 import { loginAccount } from "../../src/server/auth-actions.js";
 
-const user = { id: "user-1", tenantId: "tenant-1", name: "Owner", email: "owner@example.com", role: "owner", password: "hash", mfaEnabled: true, mfaSecret: "encrypted-secret", mustChangePassword: false };
+const user = { id: "user-1", tenantId: "tenant-1", name: "Owner", email: "owner@example.com", role: "owner", credentialId: "credential-1", passwordHash: "hash", mfaEnabled: true, mfaSecret: "encrypted-secret", mustChangePassword: false };
 
 describe("credential login second-factor precedence", () => {
   beforeEach(() => {
@@ -25,6 +25,7 @@ describe("credential login second-factor precedence", () => {
     process.env.EMAIL_OTP_PEPPER = "test-email-otp-pepper-that-is-long-enough";
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.verifyPassword.mockResolvedValue(true);
+    mocks.needsRehash.mockReturnValue(false);
     mocks.createMfaLoginChallenge.mockResolvedValue({ challengeCookie: "signed-mfa", expiresAt: new Date(Date.now() + 300_000) });
     mocks.createLoginEmailOtpChallenge.mockResolvedValue({ challengeCookie: "signed-email", maskedEmail: "ow•••@example.com" });
     mocks.createSession.mockResolvedValue({ token: "session-token" });

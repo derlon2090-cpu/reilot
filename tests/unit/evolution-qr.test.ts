@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evolutionConnect, evolutionEndpointProfile, evolutionRecreateInstance, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
+import { evolutionConnect, evolutionEndpointProfile, evolutionRecreateInstance, extractEvolutionPairingCode, extractEvolutionQr, isEvolutionAuthFailed, isEvolutionInstanceMissing, isEvolutionPairingUnsupported, isEvolutionTimeout, isEvolutionUnreachable, isValidPairingCode, normalizeEvolutionBaseUrl, normalizeEvolutionQr } from "../../src/server/evolution-client.js";
 import { evolutionInstanceName } from "../../src/server/whatsapp-repository.js";
 
 describe("normalizeEvolutionQr", () => {
@@ -9,11 +9,22 @@ describe("normalizeEvolutionQr", () => {
     expect(evolutionEndpointProfile("https://evolution.renvix.app")).toEqual({ kind: "public_https", secure: true });
   });
 
-  it("rejects an Evolution endpoint without a valid URL scheme", async () => {
+  it("repairs safe copy-paste URL formatting without guessing credentials", () => {
+    expect(normalizeEvolutionBaseUrl("EVOLUTION_API_URL=http://178.104.208.51/evolution/"))
+      .toBe("http://178.104.208.51/evolution");
+    expect(normalizeEvolutionBaseUrl("'https://evolution.example.test/'"))
+      .toBe("https://evolution.example.test");
+    expect(normalizeEvolutionBaseUrl("evolution.example.test/api"))
+      .toBe("https://evolution.example.test/api");
+    expect(normalizeEvolutionBaseUrl("evolution-api:8080"))
+      .toBe("http://evolution-api:8080");
+  });
+
+  it("rejects a genuinely malformed Evolution endpoint", async () => {
     const previousKey = process.env.EVOLUTION_API_KEY;
     const previousUrl = process.env.EVOLUTION_API_URL;
     process.env.EVOLUTION_API_KEY = "test-key";
-    process.env.EVOLUTION_API_URL = "evolution-api:8080";
+    process.env.EVOLUTION_API_URL = "not a valid evolution url";
     try {
       await expect(evolutionConnect("rp_test")).rejects.toMatchObject({ code: "EVOLUTION_CONFIGURATION_ERROR" });
     } finally {

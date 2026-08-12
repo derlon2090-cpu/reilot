@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
-import { hashBcryptPassword } from "./password.js";
+import { hashPassword } from "./password.js";
 import { createSession } from "./session.js";
 import { classifyPasswordStrength } from "./security-score.js";
 import { isValidEmail, normalizeEmail, randomToken } from "./security.js";
@@ -150,7 +150,7 @@ export async function getAdminSetupState(queryFn = query) {
 
 export async function createFirstAdmin(input, {
   transactionFn = transaction,
-  hashPasswordFn = hashBcryptPassword,
+  hashPasswordFn = hashPassword,
   createSessionFn = createSession
 } = {}) {
   const parsed = validateAdminSetupInput(input);
@@ -165,7 +165,7 @@ export async function createFirstAdmin(input, {
     const usedEmail = await client.query("SELECT id FROM users WHERE lower(email) = $1 LIMIT 1", [parsed.value.email]);
     if (usedEmail.rows[0]) throw new AdminSetupError("email_in_use", "البريد الإلكتروني مستخدم مسبقًا.");
 
-    const passwordHash = await hashPasswordFn(parsed.value.password, 12);
+    const passwordHash = await hashPasswordFn(parsed.value.password);
     const passwordStrength = classifyPasswordStrength(parsed.value.password, parsed.value.email);
     const userResult = await client.query(
       `INSERT INTO users
@@ -176,7 +176,7 @@ export async function createFirstAdmin(input, {
     );
     const user = userResult.rows[0];
     await client.query(
-      `INSERT INTO accounts (user_id, account_id, provider_id, password)
+      `INSERT INTO accounts (user_id, account_id, provider_id, password_hash)
        VALUES ($1, $2, 'credential', $3)`,
       [user.id, parsed.value.email, passwordHash]
     );

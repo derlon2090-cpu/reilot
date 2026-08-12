@@ -173,7 +173,7 @@ export async function resolveAccountEvent(event, channel) {
   const temporaryPassword = generateTemporaryPassword();
   await transaction(async (client) => {
     await client.query(
-      `UPDATE accounts SET password=$1,updated_at=now()
+      `UPDATE accounts SET password_hash=$1,updated_at=now()
         WHERE user_id=$2 AND provider_id='credential'`,
       [await hashPassword(temporaryPassword), row.userId]
     );

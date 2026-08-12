@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
 import { databaseFailureReason, query } from "../../../../../src/server/db.js";
-import { verifyPassword } from "../../../../../src/server/password.js";
+import { hashPassword, needsRehash, verifyPassword } from "../../../../../src/server/password.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { destroySession } from "../../../../../src/server/session.js";
 import { createLoginEmailOtpChallenge, challengeCookie } from "../../../../../src/server/email-otp-v2.js";
@@ -65,7 +65,8 @@ export async function POST(request) {
 
   authStage = "credential_lookup";
   const result = await query(
-    `SELECT u.id AS "userId", u.tenant_id AS "tenantId", u.name, u.email, a.password,
+    `SELECT u.id AS "userId", u.tenant_id AS "tenantId", u.name, u.email,
+            a.id AS "credentialId", a.password_hash AS "passwordHash",
             au.id AS "adminId", au.role AS "adminRole", au.status,
             u.mfa_enabled AS "mfaEnabled", u.mfa_secret_encrypted AS "mfaSecret",
             au.expires_at AS "expiresAt"
@@ -79,7 +80,7 @@ export async function POST(request) {
   );
   const admin = result.rows[0];
   authStage = "password_verification";
-  const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.password) : false;
+  const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.passwordHash) : false;
   const allowedRole = ["super_admin", "admin", "support_admin", "billing_admin", "security_admin", "viewer"].includes(admin?.adminRole);
   const expired = Boolean(admin?.expiresAt && new Date(admin.expiresAt).getTime() <= Date.now());
   const valid = passwordValid && admin?.adminId && admin.status === "active" && !expired && allowedRole;
@@ -118,6 +119,12 @@ export async function POST(request) {
       status: 503,
       headers: { "X-Renvix-Request-Id": requestId }
     });
+  }
+
+  if (needsRehash(admin.passwordHash)) {
+    await query("UPDATE accounts SET password_hash=$1,updated_at=now() WHERE id=$2 AND password_hash=$3", [
+      await hashPassword(parsed.data.password), admin.credentialId, admin.passwordHash
+    ]);
   }
   authStage = "session_invalidation";
   await destroySession(request);

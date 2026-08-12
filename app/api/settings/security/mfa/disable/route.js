@@ -13,13 +13,13 @@ export async function POST(request) {
   const result = await query(
     `SELECT u.email,u.mfa_secret_encrypted AS secret,
             COALESCE(u.mfa_recovery_hashes, '[]'::jsonb) AS "recoveryHashes",
-            a.password
+            a.password_hash AS "passwordHash"
        FROM users u JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
       WHERE u.id = $1 AND u.tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
   );
   const record = result.rows[0];
-  const passwordValid = Boolean(record?.password && body.password && await verifyPassword(body.password, record.password));
+  const passwordValid = Boolean(record?.passwordHash && body.password && await verifyPassword(body.password, record.passwordHash));
   const normalizedCode = String(body.code || "").trim().toUpperCase().replace(/\s+/g, "");
   const recoveryHashes = Array.isArray(record?.recoveryHashes) ? record.recoveryHashes : [];
   const otpValid = Boolean(record?.secret && verifyTotp(decryptMfaSecret(record.secret), normalizedCode));

@@ -10,15 +10,16 @@ export async function POST(req) {
   const body = await req.json().catch(() => ({}));
   if (!isStrongPassword(body.newPassword)) return Response.json({ ok: false, reason: "weak_password" }, { status: 400 });
   const changed = await transaction(async (client) => {
-    const account = await client.query("SELECT password FROM accounts WHERE user_id = $1 AND provider_id = 'credential' LIMIT 1", [auth.session.userId]);
-    if (!account.rows[0] || !await verifyPassword(body.currentPassword, account.rows[0].password)) return null;
+    const account = await client.query("SELECT password_hash AS \"passwordHash\" FROM accounts WHERE user_id = $1 AND provider_id = 'credential' LIMIT 1", [auth.session.userId]);
+    if (!account.rows[0] || !await verifyPassword(body.currentPassword, account.rows[0].passwordHash)) return null;
     const userResult = await client.query(
       "SELECT id, tenant_id AS \"tenantId\", email FROM users WHERE id = $1 LIMIT 1",
       [auth.session.userId]
     );
-    await client.query("UPDATE accounts SET password = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential'", [await hashPassword(body.newPassword), auth.session.userId]);
+    await client.query("UPDATE accounts SET password_hash = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential'", [await hashPassword(body.newPassword), auth.session.userId]);
     await client.query("UPDATE users SET must_change_password = false, password_initialized_at = COALESCE(password_initialized_at, now()), password_changed_at = now(), updated_at = now() WHERE id = $1", [auth.session.userId]);
     await client.query("DELETE FROM sessions WHERE user_id = $1 AND id <> $2", [auth.session.userId, auth.session.id]);
+    await client.query("UPDATE password_reset_codes SET used_at=now() WHERE user_id=$1 AND used_at IS NULL", [auth.session.userId]);
     const trustedDevices = await client.query("SELECT to_regclass('auth_trusted_devices') AS table_name");
     if (trustedDevices.rows[0]?.table_name) {
       await client.query("UPDATE auth_trusted_devices SET revoked_at = now(), revoke_reason = 'password_changed', updated_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [auth.session.userId]);

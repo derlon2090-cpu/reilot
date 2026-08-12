@@ -1,24 +1,39 @@
 import QRCode from "qrcode";
 
-function config() {
-  const baseUrl = String(process.env.EVOLUTION_API_URL || "").trim().replace(/\/$/, "");
-  const apiKey = process.env.EVOLUTION_API_KEY;
-  if (!baseUrl) throw new Error("EVOLUTION_API_URL is missing");
-  if (!apiKey) throw new Error("EVOLUTION_API_KEY is missing");
-  try {
-    const parsed = new URL(baseUrl);
-    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("unsupported protocol");
-  } catch {
+export function normalizeEvolutionBaseUrl(value) {
+  let raw = String(value || "").trim();
+  raw = raw.replace(/^(?:EVOLUTION_ADMIN_API_URL|EVOLUTION_API_URL)\s*=\s*/i, "").trim();
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) raw = raw.slice(1, -1).trim();
+  if (raw.startsWith("//")) raw = `https:${raw}`;
+  if (raw && !/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) && /^[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(raw)) {
+    const host = raw.split(/[/:]/, 1)[0].toLowerCase();
+    const local = host === "localhost" || host === "evolution-api" || !host.includes(".") || /^(?:10\.|127\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host);
+    raw = `${local ? "http" : "https"}://${raw}`;
+  }
+  let parsed;
+  try { parsed = new URL(raw); } catch {
     const error = new Error("EVOLUTION_API_URL is invalid");
     error.code = "EVOLUTION_CONFIGURATION_ERROR";
     throw error;
   }
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
+    const error = new Error("EVOLUTION_API_URL is invalid");
+    error.code = "EVOLUTION_CONFIGURATION_ERROR";
+    throw error;
+  }
+  return parsed.href.replace(/\/$/, "");
+}
+
+function config() {
+  const baseUrl = normalizeEvolutionBaseUrl(process.env.EVOLUTION_API_URL);
+  const apiKey = process.env.EVOLUTION_API_KEY;
+  if (!apiKey) throw new Error("EVOLUTION_API_KEY is missing");
   return { baseUrl, apiKey };
 }
 
 export function evolutionEndpointProfile(value = process.env.EVOLUTION_API_URL) {
   try {
-    const url = new URL(String(value || ""));
+    const url = new URL(normalizeEvolutionBaseUrl(value));
     const host = url.hostname.toLowerCase();
     const privateIpv4 = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
     const internalName = host === "localhost" || host === "evolution-api" || (!host.includes(".") && !host.includes(":"));

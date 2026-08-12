@@ -359,7 +359,7 @@ async function provisionPendingRegistration(client, row, { ipAddress, userAgent,
     [tenantId, row.name, row.email, row.password_strength]
   );
   const userId = inserted.rows[0].id;
-  await client.query("INSERT INTO accounts (user_id,account_id,provider_id,password) VALUES ($1,$2,'credential',$3)", [userId, row.email, row.password_hash]);
+  await client.query("INSERT INTO accounts (user_id,account_id,provider_id,password_hash) VALUES ($1,$2,'credential',$3)", [userId, row.email, row.password_hash]);
   await client.query("INSERT INTO tenant_members (tenant_id,user_id,role) VALUES ($1,$2,'owner')", [tenantId, userId]);
   await client.query("INSERT INTO stores (tenant_id,name) VALUES ($1,$2)", [tenantId, workspaceName]);
   await client.query("INSERT INTO settings (tenant_id,language,theme) VALUES ($1,'ar','light')", [tenantId]);

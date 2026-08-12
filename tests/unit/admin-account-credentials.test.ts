@@ -58,7 +58,7 @@ describe("account-created admin email credentials", () => {
     expect(resolved.variables.temporary_password.length).toBeGreaterThanOrEqual(20);
     expect(mocks.hashPassword).toHaveBeenCalledWith(resolved.variables.temporary_password);
     expect(mocks.clientQuery).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE accounts SET password"),
+      expect.stringContaining("UPDATE accounts SET password_hash"),
       [`hashed:${resolved.variables.temporary_password}`, "user-1"]
     );
     expect(mocks.clientQuery).toHaveBeenCalledWith(

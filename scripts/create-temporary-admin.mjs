@@ -20,7 +20,7 @@ const result = await transaction(async (client) => {
   );
   const userId = user.rows[0].id;
   await client.query(
-    `INSERT INTO accounts (user_id, account_id, provider_id, password)
+    `INSERT INTO accounts (user_id, account_id, provider_id, password_hash)
      VALUES ($1, $2, 'credential', $3)`,
     [userId, email, await hashPassword(password)]
   );

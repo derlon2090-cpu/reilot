@@ -32,7 +32,7 @@ CREATE TABLE accounts (
   access_token_expires_at timestamptz,
   refresh_token_expires_at timestamptz,
   scope text,
-  password text,
+  password_hash text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

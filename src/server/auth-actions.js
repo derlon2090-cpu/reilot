@@ -1,5 +1,5 @@
 import { query, transaction } from "./db.js";
-import { hashPassword, verifyPassword } from "./password.js";
+import { hashPassword, needsRehash, verifyPassword } from "./password.js";
 import { createSession } from "./session.js";
 import { isStrongPassword, normalizeEmail, sha256 } from "./security.js";
 import { classifyPasswordStrength } from "./security-score.js";
@@ -25,7 +25,7 @@ async function findCredentialUser(normalizedEmail) {
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
               u.email_otp_enabled AS "emailOtpEnabled", u.mfa_enabled AS "mfaEnabled",
               u.mfa_secret_encrypted AS "mfaSecret",
-              COALESCE(tm.role, u.role) AS role, a.password
+              COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
@@ -41,7 +41,7 @@ async function findCredentialUser(normalizedEmail) {
     return query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
               false AS "emailOtpEnabled", false AS "mfaEnabled", NULL::text AS "mfaSecret",
-              COALESCE(tm.role, u.role) AS role, a.password
+              COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
@@ -88,7 +88,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   const result = await findCredentialUser(normalized);
   const user = result.rows[0];
   authStage = "password_verification";
-  const valid = user ? await verifyPassword(password, user.password) : false;
+  const valid = user ? await verifyPassword(password, user.passwordHash) : false;
   authStage = "login_attempt_audit";
   const loginAttempt = await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
@@ -109,6 +109,12 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
       ).catch(() => null);
     }
     return { ok: false, status: 401, reason: "invalid_credentials" };
+  }
+
+  if (needsRehash(user.passwordHash)) {
+    await query("UPDATE accounts SET password_hash=$1,updated_at=now() WHERE id=$2 AND password_hash=$3", [
+      await hashPassword(password), user.credentialId, user.passwordHash
+    ]);
   }
 
   authStage = "second_factor_routing";
@@ -199,7 +205,8 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
       [user.tenantId, user.id, ipAddress ? sha256(String(ipAddress)) : null, String(userAgent || "").slice(0, 180)]
     );
     const safeUser = { ...user };
-    delete safeUser.password;
+    delete safeUser.passwordHash;
+    delete safeUser.credentialId;
     delete safeUser.emailOtpEnabled;
     delete safeUser.mfaEnabled;
     delete safeUser.mfaSecret;

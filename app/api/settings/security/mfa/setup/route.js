@@ -9,12 +9,12 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   if (!body.currentPassword) return Response.json({ ok: false, reason: "password_required", message: "أدخل كلمة المرور الحالية للمتابعة." }, { status: 400 });
   const credential = await query(
-    `SELECT a.password FROM accounts a
+    `SELECT a.password_hash AS "passwordHash" FROM accounts a
       JOIN users u ON u.id = a.user_id
      WHERE u.id = $1 AND u.tenant_id = $2 AND a.provider_id = 'credential' LIMIT 1`,
     [auth.session.userId, auth.session.tenantId]
   );
-  if (!credential.rows[0]?.password || !await verifyPassword(body.currentPassword, credential.rows[0].password)) {
+  if (!credential.rows[0]?.passwordHash || !await verifyPassword(body.currentPassword, credential.rows[0].passwordHash)) {
     return Response.json({ ok: false, reason: "invalid_password", message: "تعذر التحقق من هويتك." }, { status: 400 });
   }
   const recent = await query(

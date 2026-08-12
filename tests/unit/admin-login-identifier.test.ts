@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { queryMock, auditMock, emailChallengeMock } = vi.hoisted(() => ({
+const { queryMock, auditMock, emailChallengeMock, hashPasswordMock, needsRehashMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
   auditMock: vi.fn(),
-  emailChallengeMock: vi.fn()
+  emailChallengeMock: vi.fn(),
+  hashPasswordMock: vi.fn(),
+  needsRehashMock: vi.fn()
 }));
 
 vi.mock("../../src/server/admin-auth.js", () => ({
@@ -17,7 +19,7 @@ vi.mock("../../src/server/db.js", () => ({
   query: queryMock,
   transaction: async (callback: (client: { query: ReturnType<typeof vi.fn> }) => unknown) => callback({ query: vi.fn() })
 }));
-vi.mock("../../src/server/password.js", () => ({ verifyPassword: vi.fn(async () => true) }));
+vi.mock("../../src/server/password.js", () => ({ hashPassword: hashPasswordMock, needsRehash: needsRehashMock, verifyPassword: vi.fn(async () => true) }));
 vi.mock("../../src/server/session.js", () => ({
   destroySession: vi.fn(async () => undefined)
 }));
@@ -33,6 +35,8 @@ describe("admin login identifiers", () => {
     queryMock.mockReset();
     auditMock.mockReset();
     emailChallengeMock.mockReset();
+    hashPasswordMock.mockReset();
+    needsRehashMock.mockReset().mockReturnValue(false);
     process.env.RESEND_API_KEY = "re_test_key";
     process.env.EMAIL_OTP_PEPPER = "admin-login-email-otp-pepper-is-long-enough";
     emailChallengeMock.mockResolvedValue({
@@ -50,7 +54,8 @@ describe("admin login identifiers", () => {
         userId: "user-1",
         name: "Renvix Admin",
         email: "admin@renvix.app",
-        password: "stored-hash",
+        credentialId: "credential-1",
+        passwordHash: "stored-hash",
         adminId: "admin-1",
         adminRole: "super_admin",
         status: "active",
