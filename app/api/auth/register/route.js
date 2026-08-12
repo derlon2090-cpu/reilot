@@ -2,6 +2,7 @@ import { registerAccount } from "../../../../src/server/auth-actions.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
 import { sessionCookie } from "../../../../src/server/session.js";
 import { challengeCookie } from "../../../../src/server/email-otp-v2.js";
+import { TURNSTILE_ACTIONS, turnstileFailureResponse, verifyTurnstileToken } from "../../../../src/server/turnstile.js";
 
 function registrationFailure(error) {
   if (["EMAIL_DELIVERY_UNAVAILABLE", "EMAIL_PROVIDER_ERROR", "EMAIL_CONFIGURATION_ERROR"].includes(error?.code)) {
@@ -21,6 +22,8 @@ export async function POST(req) {
     if (!body || typeof body !== "object") {
       return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
     }
+    const turnstile = await verifyTurnstileToken({ token: body.turnstileToken, expectedAction: TURNSTILE_ACTIONS.register, request: req });
+    if (!turnstile.ok) return turnstileFailureResponse(turnstile);
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
     const result = await registerAccount({

@@ -17,13 +17,15 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
+        <meta name="renvix-turnstile-site-key" content={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""} />
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var theme=localStorage.getItem('renewpilot_theme')||'light';var locale=localStorage.getItem('renewpilot_locale')||'ar';var resolved=theme==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':theme;document.documentElement.dataset.theme=resolved==='dark'?'dark':'light';document.documentElement.lang=locale==='en'?'en':'ar';document.documentElement.dir=locale==='en'?'ltr':'rtl'}catch(e){document.documentElement.dataset.theme='light'}})();` }} />
         <script dangerouslySetInnerHTML={{ __html: `(function(){function sync(){try{var w=Math.max(document.documentElement.clientWidth||0,window.innerWidth||0);var touch=Number(navigator.maxTouchPoints||0)>0;var tabletUa=/iPad|Android|Tablet|SM-T|Pixel C/i.test(navigator.userAgent||'');var forced=new URLSearchParams(location.search).get('_tablet_layout')==='1';var active=(forced||touch||tabletUa)&&w>=641&&w<=1700;if(active)document.documentElement.setAttribute('data-home-tablet-layout','true');else document.documentElement.removeAttribute('data-home-tablet-layout')}catch(e){document.documentElement.removeAttribute('data-home-tablet-layout')}}sync();window.addEventListener('resize',sync,{passive:true})})();` }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__RENVIX_CONFIG__=${JSON.stringify({
-               appUrl,
-               authUrl,
+              appUrl,
+              authUrl,
+              turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "",
               metaWhatsAppEnabled: Boolean(process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL),
               metaWhatsAppConnectUrl: process.env.NEXT_PUBLIC_META_WHATSAPP_CONNECT_URL || ""
             }).replace(/</g, "\\u003c")};`

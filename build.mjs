@@ -8,6 +8,7 @@ const publicApp = path.join(root, "public", "app");
 
 await mkdir(publicApp, { recursive: true });
 await cp(path.join(root, "src", "app", "app.js"), path.join(publicApp, "app.js"));
+await cp(path.join(root, "src", "app", "auth-turnstile.js"), path.join(publicApp, "auth-turnstile.js"));
 await mkdir(path.join(publicApp, "styles"), { recursive: true });
 await cp(path.join(root, "src", "styles", "globals.css"), path.join(publicApp, "styles", "globals.css"));
 await cp(path.join(root, "src", "styles", "tokens.css"), path.join(publicApp, "styles", "tokens.css"));

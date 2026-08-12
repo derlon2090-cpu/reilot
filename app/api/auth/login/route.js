@@ -3,6 +3,7 @@ import { isValidEmail, normalizeEmail, safeErrorMessage, safeErrorStack } from "
 import { sessionCookie } from "../../../../src/server/session.js";
 import { challengeCookie, readTrustedBrowserCookie } from "../../../../src/server/email-otp-v2.js";
 import { mfaChallengeCookie } from "../../../../src/server/login-mfa.js";
+import { TURNSTILE_ACTIONS, turnstileFailureResponse, verifyTurnstileToken } from "../../../../src/server/turnstile.js";
 
 export function classifyAuthFailure(error) {
   const code = String(error?.code || "");
@@ -25,6 +26,8 @@ export async function POST(req) {
   try {
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
+    const turnstile = await verifyTurnstileToken({ token: body.turnstileToken, expectedAction: TURNSTILE_ACTIONS.login, request: req });
+    if (!turnstile.ok) return turnstileFailureResponse(turnstile);
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email) || !body.password) return Response.json({ ok: false, reason: "invalid_credentials" }, { status: 401 });
     const result = await loginAccount({

@@ -1,9 +1,12 @@
 import { requestPasswordReset } from "../../../../src/server/password-reset.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
+import { TURNSTILE_ACTIONS, turnstileFailureResponse, verifyTurnstileToken } from "../../../../src/server/turnstile.js";
 
 export async function POST(req) {
   try {
     const body = await req.json();
+    const turnstile = await verifyTurnstileToken({ token: body.turnstileToken, expectedAction: TURNSTILE_ACTIONS.forgotPassword, request: req });
+    if (!turnstile.ok) return turnstileFailureResponse(turnstile);
     const email = normalizeEmail(body.email);
     const locale = body.locale === "en" ? "en" : "ar";
     if (!email) return Response.json({ ok: false, message: locale === "en" ? "Please enter your email address." : "يرجى إدخال البريد الإلكتروني." }, { status: 400 });

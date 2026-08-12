@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/auth-actions.js", () => ({ registerAccount: vi.fn() }));
 import { POST } from "../../app/api/auth/register/route.js";
@@ -8,12 +8,21 @@ function request() {
   return new Request("http://localhost/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "New Owner", companyName: "Store", email: "new@example.com", password: "StrongPass!234" })
+    body: JSON.stringify({ name: "New Owner", companyName: "Store", email: "new@example.com", password: "StrongPass!234", turnstileToken: "1x00000000000000000000AA" })
   });
 }
 
 describe("POST /api/auth/register pending email verification", () => {
-  beforeEach(() => vi.mocked(registerAccount).mockReset());
+  beforeEach(() => {
+    vi.mocked(registerAccount).mockReset();
+    process.env.TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+    process.env.AUTH_URL = "https://accounts.renvix.app";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, hostname: "accounts.renvix.app", action: "register" }), { headers: { "Content-Type": "application/json" } })));
+  });
+  afterEach(() => {
+    delete process.env.TURNSTILE_SECRET_KEY;
+    vi.unstubAllGlobals();
+  });
 
   it("sets only a temporary signup challenge and creates no session before OTP", async () => {
     vi.mocked(registerAccount).mockResolvedValue({

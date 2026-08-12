@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/auth-actions.js", () => ({ loginAccount: vi.fn() }));
 
@@ -9,12 +9,21 @@ function loginRequest(password: string) {
   return new Request("http://localhost/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "owner@example.com", password })
+    body: JSON.stringify({ email: "owner@example.com", password, turnstileToken: "1x00000000000000000000AA" })
   });
 }
 
 describe("POST /api/auth/login", () => {
-  beforeEach(() => vi.mocked(loginAccount).mockReset());
+  beforeEach(() => {
+    vi.mocked(loginAccount).mockReset();
+    process.env.TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+    process.env.AUTH_URL = "https://accounts.renvix.app";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, hostname: "accounts.renvix.app", action: "login" }), { headers: { "Content-Type": "application/json" } })));
+  });
+  afterEach(() => {
+    delete process.env.TURNSTILE_SECRET_KEY;
+    vi.unstubAllGlobals();
+  });
 
   it("returns 401 without creating a cookie when credentials are invalid", async () => {
     vi.mocked(loginAccount).mockResolvedValue({ ok: false, status: 401, reason: "invalid_credentials" });
@@ -23,6 +32,17 @@ describe("POST /api/auth/login", () => {
     expect(response.status).toBe(401);
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(await response.json()).toEqual({ ok: false, reason: "invalid_credentials" });
+  });
+
+  it("rejects a missing challenge before checking credentials", async () => {
+    const response = await POST(new Request("https://accounts.renvix.app/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "owner@example.com", password: "Test@12345" })
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, reason: "turnstile_failed" });
+    expect(loginAccount).not.toHaveBeenCalled();
   });
 
   it("sets an HttpOnly cookie only after credential verification succeeds", async () => {

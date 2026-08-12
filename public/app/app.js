@@ -1,6 +1,7 @@
 import { features, knowledgeBase } from "../data/publicData.js?v=20260811-central-plan-catalog-v1";
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
+import { AuthTurnstile } from "./auth-turnstile.js";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -7013,7 +7014,8 @@ function setFormError(form, name, message) {
 
 function setSubmitBusy(button, busy, label) {
   if (!button) return;
-  button.disabled = busy;
+  const turnstilePending = button.closest("form")?.dataset.turnstileReady === "false";
+  button.disabled = busy || turnstilePending;
   button.innerHTML = busy ? `<span class="button-spinner" aria-hidden="true"></span><span>${escapeHtml(label)}</span>` : escapeHtml(label);
 }
 
@@ -9525,10 +9527,24 @@ function customerDetails(row) {
   </div>`;
 }
 
+async function fetchWithTurnstile(form, url, options) {
+  try {
+    return await fetch(url, options);
+  } finally {
+    AuthTurnstile.reset(form);
+  }
+}
+
 async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (["login", "register", "forgot", "reset-password"].includes(type) && !AuthTurnstile.hasToken(form)) {
+    return appToast.warning(
+      state.authDisplayLanguage === "en" ? "Complete the security verification" : "أكمل التحقق الأمني",
+      { description: state.authDisplayLanguage === "en" ? "Please wait for verification, then try again." : "انتظر اكتمال التحقق ثم حاول مرة أخرى.", id: "turnstile-required" }
+    );
+  }
   if (type === "support-ticket") {
     const button = form.querySelector("button[type='submit']");
     const attachmentInput = form.querySelector('input[name="attachments"]');
@@ -10216,7 +10232,7 @@ async function handleSubmit(form, event) {
     let failureReason = "";
     let networkFailed = false;
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetchWithTurnstile(form, "/api/auth/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -10267,6 +10283,7 @@ async function handleSubmit(form, event) {
     if (!loginAccepted) {
       setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
       if (networkFailed) return appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "login-network" });
+      if (failureReason === "turnstile_failed") return appToast.error("تعذر التحقق الأمني", { description: "حدّث التحقق الأمني ثم حاول مرة أخرى.", id: "login-turnstile" });
       if (failureReason === "rate_limited") return appToast.warning("محاولات تسجيل دخول كثيرة", { description: "انتظر قليلًا قبل المحاولة مرة أخرى.", id: "login-rate-limit" });
       if (failureReason === "email_otp_unavailable") return appToast.error("تعذر إرسال رمز التحقق", { description: "خدمة التحقق عبر البريد غير متاحة حاليًا. تواصل مع مسؤول المنصة.", id: "login-otp-unavailable" });
       if (failureReason === "auth_database_error") return appToast.error("تعذر الوصول إلى بيانات الحساب", { description: "قاعدة بيانات تسجيل الدخول غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", id: "login-database-error" });
@@ -10382,10 +10399,11 @@ async function handleSubmit(form, event) {
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
     if (!data.acceptPolicies) return toast("يجب الموافقة على سياسة الاستخدام وسياسة الخصوصية.", "danger");
     try {
-      const response = await fetch("/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const response = await fetchWithTurnstile(form, "/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const messages = state.language === "ar" ? {
+          turnstile_failed: "تعذر التحقق الأمني. حاول مرة أخرى.",
           email_exists: "البريد الإلكتروني مستخدم مسبقًا.",
           invalid_email: "صيغة البريد الإلكتروني غير صحيحة.",
           weak_password: "كلمة المرور لا تحقق شروط الأمان.",
@@ -10393,6 +10411,7 @@ async function handleSubmit(form, event) {
           database_unavailable: "تعذر الاتصال بقاعدة البيانات، حاول لاحقًا.",
           database_schema_missing: "تعذر إنشاء مساحة العمل، حاول لاحقًا."
         } : {
+          turnstile_failed: "Security verification failed. Please try again.",
           email_exists: "This email is already in use.",
           invalid_email: "The email address is invalid.",
           weak_password: "The password does not meet the security requirements.",
@@ -10678,7 +10697,7 @@ async function handleSubmit(form, event) {
     const button = form.querySelector("button");
     setSubmitBusy(button, true, "جارٍ إرسال الطلب...");
     try {
-      const response = await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: data.email, locale: state.language }) });
+      const response = await fetchWithTurnstile(form, "/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: data.email, locale: state.language, turnstileToken: data.turnstileToken }) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         setSubmitBusy(button, false, "إرسال رابط الاستعادة");
@@ -10720,7 +10739,7 @@ async function handleSubmit(form, event) {
         render();
         return appToast.warning("ابدأ طلب الاستعادة من جديد", { description: "أدخل بريد حسابك أولًا لإرسال رمز تحقق جديد.", id: "reset-email-missing" });
       }
-      const response = await fetch("/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resetEmail, code: data.code, password: data.password }) });
+      const response = await fetchWithTurnstile(form, "/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resetEmail, code: data.code, password: data.password, turnstileToken: data.turnstileToken }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (payload.reason === "expired") return appToast.warning("انتهت صلاحية الرمز", { description: "اطلب رمزًا جديدًا لإكمال إعادة تعيين كلمة المرور.", id: "reset-code-expired" });
@@ -11031,6 +11050,7 @@ function render() {
   localizeElement(app);
   if (authRoute) state.language = siteLanguage;
   ensurePasswordToggles();
+  if (authRoute) void AuthTurnstile.mountAll(app);
   requestAnimationFrame(() => initMarketingMotion());
   if (state.route === "/verify-email") {
     if (!state.emailOtpStatus) queueMicrotask(() => loadEmailOtpStatus());
