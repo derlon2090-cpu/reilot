@@ -2574,14 +2574,15 @@ function pricingComparisonSection() {
     return `<span class="pricing-comparison-status ${available ? "is-available" : "is-unavailable"}" role="img" aria-label="${available ? "متاح" : "غير متاح"}">${dashboardIcon(available ? "check" : "close")}</span>`;
   };
   const emailLimit = (slug) => planLimit(slug, "emailMessageLimit", "رسالة", slug === "enterprise" ? "غير محدود" : "رصيد حسب الاتفاق");
+  const contractualLimit = (slug, field, unit) => planLimit(slug, field, unit, slug === "enterprise" ? "غير محدود" : "حسب الاتفاق");
   const supportBySlug = { starter: "دعم أساسي", professional: "دعم أولوية", business: "دعم متقدم", enterprise: "دعم مخصص" };
   const rows = [
     ["مساحة التخزين", (slug) => planStorage(slug)],
     ["الرسائل الشهرية", (slug) => emailLimit(slug)],
-    ["قنوات واتساب الرسمية", (slug) => planLimit(slug, "whatsappChannelsLimit", "قناة")],
-    ["حجم قاعدة العملاء", (slug) => planLimit(slug, "customersLimit", "عميل")],
-    ["عدد المستخدمين", (slug) => planLimit(slug, "usersLimit", "مستخدم")],
-    ["روابط معلومات الطلب", (slug) => planLimit(slug, "orderLinksLimit", "رابط")],
+    ["قنوات واتساب الرسمية", (slug) => contractualLimit(slug, "whatsappChannelsLimit", "قناة")],
+    ["حجم قاعدة العملاء", (slug) => contractualLimit(slug, "customersLimit", "عميل")],
+    ["عدد المستخدمين", (slug) => contractualLimit(slug, "usersLimit", "مستخدم")],
+    ["روابط معلومات الطلب", (slug) => contractualLimit(slug, "orderLinksLimit", "رابط")],
     ["حملات واتساب والبريد", (slug) => availability(slug, "campaignsEnabled")],
     ["الأتمتة وإعادة الاستهداف", (slug) => availability(slug, "automationEnabled")],
     ["دعم مخصص", (slug) => supportBySlug[slug]],

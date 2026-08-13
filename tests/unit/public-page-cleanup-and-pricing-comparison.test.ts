@@ -41,6 +41,7 @@ describe("public page cleanup and pricing comparison", () => {
     expect(comparison).toContain('dir="ltr"');
     expect(comparison).toContain('dashboardIcon(available ? "check" : "close")');
     expect(comparison).toContain('aria-label="${available ? "متاح" : "غير متاح"}"');
+    expect(comparison).toContain('slug === "enterprise" ? "غير محدود" : "حسب الاتفاق"');
     expect(comparison).toContain("اختر الباقة الأنسب لنمو أعمالك");
     expect(comparison).toContain("مقارنة واضحة بين خطط Renvix لاختيار الأنسب لأعمالك");
     expect(pricing.indexOf("pricingComparisonSection()")).toBeGreaterThan(pricing.indexOf("pricing-trial-footnote"));
