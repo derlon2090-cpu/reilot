@@ -13166,6 +13166,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .rvx-ai-usage-card>footer b{color:#0b3f3b}
 .rvx-ai-chat-storage{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding-top:8px;border-top:1px solid #dceae7}
 .rvx-ai-chat-storage span{font-size:9px;font-weight:800}.rvx-ai-chat-storage b{color:#0b3f3b;font-size:10px}.rvx-ai-chat-storage small{grid-column:1/-1;color:#71817e;font-size:8px}
+.rvx-ai-storage-value{display:inline-block;direction:ltr;unicode-bidi:isolate;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:0}
+.rvx-ai-conversation-open small em{min-width:max-content;direction:ltr;unicode-bidi:isolate}
 
 .rvx-ai-workspace{grid-template-rows:96px minmax(0,1fr) auto auto auto;height:100%;min-height:0;background:#f8fbfa}
 .rvx-ai-workspace>header{min-height:96px;padding:16px clamp(20px,3vw,42px)}

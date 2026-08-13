@@ -854,6 +854,7 @@ state.aiPreferences = storage.get("renvix.ai.preferences", null);
 state.aiConversations = null;
 state.aiConversation = null;
 state.aiConversationId = state.query.get("conversation") || "";
+state.aiConversationOpenAtBottom = Boolean(state.aiConversationId);
 state.aiConversationSearch = "";
 state.aiStreaming = false;
 state.aiAbortController = null;
@@ -7947,6 +7948,7 @@ async function handleAction(target) {
     resetAIAttachments();
     state.aiConversationId = "";
     state.aiConversation = null;
+    state.aiConversationOpenAtBottom = false;
     state.aiDraft = "";
     state.aiSidebarOpen = false;
     const url = new URL(location.href);
@@ -7958,6 +7960,7 @@ async function handleAction(target) {
     resetAIAttachments();
     state.aiConversationId = target.dataset.id || "";
     state.aiConversation = null;
+    state.aiConversationOpenAtBottom = true;
     state.aiSidebarOpen = false;
     const url = new URL(location.href);
     url.searchParams.set("conversation", state.aiConversationId);
@@ -10187,6 +10190,21 @@ function renderAIPreservingScroll({ forceBottom = false } = {}) {
   });
 }
 
+function openAIConversationAtLatestMessage() {
+  if (!state.aiConversationOpenAtBottom) return;
+  const list = document.querySelector("[data-ai-message-list]");
+  if (!list || state.aiConversation?.id !== state.aiConversationId) return;
+  state.aiConversationOpenAtBottom = false;
+  state.aiAutoScroll = true;
+  state.aiProgrammaticScroll = true;
+  list.scrollTop = list.scrollHeight;
+  requestAnimationFrame(() => {
+    const current = document.querySelector("[data-ai-message-list]");
+    if (current === list) current.scrollTop = current.scrollHeight;
+    state.aiProgrammaticScroll = false;
+  });
+}
+
 function closeAIConversationMenus(except = null) {
   document.querySelectorAll("[data-ai-conversation-menu]").forEach((menu) => {
     if (menu === except) return;
@@ -12300,10 +12318,13 @@ function formatAITokens(value) {
 
 function formatAIStorageBytes(value) {
   const bytes = Math.max(0, Number(value || 0));
-  const locale = state.language === "en" ? "en-US" : "ar-SA";
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toLocaleString(locale, { maximumFractionDigits: 2 })} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toLocaleString(locale, { maximumFractionDigits: 1 })} KB`;
-  return `${bytes.toLocaleString(locale)} B`;
+  const format = (number, maximumFractionDigits = 0) => number.toLocaleString("en-US", { maximumFractionDigits });
+  const valueWithUnit = bytes >= 1024 * 1024
+    ? `${format(bytes / 1024 / 1024, 2)} MB`
+    : bytes >= 1024
+      ? `${format(bytes / 1024, 1)} KB`
+      : `${format(bytes)} B`;
+  return `<bdi class="rvx-ai-storage-value" dir="ltr">${valueWithUnit}</bdi>`;
 }
 
 function aiOverviewWelcome() {
@@ -12499,6 +12520,7 @@ function render() {
   if (authRoute) state.language = state.authDisplayLanguage;
   app.innerHTML = page();
   localizeElement(app);
+  if (state.route === "/dashboard/support/ai") requestAnimationFrame(openAIConversationAtLatestMessage);
   if (authRoute) state.language = siteLanguage;
   ensurePasswordToggles();
   if (authRoute) void AuthTurnstile.mountAll(app);

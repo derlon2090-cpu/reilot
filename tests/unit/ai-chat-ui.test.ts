@@ -95,4 +95,16 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-assistant-message .rvx-ai-data-card{width:min(100%,640px)");
     expect(css).toContain("@media(max-width:700px){.rvx-ai-assistant-message .rvx-ai-data-card{width:100%");
   });
+
+  it("isolates storage values and opens saved conversations at their latest message", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(source).toContain('class="rvx-ai-storage-value" dir="ltr"');
+    expect(source).toContain('state.aiConversationOpenAtBottom = true');
+    expect(source).toContain("function openAIConversationAtLatestMessage");
+    expect(source).toContain("list.scrollTop = list.scrollHeight");
+    expect(css).toContain(".rvx-ai-storage-value{display:inline-block;direction:ltr;unicode-bidi:isolate;white-space:nowrap");
+  });
 });
