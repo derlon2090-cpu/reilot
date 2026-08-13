@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import {
   canonicalAuthPath,
+  configuredAuthApiOrigin,
   configuredOrigins,
   hostnameFromHeaders,
   isAuthPath,
   isProtectedAppPath,
   isSplitHostEnabled,
-  safeReturnTo
+  safeReturnTo,
+  shouldProxyAuthApi
 } from "./src/shared/auth-portal.js";
 
 export function middleware(request) {
@@ -17,10 +19,19 @@ export function middleware(request) {
   const requestHost = hostnameFromHeaders(request.headers);
   const appHost = new URL(origins.app).hostname;
   const authHost = new URL(origins.auth).hostname;
+  const authApiOrigin = configuredAuthApiOrigin();
   const isSetupPage = path === "/admin/setup";
   const isSetupApi = path.startsWith("/api/admin/setup/");
 
   if (isSetupPage || isSetupApi) return secureNext();
+  if (shouldProxyAuthApi(path, requestHost, authApiOrigin)) {
+    const target = new URL(`${path}${request.nextUrl.search}`, authApiOrigin);
+    const response = NextResponse.rewrite(target);
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
+  }
   if (path.startsWith("/admin") && !hasSession) return NextResponse.redirect(new URL("/advanced-pro-control", request.url));
   if (path.startsWith("/api/admin") && !path.startsWith("/api/admin/auth/") && !path.endsWith("/login") && !hasSession) {
     return NextResponse.json({ ok: false, reason: "admin_auth_required" }, { status: 401 });

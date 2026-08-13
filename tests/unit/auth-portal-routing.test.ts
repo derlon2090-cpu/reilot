@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalAuthPath,
+  configuredAuthApiOrigin,
   configuredOrigins,
   isAuthPath,
   isSplitHostEnabled,
-  safeReturnTo
+  safeReturnTo,
+  shouldProxyAuthApi
 } from "../../src/shared/auth-portal.js";
 import { sessionCookie } from "../../src/server/session.js";
 import { readFileSync } from "node:fs";
@@ -34,6 +36,22 @@ describe("accounts authentication portal", () => {
     const origins = configuredOrigins({ NODE_ENV: "production", APP_URL: "https://renvix.app" });
     expect(origins).toEqual({ app: "https://renvix.app", auth: "https://renvix.app" });
     expect(isSplitHostEnabled(origins)).toBe(false);
+  });
+
+  it("routes secret-backed authentication requests from Vercel to Render", () => {
+    const env = { NODE_ENV: "production", NEXT_PUBLIC_API_BASE_URL: "https://api.renvix.app" };
+    const apiOrigin = configuredAuthApiOrigin(env);
+    expect(apiOrigin).toBe("https://api.renvix.app");
+    expect(shouldProxyAuthApi("/api/auth/login", "accounts.renvix.app", apiOrigin, env)).toBe(true);
+    expect(shouldProxyAuthApi("/api/auth/register", "renvix.app", apiOrigin, env)).toBe(true);
+    expect(shouldProxyAuthApi("/api/auth/session", "api.renvix.app", apiOrigin, env)).toBe(false);
+  });
+
+  it("forwards only the registered Google callback to the secret-owning backend", () => {
+    const env = { NODE_ENV: "production", NEXT_PUBLIC_API_BASE_URL: "https://api.renvix.app" };
+    const apiOrigin = configuredAuthApiOrigin(env);
+    expect(shouldProxyAuthApi("/api/auth/google/start", "accounts.renvix.app", apiOrigin, env)).toBe(false);
+    expect(shouldProxyAuthApi("/api/auth/google/callback", "accounts.renvix.app", apiOrigin, env)).toBe(true);
   });
 
   it("ignores a stale authentication host until split hosting is explicitly enabled", () => {
@@ -68,6 +86,7 @@ describe("accounts authentication portal", () => {
   it("keeps authentication static modules on the accounts host", () => {
     const middlewareSource = readFileSync("middleware.js", "utf8");
     expect(middlewareSource).toContain("|app/|assets/|data/");
+    expect(middlewareSource).toContain("NextResponse.rewrite(target)");
   });
 
   it("sends client-side authentication entry directly to the configured portal", () => {

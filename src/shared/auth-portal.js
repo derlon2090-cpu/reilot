@@ -48,6 +48,31 @@ export function configuredOrigins(env = process.env) {
   return { app, auth };
 }
 
+export function configuredAuthApiOrigin(env = process.env) {
+  const candidate = String(env.NEXT_PUBLIC_API_BASE_URL || env.API_PUBLIC_URL || "").trim();
+  if (!candidate) return "";
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "https:" && env.NODE_ENV === "production") return "";
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return "";
+    return url.origin;
+  } catch {
+    return "";
+  }
+}
+
+export function shouldProxyAuthApi(pathname, requestHost, apiOrigin, env = process.env) {
+  const path = String(pathname || "");
+  const googleCallback = path === "/api/auth/google/callback";
+  if (env.NODE_ENV !== "production" || !path.startsWith("/api/auth/") || (path.startsWith("/api/auth/google/") && !googleCallback)) return false;
+  if (!apiOrigin) return false;
+  try {
+    return new URL(apiOrigin).hostname.toLowerCase() !== String(requestHost || "").toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export function hostnameFromHeaders(headers) {
   const forwarded = headers.get("x-forwarded-host") || headers.get("host") || "";
   return String(forwarded).split(",")[0].trim().replace(/:\d+$/, "").toLowerCase();

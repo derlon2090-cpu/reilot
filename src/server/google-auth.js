@@ -7,7 +7,7 @@ import { normalizeEmail, sha256 } from "./security.js";
 import { createMfaLoginChallenge } from "./login-mfa.js";
 import { createLoginEmailOtpChallenge } from "./email-otp-v2.js";
 import { resolveSecondFactor } from "./second-factor-router.js";
-import { secureCookieEnabled } from "./cookie-policy.js";
+import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 
 export const GOOGLE_NONCE_COOKIE = "renvix_google_nonce";
 const NONCE_AGE_SECONDS = 10 * 60;
@@ -30,7 +30,8 @@ export function createGoogleNonce() {
 
 export function googleNonceCookie(digest, maxAge = NONCE_AGE_SECONDS) {
   const secure = secureCookieEnabled() ? "; Secure" : "";
-  return `${GOOGLE_NONCE_COOKIE}=${encodeURIComponent(digest || "")}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}${secure}`;
+  const domain = sharedCookieDomainAttribute();
+  return `${GOOGLE_NONCE_COOKIE}=${encodeURIComponent(digest || "")}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}${domain}${secure}`;
 }
 
 export function readGoogleNonceDigest(req) {

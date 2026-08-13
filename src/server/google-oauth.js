@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { secureCookieEnabled } from "./cookie-policy.js";
+import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 import { googleClientId, normalizeGoogleAuthIntent } from "./google-auth.js";
 import { randomToken, sha256 } from "./security.js";
 
@@ -16,11 +16,14 @@ function cookieValue(req, name) {
 
 function oauthCookie(name, value, maxAge = OAUTH_CHALLENGE_AGE_SECONDS) {
   const secure = secureCookieEnabled() ? "; Secure" : "";
-  return `${name}=${encodeURIComponent(value || "")}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}${secure}`;
+  const domain = sharedCookieDomainAttribute();
+  return `${name}=${encodeURIComponent(value || "")}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}${domain}${secure}`;
 }
 
 export function googleOAuthRedirectUri() {
-  const configured = process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || process.env.AUTH_URL || process.env.BETTER_AUTH_URL || "";
+  // The Google Cloud client is registered against the public accounts portal.
+  // Middleware forwards this callback to Render, where the secret exchange runs.
+  const configured = process.env.AUTH_URL || process.env.BETTER_AUTH_URL || process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "";
   const origin = configured ? new URL(configured).origin : "http://localhost:3000";
   return `${origin}/api/auth/google/callback`;
 }
