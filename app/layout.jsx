@@ -48,7 +48,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260813-ai-shell-v116" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260813-google-gis-v117" strategy="afterInteractive" />
       </body>
     </html>
   );
