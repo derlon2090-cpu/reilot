@@ -12869,11 +12869,12 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 @media (max-width:640px){
-  .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem){display:block!important}
+  .marketing-home-v3 :is(.marketing-steps-section,.marketing-commerce-ecosystem){display:block!important}
+  .marketing-home-v3 .marketing-renewal-journey{display:none!important}
   .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading{margin-bottom:15px}
   .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading h2{font-size:20px}
   .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey) .marketing-v3-heading p{display:block;max-width:310px;font-size:9px;line-height:1.65}
-  .marketing-home-v3 .marketing-steps-section{padding:28px 0 24px}
+  .marketing-home-v3 .marketing-steps-section{padding:28px 0 20px}
   .marketing-home-v3 .marketing-steps{display:grid;min-height:0;grid-template-columns:1fr;gap:14px;padding:22px 3px 5px}
   .marketing-home-v3 .marketing-step-route,.marketing-home-v3 .marketing-step:not(:last-child)::after{display:none}
   .marketing-home-v3 .marketing-step{min-height:0;padding:20px 0 7px;text-align:right}
@@ -12890,7 +12891,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .renewal-journey-marker{width:66px;height:66px}.marketing-home-v3 .renewal-journey-marker .line-icon{width:30px;height:30px}
   .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:52px;height:52px;margin-top:7px}
   .marketing-home-v3 .renewal-journey-stage h3{font-size:10px}.marketing-home-v3 .renewal-journey-stage p{font-size:7.5px}
-  .marketing-home-v3 .marketing-commerce-ecosystem{padding:23px 0 30px}
+  .marketing-home-v3 .marketing-commerce-ecosystem{padding:25px 0 30px}
   .marketing-home-v3 .commerce-carousel{--commerce-gap:9px;grid-template-columns:30px minmax(0,1fr) 30px;gap:4px}
   .marketing-home-v3 .commerce-carousel-window{padding-bottom:14px}
   .marketing-home-v3 .commerce-store-track article{min-height:105px;padding:13px 8px;border-radius:13px}
