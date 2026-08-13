@@ -98,7 +98,7 @@ export async function resolveProductDurationWithDeepSeek(input = {}, { fetchImpl
   if (input.manualOverride || !process.env.DEEPSEEK_API_KEY) return local;
   const sources = redactedDurationSources(input);
   if (local.visible && durationCandidateCount(sources) <= 1) return local;
-  const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+  const model = process.env.DEEPSEEK_FLASH_MODEL || "deepseek-v4-flash";
   if (model !== "deepseek-v4-flash") return local;
   const cacheKey = JSON.stringify({ model, sources });
   if (durationAiCache.has(cacheKey)) return durationAiCache.get(cacheKey);
@@ -111,6 +111,7 @@ export async function resolveProductDurationWithDeepSeek(input = {}, { fetchImpl
     headers: { authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "content-type": "application/json" },
     body: JSON.stringify({
       model,
+      thinking: { type: "disabled" },
       response_format: { type: "json_object" },
       temperature: 0,
       messages: [

@@ -188,7 +188,7 @@ export function restoreDeliveryTokens(classified, tokenMap) {
 export async function classifyAmbiguousDeliveryContent(parsed, { fetchImpl = fetch, timeoutMs = 4500 } = {}) {
   if (!parsed.ambiguous || !process.env.DEEPSEEK_API_KEY) return { ...parsed, classificationSource: "local" };
   const { redacted, tokenMap } = tokenizeDeliverySecrets(parsed);
-  const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+  const model = process.env.DEEPSEEK_FLASH_MODEL || "deepseek-v4-flash";
   if (model !== "deepseek-v4-flash") return { ...parsed, classificationSource: "local_fallback" };
   const cacheKey = crypto.createHash("sha256").update(`${parsed.parserVersion}:${model}:${JSON.stringify(redacted)}`).digest("hex");
   if (classificationCache.has(cacheKey)) {
@@ -203,6 +203,7 @@ export async function classifyAmbiguousDeliveryContent(parsed, { fetchImpl = fet
       headers: { authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({
         model,
+        thinking: { type: "disabled" },
         response_format: { type: "json_object" },
         temperature: 0,
         messages: [{ role: "system", content: "صنّف الحقول فقط وأعد JSON مطابقًا. لا تنشئ أو تغيّر أي token." }, { role: "user", content: JSON.stringify(redacted) }]

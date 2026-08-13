@@ -17,7 +17,7 @@ import {
 afterEach(() => {
   delete process.env.DEEPSEEK_API_KEY;
   delete process.env.DEEPSEEK_BASE_URL;
-  delete process.env.DEEPSEEK_MODEL;
+  delete process.env.DEEPSEEK_FLASH_MODEL;
   vi.restoreAllMocks();
 });
 

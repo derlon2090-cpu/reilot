@@ -7,12 +7,17 @@ describe("DeepSeekProvider", () => {
       choices: [{ message: { role: "assistant", content: "تم" } }],
       usage: { prompt_tokens: 4, completion_tokens: 1 }
     }), { status: 200, headers: { "content-type": "application/json" } }));
-    const provider = new DeepSeekProvider({ apiKey: "test-key", baseUrl: "https://ai.example/v1", model: "deepseek-test", fetchImpl });
-    const result = await provider.completeStructured({ messages: [{ role: "user", content: "مرحبا" }] });
+    const provider = new DeepSeekProvider({ apiKey: "test-key", baseUrl: "https://ai.example/v1", flashModel: "deepseek-test", fetchImpl });
+    const result = await provider.completeStructured({ messages: [{ role: "user", content: "مرحبا" }], model: provider.modelFor("flash") });
     expect(result.message.content).toBe("تم");
     expect(fetchImpl).toHaveBeenCalledWith("https://ai.example/v1/chat/completions", expect.objectContaining({ method: "POST" }));
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
-    expect(body).toMatchObject({ model: "deepseek-test", stream: false, temperature: 0.2 });
+    expect(body).toMatchObject({
+      model: "deepseek-test",
+      stream: false,
+      temperature: 0.2,
+      thinking: { type: "disabled" }
+    });
   });
 
   it("parses streamed tokens while ignoring malformed and reasoning-only events", async () => {
@@ -45,5 +50,59 @@ describe("DeepSeekProvider", () => {
     expect(executeTool).toHaveBeenCalledWith("getAccountHealth", {});
     expect(result.executions).toHaveLength(1);
     expect(result.messages.at(-1)).toMatchObject({ role: "tool", tool_call_id: "call-1" });
+  });
+
+  it("uses Pro thinking without incompatible sampling or tool-choice fields", async () => {
+    const fetchImpl = vi.fn(async (_url, options) => new Response(JSON.stringify({
+      choices: [{ message: { role: "assistant", content: "تحليل" } }],
+      usage: { prompt_tokens: 7, completion_tokens: 2, total_tokens: 9 }
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const provider = new DeepSeekProvider({ apiKey: "test-key", proModel: "deepseek-v4-pro", fetchImpl });
+
+    await provider.completeStructured({
+      messages: [{ role: "user", content: "حلل بعمق" }],
+      tools: [{ type: "function", function: { name: "getAccountHealth", parameters: { type: "object" } } }],
+      model: provider.modelFor("pro"),
+      thinking: "enabled",
+      reasoningEffort: "max"
+    });
+
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      model: "deepseek-v4-pro",
+      thinking: { type: "enabled" },
+      reasoning_effort: "max"
+    });
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("tool_choice");
+  });
+
+  it("preserves reasoning content across thinking-mode tool calls", async () => {
+    const provider = new DeepSeekProvider({ apiKey: "test" });
+    provider.completeStructured = vi.fn()
+      .mockResolvedValueOnce({
+        message: {
+          role: "assistant",
+          content: "",
+          reasoning_content: "أحتاج بيانات الحساب",
+          tool_calls: [{ id: "call-2", type: "function", function: { name: "getAccountHealth", arguments: "{}" } }]
+        }
+      })
+      .mockResolvedValueOnce({ message: { role: "assistant", content: "التحليل النهائي" } });
+
+    const result = await provider.executeToolLoop({
+      messages: [{ role: "user", content: "حلل الحساب" }],
+      tools: [],
+      thinking: "enabled",
+      reasoningEffort: "max",
+      executeTool: vi.fn(async () => ({ ok: true }))
+    });
+
+    expect(result.messages[1]).toMatchObject({
+      role: "assistant",
+      reasoning_content: "أحتاج بيانات الحساب",
+      tool_calls: expect.any(Array)
+    });
+    expect(result.finalMessage?.content).toBe("التحليل النهائي");
   });
 });

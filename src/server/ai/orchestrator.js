@@ -2,6 +2,7 @@ import { query } from "../db.js";
 import { getAccountIntelligence } from "./account-intelligence.js";
 import { aiToolDefinitions, chooseAccountTools, executeAIReadTool, toolsToUIBlocks } from "./tools.js";
 import { createAIProvider, AIProviderError } from "./provider.js";
+import { classifyAIRequest, routingSystemInstruction } from "./router.js";
 import {
   assertAIUsageAvailable, estimateAITokens, getAIUsageSummary, getAIUserPreferences
 } from "./usage.js";
@@ -126,17 +127,26 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
   const preferences = await getAIUserPreferences(session);
   const estimatedInputTokens = estimateAITokens(prompt) + 900;
   const quota = await assertAIUsageAvailable(session, estimatedInputTokens + 128);
-  const maxResponseTokens = quota.unlimited
-    ? 1200
-    : Math.max(128, Math.min(1200, Number(quota.remainingTokens || 0) - estimatedInputTokens));
   let conversation = input.conversationId ? await getAIConversation(session, input.conversationId) : null;
   if (input.conversationId && !conversation) return Response.json({ ok: false, message: "المحادثة غير موجودة." }, { status: 404 });
   if (!conversation) conversation = await createAIConversation(session, { prompt, page: input.page });
   const attachments = validateAttachments(input.attachments);
+  const route = classifyAIRequest({
+    prompt,
+    conversationMessages: conversation.messages,
+    attachments,
+    accountContextEnabled: preferences.accountContextEnabled
+  });
+  const responseCeiling = route.modelTier === "pro" ? 2400 : 1200;
+  const maxResponseTokens = quota.unlimited
+    ? responseCeiling
+    : Math.max(128, Math.min(responseCeiling, Number(quota.remainingTokens || 0) - estimatedInputTokens));
   const userMessage = await appendAIMessage(session, conversation.id, { role: "user", content: prompt, attachments });
   const provider = createAIProvider();
+  const selectedModel = provider.available ? provider.modelFor(route.modelTier) : "local-account-intelligence";
   const assistantMessage = await appendAIMessage(session, conversation.id, {
-    role: "assistant", content: "", status: "streaming", model: provider.model || "local-account-intelligence", provider: provider.available ? "deepseek" : "renvix"
+    role: "assistant", content: "", status: "streaming", model: selectedModel,
+    provider: provider.available ? provider.name : "renvix"
   });
   conversation = await getAIConversation(session, conversation.id);
   const encoder = new TextEncoder();
@@ -150,9 +160,10 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
       let status = "completed";
       let errorCode = null;
       let executions = [];
+      let prefetchedContent = "";
       try {
         emit("ready", { conversation: { id: conversation.id, title: conversation.title }, messageId: assistantMessage.id, userMessage });
-        const snapshot = preferences.accountContextEnabled
+        const snapshot = preferences.accountContextEnabled && route.useTools
           ? await getAccountIntelligence(session.tenantId)
           : null;
         const languageInstruction = preferences.language === "en"
@@ -166,15 +177,22 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
         const contextInstruction = preferences.accountContextEnabled
           ? "استخدم سياق الحساب والأدوات المصرح بها عند الحاجة."
           : "لا تستخدم بيانات الحساب أو أدواته؛ قدّم إرشادًا عامًا فقط حتى يفعّل المستخدم سياق الحساب من الإعدادات.";
-        const system = { role: "system", content: `${SYSTEM_PROMPT}\n${languageInstruction}\n${styleInstruction}\n${contextInstruction}` };
+        const system = {
+          role: "system",
+          content: `${SYSTEM_PROMPT}\n${languageInstruction}\n${styleInstruction}\n${contextInstruction}\n${routingSystemInstruction(route)}`
+        };
         let providerMessages = [system, ...recentProviderMessages(conversation)];
-        if (provider.available && preferences.accountContextEnabled) {
+        if (provider.available && route.useTools && preferences.accountContextEnabled) {
           try {
             const loop = await provider.executeToolLoop({
               messages: providerMessages,
-              tools: preferences.accountContextEnabled ? aiToolDefinitions() : [],
+              tools: aiToolDefinitions(),
               signal: requestSignal,
-              maxTokens: Math.min(900, maxResponseTokens),
+              model: selectedModel,
+              thinking: route.thinking,
+              reasoningEffort: route.reasoningEffort,
+              maxIterations: route.maxToolIterations,
+              maxTokens: Math.min(route.modelTier === "pro" ? 1600 : 900, maxResponseTokens),
               executeTool: async (name, args) => {
                 const result = await executeToolWithAudit({ session, snapshot, conversationId: conversation.id, messageId: assistantMessage.id, name, input: args, emit });
                 executions.push({ name, result });
@@ -183,6 +201,9 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
             });
             providerMessages = loop.messages;
             usage = loop.usage || {};
+            if (executions.length && loop.finalMessage?.content) {
+              prefetchedContent = String(loop.finalMessage.content);
+            }
           } catch (error) {
             if (error?.name === "AbortError") throw error;
             if (!(error instanceof AIProviderError)) throw error;
@@ -190,7 +211,7 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
           }
         }
         if (!executions.length) {
-          for (const name of (preferences.accountContextEnabled ? chooseAccountTools(prompt) : [])) {
+          for (const name of (route.useTools && preferences.accountContextEnabled ? chooseAccountTools(prompt) : [])) {
             const result = await executeToolWithAudit({ session, snapshot, conversationId: conversation.id, messageId: assistantMessage.id, name, input: {}, emit });
             executions.push({ name, result });
           }
@@ -212,8 +233,20 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
           blocks,
           snapshot: snapshot ? { scores: snapshot.scores, risks: snapshot.risks, opportunities: snapshot.opportunities } : null
         });
-        if (provider.available && !errorCode) {
-          for await (const event of provider.streamChat({ messages: providerMessages, signal: requestSignal, maxTokens: maxResponseTokens })) {
+        if (provider.available && !errorCode && prefetchedContent) {
+          for (const part of prefetchedContent.match(/.{1,36}(?:\s+|$)/gu) || [prefetchedContent]) {
+            content += part;
+            emit("token", { value: part });
+          }
+        } else if (provider.available && !errorCode) {
+          for await (const event of provider.streamChat({
+            messages: providerMessages,
+            signal: requestSignal,
+            maxTokens: Math.max(128, maxResponseTokens - Number(usage.completion_tokens || 0)),
+            model: selectedModel,
+            thinking: route.thinking,
+            reasoningEffort: route.reasoningEffort
+          })) {
             if (event.type === "usage") {
               usage = {
                 prompt_tokens: Number(usage.prompt_tokens || 0) + Number(event.value?.prompt_tokens || 0),
@@ -257,12 +290,12 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
         }
       } finally {
         await finishAIMessage(session, assistantMessage.id, {
-          content, segments: blocks, status, model: provider.model || "local-account-intelligence",
-          provider: provider.available ? "deepseek" : "renvix", inputTokens: usage.prompt_tokens || 0,
+          content, segments: blocks, status, model: selectedModel,
+          provider: provider.available ? provider.name : "renvix", inputTokens: usage.prompt_tokens || 0,
           outputTokens: usage.completion_tokens || 0, errorCode
         }).catch(() => {});
         await recordAIUsage(session, {
-          model: provider.model || "local-account-intelligence", inputTokens: usage.prompt_tokens || 0,
+          model: selectedModel, inputTokens: usage.prompt_tokens || 0,
           outputTokens: usage.completion_tokens || 0, toolCalls: executions.length, latencyMs: Date.now() - startedAt,
           error: status === "failed"
         }).catch(() => {});
