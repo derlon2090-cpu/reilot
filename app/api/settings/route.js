@@ -2,11 +2,12 @@ import { query, transaction } from "../../../src/server/db.js";
 import { requireSession } from "../../../src/server/session.js";
 import { getTenantStorage } from "../../../src/server/tenant-storage.js";
 import { getOrCreateNewsletterProfile } from "../../../src/server/newsletter.js";
+import { getAIChatStorage } from "../../../src/server/ai/storage.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
-  const [result, storage, newsletter] = await Promise.all([query(
+  const [result, storage, newsletter, chatStorage] = await Promise.all([query(
     `SELECT u.name, u.name AS "fullName", u.email, u.image, u.image AS "avatarUrl", u.phone,
             COALESCE(st.name, '') AS "storeName", COALESCE(tm.role, u.role) AS role,
             COALESCE(s.language, 'ar') AS language, COALESCE(s.theme, 'light') AS theme,
@@ -37,8 +38,8 @@ export async function GET(req) {
        ) salla ON true
       WHERE u.id = $1 AND u.tenant_id = $2`,
     [auth.session.userId, auth.session.tenantId]
-  ), getTenantStorage(auth.session.tenantId), getOrCreateNewsletterProfile(auth.session.tenantId, auth.session.userId)]);
-  return Response.json({ ok: true, settings: result.rows[0] || null, storage, newsletter });
+  ), getTenantStorage(auth.session.tenantId), getOrCreateNewsletterProfile(auth.session.tenantId, auth.session.userId), getAIChatStorage(auth.session).catch(() => ({ totalBytes: 0, cleanableBytes: 0, conversationCount: 0, cleanableConversations: 0 }))]);
+  return Response.json({ ok: true, settings: result.rows[0] || null, storage, newsletter, chatStorage });
 }
 
 export async function PATCH(req) {

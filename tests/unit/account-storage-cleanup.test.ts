@@ -25,8 +25,7 @@ describe("account storage cleanup", () => {
     expect(STORAGE_CLEANUP_CATEGORIES.map((item) => item.key)).toEqual([
       "delivery_history",
       "activity_history",
-      "link_history",
-      "archived_ai_chats"
+      "link_history"
     ]);
     const sourceTables = STORAGE_CLEANUP_CATEGORIES.flatMap((item) => item.sources.map((source) => source.table));
     expect(sourceTables).not.toContain("customers");
@@ -38,6 +37,9 @@ describe("account storage cleanup", () => {
     expect(appSource).toContain('data-action="open-account-storage-cleanup"');
     expect(appSource).toContain("المساحة التي تريد إخلاءها");
     expect(appSource).toContain("قد يتم حذف بعض بياناتك المهمة");
+    expect(appSource).toContain("مساحة محادثاتك");
+    expect(routeSource).toContain('const CHAT_CATEGORY = "ai_user_chats"');
+    expect(routeSource).toContain("cleanupAIChatStorage");
     expect(appSource).toContain('confirmation: "DELETE_OLD_ACCOUNT_DATA"');
     expect(routeSource).toContain('input.confirmation !== "DELETE_OLD_ACCOUNT_DATA"');
     expect(routeSource).toContain('["owner", "admin"]');

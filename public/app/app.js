@@ -789,8 +789,6 @@ state.aiAbortController = null;
 state.aiDraft = "";
 state.aiSidebarOpen = false;
 state.aiSettingsOpen = false;
-state.aiChatStorage = null;
-state.aiStorageCleanupBusy = false;
 state.aiToolProgress = [];
 state.aiPendingMessage = null;
 state.sallaProductMappings = null;
@@ -7066,6 +7064,8 @@ function settingsReferencePage() {
   if (state.accountSettings?.error) return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}${emptyState("تعذر تحميل إعدادات الحساب", escapeHtml(state.accountSettings.error), "إعادة المحاولة", "reload-settings")}</section>`);
   const remote = state.accountSettings.settings || {};
   const storage = state.accountSettings.storage || { usedMb:0, limitMb:100, percent:0, breakdown:[] };
+  const chatStorage = state.accountSettings.chatStorage || { totalBytes: 0, cleanableBytes: 0, conversationCount: 0, cleanableConversations: 0 };
+  const storageBreakdown = (storage.breakdown || []).filter((item) => item.label !== "محادثات ذكاء Renvix");
   const canManageStorage = ["owner", "admin"].includes(String(remote.role || "").toLowerCase());
   const avatarUrl = remote.avatarUrl || remote.image;
   const fullName = remote.fullName || remote.name || "";
@@ -7081,13 +7081,13 @@ function settingsReferencePage() {
       <article class="suite-card settings-ref-card account"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><h2>إعدادات الحساب</h2><p>معلوماتك الشخصية وبيانات التواصل.</p></div></div><div class="settings-ref-account"><div class="settings-ref-avatar-wrap">${avatar}<input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">${dashboardIcon("upload")} تغيير الصورة</button><small>PNG, JPG حتى 2MB</small></div><form data-submit="profile-settings" class="settings-ref-profile" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><div class="settings-ref-two"><label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(String(fullName).split(" ")[0] || fullName)}" readonly></label><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label></div><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly dir="ltr"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" value="${escapeHtml(remote.phone || "")}" dir="ltr"></label><input type="hidden" name="storeName" value="${escapeHtml(remote.storeName || "")}"><button class="btn btn-primary profile-save-button">حفظ التعديلات</button></form></div></article>
       <article class="suite-card settings-ref-card security"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>أمان الحساب</h2><p>تغيير كلمة المرور والتحقق الثنائي.</p></div></div><div class="settings-ref-mfa"><div><strong>تفعيل التحقق الثنائي</strong><p>عزز أمان حسابك بطبقة حماية إضافية عند تسجيل الدخول.</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><form data-submit="password" class="settings-ref-password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article>
       <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>رابط اشتراك مخصص لحسابك؛ كل مشترك جديد يُضاف تلقائيًا إلى عملائك.</p></div><span class="newsletter-live-badge"><i></i> مفعّلة</span></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr" aria-label="رابط النشرة المخصص"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}" ${newsletterUrl ? "" : "disabled"}>${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-link-note">${dashboardIcon("security")} الرابط مرتبط بحسابك، ويُمنع تكرار البريد نفسه تلقائيًا.</div><div class="store-customer-sync"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><strong>حفظ عملاء المتجر تلقائيًا</strong><p>عند تسجيل العميل دخوله إلى متجر سلة، تُنشأ بياناته أو تُحدّث في قسم العملاء دون تكرار.</p><small>${remote.storeCustomerSyncAvailable ? (remote.storeCustomerSyncEnabled ? "المزامنة مفعّلة وتستقبل تسجيلات الدخول الجديدة." : "المزامنة متوقفة؛ لن تُحفظ تسجيلات الدخول الجديدة.") : "اربط متجر سلة أولًا لتتمكن من تشغيل هذه الميزة."}</small></div><label class="switch-control" title="${remote.storeCustomerSyncAvailable ? "تشغيل أو إيقاف حفظ عملاء المتجر" : "اربط متجر سلة أولًا"}"><input type="checkbox" data-action="store-customer-sync-toggle" ${remote.storeCustomerSyncEnabled ? "checked" : ""} ${remote.storeCustomerSyncAvailable ? "" : "disabled"} aria-label="حفظ عملاء المتجر تلقائيًا"><span></span></label>${remote.storeCustomerSyncAvailable ? "" : `<button class="btn btn-secondary" data-link="/dashboard/apps">ربط سلة</button>`}</div></article>
-      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية محسوب من بياناتك الفعلية.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-list">${(storage.breakdown || []).slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${storageAmountLabel(item.mb, item.bytes)}</strong></div>`).join("") || `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><div class="settings-storage-actions"><button class="btn btn-primary" data-action="open-account-storage-cleanup" ${canManageStorage ? "" : "disabled"}>${dashboardIcon("delete")} إخلاء المساحة</button><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></div>${canManageStorage ? "" : `<small class="settings-storage-permission">إخلاء المساحة متاح لمالك الحساب أو المسؤول فقط.</small>`}</article>
+      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية محسوب من بياناتك الفعلية.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-chat-storage"><span>${dashboardIcon("sparkles")}</span><div><strong>مساحة محادثاتك</strong><small>${Number(chatStorage.conversationCount || 0).toLocaleString("ar-SA")} محادثة · قابل للإخلاء ${storageAmountLabel(0, chatStorage.cleanableBytes)}</small></div><b>${storageAmountLabel(0, chatStorage.totalBytes)}</b></div><div class="settings-storage-list">${storageBreakdown.slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${storageAmountLabel(item.mb, item.bytes)}</strong></div>`).join("") || `<p class="muted">لا توجد بيانات أخرى مخزنة حتى الآن.</p>`}</div><div class="settings-storage-actions"><button class="btn btn-primary" data-action="open-account-storage-cleanup">${dashboardIcon("delete")} إخلاء المساحة</button><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></div>${canManageStorage ? "" : `<small class="settings-storage-permission">يمكنك إخلاء محادثاتك. تنظيف سجلات الحساب الأخرى متاح للمالك أو المسؤول فقط.</small>`}</article>
     </div>
-  </section>${accountStorageCleanupDialog(canManageStorage)}`);
+  </section>${accountStorageCleanupDialog()}`);
 }
 
-function accountStorageCleanupDialog(canManageStorage = false) {
-  if (!state.accountStorageCleanupOpen || !canManageStorage) return "";
+function accountStorageCleanupDialog() {
+  if (!state.accountStorageCleanupOpen) return "";
   const preview = state.accountStorageCleanup;
   const cleanableBytes = Math.max(0, Number(preview?.cleanableBytes || 0));
   const targets = cleanableBytes ? [.25,.5,.75,1].reduce((items, ratio) => {
@@ -7101,7 +7101,7 @@ function accountStorageCleanupDialog(canManageStorage = false) {
     ? `<div class="account-storage-empty danger">${dashboardIcon("warning")}<div><strong>تعذر حساب البيانات القابلة للتنظيف</strong><span>${escapeHtml(preview.error)}</span></div></div>`
     : preview === null
       ? `<div class="account-storage-loading" role="status"><i></i><i></i><i></i></div>`
-      : `<div class="account-storage-summary"><span>${dashboardIcon("delete")}</span><div><small>المساحة المتاحة للإخلاء الآن</small><strong>${storageAmountLabel(0, cleanableBytes)}</strong><em>${Number(preview.cleanableRows || 0).toLocaleString("ar-SA")} سجل قديم قابل للتنظيف</em></div></div>
+      : `<div class="account-storage-summary"><span>${dashboardIcon("delete")}</span><div><small>المساحة المتاحة للإخلاء الآن</small><strong>${storageAmountLabel(0, cleanableBytes)}</strong><em>${Number(preview.cleanableRows || 0).toLocaleString("ar-SA")} عنصر قديم قابل للتنظيف</em></div></div>
         <fieldset class="account-storage-categories"><legend>اختر البيانات القديمة المراد تنظيفها</legend>${categories.map((item) => `<label class="${item.bytes ? "" : "is-empty"}"><input type="checkbox" name="storageCleanupCategory" value="${escapeHtml(item.key)}" ${item.bytes ? "checked" : "disabled"}><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.description)}</small></span><strong>${storageAmountLabel(0, item.bytes)}</strong></label>`).join("") || `<p>لا توجد بيانات قديمة قابلة للإخلاء حاليًا.</p>`}</fieldset>
         <label class="account-storage-target"><span>المساحة التي تريد إخلاءها</span><select class="select" data-account-storage-target ${cleanableBytes ? "" : "disabled"}>${targetOptions || `<option value="0">لا توجد مساحة قابلة للإخلاء</option>`}</select></label>
         <label class="account-storage-warning"><input type="checkbox" data-account-storage-confirm ${cleanableBytes ? "" : "disabled"}><span><b>تنبيه: قد يتم حذف بعض بياناتك المهمة</b><small>سيُحذف فقط المحتوى القديم الذي اخترته، ولا يمكن التراجع عن العملية بعد تنفيذها.</small></span></label>`;
@@ -7837,7 +7837,6 @@ async function handleAction(target) {
     state.aiConversationId = "";
     state.aiConversation = null;
     state.aiDraft = "";
-    state.aiChatStorage = null;
     state.aiSidebarOpen = false;
     const url = new URL(location.href);
     url.searchParams.delete("conversation");
@@ -7847,7 +7846,6 @@ async function handleAction(target) {
   if (action === "ai-open-conversation") {
     state.aiConversationId = target.dataset.id || "";
     state.aiConversation = null;
-    state.aiChatStorage = null;
     state.aiSidebarOpen = false;
     const url = new URL(location.href);
     url.searchParams.set("conversation", state.aiConversationId);
@@ -7862,57 +7860,11 @@ async function handleAction(target) {
   if (action === "ai-open-settings") {
     state.aiSettingsOpen = true;
     state.aiSidebarOpen = false;
-    render();
-    if (!state.aiChatStorage) {
-      try {
-        const payload = await fetchJson(`/api/ai/storage?keepConversationId=${encodeURIComponent(state.aiConversationId || "")}`);
-        state.aiChatStorage = payload.storage || null;
-        render();
-      } catch (error) {
-        appToast.error("تعذر تحميل مساحة المحادثات", { description: error.message, id: "ai-storage-load-error" });
-      }
-    }
-    return;
+    return render();
   }
   if (action === "ai-close-settings") {
     state.aiSettingsOpen = false;
     return render();
-  }
-  if (action === "ai-cleanup-storage") {
-    const settings = target.closest(".rvx-ai-settings");
-    const targetBytes = Number(settings?.querySelector("[data-ai-cleanup-target]")?.value || 0);
-    const confirmed = Boolean(settings?.querySelector("[data-ai-cleanup-confirm]")?.checked);
-    if (!confirmed) {
-      appToast.warning("أكد التنبيه قبل الإخلاء", { description: "راجع التحذير الأحمر ثم فعّل مربع التأكيد للمتابعة.", id: "ai-storage-confirm-required" });
-      return;
-    }
-    if (!targetBytes || state.aiStorageCleanupBusy) return;
-    state.aiStorageCleanupBusy = true;
-    render();
-    try {
-      const payload = await fetchJson("/api/ai/storage", {
-        method: "DELETE", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetBytes,
-          keepConversationId: state.aiConversationId || null,
-          confirmation: "DELETE_OLD_AI_CONVERSATIONS"
-        })
-      });
-      state.aiChatStorage = payload.storage || null;
-      state.aiConversations = null;
-      appToast.success("تم إخلاء مساحة المحادثات", {
-        description: `تم تحرير ${formatAIStorageBytes(payload.freedBytes || 0)} من المحادثات القديمة غير المثبتة.`,
-        id: "ai-storage-cleaned"
-      });
-      render();
-      void syncRouteData(true);
-    } catch (error) {
-      appToast.error("تعذر إخلاء المساحة", { description: error.message, id: "ai-storage-cleanup-error" });
-    } finally {
-      state.aiStorageCleanupBusy = false;
-      render();
-    }
-    return;
   }
   if (action === "ai-quick-prompt") {
     const form = document.querySelector('form[data-submit="ai-message"]');
@@ -8199,9 +8151,10 @@ async function handleAction(target) {
       });
       const refreshed = await fetchJson("/api/settings");
       state.accountSettings = refreshed;
+      if (categories.includes("ai_user_chats")) state.aiConversations = null;
       state.accountStorageCleanup = payload.preview || null;
       state.accountStorageCleanupOpen = false;
-      toast(payload.deletedRows ? `تم إخلاء ${storageAmountLabel(0, payload.freedBytes)} وحذف ${Number(payload.deletedRows).toLocaleString("ar-SA")} سجل قديم.` : "لا توجد بيانات قديمة مطابقة للاختيار.");
+      toast(payload.deletedRows ? `تم إخلاء ${storageAmountLabel(0, payload.freedBytes)} وحذف ${Number(payload.deletedRows).toLocaleString("ar-SA")} عنصر قديم.` : "لا توجد بيانات قديمة مطابقة للاختيار.");
     } catch (error) {
       toast(error.message || "تعذر إخلاء مساحة الحساب.", "danger");
     } finally {
@@ -10149,7 +10102,6 @@ async function handleAIMessageSubmit(form) {
     streamNode?.classList.remove("is-streaming");
     state.aiConversation = null;
     state.aiConversations = null;
-    state.aiChatStorage = null;
     setTimeout(() => syncRouteData(true), 120);
   }
 }
@@ -11836,15 +11788,20 @@ function aiSettingsDialog() {
   if (!state.aiSettingsOpen) return "";
   const english = state.language === "en";
   const preferences = state.aiPreferences || {};
-  const chatStorage = state.aiChatStorage;
-  const cleanableBytes = Number(chatStorage?.cleanableBytes || 0);
-  const cleanupTargets = cleanableBytes ? [.25,.5,.75,1].reduce((items, ratio) => {
-    const bytes = Math.max(1, Math.floor(cleanableBytes * ratio));
-    if (!items.some((item) => item.bytes === bytes)) items.push({ bytes, ratio });
-    return items;
-  }, []) : [];
-  const cleanupOptions = cleanupTargets.map(({ bytes, ratio }, index) => `<option value="${bytes}">${index === cleanupTargets.length - 1 ? (english ? "Maximum available" : "كامل المساحة المتاحة") : `${Math.round(ratio * 100)}%`} — ${formatAIStorageBytes(bytes)}</option>`).join("");
-  return `<div class="rvx-ai-settings-backdrop"><button class="rvx-ai-settings-scrim" type="button" data-action="ai-close-settings" aria-label="${english ? "Close settings" : "إغلاق الإعدادات"}"></button><section class="rvx-ai-settings" role="dialog" aria-modal="true" aria-labelledby="ai-settings-title"><header><div><span>${dashboardIcon("settings")}</span><div><h2 id="ai-settings-title">${english ? "Chat settings" : "إعدادات الشات"}</h2><p>${english ? "Tune Renvix Intelligence and its responses." : "خصص تجربة ذكاء Renvix وطريقة الإجابة."}</p></div></div><button type="button" data-action="ai-close-settings" aria-label="${english ? "Close" : "إغلاق"}">${dashboardIcon("close")}</button></header><form data-submit="ai-settings"><p class="rvx-ai-language-note">${dashboardIcon("language")}<span><b>${english ? "Language follows the interface" : "لغة الشات تتبع لغة الواجهة"}</b><small>${english ? "Renvix detects the current site language automatically." : "يتعرف ذكاء Renvix على لغة الموقع الحالية تلقائيًا."}</small></span></p><label class="rvx-ai-setting-field"><span><b>${english ? "Response style" : "أسلوب الإجابة"}</b><small>${english ? "Choose the level of detail that suits you." : "حدد مستوى الاختصار المناسب لك."}</small></span><select name="responseStyle"><option value="concise" ${preferences.responseStyle === "concise" ? "selected" : ""}>${english ? "Concise" : "مختصر ومباشر"}</option><option value="balanced" ${!preferences.responseStyle || preferences.responseStyle === "balanced" ? "selected" : ""}>${english ? "Balanced" : "متوازن"}</option><option value="detailed" ${preferences.responseStyle === "detailed" ? "selected" : ""}>${english ? "Detailed" : "مفصل ومنظم"}</option></select></label><label class="rvx-ai-setting-toggle"><span><b>${english ? "Use my account context" : "استخدام سياق حسابي"}</b><small>${english ? "Allow analysis of authorized account data." : "يسمح للمساعد بتحليل بيانات حسابك المصرح بها."}</small></span><input type="checkbox" name="accountContextEnabled" ${preferences.accountContextEnabled !== false ? "checked" : ""}><i></i></label><label class="rvx-ai-setting-toggle"><span><b>${english ? "Show quick suggestions" : "إظهار الاقتراحات السريعة"}</b><small>${english ? "Ready actions above the composer." : "أزرار جاهزة فوق صندوق الكتابة."}</small></span><input type="checkbox" name="quickActionsEnabled" ${preferences.quickActionsEnabled !== false ? "checked" : ""}><i></i></label>${aiUsageCard()}<section class="rvx-ai-storage-cleanup" aria-labelledby="ai-storage-title"><header><span>${dashboardIcon("billing")}</span><div><h3 id="ai-storage-title">${english ? "Chat storage" : "مساحة المحادثات"}</h3><p>${chatStorage ? (english ? `${formatAIStorageBytes(chatStorage.totalBytes)} used by your chats` : `تستخدم محادثاتك ${formatAIStorageBytes(chatStorage.totalBytes)}`) : (english ? "Calculating chat storage…" : "جارٍ حساب مساحة المحادثات…")}</p></div></header><div class="rvx-ai-storage-meter"><i style="width:${Math.min(100, Number(chatStorage?.cleanablePercent || 0))}%"></i></div><div class="rvx-ai-storage-control"><label><span>${english ? "Space to free" : "المساحة المراد إخلاؤها"}</span><select data-ai-cleanup-target ${cleanableBytes ? "" : "disabled"}>${cleanupOptions || `<option value="0">${english ? "No old chats available" : "لا توجد محادثات قديمة متاحة"}</option>`}</select></label><button type="button" data-action="ai-cleanup-storage" ${cleanableBytes && !state.aiStorageCleanupBusy ? "" : "disabled"}>${state.aiStorageCleanupBusy ? (english ? "Cleaning…" : "جارٍ الإخلاء…") : (english ? "Free space" : "إخلاء المساحة")}</button></div><label class="rvx-ai-storage-warning"><input type="checkbox" data-ai-cleanup-confirm><span><b>${english ? "Warning: deletion cannot be undone" : "تنبيه: لا يمكن التراجع عن الحذف"}</b><small>${english ? "Old unpinned chats will be deleted. Some important data may be included, so review before continuing." : "سيتم حذف أقدم المحادثات غير المثبتة. قد تُحذف بعض بياناتك المهمة؛ راجع اختيارك قبل المتابعة."}</small></span></label></section><footer><button type="button" data-action="ai-close-settings">${english ? "Cancel" : "إلغاء"}</button><button type="submit">${english ? "Save settings" : "حفظ الإعدادات"}</button></footer></form></section></div>`;
+  return `<div class="rvx-ai-settings-backdrop">
+    <button class="rvx-ai-settings-scrim" type="button" data-action="ai-close-settings" aria-label="${english ? "Close settings" : "إغلاق الإعدادات"}"></button>
+    <section class="rvx-ai-settings" role="dialog" aria-modal="true" aria-labelledby="ai-settings-title">
+      <header><div><span>${dashboardIcon("settings")}</span><div><h2 id="ai-settings-title">${english ? "Chat settings" : "إعدادات الشات"}</h2><p>${english ? "Tune Renvix Intelligence and its responses." : "خصص تجربة ذكاء Renvix وطريقة الإجابة."}</p></div></div><button type="button" data-action="ai-close-settings" aria-label="${english ? "Close" : "إغلاق"}">${dashboardIcon("close")}</button></header>
+      <form data-submit="ai-settings">
+        <p class="rvx-ai-language-note">${dashboardIcon("language")}<span><b>${english ? "Language follows the interface" : "لغة الشات تتبع لغة الواجهة"}</b><small>${english ? "Renvix detects the current site language automatically." : "يتعرف ذكاء Renvix على لغة الموقع الحالية تلقائيًا."}</small></span></p>
+        <label class="rvx-ai-setting-field"><span><b>${english ? "Response style" : "أسلوب الإجابة"}</b><small>${english ? "Choose the level of detail that suits you." : "حدد مستوى الاختصار المناسب لك."}</small></span><select name="responseStyle"><option value="concise" ${preferences.responseStyle === "concise" ? "selected" : ""}>${english ? "Concise" : "مختصر ومباشر"}</option><option value="balanced" ${!preferences.responseStyle || preferences.responseStyle === "balanced" ? "selected" : ""}>${english ? "Balanced" : "متوازن"}</option><option value="detailed" ${preferences.responseStyle === "detailed" ? "selected" : ""}>${english ? "Detailed" : "مفصل ومنظم"}</option></select></label>
+        <label class="rvx-ai-setting-toggle"><span><b>${english ? "Use my account context" : "استخدام سياق حسابي"}</b><small>${english ? "Allow analysis of authorized account data." : "يسمح للمساعد بتحليل بيانات حسابك المصرح بها."}</small></span><input type="checkbox" name="accountContextEnabled" ${preferences.accountContextEnabled !== false ? "checked" : ""}><i></i></label>
+        <label class="rvx-ai-setting-toggle"><span><b>${english ? "Show quick suggestions" : "إظهار الاقتراحات السريعة"}</b><small>${english ? "Ready actions above the composer." : "أزرار جاهزة فوق صندوق الكتابة."}</small></span><input type="checkbox" name="quickActionsEnabled" ${preferences.quickActionsEnabled !== false ? "checked" : ""}><i></i></label>
+        ${aiUsageCard()}
+        <footer><button type="button" data-action="ai-close-settings">${english ? "Cancel" : "إلغاء"}</button><button type="submit">${english ? "Save settings" : "حفظ الإعدادات"}</button></footer>
+      </form>
+    </section>
+  </div>`;
 }
 
 function aiSupportPage() {

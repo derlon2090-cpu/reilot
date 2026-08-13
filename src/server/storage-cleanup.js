@@ -29,21 +29,6 @@ export const STORAGE_CLEANUP_CATEGORIES = [
     sources: [
       { table: "order_link_events", dateColumn: "created_at", where: "created_at < now() - interval '90 days'" }
     ]
-  },
-  {
-    key: "archived_ai_chats",
-    label: "محادثات الذكاء المؤرشفة",
-    description: "المحادثات المحذوفة أو المؤرشفة القديمة وغير المثبتة.",
-    sources: [
-      {
-        table: "ai_conversations",
-        dateColumn: "last_message_at",
-        where: "is_pinned = false AND (status = 'deleted' OR (status = 'archived' AND last_message_at < now() - interval '30 days'))",
-        sizeExpression: `(pg_column_size(row_value)
-          + COALESCE((SELECT sum(pg_column_size(message_row)) FROM ai_messages message_row WHERE message_row.conversation_id=row_value.id),0)
-          + COALESCE((SELECT sum(pg_column_size(tool_row)) FROM ai_tool_executions tool_row WHERE tool_row.conversation_id=row_value.id),0))`
-      }
-    ]
   }
 ];
 

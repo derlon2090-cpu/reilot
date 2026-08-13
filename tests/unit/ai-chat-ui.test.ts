@@ -10,11 +10,12 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("لغة الشات تتبع لغة الواجهة");
   });
 
-  it("keeps quick actions, support return, and cleanup controls in the chat shell", async () => {
+  it("keeps quick actions and support return while storage cleanup lives in account settings", async () => {
     const source = await readFile("src/app/app.js", "utf8");
     expect(source).toContain("العودة إلى مركز الدعم");
     expect(source).toContain('class="rvx-ai-quick-actions"');
-    expect(source).toContain('data-action="ai-cleanup-storage"');
-    expect(source).toContain("قد تُحذف بعض بياناتك المهمة");
+    expect(source).not.toContain('data-action="ai-cleanup-storage"');
+    expect(source).not.toContain('class="rvx-ai-storage-cleanup"');
+    expect(source).toContain("مساحة محادثاتك");
   });
 });
