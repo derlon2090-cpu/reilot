@@ -12606,11 +12606,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .marketing-home-v3 .marketing-step-route{
   position:absolute;
-  z-index:0;
+  z-index:4;
   top:0;
   right:2%;
   width:96%;
-  height:118px;
+  height:150px;
   overflow:visible;
   pointer-events:none;
 }
@@ -12713,18 +12713,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   transform:perspective(180px) rotateX(66deg);
   animation:homeApprovedGroundPulse 5.8s ease-in-out calc(var(--motion-index) * .45s) infinite;
 }
-.marketing-home-v3 .marketing-step:not(:last-child)::after{
-  position:absolute;
-  z-index:6;
-  top:101px;
-  left:-41px;
-  color:#285f5a;
-  content:"\00AB";
-  font:500 30px/1 Arial,sans-serif;
-  letter-spacing:0;
-  opacity:.9;
-  transform:scaleX(-1);
-}
+.marketing-home-v3 .marketing-step:not(:last-child)::after{display:none}
 .marketing-home-v3 .marketing-step.is-visible:hover .marketing-step-card,
 .marketing-home-v3 .marketing-steps.is-running .marketing-step:hover .marketing-step-card{transform:translateY(-6px);border-color:#91cfc6;box-shadow:0 22px 42px rgba(6,91,82,.14)}
 .marketing-home-v3 .marketing-step:hover .marketing-step-icon{filter:drop-shadow(0 6px 9px rgba(6,112,102,.14))}
@@ -12988,6 +12977,18 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   stroke-width:2;
   filter:drop-shadow(0 0 3px rgba(8,143,130,.58));
 }
+.marketing-home-v3 .marketing-step-connector-chevron{
+  fill:#255f59;
+  stroke:#fff;
+  stroke-width:8px;
+  paint-order:stroke fill;
+  font:700 19px/1 Arial,sans-serif;
+  letter-spacing:-3px;
+  opacity:.9;
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:homeStepChevronNudge 2.1s ease-in-out calc(var(--connector-index) * -.25s) infinite;
+}
 .marketing-home-v3 .marketing-steps.is-running .marketing-step-connector-reveal{animation:homeStepConnectorReveal 1.15s var(--home-lower-ease) calc(var(--connector-index) * .16s + .18s) forwards}
 .marketing-home-v3 .marketing-step.is-visible .marketing-step-card{animation:homeStepCardFloat 5.5s ease-in-out calc(var(--motion-index) * -.4s) infinite}
 .marketing-home-v3 .marketing-step-number{
@@ -13021,7 +13022,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .marketing-home-v3 .marketing-step.is-visible .marketing-step-icon{animation:homeStepIconFloat 3.5s ease-in-out calc(var(--motion-index) * -.47s) infinite}
 .marketing-home-v3 .marketing-step-ground{animation:homeStepGroundBreathe 4.2s ease-in-out calc(var(--motion-index) * -.4s) infinite}
-.marketing-home-v3 .marketing-step:not(:last-child)::after{animation:homeStepChevronNudge 2.1s ease-in-out calc(var(--motion-index) * -.25s) infinite}
 
 /* Smart renewal journey: one route, one travelling light and route-synchronised nodes. */
 .marketing-home-v3 .renewal-journey-path,
@@ -13056,6 +13056,13 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   border-color:rgba(17,156,140,.28) rgba(17,156,140,.08) rgba(17,156,140,.2) transparent;
   animation:homeJourneyEndpointOrbit 8s ease-in-out infinite;
 }
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:first-of-type .renewal-journey-marker,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:last-of-type .renewal-journey-marker{
+  border-color:#fff;
+  outline:8px solid #fff;
+  outline-offset:0;
+  box-shadow:0 0 0 8px #fff,0 0 0 9px rgba(21,157,141,.15),0 12px 27px rgba(7,96,87,.16);
+}
 .marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:first-of-type .renewal-journey-marker::after,
 .marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:last-of-type .renewal-journey-marker::after{
   position:absolute;
@@ -13080,7 +13087,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @keyframes homeStepBadgeHalo{0%,100%{opacity:.35;transform:scale(.96)}50%{opacity:.72;transform:scale(1.08)}}
 @keyframes homeStepIconFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.018)}}
 @keyframes homeStepGroundBreathe{0%,100%{opacity:.2;transform:perspective(180px) rotateX(66deg) scaleX(1) scaleY(1)}50%{opacity:.32;transform:perspective(180px) rotateX(66deg) scaleX(1.08) scaleY(1.04)}}
-@keyframes homeStepChevronNudge{0%,100%{opacity:.58;transform:translateX(0) scaleX(-1)}50%{opacity:.95;transform:translateX(-3px) scaleX(-1)}}
+@keyframes homeStepChevronNudge{0%,100%{opacity:.62;transform:translateX(0)}50%{opacity:1;transform:translateX(-3px)}}
 @keyframes homeJourneyPathReveal{to{stroke-dashoffset:0}}
 @keyframes homeJourneyPathFlow{from{stroke-dashoffset:0}to{stroke-dashoffset:-1}}
 @keyframes homeJourneyNodePass{0%,9%,100%{transform:scale(1);box-shadow:0 0 0 7px rgba(37,183,163,.055),0 10px 23px rgba(7,96,87,.13)}3.5%{transform:scale(1.055);box-shadow:0 0 0 11px rgba(37,183,163,.11),0 15px 30px rgba(7,96,87,.19)}}
@@ -13093,7 +13100,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey)>.container{width:min(980px,calc(100% - 40px))}
   .marketing-home-v3 .marketing-steps-section{padding:40px 0 31px}
   .marketing-home-v3 .marketing-steps{min-height:258px;gap:28px;padding:31px 10px 10px}
-  .marketing-home-v3 .marketing-step-route{height:110px}
+  .marketing-home-v3 .marketing-step-route{height:150px}
   .marketing-home-v3 .marketing-step-card{min-height:188px;padding:47px 12px 18px;border-radius:16px}
   .marketing-home-v3 .marketing-step-icon{width:52px;height:52px}.marketing-home-v3 .marketing-step-icon .line-icon{width:34px;height:34px}
   .marketing-home-v3 .marketing-step h3{font-size:12.5px}.marketing-home-v3 .marketing-step p{font-size:8.5px;line-height:1.65}
@@ -13157,7 +13164,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .home-lower-route-draw{stroke-dashoffset:0!important;animation:none!important}
   .marketing-home-v3 .home-lower-route-flow,
   .marketing-home-v3 .marketing-step-card,
-  .marketing-home-v3 .marketing-step:not(:last-child)::after,
+  .marketing-home-v3 .marketing-step-connector-chevron,
   .marketing-home-v3 .marketing-step-ground,
   .marketing-home-v3 .marketing-step>b,
   .marketing-home-v3 .marketing-step-icon,

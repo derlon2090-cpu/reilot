@@ -1766,13 +1766,13 @@ function marketingSteps() {
     [localizedCopy("ابدأ على الفور", "Go live"), localizedCopy("شغّل الأتمتة وتمتع بتجربة موثوقة ومتكاملة.", "Launch automation with a reliable, connected experience."), "rocket", "rocket"]
   ];
   const connectorPaths = [
-    "M1072 31 C1026 4 992 10 976 69 C962 121 894 121 852 73 C824 41 798 14 752 31",
-    "M752 31 C706 4 672 10 656 69 C642 121 574 121 532 73 C504 41 478 14 432 31",
-    "M432 31 C386 4 352 10 336 69 C322 121 254 121 212 73 C184 41 158 14 112 31"
+    ["M1041 55 C1012 57 1008 106 978 122 C953 136 931 133 912 128 C893 133 871 136 846 122 C816 106 812 57 783 55", 912, 128],
+    ["M721 55 C692 57 688 106 658 122 C633 136 611 133 592 128 C573 133 551 136 526 122 C496 106 492 57 463 55", 592, 128],
+    ["M401 55 C372 57 368 106 338 122 C313 136 291 133 272 128 C253 133 231 136 206 122 C176 106 172 57 143 55", 272, 128]
   ];
   return `<div class="marketing-steps" data-steps-scene data-motion-scene>
     <svg class="marketing-step-route" viewBox="0 0 1200 150" preserveAspectRatio="none" aria-hidden="true">
-      ${connectorPaths.map((path, index) => `<g class="marketing-step-connector" style="--connector-index:${index}"><path class="marketing-step-connector-base" d="${path}"/><path pathLength="1" class="marketing-step-connector-reveal" d="${path}"/><path pathLength="1" class="marketing-step-connector-flow" d="${path}"/><circle class="marketing-step-connector-dot" r="4"><animateMotion dur="${4.2 + index * .35}s" begin="-${index * 1.1}s" repeatCount="indefinite" calcMode="linear" path="${path}"/></circle></g>`).join("")}
+      ${connectorPaths.map(([path, chevronX, chevronY], index) => `<g class="marketing-step-connector" style="--connector-index:${index}"><path class="marketing-step-connector-base" d="${path}"/><path pathLength="1" class="marketing-step-connector-reveal" d="${path}"/><path pathLength="1" class="marketing-step-connector-flow" d="${path}"/><circle class="marketing-step-connector-dot" r="4"><animateMotion dur="${4.2 + index * .35}s" begin="-${index * 1.1}s" repeatCount="indefinite" calcMode="linear" path="${path}"/></circle><text class="marketing-step-connector-chevron" x="${chevronX}" y="${chevronY}" text-anchor="middle" dominant-baseline="middle" direction="ltr">&lt;&lt;</text></g>`).join("")}
     </svg>
     ${steps.map(([title, body, icon, motion], index) => `<article class="marketing-step marketing-step--${motion}" style="--motion-index:${index}" data-step-index="${index}" data-reveal><b><span class="marketing-step-number">${String(index + 1).padStart(2, "0")}</span><i class="marketing-step-number-orbit" aria-hidden="true"></i></b><div class="marketing-step-card"><span class="marketing-step-icon">${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></div><i class="marketing-step-ground" aria-hidden="true"></i></article>`).join("")}
   </div>`;
@@ -1786,7 +1786,7 @@ function marketingRenewalJourney() {
     [localizedCopy("متابعة النتائج والتجديدات", "Track results and renewals"), localizedCopy("راقب الأداء والتجديدات لحظة بلحظة واتخذ قرارات أفضل.", "Monitor performance and renewals in real time."), "barChart", "number", "04"],
     [localizedCopy("زيادة الإيرادات والولاء", "Grow revenue and loyalty"), localizedCopy("قلل فقد التجديدات وزد الإيرادات وولاء عملائك.", "Reduce missed renewals and grow customer loyalty."), "publicFeatures", "icon", ""]
   ];
-  const journeyPath = "M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54";
+  const journeyPath = "M1097 80 C1020 42 929 42 848 80 C770 118 680 118 600 80 C520 42 430 42 352 80 C271 118 180 118 104 80";
   return `<section class="marketing-renewal-journey" data-motion-scene>
     <div class="container">
       ${marketingSectionHeading(localizedCopy("رحلة التجديد الذكية", "The smart renewal journey"), localizedCopy("رحلة متكاملة تبدأ من بياناتك وتنتهي بتجديدات أكثر ورضا أعلى لعملائك.", "A connected journey from your data to more renewals and happier customers."))}
