@@ -107,4 +107,12 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("list.scrollTop = list.scrollHeight");
     expect(css).toContain(".rvx-ai-storage-value{display:inline-block;direction:ltr;unicode-bidi:isolate;white-space:nowrap");
   });
+
+  it("separates conversation metadata without an active edge stripe", async () => {
+    const css = await readFile("src/styles/globals.css", "utf8");
+    expect(css).toContain(".rvx-ai-conversation-open small{display:flex;align-items:center;justify-content:space-between;gap:12px");
+    expect(css).toContain("min-width:max-content;margin-inline-start:8px;direction:ltr");
+    expect(css).toContain(".rvx-ai-conversation-item.active{border-color:#b8ddd7;background:#e9f7f4;box-shadow:none}");
+    expect(css).not.toContain("box-shadow:inset 3px 0 0 #0b776c");
+  });
 });
