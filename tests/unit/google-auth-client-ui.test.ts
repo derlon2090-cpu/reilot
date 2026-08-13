@@ -5,13 +5,19 @@ describe("Google authentication client routing", () => {
   const googleSource = readFileSync("src/app/auth-google.js", "utf8");
   const appSource = readFileSync("src/app/app.js", "utf8");
 
-  it("uses a native clickable button that opens the backend-owned OAuth flow", () => {
-    expect(googleSource).toContain('new URL("/api/auth/google/start", baseUrl)');
-    expect(googleSource).toContain('target.searchParams.set("intent", intentFor(host))');
-    expect(googleSource).toContain('button.dataset.googleOAuth = "true"');
-    expect(googleSource).toContain("window.location.assign(target)");
-    expect(googleSource).not.toContain("renderButton");
+  it("uses Google Identity Services as the primary account creation flow", () => {
+    expect(googleSource).toContain('const GOOGLE_SCRIPT_URL = "https://accounts.google.com/gsi/client"');
+    expect(googleSource).toContain('const [clientId, nonce, google] = await Promise.all([requestGoogleConfig(), requestGoogleNonce(), loadGoogleIdentity()])');
+    expect(googleSource).toContain("google.accounts.id.initialize({");
+    expect(googleSource).toContain("google.accounts.id.renderButton(host");
+    expect(googleSource).toContain('body: JSON.stringify({ credential, locale: english ? "en" : "ar", intent })');
     expect(googleSource).not.toContain("use_fedcm_for_prompt");
+  });
+
+  it("keeps the authorization-code page as a recovery path only", () => {
+    expect(googleSource).toContain('new URL("/api/auth/google/start", baseUrl)');
+    expect(googleSource).toContain('fallback.dataset.googleServerFallback = "true"');
+    expect(googleSource).toContain("window.location.assign(target)");
   });
 
   it("keeps a safe production backend fallback when stale frontend configuration is cached", () => {
@@ -21,7 +27,7 @@ describe("Google authentication client routing", () => {
 
   it("forces fresh Google and Turnstile modules after an authentication deployment", () => {
     expect(appSource).toContain('auth-turnstile.js?v=20260813-auth-routing-v110');
-    expect(appSource).toContain('auth-google.js?v=20260813-auth-routing-v110');
+    expect(appSource).toContain('auth-google.js?v=20260813-google-gis-v117');
   });
 
   it("keeps actionable redirect errors and created-account handling", () => {
