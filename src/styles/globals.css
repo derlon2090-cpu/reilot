@@ -13331,3 +13331,134 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .trusted-brand-card{min-height:122px;padding:18px;border-radius:17px}
   .marketing-home-v3 .trusted-brand-logo{width:92px;height:64px}
 }
+
+/* Account Intelligence viewport, navigation and storage controls. */
+.dashboard-shell:has(.rvx-ai-page){grid-template-columns:minmax(0,1fr)}
+.dashboard-shell:has(.rvx-ai-page)>.sidebar,.dashboard-shell:has(.rvx-ai-page)>.sidebar-backdrop{display:none}
+.dashboard-main:has(.rvx-ai-page){display:grid;height:100dvh;min-height:0;grid-template-rows:minmax(0,1fr);overflow:hidden}
+.dashboard-main:has(.rvx-ai-page)>.topbar{display:none}
+.dashboard-main:has(.rvx-ai-page)>.content{width:100%;height:auto;min-height:0;max-width:none;margin:0;padding:0!important;overflow:hidden}
+.rvx-ai-page{height:100%;min-height:0;grid-template-columns:minmax(0,1fr) clamp(306px,21.5vw,346px)}
+.rvx-ai-workspace{height:100%;min-height:0;grid-template-rows:82px minmax(0,1fr) auto auto auto}
+.rvx-ai-workspace>header{min-height:82px;padding:12px clamp(18px,2.4vw,36px)}
+.rvx-ai-workspace>header img{width:46px;height:46px}
+.rvx-ai-workspace>header h1{font-size:20px}
+.rvx-ai-support-return{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 8px;border:0;border-radius:10px;color:#0b3f3b;background:transparent;font-size:14px;font-weight:600;cursor:pointer;transition:color .2s ease,background .2s ease}
+.rvx-ai-support-return .line-icon{width:17px;height:17px;transition:transform .2s cubic-bezier(.22,1,.36,1)}
+.rvx-ai-support-return:hover,.rvx-ai-support-return:focus-visible{color:#0b3f3b;background:#eef8f6}
+.rvx-ai-support-return:hover .line-icon,.rvx-ai-support-return:focus-visible .line-icon{transform:translateX(-2px)}
+[dir="ltr"] .rvx-ai-support-return .line-icon{transform:rotate(180deg)}
+[dir="ltr"] .rvx-ai-support-return:hover .line-icon,[dir="ltr"] .rvx-ai-support-return:focus-visible .line-icon{transform:rotate(180deg) translateX(-2px)}
+.rvx-ai-messages{padding:16px clamp(18px,4vw,64px)}
+.rvx-ai-start{width:min(100%,560px)}
+.rvx-ai-start-mark{width:68px;height:68px;margin-bottom:10px}
+.rvx-ai-start-mark img{width:38px;height:38px}
+.rvx-ai-start h2{margin:5px 0 6px;font-size:clamp(28px,3.4vw,40px)}
+.rvx-ai-start p{font-size:12px;line-height:1.7}
+.rvx-ai-quick-actions{min-height:43px;justify-content:center;padding:5px clamp(18px,4vw,64px)}
+.rvx-ai-quick-actions button{min-height:33px;padding:0 12px;font-size:10px;transition:color .2s ease,background .2s ease,border-color .2s ease,transform .2s ease}
+.rvx-ai-quick-actions button:hover{transform:translateY(-1px)}
+.rvx-ai-tools{padding-inline:clamp(18px,4vw,64px)}
+.rvx-ai-composer{margin:0 clamp(18px,4vw,64px) 10px;padding:8px 12px 6px;border-radius:15px}
+.rvx-ai-composer textarea{min-height:34px;max-height:104px;padding:6px 3px;font-size:13px}
+.rvx-ai-composer-actions>span button,.rvx-ai-composer-actions>span label{width:32px;height:32px}
+.rvx-ai-send,.rvx-ai-stop{min-width:40px;height:40px}
+.rvx-ai-composer>small{min-height:14px;font-size:8px}
+.rvx-ai-sidebar{padding:16px 15px 12px}
+.rvx-ai-side-head{gap:9px}
+.rvx-ai-new{min-height:42px}
+.rvx-ai-sidebar .rvx-ai-side-head input{height:38px}
+.rvx-ai-sidebar h3{margin:14px 4px 7px}
+.rvx-ai-sidebar nav{align-content:start;grid-auto-rows:max-content}
+.rvx-ai-sidebar nav>button{min-height:49px;padding:6px}
+.rvx-ai-sidebar nav>button div>small{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.rvx-ai-sidebar nav>button div>small time{overflow:hidden;text-overflow:ellipsis}
+.rvx-ai-sidebar nav>button div>small em{flex:0 0 auto;color:#0b776c;font-size:8px;font-style:normal;font-weight:750}
+.rvx-ai-side-bottom{gap:8px;padding-top:9px}
+.rvx-ai-side-bottom .rvx-ai-usage-card{gap:7px;padding:10px 11px}
+.rvx-ai-side-bottom .rvx-ai-usage-card>header>span{width:30px;height:30px}
+.rvx-ai-side-bottom .rvx-ai-usage-numbers b{font-size:15px}
+.rvx-ai-side-bottom>footer{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.rvx-ai-side-bottom>footer button{display:flex;min-width:0;min-height:38px;gap:6px;padding:0 6px;overflow:hidden;white-space:nowrap}
+.rvx-ai-side-bottom>footer button span{overflow:hidden;text-overflow:ellipsis;font-size:10px}
+.rvx-ai-side-bottom>footer button svg{width:16px;height:16px;flex:0 0 16px}
+.rvx-ai-language-note{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;border:1px solid #d7e9e6;border-radius:11px;color:#0b3f3b;background:#f2faf8}
+.rvx-ai-language-note>.line-icon{width:20px;height:20px;flex:0 0 20px}
+.rvx-ai-language-note>span{display:grid;gap:2px}
+.rvx-ai-language-note b{font-size:11px}.rvx-ai-language-note small{color:#667c78;font-size:9px}
+.rvx-ai-settings{width:min(100%,560px)}
+.rvx-ai-settings>form{gap:11px;padding:16px 20px}
+.rvx-ai-settings>header{padding:16px 20px}
+.rvx-ai-setting-field,.rvx-ai-setting-toggle{min-height:56px;padding:9px 12px}
+.rvx-ai-settings .rvx-ai-usage-card{gap:7px;padding:11px}
+.rvx-ai-storage-cleanup{display:grid;gap:10px;padding:13px;border:1px solid #dce9e7;border-radius:13px;background:#fbfdfd}
+.rvx-ai-storage-cleanup>header{display:flex;align-items:center;gap:10px}
+.rvx-ai-storage-cleanup>header>span{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border-radius:10px;color:#0b776c;background:#e8f6f3}
+.rvx-ai-storage-cleanup>header svg{width:18px;height:18px}
+.rvx-ai-storage-cleanup h3{margin:0;font-size:13px}.rvx-ai-storage-cleanup header p{margin:3px 0 0;color:#71817e;font-size:9px}
+.rvx-ai-storage-meter{height:6px;overflow:hidden;border-radius:999px;background:#e1ecea}.rvx-ai-storage-meter i{display:block;height:100%;border-radius:inherit;background:#0b776c}
+.rvx-ai-storage-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.rvx-ai-storage-control label{display:grid;gap:5px}.rvx-ai-storage-control label>span{font-size:10px;font-weight:800}
+.rvx-ai-storage-control select{width:100%;height:38px;padding:0 10px;border:1px solid #d6e4e2;border-radius:9px;color:#0b3f3b;background:#fff;font:inherit;font-size:10px}
+.rvx-ai-storage-control button{min-height:38px;padding:0 13px;border:0;border-radius:9px;color:#fff;background:#0b3f3b;font-size:10px;font-weight:800;cursor:pointer}
+.rvx-ai-storage-control button:disabled{cursor:not-allowed;opacity:.5}
+.rvx-ai-storage-warning{display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #f1c7cb;border-radius:10px;color:#8c303b;background:#fff5f6;cursor:pointer}
+.rvx-ai-storage-warning input{margin-top:2px;accent-color:#a33d48}.rvx-ai-storage-warning span{display:grid;gap:3px}.rvx-ai-storage-warning b{font-size:10px}.rvx-ai-storage-warning small{font-size:8.5px;line-height:1.55}
+
+@media(min-width:701px){
+  .rvx-ai-settings{width:min(100%,720px)}
+  .rvx-ai-settings>header{padding:12px 18px}
+  .rvx-ai-settings>header>div>span{width:38px;height:38px}
+  .rvx-ai-settings>form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:8px;padding:12px 18px}
+  .rvx-ai-settings>form>.rvx-ai-language-note{padding-block:8px}
+  .rvx-ai-settings>form>.rvx-ai-setting-field,.rvx-ai-settings>form>.rvx-ai-setting-toggle{min-height:52px;padding-block:7px}
+  .rvx-ai-settings>form>.rvx-ai-storage-cleanup{padding:10px}
+  .rvx-ai-settings>form>.rvx-ai-language-note{grid-column:1/-1}
+  .rvx-ai-settings>form>.rvx-ai-setting-field{grid-column:1;grid-row:2}
+  .rvx-ai-settings>form>.rvx-ai-setting-field+.rvx-ai-setting-toggle{grid-column:2;grid-row:2}
+  .rvx-ai-settings>form>.rvx-ai-setting-toggle+.rvx-ai-setting-toggle{grid-column:1;grid-row:3}
+  .rvx-ai-settings>form>.rvx-ai-usage-card{grid-column:2;grid-row:3}
+  .rvx-ai-settings>form>.rvx-ai-storage-cleanup{grid-column:1/-1;grid-row:4}
+  .rvx-ai-settings>form>footer{grid-column:1/-1;grid-row:5}
+}
+
+:root[data-theme="dark"] .rvx-ai-support-return{color:#dcece8}
+:root[data-theme="dark"] .rvx-ai-support-return:hover{background:#173c37}
+:root[data-theme="dark"] .rvx-ai-language-note,:root[data-theme="dark"] .rvx-ai-storage-cleanup{color:#dcece8;border-color:#244a45;background:#123632}
+:root[data-theme="dark"] .rvx-ai-storage-control select{color:#dcece8;border-color:#31564f;background:#0e302b}
+
+@media(max-width:1180px){
+  .rvx-ai-page{height:100%;min-height:0;grid-template-columns:1fr}
+  .rvx-ai-sidebar{width:min(86vw,306px)}
+}
+@media(max-width:700px){
+  .rvx-ai-page{height:100%;min-height:0}
+  .rvx-ai-workspace{width:100%;max-width:100%;height:100%;min-width:0;grid-template-rows:66px minmax(0,1fr) auto auto auto;overflow:hidden}
+  .rvx-ai-workspace>header{min-height:66px;padding:8px 10px;gap:7px}
+  .rvx-ai-workspace>header img{width:36px;height:36px;padding:6px}
+  .rvx-ai-workspace>header>div{width:135px;max-width:135px;min-width:0;flex:0 1 135px;gap:5px}.rvx-ai-workspace>header h1{overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.rvx-ai-workspace>header p{display:none}
+  .rvx-ai-support-return{min-height:34px;padding:0 3px;flex:0 0 auto;font-size:14px;white-space:nowrap}.rvx-ai-support-return .line-icon{width:15px;height:15px}
+  .rvx-ai-messages{padding:10px 10px}
+  .rvx-ai-start-mark{width:54px;height:54px;border-radius:18px}.rvx-ai-start-mark img{width:30px;height:30px}
+  .rvx-ai-start h2{font-size:25px}.rvx-ai-start p{max-width:300px;font-size:10px}
+  .rvx-ai-quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-height:70px;gap:4px;overflow:visible;padding:4px 8px}.rvx-ai-quick-actions button{width:100%;min-width:0;min-height:29px;padding:0 4px;font-size:8.5px}
+  .rvx-ai-composer{margin:0 8px 7px;padding:7px 9px 5px}.rvx-ai-composer textarea{min-height:31px;font-size:12px}.rvx-ai-composer>small{font-size:7px}
+  .rvx-ai-settings-backdrop{padding:6px}.rvx-ai-settings{max-height:calc(100% - 4px);border-radius:14px}
+  .rvx-ai-settings>header,.rvx-ai-settings>form{padding:12px}.rvx-ai-settings>form{gap:9px}
+  .rvx-ai-setting-field{align-items:flex-start;flex-direction:column;gap:7px}.rvx-ai-setting-field select{width:100%}
+  .rvx-ai-storage-control{grid-template-columns:1fr}.rvx-ai-storage-control button{width:100%}
+}
+
+@media(max-height:720px){
+  .rvx-ai-workspace{grid-template-rows:70px minmax(0,1fr) auto auto auto}
+  .rvx-ai-workspace>header{min-height:70px;padding-block:8px}
+  .rvx-ai-start-mark{width:54px;height:54px}.rvx-ai-start-mark img{width:30px;height:30px}
+  .rvx-ai-start h2{font-size:27px}.rvx-ai-start p{font-size:10px}
+  .rvx-ai-quick-actions{min-height:38px;padding-block:3px}
+  .rvx-ai-composer{margin-bottom:6px}.rvx-ai-composer textarea{min-height:30px;padding-block:4px}
+  .rvx-ai-side-bottom .rvx-ai-usage-card{padding:9px}.rvx-ai-side-bottom{padding-top:7px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .rvx-ai-support-return,.rvx-ai-support-return .line-icon,.rvx-ai-quick-actions button{transition:none}
+}

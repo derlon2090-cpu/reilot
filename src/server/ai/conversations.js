@@ -18,6 +18,9 @@ export async function listAIConversations(session, { search = "", limit = 30 } =
   values.push(Math.min(50, Math.max(1, Number(limit) || 30)));
   const result = await query(
     `SELECT c.id,c.title,c.status,c.is_pinned AS "isPinned",c.last_message_at AS "lastMessageAt",c.created_at AS "createdAt",
+      (pg_column_size(c)
+        + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.conversation_id=c.id),0)
+        + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.conversation_id=c.id),0))::bigint AS "storageBytes",
       (SELECT content FROM ai_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC LIMIT 1) AS "lastMessage"
      FROM ai_conversations c
      WHERE c.tenant_id=$1 AND c.user_id=$2 AND c.status <> 'deleted' ${searchSql}

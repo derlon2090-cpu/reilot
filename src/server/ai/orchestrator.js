@@ -124,7 +124,11 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
     return Response.json({ ok: false, message: "اكتب طلبًا واضحًا بين حرفين و6000 حرف." }, { status: 400 });
   }
   await enforceAIRateLimit(session);
-  const preferences = await getAIUserPreferences(session);
+  const savedPreferences = await getAIUserPreferences(session);
+  const preferences = {
+    ...savedPreferences,
+    language: input.locale === "en" ? "en" : "ar"
+  };
   const estimatedInputTokens = estimateAITokens(prompt) + 900;
   const quota = await assertAIUsageAvailable(session, estimatedInputTokens + 128);
   let conversation = input.conversationId ? await getAIConversation(session, input.conversationId) : null;
