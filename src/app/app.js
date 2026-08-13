@@ -7603,6 +7603,7 @@ async function saveProfileSettings(data, form) {
 
 async function saveInterfacePreferences(overrides = {}) {
   const remote = state.accountSettings?.settings || {};
+  const shouldPersistRemotely = state.route.startsWith("/dashboard");
   const previous = {
     language: state.language,
     theme: state.theme,
@@ -7619,9 +7620,11 @@ async function saveInterfacePreferences(overrides = {}) {
     state.language = preferences.language;
     state.theme = preferences.theme;
     state.interfaceDensity = preferences.interfaceDensity;
-    localStorage.setItem("renewpilot_locale", state.language);
-    localStorage.setItem("renewpilot_theme", state.theme);
-    localStorage.setItem("renewpilot_density", state.interfaceDensity);
+    try {
+      localStorage.setItem("renewpilot_locale", state.language);
+      localStorage.setItem("renewpilot_theme", state.theme);
+      localStorage.setItem("renewpilot_density", state.interfaceDensity);
+    } catch { /* the live preference still applies when browser storage is unavailable */ }
     if (state.accountSettings?.settings) {
       state.accountSettings = {
         ...state.accountSettings,
@@ -7633,6 +7636,7 @@ async function saveInterfacePreferences(overrides = {}) {
   };
 
   applyLocalState(next);
+  if (!shouldPersistRemotely) return next;
   try {
     const payload = await fetchJson("/api/settings/preferences", {
       method: "PATCH",
@@ -7649,8 +7653,7 @@ async function saveInterfacePreferences(overrides = {}) {
     });
     return saved;
   } catch (error) {
-    if (!state.route.startsWith("/dashboard") && error.status === 401) return next;
-    if (state.route.startsWith("/dashboard")) applyLocalState(previous);
+    applyLocalState(previous);
     throw error;
   }
 }
@@ -9150,14 +9153,14 @@ async function handleAction(target) {
   if (action === "theme") {
     const theme = state.theme === "dark" ? "light" : "dark";
     void saveInterfacePreferences({ theme })
-      .then(() => toast(theme === "dark" ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع الشمسي"))
-      .catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
+      .then(() => toast(theme === "dark" ? localizedCopy("تم تفعيل الوضع الليلي", "Dark mode enabled") : localizedCopy("تم تفعيل الوضع الشمسي", "Light mode enabled")))
+      .catch(() => toast(localizedCopy("تعذر مزامنة المظهر مع الحساب. حاول مرة أخرى.", "Could not sync the theme with your account. Try again."), "danger"));
   }
   if (action === "language") {
     const language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
     void saveInterfacePreferences({ language })
       .then(() => toast(language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled"))
-      .catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
+      .catch(() => toast(localizedCopy("تعذر مزامنة اللغة مع الحساب. حاول مرة أخرى.", "Could not sync the language with your account. Try again."), "danger"));
   }
   if (action === "profile-menu") { state.profileOpen = !state.profileOpen; render(); }
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
@@ -12791,7 +12794,9 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "preference-select") {
     const value = target.value;
     const key = target.dataset.preference;
-    void saveInterfacePreferences({ [key]: value }).then(() => toast("تم حفظ تفضيلات الواجهة")).catch((error) => toast(error.message || "تعذر حفظ التفضيلات", "danger"));
+    void saveInterfacePreferences({ [key]: value })
+      .then(() => toast(localizedCopy("تم حفظ تفضيلات الواجهة", "Interface preferences saved")))
+      .catch(() => toast(localizedCopy("تعذر مزامنة تفضيلات الواجهة. حاول مرة أخرى.", "Could not sync interface preferences. Try again."), "danger"));
   }
   if (target.dataset.action === "notification-preference") {
     void saveNotificationPreference(target.dataset.key, target.checked).catch((error) => { target.checked = !target.checked; toast(error.message || "تعذر حفظ الإشعارات", "danger"); });

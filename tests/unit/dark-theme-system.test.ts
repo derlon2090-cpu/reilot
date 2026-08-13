@@ -11,7 +11,7 @@ describe("site-wide dark theme system", () => {
     ]);
 
     for (const markup of [layout, index]) {
-      expect(markup).toContain("/app/styles/dark-system.css?v=20260812-brand-v105");
+      expect(markup).toMatch(/\/app\/styles\/dark-system\.css\?v=20260813-preferences-v109/);
       expect(markup.indexOf("globals.css")).toBeLessThan(markup.indexOf("dark-system.css"));
     }
   });
@@ -29,6 +29,10 @@ describe("site-wide dark theme system", () => {
     expect(css).toContain(".dashboard-main .suite-quick-center button>svg");
     expect(css).toContain(".dashboard-main .campaign-channel-choice.is-selected");
     expect(css).toContain(".dashboard-shell :is(.sidebar-brand,.sidebar-brand .brand,.sidebar .brand)");
+    expect(css).toContain('.policy-summary a:hover');
+    expect(css).toContain('color:#d8ebe7!important');
+    expect(css).toContain('.policy-hero .eyebrow');
+    expect(css).toContain('.policy-content>section>span');
     const authCss = await readFile(`${root}/src/styles/globals.css`, "utf8");
     expect(authCss).toContain("Canonical accounts.renvix.app dark theme");
     expect(authCss).toContain('.auth-suite-page[data-auth-theme="dark"] .auth-showcase-art');

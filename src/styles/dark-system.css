@@ -92,6 +92,39 @@
 :root[data-theme="dark"] .public-site main :is(input,textarea)::placeholder{color:var(--dark-faint)!important;opacity:1}
 :root[data-theme="dark"] .public-site main :is(.btn-secondary,.btn-ghost){color:var(--dark-text)!important;border-color:var(--dark-line-strong)!important;background:var(--dark-surface-raised)!important}
 :root[data-theme="dark"] .public-site main :is(.btn-secondary,.btn-ghost) svg{color:var(--dark-icon)!important;opacity:1!important}
+:root[data-theme="dark"] .policy-summary{
+  color:var(--dark-text)!important;
+  border-color:var(--dark-line)!important;
+  background:linear-gradient(180deg,var(--dark-surface-raised),var(--dark-surface))!important;
+  box-shadow:0 18px 42px rgba(0,0,0,.24)!important;
+}
+:root[data-theme="dark"] .policy-hero .eyebrow{
+  padding:7px 12px;
+  color:var(--dark-icon-strong)!important;
+  border:1px solid rgba(141,227,213,.24);
+  border-radius:999px;
+  background:rgba(4,27,24,.34);
+}
+:root[data-theme="dark"] .policy-summary h2{color:var(--dark-text)!important}
+:root[data-theme="dark"] .policy-summary a{
+  padding-inline:8px;
+  color:#d8ebe7!important;
+  border-color:rgba(141,227,213,.2)!important;
+  border-radius:8px 8px 0 0;
+  text-decoration:none;
+  transition:color .18s ease,background .18s ease,border-color .18s ease;
+}
+:root[data-theme="dark"] .policy-summary a span{color:var(--dark-icon)!important}
+:root[data-theme="dark"] .policy-summary a:hover,
+:root[data-theme="dark"] .policy-summary a:focus-visible{
+  color:#fff!important;
+  border-color:var(--dark-icon)!important;
+  background:rgba(141,227,213,.1)!important;
+  outline:2px solid transparent;
+}
+:root[data-theme="dark"] .policy-content,
+:root[data-theme="dark"] .policy-content>section{border-color:var(--dark-line)!important}
+:root[data-theme="dark"] .policy-content>section>span{color:#073832!important;background:#dff8f3!important}
 :root[data-theme="dark"] .newsletter-public-shell{color:var(--dark-text)!important;background:radial-gradient(circle at 50% 15%,rgba(83,199,181,.12),transparent 34%),var(--dark-canvas)!important}
 :root[data-theme="dark"] .newsletter-public-header{border-color:var(--dark-line)!important;background:rgba(6,36,31,.94)!important}
 :root[data-theme="dark"] .newsletter-public-card{color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important;box-shadow:0 24px 60px rgba(0,0,0,.28)!important}

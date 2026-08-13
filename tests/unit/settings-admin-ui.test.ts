@@ -38,6 +38,13 @@ describe("settings and admin UI contracts", () => {
     expect(preferences).toContain("applyNotificationState(previous)");
   });
 
+  it("keeps public language and theme changes local without calling account APIs", () => {
+    const preferences = appSource.slice(appSource.indexOf("async function saveInterfacePreferences"), appSource.indexOf("async function saveNotificationPreference"));
+    expect(preferences).toContain('const shouldPersistRemotely = state.route.startsWith("/dashboard")');
+    expect(preferences).toContain("if (!shouldPersistRemotely) return next");
+    expect(preferences.indexOf("if (!shouldPersistRemotely) return next")).toBeLessThan(preferences.indexOf('fetchJson("/api/settings/preferences"'));
+  });
+
   it("applies all three interface density choices to the rendered dashboard", () => {
     expect(appSource).toContain('document.documentElement.dataset.density = state.interfaceDensity || "comfortable"');
     expect(appSource).toContain('localStorage.setItem("renewpilot_density", state.interfaceDensity)');
