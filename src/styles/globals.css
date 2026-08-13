@@ -13164,6 +13164,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .rvx-ai-usage-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#0b3f3b,#21a294);transition:width .3s ease}
 .rvx-ai-usage-card>footer{display:flex;align-items:center;justify-content:space-between;color:#627572;font-size:9px}
 .rvx-ai-usage-card>footer b{color:#0b3f3b}
+.rvx-ai-chat-storage{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding-top:8px;border-top:1px solid #dceae7}
+.rvx-ai-chat-storage span{font-size:9px;font-weight:800}.rvx-ai-chat-storage b{color:#0b3f3b;font-size:10px}.rvx-ai-chat-storage small{grid-column:1/-1;color:#71817e;font-size:8px}
 
 .rvx-ai-workspace{grid-template-rows:96px minmax(0,1fr) auto auto auto;height:100%;min-height:0;background:#f8fbfa}
 .rvx-ai-workspace>header{min-height:96px;padding:16px clamp(20px,3vw,42px)}
@@ -13316,11 +13318,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 /* Account Intelligence viewport, navigation and storage controls. */
-.dashboard-shell:has(.rvx-ai-page){grid-template-columns:minmax(0,1fr)}
-.dashboard-shell:has(.rvx-ai-page)>.sidebar,.dashboard-shell:has(.rvx-ai-page)>.sidebar-backdrop{display:none}
-.dashboard-main:has(.rvx-ai-page){display:grid;height:100dvh;min-height:0;grid-template-rows:minmax(0,1fr);overflow:hidden}
-.dashboard-main:has(.rvx-ai-page)>.topbar{display:none}
-.dashboard-main:has(.rvx-ai-page)>.content{width:100%;height:auto;min-height:0;max-width:none;margin:0;padding:0!important;overflow:hidden}
+.dashboard-main:has(.rvx-ai-page){display:grid;height:100dvh;min-height:0;grid-template-columns:minmax(0,1fr);grid-template-rows:82px minmax(0,1fr);overflow:hidden}
+.dashboard-main:has(.rvx-ai-page)>.topbar{display:flex}
+.dashboard-main:has(.rvx-ai-page)>.content{width:100%;height:100%;min-height:0;max-width:none;margin:0;padding:0!important;overflow:hidden}
 .rvx-ai-page{height:100%;min-height:0;grid-template-columns:minmax(0,1fr) clamp(306px,21.5vw,346px)}
 .rvx-ai-workspace{height:100%;min-height:0;grid-template-rows:82px minmax(0,1fr) auto auto auto}
 .rvx-ai-workspace>header{min-height:82px;padding:12px clamp(18px,2.4vw,36px)}
@@ -13333,6 +13333,20 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 [dir="ltr"] .rvx-ai-support-return .line-icon{transform:rotate(180deg)}
 [dir="ltr"] .rvx-ai-support-return:hover .line-icon,[dir="ltr"] .rvx-ai-support-return:focus-visible .line-icon{transform:rotate(180deg) translateX(-2px)}
 .rvx-ai-messages{padding:16px clamp(18px,4vw,64px)}
+.rvx-ai-message{max-width:100%}
+.rvx-ai-assistant-message>div{min-width:0}
+.rvx-ai-rich-text{display:grid;gap:8px;min-width:0;color:var(--ai-ink);font-size:13px;line-height:1.9;overflow-wrap:anywhere}
+.rvx-ai-rich-text p{margin:0;white-space:normal}
+.rvx-ai-rich-text h3{margin:8px 0 0;color:#0b3f3b;font-size:14px;line-height:1.55}
+.rvx-ai-rich-text ul,.rvx-ai-rich-text ol{display:grid;gap:5px;margin:0;padding-inline-start:22px}
+.rvx-ai-rich-text li{padding-inline-start:2px}
+.rvx-ai-rich-text strong{color:#0b3f3b;font-weight:850}
+.rvx-ai-rich-text em{font-style:normal;color:#37635e}
+.rvx-ai-rich-text code{direction:ltr;display:inline-block;padding:1px 6px;border:1px solid #dce8e6;border-radius:6px;color:#0b3f3b;background:#f1f7f6;font:600 11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+.rvx-ai-assistant-message.is-streaming .rvx-ai-rich-text:empty::before{content:"";width:32px;height:10px;background:radial-gradient(circle closest-side,#0b776c 90%,transparent) 0 50%/8px 8px no-repeat,radial-gradient(circle closest-side,#0b776c 90%,transparent) 50% 50%/8px 8px no-repeat,radial-gradient(circle closest-side,#0b776c 90%,transparent) 100% 50%/8px 8px no-repeat;animation:rvx-ai-typing 1.1s ease-in-out infinite}
+.rvx-ai-assistant-message.is-streaming .rvx-ai-rich-text p:last-child::after{content:"";display:inline-block;width:2px;height:14px;margin-inline-start:4px;vertical-align:-2px;border-radius:2px;background:#0b776c;animation:rvx-ai-cursor .85s steps(2,end) infinite}
+.rvx-ai-assistant-message.is-streaming .rvx-ai-rich-text p:not(:last-child)::after{content:none}
+@keyframes rvx-ai-typing{50%{opacity:.38;transform:translateY(-1px)}}
 .rvx-ai-start{width:min(100%,560px)}
 .rvx-ai-start-mark{width:68px;height:68px;margin-bottom:10px}
 .rvx-ai-start-mark img{width:38px;height:38px}
@@ -13393,12 +13407,18 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 :root[data-theme="dark"] .rvx-ai-support-return{color:#dcece8}
 :root[data-theme="dark"] .rvx-ai-support-return:hover{background:#173c37}
 :root[data-theme="dark"] .rvx-ai-language-note{color:#dcece8;border-color:#244a45;background:#123632}
+:root[data-theme="dark"] .rvx-ai-rich-text{color:#e2efec}:root[data-theme="dark"] .rvx-ai-rich-text h3,:root[data-theme="dark"] .rvx-ai-rich-text strong,:root[data-theme="dark"] .rvx-ai-rich-text code{color:#a9e1d8}:root[data-theme="dark"] .rvx-ai-rich-text em{color:#b4cbc6}:root[data-theme="dark"] .rvx-ai-rich-text code{border-color:#2d514b;background:#123632}:root[data-theme="dark"] .rvx-ai-chat-storage{border-color:#2b4c47}:root[data-theme="dark"] .rvx-ai-chat-storage b{color:#a9e1d8}
 
 @media(max-width:1180px){
+  .dashboard-main:has(.rvx-ai-page){grid-template-rows:82px minmax(0,1fr)}
   .rvx-ai-page{height:100%;min-height:0;grid-template-columns:1fr}
   .rvx-ai-sidebar{width:min(86vw,306px)}
 }
+@media(max-width:980px){
+  .dashboard-main:has(.rvx-ai-page){grid-template-rows:72px minmax(0,1fr)}
+}
 @media(max-width:700px){
+  .dashboard-main:has(.rvx-ai-page){grid-template-rows:72px minmax(0,1fr)}
   .rvx-ai-page{height:100%;min-height:0}
   .rvx-ai-workspace{width:100%;max-width:100%;height:100%;min-width:0;grid-template-rows:66px minmax(0,1fr) auto auto auto;overflow:hidden}
   .rvx-ai-workspace>header{min-height:66px;padding:8px 10px;gap:7px}
@@ -13406,6 +13426,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .rvx-ai-workspace>header>div{width:135px;max-width:135px;min-width:0;flex:0 1 135px;gap:5px}.rvx-ai-workspace>header h1{overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.rvx-ai-workspace>header p{display:none}
   .rvx-ai-support-return{min-height:34px;padding:0 3px;flex:0 0 auto;font-size:14px;white-space:nowrap}.rvx-ai-support-return .line-icon{width:15px;height:15px}
   .rvx-ai-messages{padding:10px 10px}
+  .rvx-ai-rich-text{gap:6px;font-size:12px;line-height:1.8}.rvx-ai-rich-text h3{font-size:13px}
   .rvx-ai-start-mark{width:54px;height:54px;border-radius:18px}.rvx-ai-start-mark img{width:30px;height:30px}
   .rvx-ai-start h2{font-size:25px}.rvx-ai-start p{max-width:300px;font-size:10px}
   .rvx-ai-quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-height:70px;gap:4px;overflow:visible;padding:4px 8px}.rvx-ai-quick-actions button{width:100%;min-width:0;min-height:29px;padding:0 4px;font-size:8.5px}
@@ -13427,6 +13448,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 
 @media(prefers-reduced-motion:reduce){
   .rvx-ai-support-return,.rvx-ai-support-return .line-icon,.rvx-ai-quick-actions button{transition:none}
+  .rvx-ai-assistant-message.is-streaming .rvx-ai-rich-text:empty::before,.rvx-ai-assistant-message.is-streaming .rvx-ai-rich-text p:last-child::after{animation:none}
 }
 
 /* Account storage cleanup — settings */

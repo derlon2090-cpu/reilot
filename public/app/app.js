@@ -849,6 +849,7 @@ state.supportReplyDrafts = {};
 state.supportSearch = "";
 state.aiOverview = null;
 state.aiUsage = null;
+state.aiChatStorage = null;
 state.aiPreferences = storage.get("renvix.ai.preferences", null);
 state.aiConversations = null;
 state.aiConversation = null;
@@ -1279,6 +1280,7 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     } else if (target === "aiOverview") {
       state.aiOverview = payload.snapshot || null;
       state.aiUsage = payload.usage || null;
+      state.aiChatStorage = payload.chatStorage || null;
       state.aiPreferences = payload.preferences || null;
       if (state.aiPreferences) storage.set("renvix.ai.preferences", state.aiPreferences);
     } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
@@ -7135,7 +7137,12 @@ function settingsReferencePage() {
   const remote = state.accountSettings.settings || {};
   const storage = state.accountSettings.storage || { usedMb:0, limitMb:100, percent:0, breakdown:[] };
   const chatStorage = state.accountSettings.chatStorage || { totalBytes: 0, cleanableBytes: 0, conversationCount: 0, cleanableConversations: 0 };
-  const storageBreakdown = (storage.breakdown || []).filter((item) => item.label !== "محادثات ذكاء Renvix");
+  const tenantAIStorage = (storage.breakdown || []).find((item) => item.label === "محادثات ذكاء Renvix");
+  const otherAIBytes = Math.max(0, Number(tenantAIStorage?.bytes || 0) - Number(chatStorage.totalBytes || 0));
+  const storageBreakdown = [
+    ...(storage.breakdown || []).filter((item) => item.label !== "محادثات ذكاء Renvix"),
+    ...(otherAIBytes > 0 ? [{ label: "بيانات ذكاء Renvix الأخرى", bytes: otherAIBytes, mb: otherAIBytes / (1024 * 1024) }] : [])
+  ].sort((first, second) => Number(second.bytes || 0) - Number(first.bytes || 0));
   const canManageStorage = ["owner", "admin"].includes(String(remote.role || "").toLowerCase());
   const avatarUrl = remote.avatarUrl || remote.image;
   const fullName = remote.fullName || remote.name || "";
@@ -10150,9 +10157,9 @@ async function handleAIMessageSubmit(form) {
   state.aiAbortController = controller;
   setAIComposerStreaming(form, true);
   const list = document.querySelector("[data-ai-message-list]");
-  if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading")) list.innerHTML = "";
+  if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading,.rvx-ai-start,.rvx-ai-onboarding")) list.innerHTML = "";
   const streamId = `ai-stream-${Date.now()}`;
-  list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: prompt })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><p data-ai-stream-text></p><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
+  list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: prompt })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
   const streamNode = document.getElementById(streamId);
   const textNode = streamNode?.querySelector("[data-ai-stream-text]");
   const blockNode = streamNode?.querySelector("[data-ai-stream-blocks]");
@@ -10181,22 +10188,22 @@ async function handleAIMessageSubmit(form) {
         blockNode.innerHTML = (payload.blocks || []).map(renderAIBlock).join("");
         if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
       } else if (type === "token" && textNode) {
-        textNode.textContent += payload.value || "";
+        appendAIStreamText(textNode, payload.value || "");
         streamNode?.scrollIntoView({ block: "end" });
       } else if (type === "error" && textNode) {
-        textNode.textContent += `\n${payload.message || "تعذر إكمال الرد."}`;
+        appendAIStreamText(textNode, `\n${payload.message || "تعذر إكمال الرد."}`);
         streamNode?.classList.add("has-error");
       } else if (type === "interrupted" && textNode) {
-        textNode.textContent += `\n\n${payload.message || "تم إيقاف إنشاء الرد."}`;
+        appendAIStreamText(textNode, `\n\n${payload.message || "تم إيقاف إنشاء الرد."}`);
       } else if (type === "usage") {
         state.aiUsage = payload;
       }
     });
   } catch (error) {
     if (error.name !== "AbortError") {
-      if (textNode) textNode.textContent += `\n${error.message || "تعذر إكمال الرد."}`;
+      if (textNode) appendAIStreamText(textNode, `\n${error.message || "تعذر إكمال الرد."}`);
       streamNode?.classList.add("has-error");
-    } else if (textNode) textNode.textContent += "\n\nتم إيقاف إنشاء الرد.";
+    } else if (textNode) appendAIStreamText(textNode, "\n\nتم إيقاف إنشاء الرد.");
   } finally {
     state.aiStreaming = false;
     state.aiAbortController = null;
@@ -11845,10 +11852,69 @@ function renderAIBlock(block = {}) {
   return "";
 }
 
+function renderAIInlineText(value) {
+  return escapeHtml(value)
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*\*([^*\n]+)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
+    .replace(/__([^_\n]+)__/g, "<strong>$1</strong>")
+    .replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, "$1<em>$2</em>")
+    .replace(/\*+/g, "");
+}
+
+function renderAIMessageContent(value) {
+  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
+  const output = [];
+  let listType = "";
+  const closeList = () => {
+    if (!listType) return;
+    output.push(`</${listType}>`);
+    listType = "";
+  };
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (/^(?:\*{3,}|-{3,}|_{3,})$/.test(line)) continue;
+    if (!line) {
+      closeList();
+      continue;
+    }
+    const heading = line.match(/^#{1,4}\s+(.+)$/);
+    const sectionHeading = line.match(/^(الخلاصة|الدليل|التوصية|اقتراحي|ماذا أنصحك الآن؟|أهم تنبيه|أفضل فرصة|Summary|Evidence|Recommendation|Recommended next steps)\s*:?[：]?$/i);
+    if (heading || sectionHeading) {
+      closeList();
+      output.push(`<h3>${renderAIInlineText(heading?.[1] || sectionHeading[1])}</h3>`);
+      continue;
+    }
+    const unordered = line.match(/^[-*•]\s+(.+)$/);
+    const ordered = line.match(/^\d+[.)]\s+(.+)$/);
+    if (unordered || ordered) {
+      const nextType = unordered ? "ul" : "ol";
+      if (listType !== nextType) {
+        closeList();
+        listType = nextType;
+        output.push(`<${listType}>`);
+      }
+      output.push(`<li>${renderAIInlineText((unordered || ordered)[1])}</li>`);
+      continue;
+    }
+    closeList();
+    output.push(`<p>${renderAIInlineText(line)}</p>`);
+  }
+  closeList();
+  return output.join("");
+}
+
+function appendAIStreamText(node, value) {
+  const raw = `${node.dataset.aiRaw || ""}${String(value || "")}`;
+  node.dataset.aiRaw = raw;
+  node.innerHTML = renderAIMessageContent(raw);
+}
+
 function renderAIMessage(message) {
   const blocks = Array.isArray(message.segments) ? message.segments : [];
   if (message.role === "user") return `<article class="rvx-ai-message rvx-ai-user-message"><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p><time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
-  return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p>${blocks.map(renderAIBlock).join("")}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
+  return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text">${renderAIMessageContent(message.content || "")}</div>${blocks.map(renderAIBlock).join("")}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
 }
 
 function formatAITokens(value) {
@@ -11875,11 +11941,12 @@ function aiOverviewWelcome() {
 function aiUsageCard() {
   const english = state.language === "en";
   const usage = state.aiUsage || {};
+  const chatStorage = state.aiChatStorage || {};
   const used = Number(usage.usedTokens || 0);
   const percent = Math.min(100, Number(usage.percent || 0));
   const limit = usage.unlimited ? (english ? "Unlimited" : "غير محدودة") : formatAITokens(usage.limitTokens || 0);
   const remaining = usage.unlimited ? (english ? "Unlimited" : "غير محدودة") : formatAITokens(usage.remainingTokens || 0);
-  return `<section class="rvx-ai-usage-card"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI allowance" : "مساحة الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${formatAITokens(used)}</b><span>${english ? `of ${limit} tokens` : `من ${limit} توكن`}</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${english ? `${remaining} remaining` : `${remaining} متبقي`}</span><b>${usage.unlimited ? "∞" : `${percent}%`}</b></footer></section>`;
+  return `<section class="rvx-ai-usage-card"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI allowance" : "مساحة الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${formatAITokens(used)}</b><span>${english ? `of ${limit} tokens` : `من ${limit} توكن`}</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${english ? `${remaining} remaining` : `${remaining} متبقي`}</span><b>${usage.unlimited ? "∞" : `${percent}%`}</b></footer><div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(chatStorage.totalBytes || 0)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
 }
 
 function aiConversationSidebar() {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectAIStorageCleanupCandidates } from "../../src/server/ai/storage.js";
+import { getAIChatStorage, selectAIStorageCleanupCandidates } from "../../src/server/ai/storage.js";
 
 const rows = [
   { id: "00000000-0000-4000-8000-000000000001", status: "deleted", isPinned: false, lastMessageAt: "2026-01-01", storageBytes: 300 },
@@ -9,6 +9,24 @@ const rows = [
 ];
 
 describe("AI chat storage cleanup selection", () => {
+  it("reports the current user's complete chat footprint without counting shared AI data", async () => {
+    const runner = {
+      query: async (sql: string) => sql.includes('AS "totalBytes"')
+        ? { rows: [{ totalBytes: 12_345, conversationCount: 2 }] }
+        : { rows: [
+          { id: rows[0].id, status: "archived", isPinned: false, lastMessageAt: "2026-01-01", storageBytes: 4_000 },
+          { id: rows[1].id, status: "active", isPinned: false, lastMessageAt: "2026-02-01", storageBytes: 8_345 }
+        ] }
+    };
+
+    const result = await getAIChatStorage({ tenantId: "tenant-1", userId: "user-1" }, {}, runner);
+
+    expect(result.totalBytes).toBe(12_345);
+    expect(result.conversationCount).toBe(2);
+    expect(result.cleanableBytes).toBe(4_000);
+    expect(result.cleanableConversations).toBe(1);
+  });
+
   it("deletes oldest unpinned conversations until the requested space is met", () => {
     const result = selectAIStorageCleanupCandidates(rows, 650, {
       keepConversationId: "00000000-0000-4000-8000-000000000004"

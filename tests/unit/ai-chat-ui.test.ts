@@ -1,6 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
+const readUI = async () => Promise.all([
+  readFile("src/app/app.js", "utf8"),
+  readFile("src/styles/globals.css", "utf8"),
+  readFile("app/api/ai/overview/route.js", "utf8"),
+  readFile("src/server/ai/orchestrator.js", "utf8")
+]);
+
 describe("Renvix Intelligence chat UI", () => {
   it("uses the interface locale without a manual language onboarding step", async () => {
     const source = await readFile("src/app/app.js", "utf8");
@@ -17,5 +24,27 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).not.toContain('data-action="ai-cleanup-storage"');
     expect(source).not.toContain('class="rvx-ai-storage-cleanup"');
     expect(source).toContain("مساحة محادثاتك");
+  });
+
+  it("keeps platform navigation visible and clears the welcome grid before the first message", async () => {
+    const [source, css] = await readUI();
+    expect(source).toContain('.rvx-ai-welcome,.rvx-ai-loading,.rvx-ai-start,.rvx-ai-onboarding');
+    expect(css).toContain('.dashboard-main:has(.rvx-ai-page)>.topbar{display:flex}');
+    expect(css).toContain('grid-template-columns:minmax(0,1fr);grid-template-rows:82px minmax(0,1fr)');
+    expect(css).toContain('@media(max-width:980px)');
+    expect(css).toContain('grid-template-rows:72px minmax(0,1fr)');
+    expect(css).not.toContain('.dashboard-shell:has(.rvx-ai-page)>.sidebar,.dashboard-shell:has(.rvx-ai-page)>.sidebar-backdrop{display:none}');
+    expect(css).not.toContain('.dashboard-shell:has(.rvx-ai-page){grid-template-columns:minmax(0,1fr)}');
+  });
+
+  it("renders safe structured assistant copy and reports real chat storage", async () => {
+    const [source, css, overviewRoute, orchestrator] = await readUI();
+    expect(source).toContain("function renderAIMessageContent");
+    expect(source).toContain('class="rvx-ai-rich-text"');
+    expect(source).toContain("state.aiChatStorage = payload.chatStorage || null");
+    expect(css).toContain(".rvx-ai-rich-text h3");
+    expect(overviewRoute).toContain("getAIChatStorage(auth.session)");
+    expect(overviewRoute).toContain("preferences, chatStorage");
+    expect(orchestrator).toContain("لا تستخدم الفواصل الزخرفية");
   });
 });

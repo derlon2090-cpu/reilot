@@ -20,8 +20,9 @@ async function cleanupPreview(session) {
     getStorageCleanupPreview(session.tenantId),
     getAIChatStorage(session)
   ]);
+  const tenantAIStorage = account.categories.find((item) => item.label === "محادثات ذكاء Renvix")?.bytes || 0;
   const accountCategories = account.categories.filter((item) => item.label !== "محادثات ذكاء Renvix");
-  const chatTotal = account.categories.find((item) => item.label === "محادثات ذكاء Renvix")?.bytes || chatStorage.totalBytes;
+  const chatTotal = Math.max(0, Number(chatStorage.totalBytes || 0));
   const chatCategory = {
     key: CHAT_CATEGORY,
     label: "محادثات ذكاء Renvix",
@@ -36,6 +37,17 @@ async function cleanupPreview(session) {
     ...item,
     selectable: canManageAccountStorage && item.cleanableBytes > 0
   }));
+  const sharedAIBytes = Math.max(0, Number(tenantAIStorage) - chatTotal);
+  if (sharedAIBytes > 0) visibleAccountCategories.push({
+    key: "protected:ai-shared",
+    label: "بيانات ذكاء Renvix الأخرى",
+    description: "استخدام الخطة وتفضيلات الذكاء أو محادثات أعضاء الحساب الآخرين؛ بيانات محمية من التنظيف الشخصي.",
+    count: 0,
+    bytes: sharedAIBytes,
+    cleanableBytes: 0,
+    protectedBytes: sharedAIBytes,
+    selectable: false
+  });
   const accountCleanableBytes = canManageAccountStorage
     ? visibleAccountCategories.reduce((sum, item) => sum + Number(item.cleanableBytes || 0), 0)
     : 0;
