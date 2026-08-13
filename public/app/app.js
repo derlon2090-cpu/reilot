@@ -1809,8 +1809,7 @@ const socialProofMotionVariants = Object.freeze({
   titleReveal: Object.freeze({ duration: 680, delay: 70, y: 18, scale: 1, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   subtitleReveal: Object.freeze({ duration: 640, delay: 150, y: 14, scale: 1, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   logoCardReveal: Object.freeze({ duration: 680, delay: 250, stagger: 85, y: 18, scale: .97, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
-  logoCardHover: Object.freeze({ duration: 300, y: -6, scale: 1.015, logoScale: 1.03, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
-  carouselTransition: Object.freeze({ duration: 760, interval: 4600, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
+  logoCardHover: Object.freeze({ duration: 220, y: -3, scale: 1, logoScale: 1.02, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
 });
 
 function applySocialProofMotionVariants(root) {
@@ -1819,13 +1818,13 @@ function applySocialProofMotionVariants(root) {
     element.dataset.motionVariant.split(/\s+/).filter(Boolean).forEach((name) => {
       const variant = socialProofMotionVariants[name];
       if (!variant) return;
-      const prefix = name === "logoCardHover" ? "--motion-hover" : name === "carouselTransition" ? "--motion-carousel" : "--motion";
+      const prefix = name === "logoCardHover" ? "--motion-hover" : "--motion";
       if (variant.duration) element.style.setProperty(`${prefix}-duration`, `${variant.duration}ms`);
       if (variant.easing) element.style.setProperty(`${prefix}-ease`, variant.easing);
       if (Number.isFinite(variant.y)) element.style.setProperty(`${prefix}-y`, `${variant.y}px`);
       if (Number.isFinite(variant.scale)) element.style.setProperty(`${prefix}-scale`, variant.scale);
       if (Number.isFinite(variant.logoScale)) element.style.setProperty(`${prefix}-logo-scale`, variant.logoScale);
-      if (name !== "logoCardHover" && name !== "carouselTransition") {
+      if (name !== "logoCardHover") {
         element.style.setProperty("--motion-delay", `${(variant.delay || 0) + (variant.stagger || 0) * index}ms`);
       }
     });
@@ -1833,7 +1832,7 @@ function applySocialProofMotionVariants(root) {
 }
 
 function marketingCommerceEcosystem() {
-  const stores = [
+  const trustedBrands = [
     { title: "Advanced Pro", logo: "/assets/brands/advanced-pro.png", brand: "advanced-pro" },
     { title: "Axion", logo: "/assets/brands/axion.png", brand: "axion" },
     { title: "Upload", logo: "/assets/brands/upload.png", brand: "upload" },
@@ -1842,20 +1841,17 @@ function marketingCommerceEcosystem() {
     { title: localizedCopy("ملم", "Mlm"), logo: "/assets/brands/mlm.png", brand: "mlm" },
     { title: localizedCopy("الرعد للاتصالات", "Alraad Telecom"), logo: "/assets/brands/alraad-telecom.jpg", brand: "alraad" }
   ];
-  const storeSet = (duplicate = false) => `<div class="commerce-store-set"${duplicate ? ' aria-hidden="true"' : ""}>${stores.map((item, index) => `<article class="commerce-brand-card commerce-brand-card--${item.brand}" data-motion-variant="logoCardReveal logoCardHover" data-motion-index="${index}"><span class="commerce-brand-logo"><img src="${item.logo}" alt="" loading="lazy" decoding="async" /></span><strong>${item.title}</strong></article>`).join("")}</div>`;
+  const brandSet = (duplicate = false) => `<div class="trusted-brands-set"${duplicate ? ' aria-hidden="true"' : ""}>${trustedBrands.map((item, index) => `<article class="trusted-brand-card trusted-brand-card--${item.brand}" data-motion-variant="logoCardReveal logoCardHover" data-motion-index="${index}" aria-label="${escapeHtml(item.title)}"><span class="trusted-brand-logo"><img src="${item.logo}" alt="${duplicate ? "" : escapeHtml(item.title)}" width="112" height="76" loading="lazy" decoding="async" /></span></article>`).join("")}</div>`;
   return `<section class="marketing-commerce-ecosystem" data-motion-scene data-social-proof>
     <div class="container" data-social-proof-reveal data-motion-variant="sectionReveal">
       <header class="marketing-v3-heading commerce-proof-heading">
         <h2 data-social-proof-reveal data-motion-variant="titleReveal">${localizedCopy("شركات تثق بـ Renvix", "Companies that trust Renvix")}</h2>
         <p data-social-proof-reveal data-motion-variant="subtitleReveal">${localizedCopy("علامات تجارية ومتاجر حقيقية تستخدم Renvix لإدارة الاشتراكات والتجديدات بكفاءة وموثوقية.", "Real brands and stores use Renvix to manage subscriptions and renewals efficiently and reliably.")}</p>
       </header>
-      <div class="commerce-carousel" data-commerce-carousel>
-        <button class="commerce-carousel-arrow commerce-carousel-arrow--previous" type="button" data-carousel-direction="-1" aria-label="${localizedCopy("العناصر السابقة", "Previous items")}">${dashboardIcon("chevronDown")}</button>
-        <div class="commerce-carousel-window" data-commerce-carousel-window tabindex="0" aria-label="${localizedCopy("شعارات شركات تثق بـ Renvix", "Logos of companies that trust Renvix")}">
-          <div class="commerce-store-track" data-commerce-marquee data-motion-variant="carouselTransition">${storeSet()}${storeSet(true)}</div>
+      <div class="trusted-brands-marquee" data-trusted-brands-marquee>
+        <div class="trusted-brands-viewport" data-trusted-brands-viewport aria-label="${localizedCopy("شعارات شركات تثق بـ Renvix", "Logos of companies that trust Renvix")}">
+          <div class="trusted-brands-track" data-trusted-brands-track>${brandSet()}${brandSet(true)}</div>
         </div>
-        <button class="commerce-carousel-arrow commerce-carousel-arrow--next" type="button" data-carousel-direction="1" aria-label="${localizedCopy("العناصر التالية", "Next items")}">${dashboardIcon("chevronDown")}</button>
-        <div class="commerce-carousel-pagination" aria-hidden="true"><i class="is-active"></i><i></i><i></i></div>
       </div>
     </div>
   </section>`;
@@ -2093,124 +2089,25 @@ function initMarketingMotion() {
     entry.target.classList.add("is-running");
   }, { threshold: .35 });
 
-  root.querySelectorAll("[data-commerce-carousel]").forEach((carousel) => {
-    const viewport = carousel.querySelector("[data-commerce-carousel-window]");
-    const track = carousel.querySelector("[data-commerce-marquee]");
-    const firstSet = track?.querySelector(".commerce-store-set");
-    const cards = [...(firstSet?.querySelectorAll("article") || [])];
-    const dots = [...carousel.querySelectorAll(".commerce-carousel-pagination i")];
-    const arrows = [...carousel.querySelectorAll("[data-carousel-direction]")];
-    if (!viewport || !track || !firstSet || !cards.length) return;
-    const carouselMotion = socialProofMotionVariants.carouselTransition;
-    let segment = 0;
-    let paused = false;
-    let position = 0;
-    let pointerStart = null;
-    const loopWidth = () => firstSet.getBoundingClientRect().width + (Number.parseFloat(getComputedStyle(track).gap || "0") || 0);
-    const renderPosition = () => { track.style.transform = `translate3d(${position}px,0,0)`; };
-    const normalizePosition = () => {
-      const width = loopWidth();
-      if (!width) return;
-      while (position <= -width) position += width;
-      while (position > 0) position -= width;
-      renderPosition();
-    };
+  root.querySelectorAll("[data-trusted-brands-marquee]").forEach((marquee) => {
+    const viewport = marquee.querySelector("[data-trusted-brands-viewport]");
+    const track = marquee.querySelector("[data-trusted-brands-track]");
+    const firstSet = track?.querySelector(".trusted-brands-set");
+    if (!viewport || !track || !firstSet) return;
     const syncCardWidth = () => {
-      const styles = getComputedStyle(viewport);
-      const horizontalPadding = (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
-      const available = Math.max(260, viewport.clientWidth - horizontalPadding);
+      const available = Math.max(250, viewport.clientWidth);
       const gap = Number.parseFloat(getComputedStyle(firstSet).gap || "16") || 16;
-      const visibleCards = available >= 1040 ? 7 : available >= 760 ? 5 : available >= 520 ? 4 : 2;
-      const minimumCardWidth = visibleCards === 2 ? 104 : 128;
-      track.style.setProperty("--commerce-card-width", `${Math.max(minimumCardWidth, (available - gap * (visibleCards - 1)) / visibleCards)}px`);
-      position = 0;
-      track.classList.remove("is-stepping");
-      renderPosition();
+      const screenWidth = window.innerWidth;
+      const visibleCards = screenWidth >= 1440 ? 6 : screenWidth >= 1200 ? 5 : screenWidth >= 992 ? 4 : screenWidth >= 768 ? 3 : screenWidth >= 480 ? 2 : 1.2;
+      const cardWidth = (available - gap * (visibleCards - 1)) / visibleCards;
+      track.style.setProperty("--trusted-brand-card-width", `${cardWidth}px`);
+      track.style.setProperty("--trusted-brands-shift", `-${firstSet.children.length * (cardWidth + gap)}px`);
     };
-    const updateDots = (nextSegment) => {
-      segment = (nextSegment + dots.length) % dots.length;
-      dots.forEach((dot, index) => dot.classList.toggle("is-active", index === segment));
-    };
-    const advance = (direction = 1) => {
-      if (track.classList.contains("is-stepping")) return;
-      const card = cards[0];
-      const gap = Number.parseFloat(getComputedStyle(firstSet).gap || "16") || 16;
-      const distance = card.getBoundingClientRect().width + gap;
-      const width = loopWidth();
-      if (direction < 0 && position > -distance * .5) {
-        track.classList.remove("is-stepping");
-        position -= width;
-        renderPosition();
-      }
-      requestAnimationFrame(() => {
-        track.classList.add("is-stepping");
-        carousel.classList.add("is-transitioning");
-        position -= direction * distance;
-        renderPosition();
-        const timer = setTimeout(() => {
-          timers.delete(timer);
-          track.classList.remove("is-stepping");
-          carousel.classList.remove("is-transitioning");
-          normalizePosition();
-        }, carouselMotion.duration + 40);
-        timers.add(timer);
-      });
-      updateDots(segment + direction);
-    };
-    arrows.forEach((button) => {
-      const click = () => advance(Number(button.dataset.carouselDirection || 1));
-      button.addEventListener("click", click);
-      disposers.push(() => button.removeEventListener("click", click));
-    });
-    const pause = () => { paused = true; };
-    const resume = () => { paused = false; };
-    const pointerDown = (event) => { paused = true; pointerStart = event.clientX; };
-    const pointerUp = (event) => {
-      const distance = pointerStart === null ? 0 : event.clientX - pointerStart;
-      pointerStart = null;
-      if (Math.abs(distance) > 34) advance(distance < 0 ? 1 : -1);
-      paused = false;
-    };
-    const pointerCancel = () => { pointerStart = null; paused = false; };
-    carousel.addEventListener("mouseenter", pause);
-    carousel.addEventListener("mouseleave", resume);
-    carousel.addEventListener("focusin", pause);
-    carousel.addEventListener("focusout", resume);
-    carousel.addEventListener("pointerdown", pointerDown);
-    carousel.addEventListener("pointerup", pointerUp);
-    carousel.addEventListener("pointercancel", pointerCancel);
-    disposers.push(() => {
-      carousel.removeEventListener("mouseenter", pause);
-      carousel.removeEventListener("mouseleave", resume);
-      carousel.removeEventListener("focusin", pause);
-      carousel.removeEventListener("focusout", resume);
-      carousel.removeEventListener("pointerdown", pointerDown);
-      carousel.removeEventListener("pointerup", pointerUp);
-      carousel.removeEventListener("pointercancel", pointerCancel);
-    });
     syncCardWidth();
-    const allCards = [...track.querySelectorAll("article")];
-    if ("IntersectionObserver" in window) {
-      const visibilityObserver = new IntersectionObserver((entries) => entries.forEach((entry) => {
-        entry.target.classList.toggle("is-whole", entry.intersectionRatio >= .995);
-      }), { root: viewport, threshold: [.99, .995, 1] });
-      allCards.forEach((card) => visibilityObserver.observe(card));
-      disposers.push(() => visibilityObserver.disconnect());
-    } else {
-      allCards.forEach((card) => card.classList.add("is-whole"));
-    }
     if ("ResizeObserver" in window) {
       const resizeObserver = new ResizeObserver(syncCardWidth);
       resizeObserver.observe(viewport);
       disposers.push(() => resizeObserver.disconnect());
-    }
-    if (!reducedMotion) {
-      const timer = setInterval(() => {
-        if (!paused && !track.classList.contains("is-stepping") && document.visibilityState === "visible") advance(1);
-      }, carouselMotion.interval);
-      timers.add(timer);
-    } else {
-      track.style.transform = "none";
     }
   });
 

@@ -12591,8 +12591,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   line-height:1.8;
 }
 .marketing-home-v3 .marketing-commerce-ecosystem .marketing-v3-heading p:empty{display:none}
-.marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.commerce-store-track article)[data-reveal]{transform:translateY(18px) scale(.97)}
-.marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.commerce-store-track article)[data-reveal].is-visible{opacity:1;transform:none}
+.marketing-home-v3 :is(.marketing-step,.renewal-journey-stage)[data-reveal]{transform:translateY(18px) scale(.97)}
+.marketing-home-v3 :is(.marketing-step,.renewal-journey-stage)[data-reveal].is-visible{opacity:1;transform:none}
 
 .marketing-home-v3 .marketing-steps-section{padding:44px 0 32px}
 .marketing-home-v3 .marketing-steps{
@@ -12816,23 +12816,21 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   position:relative;
   isolation:isolate;
   overflow:clip;
-  padding:52px 0 54px;
-  border-top:1px solid #edf3f2;
-  background:
-    radial-gradient(circle at 12% 32%,rgba(30,166,148,.07),transparent 25%),
-    radial-gradient(circle at 88% 78%,rgba(30,166,148,.055),transparent 24%),
-    #fbfefd;
+  padding:54px 0 58px;
+  border-block:1px solid #edf3f2;
+  background:#fbfdfd;
 }
 .marketing-home-v3 .marketing-commerce-ecosystem::before{
   position:absolute;
   z-index:-1;
   inset:0;
-  background-image:radial-gradient(circle,rgba(17,119,106,.14) 1px,transparent 1.5px);
-  background-size:34px 34px;
+  background:
+    radial-gradient(circle at 7% 54%,rgba(24,159,142,.075),transparent 23%),
+    radial-gradient(circle at 93% 46%,rgba(24,159,142,.06),transparent 22%);
   content:"";
-  opacity:.16;
   pointer-events:none;
 }
+.marketing-home-v3 .marketing-commerce-ecosystem>.container{width:min(1480px,calc(100% - 40px))}
 .marketing-home-v3 .marketing-commerce-ecosystem [data-social-proof-reveal]{
   opacity:0;
   transform:translateY(var(--motion-y,14px)) scale(var(--motion-scale,1));
@@ -12840,104 +12838,77 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   transition-delay:var(--motion-delay,0ms);
 }
 .marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-visible [data-social-proof-reveal]{opacity:1;transform:none}
-.marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading{width:min(100%,860px);margin:0 auto 30px;text-align:center}
-.marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading h2{font-size:clamp(30px,2.5vw,39px);line-height:1.2}
-.marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading p{display:block;max-width:790px;margin:11px auto 0;color:var(--home-lower-muted);font-size:14px;line-height:1.85}
-.marketing-home-v3 .commerce-carousel{--commerce-gap:16px;position:relative;display:grid;grid-template-columns:38px minmax(0,1fr) 38px;align-items:center;gap:11px}
-.marketing-home-v3 .commerce-carousel-window{
+.marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading{width:min(100%,900px);margin:0 auto 30px;text-align:center}
+.marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading h2{font-size:clamp(28px,2.25vw,36px);line-height:1.2}
+.marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading p{display:block;max-width:790px;margin:10px auto 0;color:var(--home-lower-muted);font-size:14px;line-height:1.85}
+.marketing-home-v3 .trusted-brands-marquee{--trusted-brands-gap:22px;position:relative;width:100%}
+.marketing-home-v3 .trusted-brands-viewport{
+  position:relative;
   min-width:0;
   overflow:hidden;
-  padding:16px 10px 24px;
+  padding:14px 0 20px;
   direction:ltr;
+  mask-image:linear-gradient(90deg,transparent 0,#000 5%,#000 95%,transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 5%,#000 95%,transparent 100%);
   touch-action:pan-y;
 }
-.marketing-home-v3 .commerce-carousel-window::-webkit-scrollbar{display:none}
-.marketing-home-v3 .commerce-store-track{display:flex;width:max-content;gap:var(--commerce-gap);direction:ltr;will-change:transform}
-.marketing-home-v3 .commerce-store-track.is-stepping{transition:transform var(--motion-carousel-duration,760ms) var(--motion-carousel-ease,var(--home-lower-ease))}
-.marketing-home-v3 .commerce-store-set{display:flex;flex:0 0 auto;gap:var(--commerce-gap);direction:rtl}
-.marketing-home-v3 .commerce-store-track article{
+.marketing-home-v3 .trusted-brands-viewport::-webkit-scrollbar{display:none}
+.marketing-home-v3 .trusted-brands-track{
+  display:flex;
+  width:max-content;
+  gap:var(--trusted-brands-gap);
+  direction:ltr;
+  transform:translate3d(0,0,0);
+  animation:trustedBrandsMarquee 32s linear infinite;
+  animation-play-state:paused;
+  will-change:transform;
+}
+.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .trusted-brands-track{animation-play-state:running}
+@media (hover:hover) and (pointer:fine){.marketing-home-v3 .trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}}
+.marketing-home-v3 .trusted-brands-set{display:flex;flex:0 0 auto;gap:var(--trusted-brands-gap);direction:ltr}
+.marketing-home-v3 .trusted-brand-card{
   position:relative;
   display:grid;
-  width:var(--commerce-card-width,164px);
-  min-height:132px;
-  flex:0 0 var(--commerce-card-width,164px);
+  width:var(--trusted-brand-card-width,220px);
+  min-height:144px;
+  flex:0 0 var(--trusted-brand-card-width,220px);
   place-items:center;
   align-content:center;
-  gap:13px;
   box-sizing:border-box;
-  padding:18px 12px;
-  border:1px solid var(--home-lower-border);
-  border-radius:18px;
-  background:rgba(255,255,255,.97);
-  box-shadow:0 12px 30px rgba(6,68,62,.065);
+  padding:24px 28px;
+  border:1px solid #e7efed;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 9px 24px rgba(7,68,62,.055);
   opacity:0;
   transform:translateY(var(--motion-y,18px)) scale(var(--motion-scale,.97));
-  transition:opacity var(--motion-duration,680ms) var(--motion-ease,var(--home-lower-ease)),transform var(--motion-duration,680ms) var(--motion-ease,var(--home-lower-ease)),border-color .3s ease,box-shadow .3s ease;
+  transition:opacity var(--motion-duration,680ms) var(--motion-ease,var(--home-lower-ease)),transform var(--motion-duration,680ms) var(--motion-ease,var(--home-lower-ease)),border-color var(--motion-hover-duration,220ms) ease,box-shadow var(--motion-hover-duration,220ms) ease;
   transition-delay:var(--motion-delay,0ms);
   will-change:transform,opacity;
 }
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-visible .commerce-store-track article{transform:none}
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-visible .commerce-store-track article.is-whole{opacity:1}
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .commerce-store-track article{transition:opacity .46s var(--home-lower-ease),transform var(--motion-hover-duration,300ms) var(--motion-hover-ease,var(--home-lower-ease)),border-color .3s ease,box-shadow .3s ease;transition-delay:0ms}
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .commerce-carousel.is-transitioning .commerce-store-track article.is-whole{opacity:.94}
-.marketing-home-v3 .commerce-store-track article::before{position:absolute;top:17px;left:50%;width:68px;height:68px;border-radius:50%;background:radial-gradient(circle,rgba(24,169,151,.085),transparent 70%);content:"";transform:translateX(-50%) scale(.86);opacity:0;transition:opacity .3s ease,transform .3s var(--home-lower-ease)}
-.marketing-home-v3 .commerce-store-track article>span{position:relative;z-index:1;display:grid;width:54px;height:54px;place-items:center;color:var(--home-lower-ink);transition:transform var(--motion-hover-duration,300ms) var(--motion-hover-ease,var(--home-lower-ease))}
-.marketing-home-v3 .commerce-store-track article svg{width:42px;height:42px;stroke-width:1.55}
-.marketing-home-v3 .commerce-store-track article strong{position:relative;z-index:1;color:var(--home-lower-ink);font-size:11px;text-align:center}
-.marketing-home-v3 .commerce-store-track .commerce-brand-card{gap:8px;padding-top:13px;padding-bottom:14px;background:#fff}
-.marketing-home-v3 .commerce-brand-card .commerce-brand-logo{
+.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-visible .trusted-brand-card{opacity:1;transform:none}
+.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .trusted-brand-card{transition:transform var(--motion-hover-duration,220ms) var(--motion-hover-ease,var(--home-lower-ease)),border-color var(--motion-hover-duration,220ms) ease,box-shadow var(--motion-hover-duration,220ms) ease;transition-delay:0ms}
+.marketing-home-v3 .trusted-brand-logo{
   display:flex;
-  width:82px;
-  height:66px;
+  width:112px;
+  height:76px;
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  border:0;
-  border-radius:0;
-  background:transparent;
-  box-shadow:none;
 }
-.marketing-home-v3 .commerce-brand-logo img{display:block;max-width:100%;max-height:100%;object-fit:contain;transition:transform var(--motion-hover-duration,300ms) var(--motion-hover-ease,var(--home-lower-ease))}
-.marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--mlm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:multiply}
-.marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:86px;height:61px}
-.marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo img{width:86px;max-width:none;height:auto}
-.marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,
-.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo,
-.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo{width:60px;height:60px;padding:3px;overflow:visible;box-sizing:border-box}
-.marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo img,
-.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo img,
-.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo img{max-width:100%;max-height:100%;object-fit:contain}
-.marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo img{width:54px;height:54px}
-.marketing-home-v3 :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{padding:7px;transform:translateY(-3px)}
-.marketing-home-v3 :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo img{width:46px;height:46px}
-.marketing-home-v3 .commerce-brand-card--blontix .commerce-brand-logo{width:64px;height:62px}
-.marketing-home-v3 .commerce-brand-card--mlm .commerce-brand-logo{width:96px;height:60px;padding:3px;border-radius:7px;background:#fff}
-.marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:60px;height:60px;border-radius:8px;background:#e58318}
-.marketing-home-v3 .commerce-brand-card:hover .commerce-brand-logo img{transform:scale(var(--motion-hover-logo-scale,1.03))}
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .commerce-store-track article.is-whole:hover{transform:translateY(var(--motion-hover-y,-6px)) scale(var(--motion-hover-scale,1.015));border-color:#9bcfc7;box-shadow:0 20px 42px rgba(6,90,81,.12),0 0 0 1px rgba(44,163,148,.06)}
-.marketing-home-v3 .commerce-store-track article:hover::before{opacity:.9;transform:translateX(-50%) scale(1)}
-.marketing-home-v3 .commerce-carousel-arrow{
-  display:grid;
-  width:34px;
-  height:34px;
-  place-items:center;
-  padding:0;
-  border:1px solid #dce9e6;
-  border-radius:50%;
-  color:#315e59;
-  background:rgba(255,255,255,.95);
-  box-shadow:0 7px 18px rgba(5,70,63,.07);
-  cursor:pointer;
-  opacity:.64;
-  transition:opacity .25s ease,transform .25s var(--home-lower-ease),border-color .25s ease;
-}
-.marketing-home-v3 .commerce-carousel:hover .commerce-carousel-arrow{opacity:1}
-.marketing-home-v3 .commerce-carousel-arrow:hover{border-color:#9dccc5;transform:scale(1.04)}
-.marketing-home-v3 .commerce-carousel-arrow .line-icon{width:16px;height:16px;transform:rotate(90deg)}
-.marketing-home-v3 .commerce-carousel-arrow--next .line-icon{transform:rotate(-90deg)}
-.marketing-home-v3 .commerce-carousel-pagination{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:0}
-.marketing-home-v3 .commerce-carousel-pagination i{display:block;width:6px;height:6px;border-radius:99px;background:#c7ddda;transition:width .32s var(--home-lower-ease),background .32s ease}
-.marketing-home-v3 .commerce-carousel-pagination i.is-active{width:21px;background:var(--home-lower-brand)}
+.marketing-home-v3 .trusted-brand-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;transition:transform var(--motion-hover-duration,220ms) var(--motion-hover-ease,var(--home-lower-ease))}
+.marketing-home-v3 .trusted-brand-card:not(.trusted-brand-card--mlm):not(.trusted-brand-card--alraad) .trusted-brand-logo img{mix-blend-mode:multiply}
+.marketing-home-v3 .trusted-brand-card--advanced-pro .trusted-brand-logo{width:126px;height:78px}
+.marketing-home-v3 .trusted-brand-card--advanced-pro .trusted-brand-logo img{width:126px;max-width:none}
+.marketing-home-v3 :is(.trusted-brand-card--axion,.trusted-brand-card--adovix,.trusted-brand-card--upload) .trusted-brand-logo{width:76px;height:76px;padding:5px;box-sizing:border-box}
+.marketing-home-v3 :is(.trusted-brand-card--adovix,.trusted-brand-card--upload) .trusted-brand-logo{padding:10px}
+.marketing-home-v3 .trusted-brand-card--blontix .trusted-brand-logo{width:82px;height:78px}
+.marketing-home-v3 .trusted-brand-card--mlm .trusted-brand-logo{width:126px;height:76px;padding:4px;border-radius:8px;background:#fff}
+.marketing-home-v3 .trusted-brand-card--alraad .trusted-brand-logo{width:78px;height:78px;border-radius:9px;background:#e58318}
+.marketing-home-v3 .trusted-brand-card:hover .trusted-brand-logo img{transform:scale(var(--motion-hover-logo-scale,1.02))}
+.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .trusted-brand-card:hover{transform:translateY(var(--motion-hover-y,-3px));border-color:#c7ddd9;box-shadow:0 14px 30px rgba(6,84,76,.085)}
+
+@keyframes trustedBrandsMarquee{to{transform:translate3d(var(--trusted-brands-shift),0,0)}}
 
 @keyframes homeApprovedPathDraw{to{stroke-dashoffset:0}}
 @keyframes homeApprovedDataFlow{from{stroke-dashoffset:0;opacity:.9}to{stroke-dashoffset:-1;opacity:.9}}
@@ -13123,8 +13094,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .renewal-journey-marker{width:61px;height:61px}.marketing-home-v3 .renewal-journey-marker .line-icon{width:29px;height:29px}
   .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:47px;height:47px;margin-top:7px}
   .marketing-home-v3 .renewal-journey-stage h3{font-size:10.5px}.marketing-home-v3 .renewal-journey-stage p{padding-inline:4px;font-size:8px}
-  .marketing-home-v3 .commerce-carousel{--commerce-gap:12px;grid-template-columns:34px minmax(0,1fr) 34px;gap:7px}
-  .marketing-home-v3 .commerce-carousel-arrow{width:32px;height:32px}
+  .marketing-home-v3 .trusted-brands-marquee{--trusted-brands-gap:18px}
 }
 
 @media (max-width:640px){
@@ -13151,16 +13121,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:52px;height:52px;margin-top:7px}
   .marketing-home-v3 .renewal-journey-stage h3{font-size:10px}.marketing-home-v3 .renewal-journey-stage p{font-size:7.5px}
   .marketing-home-v3 .marketing-commerce-ecosystem{padding:25px 0 30px}
-  .marketing-home-v3 .commerce-carousel{--commerce-gap:9px;grid-template-columns:30px minmax(0,1fr) 30px;gap:4px}
-  .marketing-home-v3 .commerce-carousel-window{padding-bottom:14px}
-  .marketing-home-v3 .commerce-store-track article{min-height:105px;padding:13px 8px;border-radius:13px}
-  .marketing-home-v3 .commerce-store-track article>span{width:44px;height:44px}.marketing-home-v3 .commerce-store-track article svg{width:34px;height:34px}.marketing-home-v3 .commerce-store-track article strong{font-size:9px}
-  .marketing-home-v3 .commerce-brand-card .commerce-brand-logo{width:66px;height:53px}
-  .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:72px;height:52px}
-  .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:48px;height:48px}
-  .marketing-home-v3 .commerce-brand-card--mlm .commerce-brand-logo{width:76px;height:48px}
-  .marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:49px;height:49px}
-  .marketing-home-v3 .commerce-carousel-arrow{width:29px;height:29px}.marketing-home-v3 .commerce-carousel-arrow .line-icon{width:14px;height:14px}
+  .marketing-home-v3 .trusted-brands-marquee{--trusted-brands-gap:14px}
+  .marketing-home-v3 .trusted-brands-viewport{padding-block:10px 16px}
+  .marketing-home-v3 .trusted-brand-card{min-height:126px;padding:20px;border-radius:18px}
+  .marketing-home-v3 .trusted-brand-logo{width:96px;height:68px}
 }
 
 /* Support center layout refinement and plan-aware Renvix Intelligence chat. */
@@ -13296,45 +13260,58 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .marketing-step-icon,
   .marketing-home-v3 .renewal-journey-marker,
   .marketing-home-v3 .renewal-journey-marker .line-icon,
-  .marketing-home-v3 .commerce-store-set article{animation:none!important}
-  .marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.commerce-store-track article){transition:opacity .3s ease!important;transform:none!important}
+  .marketing-home-v3 .trusted-brands-track{animation:none!important}
+  .marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.trusted-brand-card){transition:opacity .3s ease!important;transform:none!important}
   .marketing-home-v3 .marketing-commerce-ecosystem [data-social-proof-reveal]{opacity:1!important;transform:none!important;transition:opacity .2s ease!important}
-  .marketing-home-v3 .commerce-store-track{transform:none!important;transition:none!important}
-  .marketing-home-v3 .commerce-store-track article:hover,.marketing-home-v3 .commerce-brand-card:hover .commerce-brand-logo img{transform:none!important}
+  .marketing-home-v3 .trusted-brands-viewport{overflow-x:auto;mask-image:none;-webkit-mask-image:none}
+  .marketing-home-v3 .trusted-brands-track{transform:none!important;transition:none!important}
+  .marketing-home-v3 .trusted-brand-card:hover,.marketing-home-v3 .trusted-brand-card:hover .trusted-brand-logo img{transform:none!important}
 }
 
 :root[data-theme="dark"] .marketing-home-v3{--home-lower-ink:#eef9f7;--home-lower-muted:#a7bdb8;--home-lower-border:#28544d}
 :root[data-theme="dark"] .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem){background:#071f1c}
-:root[data-theme="dark"] .marketing-home-v3 :is(.marketing-step-card,.commerce-store-track article){background:#0b302c}
+:root[data-theme="dark"] .marketing-home-v3 .marketing-step-card{background:#0b302c}
 :root[data-theme="dark"] .marketing-home-v3 .marketing-step-card::before{border-color:rgba(135,222,209,.055)}
-:root[data-theme="dark"] .marketing-home-v3 .commerce-carousel-arrow{color:#dcece8;border-color:#28544d;background:#0b302c}
-:root[data-theme="dark"] .marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--mlm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:normal}
-:root[data-theme="dark"] .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card{border-color:#dce9e6;background:#fff}
-:root[data-theme="dark"] .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card strong{color:#0b4b45}
+:root[data-theme="dark"] .marketing-home-v3 .trusted-brand-card:not(.trusted-brand-card--mlm):not(.trusted-brand-card--alraad) .trusted-brand-logo img{mix-blend-mode:normal}
+:root[data-theme="dark"] .marketing-home-v3 .marketing-commerce-ecosystem .trusted-brand-card{border-color:#dce9e6;background:#fff}
+
+@media (min-width:1200px) and (max-width:1439px){
+  .marketing-home-v3 .marketing-commerce-ecosystem>.container{width:min(1240px,calc(100% - 40px))}
+}
+
+@media (min-width:992px) and (max-width:1199px){
+  .marketing-home-v3 .marketing-commerce-ecosystem>.container{width:min(960px,calc(100% - 40px))}
+}
+
+@media (min-width:768px) and (max-width:991px){
+  .marketing-home-v3 .marketing-commerce-ecosystem>.container{width:min(740px,calc(100% - 40px))}
+}
+
+@media (min-width:480px) and (max-width:767px){
+  .marketing-home-v3 .marketing-commerce-ecosystem>.container{width:min(460px,calc(100% - 32px))}
+}
 
 @media (min-width:641px) and (max-width:1100px){
   .marketing-home-v3 .marketing-commerce-ecosystem{padding:46px 0 48px}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading{margin-bottom:26px}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading h2{font-size:30px}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading p{max-width:690px;font-size:13px}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-window{padding:14px 8px 22px}
+  .marketing-home-v3 .trusted-brands-viewport{padding-block:12px 18px}
 }
 
 @media (max-width:640px){
   .marketing-home-v3 .marketing-commerce-ecosystem{padding:38px 0 36px}
+  .marketing-home-v3 .marketing-commerce-ecosystem>.container{width:min(460px,calc(100% - 32px))}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading{margin-bottom:22px}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading h2{font-size:24px;line-height:1.28}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-proof-heading p{display:block;max-width:340px;margin-top:9px;font-size:11.5px;line-height:1.75}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-window{padding:12px 34px 18px}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-arrow{position:absolute;z-index:4;top:64px;width:29px;height:29px}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-arrow--previous{left:0}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-arrow--next{right:0}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-pagination{grid-column:1;margin-top:3px}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-store-track article{min-height:110px}
-  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--axion,.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{width:50px;height:50px}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card--axion .commerce-brand-logo{padding:3px}
-  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card--axion .commerce-brand-logo img{width:44px;height:44px}
-  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{padding:7px;transform:translateY(-2px)}
-  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo img{width:36px;height:36px}
+  .marketing-home-v3 .trusted-brands-marquee{--trusted-brands-gap:14px}
+  .marketing-home-v3 .trusted-brand-card{min-height:126px;padding:20px;border-radius:18px}
+}
+
+@media (max-width:479px){
+  .marketing-home-v3 .marketing-commerce-ecosystem>.container{width:calc(100% - 32px)}
+  .marketing-home-v3 .trusted-brands-viewport{width:min(100%,266px);margin-inline:auto}
+  .marketing-home-v3 .trusted-brand-card{min-height:122px;padding:18px;border-radius:17px}
+  .marketing-home-v3 .trusted-brand-logo{width:92px;height:64px}
 }
