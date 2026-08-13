@@ -94,5 +94,8 @@ describe("public page cleanup and pricing comparison", () => {
     expect(styles).toContain("homeJourneyPathReveal");
     expect(styles).toContain("homeJourneySendDrift");
     expect(styles).toContain(".marketing-home-v3 .trusted-brands-track{");
+    expect(styles).toContain("animation:trustedBrandsMarquee 32s linear infinite;\n  animation-play-state:running");
+    expect(styles).toContain(".trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}");
+    expect(app).toContain("}, 1600)");
   });
 });

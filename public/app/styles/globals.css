@@ -12859,10 +12859,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   direction:ltr;
   transform:translate3d(0,0,0);
   animation:trustedBrandsMarquee 32s linear infinite;
-  animation-play-state:paused;
+  animation-play-state:running;
   will-change:transform;
 }
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .trusted-brands-track{animation-play-state:running}
 @media (hover:hover) and (pointer:fine){.marketing-home-v3 .trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}}
 .marketing-home-v3 .trusted-brands-set{display:flex;flex:0 0 auto;gap:var(--trusted-brands-gap);direction:ltr}
 .marketing-home-v3 .trusted-brand-card{
