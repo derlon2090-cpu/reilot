@@ -28,5 +28,15 @@ describe("current pricing catalog renderer", () => {
       expect(markup).toContain("globals.css?v=20260813-trusted-brands-v119");
       expect(markup).toContain("app.js?v=20260813-trusted-brands-v119");
     }
+    const assetVersions = (markup: string) => ({
+      styles: markup.match(/globals\.css\?v=([^"']+)/)?.[1],
+      app: markup.match(/app\.js\?v=([^"']+)/)?.[1]
+    });
+    const nextVersions = assetVersions(rootLayout);
+    const staticVersions = assetVersions(staticIndex);
+    expect(nextVersions.styles).toBeTruthy();
+    expect(nextVersions.app).toBeTruthy();
+    expect(nextVersions.styles).toBe(nextVersions.app);
+    expect(staticVersions).toEqual(nextVersions);
   });
 });

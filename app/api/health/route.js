@@ -4,6 +4,7 @@ import { safeErrorMessage } from "../../../src/server/security.js";
 import { authSchemaHealth } from "../../../src/server/auth-schema-readiness.js";
 import { resendProviderHealth } from "../../../src/lib/email/resend.js";
 import { mfaChallengeSigningConfigured } from "../../../src/server/login-mfa.js";
+import { objectStorageHealth } from "../../../src/server/attachments/object-storage.js";
 
 export async function GET() {
   const policy = {
@@ -36,7 +37,15 @@ export async function GET() {
     },
     emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
     mfaChallenge: { required: policy.secondFactorRequired, signingKeyConfigured: mfaChallengeReady, ok: !policy.secondFactorRequired || mfaChallengeReady },
+    objectStorage: { configured: false, ok: false },
     evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false, endpoint: evolutionEndpointProfile() }
+  };
+  const objectStorage = await objectStorageHealth();
+  checks.objectStorage = {
+    configured: objectStorage.objectStorage !== "unconfigured",
+    ok: objectStorage.objectStorage === "healthy",
+    status: objectStorage.objectStorage,
+    ...(objectStorage.error ? { error: objectStorage.error } : {})
   };
   try {
     checks.database = await databaseHealth();

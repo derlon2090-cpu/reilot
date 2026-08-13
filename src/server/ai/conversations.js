@@ -1,5 +1,5 @@
-import { del } from "@vercel/blob";
 import { query, transaction } from "../db.js";
+import { deleteObjectsForConversation } from "../attachments/service.js";
 
 function compactTitle(value = "") {
   const normalized = String(value).replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
@@ -84,23 +84,15 @@ export async function updateAIConversation(session, conversationId, input = {}) 
 export async function deleteAIConversation(session, conversationId) {
   const deleted = await transaction(async (client) => {
     const scoped = await client.query(
-      `SELECT c.id,c.title,
-         ARRAY(SELECT DISTINCT attachment->>'path'
-           FROM ai_messages m CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
-          WHERE m.conversation_id=c.id AND COALESCE(attachment->>'path','') <> '') AS paths
-       FROM ai_conversations c
+      `SELECT c.id,c.title FROM ai_conversations c
        WHERE c.id=$1 AND c.tenant_id=$2 AND c.user_id=$3 FOR UPDATE`,
       [conversationId, session.tenantId, session.userId]
     );
     if (!scoped.rows[0]) throw Object.assign(new Error("المحادثة غير موجودة."), { status: 404 });
-    await client.query(
-      "DELETE FROM ai_conversations WHERE id=$1 AND tenant_id=$2 AND user_id=$3",
-      [conversationId, session.tenantId, session.userId]
-    );
     return scoped.rows[0];
   });
-  const paths = (deleted.paths || []).filter(Boolean);
-  if (paths.length && process.env.BLOB_READ_WRITE_TOKEN) await del(paths).catch(() => null);
+  await deleteObjectsForConversation(session, conversationId);
+  await query("DELETE FROM ai_conversations WHERE id=$1 AND tenant_id=$2 AND user_id=$3", [conversationId, session.tenantId, session.userId]);
   return { id: deleted.id, title: deleted.title, status: "deleted" };
 }
 

@@ -9,9 +9,12 @@ describe("cleanup cron", () => {
 
   it("exposes a protected route", async () => {
     process.env.CRON_SECRET = "cron-secret";
+    const databaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
     const response = await GET(new Request("https://renew.test/api/cron/cleanup", {
       headers: { authorization: "Bearer cron-secret" }
     }));
+    if (databaseUrl) process.env.DATABASE_URL = databaseUrl;
 
     expect(response.status).toBe(200);
   });

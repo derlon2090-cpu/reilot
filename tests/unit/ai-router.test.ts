@@ -28,9 +28,25 @@ describe("Renvix AI request routing", () => {
       intent: "deep_analysis",
       modelTier: "pro",
       thinking: "enabled",
-      reasoningEffort: "max",
+      reasoningEffort: "high",
       useTools: true
     });
+  });
+
+  it("uses Flash thinking for a medium image-assisted analysis", () => {
+    expect(classifyAIRequest({
+      prompt: "ليش أداء الحملة منخفض؟",
+      attachments: [{ purpose: "image" }]
+    })).toMatchObject({
+      modelTier: "flash",
+      thinking: "enabled",
+      reasoningEffort: "low"
+    });
+  });
+
+  it("escalates a prior quality failure without escalating a technical retry", () => {
+    expect(classifyAIRequest({ prompt: "راجع النتيجة", previousFailure: "quality" }).thinking).toBe("enabled");
+    expect(classifyAIRequest({ prompt: "راجع النتيجة", previousFailure: "technical" }).thinking).toBe("disabled");
   });
 
   it("marks sensitive actions for explicit confirmation", () => {

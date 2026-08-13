@@ -1,7 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
-import { DeepSeekProvider } from "../../src/server/ai/provider.js";
+import { DeepSeekProvider, deepSeekEnvironmentStatus } from "../../src/server/ai/provider.js";
 
 describe("DeepSeekProvider", () => {
+  it("requires the server-only key and rejects public DeepSeek variable names", () => {
+    expect(deepSeekEnvironmentStatus({ DEEPSEEK_API_KEY: "server-secret" })).toMatchObject({
+      configured: true,
+      serverOnly: true,
+      missingVariables: [],
+      forbiddenPublicVariables: []
+    });
+    expect(deepSeekEnvironmentStatus({ NEXT_PUBLIC_DEEPSEEK_API_KEY: "public-secret" })).toMatchObject({
+      configured: false,
+      serverOnly: false,
+      missingVariables: ["DEEPSEEK_API_KEY"],
+      forbiddenPublicVariables: ["NEXT_PUBLIC_DEEPSEEK_API_KEY"]
+    });
+  });
+
   it("keeps the provider contract behind the configured endpoint", async () => {
     const fetchImpl = vi.fn(async (_url, options) => new Response(JSON.stringify({
       choices: [{ message: { role: "assistant", content: "تم" } }],

@@ -50,11 +50,12 @@ describe("AI chat storage cleanup selection", () => {
     const [chatStorage, tenantStorage, migration] = await Promise.all([
       readFile("src/server/ai/storage.js", "utf8"),
       readFile("src/server/tenant-storage.js", "utf8"),
-      readFile("drizzle/0077_ai_attachment_storage_bytes.sql", "utf8")
+      readFile("drizzle/0087_ai_attachment_storage_reconciliation.sql", "utf8")
     ]);
-    expect(chatStorage).toContain("jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb))");
-    expect(tenantStorage).toContain('table === "ai_messages"');
-    expect(migration).toContain("TG_TABLE_NAME = 'ai_messages'");
-    expect(migration).toContain("durable AI attachment bytes");
+    expect(chatStorage).toContain("SELECT sum(a.size_bytes) FROM ai_attachments a");
+    expect(tenantStorage).toContain('table === "ai_attachments"');
+    expect(tenantStorage).toContain("pg_column_size(record) + record.size_bytes");
+    expect(migration).toContain("TG_TABLE_NAME = 'ai_attachments'");
+    expect(migration).toContain("each private R2 object size exactly once");
   });
 });

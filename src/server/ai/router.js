@@ -20,7 +20,11 @@ export function classifyAIRequest({
   prompt = "",
   conversationMessages = [],
   attachments = [],
-  accountContextEnabled = true
+  accountContextEnabled = true,
+  estimatedToolCount = 0,
+  previousFailure = null,
+  confidence = "high",
+  riskLevel = "low"
 } = {}) {
   const text = String(prompt).trim();
   const dataRequested = accountContextEnabled && ACCOUNT_DATA_PATTERN.test(text);
@@ -28,16 +32,30 @@ export function classifyAIRequest({
   const domainCount = countDomains(text);
   let complexityScore = 0;
 
-  if (DEEP_ANALYSIS_PATTERN.test(text)) complexityScore += 3;
-  if (CAUSAL_PATTERN.test(text) && dataRequested) complexityScore += 1;
-  if (COMPARISON_PATTERN.test(text)) complexityScore += 1;
-  if (domainCount >= 3) complexityScore += 2;
-  else if (domainCount === 2) complexityScore += 1;
-  if (text.length >= 900) complexityScore += 1;
-  if (Array.isArray(conversationMessages) && conversationMessages.length >= 12) complexityScore += 1;
-  if (Array.isArray(attachments) && attachments.length >= 2) complexityScore += 1;
+  if (DEEP_ANALYSIS_PATTERN.test(text)) complexityScore += 45;
+  if (CAUSAL_PATTERN.test(text) && dataRequested) complexityScore += 12;
+  if (COMPARISON_PATTERN.test(text)) complexityScore += 12;
+  if (domainCount >= 3) complexityScore += 20;
+  else if (domainCount === 2) complexityScore += 10;
+  if (text.length >= 900) complexityScore += 10;
+  if (Array.isArray(conversationMessages) && conversationMessages.length >= 12) complexityScore += 8;
+  if (Array.isArray(attachments) && attachments.length) complexityScore += attachments.length >= 2 ? 30 : 24;
+  complexityScore += Math.min(24, Math.max(0, Number(estimatedToolCount || 0)) * 8);
+  if (previousFailure === "quality") complexityScore += 70;
+  if (confidence === "low") complexityScore += 20;
+  if (riskLevel === "high") complexityScore += 15;
+  complexityScore = Math.min(100, complexityScore);
 
-  const deepAnalysis = complexityScore >= 3;
+  const deepAnalysis = complexityScore >= 66;
+  const thinking = complexityScore >= 36;
+  const modelTier = deepAnalysis ? "pro" : "flash";
+  const reasoningEffort = complexityScore >= 86
+    ? "max"
+    : complexityScore >= 51
+      ? "high"
+      : thinking
+        ? "low"
+        : null;
   return Object.freeze({
     intent: requiresConfirmation
       ? "sensitive_action"
@@ -46,11 +64,11 @@ export function classifyAIRequest({
         : dataRequested
           ? "account_query"
           : "general_chat",
-    modelTier: deepAnalysis ? "pro" : "flash",
-    thinking: deepAnalysis ? "enabled" : "disabled",
-    reasoningEffort: deepAnalysis ? "max" : null,
+    modelTier,
+    thinking: thinking ? "enabled" : "disabled",
+    reasoningEffort,
     useTools: dataRequested,
-    maxToolIterations: deepAnalysis ? 6 : 3,
+    maxToolIterations: complexityScore >= 86 ? 8 : deepAnalysis ? 6 : thinking ? 4 : 3,
     requiresConfirmation,
     complexityScore
   });

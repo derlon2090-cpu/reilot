@@ -33,9 +33,10 @@ describe("dashboard profile and support layout", () => {
     expect(appSource).toContain("state.supportTicket = payload.item || null");
     expect(appSource).toContain('data-action="support-close"');
     expect(appSource).toContain('/api/support/tickets/${encodeURIComponent(id)}/close');
-    expect(appSource).toContain('class="support-ticket-row-head"');
+    expect(appSource).toContain('class="rvx-ticket-tr rvx-ticket-th"');
+    expect(appSource).toContain('class="rvx-ticket-tr" data-action="support-open"');
     expect(appSource).toContain("رقم التذكرة");
-    expect(styles).toContain(".support-ticket-row:hover,.support-ticket-row:focus-visible");
-    expect(styles).toContain("transform:none!important");
+    expect(styles).toContain(".rvx-ticket-tr:not(.rvx-ticket-th):hover");
+    expect(styles).toContain(".rvx-ticket-th");
   });
 });

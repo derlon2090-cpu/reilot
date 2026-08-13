@@ -38,7 +38,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
 
   it("keeps the MFA switch tied to persisted server state", () => {
     const settingsStart = appSource.indexOf("function settingsPage");
-    const settingsEnd = appSource.indexOf("function settingToggle", settingsStart);
+    const settingsEnd = appSource.indexOf("function notificationSettingToggle", settingsStart);
     const settingsPage = appSource.slice(settingsStart, settingsEnd);
     expect(settingsPage).toContain("if (state.accountSettings === null)");
     expect(settingsPage.indexOf("if (state.accountSettings === null)")).toBeLessThan(settingsPage.indexOf("const remote = state.accountSettings.settings"));

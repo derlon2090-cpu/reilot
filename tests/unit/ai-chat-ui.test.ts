@@ -62,18 +62,35 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-conversation-menu");
   });
 
-  it("uploads and previews real chat attachments with a clean focus state", async () => {
+  it("separates image, file and voice controls and uploads through private presigned R2", async () => {
     const [source, css, uploadRoute] = await Promise.all([
       readFile("src/app/app.js", "utf8"),
       readFile("src/styles/globals.css", "utf8"),
       readFile("app/api/ai/conversations/[conversationId]/attachments/route.js", "utf8")
     ]);
-    expect(source).toContain('data-action="ai-add-attachment"');
+    expect(source).toContain('data-action="ai-add-image"');
+    expect(source).toContain('name="images" type="file" multiple accept="image/png,image/jpeg,image/webp"');
+    expect(source).toContain('name="files" type="file" multiple accept=".pdf,.txt,.log,application/pdf,text/plain"');
+    expect(source).toContain('data-action="ai-record-audio"');
+    expect(source).toContain("navigator.mediaDevices.getUserMedia");
+    expect(source).toContain("new MediaRecorder");
+    expect(source).toContain('data-ai-recording-time');
     expect(source).toContain("function uploadAIAttachments");
     expect(source).toContain("rvx-ai-attachment-preview");
     expect(css).toContain(".rvx-ai-composer textarea:focus-visible");
-    expect(uploadRoute).toContain('access: "public"');
-    expect(uploadRoute).toContain("getAIConversation(auth.session, conversationId)");
+    expect(uploadRoute).toContain("createAttachmentUpload");
+    expect(uploadRoute).not.toContain('access: "public"');
+    expect(source).toContain("prepared.upload.url");
+    expect(source).toContain("/complete");
+    expect(source).toContain("/process");
+  });
+
+  it("exposes professional media privacy settings", async () => {
+    const source = await readFile("src/app/app.js", "utf8");
+    expect(source).toContain('name="imageAnalysisEnabled"');
+    expect(source).toContain('name="audioTranscriptionEnabled"');
+    expect(source).toContain("تحليل الصور المرفوعة");
+    expect(source).toContain("تحويل الرسائل الصوتية");
   });
 
   it("paces streamed copy and follows only the inner message viewport", async () => {
@@ -114,5 +131,20 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain("min-width:max-content;margin-inline-start:8px;direction:ltr");
     expect(css).toContain(".rvx-ai-conversation-item.active{border-color:#b8ddd7;background:#e9f7f4;box-shadow:none}");
     expect(css).not.toContain("box-shadow:inset 3px 0 0 #0b776c");
+  });
+
+  it("shows refill-to-cap balance and calm threshold states without provider internals", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(source).toContain("رصيد الذكاء");
+    expect(source).toContain("يتجدد إلى");
+    expect(source).toContain("لا توجد تعبئة خامسة");
+    expect(source).toContain("usage.warningLevel");
+    expect(css).toContain(".rvx-ai-usage-card.is-warning");
+    expect(css).toContain(".rvx-ai-usage-card.is-critical");
+    const card = source.slice(source.indexOf("function aiUsageCard()"), source.indexOf("function aiConversationItemsMarkup"));
+    expect(card).not.toMatch(/deepseek|cache hit|provider cost|flash thinking/i);
   });
 });

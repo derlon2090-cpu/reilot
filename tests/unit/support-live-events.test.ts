@@ -79,6 +79,26 @@ describe("live support events", () => {
     expect(output).toContain('"ticketId":"ticket-1"');
   });
 
+  it("rotates the stream before the hosting timeout and releases its subscription", async () => {
+    const unsubscribe = vi.fn();
+    const response = createSupportEventStream(
+      new Request("http://localhost/api/support/events"),
+      async () => "stable",
+      { pollMs: 30_000, maxDurationMs: 60, subscribe: () => unsubscribe }
+    );
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let output = "";
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      output += decoder.decode(chunk.value);
+    }
+    expect(output).toContain("event: support-ready");
+    expect(output).toContain("event: support-reconnect");
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it("publishes support changes through PostgreSQL NOTIFY inside the write transaction", async () => {
     const client = { query: vi.fn().mockResolvedValue({ rows: [] }) };
     await publishSupportChange(client, { kind: "message", ticketId: "ticket-1" });

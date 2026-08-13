@@ -9,9 +9,12 @@ describe("message retry cron", () => {
 
   it("keeps protected route behind CRON_SECRET", async () => {
     process.env.CRON_SECRET = "cron-secret";
+    const databaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
     const response = await GET(new Request("https://renew.test/api/cron/message-retry", {
       headers: { authorization: "Bearer cron-secret" }
     }));
+    if (databaseUrl) process.env.DATABASE_URL = databaseUrl;
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ job: "message-retry" });

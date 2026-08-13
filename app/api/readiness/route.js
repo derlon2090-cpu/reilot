@@ -4,10 +4,13 @@ import { evolutionHealth } from "../../../src/server/evolution-client.js";
 import { recordOperationalIssue } from "../../../src/server/operations.js";
 import { requireSession } from "../../../src/server/session.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
+import { objectStorageHealth } from "../../../src/server/attachments/object-storage.js";
 
 const requiredEnvironment = [
   "DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "JWT_SECRET", "CRON_SECRET", "ENCRYPTION_KEY",
-  "EVOLUTION_API_URL", "EVOLUTION_API_KEY", "EVOLUTION_WEBHOOK_SECRET"
+  "EVOLUTION_API_URL", "EVOLUTION_API_KEY", "EVOLUTION_WEBHOOK_SECRET",
+  "DEEPSEEK_API_KEY",
+  "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"
 ];
 
 async function buildReport(req, testEmail) {
@@ -15,6 +18,13 @@ async function buildReport(req, testEmail) {
   if (!auth.ok) return auth;
   const tenantId = auth.session.tenantId;
   const statuses = {};
+
+  const objectStorage = await objectStorageHealth();
+  statuses.objectStorage = {
+    ok: objectStorage.objectStorage === "healthy",
+    label: objectStorage.objectStorage,
+    ...(objectStorage.error ? { error: objectStorage.error } : {})
+  };
 
   try {
     const startedAt = Date.now();
