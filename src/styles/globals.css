@@ -12526,14 +12526,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   position:relative;
   z-index:5;
   width:min(100%,780px);
-  margin:0 auto 22px;
+  margin:0 auto 15px;
   text-align:center;
 }
 .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading[data-reveal]{opacity:1;transform:none;transition:none}
 .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey,.marketing-commerce-ecosystem) .marketing-v3-heading h2{
   margin:0;
   color:var(--home-lower-ink);
-  font-size:clamp(27px,2.25vw,36px);
+  font-size:clamp(25px,2vw,30px);
   line-height:1.25;
   letter-spacing:-.025em;
 }
@@ -12548,15 +12548,15 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.commerce-store-track article)[data-reveal]{transform:translateY(18px) scale(.97)}
 .marketing-home-v3 :is(.marketing-step,.renewal-journey-stage,.commerce-store-track article)[data-reveal].is-visible{opacity:1;transform:none}
 
-.marketing-home-v3 .marketing-steps-section{padding:66px 0 48px}
+.marketing-home-v3 .marketing-steps-section{padding:44px 0 32px}
 .marketing-home-v3 .marketing-steps{
   position:relative;
   display:grid;
-  min-height:330px;
+  min-height:270px;
   grid-template-columns:repeat(4,minmax(0,1fr));
   align-items:start;
-  gap:72px;
-  padding:38px 34px 18px;
+  gap:58px;
+  padding:32px 24px 12px;
 }
 .marketing-home-v3 .marketing-step-route{
   position:absolute;
@@ -12564,7 +12564,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   top:0;
   right:2%;
   width:96%;
-  height:138px;
+  height:118px;
+.marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey)>.container{
+  width:min(1120px,calc(100% - 56px));
+}
   overflow:visible;
   pointer-events:none;
 }
@@ -12577,7 +12580,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .is-running .home-lower-route-draw,
 .marketing-home-v3 .marketing-renewal-journey.is-in-view .home-lower-route-draw{animation:homeApprovedPathDraw 2.8s var(--home-lower-ease) .18s forwards}
 .marketing-home-v3 .is-running .home-lower-route-flow{animation:homeApprovedDataFlow 5.8s linear 2.65s infinite}
-.marketing-home-v3 .marketing-renewal-journey.is-in-view .home-lower-route-flow{animation:homeApprovedDataFlow 7.8s linear 1.8s infinite}
+.marketing-home-v3 .marketing-renewal-journey.is-in-view .home-lower-route-flow{animation:homeApprovedJourneyDataFlow 9.2s linear 1.25s infinite}
 .marketing-home-v3 .marketing-step{
   position:relative;
   z-index:2;
@@ -12617,12 +12620,16 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .marketing-step-card{
   position:relative;
   display:flex;
-  min-height:222px;
+.marketing-home-v3 .renewal-journey-route .home-lower-route-base{stroke:#b8dfda;stroke-width:1.35;stroke-dasharray:none}
+.marketing-home-v3 .renewal-journey-route .home-lower-route-draw{stroke-width:1.65;opacity:.75}
+.marketing-home-v3 .renewal-journey-route .home-lower-route-flow{stroke:#087f74;stroke-width:3.4;stroke-dasharray:.004 .116;filter:drop-shadow(0 0 2px rgba(8,127,116,.32))}
+.marketing-home-v3 .marketing-step-route .home-lower-route-draw{stroke-width:1.5;stroke-dasharray:.012 .014;opacity:.68}
+  min-height:194px;
   align-items:center;
   flex-direction:column;
-  padding:55px 22px 24px;
+  padding:48px 16px 20px;
   border:1px solid var(--home-lower-border);
-  border-radius:20px;
+  border-radius:18px;
   background:rgba(255,255,255,.96);
   box-shadow:0 13px 32px rgba(7,67,61,.07);
   transition:transform .38s var(--home-lower-ease),border-color .3s ease,box-shadow .3s ease;
@@ -12639,17 +12646,17 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   position:relative;
   z-index:1;
   display:grid;
-  width:60px;
-  height:60px;
+  width:54px;
+  height:54px;
   place-items:center;
   color:var(--home-lower-ink);
   border-radius:50%;
   background:radial-gradient(circle,#fff 36%,#eff9f7 100%);
   transition:transform .35s var(--home-lower-ease),filter .35s ease;
 }
-.marketing-home-v3 .marketing-step-icon .line-icon{width:40px;height:40px;stroke-width:1.65}
-.marketing-home-v3 .marketing-step h3{position:relative;z-index:1;margin:15px 0 0;color:var(--home-lower-ink);font-size:16px;font-weight:900}
-.marketing-home-v3 .marketing-step p{position:relative;z-index:1;max-width:220px;margin:9px auto 0;color:var(--home-lower-muted);font-size:10px;line-height:1.8}
+.marketing-home-v3 .marketing-step-icon .line-icon{width:36px;height:36px;stroke-width:1.65}
+.marketing-home-v3 .marketing-step h3{position:relative;z-index:1;margin:13px 0 0;color:var(--home-lower-ink);font-size:14px;font-weight:900}
+.marketing-home-v3 .marketing-step p{position:relative;z-index:1;max-width:205px;margin:8px auto 0;color:var(--home-lower-muted);font-size:9px;line-height:1.75}
 .marketing-home-v3 .marketing-step-ground{
   position:absolute;
   z-index:-1;
@@ -12666,12 +12673,12 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .marketing-step:not(:last-child)::after{
   position:absolute;
   z-index:6;
-  top:116px;
-  left:-48px;
+  top:101px;
+  left:-41px;
   color:#285f5a;
-  content:"\2039\2039";
-  font:500 35px/1 Arial,sans-serif;
-  letter-spacing:-9px;
+  content:"\00AB";
+  font:500 30px/1 Arial,sans-serif;
+  letter-spacing:0;
   opacity:.9;
 }
 .marketing-home-v3 .marketing-step.is-visible:hover .marketing-step-card,
@@ -12686,22 +12693,22 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .marketing-step--link:hover .marketing-step-icon{animation:homeApprovedLinkHover .62s var(--home-lower-ease) both}
 .marketing-home-v3 .marketing-step--settings:hover .marketing-step-icon{animation:homeApprovedSettingsHover .72s var(--home-lower-ease) both}
 .marketing-home-v3 .marketing-step--rocket .marketing-step-icon{overflow:visible;background:radial-gradient(circle,#fff 28%,#edf9f7 100%)}
-.marketing-home-v3 .marketing-step--rocket .marketing-step-icon .line-icon{width:45px;height:45px;stroke-width:1.55}
+.marketing-home-v3 .marketing-step--rocket .marketing-step-icon .line-icon{width:40px;height:40px;stroke-width:1.55}
 .marketing-home-v3 .marketing-step--rocket .marketing-step-icon::after{position:absolute;left:8px;bottom:10px;width:11px;height:6px;border-radius:70% 12% 70% 12%;background:linear-gradient(90deg,rgba(11,139,126,0),#25bba7);content:"";transform:rotate(-43deg) scaleX(.55);transform-origin:right center;opacity:0}
 .marketing-home-v3 .marketing-step--rocket:hover .marketing-step-icon{animation:homeApprovedRocketHover .72s var(--home-lower-ease) both}
 .marketing-home-v3 .marketing-step--rocket:hover .marketing-step-icon::after{animation:homeApprovedRocketFlame .72s ease-out both}
 
-.marketing-home-v3 .marketing-renewal-journey{padding:24px 0 48px}
+.marketing-home-v3 .marketing-renewal-journey{padding:18px 0 30px}
 .marketing-home-v3 .renewal-journey-flow{
   position:relative;
   display:grid;
-  min-height:260px;
+  min-height:206px;
   grid-template-columns:repeat(5,minmax(0,1fr));
   align-items:start;
-  gap:30px;
-  padding:34px 20px 0;
+  gap:22px;
+  padding:27px 15px 0;
 }
-.marketing-home-v3 .renewal-journey-route{position:absolute;z-index:0;top:5px;right:2%;width:96%;height:122px;overflow:visible;pointer-events:none}
+.marketing-home-v3 .renewal-journey-route{position:absolute;z-index:0;top:3px;right:2%;width:96%;height:91px;overflow:visible;pointer-events:none}
 .marketing-home-v3 .renewal-journey-stage{
   position:relative;
   z-index:2;
@@ -12716,25 +12723,26 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .marketing-home-v3 .renewal-journey-marker{
   position:relative;
+  transform:scaleX(-1);
   display:grid;
-  width:84px;
-  height:84px;
+  width:64px;
+  height:64px;
   place-items:center;
   border:1px solid #d7ece8;
   border-radius:50%;
   color:#fff;
   background:linear-gradient(145deg,#0b8b7d,#08655d);
-  box-shadow:0 0 0 9px rgba(37,183,163,.055),0 12px 28px rgba(7,96,87,.13);
+  box-shadow:0 0 0 7px rgba(37,183,163,.055),0 10px 23px rgba(7,96,87,.13);
   transition:transform .35s var(--home-lower-ease),box-shadow .35s ease;
 }
-.marketing-home-v3 .renewal-journey-marker::before{position:absolute;inset:-15px;border:1px solid rgba(20,168,150,.1);border-radius:50%;content:""}
-.marketing-home-v3 .renewal-journey-marker .line-icon{width:39px;height:39px;stroke-width:1.55}
-.marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:62px;height:62px;margin-top:11px;border:6px solid #eaf8f5;font-size:15px;font-weight:900}
-.marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker::before{inset:-11px}
-.marketing-home-v3 .renewal-journey-marker>b{position:absolute;top:calc(100% + 10px);font-size:10px;color:#38655f}
-.marketing-home-v3 .renewal-journey-stage h3{margin:22px 0 0;color:var(--home-lower-ink);font-size:13px;font-weight:900}
-.marketing-home-v3 .renewal-journey-stage--number h3{margin-top:33px}
-.marketing-home-v3 .renewal-journey-stage p{max-width:220px;margin:8px auto 0;color:var(--home-lower-muted);font-size:9.5px;line-height:1.75}
+.marketing-home-v3 .renewal-journey-marker::before{position:absolute;inset:-11px;border:1px solid rgba(20,168,150,.1);border-radius:50%;content:""}
+.marketing-home-v3 .renewal-journey-marker .line-icon{width:31px;height:31px;stroke-width:1.55}
+.marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:49px;height:49px;margin-top:8px;border:5px solid #eaf8f5;font-size:12px;font-weight:900}
+.marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker::before{inset:-9px}
+.marketing-home-v3 .renewal-journey-marker>b{position:absolute;top:calc(100% + 8px);font-size:9px;color:#38655f}
+.marketing-home-v3 .renewal-journey-stage h3{margin:18px 0 0;color:var(--home-lower-ink);font-size:11px;font-weight:900}
+.marketing-home-v3 .renewal-journey-stage--number h3{margin-top:26px}
+.marketing-home-v3 .renewal-journey-stage p{max-width:190px;margin:6px auto 0;color:var(--home-lower-muted);font-size:8px;line-height:1.7}
 .marketing-home-v3 .renewal-journey-stage.is-visible:hover{transform:translateY(-4px)}
 .marketing-home-v3 .renewal-journey-stage:hover .renewal-journey-marker{transform:scale(1.04);box-shadow:0 0 0 11px rgba(37,183,163,.075),0 18px 34px rgba(7,96,87,.18)}
 .marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage .renewal-journey-marker{animation:homeApprovedJourneyFocus 7.8s ease-in-out calc(var(--motion-index) * 1.45s + 1.8s) infinite}
@@ -12882,21 +12890,23 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @keyframes homeApprovedSettingsHover{0%,100%{transform:rotate(0) scale(1)}55%{transform:rotate(28deg) scale(1.07)}}
 @keyframes homeApprovedRocketHover{0%,100%{transform:none}55%{transform:translate(5px,-7px) rotate(2deg) scale(1.075)}}
 @keyframes homeApprovedRocketFlame{0%,100%{opacity:0;transform:rotate(-43deg) scaleX(.45)}28%,70%{opacity:.9;transform:rotate(-43deg) scaleX(1.15)}}
-@keyframes homeApprovedJourneyFocus{0%,15%,100%{transform:scale(1);box-shadow:0 0 0 9px rgba(37,183,163,.055),0 12px 28px rgba(7,96,87,.13)}4%,11%{transform:scale(1.055);box-shadow:0 0 0 13px rgba(37,183,163,.09),0 16px 32px rgba(7,96,87,.18)}}
+@keyframes homeApprovedJourneyFocus{0%,15%,100%{transform:scale(1);box-shadow:0 0 0 7px rgba(37,183,163,.055),0 10px 23px rgba(7,96,87,.13)}4%,11%{transform:scale(1.055);box-shadow:0 0 0 10px rgba(37,183,163,.09),0 14px 28px rgba(7,96,87,.18)}}
 @keyframes homeApprovedCloudFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @keyframes homeApprovedSendFlight{0%,75%,100%{transform:none}84%{transform:translate(4px,-4px) rotate(2deg)}92%{transform:translate(-1px,1px)}}
 @keyframes homeApprovedStarTwinkle{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(9deg) scale(1.12)}}
 @media (min-width:641px) and (max-width:1100px){
-  .marketing-home-v3 .marketing-steps-section{padding:48px 0 38px}
-  .marketing-home-v3 .marketing-steps{min-height:292px;gap:28px;padding:35px 10px 12px}
-  .marketing-home-v3 .marketing-step-card{min-height:192px;padding:50px 13px 18px;border-radius:16px}
+  .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey)>.container{width:min(980px,calc(100% - 40px))}
+  .marketing-home-v3 .marketing-steps-section{padding:40px 0 31px}
+  .marketing-home-v3 .marketing-steps{min-height:258px;gap:28px;padding:31px 10px 10px}
+  .marketing-home-v3 .marketing-step-route{height:110px}
+  .marketing-home-v3 .marketing-step-card{min-height:188px;padding:47px 12px 18px;border-radius:16px}
   .marketing-home-v3 .marketing-step-icon{width:52px;height:52px}.marketing-home-v3 .marketing-step-icon .line-icon{width:34px;height:34px}
-  .marketing-home-v3 .marketing-step h3{font-size:12px}.marketing-home-v3 .marketing-step p{font-size:8px;line-height:1.65}
-  .marketing-home-v3 .marketing-step:not(:last-child)::after{left:-22px;font-size:25px}
+  .marketing-home-v3 .marketing-step h3{font-size:12.5px}.marketing-home-v3 .marketing-step p{font-size:8.5px;line-height:1.65}
+  .marketing-home-v3 .marketing-step:not(:last-child)::after{top:98px;left:-22px;font-size:25px}
   .marketing-home-v3 .renewal-journey-flow{gap:8px;padding-inline:2px}
-  .marketing-home-v3 .renewal-journey-marker{width:70px;height:70px}.marketing-home-v3 .renewal-journey-marker .line-icon{width:32px;height:32px}
-  .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:54px;height:54px;margin-top:8px}
-  .marketing-home-v3 .renewal-journey-stage h3{font-size:10px}.marketing-home-v3 .renewal-journey-stage p{padding-inline:4px;font-size:7.5px}
+  .marketing-home-v3 .renewal-journey-marker{width:61px;height:61px}.marketing-home-v3 .renewal-journey-marker .line-icon{width:29px;height:29px}
+  .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:47px;height:47px;margin-top:7px}
+  .marketing-home-v3 .renewal-journey-stage h3{font-size:10.5px}.marketing-home-v3 .renewal-journey-stage p{padding-inline:4px;font-size:8px}
   .marketing-home-v3 .commerce-carousel{--commerce-gap:12px;grid-template-columns:34px minmax(0,1fr) 34px;gap:7px}
   .marketing-home-v3 .commerce-carousel-arrow{width:32px;height:32px}
 }
@@ -12914,6 +12924,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .marketing-step>b{top:0;width:39px;height:39px;border-width:5px}
   .marketing-home-v3 .marketing-step-card{min-height:116px;align-items:flex-start;padding:30px 76px 18px 18px;border-radius:15px;text-align:right}
   .marketing-home-v3 .marketing-step-icon{position:absolute;top:42px;right:17px;width:46px;height:46px}.marketing-home-v3 .marketing-step-icon .line-icon{width:29px;height:29px}
+@keyframes homeApprovedJourneyDataFlow{0%{stroke-dashoffset:.98;opacity:0}10%,90%{opacity:.9}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes homeApprovedStepDashFlow{to{stroke-dashoffset:-1}}
   .marketing-home-v3 .marketing-step h3{margin-top:11px;font-size:12px}.marketing-home-v3 .marketing-step p{max-width:none;margin:6px 0 0;font-size:8.5px}
   .marketing-home-v3 .marketing-step-ground{right:15%;left:15%;bottom:-1px;height:30px}
   .marketing-home-v3 .marketing-renewal-journey{padding:22px 0 30px}
@@ -12929,6 +12941,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .commerce-carousel-window{padding-bottom:14px}
   .marketing-home-v3 .commerce-store-track article{min-height:105px;padding:13px 8px;border-radius:13px}
   .marketing-home-v3 .commerce-store-track article>span{width:44px;height:44px}.marketing-home-v3 .commerce-store-track article svg{width:34px;height:34px}.marketing-home-v3 .commerce-store-track article strong{font-size:9px}
+.marketing-home-v3 .marketing-steps.is-running .marketing-step-route .home-lower-route-draw{animation:homeApprovedStepDashFlow 14s linear infinite}
   .marketing-home-v3 .commerce-brand-card .commerce-brand-logo{width:66px;height:53px}
   .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:72px;height:52px}
   .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:48px;height:48px}
