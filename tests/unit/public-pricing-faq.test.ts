@@ -7,17 +7,27 @@ const pricingSource = appSource.slice(
   appSource.indexOf("function marketingPricingPage()"),
   appSource.indexOf("function blogPage()")
 );
+const faqSource = appSource.slice(
+  appSource.indexOf("function pricingFaqSection("),
+  appSource.indexOf("function marketingPricingPage()")
+);
 
 describe("public pricing FAQ", () => {
-  it("provides a distinct practical answer for every pricing question", () => {
-    expect(pricingSource).toContain("تُطبّق الترقية وفق السعر الظاهر قبل الدفع");
-    expect(pricingSource).toContain("حد رسائل البريد مستقل");
-    expect(pricingSource).toContain("يمكن إيقاف التجديد التلقائي للدورات القادمة");
-    expect(pricingSource).toContain("بعد قبول مزود القناة لعملية الإرسال بنجاح");
-    expect(pricingSource).toContain("questions.map(([question, answer])");
+  it("provides all six approved questions with practical distinct answers", () => {
+    expect(pricingSource).toContain("يمكنك الترقية إلى باقة أعلى أو التبديل إلى باقة أخرى بسهولة");
+    expect(pricingSource).toContain("يتم احتساب استخدام البريد الإلكتروني وقنوات واتساب الرسمية بشكل مستقل");
+    expect(pricingSource).toContain("وتستمر الباقة الحالية حتى نهاية مدتها دون تجديد تلقائي");
+    expect(pricingSource).toContain("يتم احتساب الرسائل بحسب نوع القناة المستخدمة وحجم الإرسال");
+    expect(pricingSource).toContain("هل يتوفر دعم فني؟");
+    expect(pricingSource).toContain("هل تتوفر واجهة برمجة تطبيقات (API)؟");
+    expect(pricingSource).toContain("pricingFaqSection(questions)");
   });
 
-  it("does not reuse the old generic answer", () => {
-    expect(pricingSource).not.toContain("يمكنك إدارة خطتك بمرونة، ويُحتسب البريد وواتساب كلٌ على حدة وفق الرسائل الناجحة فعليًا.");
+  it("uses an accessible single-open accordion instead of native details", () => {
+    expect(faqSource).toContain('data-action="pricing-faq-toggle"');
+    expect(faqSource).toContain('aria-expanded="${isOpen}"');
+    expect(faqSource).toContain('aria-controls="${panelId}"');
+    expect(faqSource).toContain('role="region"');
+    expect(faqSource).not.toContain("<details>");
   });
 });

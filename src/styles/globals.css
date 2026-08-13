@@ -13517,7 +13517,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .pricing-plan-comparison__heading p{margin:8px 0 0;color:#71827f;font-size:13px;line-height:1.8}
 .pricing-comparison-hint{display:none;align-items:center;justify-content:flex-start;gap:6px;margin:0 0 9px;color:#6f827e;font-size:12px;font-weight:600}
 .pricing-comparison-hint .line-icon{width:15px;height:15px;color:#0b7066}
-.pricing-comparison-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;border-block:1px solid rgba(11,63,59,.11);background:#fff;scrollbar-color:#a7c9c3 transparent;scrollbar-width:thin;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+.pricing-comparison-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;border:1px solid rgba(11,63,59,.11);border-radius:14px;background:#fff;background-clip:padding-box;scrollbar-color:#a7c9c3 transparent;scrollbar-width:thin;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
 .pricing-comparison-scroll:focus-visible{outline:2px solid rgba(11,112,102,.42);outline-offset:4px;border-radius:4px}
 .pricing-comparison-table{width:100%;border:0;border-collapse:separate;border-spacing:0;table-layout:fixed;color:#294b46;background:#fff;font-size:14px;line-height:1.55}
 .pricing-comparison-table .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -13577,3 +13577,63 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 :root[data-theme="dark"] .pricing-comparison-table th,:root[data-theme="dark"] .pricing-comparison-table td{border-color:var(--dark-line)}
 :root[data-theme="dark"] .pricing-comparison-table .is-professional{color:#83d8cc;background:rgba(111,207,192,.075)}
 :root[data-theme="dark"] .pricing-comparison-table .is-price-row>*{color:var(--dark-text);background:var(--dark-surface-raised)}
+
+/* Pricing FAQ: accessible, calm accordion aligned with the Renvix visual system. */
+.pricing-faq{width:min(100%,1000px);margin:56px auto 8px;color:#173f3a;direction:rtl}
+.pricing-faq-heading{margin:0 auto 28px;text-align:center}
+.pricing-faq-title-row{display:flex;align-items:center;justify-content:center;gap:12px}
+.pricing-faq-title-row>span{flex:1;max-width:155px;height:1px;background:linear-gradient(90deg,transparent,rgba(11,112,102,.2))}
+.pricing-faq-title-row>span:last-child{background:linear-gradient(90deg,rgba(11,112,102,.2),transparent)}
+.pricing-faq-title-row>i{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#258c81;box-shadow:0 0 0 4px rgba(37,140,129,.07)}
+.pricing-faq-title-row h2{margin:0;color:#123f3a;font-size:clamp(27px,2.35vw,36px);font-weight:750;letter-spacing:-.02em;line-height:1.35}
+.pricing-faq-heading p{max-width:650px;margin:8px auto 0;color:#788985;font-size:13px;line-height:1.8}
+.pricing-faq-list{display:grid;gap:10px}
+.pricing-faq-item{overflow:hidden;border:1px solid rgba(15,23,42,.06);border-radius:18px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.04);transition:border-color .3s cubic-bezier(.22,1,.36,1),box-shadow .3s cubic-bezier(.22,1,.36,1),background-color .3s cubic-bezier(.22,1,.36,1)}
+.pricing-faq-item.is-open{border-color:rgba(11,112,102,.24);background:#fcfefd;box-shadow:0 10px 26px rgba(11,63,59,.07),0 0 0 3px rgba(11,112,102,.025)}
+.pricing-faq-item h3{margin:0;font-size:inherit}
+.pricing-faq-item button{width:100%;min-height:64px;display:flex;align-items:center;gap:13px;padding:14px 18px;border:0;color:#173f3a;background:transparent;font:inherit;text-align:start;cursor:pointer}
+.pricing-faq-leading-icon,.pricing-faq-chevron{display:grid;place-items:center;flex:0 0 auto;color:#1c6c64}
+.pricing-faq-leading-icon{width:34px;height:34px;border-radius:50%;background:#eef8f6}
+.pricing-faq-leading-icon .line-icon{width:18px;height:18px;stroke-width:1.8}
+.pricing-faq-question{font-size:15px;font-weight:650;line-height:1.65}
+.pricing-faq-chevron{width:32px;height:32px;margin-inline-start:auto;border-radius:10px;transition:transform .3s cubic-bezier(.22,1,.36,1),background-color .25s ease,color .25s ease}
+.pricing-faq-chevron .line-icon{width:17px;height:17px;stroke-width:2}
+.pricing-faq-item.is-open .pricing-faq-chevron{color:#0b7066;background:#edf7f5;transform:rotate(180deg)}
+.pricing-faq-answer{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .3s cubic-bezier(.22,1,.36,1),opacity .26s cubic-bezier(.22,1,.36,1)}
+.pricing-faq-answer>div{min-height:0;overflow:hidden}
+.pricing-faq-answer p{margin:0;padding:0 65px 21px 56px;color:#61736f;font-size:14px;font-weight:400;line-height:1.9;opacity:0;transform:translateY(-6px);transition:opacity .26s cubic-bezier(.22,1,.36,1),transform .3s cubic-bezier(.22,1,.36,1)}
+.pricing-faq-item.is-open .pricing-faq-answer{grid-template-rows:1fr;opacity:1}
+.pricing-faq-item.is-open .pricing-faq-answer p{opacity:1;transform:none;transition-delay:40ms}
+.pricing-faq-item button:focus-visible{outline:2px solid rgba(11,112,102,.55);outline-offset:-4px;border-radius:15px}
+@media (hover:hover) and (pointer:fine){
+  .pricing-faq-item:not(.is-open):hover{border-color:rgba(11,112,102,.14);box-shadow:0 9px 24px rgba(15,23,42,.055)}
+  .pricing-faq-item button:hover .pricing-faq-leading-icon{color:#0b7066;background:#e8f5f2}
+}
+@media (max-width:743px){
+  .pricing-faq{margin-top:44px}
+  .pricing-faq-heading{margin-bottom:22px;padding-inline:5px}
+  .pricing-faq-title-row{gap:9px}
+  .pricing-faq-title-row>span{max-width:70px}
+  .pricing-faq-title-row h2{font-size:25px}
+  .pricing-faq-heading p{max-width:330px;margin-top:6px;font-size:12px;line-height:1.7}
+  .pricing-faq-list{gap:9px}
+  .pricing-faq-item{border-radius:15px}
+  .pricing-faq-item button{min-height:58px;gap:10px;padding:11px 12px}
+  .pricing-faq-leading-icon{width:32px;height:32px}
+  .pricing-faq-question{font-size:13px;line-height:1.6}
+  .pricing-faq-chevron{width:28px;height:28px}
+  .pricing-faq-answer p{padding:0 54px 17px 42px;font-size:12.5px;line-height:1.85}
+}
+@media (prefers-reduced-motion:reduce){
+  .pricing-faq-item,.pricing-faq-chevron,.pricing-faq-answer,.pricing-faq-answer p{transition-duration:.01ms!important;transition-delay:0ms!important}
+}
+:root[data-theme="dark"] .pricing-faq{color:var(--dark-text)}
+:root[data-theme="dark"] .pricing-faq-title-row h2,:root[data-theme="dark"] .pricing-faq-question{color:var(--dark-text)}
+:root[data-theme="dark"] .pricing-faq-heading p,:root[data-theme="dark"] .pricing-faq-answer p{color:var(--dark-muted)}
+:root[data-theme="dark"] .pricing-faq-item,:root[data-theme="dark"] .pricing-faq-item.is-open{border-color:var(--dark-line);background:var(--dark-surface);box-shadow:none}
+:root[data-theme="dark"] .pricing-faq-leading-icon,:root[data-theme="dark"] .pricing-faq-item.is-open .pricing-faq-chevron{color:#83d8cc;background:rgba(111,207,192,.09)}
+
+/* Approved cards remain visible from the first paint; their hover, route, icon and marquee motion stays unchanged. */
+.marketing-home-v3 [data-home-immediate] [data-reveal],
+.marketing-home-v3 [data-home-immediate] [data-social-proof-reveal],
+.marketing-home-v3 [data-home-immediate] .trusted-brand-card{opacity:1!important;transform:none!important}

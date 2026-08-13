@@ -43,12 +43,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260813-ai-shell-v116" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260813-pricing-faq-v118" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260813-google-gis-v117" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260813-pricing-faq-v118" strategy="afterInteractive" />
       </body>
     </html>
   );

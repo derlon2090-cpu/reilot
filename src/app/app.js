@@ -1666,6 +1666,7 @@ function dashboardIcon(name) {
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     helpBook: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
     faq: '<path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.5 4.5 8.4 8.4 0 0 1-4-.95L3 21l1.95-5.5A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 8.5 4a8.4 8.4 0 0 1 4-.95H13a8.5 8.5 0 0 1 8 8.45Z"/><path d="M10.1 9.2a2.2 2.2 0 1 1 3.65 1.65c-.8.6-1.25 1-1.25 2.15"/><path d="M12.5 16h.01"/>',
+    helpCircle: '<circle cx="12" cy="12" r="9"/><path d="M9.9 9a2.2 2.2 0 1 1 3.6 1.7c-.9.65-1.5 1.08-1.5 2.3"/><path d="M12 17h.01"/>',
     chat: '<path d="M5 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h1M19 17h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-1"/><path d="M5 10a7 7 0 0 1 14 0v7a4 4 0 0 1-4 4h-3"/><path d="M8 13h.01M12 13h.01M16 13h.01"/>',
     rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.32 12.32 0 0 1 21 2c0 2.72-.78 7.5-6.05 11A22.35 22.35 0 0 1 12 15Z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><circle cx="16" cy="8" r="1.25"/>',
     perfume: '<path d="M9 2h6v4H9zM8 6h8l2 4v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10Z"/><path d="M6 11h12M9 15h6"/>',
@@ -1888,7 +1889,7 @@ function marketingRenewalJourney() {
     [localizedCopy("زيادة الإيرادات والولاء", "Grow revenue and loyalty"), localizedCopy("قلل فقد التجديدات وزد الإيرادات وولاء عملائك.", "Reduce missed renewals and grow customer loyalty."), "publicFeatures", "icon", ""]
   ];
   const journeyPath = "M1097 80 C1020 42 929 42 848 80 C770 118 680 118 600 80 C520 42 430 42 352 80 C271 118 180 118 104 80";
-  return `<section class="marketing-renewal-journey" data-motion-scene>
+  return `<section class="marketing-renewal-journey" data-motion-scene data-home-immediate>
     <div class="container">
       ${marketingSectionHeading(localizedCopy("رحلة التجديد الذكية", "The smart renewal journey"), localizedCopy("رحلة متكاملة تبدأ من بياناتك وتنتهي بتجديدات أكثر ورضا أعلى لعملائك.", "A connected journey from your data to more renewals and happier customers."))}
       <div class="renewal-journey-flow">
@@ -1937,7 +1938,7 @@ function marketingCommerceEcosystem() {
     { title: localizedCopy("الرعد للاتصالات", "Alraad Telecom"), logo: "/assets/brands/alraad-telecom.jpg", brand: "alraad" }
   ];
   const brandSet = (duplicate = false) => `<div class="trusted-brands-set"${duplicate ? ' aria-hidden="true"' : ""}>${trustedBrands.map((item, index) => `<article class="trusted-brand-card trusted-brand-card--${item.brand}" data-motion-variant="logoCardReveal logoCardHover" data-motion-index="${index}" aria-label="${escapeHtml(item.title)}"><span class="trusted-brand-logo"><img src="${item.logo}" alt="${duplicate ? "" : escapeHtml(item.title)}" width="112" height="76" loading="lazy" decoding="async" /></span></article>`).join("")}</div>`;
-  return `<section class="marketing-commerce-ecosystem" data-motion-scene data-social-proof>
+  return `<section class="marketing-commerce-ecosystem" data-motion-scene data-social-proof data-home-immediate>
     <div class="container" data-social-proof-reveal data-motion-variant="sectionReveal">
       <header class="marketing-v3-heading commerce-proof-heading">
         <h2 data-social-proof-reveal data-motion-variant="titleReveal">${localizedCopy("شركات تثق بـ Renvix", "Companies that trust Renvix")}</h2>
@@ -2509,7 +2510,7 @@ function marketingHomePage() {
       ${marketingMobileHomeNetwork()}
       <div class="marketing-hero-metrics" aria-label="${localizedCopy("مؤشرات المنصة", "Platform highlights")}">${heroMetrics.map(([value, label, note, icon, noteIcon]) => `<article data-static-hero-metric><span aria-hidden="true">${dashboardIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><em>${note}${dashboardIcon(noteIcon)}</em></div></article>`).join("")}</div>
     </div></section>
-    <section class="marketing-v3-section marketing-steps-section"><div class="container">${marketingSectionHeading(localizedCopy("4 خطوات للبدء مع Renvix", "Start with Renvix in four steps"), localizedCopy("مسار واضح من إنشاء الحساب حتى تشغيل الأتمتة.", "A clear path from account creation to live automation."))}${marketingSteps()}</div></section>
+    <section class="marketing-v3-section marketing-steps-section" data-home-immediate><div class="container">${marketingSectionHeading(localizedCopy("4 خطوات للبدء مع Renvix", "Start with Renvix in four steps"), localizedCopy("مسار واضح من إنشاء الحساب حتى تشغيل الأتمتة.", "A clear path from account creation to live automation."))}${marketingSteps()}</div></section>
     ${marketingRenewalJourney()}
     ${marketingCommerceEcosystem()}
     ${marketingMobileToolsAndCta()}
@@ -2608,12 +2609,34 @@ function pricingComparisonSection() {
   </section>`;
 }
 
+function pricingFaqSection(questions) {
+  return `<section class="pricing-faq" aria-labelledby="pricing-faq-title">
+    <header class="pricing-faq-heading">
+      <div class="pricing-faq-title-row"><span aria-hidden="true"></span><i aria-hidden="true"></i><h2 id="pricing-faq-title">أسئلة شائعة</h2><i aria-hidden="true"></i><span aria-hidden="true"></span></div>
+      <p>إجابات سريعة على أكثر الأسئلة شيوعًا حول Renvix وخطط الاشتراك.</p>
+    </header>
+    <div class="pricing-faq-list">
+      ${questions.map(([question, answer], index) => {
+        const buttonId = `pricing-faq-button-${index + 1}`;
+        const panelId = `pricing-faq-panel-${index + 1}`;
+        const isOpen = index === 0;
+        return `<article class="pricing-faq-item ${isOpen ? "is-open" : ""}" data-pricing-faq-item>
+          <h3><button type="button" id="${buttonId}" data-action="pricing-faq-toggle" aria-expanded="${isOpen}" aria-controls="${panelId}"><span class="pricing-faq-leading-icon">${dashboardIcon("helpCircle")}</span><span class="pricing-faq-question">${question}</span><span class="pricing-faq-chevron" aria-hidden="true">${dashboardIcon("chevronDown")}</span></button></h3>
+          <div class="pricing-faq-answer" id="${panelId}" role="region" aria-labelledby="${buttonId}" aria-hidden="${!isOpen}" data-pricing-faq-panel><div><p>${answer}</p></div></div>
+        </article>`;
+      }).join("")}
+    </div>
+  </section>`;
+}
+
 function marketingPricingPage() {
   const questions = [
-    ["هل يمكنني الترقية أو التبديل بين الباقات؟", "نعم. افتح «الفوترة والباقات» واختر الخطة الجديدة. تُطبّق الترقية وفق السعر الظاهر قبل الدفع، بينما يبدأ خفض الباقة مع دورة الفوترة التالية ما لم تعرض صفحة الدفع خلاف ذلك، وتبقى بيانات حسابك محفوظة."],
-    ["هل البريد وواتساب ضمن حد واحد؟", "لا. حد رسائل البريد مستقل ويظهر لكل باقة، أما رسائل واتساب الرسمية فتُحتسب حسب الاستخدام. استهلاك قناة لا يخصم من رصيد القناة الأخرى."],
-    ["ما سياسة إلغاء الاشتراك؟", "يمكن إيقاف التجديد التلقائي للدورات القادمة مع استمرار الوصول حتى نهاية المدة المدفوعة. الإيقاف لا يحذف بياناتك ولا يعيد قيمة المدة المستخدمة تلقائيًا، وتُراجع طلبات الاسترجاع وفق سياسة الاستبدال والاسترجاع وحقوق المستهلك المطبقة."],
-    ["كيف يتم احتساب الرسائل؟", "تُسجّل الرسالة القابلة للفوترة مرة واحدة بعد قبول مزود القناة لعملية الإرسال بنجاح، مع حماية من الخصم المكرر. الرسائل التي تفشل قبل قبول المزود لا تُحتسب كإرسال ناجح، ويمكن مراجعة التفاصيل من سجل الاستخدام والإرسال."]
+    ["هل يمكنني الترقية أو التبديل بين الباقات؟", "نعم، يمكنك الترقية إلى باقة أعلى أو التبديل إلى باقة أخرى بسهولة حسب احتياج نشاطك. يتم تطبيق التغيير بطريقة منظمة مع الحفاظ على بياناتك وإعداداتك الحالية قدر الإمكان."],
+    ["هل البريد وواتساب ضمن حد واحد؟", "لا، يتم احتساب استخدام البريد الإلكتروني وقنوات واتساب الرسمية بشكل مستقل بحسب الباقة والرصيد أو الحدود المخصصة لكل خدمة."],
+    ["ما سياسة إلغاء الاشتراك؟", "يمكنك إلغاء التجديد في أي وقت من خلال إعدادات الاشتراك. وتستمر الباقة الحالية حتى نهاية مدتها دون تجديد تلقائي بعد الإلغاء."],
+    ["كيف يتم احتساب الرسائل؟", "يتم احتساب الرسائل بحسب نوع القناة المستخدمة وحجم الإرسال، مع توضيح الحدود أو الأرصدة المتاحة في كل باقة بشكل شفاف داخل المنصة."],
+    ["هل يتوفر دعم فني؟", "نعم، توفر Renvix دعمًا فنيًا بحسب مستوى الباقة، بدءًا من الدعم القياسي وحتى الدعم ذي الأولوية أو المخصص للباقات الأعلى."],
+    ["هل تتوفر واجهة برمجة تطبيقات (API)؟", "نعم، توفر المنصة API لتسهيل التكامل مع الأنظمة والخدمات الخارجية، وتختلف حدود الاستخدام والتخصيص بحسب الباقة."]
   ];
   return publicShell(`<main class="pricing-reference-page">
     <section class="section pricing-reference-section" aria-labelledby="pricing-page-title">
@@ -2625,12 +2648,7 @@ function marketingPricingPage() {
         <div class="pricing-public-grid">${pricingCards(false, "monthly")}</div>
         <div class="pricing-trial-footnote">${dashboardIcon("security")}<span><strong>ابدأ بتجربة مجانية لمدة 7 أيام</strong><small>جرّب Renvix قبل اختيار باقتك. لا توجد باقة مجانية دائمة.</small></span></div>
         ${pricingComparisonSection()}
-        <div class="pricing-reference-extras">
-          <article class="card faq-card faq-compact">
-            <h2>أسئلة شائعة</h2>
-            ${questions.map(([question, answer]) => `<details><summary>${question}</summary><p>${answer}</p></details>`).join("")}
-          </article>
-        </div>
+        ${pricingFaqSection(questions)}
       </div>
     </section>
   </main>`);
@@ -8014,6 +8032,21 @@ async function handleAction(target) {
   }
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "pricing-faq-toggle") {
+    const item = target.closest("[data-pricing-faq-item]");
+    const list = target.closest(".pricing-faq-list");
+    if (!item || !list) return;
+    const shouldOpen = target.getAttribute("aria-expanded") !== "true";
+    list.querySelectorAll("[data-pricing-faq-item]").forEach((candidate) => {
+      const button = candidate.querySelector('[data-action="pricing-faq-toggle"]');
+      const panel = candidate.querySelector("[data-pricing-faq-panel]");
+      const isOpen = candidate === item && shouldOpen;
+      candidate.classList.toggle("is-open", isOpen);
+      button?.setAttribute("aria-expanded", String(isOpen));
+      panel?.setAttribute("aria-hidden", String(!isOpen));
+    });
+    return;
+  }
   if (action === "ai-new-conversation") {
     resetAIAttachments();
     state.aiConversationId = "";
