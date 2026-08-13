@@ -12780,7 +12780,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .commerce-store-track article>span{position:relative;z-index:1;display:grid;width:54px;height:54px;place-items:center;color:var(--home-lower-ink);transition:transform .35s var(--home-lower-ease)}
 .marketing-home-v3 .commerce-store-track article svg{width:42px;height:42px;stroke-width:1.55}
 .marketing-home-v3 .commerce-store-track article strong{position:relative;z-index:1;color:var(--home-lower-ink);font-size:11px;text-align:center}
-.marketing-home-v3 .commerce-store-track .commerce-brand-card{gap:8px;padding-top:13px;padding-bottom:14px}
+.marketing-home-v3 .commerce-store-track .commerce-brand-card{gap:8px;padding-top:13px;padding-bottom:14px;background:#fff}
 .marketing-home-v3 .commerce-brand-card .commerce-brand-logo{
   display:flex;
   width:82px;
@@ -12798,12 +12798,13 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:86px;height:61px}
 .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo img{width:86px;max-width:none;height:auto}
 .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,
-.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:56px;height:56px;border-radius:50%}
+.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo,
+.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo{width:60px;height:60px;padding:3px;overflow:visible;box-sizing:border-box}
 .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo img,
-.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo img{width:56px;max-width:none;height:auto;align-self:flex-start}
-.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo{width:58px;height:58px}
+.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo img,
+.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo img{width:54px;height:54px;max-width:100%;max-height:100%;object-fit:contain}
 .marketing-home-v3 .commerce-brand-card--blontix .commerce-brand-logo{width:64px;height:62px}
-.marketing-home-v3 .commerce-brand-card--elm .commerce-brand-logo{width:92px;height:57px;border-radius:7px;background:#030706}
+.marketing-home-v3 .commerce-brand-card--elm .commerce-brand-logo{width:96px;height:60px;padding:3px;border-radius:7px;background:#fff}
 .marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:60px;height:60px;border-radius:8px;background:#e58318}
 .marketing-home-v3 .commerce-brand-card:hover .commerce-brand-logo img{transform:scale(1.065);filter:drop-shadow(0 7px 8px rgba(6,73,66,.14))}
 .marketing-home-v3 .marketing-commerce-ecosystem.is-in-view .commerce-store-set:first-child article.is-whole{animation:homeApprovedStoreIn .64s var(--home-lower-ease) calc(var(--motion-index) * 65ms) both}
