@@ -75,4 +75,24 @@ describe("Renvix Intelligence chat UI", () => {
     expect(uploadRoute).toContain('access: "public"');
     expect(uploadRoute).toContain("getAIConversation(auth.session, conversationId)");
   });
+
+  it("paces streamed copy and follows only the inner message viewport", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(source).toContain("function createAIStreamWriter");
+    expect(source).toContain("await streamWriter?.drain()");
+    expect(source).toContain("state.aiProgrammaticScroll");
+    expect(source).toContain("function stopAIMessageFollowing");
+    expect(source).not.toContain('streamNode?.scrollIntoView');
+    expect(css).toContain("overflow-anchor:none");
+  });
+
+  it("keeps usage and response data cards compact across chat viewports", async () => {
+    const css = await readFile("src/styles/globals.css", "utf8");
+    expect(css).toContain(".rvx-ai-side-bottom .rvx-ai-usage-card{gap:4px;padding:7px 9px");
+    expect(css).toContain(".rvx-ai-assistant-message .rvx-ai-data-card{width:min(100%,640px)");
+    expect(css).toContain("@media(max-width:700px){.rvx-ai-assistant-message .rvx-ai-data-card{width:100%");
+  });
 });

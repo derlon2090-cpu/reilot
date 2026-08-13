@@ -13466,7 +13466,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @media(prefers-reduced-motion:reduce){.account-storage-categories>label,.account-storage-show-more,.account-storage-show-more span{transition:none}.account-storage-loading i{animation:none}}
 
 /* AI chat interaction polish: stable streaming, conversation controls and real attachments. */
-.rvx-ai-messages{scroll-behavior:auto;overscroll-behavior:contain;overflow-anchor:auto;scrollbar-gutter:stable}
+.rvx-ai-messages{scroll-behavior:auto;overscroll-behavior:contain;overflow-anchor:none;scrollbar-gutter:stable}
 .rvx-ai-sidebar nav{overflow:auto}
 .rvx-ai-conversation-item{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;min-height:52px;border:1px solid transparent;border-radius:11px;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}
 .rvx-ai-conversation-item:hover{border-color:#dbe9e7;background:#f7fbfa}.rvx-ai-conversation-item.active{border-color:#b8ddd7;background:#e9f7f4;box-shadow:inset 3px 0 0 #0b776c}
@@ -13479,3 +13479,28 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 :root[data-theme="dark"] .rvx-ai-conversation-item:hover{border-color:#28504a;background:#10332f}:root[data-theme="dark"] .rvx-ai-conversation-item.active{border-color:#347067;background:#133c37}:root[data-theme="dark"] .rvx-ai-conversation-open{color:#dcebe8}:root[data-theme="dark"] .rvx-ai-conversation-menu{border-color:#31534e;background:#102d29}:root[data-theme="dark"] .rvx-ai-conversation-menu button{color:#dcebe8}:root[data-theme="dark"] .rvx-ai-conversation-menu button:hover{background:#173e38}:root[data-theme="dark"] .rvx-ai-attachment-chip{border-color:#31534e;color:#dcebe8;background:#102d29}:root[data-theme="dark"] .rvx-ai-composer.is-uploading::after{background:rgba(10,38,34,.9)}
 @media(max-width:700px){.rvx-ai-conversation-menu{width:170px;inset-inline-end:3px}.rvx-ai-attachment-preview{padding-bottom:3px}.rvx-ai-attachment-chip{min-width:132px;max-width:190px;min-height:42px}.rvx-ai-attachment-chip>img,.rvx-ai-attachment-chip>span{width:30px;height:30px}.rvx-ai-user-message>div{max-width:86%}}
 @media(prefers-reduced-motion:reduce){.rvx-ai-conversation-item,.rvx-ai-conversation-more,.rvx-ai-conversation-menu{animation:none;transition:none}}
+
+/* AI stream rhythm and compact data surfaces. */
+.rvx-ai-side-bottom .rvx-ai-usage-card{gap:4px;padding:7px 9px;border-radius:11px}
+.rvx-ai-side-bottom .rvx-ai-usage-card>header{gap:7px}
+.rvx-ai-side-bottom .rvx-ai-usage-card>header>span{width:26px;height:26px;border-radius:8px}
+.rvx-ai-side-bottom .rvx-ai-usage-card>header svg{width:14px}
+.rvx-ai-side-bottom .rvx-ai-usage-card>header strong{font-size:10px}
+.rvx-ai-side-bottom .rvx-ai-usage-card>header small{font-size:7.5px}
+.rvx-ai-side-bottom .rvx-ai-usage-numbers b{font-size:13px}
+.rvx-ai-side-bottom .rvx-ai-usage-numbers span,.rvx-ai-side-bottom .rvx-ai-usage-card>footer{font-size:7.5px}
+.rvx-ai-side-bottom .rvx-ai-usage-track{height:4px}
+.rvx-ai-side-bottom .rvx-ai-chat-storage{align-items:center;grid-template-columns:minmax(0,1fr) auto;padding-top:5px}
+.rvx-ai-side-bottom .rvx-ai-chat-storage span,.rvx-ai-side-bottom .rvx-ai-chat-storage b{font-size:8px}
+.rvx-ai-side-bottom .rvx-ai-chat-storage small{display:none}
+.rvx-ai-assistant-message .rvx-ai-data-card{width:min(100%,640px);gap:8px;margin-top:10px;padding:11px 12px;border-radius:12px}
+.rvx-ai-assistant-message .rvx-ai-data-card>header>span{width:30px;height:30px;border-radius:8px}
+.rvx-ai-assistant-message .rvx-ai-data-card>header svg{width:16px}
+.rvx-ai-assistant-message .rvx-ai-data-card>button{min-height:30px}
+.rvx-ai-assistant-message .rvx-ai-metric-grid{gap:6px!important}
+.rvx-ai-assistant-message .rvx-ai-metric-grid span{gap:3px;padding:8px}
+.rvx-ai-assistant-message .rvx-ai-metric-grid b{font-size:14px}
+.rvx-ai-assistant-message .rvx-ai-health-score{min-width:88px;padding:10px 12px}
+.rvx-ai-assistant-message .rvx-ai-health-score b{font-size:27px}
+.rvx-ai-assistant-message .rvx-ai-health-card>div:last-child span{padding:5px 8px}
+@media(max-width:700px){.rvx-ai-assistant-message .rvx-ai-data-card{width:100%;padding:9px}.rvx-ai-assistant-message .rvx-ai-health-card{grid-template-columns:88px minmax(0,1fr)}.rvx-ai-assistant-message .rvx-ai-health-card header{grid-column:1/-1}}

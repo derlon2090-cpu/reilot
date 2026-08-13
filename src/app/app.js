@@ -865,6 +865,8 @@ state.aiPendingMessage = null;
 state.aiAttachments = [];
 state.aiAutoScroll = true;
 state.aiScrollFrame = 0;
+state.aiProgrammaticScroll = false;
+state.aiScrollForce = false;
 state.aiConversationActionBusy = "";
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
@@ -10134,13 +10136,39 @@ function aiMessageListIsNearBottom(list, threshold = 110) {
 function queueAIMessageScroll({ force = false } = {}) {
   const list = document.querySelector("[data-ai-message-list]");
   if (!list || (!force && !state.aiAutoScroll)) return;
-  if (state.aiScrollFrame) cancelAnimationFrame(state.aiScrollFrame);
-  state.aiScrollFrame = requestAnimationFrame(() => {
-    state.aiScrollFrame = 0;
+  state.aiScrollForce = state.aiScrollForce || force;
+  if (state.aiScrollFrame) return;
+  const follow = () => {
     const current = document.querySelector("[data-ai-message-list]");
-    if (!current || (!force && !state.aiAutoScroll)) return;
-    current.scrollTop = current.scrollHeight;
-  });
+    if (!current || (!state.aiScrollForce && !state.aiAutoScroll)) {
+      state.aiScrollFrame = 0;
+      state.aiProgrammaticScroll = false;
+      state.aiScrollForce = false;
+      return;
+    }
+    state.aiProgrammaticScroll = true;
+    const target = Math.max(0, current.scrollHeight - current.clientHeight);
+    const distance = target - current.scrollTop;
+    if (Math.abs(distance) <= 1) {
+      current.scrollTop = target;
+      state.aiScrollFrame = 0;
+      state.aiProgrammaticScroll = false;
+      state.aiScrollForce = false;
+      return;
+    }
+    const step = Math.sign(distance) * Math.min(Math.abs(distance), Math.max(12, Math.min(58, Math.abs(distance) * .24)));
+    current.scrollTop += step;
+    state.aiScrollFrame = requestAnimationFrame(follow);
+  };
+  state.aiScrollFrame = requestAnimationFrame(follow);
+}
+
+function stopAIMessageFollowing() {
+  state.aiAutoScroll = false;
+  state.aiScrollForce = false;
+  state.aiProgrammaticScroll = false;
+  if (state.aiScrollFrame) cancelAnimationFrame(state.aiScrollFrame);
+  state.aiScrollFrame = 0;
 }
 
 function renderAIPreservingScroll({ forceBottom = false } = {}) {
@@ -10412,6 +10440,7 @@ async function handleAIMessageSubmit(form) {
   setAIComposerStreaming(form, true);
   let streamNode = null;
   let textNode = null;
+  let streamWriter = null;
   let blockNode = null;
   let uploadedAttachments = [];
   let readyUserMessage = null;
@@ -10433,6 +10462,7 @@ async function handleAIMessageSubmit(form) {
     list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: prompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
     streamNode = document.getElementById(streamId);
     textNode = streamNode?.querySelector("[data-ai-stream-text]");
+    if (textNode) streamWriter = createAIStreamWriter(textNode);
     blockNode = streamNode?.querySelector("[data-ai-stream-blocks]");
     messageInserted = true;
     queueAIMessageScroll({ force: true });
@@ -10462,16 +10492,16 @@ async function handleAIMessageSubmit(form) {
         assistantBlocks = payload.blocks || [];
         blockNode.innerHTML = assistantBlocks.map(renderAIBlock).join("");
         if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
-      } else if (type === "token" && textNode) {
-        appendAIStreamText(textNode, payload.value || "");
         queueAIMessageScroll();
+      } else if (type === "token" && textNode) {
+        streamWriter?.append(payload.value || "");
       } else if (type === "error" && textNode) {
         assistantStatus = "failed";
-        appendAIStreamText(textNode, `\n${payload.message || "تعذر إكمال الرد."}`);
+        streamWriter?.append(`\n${payload.message || "تعذر إكمال الرد."}`);
         streamNode?.classList.add("has-error");
       } else if (type === "interrupted" && textNode) {
         assistantStatus = "interrupted";
-        appendAIStreamText(textNode, `\n\n${payload.message || "تم إيقاف إنشاء الرد."}`);
+        streamWriter?.append(`\n\n${payload.message || "تم إيقاف إنشاء الرد."}`);
       } else if (type === "usage") {
         state.aiUsage = payload;
       }
@@ -10480,14 +10510,15 @@ async function handleAIMessageSubmit(form) {
     form.classList.remove("is-uploading");
     if (error.name !== "AbortError") {
       assistantStatus = "failed";
-      if (textNode) appendAIStreamText(textNode, `\n${error.message || "تعذر إكمال الرد."}`);
+      if (textNode) streamWriter?.append(`\n${error.message || "تعذر إكمال الرد."}`);
       else appToast.error("تعذر إرسال المرفق", { description: error.message || "حاول مرة أخرى.", id: "ai-attachment-upload-error" });
       streamNode?.classList.add("has-error");
     } else if (textNode) {
       assistantStatus = "interrupted";
-      appendAIStreamText(textNode, "\n\nتم إيقاف إنشاء الرد.");
+      streamWriter?.append("\n\nتم إيقاف إنشاء الرد.");
     }
   } finally {
+    await streamWriter?.drain();
     state.aiStreaming = false;
     state.aiAbortController = null;
     setAIComposerStreaming(form, false);
@@ -12215,6 +12246,43 @@ function appendAIStreamText(node, value) {
   node.innerHTML = renderAIMessageContent(raw);
 }
 
+function createAIStreamWriter(node) {
+  let pending = "";
+  let timer = 0;
+  const waiters = [];
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  const settle = () => waiters.splice(0).forEach((resolve) => resolve());
+  const writeNext = () => {
+    timer = 0;
+    if (!pending) {
+      settle();
+      return;
+    }
+    const amount = reducedMotion ? pending.length : Math.min(10, Math.max(1, Math.ceil(pending.length / 70)));
+    const visible = pending.slice(0, amount);
+    pending = pending.slice(amount);
+    appendAIStreamText(node, visible);
+    queueAIMessageScroll();
+    if (pending) timer = window.setTimeout(writeNext, reducedMotion ? 0 : 28);
+    else settle();
+  };
+  return {
+    append(value) {
+      const next = String(value || "");
+      if (!next) return;
+      pending += next;
+      if (!timer) {
+        if (!node.dataset.aiRaw) writeNext();
+        else timer = window.setTimeout(writeNext, reducedMotion ? 0 : 28);
+      }
+    },
+    drain() {
+      if (!pending && !timer) return Promise.resolve();
+      return new Promise((resolve) => waiters.push(resolve));
+    }
+  };
+}
+
 function renderAIMessage(message) {
   const blocks = Array.isArray(message.segments) ? message.segments : [];
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
@@ -13024,8 +13092,14 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("scroll", (event) => {
   const list = event.target?.matches?.("[data-ai-message-list]") ? event.target : null;
-  if (list) state.aiAutoScroll = aiMessageListIsNearBottom(list);
+  if (list && !state.aiProgrammaticScroll) state.aiAutoScroll = aiMessageListIsNearBottom(list);
 }, true);
+
+["wheel", "touchstart", "pointerdown"].forEach((eventName) => {
+  document.addEventListener(eventName, (event) => {
+    if (event.target?.closest?.("[data-ai-message-list]") && state.aiStreaming) stopAIMessageFollowing();
+  }, { capture: true, passive: true });
+});
 
 document.addEventListener("change", (event) => {
   const target = event.target;
