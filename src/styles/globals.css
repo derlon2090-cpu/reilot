@@ -12557,6 +12557,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   position:relative;
   display:block;
   overflow:hidden;
+  contain:layout paint style;
+  isolation:isolate;
   color:var(--home-lower-ink);
   background:
     radial-gradient(circle at 8% 90%,rgba(51,190,171,.055),transparent 24%),
@@ -12950,14 +12952,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   stroke-linecap:round;
   stroke-dasharray:.075 .925;
   opacity:.78;
-  filter:drop-shadow(0 0 2px rgba(8,143,130,.3));
+  filter:none;
   animation:homeStepConnectorFlow 7s linear calc(var(--connector-index) * -.9s) infinite;
 }
 .marketing-home-v3 .marketing-step-connector-dot{
   fill:#078f82;
   stroke:#eafffb;
   stroke-width:2;
-  filter:drop-shadow(0 0 3px rgba(8,143,130,.58));
+  filter:none;
 }
 .marketing-home-v3 .marketing-step-connector-chevron{
   fill:#255f59;
@@ -13017,14 +13019,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   stroke-linecap:round;
   stroke-dasharray:.08 .92;
   opacity:.54;
-  filter:drop-shadow(0 0 2px rgba(8,127,116,.28));
+  filter:none;
   animation:homeJourneyPathFlow 10s linear 1.25s infinite;
 }
 .marketing-home-v3 .renewal-journey-glow-dot{
   fill:#0a8f82;
   stroke:#eafffb;
   stroke-width:2.5;
-  filter:url(#renewal-journey-glow);
+  filter:none;
 }
 .marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-path-reveal{animation:homeJourneyPathReveal 1.2s var(--home-lower-ease) .18s forwards}
 .marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage .renewal-journey-marker{
@@ -13072,12 +13074,35 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @keyframes homeStepChevronNudge{0%,100%{opacity:.62;transform:translateX(0)}50%{opacity:1;transform:translateX(-3px)}}
 @keyframes homeJourneyPathReveal{to{stroke-dashoffset:0}}
 @keyframes homeJourneyPathFlow{from{stroke-dashoffset:0}to{stroke-dashoffset:-1}}
-@keyframes homeJourneyNodePass{0%,9%,100%{transform:scale(1);box-shadow:0 0 0 7px rgba(37,183,163,.055),0 10px 23px rgba(7,96,87,.13)}3.5%{transform:scale(1.055);box-shadow:0 0 0 11px rgba(37,183,163,.11),0 15px 30px rgba(7,96,87,.19)}}
+@keyframes homeJourneyNodePass{0%,9%,100%{transform:translateZ(0) scale(1)}3.5%{transform:translateZ(0) scale(1.045)}}
 @keyframes homeJourneyEndpointOrbit{0%,100%{opacity:.5;transform:rotate(-8deg)}50%{opacity:.86;transform:rotate(24deg)}}
 @keyframes homeJourneyEndpointHalo{0%,100%{opacity:.38;transform:scale(.9)}50%{opacity:.78;transform:scale(1.16)}}
 @keyframes homeJourneyCloudDrift{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 @keyframes homeJourneySendDrift{0%,100%{transform:none}50%{transform:translate(2px,-2px) rotate(1deg)}}
 @keyframes homeJourneyStarGlow{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(6deg) scale(1.08)}}
+
+/* Keep the lower-page story smooth: one visible motion scene at a time. */
+.marketing-home-v3 [data-motion-scene]:not(.is-in-view),
+.marketing-home-v3 [data-motion-scene]:not(.is-in-view) *,
+.marketing-home-v3 [data-motion-scene]:not(.is-in-view)::before,
+.marketing-home-v3 [data-motion-scene]:not(.is-in-view)::after,
+.marketing-home-v3 [data-motion-scene]:not(.is-in-view) *::before,
+.marketing-home-v3 [data-motion-scene]:not(.is-in-view) *::after{animation-play-state:paused!important}
+.marketing-home-v3 :is(.marketing-step,.renewal-journey-stage).is-visible{will-change:auto}
+.marketing-home-v3 .marketing-step.is-visible .marketing-step-card,
+.marketing-home-v3 .marketing-step-number,
+.marketing-home-v3 .marketing-step-number-orbit,
+.marketing-home-v3 .marketing-step>b::before,
+.marketing-home-v3 .marketing-step.is-visible .marketing-step-icon,
+.marketing-home-v3 .marketing-step-ground,
+.marketing-home-v3 .marketing-step-connector-chevron,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:nth-child(2) .renewal-journey-marker .line-icon,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:nth-child(4) .renewal-journey-marker .line-icon,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:nth-child(6) .renewal-journey-marker .line-icon,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:first-of-type .renewal-journey-marker::before,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:first-of-type .renewal-journey-marker::after,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:last-of-type .renewal-journey-marker::before,
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:last-of-type .renewal-journey-marker::after{animation:none!important}
 @media (min-width:641px) and (max-width:1100px){
   .marketing-home-v3 :is(.marketing-steps-section,.marketing-renewal-journey)>.container{width:min(980px,calc(100% - 40px))}
   .marketing-home-v3 .marketing-steps-section{padding:40px 0 31px}
