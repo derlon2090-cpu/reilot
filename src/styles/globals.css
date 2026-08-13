@@ -12579,8 +12579,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .home-lower-route-flow{stroke:#0da995;stroke-width:4;stroke-linecap:round;stroke-dasharray:.006 .994;stroke-dashoffset:1;opacity:0;filter:drop-shadow(0 0 3px rgba(13,169,149,.42))}
 .marketing-home-v3 .is-running .home-lower-route-draw,
 .marketing-home-v3 .marketing-renewal-journey.is-in-view .home-lower-route-draw{animation:homeApprovedPathDraw 2.8s var(--home-lower-ease) .18s forwards}
-.marketing-home-v3 .is-running .home-lower-route-flow{animation:homeApprovedDataFlow 5.8s linear 2.65s infinite}
-.marketing-home-v3 .marketing-renewal-journey.is-in-view .home-lower-route-flow{animation:homeApprovedJourneyDataFlow 9.2s linear 1.25s infinite}
+.marketing-home-v3 .marketing-step-route .home-lower-route-flow{opacity:.9;animation:homeApprovedDataFlow 5.8s linear infinite;will-change:stroke-dashoffset}
+.marketing-home-v3 .marketing-renewal-journey .home-lower-route-flow{animation:homeApprovedJourneyDataFlow 1.8s linear infinite;animation-play-state:running}
 .marketing-home-v3 .marketing-step{
   position:relative;
   z-index:2;
@@ -12622,8 +12622,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   display:flex;
 .marketing-home-v3 .renewal-journey-route .home-lower-route-base{stroke:#b8dfda;stroke-width:1.35;stroke-dasharray:none}
 .marketing-home-v3 .renewal-journey-route .home-lower-route-draw{stroke-width:1.65;opacity:.75}
-.marketing-home-v3 .renewal-journey-route .home-lower-route-flow{stroke:#087f74;stroke-width:3.4;stroke-dasharray:.004 .116;filter:drop-shadow(0 0 2px rgba(8,127,116,.32))}
-.marketing-home-v3 .marketing-step-route .home-lower-route-draw{stroke-width:1.5;stroke-dasharray:.012 .014;opacity:.68}
+.marketing-home-v3 .renewal-journey-route .home-lower-route-flow{stroke:#087f74;stroke-width:3.4;stroke-dasharray:.004 .116;opacity:.92;filter:drop-shadow(0 0 2px rgba(8,127,116,.32));will-change:stroke-dashoffset}
+.marketing-home-v3 .marketing-step-route .home-lower-route-draw{stroke-width:1.5;stroke-dasharray:.012 .014;opacity:.68;will-change:stroke-dashoffset}
   min-height:194px;
   align-items:center;
   flex-direction:column;
@@ -12745,10 +12745,27 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .renewal-journey-stage p{max-width:190px;margin:6px auto 0;color:var(--home-lower-muted);font-size:8px;line-height:1.7}
 .marketing-home-v3 .renewal-journey-stage.is-visible:hover{transform:translateY(-4px)}
 .marketing-home-v3 .renewal-journey-stage:hover .renewal-journey-marker{transform:scale(1.04);box-shadow:0 0 0 11px rgba(37,183,163,.075),0 18px 34px rgba(7,96,87,.18)}
-.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage .renewal-journey-marker{animation:homeApprovedJourneyFocus 7.8s ease-in-out calc(var(--motion-index) * 1.45s + 1.8s) infinite}
-.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage:nth-child(2) .renewal-journey-marker .line-icon{animation:homeApprovedCloudFloat 3.8s ease-in-out infinite}
-.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage:nth-child(4) .renewal-journey-marker .line-icon{animation:homeApprovedSendFlight 4.6s var(--home-lower-ease) .5s infinite}
-.marketing-home-v3 .marketing-renewal-journey.is-in-view .renewal-journey-stage:nth-child(6) .renewal-journey-marker .line-icon{animation:homeApprovedStarTwinkle 3.4s ease-in-out 1s infinite}
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage .renewal-journey-marker{animation:homeApprovedJourneyFocus 7.2s ease-in-out calc(var(--motion-index) * -.92s) infinite;animation-play-state:running}
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:nth-child(2) .renewal-journey-marker .line-icon{animation:homeApprovedCloudFloat 3.8s ease-in-out infinite}
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:nth-child(4) .renewal-journey-marker .line-icon{animation:homeApprovedSendFlight 4.6s var(--home-lower-ease) -.5s infinite}
+.marketing-home-v3 .marketing-renewal-journey .renewal-journey-stage:nth-child(6) .renewal-journey-marker .line-icon{animation:homeApprovedStarTwinkle 3.4s ease-in-out -1s infinite}
+.marketing-home-v3 .renewal-journey-stage:first-of-type::before,
+.marketing-home-v3 .renewal-journey-stage:last-of-type::before{
+  position:absolute;
+  z-index:4;
+  top:-4px;
+  width:6px;
+  height:6px;
+  border-radius:1px;
+  background:#0b8b7e;
+  box-shadow:17px 22px 0 -1px rgba(11,139,126,.72),-11px 34px 0 -2px rgba(11,139,126,.58);
+  content:"";
+  opacity:.78;
+  transform:rotate(45deg);
+  animation:homeApprovedEndpointSparkle 3.6s ease-in-out calc(var(--motion-index) * -.7s) infinite;
+}
+.marketing-home-v3 .renewal-journey-stage:first-of-type::before{right:5%}
+.marketing-home-v3 .renewal-journey-stage:last-of-type::before{left:5%}
 
 .marketing-home-v3 .marketing-commerce-ecosystem{
   position:relative;
@@ -12878,7 +12895,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .commerce-carousel-pagination i.is-active{width:21px;background:var(--home-lower-brand)}
 
 @keyframes homeApprovedPathDraw{to{stroke-dashoffset:0}}
-@keyframes homeApprovedDataFlow{0%{stroke-dashoffset:1;opacity:0}8%,92%{opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes homeApprovedDataFlow{from{stroke-dashoffset:0;opacity:.9}to{stroke-dashoffset:-1;opacity:.9}}
+@keyframes homeApprovedJourneyDataFlow{from{stroke-dashoffset:0;opacity:.92}to{stroke-dashoffset:-.12;opacity:.92}}
+@keyframes homeApprovedStepDashFlow{to{stroke-dashoffset:-1}}
 @keyframes homeApprovedNumberIn{0%{transform:translateX(-50%) scale(.85);box-shadow:0 0 0 0 rgba(28,177,158,0)}68%{transform:translateX(-50%) scale(1.08);box-shadow:0 0 0 9px rgba(28,177,158,.1)}100%{transform:translateX(-50%) scale(1)}}
 @keyframes homeApprovedGroundPulse{0%,100%{opacity:.48;transform:perspective(180px) rotateX(66deg) scale(.96)}50%{opacity:.8;transform:perspective(180px) rotateX(66deg) scale(1.035)}}
 @keyframes homeApprovedAccount{0%{opacity:0;transform:scale(.84) rotate(-3deg)}70%{opacity:1;transform:scale(1.06) rotate(2deg)}100%{transform:scale(1)}}
@@ -12890,7 +12909,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @keyframes homeApprovedSettingsHover{0%,100%{transform:rotate(0) scale(1)}55%{transform:rotate(28deg) scale(1.07)}}
 @keyframes homeApprovedRocketHover{0%,100%{transform:none}55%{transform:translate(5px,-7px) rotate(2deg) scale(1.075)}}
 @keyframes homeApprovedRocketFlame{0%,100%{opacity:0;transform:rotate(-43deg) scaleX(.45)}28%,70%{opacity:.9;transform:rotate(-43deg) scaleX(1.15)}}
-@keyframes homeApprovedJourneyFocus{0%,15%,100%{transform:scale(1);box-shadow:0 0 0 7px rgba(37,183,163,.055),0 10px 23px rgba(7,96,87,.13)}4%,11%{transform:scale(1.055);box-shadow:0 0 0 10px rgba(37,183,163,.09),0 14px 28px rgba(7,96,87,.18)}}
+@keyframes homeApprovedJourneyFocus{0%,100%{transform:translateY(0) scale(1);box-shadow:0 0 0 7px rgba(37,183,163,.055),0 10px 23px rgba(7,96,87,.13)}18%{transform:translateY(-2px) scale(1.045);box-shadow:0 0 0 10px rgba(37,183,163,.09),0 14px 28px rgba(7,96,87,.18)}36%{transform:translateY(0) scale(1.01);box-shadow:0 0 0 8px rgba(37,183,163,.065),0 11px 24px rgba(7,96,87,.14)}68%{transform:translateY(1px) scale(.995);box-shadow:0 0 0 7px rgba(37,183,163,.05),0 9px 21px rgba(7,96,87,.12)}}
 @keyframes homeApprovedCloudFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @keyframes homeApprovedSendFlight{0%,75%,100%{transform:none}84%{transform:translate(4px,-4px) rotate(2deg)}92%{transform:translate(-1px,1px)}}
 @keyframes homeApprovedStarTwinkle{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(9deg) scale(1.12)}}
@@ -12924,8 +12943,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .marketing-step>b{top:0;width:39px;height:39px;border-width:5px}
   .marketing-home-v3 .marketing-step-card{min-height:116px;align-items:flex-start;padding:30px 76px 18px 18px;border-radius:15px;text-align:right}
   .marketing-home-v3 .marketing-step-icon{position:absolute;top:42px;right:17px;width:46px;height:46px}.marketing-home-v3 .marketing-step-icon .line-icon{width:29px;height:29px}
-@keyframes homeApprovedJourneyDataFlow{0%{stroke-dashoffset:.98;opacity:0}10%,90%{opacity:.9}100%{stroke-dashoffset:0;opacity:0}}
-@keyframes homeApprovedStepDashFlow{to{stroke-dashoffset:-1}}
   .marketing-home-v3 .marketing-step h3{margin-top:11px;font-size:12px}.marketing-home-v3 .marketing-step p{max-width:none;margin:6px 0 0;font-size:8.5px}
   .marketing-home-v3 .marketing-step-ground{right:15%;left:15%;bottom:-1px;height:30px}
   .marketing-home-v3 .marketing-renewal-journey{padding:22px 0 30px}
@@ -12937,11 +12954,12 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .renewal-journey-stage--number .renewal-journey-marker{width:52px;height:52px;margin-top:7px}
   .marketing-home-v3 .renewal-journey-stage h3{font-size:10px}.marketing-home-v3 .renewal-journey-stage p{font-size:7.5px}
   .marketing-home-v3 .marketing-commerce-ecosystem{padding:25px 0 30px}
+@keyframes homeApprovedEndpointSparkle{0%,100%{opacity:.46;transform:rotate(45deg) scale(.72)}48%{opacity:1;transform:rotate(45deg) scale(1.16)}70%{opacity:.7;transform:rotate(45deg) scale(.9)}}
+.marketing-home-v3 .marketing-step-route .home-lower-route-draw{animation:homeApprovedStepDashFlow 14s linear infinite}
   .marketing-home-v3 .commerce-carousel{--commerce-gap:9px;grid-template-columns:30px minmax(0,1fr) 30px;gap:4px}
   .marketing-home-v3 .commerce-carousel-window{padding-bottom:14px}
   .marketing-home-v3 .commerce-store-track article{min-height:105px;padding:13px 8px;border-radius:13px}
   .marketing-home-v3 .commerce-store-track article>span{width:44px;height:44px}.marketing-home-v3 .commerce-store-track article svg{width:34px;height:34px}.marketing-home-v3 .commerce-store-track article strong{font-size:9px}
-.marketing-home-v3 .marketing-steps.is-running .marketing-step-route .home-lower-route-draw{animation:homeApprovedStepDashFlow 14s linear infinite}
   .marketing-home-v3 .commerce-brand-card .commerce-brand-logo{width:66px;height:53px}
   .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:72px;height:52px}
   .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:48px;height:48px}
