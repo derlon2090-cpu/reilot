@@ -1,6 +1,6 @@
 import { requireSession } from "../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../src/server/campaign-contacts.js";
-import { getAIConversation, updateAIConversation } from "../../../../../src/server/ai/conversations.js";
+import { deleteAIConversation, getAIConversation, updateAIConversation } from "../../../../../src/server/ai/conversations.js";
 
 function fail(error) {
   return Response.json({ ok: false, message: error.status ? error.message : "تعذر إكمال الطلب." }, { status: error.status || 500 });
@@ -31,7 +31,7 @@ export async function DELETE(request, { params }) {
   if (!sameOriginRequest(request)) return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
   const { conversationId } = await params;
   try {
-    const item = await updateAIConversation(auth.session, conversationId, { status: "deleted" });
+    const item = await deleteAIConversation(auth.session, conversationId);
     return Response.json({ ok: true, item });
   } catch (error) { return fail(error); }
 }

@@ -138,8 +138,11 @@ export async function getTenantStorage(tenantId, runner = { query }) {
   for (const row of tables.rows) {
     const table = safeTableName(row.tableName);
     if (!table) continue;
+    const recordSize = table === "ai_messages"
+      ? `pg_column_size(record) + COALESCE((SELECT sum(CASE WHEN (attachment->>'size') ~ '^[0-9]+$' THEN (attachment->>'size')::bigint ELSE 0 END) FROM jsonb_array_elements(COALESCE(record.attachments,'[]'::jsonb)) attachment),0)`
+      : "pg_column_size(record)";
     const result = await runner.query(
-      `SELECT COALESCE(sum(pg_column_size(record)), 0)::bigint AS bytes
+      `SELECT COALESCE(sum(${recordSize}), 0)::bigint AS bytes
          FROM ${table} AS record WHERE tenant_id = $1`,
       [tenantId]
     );

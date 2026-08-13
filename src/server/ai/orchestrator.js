@@ -108,13 +108,22 @@ function recentProviderMessages(conversation) {
   }));
 }
 
-function validateAttachments(items) {
-  return (Array.isArray(items) ? items : []).slice(0, 3).map((item) => ({
-    name: String(item?.name || "ملف").replace(/[<>]/g, "").slice(0, 160),
-    type: String(item?.type || "application/octet-stream").slice(0, 100),
-    size: Math.max(0, Math.min(10 * 1024 * 1024, Number(item?.size || 0))),
-    analysis: "metadata_only"
-  }));
+function validateAttachments(items, session, conversationId) {
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"]);
+  const prefix = `ai/${session.tenantId}/${session.userId}/${conversationId}/`;
+  return (Array.isArray(items) ? items : []).slice(0, 3).flatMap((item) => {
+    const path = String(item?.path || "");
+    const type = String(item?.type || "").slice(0, 100);
+    const size = Math.max(0, Math.min(10 * 1024 * 1024, Number(item?.size || 0)));
+    if (!path.startsWith(prefix) || path.includes("..") || !allowedTypes.has(type) || !size) return [];
+    return [{
+      path,
+      name: String(item?.name || "ملف").replace(/[<>]/g, "").slice(0, 160),
+      type,
+      size,
+      analysis: "stored"
+    }];
+  });
 }
 
 export async function createAIStreamResponse(session, input = {}, requestSignal) {
@@ -136,7 +145,7 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
   let conversation = input.conversationId ? await getAIConversation(session, input.conversationId) : null;
   if (input.conversationId && !conversation) return Response.json({ ok: false, message: "المحادثة غير موجودة." }, { status: 404 });
   if (!conversation) conversation = await createAIConversation(session, { prompt, page: input.page });
-  const attachments = validateAttachments(input.attachments);
+  const attachments = validateAttachments(input.attachments, session, conversation.id);
   const route = classifyAIRequest({
     prompt,
     conversationMessages: conversation.messages,
@@ -277,11 +286,6 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
             content += part;
             emit("token", { value: part });
           }
-        }
-        if (attachments.length) {
-          const note = "\n\nملاحظة: تم حفظ بيانات المرفق مع المحادثة، لكن تحليل محتوى الملفات غير مفعّل في هذه المرحلة.";
-          content += note;
-          emit("token", { value: note });
         }
       } catch (error) {
         if (error?.name === "AbortError") {

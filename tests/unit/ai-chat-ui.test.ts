@@ -47,4 +47,32 @@ describe("Renvix Intelligence chat UI", () => {
     expect(overviewRoute).toContain("preferences, chatStorage");
     expect(orchestrator).toContain("لا تستخدم الفواصل الزخرفية");
   });
+
+  it("supports professional conversation actions without rerendering the message stream", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    for (const action of ["ai-pin-conversation", "ai-rename-conversation", "ai-archive-conversation", "ai-delete-conversation"]) {
+      expect(source).toContain(`data-action="${action}"`);
+    }
+    expect(source).toContain("function queueAIMessageScroll");
+    expect(source).not.toContain('streamNode?.scrollIntoView');
+    expect(source).toContain("refreshAIStateSilently().then(refreshAIConversationSidebar)");
+    expect(css).toContain(".rvx-ai-conversation-menu");
+  });
+
+  it("uploads and previews real chat attachments with a clean focus state", async () => {
+    const [source, css, uploadRoute] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8"),
+      readFile("app/api/ai/conversations/[conversationId]/attachments/route.js", "utf8")
+    ]);
+    expect(source).toContain('data-action="ai-add-attachment"');
+    expect(source).toContain("function uploadAIAttachments");
+    expect(source).toContain("rvx-ai-attachment-preview");
+    expect(css).toContain(".rvx-ai-composer textarea:focus-visible");
+    expect(uploadRoute).toContain('access: "public"');
+    expect(uploadRoute).toContain("getAIConversation(auth.session, conversationId)");
+  });
 });

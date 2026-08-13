@@ -862,6 +862,10 @@ state.aiSidebarOpen = false;
 state.aiSettingsOpen = false;
 state.aiToolProgress = [];
 state.aiPendingMessage = null;
+state.aiAttachments = [];
+state.aiAutoScroll = true;
+state.aiScrollFrame = 0;
+state.aiConversationActionBusy = "";
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
 state.sallaAutomationTemplates = null;
@@ -1703,6 +1707,9 @@ function dashboardIcon(name) {
     save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     delete: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>',
+    more: '<circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/>',
+    pin: '<path d="m14 4 6 6-3 1-4 4-1 5-3-3-5 5-2-2 5-5-3-3 5-1 4-4Z"/>',
+    archive: '<rect x="3" y="5" width="18" height="4" rx="1"/><path d="M5 9v11h14V9M9 13h6"/>',
     "arrow-left": '<path d="m15 18-6-6 6-6"/><path d="M9 12h11"/>',
      warning: '<path d="M10.3 3.5 2.5 18a2 2 0 0 0 1.8 3h15.4a2 2 0 0 0 1.8-3L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
     passwordReset: '<path d="M20 11a8 8 0 1 0 1 4"/><path d="M20 4v7h-7"/><rect x="8" y="10" width="8" height="8" rx="2"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/>',
@@ -7935,6 +7942,7 @@ async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
   if (action === "ai-new-conversation") {
+    resetAIAttachments();
     state.aiConversationId = "";
     state.aiConversation = null;
     state.aiDraft = "";
@@ -7945,6 +7953,7 @@ async function handleAction(target) {
     return render();
   }
   if (action === "ai-open-conversation") {
+    resetAIAttachments();
     state.aiConversationId = target.dataset.id || "";
     state.aiConversation = null;
     state.aiSidebarOpen = false;
@@ -7978,6 +7987,53 @@ async function handleAction(target) {
   }
   if (action === "ai-stop") {
     state.aiAbortController?.abort();
+    return;
+  }
+  if (action === "ai-add-attachment") {
+    if (state.aiStreaming) return;
+    target.closest('form[data-submit="ai-message"]')?.querySelector('input[name="attachments"]')?.click();
+    return;
+  }
+  if (action === "ai-remove-attachment") {
+    const index = Number(target.dataset.index);
+    const item = state.aiAttachments[index];
+    if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    state.aiAttachments.splice(index, 1);
+    refreshAIAttachmentPreview(target.closest('form[data-submit="ai-message"]'));
+    return;
+  }
+  if (action === "ai-toggle-conversation-menu") {
+    const menu = target.closest("[data-ai-conversation-item]")?.querySelector("[data-ai-conversation-menu]");
+    if (!menu) return;
+    const willOpen = menu.hidden;
+    closeAIConversationMenus(willOpen ? menu : null);
+    menu.hidden = !willOpen;
+    target.setAttribute("aria-expanded", String(willOpen));
+    return;
+  }
+  if (action === "ai-pin-conversation") {
+    closeAIConversationMenus();
+    await mutateAIConversation(target.dataset.id, { isPinned: target.dataset.pinned !== "true" }, target.dataset.pinned === "true" ? "تم إلغاء تثبيت المحادثة" : "تم تثبيت المحادثة");
+    return;
+  }
+  if (action === "ai-archive-conversation") {
+    closeAIConversationMenus();
+    await mutateAIConversation(target.dataset.id, { status: "archived" }, "تمت أرشفة المحادثة");
+    return;
+  }
+  if (action === "ai-rename-conversation") {
+    closeAIConversationMenus();
+    openModal("إعادة تسمية المحادثة", `<form class="grid rvx-ai-rename-form" data-submit="ai-conversation-rename" data-id="${escapeHtml(target.dataset.id || "")}"><label class="field"><span>اسم المحادثة</span><input class="input" name="title" maxlength="64" value="${escapeHtml(target.dataset.title || "")}" autocomplete="off" required></label><button class="btn btn-primary" type="submit">حفظ الاسم</button></form>`);
+    requestAnimationFrame(() => portal.querySelector('input[name="title"]')?.select());
+    return;
+  }
+  if (action === "ai-delete-conversation") {
+    closeAIConversationMenus();
+    openModal("حذف المحادثة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيتم حذف <strong>${escapeHtml(target.dataset.title || "هذه المحادثة")}</strong> ورسائلها ومرفقاتها نهائيًا، ولا يمكن التراجع عن ذلك.</p></div>`, `<button class="btn btn-danger" data-action="ai-confirm-delete-conversation" data-id="${escapeHtml(target.dataset.id || "")}">حذف المحادثة</button><button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+    return;
+  }
+  if (action === "ai-confirm-delete-conversation") {
+    await deleteAIConversationFromMenu(target.dataset.id);
     return;
   }
   if (action === "footer-guide-suggestion") {
@@ -10070,6 +10126,112 @@ async function handleGoogleAuthResult(event) {
   setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450);
 }
 
+function aiMessageListIsNearBottom(list, threshold = 110) {
+  if (!list) return true;
+  return list.scrollHeight - list.scrollTop - list.clientHeight <= threshold;
+}
+
+function queueAIMessageScroll({ force = false } = {}) {
+  const list = document.querySelector("[data-ai-message-list]");
+  if (!list || (!force && !state.aiAutoScroll)) return;
+  if (state.aiScrollFrame) cancelAnimationFrame(state.aiScrollFrame);
+  state.aiScrollFrame = requestAnimationFrame(() => {
+    state.aiScrollFrame = 0;
+    const current = document.querySelector("[data-ai-message-list]");
+    if (!current || (!force && !state.aiAutoScroll)) return;
+    current.scrollTop = current.scrollHeight;
+  });
+}
+
+function renderAIPreservingScroll({ forceBottom = false } = {}) {
+  const list = document.querySelector("[data-ai-message-list]");
+  const snapshot = list ? {
+    top: list.scrollTop,
+    distanceFromBottom: list.scrollHeight - list.scrollTop - list.clientHeight,
+    nearBottom: aiMessageListIsNearBottom(list)
+  } : null;
+  render();
+  requestAnimationFrame(() => {
+    const next = document.querySelector("[data-ai-message-list]");
+    if (!next || !snapshot) return;
+    if (forceBottom || snapshot.nearBottom) next.scrollTop = next.scrollHeight;
+    else next.scrollTop = Math.min(snapshot.top, Math.max(0, next.scrollHeight - next.clientHeight - snapshot.distanceFromBottom));
+  });
+}
+
+function closeAIConversationMenus(except = null) {
+  document.querySelectorAll("[data-ai-conversation-menu]").forEach((menu) => {
+    if (menu === except) return;
+    menu.hidden = true;
+    menu.closest("[data-ai-conversation-item]")?.querySelector('[data-action="ai-toggle-conversation-menu"]')?.setAttribute("aria-expanded", "false");
+  });
+}
+
+async function refreshAIStateSilently() {
+  if (state.route !== "/dashboard/support/ai") return;
+  const [conversations, overview] = await Promise.allSettled([
+    fetchJson(`/api/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`),
+    fetchJson("/api/ai/overview")
+  ]);
+  if (conversations.status === "fulfilled") state.aiConversations = conversations.value.items || [];
+  if (overview.status === "fulfilled") {
+    state.aiOverview = overview.value.snapshot || state.aiOverview;
+    state.aiUsage = overview.value.usage || state.aiUsage;
+    state.aiChatStorage = overview.value.chatStorage || state.aiChatStorage;
+  }
+}
+
+async function mutateAIConversation(conversationId, input, successMessage) {
+  if (!conversationId || state.aiConversationActionBusy) return null;
+  state.aiConversationActionBusy = conversationId;
+  try {
+    const payload = await fetchJson(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input)
+    });
+    const item = payload.item;
+    if (input.status === "archived") state.aiConversations = (state.aiConversations || []).filter((row) => row.id !== conversationId);
+    else state.aiConversations = (state.aiConversations || []).map((row) => row.id === conversationId ? { ...row, ...item } : row);
+    if (state.aiConversation?.id === conversationId) state.aiConversation = { ...state.aiConversation, ...item };
+    if (input.status === "archived" && state.aiConversationId === conversationId) {
+      state.aiConversationId = "";
+      state.aiConversation = null;
+      const url = new URL(location.href); url.searchParams.delete("conversation"); history.replaceState({}, "", url);
+    }
+    closePortal();
+    appToast.success(successMessage, { id: `ai-conversation-${Object.keys(input)[0]}-${conversationId}` });
+    renderAIPreservingScroll();
+    void refreshAIStateSilently();
+    return item;
+  } catch (error) {
+    appToast.error("تعذر تحديث المحادثة", { description: error.message, id: `ai-conversation-error-${conversationId}` });
+    return null;
+  } finally {
+    state.aiConversationActionBusy = "";
+  }
+}
+
+async function deleteAIConversationFromMenu(conversationId) {
+  if (!conversationId || state.aiConversationActionBusy) return;
+  state.aiConversationActionBusy = conversationId;
+  try {
+    await fetchJson(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, { method: "DELETE" });
+    state.aiConversations = (state.aiConversations || []).filter((row) => row.id !== conversationId);
+    if (state.aiConversationId === conversationId) {
+      state.aiConversationId = "";
+      state.aiConversation = null;
+      const url = new URL(location.href); url.searchParams.delete("conversation"); history.replaceState({}, "", url);
+    }
+    closePortal();
+    appToast.success("تم حذف المحادثة", { description: "حُذفت المحادثة ومرفقاتها من مساحة حسابك.", id: `ai-conversation-deleted-${conversationId}` });
+    renderAIPreservingScroll();
+    void refreshAIStateSilently();
+  } catch (error) {
+    appToast.error("تعذر حذف المحادثة", { description: error.message, id: `ai-conversation-delete-error-${conversationId}` });
+  } finally {
+    state.aiConversationActionBusy = "";
+  }
+}
+
 function consumeGoogleRedirectError() {
   const reason = state.query.get("google_error");
   if (!reason) return;
@@ -10094,6 +10256,9 @@ function consumeGoogleRedirectError() {
 function setAIComposerStreaming(form, streaming) {
   const button = form?.querySelector(".rvx-ai-send,.rvx-ai-stop");
   if (!button) return;
+  form?.classList.toggle("is-streaming", streaming);
+  form?.querySelector('[data-action="ai-add-attachment"]')?.toggleAttribute("disabled", streaming);
+  if (form?.elements?.attachments) form.elements.attachments.disabled = streaming;
   if (streaming) {
     button.type = "button";
     button.className = "rvx-ai-stop";
@@ -10144,33 +10309,139 @@ async function readAIEventStream(response, onEvent) {
   }
 }
 
+const AI_ATTACHMENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"]);
+
+function aiAttachmentUrl(item = {}) {
+  const path = String(item.path || "");
+  return path ? `/api/ai/attachments?path=${encodeURIComponent(path)}` : String(item.url || "");
+}
+
+function aiAttachmentPreviewMarkup(item, index, { draft = false } = {}) {
+  const type = String(item?.type || item?.file?.type || "");
+  const name = String(item?.name || item?.file?.name || "ملف");
+  const size = Number(item?.size || item?.file?.size || 0);
+  const source = draft ? item?.previewUrl : aiAttachmentUrl(item);
+  const image = type.startsWith("image/") && source
+    ? `<img src="${escapeHtml(source)}" alt="">`
+    : `<span>${dashboardIcon(type === "application/pdf" ? "document" : "attachment")}</span>`;
+  return `<article class="rvx-ai-attachment-chip${type.startsWith("image/") ? " is-image" : ""}">${image}<div><strong>${escapeHtml(name)}</strong><small>${formatAIStorageBytes(size)}</small></div>${draft ? `<button type="button" data-action="ai-remove-attachment" data-index="${index}" aria-label="إزالة ${escapeHtml(name)}">${dashboardIcon("close")}</button>` : ""}</article>`;
+}
+
+function renderAIAttachmentDraftMarkup() {
+  return state.aiAttachments.map((item, index) => aiAttachmentPreviewMarkup(item, index, { draft: true })).join("");
+}
+
+function refreshAIAttachmentPreview(form = document.querySelector('form[data-submit="ai-message"]')) {
+  const root = form?.querySelector("[data-ai-attachment-preview]");
+  if (!root) return;
+  root.innerHTML = renderAIAttachmentDraftMarkup();
+  root.hidden = state.aiAttachments.length === 0;
+}
+
+function resetAIAttachments(form = document.querySelector('form[data-submit="ai-message"]')) {
+  state.aiAttachments.forEach((item) => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+  state.aiAttachments = [];
+  if (form?.elements?.attachments) form.elements.attachments.value = "";
+  refreshAIAttachmentPreview(form);
+}
+
+function addAIAttachments(files, form) {
+  const incoming = Array.from(files || []);
+  const accepted = [];
+  for (const file of incoming) {
+    const normalizedType = file.type || (/\.(txt|log)$/i.test(file.name) ? "text/plain" : "");
+    if (!AI_ATTACHMENT_TYPES.has(normalizedType)) {
+      appToast.warning("نوع الملف غير مدعوم", { description: "استخدم صورة PNG أو JPG أو WebP، أو ملف PDF أو TXT.", id: "ai-attachment-type" });
+      continue;
+    }
+    if (!file.size || file.size > 10 * 1024 * 1024) {
+      appToast.warning("حجم المرفق غير صالح", { description: "الحد الأقصى 10MB لكل ملف.", id: "ai-attachment-size" });
+      continue;
+    }
+    if (state.aiAttachments.some((item) => item.file.name === file.name && item.file.size === file.size && item.file.lastModified === file.lastModified)) continue;
+    accepted.push({ file, name: file.name, type: normalizedType, size: file.size, previewUrl: normalizedType.startsWith("image/") ? URL.createObjectURL(file) : "" });
+  }
+  const available = Math.max(0, 3 - state.aiAttachments.length);
+  accepted.slice(available).forEach((item) => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+  state.aiAttachments.push(...accepted.slice(0, available));
+  if (accepted.length > available) appToast.info("الحد الأقصى ثلاثة مرفقات", { description: "أزل أحد المرفقات لإضافة ملف آخر.", id: "ai-attachment-limit" });
+  if (form?.elements?.attachments) form.elements.attachments.value = "";
+  refreshAIAttachmentPreview(form);
+}
+
+async function ensureAIConversationForAttachments(prompt, signal) {
+  if (state.aiConversationId) return state.aiConversationId;
+  const payload = await fetchJson("/api/ai/conversations", {
+    method: "POST", headers: { "Content-Type": "application/json" }, signal,
+    body: JSON.stringify({ title: prompt, page: "support_ai" })
+  });
+  state.aiConversationId = payload.item.id;
+  state.aiConversation = { ...payload.item, messages: [] };
+  state.aiConversations = [payload.item, ...(state.aiConversations || []).filter((item) => item.id !== payload.item.id)];
+  const url = new URL(location.href); url.searchParams.set("conversation", payload.item.id); history.replaceState({}, "", url);
+  return payload.item.id;
+}
+
+async function uploadAIAttachments(conversationId, attachments, signal) {
+  if (!attachments.length) return [];
+  const data = new FormData();
+  attachments.forEach((item) => data.append("files", item.file));
+  const payload = await fetchJson(`/api/ai/conversations/${encodeURIComponent(conversationId)}/attachments`, { method: "POST", body: data, signal });
+  return payload.items || [];
+}
+
+async function discardAIAttachments(conversationId, attachments) {
+  const paths = attachments.map((item) => item.path).filter(Boolean);
+  if (!conversationId || !paths.length) return;
+  await fetch(`/api/ai/conversations/${encodeURIComponent(conversationId)}/attachments`, {
+    method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths })
+  }).catch(() => null);
+}
+
 async function handleAIMessageSubmit(form) {
   if (state.aiStreaming) return;
   const prompt = String(form.elements.prompt?.value || "").trim();
   if (prompt.length < 2) return appToast.warning("اكتب سؤالك أولًا", { description: "اكتب طلبًا واضحًا ليحلله ذكاء Renvix.", id: "ai-prompt-empty" });
-  const files = Array.from(form.elements.attachments?.files || []);
-  if (files.some((file) => file.size > 10 * 1024 * 1024)) return appToast.warning("حجم المرفق كبير", { description: "الحد الأقصى 10MB لكل ملف.", id: "ai-file-size" });
+  const attachmentDrafts = [...state.aiAttachments];
   state.aiStreaming = true;
+  state.aiAutoScroll = true;
   state.aiToolProgress = [];
   state.aiDraft = prompt;
   const controller = new AbortController();
   state.aiAbortController = controller;
   setAIComposerStreaming(form, true);
-  const list = document.querySelector("[data-ai-message-list]");
-  if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading,.rvx-ai-start,.rvx-ai-onboarding")) list.innerHTML = "";
-  const streamId = `ai-stream-${Date.now()}`;
-  list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: prompt })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
-  const streamNode = document.getElementById(streamId);
-  const textNode = streamNode?.querySelector("[data-ai-stream-text]");
-  const blockNode = streamNode?.querySelector("[data-ai-stream-blocks]");
-  streamNode?.scrollIntoView({ block: "end", behavior: "smooth" });
+  let streamNode = null;
+  let textNode = null;
+  let blockNode = null;
+  let uploadedAttachments = [];
+  let readyUserMessage = null;
+  let messageAccepted = false;
+  let assistantBlocks = [];
+  let assistantStatus = "completed";
+  let messageInserted = false;
+  let conversationTitle = state.aiConversation?.title || prompt.split(/\s+/).slice(0, 6).join(" ");
   try {
+    if (attachmentDrafts.length) {
+      form.classList.add("is-uploading");
+      const conversationId = await ensureAIConversationForAttachments(prompt, controller.signal);
+      uploadedAttachments = await uploadAIAttachments(conversationId, attachmentDrafts, controller.signal);
+      form.classList.remove("is-uploading");
+    }
+    const list = document.querySelector("[data-ai-message-list]");
+    if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading,.rvx-ai-start,.rvx-ai-onboarding")) list.innerHTML = "";
+    const streamId = `ai-stream-${Date.now()}`;
+    list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: prompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
+    streamNode = document.getElementById(streamId);
+    textNode = streamNode?.querySelector("[data-ai-stream-text]");
+    blockNode = streamNode?.querySelector("[data-ai-stream-blocks]");
+    messageInserted = true;
+    queueAIMessageScroll({ force: true });
     const endpoint = state.aiConversationId
       ? `/api/ai/conversations/${encodeURIComponent(state.aiConversationId)}/messages`
       : "/api/ai/messages";
     const response = await fetch(endpoint, {
       method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
-      body: JSON.stringify({ prompt, page: "support_ai", locale: state.language === "en" ? "en" : "ar", attachments: files.slice(0,3).map((file) => ({ name: file.name, type: file.type, size: file.size })) })
+      body: JSON.stringify({ prompt, page: "support_ai", locale: state.language === "en" ? "en" : "ar", attachments: uploadedAttachments })
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
@@ -10181,40 +10452,64 @@ async function handleAIMessageSubmit(form) {
     }
     await readAIEventStream(response, (type, payload) => {
       if (type === "ready") {
+        messageAccepted = true;
         state.aiConversationId = payload.conversation?.id || state.aiConversationId;
+        conversationTitle = payload.conversation?.title || conversationTitle;
+        readyUserMessage = payload.userMessage || null;
         const url = new URL(location.href); url.searchParams.set("conversation", state.aiConversationId); history.replaceState({}, "", url);
       } else if (type === "tool") refreshAIToolProgress(payload);
       else if (type === "meta" && blockNode) {
-        blockNode.innerHTML = (payload.blocks || []).map(renderAIBlock).join("");
+        assistantBlocks = payload.blocks || [];
+        blockNode.innerHTML = assistantBlocks.map(renderAIBlock).join("");
         if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
       } else if (type === "token" && textNode) {
         appendAIStreamText(textNode, payload.value || "");
-        streamNode?.scrollIntoView({ block: "end" });
+        queueAIMessageScroll();
       } else if (type === "error" && textNode) {
+        assistantStatus = "failed";
         appendAIStreamText(textNode, `\n${payload.message || "تعذر إكمال الرد."}`);
         streamNode?.classList.add("has-error");
       } else if (type === "interrupted" && textNode) {
+        assistantStatus = "interrupted";
         appendAIStreamText(textNode, `\n\n${payload.message || "تم إيقاف إنشاء الرد."}`);
       } else if (type === "usage") {
         state.aiUsage = payload;
       }
     });
   } catch (error) {
+    form.classList.remove("is-uploading");
     if (error.name !== "AbortError") {
+      assistantStatus = "failed";
       if (textNode) appendAIStreamText(textNode, `\n${error.message || "تعذر إكمال الرد."}`);
+      else appToast.error("تعذر إرسال المرفق", { description: error.message || "حاول مرة أخرى.", id: "ai-attachment-upload-error" });
       streamNode?.classList.add("has-error");
-    } else if (textNode) appendAIStreamText(textNode, "\n\nتم إيقاف إنشاء الرد.");
+    } else if (textNode) {
+      assistantStatus = "interrupted";
+      appendAIStreamText(textNode, "\n\nتم إيقاف إنشاء الرد.");
+    }
   } finally {
     state.aiStreaming = false;
     state.aiAbortController = null;
-    state.aiDraft = "";
     setAIComposerStreaming(form, false);
-    if (form.elements.prompt) { form.elements.prompt.value = ""; form.elements.prompt.style.height = "auto"; }
-    if (form.elements.attachments) form.elements.attachments.value = "";
+    form.classList.remove("is-uploading");
     streamNode?.classList.remove("is-streaming");
-    state.aiConversation = null;
-    state.aiConversations = null;
-    setTimeout(() => syncRouteData(true), 120);
+    if (messageInserted && messageAccepted) {
+      state.aiDraft = "";
+      if (form.elements.prompt) { form.elements.prompt.value = ""; form.elements.prompt.style.height = "auto"; }
+      resetAIAttachments(form);
+      const previous = state.aiConversation?.id === state.aiConversationId && Array.isArray(state.aiConversation.messages)
+        ? state.aiConversation.messages : [];
+      const userMessage = readyUserMessage || { role: "user", content: prompt, attachments: uploadedAttachments, createdAt: new Date().toISOString() };
+      const assistantMessage = { role: "assistant", content: textNode?.dataset.aiRaw || "", segments: assistantBlocks, status: assistantStatus, createdAt: new Date().toISOString() };
+      state.aiConversation = { ...(state.aiConversation || {}), id: state.aiConversationId, title: conversationTitle, messages: [...previous, userMessage, assistantMessage] };
+      const currentItem = { id: state.aiConversationId, title: conversationTitle, status: "active", isPinned: false, lastMessageAt: new Date().toISOString(), lastMessage: assistantMessage.content };
+      state.aiConversations = [currentItem, ...(state.aiConversations || []).filter((item) => item.id !== state.aiConversationId)];
+      queueAIMessageScroll();
+      void refreshAIStateSilently().then(refreshAIConversationSidebar);
+    } else if (!messageAccepted) {
+      state.aiDraft = prompt;
+      void discardAIAttachments(state.aiConversationId, uploadedAttachments);
+    }
   }
 }
 
@@ -10222,6 +10517,15 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "ai-conversation-rename") {
+    const title = String(data.title || "").trim();
+    if (title.length < 2) return appToast.warning("اكتب اسمًا أوضح للمحادثة", { id: "ai-conversation-title-short" });
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ الحفظ...");
+    await mutateAIConversation(form.dataset.id, { title }, "تم تغيير اسم المحادثة");
+    setSubmitBusy(button, false);
+    return;
+  }
   if (type === "ai-settings") {
     const button = form.querySelector('button[type="submit"]');
     setSubmitBusy(button, true, "جارٍ الحفظ...");
@@ -11913,7 +12217,8 @@ function appendAIStreamText(node, value) {
 
 function renderAIMessage(message) {
   const blocks = Array.isArray(message.segments) ? message.segments : [];
-  if (message.role === "user") return `<article class="rvx-ai-message rvx-ai-user-message"><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p><time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
+  const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+  if (message.role === "user") return `<article class="rvx-ai-message rvx-ai-user-message"><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p>${attachments.length ? `<div class="rvx-ai-message-attachments">${attachments.map((item, index) => aiAttachmentPreviewMarkup(item, index)).join("")}</div>` : ""}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
   return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text">${renderAIMessageContent(message.content || "")}</div>${blocks.map(renderAIBlock).join("")}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
 }
 
@@ -11949,11 +12254,37 @@ function aiUsageCard() {
   return `<section class="rvx-ai-usage-card"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI allowance" : "مساحة الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${formatAITokens(used)}</b><span>${english ? `of ${limit} tokens` : `من ${limit} توكن`}</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${english ? `${remaining} remaining` : `${remaining} متبقي`}</span><b>${usage.unlimited ? "∞" : `${percent}%`}</b></footer><div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(chatStorage.totalBytes || 0)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
 }
 
+function aiConversationItemsMarkup(items) {
+  const english = state.language === "en";
+  const locale = english ? "en-US" : "ar-SA";
+  if (!items.length) return `<p>${english ? "Start a new chat and it will appear here automatically." : "ابدأ محادثة جديدة، وستظهر هنا تلقائيًا."}</p>`;
+  return items.map((item) => {
+    const id = escapeHtml(item.id || "");
+    const title = escapeHtml(item.title || (english ? "New chat" : "محادثة جديدة"));
+    const pinned = item.isPinned === true;
+    return `<article class="rvx-ai-conversation-item ${state.aiConversationId === item.id ? "active" : ""}" data-ai-conversation-item>
+      <button class="rvx-ai-conversation-open" data-action="ai-open-conversation" data-id="${id}"><span>${dashboardIcon("message")}</span><div><strong>${title}</strong><small><time>${new Date(item.lastMessageAt || Date.now()).toLocaleDateString(locale)}</time><em>${formatAIStorageBytes(item.storageBytes)}</em></small></div>${pinned ? `<i class="rvx-ai-pinned" title="${english ? "Pinned" : "مثبت"}">${dashboardIcon("pin")}</i>` : ""}</button>
+      <button class="rvx-ai-conversation-more" type="button" data-action="ai-toggle-conversation-menu" aria-haspopup="menu" aria-expanded="false" aria-label="${english ? "Chat options" : "خيارات المحادثة"}">${dashboardIcon("more")}</button>
+      <div class="rvx-ai-conversation-menu" data-ai-conversation-menu role="menu" hidden>
+        <button role="menuitem" data-action="ai-pin-conversation" data-id="${id}" data-pinned="${pinned}">${dashboardIcon("pin")}<span>${pinned ? (english ? "Unpin" : "إلغاء التثبيت") : (english ? "Pin" : "تثبيت")}</span></button>
+        <button role="menuitem" data-action="ai-rename-conversation" data-id="${id}" data-title="${title}">${dashboardIcon("edit")}<span>${english ? "Rename" : "إعادة التسمية"}</span></button>
+        <button role="menuitem" data-action="ai-archive-conversation" data-id="${id}">${dashboardIcon("archive")}<span>${english ? "Archive" : "أرشفة"}</span></button>
+        <button class="danger" role="menuitem" data-action="ai-delete-conversation" data-id="${id}" data-title="${title}">${dashboardIcon("delete")}<span>${english ? "Delete" : "حذف"}</span></button>
+      </div>
+    </article>`;
+  }).join("");
+}
+
+function refreshAIConversationSidebar() {
+  const nav = document.querySelector("[data-ai-conversation-nav]");
+  if (!nav) return;
+  nav.innerHTML = aiConversationItemsMarkup(Array.isArray(state.aiConversations) ? state.aiConversations : []);
+}
+
 function aiConversationSidebar() {
   const english = state.language === "en";
   const items = Array.isArray(state.aiConversations) ? state.aiConversations : [];
-  const locale = english ? "en-US" : "ar-SA";
-  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><div class="rvx-ai-side-head"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} ${english ? "New chat" : "محادثة جديدة"}</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="${english ? "Search chats" : "ابحث في المحادثات"}"></label></div><h3>${dashboardIcon("clock")} ${english ? "Recent chats" : "المحادثات الحديثة"}</h3><nav>${items.length ? items.map((item) => `<button class="${state.aiConversationId === item.id ? "active" : ""}" data-action="ai-open-conversation" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon("message")}</span><div><strong>${escapeHtml(item.title)}</strong><small><time>${new Date(item.lastMessageAt).toLocaleDateString(locale)}</time><em>${formatAIStorageBytes(item.storageBytes)}</em></small></div></button>`).join("") : `<p>${english ? "Start a new chat and it will appear here automatically." : "ابدأ محادثة جديدة، وستظهر هنا تلقائيًا."}</p>`}</nav><div class="rvx-ai-side-bottom">${aiUsageCard()}<footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} <span>${english ? "Tickets" : "التذاكر"}</span></button><button data-action="ai-open-settings">${dashboardIcon("settings")} <span>${english ? "Chat settings" : "إعدادات الشات"}</span></button></footer></div></aside>`;
+  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><div class="rvx-ai-side-head"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} ${english ? "New chat" : "محادثة جديدة"}</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="${english ? "Search chats" : "ابحث في المحادثات"}"></label></div><h3>${dashboardIcon("clock")} ${english ? "Recent chats" : "المحادثات الحديثة"}</h3><nav data-ai-conversation-nav>${aiConversationItemsMarkup(items)}</nav><div class="rvx-ai-side-bottom">${aiUsageCard()}<footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} <span>${english ? "Tickets" : "التذاكر"}</span></button><button data-action="ai-open-settings">${dashboardIcon("settings")} <span>${english ? "Chat settings" : "إعدادات الشات"}</span></button></footer></div></aside>`;
 }
 
 function aiSettingsDialog() {
@@ -11982,7 +12313,7 @@ function aiSupportPage() {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const quickPrompts = english ? ["Analyze subscriptions", "Customer renewals", "Connect store", "Create support ticket", "Draft customer reply"] : ["تحليل الاشتراكات", "تجديدات العملاء", "ربط المتجر", "إنشاء تذكرة دعم", "صياغة رد للعميل"];
   const showQuickActions = state.aiPreferences?.quickActionsEnabled !== false;
-  return `<section class="rvx-ai-page">${aiConversationSidebar()}<main class="rvx-ai-workspace"><header><button class="rvx-ai-drawer-toggle" data-action="ai-toggle-sidebar" aria-label="${english ? "Open chat list" : "فتح قائمة المحادثات"}">${dashboardIcon("menu")}</button><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><h1>${english ? "Renvix Intelligence" : "ذكاء Renvix الشامل"} ✨</h1><p>${english ? "Smart assistance inside your platform" : "مساعد ذكي داخل منصتك"}</p></span></div><button type="button" class="rvx-ai-support-return" data-link="/dashboard/support">${dashboardIcon("back")}<span>${english ? "Back to Support Center" : "العودة إلى مركز الدعم"}</span></button></header><div class="rvx-ai-messages" data-ai-message-list>${messages.length ? messages.map(renderAIMessage).join("") : aiOverviewWelcome()}</div><div class="rvx-ai-tools" data-ai-tool-progress></div>${showQuickActions ? `<nav class="rvx-ai-quick-actions" aria-label="${english ? "Quick actions" : "اقتراحات سريعة"}">${quickPrompts.map((prompt, index) => `<button data-action="ai-quick-prompt" data-prompt="${prompt}">${dashboardIcon(["reports","refresh","link","support","edit"][index])}${prompt}</button>`).join("")}</nav>` : ""}<form class="rvx-ai-composer" data-submit="ai-message"><textarea name="prompt" rows="1" maxlength="6000" placeholder="${english ? "Ask Renvix Intelligence anything about the platform…" : "اسأل ذكاء Renvix عن أي شيء داخل المنصة..."}">${escapeHtml(state.aiDraft)}</textarea><div class="rvx-ai-composer-actions"><span><button type="button" title="${english ? "Add" : "إضافة"}">${dashboardIcon("add")}</button><label title="${english ? "Attach file" : "إرفاق ملف"}">${dashboardIcon("attachment")}<input name="attachments" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt"></label></span>${state.aiStreaming ? `<button class="rvx-ai-stop" type="button" data-action="ai-stop">${dashboardIcon("close")} ${english ? "Stop" : "إيقاف"}</button>` : `<button class="rvx-ai-send" type="submit" aria-label="${english ? "Send" : "إرسال"}">${dashboardIcon("send")}</button>`}</div><small>${dashboardIcon("info")} ${english ? "Renvix may make mistakes; verify sensitive information." : "قد يخطئ المساعد أحيانًا؛ تحقق من المعلومات الحساسة."}</small></form></main>${aiSettingsDialog()}</section>`;
+  return `<section class="rvx-ai-page">${aiConversationSidebar()}<main class="rvx-ai-workspace"><header><button class="rvx-ai-drawer-toggle" data-action="ai-toggle-sidebar" aria-label="${english ? "Open chat list" : "فتح قائمة المحادثات"}">${dashboardIcon("menu")}</button><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><h1>${english ? "Renvix Intelligence" : "ذكاء Renvix الشامل"} ✨</h1><p>${english ? "Smart assistance inside your platform" : "مساعد ذكي داخل منصتك"}</p></span></div><button type="button" class="rvx-ai-support-return" data-link="/dashboard/support">${dashboardIcon("back")}<span>${english ? "Back to Support Center" : "العودة إلى مركز الدعم"}</span></button></header><div class="rvx-ai-messages" data-ai-message-list>${messages.length ? messages.map(renderAIMessage).join("") : aiOverviewWelcome()}</div><div class="rvx-ai-tools" data-ai-tool-progress></div>${showQuickActions ? `<nav class="rvx-ai-quick-actions" aria-label="${english ? "Quick actions" : "اقتراحات سريعة"}">${quickPrompts.map((prompt, index) => `<button data-action="ai-quick-prompt" data-prompt="${prompt}">${dashboardIcon(["reports","refresh","link","support","edit"][index])}${prompt}</button>`).join("")}</nav>` : ""}<form class="rvx-ai-composer" data-submit="ai-message"><div class="rvx-ai-attachment-preview" data-ai-attachment-preview ${state.aiAttachments.length ? "" : "hidden"}>${renderAIAttachmentDraftMarkup()}</div><textarea name="prompt" rows="1" maxlength="6000" spellcheck="true" placeholder="${english ? "Ask Renvix Intelligence anything about the platform…" : "اسأل ذكاء Renvix عن أي شيء داخل المنصة..."}">${escapeHtml(state.aiDraft)}</textarea><div class="rvx-ai-composer-actions"><span><button type="button" data-action="ai-add-attachment" aria-label="${english ? "Add an image or file" : "إضافة صورة أو ملف"}" title="${english ? "Add an image or file" : "إضافة صورة أو ملف"}">${dashboardIcon("add")}</button><label title="${english ? "Attach file" : "إرفاق ملف"}" aria-label="${english ? "Attach file" : "إرفاق ملف"}">${dashboardIcon("attachment")}<input name="attachments" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.log"></label></span>${state.aiStreaming ? `<button class="rvx-ai-stop" type="button" data-action="ai-stop">${dashboardIcon("close")} ${english ? "Stop" : "إيقاف"}</button>` : `<button class="rvx-ai-send" type="submit" aria-label="${english ? "Send" : "إرسال"}">${dashboardIcon("send")}</button>`}</div><small>${dashboardIcon("info")} ${english ? "Renvix may make mistakes; verify sensitive information." : "قد يخطئ المساعد أحيانًا؛ تحقق من المعلومات الحساسة."}</small></form></main>${aiSettingsDialog()}</section>`;
 }
 
 function dashboardSupportPage() {
@@ -12375,6 +12706,7 @@ function bindQrImageState() {
 }
 
 document.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-ai-conversation-item]")) closeAIConversationMenus();
   if (!event.target.closest(".dashboard-search")) {
     const quickSearchResults = document.querySelector("[data-global-search-results]");
     if (quickSearchResults) quickSearchResults.hidden = true;
@@ -12690,8 +13022,17 @@ document.addEventListener("focusin", (event) => {
   if (globalSearch) refreshDashboardQuickSearch(globalSearch);
 });
 
+document.addEventListener("scroll", (event) => {
+  const list = event.target?.matches?.("[data-ai-message-list]") ? event.target : null;
+  if (list) state.aiAutoScroll = aiMessageListIsNearBottom(list);
+}, true);
+
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.matches?.('form[data-submit="ai-message"] input[name="attachments"]')) {
+    addAIAttachments(target.files, target.form);
+    return;
+  }
   if (target.matches?.('input[name="storageCleanupCategory"]')) {
     const dialog = target.closest(".account-storage-cleanup-dialog");
     const selectedBytes = [...(dialog?.querySelectorAll('input[name="storageCleanupCategory"]:checked') || [])]

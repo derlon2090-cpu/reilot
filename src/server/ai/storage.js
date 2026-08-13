@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { query, transaction } from "../db.js";
 
 const MAX_CLEANUP_BYTES = 1024 * 1024 * 1024;
@@ -35,7 +36,13 @@ async function conversationStorageRows(session, runner, keepConversationId = nul
     `SELECT c.id,c.status,c.is_pinned AS "isPinned",c.last_message_at AS "lastMessageAt",
        (pg_column_size(c)
         + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.conversation_id=c.id),0)
+        + COALESCE((SELECT sum(CASE WHEN (attachment->>'size') ~ '^[0-9]+$' THEN (attachment->>'size')::bigint ELSE 0 END)
+            FROM ai_messages m CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+           WHERE m.conversation_id=c.id),0)
         + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.conversation_id=c.id),0))::bigint AS "storageBytes"
+       ,ARRAY(SELECT DISTINCT attachment->>'path'
+          FROM ai_messages m CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+         WHERE m.conversation_id=c.id AND COALESCE(attachment->>'path','') <> '') AS "attachmentPaths"
        FROM ai_conversations c
       WHERE c.tenant_id=$1 AND c.user_id=$2
         AND ($3::uuid IS NULL OR c.id <> $3::uuid)
@@ -52,6 +59,9 @@ async function totalAIChatStorage(session, runner) {
     `SELECT (
        COALESCE((SELECT sum(pg_column_size(c)) FROM ai_conversations c WHERE c.tenant_id=$1 AND c.user_id=$2),0)
        + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.tenant_id=$1 AND m.user_id=$2),0)
+       + COALESCE((SELECT sum(CASE WHEN (attachment->>'size') ~ '^[0-9]+$' THEN (attachment->>'size')::bigint ELSE 0 END)
+           FROM ai_messages m CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+          WHERE m.tenant_id=$1 AND m.user_id=$2),0)
        + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.tenant_id=$1 AND x.user_id=$2),0)
      )::bigint AS "totalBytes",
      (SELECT count(*)::int FROM ai_conversations c WHERE c.tenant_id=$1 AND c.user_id=$2 AND c.status <> 'deleted') AS "conversationCount"`,
@@ -88,10 +98,11 @@ export async function cleanupAIChatStorage(session, input = {}) {
   if (!Number.isFinite(targetBytes) || targetBytes < 1 || targetBytes > MAX_CLEANUP_BYTES) {
     throw Object.assign(new Error("حدد مساحة صالحة تريد إخلاءها."), { status: 400 });
   }
-  return transaction(async (client) => {
+  const result = await transaction(async (client) => {
     const rows = await conversationStorageRows(session, client, input.keepConversationId);
     const selection = selectAIStorageCleanupCandidates(rows, targetBytes, { keepConversationId: input.keepConversationId });
     const ids = selection.selected.map((row) => row.id);
+    const attachmentPaths = selection.selected.flatMap((row) => row.attachmentPaths || []).filter(Boolean);
     if (ids.length) {
       await client.query(
         `DELETE FROM ai_conversations
@@ -104,7 +115,11 @@ export async function cleanupAIChatStorage(session, input = {}) {
       storage,
       freedBytes: selection.estimatedFreedBytes,
       deletedConversations: ids.length,
-      retainedConversationId: selection.retainedConversationId
+      retainedConversationId: selection.retainedConversationId,
+      attachmentPaths
     };
   });
+  if (result.attachmentPaths.length && process.env.BLOB_READ_WRITE_TOKEN) await del(result.attachmentPaths).catch(() => null);
+  delete result.attachmentPaths;
+  return result;
 }

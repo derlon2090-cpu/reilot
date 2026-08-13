@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { query, transaction } from "../db.js";
 
 function compactTitle(value = "") {
@@ -20,10 +21,13 @@ export async function listAIConversations(session, { search = "", limit = 30 } =
     `SELECT c.id,c.title,c.status,c.is_pinned AS "isPinned",c.last_message_at AS "lastMessageAt",c.created_at AS "createdAt",
       (pg_column_size(c)
         + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.conversation_id=c.id),0)
+        + COALESCE((SELECT sum(CASE WHEN (attachment->>'size') ~ '^[0-9]+$' THEN (attachment->>'size')::bigint ELSE 0 END)
+            FROM ai_messages m CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+           WHERE m.conversation_id=c.id),0)
         + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.conversation_id=c.id),0))::bigint AS "storageBytes",
       (SELECT content FROM ai_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC LIMIT 1) AS "lastMessage"
      FROM ai_conversations c
-     WHERE c.tenant_id=$1 AND c.user_id=$2 AND c.status <> 'deleted' ${searchSql}
+     WHERE c.tenant_id=$1 AND c.user_id=$2 AND c.status = 'active' ${searchSql}
      ORDER BY c.is_pinned DESC,c.last_message_at DESC LIMIT $${values.length}`,
     values
   );
@@ -75,6 +79,29 @@ export async function updateAIConversation(session, conversationId, input = {}) 
   );
   if (!result.rows[0]) throw Object.assign(new Error("المحادثة غير موجودة."), { status: 404 });
   return result.rows[0];
+}
+
+export async function deleteAIConversation(session, conversationId) {
+  const deleted = await transaction(async (client) => {
+    const scoped = await client.query(
+      `SELECT c.id,c.title,
+         ARRAY(SELECT DISTINCT attachment->>'path'
+           FROM ai_messages m CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+          WHERE m.conversation_id=c.id AND COALESCE(attachment->>'path','') <> '') AS paths
+       FROM ai_conversations c
+       WHERE c.id=$1 AND c.tenant_id=$2 AND c.user_id=$3 FOR UPDATE`,
+      [conversationId, session.tenantId, session.userId]
+    );
+    if (!scoped.rows[0]) throw Object.assign(new Error("المحادثة غير موجودة."), { status: 404 });
+    await client.query(
+      "DELETE FROM ai_conversations WHERE id=$1 AND tenant_id=$2 AND user_id=$3",
+      [conversationId, session.tenantId, session.userId]
+    );
+    return scoped.rows[0];
+  });
+  const paths = (deleted.paths || []).filter(Boolean);
+  if (paths.length && process.env.BLOB_READ_WRITE_TOKEN) await del(paths).catch(() => null);
+  return { id: deleted.id, title: deleted.title, status: "deleted" };
 }
 
 export async function appendAIMessage(session, conversationId, input) {

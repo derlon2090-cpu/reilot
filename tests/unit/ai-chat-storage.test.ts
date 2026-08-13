@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
 import { getAIChatStorage, selectAIStorageCleanupCandidates } from "../../src/server/ai/storage.js";
 
 const rows = [
@@ -43,5 +44,17 @@ describe("AI chat storage cleanup selection", () => {
     expect(result.selected.some((row) => row.isPinned)).toBe(false);
     expect(result.selected.some((row) => row.id === "00000000-0000-4000-8000-000000000004")).toBe(false);
     expect(result.retainedConversationId).toBe("00000000-0000-4000-8000-000000000004");
+  });
+
+  it("counts durable attachment bytes in both chat and tenant plan storage", async () => {
+    const [chatStorage, tenantStorage, migration] = await Promise.all([
+      readFile("src/server/ai/storage.js", "utf8"),
+      readFile("src/server/tenant-storage.js", "utf8"),
+      readFile("drizzle/0077_ai_attachment_storage_bytes.sql", "utf8")
+    ]);
+    expect(chatStorage).toContain("jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb))");
+    expect(tenantStorage).toContain('table === "ai_messages"');
+    expect(migration).toContain("TG_TABLE_NAME = 'ai_messages'");
+    expect(migration).toContain("durable AI attachment bytes");
   });
 });
