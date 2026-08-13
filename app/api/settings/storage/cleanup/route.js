@@ -17,22 +17,33 @@ function forbidden() {
 async function cleanupPreview(session) {
   const canManageAccountStorage = canManageStorage(session);
   const [account, chatStorage] = await Promise.all([
-    canManageAccountStorage
-      ? getStorageCleanupPreview(session.tenantId)
-      : Promise.resolve({ cleanableBytes: 0, cleanableRows: 0, categories: [] }),
+    getStorageCleanupPreview(session.tenantId),
     getAIChatStorage(session)
   ]);
+  const accountCategories = account.categories.filter((item) => item.label !== "محادثات ذكاء Renvix");
+  const chatTotal = account.categories.find((item) => item.label === "محادثات ذكاء Renvix")?.bytes || chatStorage.totalBytes;
   const chatCategory = {
     key: CHAT_CATEGORY,
     label: "محادثات ذكاء Renvix",
     description: "أقدم محادثاتك غير المثبتة، مع إبقاء أحدث محادثة.",
     count: chatStorage.cleanableConversations,
-    bytes: chatStorage.cleanableBytes
+    bytes: chatTotal,
+    cleanableBytes: Math.min(chatTotal, chatStorage.cleanableBytes),
+    protectedBytes: Math.max(0, chatTotal - chatStorage.cleanableBytes),
+    selectable: chatStorage.cleanableBytes > 0
   };
+  const visibleAccountCategories = accountCategories.map((item) => ({
+    ...item,
+    selectable: canManageAccountStorage && item.cleanableBytes > 0
+  }));
+  const accountCleanableBytes = canManageAccountStorage
+    ? visibleAccountCategories.reduce((sum, item) => sum + Number(item.cleanableBytes || 0), 0)
+    : 0;
   return {
-    cleanableBytes: account.cleanableBytes + chatCategory.bytes,
-    cleanableRows: account.cleanableRows + chatCategory.count,
-    categories: [chatCategory, ...account.categories],
+    totalBytes: account.totalBytes,
+    cleanableBytes: accountCleanableBytes + chatCategory.cleanableBytes,
+    cleanableRows: (canManageAccountStorage ? account.cleanableRows : 0) + chatCategory.count,
+    categories: [chatCategory, ...visibleAccountCategories],
     chatStorage,
     canManageAccountStorage
   };
@@ -68,7 +79,7 @@ export async function DELETE(request) {
     const categories = [...new Set(Array.isArray(input.categories) ? input.categories.map(String) : [])];
     const accountCategories = categories.filter((key) => key !== CHAT_CATEGORY);
     if (accountCategories.length && !canManageStorage(auth.session)) return forbidden();
-    if (!categories.length) return Response.json({ ok: false, message: "اختر نوعًا واحدًا على الأقل من البيانات القديمة." }, { status: 400 });
+    if (!categories.length) return Response.json({ ok: false, message: "اختر عنصرًا واحدًا على الأقل من البيانات القابلة للإخلاء." }, { status: 400 });
 
     const requestedBytes = Number(input.targetBytes || 0);
     if (!Number.isFinite(requestedBytes) || requestedBytes < 1 || requestedBytes > 1024 * 1024 * 1024) {

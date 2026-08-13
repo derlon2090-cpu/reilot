@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  getStorageCleanupPreview,
   selectStorageCleanupRows,
   STORAGE_CLEANUP_CATEGORIES
 } from "../../src/server/storage-cleanup.js";
@@ -21,16 +22,54 @@ describe("account storage cleanup", () => {
     expect(result.estimatedBytes).toBe(700);
   });
 
-  it("limits cleanup to old disposable categories instead of active business data", () => {
+  it("reconciles the cleanup list with the same total breakdown shown in settings", async () => {
+    const actualBytes = {
+      order_link_profiles: 1810000,
+      oauth_states: 90000,
+      message_queue: 50000,
+      whatsapp_channels: 10000
+    };
+    const runner = {
+      query: async (sql: string) => {
+        if (sql.includes("information_schema.columns")) {
+          return { rows: Object.keys(actualBytes).map((tableName) => ({ tableName })) };
+        }
+        if (sql.includes('AS "limitMb"')) return { rows: [{ limitMb: 1 }] };
+        if (sql.includes("count(*)::int")) {
+          if (sql.includes("FROM order_link_profiles")) return { rows: [{ count: 1, bytes: 1780000 }] };
+          if (sql.includes("FROM message_queue")) return { rows: [{ count: 2, bytes: 50000 }] };
+          return { rows: [{ count: 0, bytes: 0 }] };
+        }
+        const table = Object.keys(actualBytes).find((name) => sql.includes(`FROM ${name} AS record`));
+        return { rows: [{ bytes: table ? actualBytes[table as keyof typeof actualBytes] : 0 }] };
+      }
+    };
+
+    const preview = await getStorageCleanupPreview("tenant-1", runner);
+    expect(preview.totalBytes).toBe(1960000);
+    expect(preview.categories.map((item) => item.label)).toEqual([
+      "روابط وقوالب الطلبات",
+      "بيانات النظام",
+      "الرسائل والسجلات",
+      "الأجهزة"
+    ]);
+    expect(preview.categories[0]).toMatchObject({ bytes: 1810000, cleanableBytes: 1780000 });
+    expect(preview.categories[1]).toMatchObject({ bytes: 90000, cleanableBytes: 0 });
+    expect(preview.cleanableBytes).toBe(1830000);
+  });
+
+  it("limits cleanup to explicit disposable content instead of active business data", () => {
     expect(STORAGE_CLEANUP_CATEGORIES.map((item) => item.key)).toEqual([
-      "delivery_history",
-      "activity_history",
-      "link_history"
+      "order_content",
+      "message_history"
     ]);
     const sourceTables = STORAGE_CLEANUP_CATEGORIES.flatMap((item) => item.sources.map((source) => source.table));
     expect(sourceTables).not.toContain("customers");
     expect(sourceTables).not.toContain("subscriptions");
-    expect(sourceTables).not.toContain("order_info_links");
+    const orderCategory = STORAGE_CLEANUP_CATEGORIES.find((item) => item.key === "order_content");
+    expect(orderCategory?.sources.find((source) => source.table === "order_link_profiles")?.operation).toBe("clear_order_link_logo");
+    expect(orderCategory?.sources.find((source) => source.table === "order_info_links")?.where).toContain("expired");
+    expect(orderCategory?.sources.find((source) => source.table === "order_info_links")?.where).not.toContain("active");
   });
 
   it("shows the cleanup control in user settings with explicit warning and confirmation", () => {
@@ -51,5 +90,9 @@ describe("account storage cleanup", () => {
     expect(appSource).toContain('const isInitiallyVisible = index < 3');
     expect(appSource).toContain('data-action="toggle-account-storage-categories"');
     expect(appSource).toContain('data-storage-cleanup-extra hidden');
+    expect(appSource).toContain("إجمالي الاستخدام");
+    expect(appSource).toContain("بيانات أساسية محمية");
+    expect(routeSource).toContain("totalBytes: account.totalBytes");
+    expect(routeSource).toContain("item.cleanableBytes > 0");
   });
 });

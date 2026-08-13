@@ -7156,16 +7156,22 @@ function settingsReferencePage() {
   </section>${accountStorageCleanupDialog()}`);
 }
 
+function storageCleanupTargetOptions(cleanableBytes) {
+  const total = Math.max(0, Number(cleanableBytes || 0));
+  if (!total) return `<option value="0">لا توجد مساحة محددة قابلة للإخلاء</option>`;
+  const targets = [.25,.5,.75,1].reduce((items, ratio) => {
+    const bytes = Math.max(1, Math.floor(total * ratio));
+    if (!items.some((item) => item.bytes === bytes)) items.push({ bytes, ratio });
+    return items;
+  }, []);
+  return targets.map(({ bytes, ratio }, index) => `<option value="${bytes}">${index === targets.length - 1 ? "كامل المساحة المحددة" : `${Math.round(ratio * 100)}%`} — ${storageAmountLabel(0, bytes)}</option>`).join("");
+}
+
 function accountStorageCleanupDialog() {
   if (!state.accountStorageCleanupOpen) return "";
   const preview = state.accountStorageCleanup;
   const cleanableBytes = Math.max(0, Number(preview?.cleanableBytes || 0));
-  const targets = cleanableBytes ? [.25,.5,.75,1].reduce((items, ratio) => {
-    const bytes = Math.max(1, Math.floor(cleanableBytes * ratio));
-    if (!items.some((item) => item.bytes === bytes)) items.push({ bytes, ratio });
-    return items;
-  }, []) : [];
-  const targetOptions = targets.map(({ bytes, ratio }, index) => `<option value="${bytes}">${index === targets.length - 1 ? "كامل المساحة المتاحة" : `${Math.round(ratio * 100)}%`} — ${storageAmountLabel(0, bytes)}</option>`).join("");
+  const totalBytes = Math.max(cleanableBytes, Number(preview?.totalBytes || 0));
   const categories = Array.isArray(preview?.categories)
     ? [...preview.categories]
       .filter((item) => Number(item?.bytes || 0) > 0)
@@ -7173,8 +7179,15 @@ function accountStorageCleanupDialog() {
     : [];
   const categoriesMarkup = categories.map((item, index) => {
     const isInitiallyVisible = index < 3;
-    return `<label ${isInitiallyVisible ? "" : 'data-storage-cleanup-extra hidden'}><input type="checkbox" name="storageCleanupCategory" value="${escapeHtml(item.key)}" data-storage-cleanup-bytes="${Math.max(0, Number(item.bytes || 0))}" ${isInitiallyVisible ? "checked" : ""}><span><b><i>${(index + 1).toLocaleString("ar-SA")}</i>${escapeHtml(item.label)}</b><small>${escapeHtml(item.description)}</small></span><strong>${storageAmountLabel(0, item.bytes)}</strong></label>`;
+    const categoryCleanableBytes = Math.min(Number(item.bytes || 0), Math.max(0, Number(item.cleanableBytes ?? item.bytes ?? 0)));
+    const selectable = item.selectable !== false && categoryCleanableBytes > 0;
+    return `<label class="${selectable ? "" : "is-protected"}" ${isInitiallyVisible ? "" : 'data-storage-cleanup-extra hidden'}><input type="checkbox" name="storageCleanupCategory" value="${escapeHtml(item.key)}" data-storage-cleanup-bytes="${categoryCleanableBytes}" ${isInitiallyVisible && selectable ? "checked" : ""} ${selectable ? "" : "disabled"}><span><b><i>${(index + 1).toLocaleString("ar-SA")}</i>${escapeHtml(item.label)}</b><small>${escapeHtml(item.description)}</small><em>${selectable ? `قابل للإخلاء ${storageAmountLabel(0, categoryCleanableBytes)}` : "بيانات أساسية محمية"}</em></span><strong><small>إجمالي الاستخدام</small>${storageAmountLabel(0, item.bytes)}</strong></label>`;
   }).join("");
+  const initiallySelectedBytes = categories.slice(0, 3).reduce((sum, item) => {
+    const categoryCleanableBytes = Math.min(Number(item.bytes || 0), Math.max(0, Number(item.cleanableBytes ?? item.bytes ?? 0)));
+    return item.selectable !== false ? sum + categoryCleanableBytes : sum;
+  }, 0);
+  const targetOptions = storageCleanupTargetOptions(initiallySelectedBytes);
   const categoriesToggle = categories.length > 3
     ? `<button type="button" class="account-storage-show-more" data-action="toggle-account-storage-categories" aria-expanded="false"><i>عرض المزيد (${(categories.length - 3).toLocaleString("ar-SA")})</i><span aria-hidden="true">⌄</span></button>`
     : "";
@@ -7182,11 +7195,11 @@ function accountStorageCleanupDialog() {
     ? `<div class="account-storage-empty danger">${dashboardIcon("warning")}<div><strong>تعذر حساب البيانات القابلة للتنظيف</strong><span>${escapeHtml(preview.error)}</span></div></div>`
     : preview === null
       ? `<div class="account-storage-loading" role="status"><i></i><i></i><i></i></div>`
-      : `<div class="account-storage-summary"><span>${dashboardIcon("delete")}</span><div><small>المساحة المتاحة للإخلاء الآن</small><strong>${storageAmountLabel(0, cleanableBytes)}</strong><em>${Number(preview.cleanableRows || 0).toLocaleString("ar-SA")} عنصر قديم قابل للتنظيف</em></div></div>
-        <fieldset class="account-storage-categories"><legend>الأكثر استهلاكًا للمساحة والقابلة للإخلاء</legend>${categoriesMarkup || `<p>لا توجد بيانات قديمة قابلة للإخلاء حاليًا.</p>`}${categoriesToggle}</fieldset>
-        <label class="account-storage-target"><span>المساحة التي تريد إخلاءها</span><select class="select" data-account-storage-target ${cleanableBytes ? "" : "disabled"}>${targetOptions || `<option value="0">لا توجد مساحة قابلة للإخلاء</option>`}</select></label>
-        <label class="account-storage-warning"><input type="checkbox" data-account-storage-confirm ${cleanableBytes ? "" : "disabled"}><span><b>تنبيه: قد يتم حذف بعض بياناتك المهمة</b><small>سيُحذف فقط المحتوى القديم الذي اخترته، ولا يمكن التراجع عن العملية بعد تنفيذها.</small></span></label>`;
-  return `<div class="account-storage-cleanup-backdrop"><button type="button" class="account-storage-cleanup-scrim" data-action="close-account-storage-cleanup" aria-label="إغلاق"></button><section class="account-storage-cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="account-storage-cleanup-title"><header><div><span>${dashboardIcon("billing")}</span><div><h2 id="account-storage-cleanup-title">إخلاء مساحة الحساب</h2><p>نظّف السجلات القديمة مع إبقاء البيانات النشطة والأساسية.</p></div></div><button type="button" data-action="close-account-storage-cleanup" aria-label="إغلاق">${dashboardIcon("close")}</button></header><div class="account-storage-cleanup-body">${content}</div><footer><button type="button" class="btn btn-secondary" data-action="close-account-storage-cleanup">إلغاء</button><button type="button" class="btn btn-primary" data-action="confirm-account-storage-cleanup" ${cleanableBytes && !state.accountStorageCleanupBusy ? "" : "disabled"}>${state.accountStorageCleanupBusy ? "جارٍ إخلاء المساحة…" : "إخلاء المساحة الآن"}</button></footer></section></div>`;
+      : `<div class="account-storage-summary"><span>${dashboardIcon("delete")}</span><div><small>إجمالي المساحة المستخدمة في الحساب</small><strong>${storageAmountLabel(0, totalBytes)}</strong><em>متاح للإخلاء الآن ${storageAmountLabel(0, cleanableBytes)} · ${Number(preview.cleanableRows || 0).toLocaleString("ar-SA")} عنصر</em></div></div>
+        <fieldset class="account-storage-categories"><legend>العناصر الأكثر استهلاكًا للمساحة</legend>${categoriesMarkup || `<p>لا توجد بيانات مخزنة حتى الآن.</p>`}${categoriesToggle}</fieldset>
+        <label class="account-storage-target"><span>المساحة التي تريد إخلاءها من العناصر المحددة</span><select class="select" data-account-storage-target ${initiallySelectedBytes ? "" : "disabled"}>${targetOptions}</select></label>
+        <label class="account-storage-warning"><input type="checkbox" data-account-storage-confirm ${cleanableBytes ? "" : "disabled"}><span><b>تنبيه: قد يتم حذف بعض بياناتك المهمة</b><small>سيُحذف فقط المحتوى القابل للإخلاء الذي اخترته، ولا يمكن التراجع عن العملية بعد تنفيذها.</small></span></label>`;
+  return `<div class="account-storage-cleanup-backdrop"><button type="button" class="account-storage-cleanup-scrim" data-action="close-account-storage-cleanup" aria-label="إغلاق"></button><section class="account-storage-cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="account-storage-cleanup-title"><header><div><span>${dashboardIcon("billing")}</span><div><h2 id="account-storage-cleanup-title">إخلاء مساحة الحساب</h2><p>راجع كل ما يستهلك المساحة، ثم اختر الجزء القابل للإخلاء.</p></div></div><button type="button" data-action="close-account-storage-cleanup" aria-label="إغلاق">${dashboardIcon("close")}</button></header><div class="account-storage-cleanup-body">${content}</div><footer><button type="button" class="btn btn-secondary" data-action="close-account-storage-cleanup">إلغاء</button><button type="button" class="btn btn-primary" data-action="confirm-account-storage-cleanup" ${initiallySelectedBytes && !state.accountStorageCleanupBusy ? "" : "disabled"}>${state.accountStorageCleanupBusy ? "جارٍ إخلاء المساحة…" : "إخلاء المساحة الآن"}</button></footer></section></div>`;
 }
 
 function storageAmountLabel(mbValue, bytesValue = null) {
@@ -8230,7 +8243,7 @@ async function handleAction(target) {
     const targetBytes = Number(dialog?.querySelector("[data-account-storage-target]")?.value || 0);
     const categories = [...(dialog?.querySelectorAll('input[name="storageCleanupCategory"]:checked') || [])].map((input) => input.value);
     const confirmed = Boolean(dialog?.querySelector("[data-account-storage-confirm]")?.checked);
-    if (!categories.length) return toast("اختر نوعًا واحدًا على الأقل من البيانات القديمة.", "warning");
+    if (!categories.length) return toast("اختر عنصرًا واحدًا على الأقل من البيانات القابلة للإخلاء.", "warning");
     if (!confirmed) return toast("فعّل مربع التحذير الأحمر لتأكيد الإخلاء.", "warning");
     if (!targetBytes || state.accountStorageCleanupBusy) return;
     state.accountStorageCleanupBusy = true;
@@ -8246,7 +8259,7 @@ async function handleAction(target) {
       if (categories.includes("ai_user_chats")) state.aiConversations = null;
       state.accountStorageCleanup = payload.preview || null;
       state.accountStorageCleanupOpen = false;
-      toast(payload.deletedRows ? `تم إخلاء ${storageAmountLabel(0, payload.freedBytes)} وحذف ${Number(payload.deletedRows).toLocaleString("ar-SA")} عنصر قديم.` : "لا توجد بيانات قديمة مطابقة للاختيار.");
+      toast(payload.deletedRows ? `تم إخلاء ${storageAmountLabel(0, payload.freedBytes)} وحذف ${Number(payload.deletedRows).toLocaleString("ar-SA")} عنصر.` : "لا توجد بيانات قابلة للإخلاء مطابقة للاختيار.");
     } catch (error) {
       toast(error.message || "تعذر إخلاء مساحة الحساب.", "danger");
     } finally {
@@ -12612,6 +12625,19 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.matches?.('input[name="storageCleanupCategory"]')) {
+    const dialog = target.closest(".account-storage-cleanup-dialog");
+    const selectedBytes = [...(dialog?.querySelectorAll('input[name="storageCleanupCategory"]:checked') || [])]
+      .reduce((sum, input) => sum + Math.max(0, Number(input.dataset.storageCleanupBytes || 0)), 0);
+    const targetSelect = dialog?.querySelector("[data-account-storage-target]");
+    if (targetSelect) {
+      targetSelect.innerHTML = storageCleanupTargetOptions(selectedBytes);
+      targetSelect.disabled = selectedBytes < 1;
+    }
+    const confirmButton = dialog?.querySelector('[data-action="confirm-account-storage-cleanup"]');
+    if (confirmButton) confirmButton.disabled = selectedBytes < 1 || state.accountStorageCleanupBusy;
+    return;
+  }
   if (target.dataset.action === "salla-report-period") {
     state.sallaReportPeriod = target.value;
     if (target.value !== "custom") {
