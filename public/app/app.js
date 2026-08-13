@@ -775,6 +775,8 @@ state.supportLiveRefreshPending = false;
 state.supportReplyDrafts = {};
 state.supportSearch = "";
 state.aiOverview = null;
+state.aiUsage = null;
+state.aiPreferences = storage.get("renvix.ai.preferences", null);
 state.aiConversations = null;
 state.aiConversation = null;
 state.aiConversationId = state.query.get("conversation") || "";
@@ -783,6 +785,7 @@ state.aiStreaming = false;
 state.aiAbortController = null;
 state.aiDraft = "";
 state.aiSidebarOpen = false;
+state.aiSettingsOpen = false;
 state.aiToolProgress = [];
 state.aiPendingMessage = null;
 state.sallaProductMappings = null;
@@ -1199,6 +1202,9 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       state.aiConversation = payload.item || null;
     } else if (target === "aiOverview") {
       state.aiOverview = payload.snapshot || null;
+      state.aiUsage = payload.usage || null;
+      state.aiPreferences = payload.preferences || null;
+      if (state.aiPreferences) storage.set("renvix.ai.preferences", state.aiPreferences);
     } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
       ? payload
       : target === "orderLinkProfile"
@@ -1766,9 +1772,9 @@ function marketingSteps() {
     [localizedCopy("ابدأ على الفور", "Go live"), localizedCopy("شغّل الأتمتة وتمتع بتجربة موثوقة ومتكاملة.", "Launch automation with a reliable, connected experience."), "rocket", "rocket"]
   ];
   const connectorPaths = [
-    ["M1041 55 C1012 57 1008 106 978 122 C953 136 931 133 912 128 C893 133 871 136 846 122 C816 106 812 57 783 55", 912, 128],
-    ["M721 55 C692 57 688 106 658 122 C633 136 611 133 592 128 C573 133 551 136 526 122 C496 106 492 57 463 55", 592, 128],
-    ["M401 55 C372 57 368 106 338 122 C313 136 291 133 272 128 C253 133 231 136 206 122 C176 106 172 57 143 55", 272, 128]
+    ["M1018 55 C985 55 958 64 941 82 C923 101 925 122 900 122 C875 122 877 101 859 82 C842 64 815 55 782 55", 900, 122],
+    ["M718 55 C685 55 658 64 641 82 C623 101 625 122 600 122 C575 122 577 101 559 82 C542 64 515 55 482 55", 600, 122],
+    ["M418 55 C385 55 358 64 341 82 C323 101 325 122 300 122 C275 122 277 101 259 82 C242 64 215 55 182 55", 300, 122]
   ];
   return `<div class="marketing-steps" data-steps-scene data-motion-scene>
     <svg class="marketing-step-route" viewBox="0 0 1200 150" preserveAspectRatio="none" aria-hidden="true">
@@ -7923,6 +7929,31 @@ async function handleAction(target) {
     state.aiSidebarOpen = !state.aiSidebarOpen;
     return render();
   }
+  if (action === "ai-open-settings") {
+    state.aiSettingsOpen = true;
+    state.aiSidebarOpen = false;
+    return render();
+  }
+  if (action === "ai-close-settings") {
+    state.aiSettingsOpen = false;
+    return render();
+  }
+  if (action === "ai-select-language") {
+    const language = target.dataset.language === "en" ? "en" : "ar";
+    try {
+      const payload = await fetchJson("/api/ai/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language })
+      });
+      state.aiPreferences = payload.preferences;
+      storage.set("renvix.ai.preferences", state.aiPreferences);
+      render();
+      requestAnimationFrame(() => document.querySelector('.rvx-ai-composer textarea')?.focus());
+    } catch (error) {
+      appToast.error("تعذر حفظ اللغة", { description: error.message, id: "ai-language-error" });
+    }
+    return;
+  }
   if (action === "ai-quick-prompt") {
     const form = document.querySelector('form[data-submit="ai-message"]');
     const field = form?.elements?.prompt;
@@ -10036,6 +10067,13 @@ async function handleAIMessageSubmit(form) {
       method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
       body: JSON.stringify({ prompt, page: "support_ai", attachments: files.slice(0,3).map((file) => ({ name: file.name, type: file.type, size: file.size })) })
     });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      if (payload.usage) state.aiUsage = payload.usage;
+      const error = new Error(payload.message || "تعذر إكمال الرد.");
+      error.code = payload.code;
+      throw error;
+    }
     await readAIEventStream(response, (type, payload) => {
       if (type === "ready") {
         state.aiConversationId = payload.conversation?.id || state.aiConversationId;
@@ -10052,6 +10090,8 @@ async function handleAIMessageSubmit(form) {
         streamNode?.classList.add("has-error");
       } else if (type === "interrupted" && textNode) {
         textNode.textContent += `\n\n${payload.message || "تم إيقاف إنشاء الرد."}`;
+      } else if (type === "usage") {
+        state.aiUsage = payload;
       }
     });
   } catch (error) {
@@ -10077,6 +10117,31 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "ai-settings") {
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ الحفظ...");
+    try {
+      const payload = await fetchJson("/api/ai/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: data.language,
+          responseStyle: data.responseStyle,
+          accountContextEnabled: Boolean(form.elements.accountContextEnabled?.checked),
+          quickActionsEnabled: Boolean(form.elements.quickActionsEnabled?.checked)
+        })
+      });
+      state.aiPreferences = payload.preferences;
+      storage.set("renvix.ai.preferences", state.aiPreferences);
+      state.aiSettingsOpen = false;
+      appToast.success("تم حفظ إعدادات الشات", { description: "سيطبقها ذكاء Renvix من رسالتك القادمة.", id: "ai-settings-saved" });
+      render();
+    } catch (error) {
+      appToast.error("تعذر حفظ الإعدادات", { description: error.message, id: "ai-settings-error" });
+    } finally {
+      setSubmitBusy(button, false);
+    }
+    return;
+  }
   if (type === "ai-message") {
     await handleAIMessageSubmit(form);
     return;
@@ -11689,22 +11754,48 @@ function renderAIMessage(message) {
   return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p>${blocks.map(renderAIBlock).join("")}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
 }
 
+function formatAITokens(value) {
+  const number = Number(value || 0);
+  if (number >= 1_000_000) return `${(number / 1_000_000).toLocaleString("ar-SA", { maximumFractionDigits: 1 })} مليون`;
+  if (number >= 1_000) return `${(number / 1_000).toLocaleString("ar-SA", { maximumFractionDigits: 1 })} ألف`;
+  return number.toLocaleString("ar-SA");
+}
+
 function aiOverviewWelcome() {
-  const snapshot = state.aiOverview;
-  if (!snapshot) return `<div class="rvx-ai-loading">${dashboardIcon("sparkles")}<strong>ذكاء Renvix يحلل آخر تحديثات حسابك...</strong></div>`;
-  return `<section class="rvx-ai-welcome"><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><small>صباح الخير 👋</small><h2>راجعت آخر حالة لحسابك</h2></span></div><p>الأداء العام ${Number(snapshot.scores?.healthScore || 0) >= 80 ? "جيد جدًا" : "مستقر"}، وهذه أهم النقاط التي تستحق انتباهك الآن.</p><div class="rvx-ai-overview-metrics"><span><strong>${Number(snapshot.scores?.healthScore || 0)}</strong><small>صحة الحساب</small></span><span><strong>${Number(snapshot.risks?.length || 0)}</strong><small>يحتاج انتباهك</small></span><span><strong>${Number(snapshot.opportunities?.length || 0)}</strong><small>فرص نمو</small></span><span><strong>${Number(snapshot.scores?.growthScore || 0)}</strong><small>مؤشر النمو</small></span></div>${snapshot.risks?.length ? `<aside><strong>يحتاج انتباهك اليوم</strong>${snapshot.risks.slice(0,2).map((item) => `<button data-link="${escapeHtml(item.href || "/dashboard/reports")}">${dashboardIcon("warning")}<span>${escapeHtml(item.title)}</span>${dashboardIcon("back")}</button>`).join("")}</aside>` : ""}</section>`;
+  const preferences = state.aiPreferences || {};
+  if (!preferences.language || preferences.language === "unset") {
+    return `<section class="rvx-ai-onboarding"><span class="rvx-ai-onboarding-mark"><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><small>أهلًا بك في ذكاء Renvix الشامل</small><h2>اختر لغتك للبدء</h2><p>Choose the language you prefer. You can change it later from chat settings.</p><div><button data-action="ai-select-language" data-language="ar"><b>العربية</b><span>متابعة باللغة العربية</span></button><button data-action="ai-select-language" data-language="en" dir="ltr"><b>English</b><span>Continue in English</span></button></div></section>`;
+  }
+  const english = preferences.language === "en";
+  return `<section class="rvx-ai-start" ${english ? `dir="ltr"` : ""}><span class="rvx-ai-start-mark"><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><small>${english ? "Welcome to Renvix Intelligence" : "مرحبًا بك في ذكاء Renvix"}</small><h2>${english ? "How can I help you?" : "كيف أقدر أساعدك؟"}</h2><p>${english ? "Ask about subscriptions, renewals, channels, campaigns, or your account performance." : "اسألني عن الاشتراكات والتجديدات والقنوات والحملات أو أداء حسابك."}</p></section>`;
+}
+
+function aiUsageCard() {
+  const usage = state.aiUsage || {};
+  const used = Number(usage.usedTokens || 0);
+  const percent = Math.min(100, Number(usage.percent || 0));
+  const limit = usage.unlimited ? "غير محدودة" : formatAITokens(usage.limitTokens || 0);
+  const remaining = usage.unlimited ? "غير محدودة" : formatAITokens(usage.remainingTokens || 0);
+  return `<section class="rvx-ai-usage-card"><header><span>${dashboardIcon("sparkles")}</span><div><strong>مساحة الذكاء</strong><small>باقة ${escapeHtml(usage.planName || "Renvix")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${formatAITokens(used)}</b><span>من ${limit} توكن</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${remaining} متبقي</span><b>${usage.unlimited ? "∞" : `${percent}%`}</b></footer></section>`;
 }
 
 function aiConversationSidebar() {
   const items = Array.isArray(state.aiConversations) ? state.aiConversations : [];
-  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} محادثة جديدة</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="ابحث في المحادثات"></label><h3>المحادثات الحديثة</h3><nav>${items.length ? items.map((item) => `<button class="${state.aiConversationId === item.id ? "active" : ""}" data-action="ai-open-conversation" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon("message")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${new Date(item.lastMessageAt).toLocaleDateString("ar-SA")}</small></div></button>`).join("") : `<p>لا توجد محادثات محفوظة بعد.</p>`}</nav><footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} التذاكر</button><button data-link="/dashboard/settings">${dashboardIcon("settings")} الإعدادات</button></footer></aside>`;
+  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><div class="rvx-ai-side-head"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} محادثة جديدة</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="ابحث في المحادثات"></label></div><h3>${dashboardIcon("clock")} المحادثات الحديثة</h3><nav>${items.length ? items.map((item) => `<button class="${state.aiConversationId === item.id ? "active" : ""}" data-action="ai-open-conversation" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon("message")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${new Date(item.lastMessageAt).toLocaleDateString("ar-SA")}</small></div></button>`).join("") : `<p>ابدأ محادثة جديدة، وستظهر هنا تلقائيًا.</p>`}</nav><div class="rvx-ai-side-bottom">${aiUsageCard()}<footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} التذاكر</button><button data-action="ai-open-settings">${dashboardIcon("settings")} إعدادات الشات</button></footer></div></aside>`;
+}
+
+function aiSettingsDialog() {
+  if (!state.aiSettingsOpen) return "";
+  const preferences = state.aiPreferences || {};
+  return `<div class="rvx-ai-settings-backdrop"><button class="rvx-ai-settings-scrim" type="button" data-action="ai-close-settings" aria-label="إغلاق الإعدادات"></button><section class="rvx-ai-settings" role="dialog" aria-modal="true" aria-labelledby="ai-settings-title"><header><div><span>${dashboardIcon("settings")}</span><div><h2 id="ai-settings-title">إعدادات الشات</h2><p>خصص تجربة ذكاء Renvix وطريقة الإجابة.</p></div></div><button type="button" data-action="ai-close-settings" aria-label="إغلاق">${dashboardIcon("close")}</button></header><form data-submit="ai-settings"><fieldset><legend>لغة المحادثة</legend><div class="rvx-ai-language-options"><label><input type="radio" name="language" value="ar" ${preferences.language !== "en" ? "checked" : ""}><span><b>العربية</b><small>لغة الواجهة والإجابات</small></span></label><label dir="ltr"><input type="radio" name="language" value="en" ${preferences.language === "en" ? "checked" : ""}><span><b>English</b><small>Interface and answers</small></span></label></div></fieldset><label class="rvx-ai-setting-field"><span><b>أسلوب الإجابة</b><small>حدد مستوى الاختصار المناسب لك.</small></span><select name="responseStyle"><option value="concise" ${preferences.responseStyle === "concise" ? "selected" : ""}>مختصر ومباشر</option><option value="balanced" ${!preferences.responseStyle || preferences.responseStyle === "balanced" ? "selected" : ""}>متوازن</option><option value="detailed" ${preferences.responseStyle === "detailed" ? "selected" : ""}>مفصل ومنظم</option></select></label><label class="rvx-ai-setting-toggle"><span><b>استخدام سياق حسابي</b><small>يسمح للمساعد بتحليل بيانات حسابك المصرح بها.</small></span><input type="checkbox" name="accountContextEnabled" ${preferences.accountContextEnabled !== false ? "checked" : ""}><i></i></label><label class="rvx-ai-setting-toggle"><span><b>إظهار الاقتراحات السريعة</b><small>أزرار جاهزة فوق صندوق الكتابة.</small></span><input type="checkbox" name="quickActionsEnabled" ${preferences.quickActionsEnabled !== false ? "checked" : ""}><i></i></label>${aiUsageCard()}<footer><button type="button" data-action="ai-close-settings">إلغاء</button><button type="submit">حفظ الإعدادات</button></footer></form></section></div>`;
 }
 
 function aiSupportPage() {
   const conversation = state.aiConversation?.id === state.aiConversationId ? state.aiConversation : null;
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
-  const quickPrompts = ["ملخص حسابي", "حلل التجديدات", "افحص القنوات", "فرص النمو", "راجع التذاكر"];
-  return `<section class="rvx-ai-page">${aiConversationSidebar()}<main class="rvx-ai-workspace"><header><button class="rvx-ai-drawer-toggle" data-action="ai-toggle-sidebar">${dashboardIcon("menu")}</button><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><h1>ذكاء Renvix الشامل ✨</h1><p>مساعد ذكي داخل منصتك يفهم بيانات حسابك المصرح بها.</p></span></div><b><i></i> حسابك ذكي داخل المنصة</b></header><div class="rvx-ai-messages" data-ai-message-list>${messages.length ? messages.map(renderAIMessage).join("") : aiOverviewWelcome()}</div><div class="rvx-ai-tools" data-ai-tool-progress></div><nav class="rvx-ai-quick-actions">${quickPrompts.map((prompt, index) => `<button data-action="ai-quick-prompt" data-prompt="${prompt}">${dashboardIcon(["reports","refresh","devices","star","support"][index])}${prompt}</button>`).join("")}</nav><form class="rvx-ai-composer" data-submit="ai-message"><textarea name="prompt" rows="1" maxlength="6000" placeholder="اسأل ذكاء Renvix عن أي شيء داخل المنصة...">${escapeHtml(state.aiDraft)}</textarea><div><label title="إرفاق ملف">${dashboardIcon("attachment")}<input name="attachments" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt"></label><button type="button" title="إضافة صورة">${dashboardIcon("upload")}</button></div>${state.aiStreaming ? `<button class="rvx-ai-stop" type="button" data-action="ai-stop">${dashboardIcon("close")} إيقاف</button>` : `<button class="rvx-ai-send" type="submit" aria-label="إرسال">${dashboardIcon("send")}</button>`}<small>${dashboardIcon("info")} قد يخطئ المساعد أحيانًا؛ تحقق من المعلومات الحساسة قبل اتخاذ قرار.</small></form></main></section>`;
+  const quickPrompts = ["تحليل الاشتراكات", "تجديدات العملاء", "ربط المتجر", "إنشاء تذكرة دعم", "صياغة رد للعميل"];
+  const showQuickActions = state.aiPreferences?.quickActionsEnabled !== false && Boolean(state.aiPreferences?.language) && state.aiPreferences.language !== "unset";
+  return `<section class="rvx-ai-page">${aiConversationSidebar()}<main class="rvx-ai-workspace"><header><button class="rvx-ai-drawer-toggle" data-action="ai-toggle-sidebar">${dashboardIcon("menu")}</button><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><h1>ذكاء Renvix الشامل ✨</h1><p>مساعد ذكي داخل منصتك</p></span></div><b><i></i> مساعدك داخل Renvix</b></header><div class="rvx-ai-messages" data-ai-message-list>${messages.length ? messages.map(renderAIMessage).join("") : aiOverviewWelcome()}</div><div class="rvx-ai-tools" data-ai-tool-progress></div>${showQuickActions ? `<nav class="rvx-ai-quick-actions">${quickPrompts.map((prompt, index) => `<button data-action="ai-quick-prompt" data-prompt="${prompt}">${dashboardIcon(["reports","refresh","link","support","edit"][index])}${prompt}</button>`).join("")}</nav>` : ""}<form class="rvx-ai-composer" data-submit="ai-message"><textarea name="prompt" rows="1" maxlength="6000" placeholder="اسأل ذكاء Renvix عن أي شيء داخل المنصة...">${escapeHtml(state.aiDraft)}</textarea><div class="rvx-ai-composer-actions"><span><label title="إرفاق ملف">${dashboardIcon("attachment")}<input name="attachments" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt"></label><button type="button" title="إضافة صورة">${dashboardIcon("upload")}</button></span>${state.aiStreaming ? `<button class="rvx-ai-stop" type="button" data-action="ai-stop">${dashboardIcon("close")} إيقاف</button>` : `<button class="rvx-ai-send" type="submit" aria-label="إرسال">${dashboardIcon("send")}</button>`}</div><small>${dashboardIcon("info")} قد يخطئ المساعد أحيانًا؛ تحقق من المعلومات الحساسة.</small></form></main>${aiSettingsDialog()}</section>`;
 }
 
 function dashboardSupportPage() {

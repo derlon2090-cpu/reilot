@@ -8,6 +8,6 @@ export async function POST(request) {
   try {
     return createAIStreamResponse(auth.session, await request.json().catch(() => ({})), request.signal);
   } catch (error) {
-    return Response.json({ ok: false, message: error.status ? error.message : "تعذر تشغيل ذكاء Renvix." }, { status: error.status || 500 });
+    return Response.json({ ok: false, code: error.code || "AI_REQUEST_FAILED", usage: error.usage || null, message: error.status ? error.message : "تعذر تشغيل ذكاء Renvix." }, { status: error.status || 500 });
   }
 }

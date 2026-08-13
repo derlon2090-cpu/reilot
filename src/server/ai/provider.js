@@ -33,13 +33,18 @@ export class AIProvider {
     throw new Error("AIProvider.streamChat must be implemented");
   }
 
-  async executeToolLoop({ messages, tools, executeTool, signal, maxIterations = 4 }) {
+  async executeToolLoop({ messages, tools, executeTool, signal, maxIterations = 4, maxTokens = 900 }) {
     const working = [...messages];
     const executions = [];
-    let usage = {};
+    let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
     for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-      const response = await this.completeStructured({ messages: working, tools, signal });
-      usage = response.usage || usage;
+      const response = await this.completeStructured({ messages: working, tools, signal, maxTokens });
+      const currentUsage = response.usage || {};
+      usage = {
+        prompt_tokens: Number(usage.prompt_tokens || 0) + Number(currentUsage.prompt_tokens || 0),
+        completion_tokens: Number(usage.completion_tokens || 0) + Number(currentUsage.completion_tokens || 0),
+        total_tokens: Number(usage.total_tokens || 0) + Number(currentUsage.total_tokens || 0)
+      };
       const assistant = response.message || {};
       const calls = safeToolCalls(assistant);
       if (!calls.length) return { messages: working, executions, usage };
@@ -89,20 +94,21 @@ export class DeepSeekProvider extends AIProvider {
     return response;
   }
 
-  async completeStructured({ messages, tools = [], signal }) {
+  async completeStructured({ messages, tools = [], signal, maxTokens = 900 }) {
     const response = await this.request({
       messages,
       tools: tools.length ? tools : undefined,
       tool_choice: tools.length ? "auto" : undefined,
       stream: false,
-      temperature: 0.2
+      temperature: 0.2,
+      max_tokens: maxTokens
     }, signal);
     const payload = await response.json();
     return { message: payload.choices?.[0]?.message || {}, usage: payload.usage || {} };
   }
 
-  async *streamChat({ messages, signal }) {
-    const response = await this.request({ messages, stream: true, temperature: 0.2 }, signal);
+  async *streamChat({ messages, signal, maxTokens = 1200 }) {
+    const response = await this.request({ messages, stream: true, stream_options: { include_usage: true }, temperature: 0.2, max_tokens: maxTokens }, signal);
     const reader = response.body?.getReader();
     if (!reader) throw new AIProviderError("AI_PROVIDER_ERROR", "تعذر بدء الرد المتدفق.", 502);
     const decoder = new TextDecoder();

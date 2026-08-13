@@ -10,6 +10,6 @@ export async function POST(request, { params }) {
     const input = await request.json().catch(() => ({}));
     return createAIStreamResponse(auth.session, { ...input, conversationId }, request.signal);
   } catch (error) {
-    return Response.json({ ok: false, message: error.status ? error.message : "تعذر تشغيل ذكاء Renvix." }, { status: error.status || 500 });
+    return Response.json({ ok: false, code: error.code || "AI_REQUEST_FAILED", usage: error.usage || null, message: error.status ? error.message : "تعذر تشغيل ذكاء Renvix." }, { status: error.status || 500 });
   }
 }
