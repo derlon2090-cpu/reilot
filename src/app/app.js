@@ -1904,7 +1904,6 @@ const socialProofMotionVariants = Object.freeze({
   sectionReveal: Object.freeze({ duration: 720, delay: 0, y: 12, scale: .995, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   titleReveal: Object.freeze({ duration: 680, delay: 70, y: 18, scale: 1, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   subtitleReveal: Object.freeze({ duration: 640, delay: 150, y: 14, scale: 1, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
-  logoCardReveal: Object.freeze({ duration: 680, delay: 250, stagger: 85, y: 18, scale: .97, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   logoCardHover: Object.freeze({ duration: 220, y: -3, scale: 1, logoScale: 1.02, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
 });
 
@@ -1937,8 +1936,8 @@ function marketingCommerceEcosystem() {
     { title: localizedCopy("ملم", "Mlm"), logo: "/assets/brands/mlm.png", brand: "mlm" },
     { title: localizedCopy("الرعد للاتصالات", "Alraad Telecom"), logo: "/assets/brands/alraad-telecom.jpg", brand: "alraad" }
   ];
-  const brandSet = (duplicate = false) => `<div class="trusted-brands-set"${duplicate ? ' aria-hidden="true"' : ""}>${trustedBrands.map((item, index) => `<article class="trusted-brand-card trusted-brand-card--${item.brand}" data-motion-variant="logoCardReveal logoCardHover" data-motion-index="${index}" aria-label="${escapeHtml(item.title)}"><span class="trusted-brand-logo"><img src="${item.logo}" alt="${duplicate ? "" : escapeHtml(item.title)}" width="112" height="76" loading="lazy" decoding="async" /></span></article>`).join("")}</div>`;
-  return `<section class="marketing-commerce-ecosystem" data-motion-scene data-social-proof data-home-immediate>
+  const brandSet = (duplicate = false) => `<div class="trusted-brands-set"${duplicate ? ' aria-hidden="true"' : ""}>${trustedBrands.map((item) => `<article class="trusted-brand-card trusted-brand-card--${item.brand}" data-motion-variant="logoCardHover" aria-label="${escapeHtml(item.title)}"><span class="trusted-brand-logo"><img src="${item.logo}" alt="${duplicate ? "" : escapeHtml(item.title)}" width="112" height="76" loading="eager" decoding="async" /></span></article>`).join("")}</div>`;
+  return `<section class="marketing-commerce-ecosystem" data-social-proof data-continuous-marquee data-home-immediate>
     <div class="container" data-social-proof-reveal data-motion-variant="sectionReveal">
       <header class="marketing-v3-heading commerce-proof-heading">
         <h2 data-social-proof-reveal data-motion-variant="titleReveal">${localizedCopy("شركات تثق بـ Renvix", "Companies that trust Renvix")}</h2>

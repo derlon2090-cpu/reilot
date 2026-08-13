@@ -12862,9 +12862,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   transform:translate3d(0,0,0);
   animation:trustedBrandsMarquee 32s linear infinite;
   animation-play-state:running;
+  backface-visibility:hidden;
   will-change:transform;
 }
-@media (hover:hover) and (pointer:fine){.marketing-home-v3 .trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}}
 .marketing-home-v3 .trusted-brands-set{display:flex;flex:0 0 auto;gap:var(--trusted-brands-gap);direction:ltr}
 .marketing-home-v3 .trusted-brand-card{
   position:relative;
@@ -12880,14 +12880,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   border-radius:20px;
   background:#fff;
   box-shadow:0 9px 24px rgba(7,68,62,.055);
-  opacity:0;
-  transform:translateY(var(--motion-y,18px)) scale(var(--motion-scale,.97));
-  transition:opacity var(--motion-duration,680ms) var(--motion-ease,var(--home-lower-ease)),transform var(--motion-duration,680ms) var(--motion-ease,var(--home-lower-ease)),border-color var(--motion-hover-duration,220ms) ease,box-shadow var(--motion-hover-duration,220ms) ease;
-  transition-delay:var(--motion-delay,0ms);
-  will-change:transform,opacity;
+  opacity:1;
+  transform:none;
+  transition:transform var(--motion-hover-duration,220ms) var(--motion-hover-ease,var(--home-lower-ease)),border-color var(--motion-hover-duration,220ms) ease,box-shadow var(--motion-hover-duration,220ms) ease;
 }
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-visible .trusted-brand-card{opacity:1;transform:none}
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .trusted-brand-card{transition:transform var(--motion-hover-duration,220ms) var(--motion-hover-ease,var(--home-lower-ease)),border-color var(--motion-hover-duration,220ms) ease,box-shadow var(--motion-hover-duration,220ms) ease;transition-delay:0ms}
 .marketing-home-v3 .trusted-brand-logo{
   display:flex;
   width:112px;
@@ -12906,7 +12902,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .trusted-brand-card--mlm .trusted-brand-logo{width:126px;height:76px;padding:4px;border-radius:8px;background:#fff}
 .marketing-home-v3 .trusted-brand-card--alraad .trusted-brand-logo{width:78px;height:78px;border-radius:9px;background:#e58318}
 .marketing-home-v3 .trusted-brand-card:hover .trusted-brand-logo img{transform:scale(var(--motion-hover-logo-scale,1.02))}
-.marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .trusted-brand-card:hover{transform:translateY(var(--motion-hover-y,-3px));border-color:#c7ddd9;box-shadow:0 14px 30px rgba(6,84,76,.085)}
+.marketing-home-v3 .trusted-brand-card:hover{transform:translateY(var(--motion-hover-y,-3px));border-color:#c7ddd9;box-shadow:0 14px 30px rgba(6,84,76,.085)}
 
 @keyframes trustedBrandsMarquee{to{transform:translate3d(var(--trusted-brands-shift),0,0)}}
 

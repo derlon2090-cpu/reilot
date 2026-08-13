@@ -26,8 +26,19 @@ describe("homepage lower-section scroll performance", () => {
     expect(cssSource).not.toContain("filter:drop-shadow(0 0 2px rgba(8,143,130,.3))");
   });
 
+  it("keeps trusted-brand cards visible and their marquee continuous across neighboring scenes", () => {
+    expect(appSource).toContain('<section class="marketing-commerce-ecosystem" data-social-proof data-continuous-marquee data-home-immediate>');
+    expect(appSource).not.toMatch(/class="marketing-commerce-ecosystem"[^>]*data-motion-scene/);
+    expect(appSource).toContain('data-motion-variant="logoCardHover"');
+    expect(appSource).not.toContain('data-motion-variant="logoCardReveal logoCardHover"');
+    expect(appSource).toContain('loading="eager" decoding="async"');
+    expect(cssSource).toMatch(/\.trusted-brand-card\{[\s\S]*?opacity:1;[\s\S]*?transform:none;/);
+    expect(cssSource).toMatch(/animation:trustedBrandsMarquee 32s linear infinite;\s+animation-play-state:running/);
+    expect(cssSource).not.toContain(".trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}");
+  });
+
   it("forces browsers to fetch the optimized motion bundle and stylesheet", () => {
-    expect(rootLayout).toContain("20260813-scroll-performance-v120");
-    expect(staticIndex).toContain("20260813-scroll-performance-v120");
+    expect(rootLayout).toContain("20260814-trusted-brands-v121");
+    expect(staticIndex).toContain("20260814-trusted-brands-v121");
   });
 });
