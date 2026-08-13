@@ -1,0 +1,49 @@
+import { describe, expect, it, vi } from "vitest";
+import { DeepSeekProvider } from "../../src/server/ai/provider.js";
+
+describe("DeepSeekProvider", () => {
+  it("keeps the provider contract behind the configured endpoint", async () => {
+    const fetchImpl = vi.fn(async (_url, options) => new Response(JSON.stringify({
+      choices: [{ message: { role: "assistant", content: "تم" } }],
+      usage: { prompt_tokens: 4, completion_tokens: 1 }
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const provider = new DeepSeekProvider({ apiKey: "test-key", baseUrl: "https://ai.example/v1", model: "deepseek-test", fetchImpl });
+    const result = await provider.completeStructured({ messages: [{ role: "user", content: "مرحبا" }] });
+    expect(result.message.content).toBe("تم");
+    expect(fetchImpl).toHaveBeenCalledWith("https://ai.example/v1/chat/completions", expect.objectContaining({ method: "POST" }));
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body).toMatchObject({ model: "deepseek-test", stream: false, temperature: 0.2 });
+  });
+
+  it("parses streamed tokens while ignoring malformed and reasoning-only events", async () => {
+    const payload = [
+      'data: {"choices":[{"delta":{"reasoning_content":"internal"}}]}',
+      'data: malformed',
+      'data: {"choices":[{"delta":{"content":"أهلًا "}}]}',
+      'data: {"choices":[{"delta":{"content":"بك"}}],"usage":{"completion_tokens":2}}',
+      "data: [DONE]",
+      ""
+    ].join("\n\n");
+    const fetchImpl = vi.fn(async () => new Response(payload, { status: 200, headers: { "content-type": "text/event-stream" } }));
+    const provider = new DeepSeekProvider({ apiKey: "test-key", fetchImpl });
+    const events = [];
+    for await (const event of provider.streamChat({ messages: [{ role: "user", content: "مرحبا" }] })) events.push(event);
+    expect(events).toEqual([
+      { type: "text", value: "أهلًا " },
+      { type: "text", value: "بك" },
+      { type: "usage", value: { completion_tokens: 2 } }
+    ]);
+  });
+
+  it("executes allowlisted tool calls before returning control to the orchestrator", async () => {
+    const provider = new DeepSeekProvider({ apiKey: "test" });
+    provider.completeStructured = vi.fn()
+      .mockResolvedValueOnce({ message: { role: "assistant", tool_calls: [{ id: "call-1", type: "function", function: { name: "getAccountHealth", arguments: "{}" } }] } })
+      .mockResolvedValueOnce({ message: { role: "assistant", content: "جاهز" } });
+    const executeTool = vi.fn(async () => ({ ok: true, data: { healthScore: 90 } }));
+    const result = await provider.executeToolLoop({ messages: [{ role: "user", content: "حلل حسابي" }], tools: [], executeTool });
+    expect(executeTool).toHaveBeenCalledWith("getAccountHealth", {});
+    expect(result.executions).toHaveLength(1);
+    expect(result.messages.at(-1)).toMatchObject({ role: "tool", tool_call_id: "call-1" });
+  });
+});

@@ -773,6 +773,18 @@ state.supportLiveFallbackTimer = null;
 state.supportLiveRefreshing = false;
 state.supportLiveRefreshPending = false;
 state.supportReplyDrafts = {};
+state.supportSearch = "";
+state.aiOverview = null;
+state.aiConversations = null;
+state.aiConversation = null;
+state.aiConversationId = state.query.get("conversation") || "";
+state.aiConversationSearch = "";
+state.aiStreaming = false;
+state.aiAbortController = null;
+state.aiDraft = "";
+state.aiSidebarOpen = false;
+state.aiToolProgress = [];
+state.aiPendingMessage = null;
 state.sallaProductMappings = null;
 state.sallaRenewalOptions = null;
 state.sallaAutomationTemplates = null;
@@ -861,7 +873,7 @@ const dashboardRoutes = [
   ["/dashboard/reports", "التقارير", "reports"],
   ["/dashboard/billing", "الفوترة والباقات", "billing"],
   ["/dashboard/settings", "الإعدادات", "settings"],
-  ["/dashboard/support", "الدعم والمساعدة", "support"]
+  ["/dashboard/support", "مركز Renvix", "support"]
 ];
 
 const dashboardAliases = {
@@ -1029,11 +1041,11 @@ const dashboardQuickSearchItems = [
   {
     route: "/dashboard/support",
     icon: "support",
-    ar: "الدعم والمساعدة",
-    en: "Help & support",
-    descriptionAr: "طلبات الدعم والشكاوى والمحادثات والأسئلة",
-    descriptionEn: "Support tickets, complaints, chats and help",
-    keywords: ["دعم", "مساعدة", "تذكرة", "شكوى", "شكاوى", "مشكلة", "محادثة", "اسئلة", "أسئلة", "support", "help", "ticket", "complaint", "chat", "faq"]
+    ar: "مركز Renvix",
+    en: "Renvix Center",
+    descriptionAr: "ذكاء الحساب والتذاكر والرسائل مع فريق Renvix",
+    descriptionEn: "Account intelligence, tickets and conversations with Renvix",
+    keywords: ["ذكاء", "تحليل", "دعم", "تذكرة", "رسالة", "محادثة", "assistant", "support", "ticket", "message", "ai"]
   }
 ];
 
@@ -1183,6 +1195,10 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       }
     } else if (target === "supportTicket") {
       state.supportTicket = payload.item || null;
+    } else if (target === "aiConversation") {
+      state.aiConversation = payload.item || null;
+    } else if (target === "aiOverview") {
+      state.aiOverview = payload.snapshot || null;
     } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
       ? payload
       : target === "orderLinkProfile"
@@ -1306,10 +1322,17 @@ function syncRouteData(force = false) {
   }
   if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) queue("billing", "/api/billing", "billingOverview");
   if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) queue("settings", "/api/settings", "accountSettings");
-  if (state.route === "/dashboard/support") {
-    const requestedTicket = state.query.get("ticket") || state.supportSelectedId;
+  if (state.route.startsWith("/dashboard/support")) {
+    const ticketRouteId = state.route.match(/^\/dashboard\/support\/tickets\/([^/]+)$/)?.[1];
+    const requestedTicket = ticketRouteId && ticketRouteId !== "recent" ? ticketRouteId : state.query.get("ticket") || state.supportSelectedId;
     if (force || state.supportTickets === null) queue("supportTickets", `/api/support/tickets?filter=${encodeURIComponent(state.supportFilter)}&limit=25`, "supportTickets");
     if (requestedTicket && (force || state.supportTicket?.id !== requestedTicket)) queue("supportTicket", `/api/support/tickets/${encodeURIComponent(requestedTicket)}`, "supportTicket");
+    if (state.route === "/dashboard/support/ai") {
+      const requestedConversation = state.query.get("conversation") || state.aiConversationId;
+      if (force || state.aiOverview === null) queue("aiOverview", "/api/ai/overview", "aiOverview");
+      if (force || state.aiConversations === null) queue("aiConversations", `/api/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations");
+      if (requestedConversation && (force || state.aiConversation?.id !== requestedConversation)) queue("aiConversation", `/api/ai/conversations/${encodeURIComponent(requestedConversation)}`, "aiConversation");
+    }
   }
 
   if (pending.length) {
@@ -1537,6 +1560,7 @@ function dashboardIcon(name) {
     heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>',
     play: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z"/>',
     message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     attachment: '<path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.7 9.7a2 2 0 0 1-2.8-2.8l8.9-8.9"/>',
     upload: '<path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
     cloud: '<path d="M5.5 19h12a4.5 4.5 0 0 0 .7-8.94A6.5 6.5 0 0 0 5.8 8.4 5.3 5.3 0 0 0 5.5 19Z"/>',
@@ -1550,6 +1574,7 @@ function dashboardIcon(name) {
     fashion: '<path d="M9 3c0 2 1 3 3 3s3-1 3-3l4 4-3 3v11H8V10L5 7Z"/><path d="m8 10 2-2M16 10l-2-2"/>',
     coffee: '<path d="M4 7h13v8a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5Z"/><path d="M17 9h2a3 3 0 0 1 0 6h-2M6 3v2M10 3v2M14 3v2"/>',
     sparkles: '<path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3ZM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8ZM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8Z"/>',
+    star: '<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
     gift: '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M7.5 8C5.6 8 4 6.9 4 5.5S5.2 3 6.8 3C9.3 3 12 8 12 8M16.5 8C18.4 8 20 6.9 20 5.5S18.8 3 17.2 3C14.7 3 12 8 12 8"/>',
     puzzle: '<path d="M19 13h-2.5a1.5 1.5 0 0 0-1.5 1.5V17h-3v-2.5a1.5 1.5 0 0 0-1.5-1.5H8V10h2.5A1.5 1.5 0 0 0 12 8.5V6h3v2.5a1.5 1.5 0 0 0 1.5 1.5H19z"/><path d="M8 10V7a2 2 0 1 0-4 0v3H2v4h2v3a2 2 0 1 0 4 0v-4"/><path d="M19 10h1a2 2 0 1 0 0-4h-2V3h-4v3"/>',
     payments: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><rect x="13" y="12" width="5" height="4" rx="1"/><path d="M7 14h2"/>',
@@ -1583,6 +1608,7 @@ function dashboardIcon(name) {
     copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><rect x="4" y="4" width="11" height="11" rx="2"/>',
     success: '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
     document: '<path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/>',
+    store: '<path d="M3 10h18l-2-6H5Z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/><path d="M3 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/>',
     save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     delete: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>',
@@ -1592,6 +1618,9 @@ function dashboardIcon(name) {
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
     "eye-off": '<path d="m3 3 18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-3.1 3.8M6.2 6.2C3.6 8 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 3.2-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
     back: '<path d="m15 18-6-6 6-6"/><path d="M9 12h11"/>',
+    arrowLeft: '<path d="m15 18-6-6 6-6"/><path d="M9 12h11"/>',
+    chevron: '<path d="m9 18 6-6-6-6"/>',
+    check: '<path d="m5 12 4 4L19 6"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>'
   };
@@ -1736,9 +1765,16 @@ function marketingSteps() {
     [localizedCopy("خصص إعداداتك", "Customize settings"), localizedCopy("حدد خطط الاشتراكات والتجديد والإشعارات الآلية.", "Set subscription plans, renewals, and automated alerts."), "settings", "settings"],
     [localizedCopy("ابدأ على الفور", "Go live"), localizedCopy("شغّل الأتمتة وتمتع بتجربة موثوقة ومتكاملة.", "Launch automation with a reliable, connected experience."), "rocket", "rocket"]
   ];
+  const connectorPaths = [
+    "M1072 31 C1026 4 992 10 976 69 C962 121 894 121 852 73 C824 41 798 14 752 31",
+    "M752 31 C706 4 672 10 656 69 C642 121 574 121 532 73 C504 41 478 14 432 31",
+    "M432 31 C386 4 352 10 336 69 C322 121 254 121 212 73 C184 41 158 14 112 31"
+  ];
   return `<div class="marketing-steps" data-steps-scene data-motion-scene>
-    <svg class="marketing-step-route" viewBox="0 0 1200 150" preserveAspectRatio="none" aria-hidden="true"><path class="home-lower-route-base" d="M1110 34 C1050 4 1008 8 974 72 S865 135 812 70 S682 8 620 70 S487 136 430 70 S282 6 96 72"/><path pathLength="1" class="home-lower-route-draw" d="M1110 34 C1050 4 1008 8 974 72 S865 135 812 70 S682 8 620 70 S487 136 430 70 S282 6 96 72"/><path pathLength="1" class="home-lower-route-flow" d="M1110 34 C1050 4 1008 8 974 72 S865 135 812 70 S682 8 620 70 S487 136 430 70 S282 6 96 72"/></svg>
-    ${steps.map(([title, body, icon, motion], index) => `<article class="marketing-step marketing-step--${motion}" style="--motion-index:${index}" data-step-index="${index}" data-reveal><b>${String(index + 1).padStart(2, "0")}</b><div class="marketing-step-card"><span class="marketing-step-icon">${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></div><i class="marketing-step-ground" aria-hidden="true"></i></article>`).join("")}
+    <svg class="marketing-step-route" viewBox="0 0 1200 150" preserveAspectRatio="none" aria-hidden="true">
+      ${connectorPaths.map((path, index) => `<g class="marketing-step-connector" style="--connector-index:${index}"><path class="marketing-step-connector-base" d="${path}"/><path pathLength="1" class="marketing-step-connector-reveal" d="${path}"/><path pathLength="1" class="marketing-step-connector-flow" d="${path}"/><circle class="marketing-step-connector-dot" r="4"><animateMotion dur="${4.2 + index * .35}s" begin="-${index * 1.1}s" repeatCount="indefinite" calcMode="linear" path="${path}"/></circle></g>`).join("")}
+    </svg>
+    ${steps.map(([title, body, icon, motion], index) => `<article class="marketing-step marketing-step--${motion}" style="--motion-index:${index}" data-step-index="${index}" data-reveal><b><span class="marketing-step-number">${String(index + 1).padStart(2, "0")}</span><i class="marketing-step-number-orbit" aria-hidden="true"></i></b><div class="marketing-step-card"><span class="marketing-step-icon">${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></div><i class="marketing-step-ground" aria-hidden="true"></i></article>`).join("")}
   </div>`;
 }
 
@@ -1750,12 +1786,13 @@ function marketingRenewalJourney() {
     [localizedCopy("متابعة النتائج والتجديدات", "Track results and renewals"), localizedCopy("راقب الأداء والتجديدات لحظة بلحظة واتخذ قرارات أفضل.", "Monitor performance and renewals in real time."), "barChart", "number", "04"],
     [localizedCopy("زيادة الإيرادات والولاء", "Grow revenue and loyalty"), localizedCopy("قلل فقد التجديدات وزد الإيرادات وولاء عملائك.", "Reduce missed renewals and grow customer loyalty."), "publicFeatures", "icon", ""]
   ];
+  const journeyPath = "M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54";
   return `<section class="marketing-renewal-journey" data-motion-scene>
     <div class="container">
       ${marketingSectionHeading(localizedCopy("رحلة التجديد الذكية", "The smart renewal journey"), localizedCopy("رحلة متكاملة تبدأ من بياناتك وتنتهي بتجديدات أكثر ورضا أعلى لعملائك.", "A connected journey from your data to more renewals and happier customers."))}
       <div class="renewal-journey-flow">
-        <svg class="renewal-journey-route" viewBox="0 0 1200 130" preserveAspectRatio="none" aria-hidden="true"><path class="home-lower-route-base" d="M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54"/><path pathLength="1" class="home-lower-route-draw" d="M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54"/><path pathLength="1" class="home-lower-route-flow" d="M1125 60 C1045 12 985 17 910 62 S760 105 680 58 S526 15 448 62 S290 108 76 54"/></svg>
-        ${stages.map(([title, body, icon, marker, sequence], index) => `<article class="renewal-journey-stage renewal-journey-stage--${marker}" style="--motion-index:${index}" data-reveal><span class="renewal-journey-marker">${marker === "number" ? `<strong>${sequence}</strong>` : dashboardIcon(icon)}${sequence && marker === "icon" ? `<b>${sequence}</b>` : ""}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}
+        <svg class="renewal-journey-route" viewBox="0 0 1200 130" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="renewal-journey-glow"><feGaussianBlur stdDeviation="2.6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path class="renewal-journey-path" d="${journeyPath}"/><path pathLength="1" class="renewal-journey-path-reveal" d="${journeyPath}"/><path pathLength="1" class="renewal-journey-path-flow" d="${journeyPath}"/><circle class="renewal-journey-glow-dot" r="5.2"><animateMotion dur="10s" begin="1.25s" repeatCount="indefinite" calcMode="linear" path="${journeyPath}"/></circle></svg>
+        ${stages.map(([title, body, icon, marker, sequence], index) => `<article class="renewal-journey-stage renewal-journey-stage--${marker}" style="--motion-index:${index};--journey-delay:${1.25 + index * 2.45}s" data-reveal><span class="renewal-journey-marker">${marker === "number" ? `<strong>${sequence}</strong>` : dashboardIcon(icon)}${sequence && marker === "icon" ? `<b>${sequence}</b>` : ""}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}
       </div>
     </div>
   </section>`;
@@ -3643,7 +3680,7 @@ function dashboardShell(content) {
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
       <div class="sidebar-brand">${logo(state.sidebarCollapsed)}</div>
       <nav class="side-links">${links}</nav>
-      <button class="sidebar-support-link ${state.route === "/dashboard/support" ? "active" : ""}" data-link="/dashboard/support" data-sidebar-icon="support" aria-label="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}" title="${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}">${dashboardIcon("support")}<span>${state.language === "ar" ? "الدعم والمساعدة" : "Help & support"}</span></button>
+      <button class="sidebar-support-link ${state.route.startsWith("/dashboard/support") ? "active" : ""}" data-link="/dashboard/support" data-sidebar-icon="support" aria-label="${state.language === "ar" ? "مركز Renvix" : "Renvix Center"}" title="${state.language === "ar" ? "مركز Renvix" : "Renvix Center"}">${dashboardIcon("support")}<span>${state.language === "ar" ? "مركز Renvix" : "Renvix Center"}</span></button>
     </aside>
     ${state.sidebarOpen ? `<button class="sidebar-backdrop" data-action="close-sidebar" aria-label="إغلاق القائمة"></button>` : ""}
     <main class="dashboard-main">
@@ -7862,6 +7899,43 @@ async function handleAction(target) {
   }
   const action = target.dataset.action;
   if (!action) return;
+  if (action === "ai-new-conversation") {
+    state.aiConversationId = "";
+    state.aiConversation = null;
+    state.aiDraft = "";
+    state.aiSidebarOpen = false;
+    const url = new URL(location.href);
+    url.searchParams.delete("conversation");
+    history.replaceState({}, "", url);
+    return render();
+  }
+  if (action === "ai-open-conversation") {
+    state.aiConversationId = target.dataset.id || "";
+    state.aiConversation = null;
+    state.aiSidebarOpen = false;
+    const url = new URL(location.href);
+    url.searchParams.set("conversation", state.aiConversationId);
+    history.replaceState({}, "", url);
+    await syncRouteData(true);
+    return render();
+  }
+  if (action === "ai-toggle-sidebar") {
+    state.aiSidebarOpen = !state.aiSidebarOpen;
+    return render();
+  }
+  if (action === "ai-quick-prompt") {
+    const form = document.querySelector('form[data-submit="ai-message"]');
+    const field = form?.elements?.prompt;
+    if (!form || !field || state.aiStreaming) return;
+    field.value = target.dataset.prompt || "";
+    state.aiDraft = field.value;
+    form.requestSubmit();
+    return;
+  }
+  if (action === "ai-stop") {
+    state.aiAbortController?.abort();
+    return;
+  }
   if (action === "footer-guide-suggestion") {
     const input = target.closest(".fp-guide")?.querySelector('[data-action="footer-guide-search"]');
     if (!input) return;
@@ -8046,13 +8120,16 @@ async function handleAction(target) {
   if (action === "support-open") {
     state.supportSelectedId = target.dataset.id || "";
     state.supportTicket = null;
-    const url = new URL(location.href);
-    if (state.supportSelectedId) url.searchParams.set("ticket", state.supportSelectedId);
-    history.replaceState({}, "", url);
     fetchJson(`/api/support/tickets/${encodeURIComponent(state.supportSelectedId)}/read`, { method: "POST" })
       .then(() => { state.supportTickets = null; syncRouteData(); })
       .catch(() => {});
-    return render();
+    if (target.dataset.inline === "true") {
+      const url = new URL(location.href);
+      if (state.supportSelectedId) url.searchParams.set("ticket", state.supportSelectedId);
+      history.replaceState({}, "", url);
+      return render();
+    }
+    return navigate(`/dashboard/support/tickets/${encodeURIComponent(state.supportSelectedId)}`);
   }
   if (action === "support-reload-ticket") {
     state.supportTicket = null;
@@ -9878,10 +9955,132 @@ async function handleGoogleAuthResult(event) {
   setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450);
 }
 
+function setAIComposerStreaming(form, streaming) {
+  const button = form?.querySelector(".rvx-ai-send,.rvx-ai-stop");
+  if (!button) return;
+  if (streaming) {
+    button.type = "button";
+    button.className = "rvx-ai-stop";
+    button.dataset.action = "ai-stop";
+    button.innerHTML = `${dashboardIcon("close")} إيقاف`;
+  } else {
+    button.type = "submit";
+    button.className = "rvx-ai-send";
+    delete button.dataset.action;
+    button.innerHTML = dashboardIcon("send");
+  }
+}
+
+function refreshAIToolProgress(event) {
+  const index = state.aiToolProgress.findIndex((item) => item.name === event.name);
+  if (index >= 0) state.aiToolProgress[index] = event;
+  else state.aiToolProgress.push(event);
+  const root = document.querySelector("[data-ai-tool-progress]");
+  if (!root) return;
+  root.innerHTML = state.aiToolProgress.slice(-3).map((item) => `<span class="${item.status}">${item.status === "completed" ? dashboardIcon("success") : item.status === "failed" ? dashboardIcon("warning") : `<i></i>`}${escapeHtml(item.status === "completed" ? `تم ${item.label}` : item.status === "failed" ? `تعذر ${item.label}` : `جارٍ ${item.label}...`)}</span>`).join("");
+}
+
+async function readAIEventStream(response, onEvent) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!response.ok || !contentType.includes("text/event-stream")) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || "تعذر تشغيل ذكاء Renvix.");
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const packets = buffer.split(/\n\n/);
+    buffer = packets.pop() || "";
+    for (const packet of packets) {
+      let type = "message"; let data = {};
+      for (const line of packet.split(/\r?\n/)) {
+        if (line.startsWith("event:")) type = line.slice(6).trim();
+        if (line.startsWith("data:")) {
+          try { data = JSON.parse(line.slice(5).trim()); } catch { data = {}; }
+        }
+      }
+      onEvent(type, data);
+    }
+    if (done) break;
+  }
+}
+
+async function handleAIMessageSubmit(form) {
+  if (state.aiStreaming) return;
+  const prompt = String(form.elements.prompt?.value || "").trim();
+  if (prompt.length < 2) return appToast.warning("اكتب سؤالك أولًا", { description: "اكتب طلبًا واضحًا ليحلله ذكاء Renvix.", id: "ai-prompt-empty" });
+  const files = Array.from(form.elements.attachments?.files || []);
+  if (files.some((file) => file.size > 10 * 1024 * 1024)) return appToast.warning("حجم المرفق كبير", { description: "الحد الأقصى 10MB لكل ملف.", id: "ai-file-size" });
+  state.aiStreaming = true;
+  state.aiToolProgress = [];
+  state.aiDraft = prompt;
+  const controller = new AbortController();
+  state.aiAbortController = controller;
+  setAIComposerStreaming(form, true);
+  const list = document.querySelector("[data-ai-message-list]");
+  if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading")) list.innerHTML = "";
+  const streamId = `ai-stream-${Date.now()}`;
+  list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: prompt })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><p data-ai-stream-text></p><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
+  const streamNode = document.getElementById(streamId);
+  const textNode = streamNode?.querySelector("[data-ai-stream-text]");
+  const blockNode = streamNode?.querySelector("[data-ai-stream-blocks]");
+  streamNode?.scrollIntoView({ block: "end", behavior: "smooth" });
+  try {
+    const endpoint = state.aiConversationId
+      ? `/api/ai/conversations/${encodeURIComponent(state.aiConversationId)}/messages`
+      : "/api/ai/messages";
+    const response = await fetch(endpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+      body: JSON.stringify({ prompt, page: "support_ai", attachments: files.slice(0,3).map((file) => ({ name: file.name, type: file.type, size: file.size })) })
+    });
+    await readAIEventStream(response, (type, payload) => {
+      if (type === "ready") {
+        state.aiConversationId = payload.conversation?.id || state.aiConversationId;
+        const url = new URL(location.href); url.searchParams.set("conversation", state.aiConversationId); history.replaceState({}, "", url);
+      } else if (type === "tool") refreshAIToolProgress(payload);
+      else if (type === "meta" && blockNode) {
+        blockNode.innerHTML = (payload.blocks || []).map(renderAIBlock).join("");
+        if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
+      } else if (type === "token" && textNode) {
+        textNode.textContent += payload.value || "";
+        streamNode?.scrollIntoView({ block: "end" });
+      } else if (type === "error" && textNode) {
+        textNode.textContent += `\n${payload.message || "تعذر إكمال الرد."}`;
+        streamNode?.classList.add("has-error");
+      } else if (type === "interrupted" && textNode) {
+        textNode.textContent += `\n\n${payload.message || "تم إيقاف إنشاء الرد."}`;
+      }
+    });
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      if (textNode) textNode.textContent += `\n${error.message || "تعذر إكمال الرد."}`;
+      streamNode?.classList.add("has-error");
+    } else if (textNode) textNode.textContent += "\n\nتم إيقاف إنشاء الرد.";
+  } finally {
+    state.aiStreaming = false;
+    state.aiAbortController = null;
+    state.aiDraft = "";
+    setAIComposerStreaming(form, false);
+    if (form.elements.prompt) { form.elements.prompt.value = ""; form.elements.prompt.style.height = "auto"; }
+    if (form.elements.attachments) form.elements.attachments.value = "";
+    streamNode?.classList.remove("is-streaming");
+    state.aiConversation = null;
+    state.aiConversations = null;
+    setTimeout(() => syncRouteData(true), 120);
+  }
+}
+
 async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "ai-message") {
+    await handleAIMessageSubmit(form);
+    return;
+  }
   if (["login", "register", "forgot", "reset-password"].includes(type) && !AuthTurnstile.hasToken(form)) {
     return appToast.warning(
       state.authDisplayLanguage === "en" ? "Complete the security verification" : "أكمل التحقق الأمني",
@@ -9896,7 +10095,7 @@ async function handleSubmit(form, event) {
     try {
       const payload = await fetchJson("/api/support/tickets", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: data.type, subject: data.subject, body: data.body })
+        body: JSON.stringify({ type: data.type, priority: data.priority, subject: data.subject, body: data.body })
       });
       if (attachments.length) {
         const uploadData = new FormData();
@@ -9916,10 +10115,9 @@ async function handleSubmit(form, event) {
       }
       form.reset();
       state.supportSelectedId = payload.item.id;
-      history.replaceState({}, "", `/dashboard/support?ticket=${encodeURIComponent(payload.item.id)}`);
       state.supportTickets = null; state.supportTicket = null;
-      syncRouteData();
       appToast.success("تم إرسال رسالتك", { description: `رقم التذكرة ${payload.item.ticketNumber}`, id: "support-created" });
+      await navigate(`/dashboard/support/tickets/${encodeURIComponent(payload.item.id)}`);
     } catch (error) {
       appToast.error("تعذر إرسال الرسالة", { description: error.message, id: "support-create-error" });
       setSubmitBusy(button, false, "إرسال الرسالة");
@@ -11275,7 +11473,7 @@ function startSupportLiveFallback() {
   if (state.supportLiveFallbackTimer) return;
   updateSupportLiveStatus("fallback");
   state.supportLiveFallbackTimer = setInterval(() => {
-    if (state.route === "/dashboard/support" && document.visibilityState === "visible") void refreshSupportLiveData();
+    if (state.route.startsWith("/dashboard/support") && document.visibilityState === "visible") void refreshSupportLiveData();
   }, 7_000);
 }
 
@@ -11290,7 +11488,7 @@ function closeSupportLiveConnection() {
 }
 
 async function refreshSupportLiveData() {
-  if (state.route !== "/dashboard/support") return;
+  if (!state.route.startsWith("/dashboard/support")) return;
   if (state.supportLiveRefreshing) {
     state.supportLiveRefreshPending = true;
     return;
@@ -11311,7 +11509,7 @@ async function refreshSupportLiveData() {
     const requests = [fetchJson(`/api/support/tickets?filter=${encodeURIComponent(state.supportFilter)}&limit=25`)];
     if (selectedId) requests.push(fetchJson(`/api/support/tickets/${encodeURIComponent(selectedId)}`));
     const results = await Promise.allSettled(requests);
-    if (state.route !== "/dashboard/support" || selectedId !== state.supportSelectedId) return;
+    if (!state.route.startsWith("/dashboard/support") || selectedId !== state.supportSelectedId) return;
     if (results[0]?.status === "fulfilled") state.supportTickets = results[0].value;
     if (selectedId && results[1]?.status === "fulfilled") state.supportTicket = results[1].value.item || null;
     if (selectedId && Number(state.supportTicket?.userUnreadCount || 0) > 0) {
@@ -11335,7 +11533,7 @@ async function refreshSupportLiveData() {
 }
 
 function syncSupportLiveConnection() {
-  if (state.route !== "/dashboard/support") {
+  if (!state.route.startsWith("/dashboard/support")) {
     closeSupportLiveConnection();
     return;
   }
@@ -11378,37 +11576,150 @@ function supportConversation(ticket) {
   </section>`;
 }
 
-function dashboardSupportPage() {
-  const payload = state.supportTickets;
-  const tickets = Array.isArray(payload?.items) ? payload.items : [];
-  const counts = payload?.counts || {};
+function supportTicketTone(status) {
+  return status === "CLOSED" ? "closed" : status === "RESOLVED" ? "resolved" : status === "WAITING_FOR_USER" ? "answered" : status === "WAITING_FOR_SUPPORT" ? "waiting" : "open";
+}
+
+function supportTeamAvatars() {
+  return `<div class="rvx-team-avatars" aria-label="فريق نجاح عملاء Renvix"><span>س</span><span>ن</span><span>أ</span></div>`;
+}
+
+function supportSuiteHeader(title, description, icon = "support", back = "/dashboard/support") {
+  return `<header class="rvx-suite-heading"><button class="rvx-back-button" data-link="${back}" aria-label="العودة">${dashboardIcon("back")}</button><div><span>${dashboardIcon(icon)}</span><div><h1>${title}</h1><p>${description}</p></div></div>${supportTeamAvatars()}</header>`;
+}
+
+function supportFilters(counts = {}) {
+  return [["all","الكل",counts.total],["new","مفتوحة",counts.new],["replied","تمت الإجابة",counts.replied],["closed","مغلقة",counts.closed]].map(([key,label,count]) => `<button class="${state.supportFilter === key ? "active" : ""}" data-action="support-filter" data-filter="${key}">${label}<span>${Number(count || 0)}</span></button>`).join("");
+}
+
+function visibleSupportTickets() {
+  const items = Array.isArray(state.supportTickets?.items) ? state.supportTickets.items : [];
+  const term = state.supportSearch.trim().toLowerCase();
+  return term ? items.filter((ticket) => `${ticket.subject} ${ticket.ticketNumber} ${ticket.lastMessage || ""}`.toLowerCase().includes(term)) : items;
+}
+
+function supportTicketListRows(tickets, { inline = false } = {}) {
+  return tickets.map((ticket) => `<button class="rvx-message-row ${state.supportSelectedId === ticket.id ? "active" : ""}" data-action="support-open" data-inline="${inline}" data-id="${escapeHtml(ticket.id)}"><span>${dashboardIcon(ticket.type === "COMPLAINT" ? "warning" : ticket.type === "TECHNICAL_ISSUE" ? "settings" : "message")}${Number(ticket.userUnreadCount || 0) ? `<i>${Number(ticket.userUnreadCount)}</i>` : ""}</span><div><strong>${escapeHtml(ticket.subject)}</strong><p>${escapeHtml(ticket.lastMessage || "لا توجد معاينة للرسالة")}</p></div><time>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</time></button>`).join("");
+}
+
+function supportHomePage() {
+  const counts = state.supportTickets?.counts || {};
+  const profileName = state.dashboardOverview?.profile?.name || "صديقنا";
+  return `<section class="rvx-support-suite rvx-support-home">
+    <section class="rvx-support-welcome"><i></i><i></i>${supportTeamAvatars()}<div class="rvx-welcome-copy"><span>هلا والله 👋</span><h1>كيف يمكننا مساعدتك؟</h1><p>مرحبًا ${escapeHtml(profileName)}، اختر المسار المناسب وسنكمل معك من نفس المكان.</p></div>
+      <div class="rvx-support-summary"><article><span>${dashboardIcon("sparkles")}</span><div><strong>الذكاء الاصطناعي</strong><small>تحليل حسابك وردود مبنية على بياناتك</small></div></article><article><span>${dashboardIcon("support")}</span><div><strong>التذاكر</strong><small>متابعة طلباتك ومحادثاتك</small></div></article><article><strong>${Number(counts.new || 0)}</strong><small>نشطة</small></article><article><strong>${Number(counts.total || 0)}</strong><small>الإجمالي</small></article></div>
+    </section>
+    <nav class="rvx-support-home-actions" aria-label="خدمات مركز Renvix">
+      <button data-link="/dashboard/support/new"><span>${dashboardIcon("send")}</span><div><strong>أرسل تذكرة</strong><small>أنشئ طلبًا لفريق Renvix وسنرد عليك قريبًا</small></div>${dashboardIcon("back")}</button>
+      <button data-link="/dashboard/support/tickets/recent"><span>${dashboardIcon("document")}</span><div><strong>التذاكر الأخيرة</strong><small>تابع آخر الطلبات والحالات والردود</small></div>${dashboardIcon("back")}</button>
+      <button data-link="/dashboard/support/ai"><span>${dashboardIcon("sparkles")}</span><div><strong>ذكاء Renvix الشامل</strong><small>اسأل عن الاشتراكات والتجديدات والقنوات وأداء حسابك</small></div>${dashboardIcon("back")}</button>
+    </nav>
+  </section>`;
+}
+
+function supportNewTicketPage() {
+  const email = state.dashboardOverview?.profile?.email || state.accountSettings?.profile?.email || "";
+  return `<section class="rvx-support-suite rvx-new-ticket">${supportSuiteHeader("أرسل لنا رسالة", "أرسل تفاصيل رسالتك وسنرد عليك في أقرب وقت ممكن.", "send")}
+    <div class="rvx-ticket-form-layout"><aside><div class="rvx-info-card"><h2>${dashboardIcon("info")} معلومات تهمك</h2>${[["وقت الاستجابة","نرد على معظم الرسائل خلال 24 ساعة عمل","clock"],["دعم آمن وموثوق","رسائلك ومعلوماتك محفوظة وآمنة بالكامل","security"],["دعم باللغة العربية","فريق Renvix متاح لمساعدتك طوال أيام الأسبوع","message"]].map(([title,body,icon]) => `<article><span>${dashboardIcon(icon)}</span><div><strong>${title}</strong><p>${body}</p></div></article>`).join("")}</div><div class="rvx-help-note">للحصول على إجابة فورية، جرّب <button data-link="/dashboard/support/ai">ذكاء Renvix الشامل</button></div></aside>
+      <section class="rvx-ticket-form-card"><form data-submit="support-ticket"><label class="wide"><span>البريد الإلكتروني المسجل *</span><div>${dashboardIcon("email")}<input value="${escapeHtml(email)}" readonly placeholder="بريد حسابك المسجل"></div></label><label><span>تصنيف الرسالة *</span><select name="type" required><option value="">اختر تصنيف الرسالة</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="BILLING">الفوترة والباقات</option><option value="ACCOUNT">الحساب</option><option value="SUGGESTION">اقتراح</option><option value="INQUIRY">استفسار عام</option></select></label><label><span>الأولوية *</span><select name="priority" required><option value="NORMAL">متوسطة</option><option value="LOW">منخفضة</option><option value="HIGH">عالية</option><option value="URGENT">عاجلة</option></select></label><label class="wide"><span>الموضوع *</span><div>${dashboardIcon("document")}<input name="subject" minlength="5" maxlength="150" required placeholder="أدخل موضوع الرسالة"></div></label><label class="wide"><span>تفاصيل الرسالة *</span><textarea name="body" minlength="10" maxlength="2000" required placeholder="يرجى وصف استفسارك أو المشكلة التي تواجهها بالتفصيل..."></textarea></label><label class="wide rvx-file-drop">${dashboardIcon("upload")}<strong>اسحب وأفلت الملفات هنا أو <u>اختر ملفًا من جهازك</u></strong><small>PDF, PNG, JPG, TXT — حتى 10MB لكل ملف</small><input name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.log"></label><button class="rvx-primary-action wide" type="submit">إرسال الرسالة ${dashboardIcon("send")}</button></form></section></div>
+  </section>`;
+}
+
+function supportTicketsOverviewPage() {
+  const tickets = visibleSupportTickets();
+  const counts = state.supportTickets?.counts || {};
+  const waiting = tickets.filter((item) => item.status === "WAITING_FOR_SUPPORT").length;
+  return `<section class="rvx-support-suite rvx-all-tickets">${supportSuiteHeader("جميع التذاكر 👋", "عرض وإدارة جميع تذاكرك ومحادثاتك مع فريق Renvix.", "support")}
+    <section class="rvx-ticket-stats"><div><span>${dashboardIcon("support")}</span><strong>${Number(counts.total || 0)}</strong><small>إجمالي التذاكر</small></div><div><strong>${Number(counts.new || 0)}</strong><small><i class="green"></i> مفتوحة</small></div><div><strong>${waiting}</strong><small><i class="orange"></i> بانتظار الرد</small></div><div><strong>${Number(counts.replied || 0)}</strong><small><i class="green"></i> تمت الإجابة</small></div><div><strong>${Number(counts.closed || 0)}</strong><small><i></i> مغلقة</small></div></section>
+    <section class="rvx-tickets-table-card"><div class="rvx-ticket-toolbar"><label>${dashboardIcon("search")}<input data-action="support-ticket-search" value="${escapeHtml(state.supportSearch)}" placeholder="ابحث عن رقم التذكرة أو الموضوع"></label><nav>${supportFilters(counts)}</nav><button data-link="/dashboard/support/new">${dashboardIcon("add")} تذكرة جديدة</button></div>
+      <div class="rvx-tickets-table"><div class="rvx-ticket-tr rvx-ticket-th"><span>رقم التذكرة</span><span>الموضوع</span><span>الفئة</span><span>الأولوية</span><span>الحالة</span><span>آخر تحديث</span><span></span></div>${tickets.length ? tickets.map((ticket) => `<button class="rvx-ticket-tr" data-action="support-open" data-id="${escapeHtml(ticket.id)}"><code dir="ltr">${escapeHtml(ticket.ticketNumber)}</code><strong><i></i>${escapeHtml(ticket.subject)}</strong><span>${dashboardIcon(ticket.type === "INTEGRATION" ? "link" : ticket.type === "BILLING" ? "billing" : "document")}${supportTypeLabel(ticket.type)}</span><em class="priority-${String(ticket.priority || "NORMAL").toLowerCase()}">${ticket.priority === "URGENT" ? "عاجلة" : ticket.priority === "HIGH" ? "عالية" : ticket.priority === "LOW" ? "منخفضة" : "متوسطة"}</em><b class="ticket-${supportTicketTone(ticket.status)}">${supportStatusLabel(ticket.status)}</b><time>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</time>${dashboardIcon("menu")}</button>`).join("") : `<p class="rvx-empty">لا توجد تذاكر مطابقة حاليًا.</p>`}</div>
+    </section>
+  </section>`;
+}
+
+function supportRecentTicketsPage() {
+  const tickets = visibleSupportTickets().slice(0, 6);
+  const counts = state.supportTickets?.counts || {};
+  return `<section class="rvx-support-suite rvx-recent-tickets">${supportSuiteHeader("التذاكر الأخيرة", "عرض ومتابعة أحدث طلبات Renvix التي تم إرسالها.", "document")}
+    <nav class="rvx-recent-filters">${supportFilters(counts)}<button class="rvx-sort">${dashboardIcon("down")} الأحدث أولًا</button></nav>
+    <div class="rvx-recent-list">${tickets.length ? tickets.map((ticket) => `<button data-action="support-open" data-id="${escapeHtml(ticket.id)}"><span class="rvx-recent-icon">${dashboardIcon(ticket.type === "TECHNICAL_ISSUE" ? "settings" : ticket.type === "INTEGRATION" ? "link" : "document")}</span><div><code dir="ltr">${escapeHtml(ticket.ticketNumber)} ${dashboardIcon("copy")}</code><strong>${escapeHtml(ticket.subject)}</strong><p>${escapeHtml(ticket.lastMessage || "")}</p></div><dl><div><dt>التصنيف</dt><dd>${supportTypeLabel(ticket.type)}</dd></div><div><dt>الأولوية</dt><dd>${ticket.priority === "HIGH" || ticket.priority === "URGENT" ? "عالية" : ticket.priority === "LOW" ? "منخفضة" : "متوسطة"}</dd></div><div><dt>آخر تحديث</dt><dd>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</dd></div></dl><b class="ticket-${supportTicketTone(ticket.status)}">${supportStatusLabel(ticket.status)}</b></button>`).join("") : `<p class="rvx-empty">لا توجد تذاكر لعرضها.</p>`}</div><button class="rvx-show-all" data-link="/dashboard/support/tickets">عرض جميع التذاكر</button>
+  </section>`;
+}
+
+function supportMessagesPage() {
+  const tickets = visibleSupportTickets();
   const selected = state.supportTicket?.id ? state.supportTicket : null;
-  const selectedId = selected?.id || state.supportSelectedId;
-  const filters = [["all","الكل",counts.total],["new","جديدة",counts.new],["replied","تم الرد",counts.replied],["closed","مغلقة",counts.closed]];
-  return dashboardShell(`
-    <section class="dashboard-support-page">
-      <div class="support-page-heading"><div><span class="support-heading-icon">${dashboardIcon("support")}</span><div><h1>التواصل والمساعدة</h1><p>أرسل رسالتك إلى فريق الدعم وتابع الردود مباشرة من داخل المنصة.</p></div></div><div class="support-heading-badges"><span class="support-live-badge" data-support-live-status="${escapeHtml(state.supportLiveStatus)}"><i></i><span data-support-live-label>${state.supportLiveStatus === "connected" ? "متصل مباشر" : state.supportLiveStatus === "fallback" ? "تحديث تلقائي" : "جارٍ الاتصال..."}</span></span><span class="support-security-note">${dashboardIcon("security")} كل محادثاتك آمنة ومرئية بالكامل داخل المنصة</span></div></div>
-      <div class="support-main-grid">
-        <section class="support-conversations card">
-          <div class="support-section-title"><div><h2>الإشعارات والردود</h2><p>متابعة جميع رسائلك مع فريق الدعم.</p></div>${dashboardIcon("message")}</div>
-          <nav class="support-tabs">${filters.map(([key,label,count]) => `<button class="${state.supportFilter === key ? "active" : ""}" data-action="support-filter" data-filter="${key}">${label}<span>${Number(count || 0)}</span></button>`).join("")}</nav>
-          ${payload === null ? `<div class="loading-state">جاري تحميل الرسائل...</div>` : tickets.length ? `<div class="support-ticket-list">${tickets.map((ticket) => `<button class="support-ticket-row ${selectedId === ticket.id ? "active" : ""} ${ticket.status === "CLOSED" ? "is-closed" : ""} ${Number(ticket.userUnreadCount || 0) ? "has-unread" : ""}" data-action="support-open" data-id="${escapeHtml(ticket.id)}"><span class="support-ticket-mark">${dashboardIcon(ticket.type === "COMPLAINT" ? "warning" : "message")}</span><span><span class="support-ticket-row-head"><b>${escapeHtml(ticket.subject)}</b><code dir="ltr">${escapeHtml(ticket.ticketNumber)}</code></span><small><span>${supportTypeLabel(ticket.type)}</span><span class="support-ticket-state ${ticket.status === "CLOSED" ? "closed" : ticket.status === "RESOLVED" ? "resolved" : ticket.status === "WAITING_FOR_USER" ? "replied" : "open"}">${supportStatusLabel(ticket.status)}</span></small><em>${escapeHtml(ticket.lastMessage || "")}</em></span><time>${new Date(ticket.updatedAt).toLocaleDateString("ar-SA")}</time>${Number(ticket.userUnreadCount || 0) ? `<i>${Number(ticket.userUnreadCount)}</i>` : ""}</button>`).join("")}</div>` : `<div class="support-empty-conversation"><strong>لا توجد رسائل بعد</strong><p>أرسل رسالة جديدة وسيظهر سجلها هنا.</p></div>`}
-          ${supportConversation(selected)}
-        </section>
-        <section class="support-compose card">
-          <div class="support-section-title"><div><h2>إرسال رسالة جديدة</h2><p>صف المشكلة بوضوح ليتمكن فريقنا من مساعدتك بسرعة.</p></div>${dashboardIcon("send")}</div>
-          <form data-submit="support-ticket">
-            <label><span>البريد المرتبط بالحساب</span><input value="${escapeHtml(state.accountSettings?.profile?.email || state.accountSettings?.user?.email || "")}" readonly placeholder="بريد حسابك المسجل"></label>
-            <label><span>نوع الرسالة</span><select name="type" required><option value="">اختر نوع الرسالة</option><option value="INQUIRY">استفسار</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="SUGGESTION">اقتراح</option><option value="COMPLAINT">شكوى</option><option value="BILLING">الفوترة</option><option value="INTEGRATION">التكاملات</option><option value="ACCOUNT">الحساب</option><option value="OTHER">أخرى</option></select></label>
-            <label><span>عنوان الرسالة</span><input name="subject" minlength="5" maxlength="150" required placeholder="اكتب عنوانًا مختصرًا لرسالتك"></label>
-            <label><span>تفاصيل الرسالة</span><textarea name="body" minlength="10" maxlength="2000" required placeholder="اكتب رسالتك هنا..."></textarea><small>حتى 2000 حرف</small></label>
-            <label class="support-upload-placeholder">${dashboardIcon("upload")}<strong>إرفاق ملفات (اختياري)</strong><span>PNG أو JPG أو WebP أو PDF أو TXT — حتى 5 ملفات و10MB لكل ملف</span><input name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.log,image/png,image/jpeg,image/webp,application/pdf,text/plain"></label>
-            <button class="btn btn-primary support-send-button" type="submit">${dashboardIcon("send")} إرسال الرسالة</button>
-          </form>
-        </section>
-      </div>
-      <div class="support-bottom-note">${dashboardIcon("info")} جميع المحادثات تتم من داخل المنصة فقط، وسيصلك إشعار عند وجود رد جديد.</div>
-    </section>`);
+  const counts = state.supportTickets?.counts || {};
+  return `<section class="rvx-support-suite rvx-messages-page">${supportSuiteHeader("جميع الرسائل", "تواصل مع فريق Renvix وسنرد عليك قريبًا.", "message")}
+    <div class="rvx-message-toolbar"><label>${dashboardIcon("search")}<input data-action="support-ticket-search" value="${escapeHtml(state.supportSearch)}" placeholder="ابحث في الرسائل..."></label><nav>${supportFilters(counts)}</nav></div>
+    <div class="rvx-messages-layout"><section><h2>الرسائل</h2><div class="rvx-message-list">${supportTicketListRows(tickets, { inline: true }) || `<p class="rvx-empty">لا توجد رسائل بعد.</p>`}</div></section><article class="rvx-inline-conversation">${supportConversation(selected)}</article></div>
+  </section>`;
+}
+
+function supportTicketDetailPage(ticketId) {
+  if (ticketId && state.supportSelectedId !== ticketId) state.supportSelectedId = ticketId;
+  const ticket = state.supportTicket?.id === ticketId ? state.supportTicket : null;
+  if (!ticket) return `<section class="rvx-support-suite">${supportSuiteHeader("الرسالة الأخيرة", "جاري تحميل تفاصيل المحادثة والردود.", "message", "/dashboard/support/tickets")}<div class="rvx-ticket-detail-loading">${dashboardIcon("support")}<strong>جاري فتح التذكرة...</strong></div></section>`;
+  const messages = Array.isArray(ticket.messages) ? ticket.messages.filter((item) => !item.isInternalNote) : [];
+  const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
+  const isClosed = ticket.status === "CLOSED";
+  return `<section class="rvx-support-suite rvx-ticket-detail">${supportSuiteHeader("الرسالة الأخيرة", "عرض تفاصيل المحادثة والرد على آخر تحديث.", "message", "/dashboard/support/tickets")}
+    <section class="rvx-ticket-detail-banner"><span>${dashboardIcon("message")}</span><div><small>الرسالة الأخيرة</small><h1>${escapeHtml(ticket.subject)}</h1><p><code dir="ltr">#${escapeHtml(ticket.ticketNumber)}</code><i></i>${new Date(ticket.updatedAt).toLocaleString("ar-SA")}<i></i><b class="ticket-${supportTicketTone(ticket.status)}">${supportStatusLabel(ticket.status)}</b></p></div></section>
+    <div class="rvx-ticket-detail-grid"><aside class="rvx-ticket-side"><section><h2>${dashboardIcon("info")} معلومات سريعة</h2>${[["الحالة",supportStatusLabel(ticket.status)],["آخر تحديث",new Date(ticket.updatedAt).toLocaleDateString("ar-SA")],["وقت الاستجابة",ticket.lastAdminMessageAt ? "تم الرد" : "قيد المتابعة"],["القناة","البريد الإلكتروني"],["المرفقات",attachments.length],["معرف التذكرة",ticket.ticketNumber]].map(([label,value]) => `<div><span>${label}</span><strong>${escapeHtml(String(value))}</strong></div>`).join("")}</section></aside>
+      <main class="rvx-ticket-chat"><h2>${dashboardIcon("message")} المحادثة</h2><div class="support-thread-messages">${messages.map((message) => `<article class="support-bubble ${message.senderType === "USER" ? "support-bubble-user" : "support-bubble-admin"}"><b>${message.senderType === "USER" ? "أنت" : escapeHtml(message.senderName || "فريق Renvix")}</b><p>${escapeHtml(message.body).replace(/\n/g,"<br>")}</p>${attachments.filter((file) => file.messageId === message.id).map((file) => `<a class="support-attachment-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener noreferrer">${dashboardIcon("attachment")}${escapeHtml(file.originalName)}</a>`).join("")}<time>${new Date(message.createdAt).toLocaleString("ar-SA")}</time></article>`).join("")}</div>${isClosed ? `<p class="support-closed-note">${dashboardIcon("success")} هذه التذكرة مغلقة والمحادثة محفوظة.</p>` : `<form class="support-reply-form" data-submit="support-reply" data-ticket-id="${escapeHtml(ticket.id)}"><textarea name="body" maxlength="2000" minlength="2" placeholder="اكتب ردك هنا...">${escapeHtml(state.supportReplyDrafts[ticket.id] || "")}</textarea><button class="btn btn-primary" type="submit">إرسال ${dashboardIcon("send")}</button></form>`}</main>
+      <aside class="rvx-ticket-side"><section><h2>${dashboardIcon("document")} تفاصيل الرسالة</h2><div><span>الحالة</span><strong>${supportStatusLabel(ticket.status)}</strong></div><div><span>أولوية التذكرة</span><strong>${ticket.priority === "HIGH" || ticket.priority === "URGENT" ? "عالية" : ticket.priority === "LOW" ? "منخفضة" : "متوسطة"}</strong></div><div><span>تاريخ الإنشاء</span><strong>${new Date(ticket.createdAt).toLocaleDateString("ar-SA")}</strong></div><div><span>القناة</span><strong>${ticket.requesterEmail || "البريد الإلكتروني"}</strong></div></section><section class="rvx-ticket-owner"><h2>المسؤول عن التذكرة</h2><span>ر</span><strong>فريق نجاح عملاء Renvix</strong><small>دعم فني ومتابعة مستمرة</small></section></aside>
+    </div>
+  </section>`;
+}
+
+function renderAIBlock(block = {}) {
+  const data = block.data || {};
+  if (block.type === "warning") return `<aside class="rvx-ai-warning">${dashboardIcon("info")}<div><strong>${escapeHtml(data.title || "تنبيه")}</strong><p>${escapeHtml(data.message || "")}</p></div></aside>`;
+  if (block.type === "account_health") return `<section class="rvx-ai-data-card rvx-ai-health-card"><header><span>${dashboardIcon("sparkles")}</span><strong>صحة حسابك</strong></header><div class="rvx-ai-health-score"><b>${Number(data.scores?.healthScore || 0)}</b><small>/ 100</small></div><div>${(data.risks || []).slice(0,2).map((item) => `<span class="risk">${dashboardIcon("warning")}${escapeHtml(item.title)}</span>`).join("")}${(data.opportunities || []).slice(0,1).map((item) => `<span class="opportunity">${dashboardIcon("star")}${escapeHtml(item.title)}</span>`).join("")}</div></section>`;
+  if (block.type === "renewal_summary") return `<section class="rvx-ai-data-card"><header><span>${dashboardIcon("subscriptions")}</span><strong>ملخص تجديدات هذا الشهر</strong></header><div class="rvx-ai-metric-grid"><span><small>إجمالي الاشتراكات</small><b>${Number(data.totalSubscriptions || 0)}</b></span><span><small>معدل النجاح</small><b>${Number(data.successRate || 0)}%</b></span><span class="danger"><small>تجديدات تحتاج متابعة</small><b>${Number(data.failed || 0)}</b></span><span><small>إيرادات التجديد</small><b>${Number(data.revenue || 0).toLocaleString("ar-SA")} ر.س</b></span></div><button data-link="/dashboard/subscriptions">عرض التفاصيل الكاملة ${dashboardIcon("back")}</button></section>`;
+  if (block.type === "channel_status") return `<section class="rvx-ai-data-card rvx-ai-compact-card"><header><span>${dashboardIcon("devices")}</span><strong>حالة القنوات</strong></header><div><b>${Number(data.deliveryRate || 0)}%</b><small>معدل التسليم</small><span>${Number(data.connected || 0)} متصلة · ${Number(data.failed || 0)} رسالة فاشلة</span></div><button data-link="/dashboard/channels">فحص القنوات</button></section>`;
+  if (block.type === "campaign_stats") return `<section class="rvx-ai-data-card rvx-ai-compact-card"><header><span>${dashboardIcon("campaigns")}</span><strong>أداء الحملات</strong></header><div><b>${Number(data.successRate || 0)}%</b><small>نجاح التسليم</small><span>${Number(data.campaigns || 0)} حملة خلال آخر 30 يومًا</span></div></section>`;
+  if (block.type === "support_summary") return `<section class="rvx-ai-data-card rvx-ai-compact-card"><header><span>${dashboardIcon("support")}</span><strong>التذاكر الحالية</strong></header><div><b>${Number(data.open || 0)}</b><small>تذكرة مفتوحة</small><span>${Number(data.needsUserReply || 0)} بانتظار ردك</span></div><button data-link="/dashboard/support/tickets">عرض التذاكر</button></section>`;
+  return "";
+}
+
+function renderAIMessage(message) {
+  const blocks = Array.isArray(message.segments) ? message.segments : [];
+  if (message.role === "user") return `<article class="rvx-ai-message rvx-ai-user-message"><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p><time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
+  return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p>${blocks.map(renderAIBlock).join("")}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
+}
+
+function aiOverviewWelcome() {
+  const snapshot = state.aiOverview;
+  if (!snapshot) return `<div class="rvx-ai-loading">${dashboardIcon("sparkles")}<strong>ذكاء Renvix يحلل آخر تحديثات حسابك...</strong></div>`;
+  return `<section class="rvx-ai-welcome"><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><small>صباح الخير 👋</small><h2>راجعت آخر حالة لحسابك</h2></span></div><p>الأداء العام ${Number(snapshot.scores?.healthScore || 0) >= 80 ? "جيد جدًا" : "مستقر"}، وهذه أهم النقاط التي تستحق انتباهك الآن.</p><div class="rvx-ai-overview-metrics"><span><strong>${Number(snapshot.scores?.healthScore || 0)}</strong><small>صحة الحساب</small></span><span><strong>${Number(snapshot.risks?.length || 0)}</strong><small>يحتاج انتباهك</small></span><span><strong>${Number(snapshot.opportunities?.length || 0)}</strong><small>فرص نمو</small></span><span><strong>${Number(snapshot.scores?.growthScore || 0)}</strong><small>مؤشر النمو</small></span></div>${snapshot.risks?.length ? `<aside><strong>يحتاج انتباهك اليوم</strong>${snapshot.risks.slice(0,2).map((item) => `<button data-link="${escapeHtml(item.href || "/dashboard/reports")}">${dashboardIcon("warning")}<span>${escapeHtml(item.title)}</span>${dashboardIcon("back")}</button>`).join("")}</aside>` : ""}</section>`;
+}
+
+function aiConversationSidebar() {
+  const items = Array.isArray(state.aiConversations) ? state.aiConversations : [];
+  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} محادثة جديدة</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="ابحث في المحادثات"></label><h3>المحادثات الحديثة</h3><nav>${items.length ? items.map((item) => `<button class="${state.aiConversationId === item.id ? "active" : ""}" data-action="ai-open-conversation" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon("message")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${new Date(item.lastMessageAt).toLocaleDateString("ar-SA")}</small></div></button>`).join("") : `<p>لا توجد محادثات محفوظة بعد.</p>`}</nav><footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} التذاكر</button><button data-link="/dashboard/settings">${dashboardIcon("settings")} الإعدادات</button></footer></aside>`;
+}
+
+function aiSupportPage() {
+  const conversation = state.aiConversation?.id === state.aiConversationId ? state.aiConversation : null;
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const quickPrompts = ["ملخص حسابي", "حلل التجديدات", "افحص القنوات", "فرص النمو", "راجع التذاكر"];
+  return `<section class="rvx-ai-page">${aiConversationSidebar()}<main class="rvx-ai-workspace"><header><button class="rvx-ai-drawer-toggle" data-action="ai-toggle-sidebar">${dashboardIcon("menu")}</button><div><img src="/assets/renvix-mark-deep-teal.svg" alt=""><span><h1>ذكاء Renvix الشامل ✨</h1><p>مساعد ذكي داخل منصتك يفهم بيانات حسابك المصرح بها.</p></span></div><b><i></i> حسابك ذكي داخل المنصة</b></header><div class="rvx-ai-messages" data-ai-message-list>${messages.length ? messages.map(renderAIMessage).join("") : aiOverviewWelcome()}</div><div class="rvx-ai-tools" data-ai-tool-progress></div><nav class="rvx-ai-quick-actions">${quickPrompts.map((prompt, index) => `<button data-action="ai-quick-prompt" data-prompt="${prompt}">${dashboardIcon(["reports","refresh","devices","star","support"][index])}${prompt}</button>`).join("")}</nav><form class="rvx-ai-composer" data-submit="ai-message"><textarea name="prompt" rows="1" maxlength="6000" placeholder="اسأل ذكاء Renvix عن أي شيء داخل المنصة...">${escapeHtml(state.aiDraft)}</textarea><div><label title="إرفاق ملف">${dashboardIcon("attachment")}<input name="attachments" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt"></label><button type="button" title="إضافة صورة">${dashboardIcon("upload")}</button></div>${state.aiStreaming ? `<button class="rvx-ai-stop" type="button" data-action="ai-stop">${dashboardIcon("close")} إيقاف</button>` : `<button class="rvx-ai-send" type="submit" aria-label="إرسال">${dashboardIcon("send")}</button>`}<small>${dashboardIcon("info")} قد يخطئ المساعد أحيانًا؛ تحقق من المعلومات الحساسة قبل اتخاذ قرار.</small></form></main></section>`;
+}
+
+function dashboardSupportPage() {
+  const route = state.route;
+  let content;
+  if (route === "/dashboard/support/new") content = supportNewTicketPage();
+  else if (route === "/dashboard/support/tickets") content = supportTicketsOverviewPage();
+  else if (route === "/dashboard/support/tickets/recent") content = supportRecentTicketsPage();
+  else if (route === "/dashboard/support/messages") content = supportMessagesPage();
+  else if (route === "/dashboard/support/ai") content = aiSupportPage();
+  else {
+    const ticketId = route.match(/^\/dashboard\/support\/tickets\/([^/]+)$/)?.[1];
+    content = ticketId ? supportTicketDetailPage(ticketId) : supportHomePage();
+  }
+  return dashboardShell(content);
 }
 
 function render() {
@@ -11419,7 +11730,7 @@ function render() {
   if (normalizedRoute !== requestedRoute) history.replaceState({}, "", normalizedRoute + location.search);
   state.route = normalizedRoute;
   state.query = new URLSearchParams(location.search);
-  if (state.route !== "/dashboard/support") closeSupportLiveConnection();
+  if (!state.route.startsWith("/dashboard/support")) closeSupportLiveConnection();
   if (state.route.startsWith("/dashboard")) {
     const pages = {
       "/dashboard": dashboardHome,
@@ -11458,7 +11769,9 @@ function render() {
             ? sallaReportsPage
           : /^\/dashboard\/apps\/salla\/templates\/[^/]+$/.test(state.route)
             ? sallaAutomationTemplateEditorPage
-        : pages[state.route] || dashboardHome;
+        : state.route.startsWith("/dashboard/support")
+          ? dashboardSupportPage
+          : pages[state.route] || dashboardHome;
     app.innerHTML = dashboardPage();
     localizeElement(app);
     ensurePasswordToggles();
@@ -11815,6 +12128,11 @@ window.addEventListener("renvix:google-auth-result", (event) => { void handleGoo
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && portal.innerHTML) closePortal();
+  if (event.target?.matches?.('form[data-submit="ai-message"] textarea[name="prompt"]') && event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    event.target.form?.requestSubmit();
+    return;
+  }
   const globalSearch = event.target.closest?.('[data-action="global-search"]');
   if (globalSearch) {
     const matches = dashboardQuickSearchMatches(globalSearch.value);
@@ -11856,6 +12174,29 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.dataset.action === "support-ticket-search") {
+    state.supportSearch = target.value;
+    render();
+    requestAnimationFrame(() => {
+      const input = document.querySelector('[data-action="support-ticket-search"]');
+      input?.focus(); input?.setSelectionRange(input.value.length, input.value.length);
+    });
+    return;
+  }
+  if (target.dataset.action === "ai-conversation-search") {
+    state.aiConversationSearch = target.value;
+    clearTimeout(state.aiConversationSearchTimer);
+    state.aiConversationSearchTimer = setTimeout(() => {
+      state.aiConversations = null;
+      syncRouteData(true);
+    }, 280);
+    return;
+  }
+  if (target.closest?.('form[data-submit="ai-message"]') && target.name === "prompt") {
+    state.aiDraft = target.value;
+    target.style.height = "auto";
+    target.style.height = `${Math.min(150, target.scrollHeight)}px`;
+  }
   const supportReplyForm = target.closest?.('form[data-submit="support-reply"]');
   if (supportReplyForm && target.name === "body") {
     state.supportReplyDrafts[supportReplyForm.dataset.ticketId] = target.value;
@@ -12440,7 +12781,7 @@ document.addEventListener("paste", (event) => {
 });
 setInterval(updateEmailOtpCountdown, 1000);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && state.route === "/dashboard/support" && state.supportLiveRefreshPending) {
+  if (document.visibilityState === "visible" && state.route.startsWith("/dashboard/support") && state.supportLiveRefreshPending) {
     void refreshSupportLiveData();
   }
 });

@@ -53,6 +53,7 @@ const selectTicket = `
 
 export async function createTicket(session, input) {
   const type = SUPPORT_TYPES.includes(input.type) ? input.type : "INQUIRY";
+  const priority = SUPPORT_PRIORITIES.includes(input.priority) ? input.priority : "NORMAL";
   const subject = cleanSupportText(input.subject, { min: 5, max: 150, label: "عنوان الرسالة" });
   const body = cleanSupportText(input.body, { min: 10, max: 2000, label: "تفاصيل الرسالة" });
   return transaction(async (client) => {
@@ -60,9 +61,9 @@ export async function createTicket(session, input) {
     const seq = await client.query("SELECT nextval('support_ticket_number_seq') AS value");
     const ticketNumber = `SUP-${new Date().getUTCFullYear()}-${String(seq.rows[0].value).padStart(6, "0")}`;
     const created = await client.query(
-      `INSERT INTO support_tickets (ticket_number,tenant_id,created_by_user_id,requester_email,type,subject)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [ticketNumber, session.tenantId, session.userId, session.email, type, subject]
+      `INSERT INTO support_tickets (ticket_number,tenant_id,created_by_user_id,requester_email,type,subject,priority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [ticketNumber, session.tenantId, session.userId, session.email, type, subject, priority]
     );
     const ticketId = created.rows[0].id;
     const message = await client.query(
@@ -411,7 +412,7 @@ export async function adminReply(admin, ticketId, input) {
         message: body.slice(0, 180),
         entityType: "support_ticket",
         entityId: ticketId,
-        actionUrl: `/dashboard/support?ticket=${ticketId}`,
+        actionUrl: `/dashboard/support/tickets/${ticketId}`,
         dedupeKey: `support-reply:${result.id}`
       });
     }
