@@ -1445,12 +1445,28 @@ tbody tr:hover { background: #F3F8F7; }
 .auth-turnstile-status{display:none!important}
 .auth-turnstile-widget{min-height:65px;display:grid;align-items:center;overflow:hidden}
 .auth-turnstile-widget:has(iframe){min-height:65px;border:0}
+.auth-turnstile-slot[data-turnstile-status="error"] .auth-turnstile-widget{display:none;min-height:0}
 .auth-turnstile-message{display:block;min-height:18px;padding:0;color:#a13c35;font-size:12px;line-height:1.45}
 .auth-turnstile-message:empty{display:none}
 .auth-turnstile-message[data-state="pending"]{color:#6f817e}
+.auth-turnstile-retry{
+  width:max-content;
+  min-height:34px;
+  justify-self:start;
+  padding:6px 12px;
+  border:1px solid #9fcac4;
+  border-radius:8px;
+  color:#075f57;
+  background:#f4fbfa;
+  font:700 11.5px/1.4 Tajawal,Arial,sans-serif;
+  cursor:pointer;
+}
+.auth-turnstile-retry:hover{border-color:#6caea5;background:#eaf7f5}
+.auth-turnstile-retry[hidden]{display:none!important}
 .auth-suite-page[data-auth-theme="dark"] .auth-turnstile-slot{border:0;background:transparent}
 .auth-suite-page[data-auth-theme="dark"] .auth-turnstile-message{color:#f2a59f}
 .auth-suite-page[data-auth-theme="dark"] .auth-turnstile-message[data-state="pending"]{color:#9ca5ab}
+.auth-suite-page[data-auth-theme="dark"] .auth-turnstile-retry{color:#dff8f4;border-color:#406f68;background:#123b36}
 @media (max-width:743px){
   .auth-turnstile-slot{margin:12px 0 14px}
   .auth-turnstile-widget{min-height:65px}

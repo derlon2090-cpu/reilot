@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createGoogleOAuthChallenge, exchangeGoogleAuthorizationCode, googleOAuthAuthorizationUrl, googleOAuthStateMatches } from "../../src/server/google-oauth.js";
+import { createGoogleOAuthChallenge, exchangeGoogleAuthorizationCode, googleOAuthAuthorizationUrl, googleOAuthChallengeCookies, googleOAuthStateMatches, readGoogleOAuthChallenge } from "../../src/server/google-oauth.js";
 
 const original = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
@@ -32,6 +32,21 @@ describe("Google OAuth redirect fallback", () => {
     expect(url.searchParams.get("redirect_uri")).toBe("https://api.renvix.app/api/auth/google/callback");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("nonce")).toBe("nonce");
+  });
+
+  it("preserves registration intent in an HttpOnly callback cookie", () => {
+    const challenge = createGoogleOAuthChallenge();
+    const cookies = googleOAuthChallengeCookies(challenge, "register");
+    const request = new Request("https://api.renvix.app/api/auth/google/callback", {
+      headers: { cookie: cookies.map((cookie) => cookie.split(";", 1)[0]).join("; ") }
+    });
+    expect(cookies).toHaveLength(3);
+    expect(cookies.every((cookie) => cookie.includes("HttpOnly"))).toBe(true);
+    expect(readGoogleOAuthChallenge(request)).toMatchObject({
+      stateDigest: challenge.stateDigest,
+      verifier: challenge.verifier,
+      intent: "register"
+    });
   });
 
   it("exchanges the authorization code on the server using the PKCE verifier", async () => {

@@ -50,6 +50,18 @@ export function googleClientId() {
   return normalizeGoogleClientId(process.env.GOOGLE_CLIENT_ID);
 }
 
+export function normalizeGoogleAuthIntent(value) {
+  return value === "register" ? "register" : "login";
+}
+
+export function googleAuthIntentAllowsSignup(value) {
+  return normalizeGoogleAuthIntent(value) === "register";
+}
+
+export function googleEmailOtpRequired(env = process.env) {
+  return env.GOOGLE_EMAIL_OTP_REQUIRED === "true";
+}
+
 export async function verifyGoogleCredential({ credential, expectedNonceDigest, verifier = oauthClient }) {
   const audience = googleClientId();
   if (!audience) return { ok: false, status: 503, reason: "google_not_configured" };
@@ -96,7 +108,7 @@ function safeUser(row) {
   };
 }
 
-async function loadGoogleUser(client, profile) {
+async function loadGoogleUser(client, profile, intent) {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`google:${profile.subject}:${profile.email}`]);
   const linked = await client.query(
     `SELECT u.id,u.tenant_id AS "tenantId",u.name,u.email,u.image,
@@ -129,6 +141,10 @@ async function loadGoogleUser(client, profile) {
     await client.query("INSERT INTO accounts (user_id,account_id,provider_id) VALUES ($1,$2,'google') ON CONFLICT DO NOTHING", [existing.rows[0].id, profile.subject]);
     await client.query("UPDATE users SET email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),image=COALESCE(NULLIF($2,''),image),updated_at=now() WHERE id=$1", [existing.rows[0].id, profile.picture]);
     return { user: { ...existing.rows[0], image: profile.picture || existing.rows[0].image }, created: false, linked: true };
+  }
+
+  if (!googleAuthIntentAllowsSignup(intent)) {
+    return { error: { ok: false, status: 404, reason: "google_account_not_found" } };
   }
 
   const workspace = profile.name || profile.email.split("@")[0] || "Renvix";
@@ -180,12 +196,13 @@ async function recordProviderAttempt(ipHash, success, reason = null) {
   });
 }
 
-export async function authenticateGoogle({ profile, ipAddress, userAgent, trustedDeviceToken = "", locale = "ar" }) {
+export async function authenticateGoogle({ profile, intent = "login", ipAddress, userAgent, trustedDeviceToken = "", locale = "ar" }) {
+  const authIntent = normalizeGoogleAuthIntent(intent);
   const ipHash = sha256(String(ipAddress || "unknown"));
   if (await providerRateLimited(ipHash)) return { ok: false, status: 429, reason: "rate_limited" };
   let resolved;
   try {
-    resolved = await transaction((client) => loadGoogleUser(client, profile));
+    resolved = await transaction((client) => loadGoogleUser(client, profile, authIntent));
   } catch (error) {
     await recordProviderAttempt(ipHash, false, "database_error");
     throw error;
@@ -206,18 +223,28 @@ export async function authenticateGoogle({ profile, ipAddress, userAgent, truste
     await recordProviderAttempt(ipHash, true);
     return { ok: true, status: 202, requiresMfa: true, challenge, user: safeUser(user) };
   }
-  if (factor.method === "email_otp") {
+  if (factor.method === "email_otp" && googleEmailOtpRequired()) {
     if (!emailOtpDeliveryConfigured()) return { ok: false, status: 503, reason: "email_otp_unavailable" };
     const challenge = await createLoginEmailOtpChallenge({ user, ipAddress, userAgent, locale, purpose: "login", loginAttemptId: attempt.rows[0]?.id });
     await recordProviderAttempt(ipHash, true);
     return { ok: true, status: 202, requiresEmailOtp: true, challenge, user: safeUser(user) };
   }
-  if (factor.method === "unavailable") return { ok: false, status: 503, reason: "second_factor_unavailable" };
+  if (factor.method === "unavailable" && googleEmailOtpRequired()) {
+    return { ok: false, status: 503, reason: "second_factor_unavailable" };
+  }
   const session = await transaction(async (client) => {
     const created = await createSession(client, { userId: user.id, ipAddress, userAgent });
     await client.query("INSERT INTO activity_logs (tenant_id,user_id,type,title,metadata) VALUES ($1,$2,'auth.google.login','Signed in with Google',$3::jsonb)", [user.tenantId, user.id, JSON.stringify({ created: resolved.created, linked: resolved.linked })]);
     return created;
   });
   await recordProviderAttempt(ipHash, true);
-  return { ok: true, status: resolved.created ? 201 : 200, user: safeUser(user), session };
+  return {
+    ok: true,
+    status: resolved.created ? 201 : 200,
+    user: safeUser(user),
+    session,
+    created: resolved.created,
+    linked: resolved.linked,
+    intent: authIntent
+  };
 }

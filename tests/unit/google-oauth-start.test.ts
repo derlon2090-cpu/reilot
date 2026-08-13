@@ -38,4 +38,14 @@ describe("Google OAuth backend ownership", () => {
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("https://accounts.renvix.app/login?google_error=auth_backend_required");
   });
+
+  it("returns registration failures to the registration page", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.VERCEL = "1";
+    process.env.AUTH_URL = "https://accounts.renvix.app";
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    const response = await GET(new Request("https://accounts.renvix.app/api/auth/google/start?locale=ar&intent=register"));
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://accounts.renvix.app/register?google_error=auth_backend_required");
+  });
 });

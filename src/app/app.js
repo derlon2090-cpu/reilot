@@ -9846,14 +9846,23 @@ async function fetchWithTurnstile(form, url, options) {
 }
 
 async function handleGoogleAuthResult(event) {
-  const { responseOk, payload } = event.detail || {};
+  const { responseOk, payload, intent = "login" } = event.detail || {};
   if (!responseOk || payload?.ok !== true) {
     const messages = {
       account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية قبل ربط Google.", "This email belongs to an existing account. Sign in with your password first to confirm ownership before linking Google."),
+      google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. انتقل إلى إنشاء حساب واستخدم Google للبدء.", "No account uses this Google address yet. Go to Create account and continue with Google."),
       google_nonce_invalid: localizedCopy("انتهت جلسة Google الآمنة. أعد المحاولة من الزر.", "The secure Google session expired. Try again from the button."),
+      google_auth_unavailable: localizedCopy("خدمة تسجيل Google غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", "Google authentication is temporarily unavailable. Try again shortly."),
+      email_otp_unavailable: localizedCopy("تعذر إرسال رمز التحقق الاحتياطي. حاول مرة أخرى بعد قليل.", "The backup verification code could not be sent. Try again shortly."),
       rate_limited: localizedCopy("محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.", "Too many attempts. Wait briefly and try again.")
     };
-    return appToast.error(localizedCopy("تعذر تسجيل الدخول عبر Google", "Google sign-in failed"), {
+    const missingAccount = payload?.reason === "google_account_not_found";
+    const title = missingAccount
+      ? localizedCopy("الحساب غير موجود", "Account not found")
+      : intent === "register"
+        ? localizedCopy("تعذر إنشاء الحساب عبر Google", "Google sign-up failed")
+        : localizedCopy("تعذر تسجيل الدخول عبر Google", "Google sign-in failed");
+    return appToast.error(title, {
       description: messages[payload?.reason] || localizedCopy("تحقق من حساب Google وحاول مرة أخرى.", "Check your Google account and try again."),
       id: "google-auth-error"
     });
@@ -9879,8 +9888,33 @@ async function handleGoogleAuthResult(event) {
     return appToast.error(localizedCopy("تعذر تثبيت جلسة الدخول", "Could not establish the sign-in session"), { id: "google-session-error" });
   }
   clearCachedDashboardProfile();
-  appToast.success(localizedCopy("تم تسجيل الدخول عبر Google", "Signed in with Google"), { description: localizedCopy("مرحبًا بك في Renvix.", "Welcome to Renvix."), id: "google-auth-success" });
+  const created = payload.created === true;
+  appToast.success(
+    created ? localizedCopy("تم إنشاء حسابك عبر Google", "Account created with Google") : localizedCopy("تم تسجيل الدخول عبر Google", "Signed in with Google"),
+    { description: created ? localizedCopy("أهلًا بك في Renvix، حسابك جاهز الآن.", "Welcome to Renvix. Your account is ready.") : localizedCopy("مرحبًا بك في Renvix.", "Welcome to Renvix."), id: "google-auth-success" }
+  );
   setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450);
+}
+
+function consumeGoogleRedirectError() {
+  const reason = state.query.get("google_error");
+  if (!reason) return;
+  const cleanUrl = new URL(location.href);
+  cleanUrl.searchParams.delete("google_error");
+  state.query.delete("google_error");
+  history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+  const messages = {
+    google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. استخدم صفحة إنشاء الحساب للبدء.", "No account uses this Google address yet. Use the Create account page to get started."),
+    account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية.", "This email belongs to an existing account. Sign in with your password first to confirm ownership."),
+    invalid_state: localizedCopy("انتهت جلسة Google الآمنة. ابدأ المحاولة من جديد.", "The secure Google session expired. Start again."),
+    cancelled: localizedCopy("أُلغيت المتابعة عبر Google.", "Google authentication was cancelled."),
+    google_backend_not_configured: localizedCopy("إعداد Google على خادم المصادقة غير مكتمل.", "Google is not fully configured on the authentication server."),
+    auth_backend_required: localizedCopy("خادم المصادقة الآمن غير متاح حاليًا.", "The secure authentication server is currently unavailable.")
+  };
+  queueMicrotask(() => appToast.error(
+    reason === "google_account_not_found" ? localizedCopy("الحساب غير موجود", "Account not found") : localizedCopy("تعذر إكمال المصادقة عبر Google", "Google authentication failed"),
+    { description: messages[reason] || localizedCopy("حاول مرة أخرى من زر Google.", "Try again from the Google button."), id: "google-redirect-error" }
+  ));
 }
 
 function setAIComposerStreaming(form, streaming) {
@@ -11814,6 +11848,7 @@ function render() {
   ensurePasswordToggles();
   if (authRoute) void AuthTurnstile.mountAll(app);
   if (state.route === "/login" || state.route === "/register") AuthGoogle.mountAll(app);
+  if ((state.route === "/login" || state.route === "/register") && state.query.has("google_error")) consumeGoogleRedirectError();
   requestAnimationFrame(() => initMarketingMotion());
   if (state.route === "/verify-email") {
     if (!state.emailOtpStatus) queueMicrotask(() => loadEmailOtpStatus());

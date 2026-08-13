@@ -29,6 +29,10 @@ function languageFor(element) {
   return element?.closest?.("[data-auth-language]")?.dataset.authLanguage === "en" ? "en" : "ar";
 }
 
+function intentFor(host) {
+  return host?.dataset?.context === "register" ? "register" : "login";
+}
+
 function loadGoogleIdentity() {
   if (window.google?.accounts?.id) return Promise.resolve(window.google);
   if (scriptPromise) return scriptPromise;
@@ -80,6 +84,7 @@ function activateRecovery(host, english, reason = "") {
     fallback.disabled = true;
     const target = new URL("/api/auth/google/start", authApiBaseUrl());
     target.searchParams.set("locale", english ? "en" : "ar");
+    target.searchParams.set("intent", intentFor(host));
     window.location.assign(target.toString());
   }, { once: true });
   area.append(fallback);
@@ -180,29 +185,39 @@ function setGoogleStatus(host, message = "", tone = "error") {
 
 async function submitCredential(host, credential) {
   const english = languageFor(host) === "en";
+  const intent = intentFor(host);
   host.closest(".auth-google-area")?.classList.add("is-busy");
-  setGoogleStatus(host, english ? "Signing in securely…" : "جارٍ تسجيل الدخول بأمان…", "info");
+  setGoogleStatus(
+    host,
+    intent === "register"
+      ? (english ? "Creating your account securely…" : "جارٍ إنشاء حسابك بأمان…")
+      : (english ? "Signing in securely…" : "جارٍ تسجيل الدخول بأمان…"),
+    "info"
+  );
   try {
     const response = await fetch(authApiUrl("/api/auth/google"), {
       method: "POST",
       credentials: "include",
       mode: "cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential, locale: english ? "en" : "ar" })
+      body: JSON.stringify({ credential, locale: english ? "en" : "ar", intent })
     });
     const payload = await response.json().catch(() => null);
-    window.dispatchEvent(new CustomEvent("renvix:google-auth-result", { detail: { responseOk: response.ok, status: response.status, payload } }));
+    window.dispatchEvent(new CustomEvent("renvix:google-auth-result", { detail: { responseOk: response.ok, status: response.status, payload, intent } }));
     if (!response.ok) throw new Error(payload?.reason || "google_auth_failed");
     setGoogleStatus(host, "", "info");
   } catch (error) {
     const messages = {
       account_link_verification_required: english ? "Verify ownership of the existing account before linking Google." : "يلزم التحقق من ملكية الحساب الحالي قبل ربط Google.",
+      google_account_not_found: english ? "No account uses this Google address yet. Create an account first." : "لا يوجد حساب مرتبط بعنوان Google هذا. أنشئ حسابًا أولًا.",
       rate_limited: english ? "Too many attempts. Please wait and try again." : "محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.",
       google_not_configured: english ? "Google sign-in is not configured yet." : "إعداد تسجيل Google غير مكتمل بعد."
       ,auth_backend_required: english ? "The secure authentication backend is not connected." : "خادم المصادقة الآمن غير مربوط بعد."
       ,google_client_mismatch: english ? "Google configuration does not match between the browser and the authentication backend." : "إعداد Google غير متطابق بين المتصفح وخادم المصادقة."
     };
     setGoogleStatus(host, messages[error.message] || (english ? "Google sign-in could not be completed. Try again." : "تعذر إكمال تسجيل الدخول عبر Google. حاول مرة أخرى."));
+    delete host.dataset.googleMounted;
+    queueMicrotask(() => { void mountGoogleButton(host); });
   } finally {
     host.closest(".auth-google-area")?.classList.remove("is-busy");
   }
@@ -233,7 +248,7 @@ async function mountGoogleButton(host) {
       theme: host.closest("[data-auth-theme]")?.dataset.authTheme === "dark" ? "filled_black" : "outline",
       size: "large",
       shape: "rectangular",
-      text: "continue_with",
+      text: intentFor(host) === "register" ? "signup_with" : "signin_with",
       logo_alignment: "left",
       width: Math.max(240, Math.min(420, Math.floor(host.getBoundingClientRect().width || 420))),
       locale: english ? "en" : "ar"

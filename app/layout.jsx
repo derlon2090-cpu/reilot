@@ -43,12 +43,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260812-google-v107" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260813-auth-v108" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260812-google-v107" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260812-google-v107" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260813-auth-v108" strategy="afterInteractive" />
       </body>
     </html>
   );

@@ -13,19 +13,24 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('"reset-password": "reset_password"');
   });
 
-  it("keeps the managed responsive widget visibly rendered and automatically recoverable", () => {
+  it("keeps the managed responsive widget visible and recovers without an endless retry loop", () => {
     expect(componentSource).toContain('appearance: "always"');
     expect(componentSource).toContain('size: "flexible"');
     expect(componentSource).toContain('theme: page?.dataset.authTheme');
-    expect(componentSource).toContain('retry: "auto"');
+    expect(componentSource).toContain('retry: "never"');
+    expect(componentSource).toContain("AUTOMATIC_RETRY_DELAYS");
+    expect(componentSource).toContain("retryableError(code)");
     expect(componentSource).toContain('"refresh-expired": "auto"');
     expect(componentSource).toContain("scriptPromise = undefined");
     expect(componentSource).toContain('"error-callback"(errorCode)');
-    expect(componentSource).toContain("return false");
+    expect(componentSource).toContain("return true");
     expect(componentSource).toContain('errorCode: "script-load"');
     expect(componentSource).toContain('<div class="auth-turnstile-widget" data-turnstile-widget></div>');
+    expect(componentSource).toContain("data-turnstile-retry");
     expect(componentSource).not.toContain('<div class="auth-turnstile-status"');
     expect(stylesSource).toContain('.auth-turnstile-slot{border:0;background:transparent}');
+    expect(stylesSource).toContain('.auth-turnstile-slot[data-turnstile-status="error"] .auth-turnstile-widget{display:none;min-height:0}');
+    expect(stylesSource).toContain(".auth-turnstile-retry[hidden]{display:none!important}");
   });
 
   it("does not add a default widget to email OTP or MFA forms", () => {

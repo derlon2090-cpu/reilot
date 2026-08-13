@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createGoogleNonce, googleAutoLinkAllowed, googleClientId, normalizeGoogleClientId, verifyGoogleCredential } from "../../src/server/google-auth.js";
+import { createGoogleNonce, googleAuthIntentAllowsSignup, googleAutoLinkAllowed, googleClientId, googleEmailOtpRequired, normalizeGoogleAuthIntent, normalizeGoogleClientId, verifyGoogleCredential } from "../../src/server/google-auth.js";
 import { sha256 } from "../../src/server/security.js";
 
 const originalClientId = process.env.GOOGLE_CLIENT_ID;
@@ -72,6 +72,19 @@ describe("Google identity verification", () => {
 });
 
 describe("Google account linking policy", () => {
+  it("creates a new account only from an explicit registration flow", () => {
+    expect(normalizeGoogleAuthIntent("register")).toBe("register");
+    expect(normalizeGoogleAuthIntent("login")).toBe("login");
+    expect(normalizeGoogleAuthIntent("unexpected")).toBe("login");
+    expect(googleAuthIntentAllowsSignup("register")).toBe(true);
+    expect(googleAuthIntentAllowsSignup("login")).toBe(false);
+  });
+
+  it("does not duplicate Google's verified identity with email OTP unless explicitly required", () => {
+    expect(googleEmailOtpRequired({} as NodeJS.ProcessEnv)).toBe(false);
+    expect(googleEmailOtpRequired({ GOOGLE_EMAIL_OTP_REQUIRED: "true" } as NodeJS.ProcessEnv)).toBe(true);
+  });
+
   it("allows verified Gmail and Google Workspace identities", () => {
     expect(googleAutoLinkAllowed({ email: "user@gmail.com", emailVerified: true, hostedDomain: "" } as never)).toBe(true);
     expect(googleAutoLinkAllowed({ email: "user@company.example", emailVerified: true, hostedDomain: "company.example" } as never)).toBe(true);

@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
 import { secureCookieEnabled } from "./cookie-policy.js";
-import { googleClientId } from "./google-auth.js";
+import { googleClientId, normalizeGoogleAuthIntent } from "./google-auth.js";
 import { randomToken, sha256 } from "./security.js";
 
 export const GOOGLE_OAUTH_STATE_COOKIE = "renvix_google_oauth_state";
 export const GOOGLE_OAUTH_VERIFIER_COOKIE = "renvix_google_oauth_verifier";
+export const GOOGLE_OAUTH_INTENT_COOKIE = "renvix_google_oauth_intent";
 const OAUTH_CHALLENGE_AGE_SECONDS = 10 * 60;
 
 function cookieValue(req, name) {
@@ -31,19 +32,28 @@ export function createGoogleOAuthChallenge() {
   return { state, stateDigest: sha256(state), verifier, challenge };
 }
 
-export function googleOAuthChallengeCookies(challenge) {
+export function googleOAuthChallengeCookies(challenge, intent = "login") {
   return [
     oauthCookie(GOOGLE_OAUTH_STATE_COOKIE, challenge.stateDigest),
-    oauthCookie(GOOGLE_OAUTH_VERIFIER_COOKIE, challenge.verifier)
+    oauthCookie(GOOGLE_OAUTH_VERIFIER_COOKIE, challenge.verifier),
+    oauthCookie(GOOGLE_OAUTH_INTENT_COOKIE, normalizeGoogleAuthIntent(intent))
   ];
 }
 
 export function clearGoogleOAuthChallengeCookies() {
-  return [oauthCookie(GOOGLE_OAUTH_STATE_COOKIE, "", 0), oauthCookie(GOOGLE_OAUTH_VERIFIER_COOKIE, "", 0)];
+  return [
+    oauthCookie(GOOGLE_OAUTH_STATE_COOKIE, "", 0),
+    oauthCookie(GOOGLE_OAUTH_VERIFIER_COOKIE, "", 0),
+    oauthCookie(GOOGLE_OAUTH_INTENT_COOKIE, "", 0)
+  ];
 }
 
 export function readGoogleOAuthChallenge(req) {
-  return { stateDigest: cookieValue(req, GOOGLE_OAUTH_STATE_COOKIE), verifier: cookieValue(req, GOOGLE_OAUTH_VERIFIER_COOKIE) };
+  return {
+    stateDigest: cookieValue(req, GOOGLE_OAUTH_STATE_COOKIE),
+    verifier: cookieValue(req, GOOGLE_OAUTH_VERIFIER_COOKIE),
+    intent: normalizeGoogleAuthIntent(cookieValue(req, GOOGLE_OAUTH_INTENT_COOKIE))
+  };
 }
 
 export function googleOAuthStateMatches(state, expectedDigest) {
