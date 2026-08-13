@@ -44,4 +44,12 @@ describe("account storage cleanup", () => {
     expect(routeSource).toContain('input.confirmation !== "DELETE_OLD_ACCOUNT_DATA"');
     expect(routeSource).toContain('["owner", "admin"]');
   });
+
+  it("ranks cleanable storage and reveals only the first three causes initially", () => {
+    expect(appSource).toContain('.filter((item) => Number(item?.bytes || 0) > 0)');
+    expect(appSource).toContain('Number(second.bytes || 0) - Number(first.bytes || 0)');
+    expect(appSource).toContain('const isInitiallyVisible = index < 3');
+    expect(appSource).toContain('data-action="toggle-account-storage-categories"');
+    expect(appSource).toContain('data-storage-cleanup-extra hidden');
+  });
 });
