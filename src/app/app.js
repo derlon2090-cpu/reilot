@@ -1983,7 +1983,55 @@ function initMarketingMotion() {
     entry.target.classList.add("is-visible");
     observer?.unobserve(entry.target);
   });
-  observe([...root.querySelectorAll("[data-motion-scene]")], (entry) => entry.target.classList.toggle("is-in-view", entry.isIntersecting), { threshold: .2 });
+  const motionScenes = [...root.querySelectorAll("[data-motion-scene]")];
+  const motionVisibility = new Map(motionScenes.map((scene) => [scene, 0]));
+  const motionActivity = new WeakMap();
+  let motionFrame = 0;
+  const setMotionSceneActive = (scene, active) => {
+    const shouldRun = active && !reducedMotion && !document.hidden;
+    if (motionActivity.get(scene) === shouldRun) return;
+    motionActivity.set(scene, shouldRun);
+    scene.classList.toggle("is-in-view", shouldRun);
+    scene.querySelectorAll("svg").forEach((svg) => {
+      try {
+        if (shouldRun) svg.unpauseAnimations?.();
+        else svg.pauseAnimations?.();
+      } catch {
+        // Some embedded SVG implementations do not expose SMIL controls.
+      }
+    });
+  };
+  const syncMotionScenes = () => {
+    motionFrame = 0;
+    let activeScene = null;
+    let activeRatio = 0;
+    motionScenes.forEach((scene) => {
+      const ratio = motionVisibility.get(scene) || 0;
+      if (ratio <= activeRatio) return;
+      activeScene = scene;
+      activeRatio = ratio;
+    });
+    motionScenes.forEach((scene) => setMotionSceneActive(scene, scene === activeScene && activeRatio > 0));
+  };
+  const queueMotionSync = () => {
+    if (!motionFrame) motionFrame = requestAnimationFrame(syncMotionScenes);
+  };
+  motionScenes.forEach((scene) => setMotionSceneActive(scene, false));
+  observe(motionScenes, (entry) => {
+    const ratio = Number(entry.intersectionRatio);
+    motionVisibility.set(entry.target, entry.isIntersecting ? (Number.isFinite(ratio) ? ratio : 1) : 0);
+    queueMotionSync();
+  }, { threshold: [0, .12, .3, .5, .75, 1] });
+  const handleMotionVisibility = () => {
+    if (document.hidden) motionScenes.forEach((scene) => setMotionSceneActive(scene, false));
+    else queueMotionSync();
+  };
+  document.addEventListener("visibilitychange", handleMotionVisibility);
+  disposers.push(() => {
+    document.removeEventListener("visibilitychange", handleMotionVisibility);
+    if (motionFrame) cancelAnimationFrame(motionFrame);
+    motionScenes.forEach((scene) => setMotionSceneActive(scene, false));
+  });
   observe([...root.querySelectorAll("[data-social-proof]")], (entry, observer) => {
     if (!entry.isIntersecting) return;
     entry.target.classList.add("is-social-proof-visible");
