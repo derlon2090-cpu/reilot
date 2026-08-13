@@ -1961,7 +1961,7 @@ function disposeMarketingMotion() {
 
 function initMarketingMotion() {
   disposeMarketingMotion();
-  const root = app.querySelector(".marketing-v3");
+  const root = app.querySelector(".marketing-v3, .pricing-reference-page");
   if (!root) return;
   const disposers = [];
   const timers = new Set();
@@ -2537,6 +2537,76 @@ function marketingFeaturesPage() {
   return publicShell(`<main class="marketing-v3 marketing-features-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المميزات", "Features"), localizedCopy("كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.", "Everything you need to manage renewals, subscriptions, and customers in one intelligent platform."))}${marketingFlowNetwork("features")}</div></section><section class="mobile-feature-cta"><div class="container"><div class="mobile-public-cta"><h2>${localizedCopy("جاهز لتنظيم اشتراكاتك وزيادة رضا عملائك؟", "Ready to organize subscriptions and delight customers?")}</h2><p>${localizedCopy("ابدأ اليوم مجانًا واكتشف الفرق بنفسك.", "Start free today and see the difference.")}</p><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن مجانًا", "Start free now")}${dashboardIcon("arrowLeft")}</button></div></div></section></main>`);
 }
 
+function pricingComparisonSection() {
+  const slugs = ["starter", "professional", "business", "enterprise"];
+  const plansBySlug = new Map((Array.isArray(state.publicPlans?.plans) ? state.publicPlans.plans : []).map((plan) => [plan.slug, plan]));
+  const pendingValue = () => state.publicPlans === null
+    ? '<span class="pricing-comparison-pending" aria-label="جارٍ تحميل بيانات الباقة">—</span>'
+    : "—";
+  const localizedNumber = (value) => Number(value).toLocaleString("ar-SA");
+  const planLimit = (slug, field, unit, unlimited = "غير محدود") => {
+    const plan = plansBySlug.get(slug);
+    if (!plan || plan[field] === null || plan[field] === undefined) return pendingValue();
+    const amount = Number(plan[field]);
+    if (!Number.isFinite(amount)) return "—";
+    return amount < 0 ? unlimited : `${localizedNumber(amount)} ${unit}`;
+  };
+  const planStorage = (slug) => {
+    const plan = plansBySlug.get(slug);
+    if (!plan || plan.storageLimitMb === null || plan.storageLimitMb === undefined) return pendingValue();
+    const amount = Number(plan.storageLimitMb);
+    if (!Number.isFinite(amount)) return "—";
+    if (amount < 0) return "غير محدود";
+    const display = amount >= 1024 && amount % 1024 === 0 ? `${localizedNumber(amount / 1024)} GB` : `${localizedNumber(amount)} MB`;
+    return `<bdi dir="ltr">${display}</bdi>`;
+  };
+  const planPrice = (slug) => {
+    const plan = plansBySlug.get(slug);
+    if (!plan) return pendingValue();
+    if (plan.contactSales) return "تواصل معنا";
+    const amount = Number(plan.monthlyPriceSar);
+    return Number.isFinite(amount) && amount > 0 ? `${localizedNumber(amount)} ر.س` : "—";
+  };
+  const availability = (slug, field) => {
+    const plan = plansBySlug.get(slug);
+    if (!plan || typeof plan[field] !== "boolean") return pendingValue();
+    const available = plan[field];
+    return `<span class="pricing-comparison-status ${available ? "is-available" : "is-unavailable"}" role="img" aria-label="${available ? "متاح" : "غير متاح"}">${dashboardIcon(available ? "check" : "close")}</span>`;
+  };
+  const emailLimit = (slug) => planLimit(slug, "emailMessageLimit", "رسالة", slug === "enterprise" ? "غير محدود" : "رصيد حسب الاتفاق");
+  const supportBySlug = { starter: "دعم أساسي", professional: "دعم أولوية", business: "دعم متقدم", enterprise: "دعم مخصص" };
+  const rows = [
+    ["مساحة التخزين", (slug) => planStorage(slug)],
+    ["الرسائل الشهرية", (slug) => emailLimit(slug)],
+    ["قنوات واتساب الرسمية", (slug) => planLimit(slug, "whatsappChannelsLimit", "قناة")],
+    ["حجم قاعدة العملاء", (slug) => planLimit(slug, "customersLimit", "عميل")],
+    ["عدد المستخدمين", (slug) => planLimit(slug, "usersLimit", "مستخدم")],
+    ["روابط معلومات الطلب", (slug) => planLimit(slug, "orderLinksLimit", "رابط")],
+    ["حملات واتساب والبريد", (slug) => availability(slug, "campaignsEnabled")],
+    ["الأتمتة وإعادة الاستهداف", (slug) => availability(slug, "automationEnabled")],
+    ["دعم مخصص", (slug) => supportBySlug[slug]],
+    ["تكامل سلة ومزامنة الطلبات", (slug) => availability(slug, "sallaEnabled")],
+    ["الدعم الفني", (slug) => supportBySlug[slug]],
+    ["السعر الشهري", (slug) => planPrice(slug), "is-price-row"]
+  ];
+  const planNames = { starter: "Starter", professional: "Professional", business: "Business", enterprise: "Enterprise" };
+  return `<section class="pricing-plan-comparison" data-reveal aria-labelledby="pricing-comparison-title">
+    <header class="pricing-plan-comparison__heading">
+      <h2 id="pricing-comparison-title">اختر الباقة الأنسب لنمو أعمالك</h2>
+      <p>مقارنة واضحة بين خطط Renvix لاختيار الأنسب لأعمالك</p>
+    </header>
+    <p class="pricing-comparison-hint">${dashboardIcon("arrowLeft")}<span>مرّر أفقيًا لعرض جميع الباقات</span></p>
+    <div class="pricing-comparison-scroll" tabindex="0" aria-label="جدول مقارنة باقات Renvix قابل للتمرير أفقيًا">
+      <table class="pricing-comparison-table">
+        <caption class="sr-only">مقارنة مزايا وأسعار باقات Renvix</caption>
+        <colgroup><col class="comparison-feature-column">${slugs.map((slug) => `<col class="comparison-plan-column comparison-plan-column--${slug}">`).join("")}</colgroup>
+        <thead><tr><th scope="col" class="comparison-feature-cell">الميزة</th>${slugs.map((slug) => `<th scope="col" class="${slug === "professional" ? "is-professional" : ""}"><span dir="ltr">${planNames[slug]}</span>${slug === "professional" ? '<small>الأكثر شيوعًا</small>' : ""}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map(([label, value, rowClass = ""]) => `<tr class="${rowClass}"><th scope="row" class="comparison-feature-cell">${label}</th>${slugs.map((slug) => `<td class="${slug === "professional" ? "is-professional" : ""}">${value(slug)}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
 function marketingPricingPage() {
   const questions = [
     ["هل يمكنني الترقية أو التبديل بين الباقات؟", "نعم. افتح «الفوترة والباقات» واختر الخطة الجديدة. تُطبّق الترقية وفق السعر الظاهر قبل الدفع، بينما يبدأ خفض الباقة مع دورة الفوترة التالية ما لم تعرض صفحة الدفع خلاف ذلك، وتبقى بيانات حسابك محفوظة."],
@@ -2553,6 +2623,7 @@ function marketingPricingPage() {
         </div>
         <div class="pricing-public-grid">${pricingCards(false, "monthly")}</div>
         <div class="pricing-trial-footnote">${dashboardIcon("security")}<span><strong>ابدأ بتجربة مجانية لمدة 7 أيام</strong><small>جرّب Renvix قبل اختيار باقتك. لا توجد باقة مجانية دائمة.</small></span></div>
+        ${pricingComparisonSection()}
         <div class="pricing-reference-extras">
           <article class="card faq-card faq-compact">
             <h2>أسئلة شائعة</h2>
@@ -2580,7 +2651,6 @@ function blogPage() {
   const sidePosts = posts.slice(1, 4);
   return publicShell(`<main class="marketing-v3 marketing-blog-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المدونة", "Blog"), localizedCopy("مقالات وأدلة تفصيلية، تحديثات المنتج، وأفكار عملية تساعدك على النمو مع Renvix.", "Practical articles, product updates, and guides to help you grow with Renvix."))}<div class="blog-v3-toolbar" data-reveal><div class="chips">${categoryTabs.map(([key, label, icon]) => `<button class="chip ${activeCategory === key ? "active" : ""}" data-action="blog-category" data-category="${key}">${dashboardIcon(icon)}${label}</button>`).join("")}</div><label class="blog-v3-search">${dashboardIcon("search")}<input data-action="blog-search" value="${escapeHtml(state.search)}" placeholder="${localizedCopy("ابحث في المقالات...", "Search articles...")}"></label></div>
       ${featured ? `<div class="blog-v3-lead-layout"><aside class="blog-v3-side-rail" data-reveal><h2>${localizedCopy("مختارات المحرر", "Editor's picks")}</h2><div class="blog-v3-side-list">${sidePosts.map((post) => `<button data-link="/blog/${post.slug}"><img src="${post.image}" alt=""><span><strong>${localizedField(post.title)}</strong><small>${localizedField(post.date)}</small></span></button>`).join("")}</div></aside><section class="blog-v3-featured" data-reveal><div class="blog-v3-featured-media"><img src="${featured.image}" alt="${escapeHtml(localizedField(featured.title))}"></div><div><span>${localizedCopy("مقالة مميزة", "Featured article")} ${dashboardIcon("star")}</span><small>${localizedField(featured.date)}</small><h1>${localizedField(featured.title)}</h1><p>${localizedField(featured.excerpt)}</p><button data-link="/blog/${featured.slug}">${localizedCopy("اقرأ المزيد", "Read more")}${dashboardIcon("arrowLeft")}</button></div></section></div><section class="blog-v3-latest blog-v3-latest--full"><header><h2>${localizedCopy("أحدث المقالات", "Latest articles")}</h2><button data-action="blog-category" data-category="آخر التحديثات">${localizedCopy("عرض جميع المقالات", "View all articles")}${dashboardIcon("arrowLeft")}</button></header><div class="blog-v3-grid blog-v3-grid--full">${posts.slice(1, 6).map((post) => blogCard(post)).join("")}</div></section>` : `<div class="marketing-v3-empty">${emptyState(localizedCopy("لا توجد مقالات مطابقة", "No matching articles"), localizedCopy("جرّب البحث بكلمات أخرى أو اختر قسمًا مختلفًا.", "Try another search or category."))}</div>`}
-      <section class="blog-v3-newsletter" data-reveal><span>${dashboardIcon("email")}</span><div><h2>${localizedCopy("ابقَ على اطلاع دائم", "Stay up to date")}</h2><p>${localizedCopy("اشترك في نشرتنا البريدية لتحصل على أحدث المقالات والتحديثات مباشرة إلى بريدك.", "Receive the latest articles and product updates in your inbox.")}</p></div><form data-submit="newsletter"><input type="email" name="email" placeholder="${localizedCopy("أدخل بريدك الإلكتروني", "Enter your email")}" required><button class="btn btn-primary">${localizedCopy("اشترك الآن", "Subscribe")}</button></form></section>
     </div></section></main>`);
 }
 
@@ -2936,7 +3006,6 @@ function marketingResourcePage() {
   const pageHero = (title, intro, extra = "") => `<section class="fp-hero"><div class="container"><h1>${title}</h1><p>${intro}</p>${extra}</div></section>`;
   const sectionTitle = (title, kicker = "") => `<header class="fp-section-title">${kicker ? `<span>${kicker}</span>` : ""}<h2>${title}</h2></header>`;
   const iconCard = ([title, body, icon], index = 0) => `<article class="fp-icon-card" data-reveal style="--fp-delay:${index * .06}s"><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`;
-  const actionBanner = (title, body, label, path, icon = "infinity") => `<section class="fp-action-banner" data-reveal><div class="fp-action-orbit"><span>${dashboardIcon(icon)}</span><i>${dashboardIcon("notifications")}</i><i>${dashboardIcon("reports")}</i><i>${dashboardIcon("star")}</i></div><div><h2>${title}</h2><p>${body}</p></div><button class="btn btn-secondary" data-link="${path}">${label}${dashboardIcon("arrowLeft")}</button></section>`;
   const steps = (items) => `<div class="fp-steps">${items.map(([title, body, icon], index) => `<article data-reveal style="--fp-delay:${index * .07}s"><b>${String(index + 1).padStart(2, "0")}</b><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}</div>`;
 
   const updatesPage = () => {
@@ -2948,7 +3017,7 @@ function marketingResourcePage() {
       <section>${sectionTitle("ما الجديد")}<div class="fp-six-grid">${latest.map(iconCard).join("")}</div></section>
       <section>${sectionTitle("خارطة الطريق")}<div class="fp-roadmap">${[["مزايا ذكية", "توصيات ذكية مدعومة بالذكاء الاصطناعي.", "star"], ["تكاملات إضافية", "ربط المزيد من المنصات والقنوات.", "puzzle"], ["تحليلات متقدمة", "لوحات وتقارير تفصيلية جديدة.", "reports"], ["تحسين الأتمتة", "أدوات أذكى وأكثر مرونة.", "settings"]].map(iconCard).join("")}</div></section>
       <div class="fp-metrics-strip">${[["99.97%", "موثوقية المنصة", "security"], ["+28.4%", "تحسين الأداء", "reports"], ["4.9/5", "رضا العملاء", "heart"], ["24/7", "دعم على مدار الساعة", "support"]].map(([value, label, icon]) => `<article>${dashboardIcon(icon)}<span><strong>${value}</strong><small>${label}</small></span></article>`).join("")}</div>
-      ${actionBanner("لا تفوّت أي تحديث", "اشترك في ملخص الإصدارات والتحسينات ليصلك كل جديد مباشرة.", "اشترك الآن", "/register", "email")}</div></main>`;
+      </div></main>`;
   };
 
   const partnersPage = () => {
@@ -2959,7 +3028,7 @@ function marketingResourcePage() {
       <section>${sectionTitle("مزايا الشراكة مع Renvix")}<div class="fp-six-grid">${[["نمو مشترك", "نفتح معًا فرصًا جديدة للتوسع.", "reports"], ["منصة موثوقة", "بنية آمنة وقابلة للتوسع.", "security"], ["تكامل سهل ومرن", "واجهات API موثقة وسلسة.", "puzzle"], ["دعم فني وتدريب", "فريق متخصص ومواد جاهزة.", "support"], ["مواد تسويقية جاهزة", "أصول وحملات تساعدك على النجاح.", "send"], ["عوائد مجزية", "حوافز واضحة للشركاء النشطين.", "payments"]].map(iconCard).join("")}</div></section>
       <section>${sectionTitle("نرحب بجميع أنواع الشركاء")}<div class="fp-four-grid">${[["وكالات التسويق الرقمي", "أضف قيمة لعملائك عبر إدارة الاشتراكات.", "customers"], ["منصات التجارة الإلكترونية", "حلول ربط وتجديدات متكاملة.", "store"], ["المطورون ومنصات البرمجيات", "تكامل مرن عبر API.", "code"], ["مزودو الخدمات والتقنية", "وسع نطاق خدماتك بسهولة.", "subscriptions"]].map(iconCard).join("")}</div></section>
       <section>${sectionTitle("شركاؤنا المميزون")}<div class="fp-logo-grid">${["Email / API","Shopify","زد Zid","سلة Salla","Meta"].map((name,index)=>`<article data-reveal style="--fp-delay:${index*.06}s"><strong>${name}</strong><p>تكامل موثوق لتجربة تشغيل أكثر سلاسة.</p><button data-link="/integrations">اعرف المزيد</button></article>`).join("")}</div></section>
-      ${actionBanner("كن شريكًا في منظومة النجاح", "انضم إلى برنامج الشركاء اليوم وابدأ رحلة نمو مشتركة.", "تقدم الآن لتصبح شريكًا", "/contact", "customers")}</div></main>`;
+      </div></main>`;
   };
 
   const guidePage = () => {
@@ -2969,7 +3038,7 @@ function marketingResourcePage() {
       <section data-guide-section>${sectionTitle("أدلة مقترحة")}<div class="fp-five-grid">${[["إنشاء حملتك الأولى", "تعلم كيفية إنشاء حملة خطوة بخطوة.", "customers"], ["ربط متجرك في 5 دقائق", "ربط Salla وShopify بسهولة.", "store"], ["إعداد طرق الدفع", "إضافة وإدارة وسائل الدفع.", "subscriptions"], ["تقارير الأداء والتحليلات", "فهم التقارير وقياس الأداء.", "reports"], ["الأتمتة والرسائل الذكية", "أتمتة الرسائل وإعداد السيناريوهات.", "bolt"]].map(iconCard).join("")}</div></section>
       <section data-guide-section>${sectionTitle("ابدأ بسرعة")} ${steps([["أنشئ حسابك", "سجل حسابك وأدخل بياناتك.", "customers"], ["أكمل إعدادات الحساب", "أضف بيانات متجرك وفريقك.", "settings"], ["اربط تطبيقاتك", "اربط القنوات المطلوبة.", "puzzle"], ["أنشئ حملتك الأولى", "اختر الجمهور والقالب.", "send"], ["تابع النتائج وقِس", "راقب الأداء وحسّن النتائج.", "reports"]])}</section>
       <section data-guide-section>${sectionTitle("آخر التحديثات في الدليل")}<div class="fp-guide-table">${[["دليل إعداد Webhooks خطوة بخطوة", "API / Webhooks", "منذ يومين"], ["تحديث تجربة إنشاء الحملات", "الحملات", "منذ 3 أيام"], ["دعم الدفع عبر Apple Pay", "الاشتراكات", "منذ 5 أيام"], ["تحسينات في تقارير الأداء", "التقارير", "منذ أسبوع"]].map(([title,type,time])=>`<button data-link="/blog"><span><strong>${title}</strong><small>${type}</small></span><time>${time}</time>${dashboardIcon("arrowLeft")}</button>`).join("")}</div></section>
-      ${actionBanner("هل تحتاج إلى مساعدة؟", "فريق الدعم جاهز لمساعدتك في أي وقت وتوجيهك إلى المقال المناسب.", "تواصل مع الدعم", "/support", "support")}</div></main>`;
+      </div></main>`;
   };
 
   const faqPage = () => {
@@ -3042,7 +3111,7 @@ function marketingResourcePage() {
       <div class="fp-filter-row" aria-label="تصنيفات الأسئلة">${faqFilters.map(([key,name,icon],index)=>`<button type="button" data-action="footer-faq-filter" data-filter="${key}" aria-pressed="${index===0?"true":"false"}" class="${index===0?"active":""}">${dashboardIcon(icon)}${name}</button>`).join("")}</div>
       <section class="fp-faq-layout"><aside data-reveal><h2>أكثر المواضيع شيوعًا</h2>${popularTopics.map(([t,b,i,query])=>`<button type="button" data-action="footer-faq-topic" data-query="${query}">${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span>${dashboardIcon("arrowLeft")}</button>`).join("")}<footer><strong>لم تجد الإجابة؟</strong><p>ابحث في مركز المساعدة الكامل.</p><button data-link="/support">زيارة مركز المساعدة</button></footer></aside><div class="fp-faq-list">${questions.map((item,index)=>`<details data-faq-item data-category="${item.category}" data-search="${escapeHtml(`${item.title} ${item.answer}`)}" ${index===0?"open":""} data-reveal style="--fp-delay:${index*.04}s"><summary>${item.title}<i aria-hidden="true"></i></summary><div><span>${dashboardIcon(item.icon)}</span><p>${item.answer}</p>${item.actions?.length?`<div>${item.actions.map(([label,path])=>`<button data-link="${path}">${label}</button>`).join("")}</div>`:""}</div></details>`).join("")}<p class="fp-filter-empty" data-footer-faq-empty hidden>لا توجد أسئلة مطابقة. جرّب كلمة أخرى أو اختر «الكل».</p></div></section>
       <section>${sectionTitle("ما زلت تحتاج مساعدة؟")}<div class="fp-four-grid">${[["طلب مكالمة", "احصل على مساعدة من أحد خبرائنا.", "document"], ["مركز المساعدة", "تصفح مئات المقالات والشروحات.", "helpBook"], ["البريد الإلكتروني", "أرسل لنا وسنرد خلال يوم عمل.", "email"], ["الدعم عبر واتساب", "تحدث مع فريقنا مباشرة.", "whatsapp"]].map(iconCard).join("")}</div></section>
-      ${actionBanner("استكشف دليل Renvix الشامل", "دليل خطوة بخطوة يساعدك على البدء بسرعة وتحقيق أقصى استفادة.", "استكشف الدليل", "/user-guide", "infinity")}</div></main>`;
+      </div></main>`;
   };
 
   const integrationsPage = () => `<main class="footer-showcase-page fp-integrations">${pageHero("التكاملات", "يربط Renvix اشتراكاتك وتنبيهاتك وحملاتك وبيانات عملائك عبر جميع القنوات والأنظمة التي تستخدمها.")}<div class="container fp-page-stack">
@@ -3050,7 +3119,7 @@ function marketingResourcePage() {
     <section>${sectionTitle("تكاملات مميزة")}<div class="fp-integration-cards">${[["Meta","اربط حسابات Meta لتشغيل حملاتك ورسائلك.","whatsapp"],["WhatsApp","أرسل تنبيهات ذكية وتفاعل مع عملائك.","whatsapp"],["سلة Salla","زامن الطلبات والاشتراكات.","store"],["زد Zid","اربط متجرك لإدارة الاشتراكات.","store"],["API / Webhooks","واجهات موثقة وتكاملات خاصة.","code"],["البريد الإلكتروني","قوالب وحملات قابلة للقياس.","email"],["Shopify","ربط سلس للطلبات والعملاء.","store"]].map(iconCard).join("")}</div></section>
     <section>${sectionTitle("كيف تعمل التكاملات؟")} ${steps([["اختر التكامل", "اختر الأداة أو المنصة المناسبة.", "puzzle"], ["اتصل بأمان", "اسمح بالصلاحيات المطلوبة فقط.", "security"], ["زامن البيانات", "زامن الاشتراكات والعملاء تلقائيًا.", "subscriptions"], ["شغّل وتابع الأداء", "راقب الحالة من لوحة التحكم.", "reports"]])}</section>
     <section>${sectionTitle("لماذا التكاملات في Renvix؟")}<div class="fp-four-grid">${[["تزامن البيانات","مزامنة لحظية وآمنة.","subscriptions"],["أتمتة التنبيهات","إرسال تلقائي حسب السلوك.","notifications"],["تتبع الأداء","تقارير موحدة لكل القنوات.","reports"],["تقليل العمل اليدوي","عمليات آلية توفر الوقت.","customers"]].map(iconCard).join("")}</div></section>
-    ${actionBanner("اربط جميع أدواتك في مكان واحد", "اكتشف التكاملات المتاحة وابدأ بربط الأدوات التي تستخدمها.", "استكشف التكاملات", "/register", "infinity")}</div></main>`;
+    </div></main>`;
 
   const templatesPage = () => {
     const cards = [["إشعار مستند جديد","إشعار بالوثائق المتاحة للعميل.","notifications","واتساب","whatsapp notifications"],["عرض خاص للتجديد","عرض مخصص لتشجيع التجديد.","send","البريد الإلكتروني","email renewal campaigns"],["تجديد وشيك","إشعار اقتراب موعد التجديد.","email","البريد الإلكتروني","email renewal notifications"],["تذكير تجديد الباقة","تذكير مؤكد وسهل الاستخدام.","whatsapp","واتساب","whatsapp renewal"],["تنبيه موعد الدفع","تنبيه في الوقت المناسب.","notifications","واتساب","whatsapp notifications"],["حملة موسم الصيف","حملة تسويقية جاهزة.","send","البريد الإلكتروني","email campaigns"],["متابعة ما بعد التجديد","متابعة لرفع رضا العميل.","whatsapp","واتساب","whatsapp renewal"],["شكر بعد الشراء","رسالة شكر تعزز الولاء.","email","البريد الإلكتروني","email notifications"]];
@@ -3060,7 +3129,7 @@ function marketingResourcePage() {
       <section class="fp-template-preview" data-footer-template-preview data-reveal tabindex="-1"><div class="fp-phone"><header>Renvix</header><article><strong data-footer-template-message-title>مرحبًا أحمد 👋</strong><p data-footer-template-message>نود تذكيرك بأن موعد تجديد باقتك قريب. حافظ على استمرارية خدمتك وجدّد الآن.</p><button>جدد الآن</button><time>10:00 ص</time></article></div><div><span data-footer-template-channel>واتساب · معاينة قالب مميز</span><h2 data-footer-template-title>تذكير تجديد الباقة</h2><p data-footer-template-body>شاهد كيف سيظهر القالب للعميل قبل إرساله، وعدّل النص والمتغيرات بما يناسب علامتك.</p><ul><li>${dashboardIcon("success")} تخصيص تلقائي باسم العميل</li><li>${dashboardIcon("success")} متوافق مع جميع الأجهزة</li><li>${dashboardIcon("success")} مراجعة قبل الإرسال</li></ul></div><aside><h3>متغيرات متاحة</h3>${["{{الاسم}}","{{اسم_الخدمة}}","{{تاريخ_الانتهاء}}","{{رقم_الفاتورة}}","{{رابط_التجديد}}"].map(x=>`<code>${x}</code>`).join("")}</aside></section>
       <section>${sectionTitle("لماذا تستخدم قوالب الإرسال؟")}<div class="fp-four-grid">${[["تجربة عملاء أفضل","رسائل واضحة ومتناسقة.","customers"],["توفير الوقت والجهد","قوالب جاهزة وسريعة.","support"],["اتساق العلامة التجارية","هوية موحدة في كل الرسائل.","security"],["زيادة معدل الاستجابة","رسائل محسنة تزيد التفاعل.","reports"]].map(iconCard).join("")}</div></section>
       <section>${sectionTitle("كيف تبدأ باستخدام القوالب")} ${steps([["اختر قالبًا","تصفح القوالب واختر الأنسب.","document"],["خصص القالب","عدّل النص والمتغيرات.","settings"],["راجع المعاينة","تأكد من الشكل النهائي.","star"],["أطلق الإرسال","اختر الجمهور وأرسل.","send"]])}</section>
-      ${actionBanner("ابدأ الآن بقوالب احترافية جاهزة", "اختر من مكتبة القوالب وابدأ التواصل بذكاء واحترافية.", "استكشف القوالب", "/register", "infinity")}</div></main>`;
+      </div></main>`;
   };
 
   const careersPage = () => `<main class="footer-showcase-page fp-careers">${pageHero("الوظائف", "في Renvix نؤمن بأن أفضل المنتجات تُبنى بأفضل الناس. انضم إلى فريقنا وساهم في بناء مستقبل إدارة الاشتراكات وتجديدها.")}<div class="container fp-page-stack">
@@ -3069,14 +3138,14 @@ function marketingResourcePage() {
     <section>${sectionTitle("الوظائف")}<div class="fp-job-toolbar"><label>${dashboardIcon("search")}<input placeholder="ابحث في الوظائف السابقة..."></label><button>جميع الأقسام</button><button>جميع المواقع</button></div><div class="fp-jobs">${[["مدير المنتج","المنتج","الرياض، السعودية","star"],["أخصائي تسويق رقمي","التسويق","عن بُعد","send"],["أخصائي دعم عملاء","الدعم","عن بُعد","support"],["مطور برمجيات أول","الهندسة","الرياض، السعودية","code"],["مدير شراكات","الشراكات","الرياض، السعودية","link"]].map(([t,d,l,i],index)=>`<article class="is-complete" data-reveal style="--fp-delay:${index*.05}s"><span>${dashboardIcon(i)}</span><b class="fp-job-complete">${dashboardIcon("success")} اكتمل التوظيف</b><h3>${t}</h3><small>${d}</small><p>${l}</p><div><em>دوام كامل</em><button type="button" disabled aria-disabled="true">اكتملت</button></div></article>`).join("")}</div></section>
     <section>${sectionTitle("مزايا العمل معنا")}<div class="fp-six-grid">${[["تأمين صحي شامل","تغطية لك ولعائلتك.","security"],["عمل مرن","مكتب أو عمل عن بعد.","devices"],["ميزانية تعلم","دعم للتعلم والتطوير.","star"],["إجازات مدفوعة","توازن صحي ومستدام.","document"],["أدوات حديثة","أفضل الأدوات لإنجاز العمل.","devices"],["ثقافة تعاونية","بيئة داعمة بلا تعقيد.","customers"]].map(iconCard).join("")}</div></section>
     <section>${sectionTitle("رحلة الانضمام إلى فريق Renvix")} ${steps([["التقديم","أرسل طلبك وسيرتك.","send"],["المراجعة","يراجع الفريق طلبك.","search"],["المقابلة","نتعرف على خبرتك.","chat"],["الانضمام","نبدأ رحلتنا معًا.","star"]])}</section>
-    ${actionBanner("مستقبلك يبدأ هنا", "انضم إلى فريق Renvix وساهم في بناء منتجات تغير طريقة عمل الشركات.", "استكشف الوظائف", "/contact", "infinity")}</div></main>`;
+    </div></main>`;
 
   const contactPage = () => `<main class="footer-showcase-page fp-contact">${pageHero("تواصل معنا", "فريقنا جاهز للإجابة عن استفساراتك وتقديم الدعم أو مناقشة فرص الشراكة. تواصل معنا بسهولة وسنرد عليك في أسرع وقت.")}<div class="container fp-page-stack">
     <div class="fp-four-grid">${[["الدعم","فريق الدعم جاهز لمساعدتك.","support"],["المبيعات","تحدث مع فريق المبيعات.","reports"],["الشراكات","نبحث دائمًا عن شركاء جدد.","link"],["الاستفسارات العامة","للأسئلة العامة والخدمات.","faq"]].map(iconCard).join("")}</div>
     <section class="fp-contact-panel"><form data-submit="support-request" data-reveal><header><span>${dashboardIcon("send")}</span><div><h2>أرسل لنا رسالة</h2><p>املأ النموذج أدناه وسنتواصل معك في أقرب وقت ممكن.</p></div></header><input type="hidden" name="subject" value="رسالة من صفحة التواصل"><div class="fp-form-grid"><label><span>الاسم الكامل *</span><input name="name" placeholder="أدخل اسمك الكامل" required></label><label><span>البريد الإلكتروني *</span><input type="email" name="email" placeholder="name@example.com" required></label></div><label><span>نوع الطلب *</span><select name="type" required><option value="INQUIRY">اختر نوع الطلب</option><option value="TECHNICAL_ISSUE">الدعم الفني</option><option value="BILLING">المبيعات والفوترة</option><option value="INTEGRATION">الشراكات والتكاملات</option><option value="OTHER">استفسار عام</option></select></label><label><span>الرسالة *</span><textarea name="details" minlength="10" maxlength="2000" placeholder="اكتب رسالتك هنا..." required></textarea></label><button class="btn btn-primary" type="submit">إرسال الرسالة${dashboardIcon("send")}</button><small>بإرسال هذه الرسالة، فإنك توافق على سياسة الخصوصية.</small></form><aside data-reveal><h2>معلومات مهمة</h2>${[["ساعات العمل","9:00 ص - 6:00 م بتوقيت الرياض","document"],["متوسط زمن الاستجابة","نرد على معظم الرسائل خلال ساعتين عمل","bolt"],["القنوات المفضلة","البريد الإلكتروني أو واتساب للدعم السريع","chat"]].map(([t,b,i])=>`<article>${dashboardIcon(i)}<span><strong>${t}</strong><small>${b}</small></span></article>`).join("")}</aside></section>
     <section>${sectionTitle("طرق التواصل السريعة")}<div class="fp-four-grid">${[["البريد الإلكتروني","hello@renvix.com","email"],["الواتساب","+966 55 123 4567","whatsapp"],["مركز الدعم","احصل على المساعدة من فريق الدعم.","support"],["حجز عرض توضيحي","احجز جلسة لاكتشاف حلول Renvix.","document"]].map(iconCard).join("")}</div></section>
     <section class="fp-help-split" data-reveal><div class="fp-help-illustration">${dashboardIcon("faq")}<span>${dashboardIcon("success")}</span><span>${dashboardIcon("document")}</span></div><div><h2>هل تبحث عن إجابات سريعة؟</h2><p>قد تجد ما تبحث عنه في مركز المساعدة لدينا، حيث مقالات تفصيلية وأدلة شاملة.</p><button class="btn btn-primary" data-link="/support">تصفح مركز المساعدة${dashboardIcon("helpBook")}</button></div></section>
-    ${actionBanner("دعم عربي سريع واحترافي", "نحن ملتزمون بتقديم أفضل تجربة دعم باللغة العربية لفريقك.", "تواصل معنا الآن", "/support", "infinity")}</div></main>`;
+    </div></main>`;
 
   const pages = {"/product-updates":updatesPage,"/partners":partnersPage,"/user-guide":guidePage,"/faq":faqPage,"/integrations":integrationsPage,"/message-templates":templatesPage,"/careers":careersPage,"/contact":contactPage};
   return publicShell((pages[state.route] || integrationsPage)());

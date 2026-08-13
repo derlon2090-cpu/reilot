@@ -13506,3 +13506,74 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .rvx-ai-assistant-message .rvx-ai-health-score b{font-size:27px}
 .rvx-ai-assistant-message .rvx-ai-health-card>div:last-child span{padding:5px 8px}
 @media(max-width:700px){.rvx-ai-assistant-message .rvx-ai-data-card{width:100%;padding:9px}.rvx-ai-assistant-message .rvx-ai-health-card{grid-template-columns:88px minmax(0,1fr)}.rvx-ai-assistant-message .rvx-ai-health-card header{grid-column:1/-1}}
+
+/* Pricing comparison: calm SaaS-grade table with contained tablet/mobile scrolling. */
+.pricing-reference-page{overflow-x:clip}
+.pricing-plan-comparison{width:100%;max-width:1240px;margin:56px auto 48px;color:#163c37;direction:rtl}
+.pricing-plan-comparison[data-reveal]{opacity:0;transform:translateY(8px);transition:opacity .4s cubic-bezier(.22,1,.36,1),transform .4s cubic-bezier(.22,1,.36,1)}
+.pricing-plan-comparison[data-reveal].is-visible{opacity:1;transform:none}
+.pricing-plan-comparison__heading{max-width:760px;margin:0 auto 30px;text-align:center}
+.pricing-plan-comparison__heading h2{margin:0;color:#123f3a;font-size:clamp(27px,2.55vw,38px);font-weight:750;letter-spacing:-.025em;line-height:1.3}
+.pricing-plan-comparison__heading p{margin:8px 0 0;color:#71827f;font-size:13px;line-height:1.8}
+.pricing-comparison-hint{display:none;align-items:center;justify-content:flex-start;gap:6px;margin:0 0 9px;color:#6f827e;font-size:12px;font-weight:600}
+.pricing-comparison-hint .line-icon{width:15px;height:15px;color:#0b7066}
+.pricing-comparison-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;border-block:1px solid rgba(11,63,59,.11);background:#fff;scrollbar-color:#a7c9c3 transparent;scrollbar-width:thin;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+.pricing-comparison-scroll:focus-visible{outline:2px solid rgba(11,112,102,.42);outline-offset:4px;border-radius:4px}
+.pricing-comparison-table{width:100%;border:0;border-collapse:separate;border-spacing:0;table-layout:fixed;color:#294b46;background:#fff;font-size:14px;line-height:1.55}
+.pricing-comparison-table .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.pricing-comparison-table .comparison-feature-column{width:25%}
+.pricing-comparison-table .comparison-plan-column{width:18.75%}
+.pricing-comparison-table th,.pricing-comparison-table td{height:48px;padding:13px 16px;border:0;border-block-end:1px solid rgba(11,63,59,.085);vertical-align:middle;text-align:center}
+.pricing-comparison-table tr>*+*{border-inline-start:1px solid rgba(11,63,59,.035)}
+.pricing-comparison-table thead th{height:56px;padding-block:18px;color:#163f3a;background:#fafcfb;font-weight:650;white-space:nowrap}
+.pricing-comparison-table thead th>span{display:inline-block}
+.pricing-comparison-table thead th small{display:inline-flex;min-height:22px;align-items:center;justify-content:center;margin-inline-start:7px;padding:2px 8px;border-radius:999px;color:#176b61;background:#eaf5f2;font-size:11px;font-weight:600;vertical-align:middle}
+.pricing-comparison-table .comparison-feature-cell{text-align:start;font-weight:600}
+.pricing-comparison-table tbody th{color:#244640;background:#fff}
+.pricing-comparison-table tbody td{font-weight:500}
+.pricing-comparison-table .is-professional{color:#0b7066;background:rgba(11,63,59,.035);font-weight:600}
+.pricing-comparison-table tbody tr:last-child>*{border-block-end:0}
+.pricing-comparison-table .is-price-row>*{height:56px;color:#123f3a;background:#f9fcfb;font-weight:700}
+.pricing-comparison-table .is-price-row>.is-professional{color:#086c62;background:rgba(11,63,59,.065)}
+.pricing-comparison-status{display:inline-grid;width:26px;height:26px;place-items:center;border-radius:50%}
+.pricing-comparison-status .line-icon{width:17px;height:17px;stroke-width:2.2}
+.pricing-comparison-status.is-available{color:#08796e;background:#eaf7f4}
+.pricing-comparison-status.is-unavailable{color:#b34d5d;background:#fff1f3}
+.pricing-comparison-pending{color:#9ba9a6}
+@media (hover:hover) and (pointer:fine){
+  .pricing-comparison-table tbody tr>*{transition:background-color .22s ease,color .22s ease}
+  .pricing-comparison-table tbody tr:hover>*{background:#f6faf9}
+  .pricing-comparison-table tbody tr:hover>.is-professional{color:#086c62;background:rgba(11,63,59,.075)}
+}
+@media (max-width:1199px){
+  .pricing-plan-comparison{margin-top:50px}
+  .pricing-comparison-hint{display:flex}
+  .pricing-comparison-table{width:900px;min-width:900px}
+  .pricing-comparison-table .comparison-feature-column{width:225px}
+  .pricing-comparison-table .comparison-plan-column{width:168.75px}
+  .pricing-comparison-table th,.pricing-comparison-table td{height:50px;padding:14px;font-size:14px}
+  .pricing-comparison-table .comparison-feature-cell{position:sticky;z-index:2;inset-inline-start:0;box-shadow:-8px 0 14px -14px rgba(6,43,40,.45)}
+  .pricing-comparison-table thead .comparison-feature-cell{z-index:4;background:#fafcfb}
+  .pricing-comparison-table tbody .comparison-feature-cell{background:#fff}
+  .pricing-comparison-table .is-price-row>.comparison-feature-cell{background:#f9fcfb}
+}
+@media (max-width:743px){
+  .pricing-plan-comparison{margin:42px auto 40px}
+  .pricing-plan-comparison__heading{margin-bottom:22px;padding-inline:6px}
+  .pricing-plan-comparison__heading h2{font-size:25px;line-height:1.45}
+  .pricing-plan-comparison__heading p{margin-top:5px;font-size:12px}
+  .pricing-comparison-hint{padding-inline:4px;font-size:11px}
+  .pricing-comparison-scroll{margin-inline:0}
+  .pricing-comparison-table{width:900px;min-width:900px}
+}
+@media (prefers-reduced-motion:reduce){
+  .pricing-plan-comparison[data-reveal],.pricing-comparison-table tbody tr>*{opacity:1;transform:none;transition:none}
+}
+:root[data-theme="dark"] .pricing-plan-comparison{color:var(--dark-text)}
+:root[data-theme="dark"] .pricing-plan-comparison__heading h2{color:var(--dark-text)}
+:root[data-theme="dark"] .pricing-plan-comparison__heading p,:root[data-theme="dark"] .pricing-comparison-hint{color:var(--dark-muted)}
+:root[data-theme="dark"] .pricing-comparison-scroll,:root[data-theme="dark"] .pricing-comparison-table{border-color:var(--dark-line);color:var(--dark-text);background:var(--dark-surface)}
+:root[data-theme="dark"] .pricing-comparison-table thead th,:root[data-theme="dark"] .pricing-comparison-table tbody th{color:var(--dark-text);background:var(--dark-surface-raised)}
+:root[data-theme="dark"] .pricing-comparison-table th,:root[data-theme="dark"] .pricing-comparison-table td{border-color:var(--dark-line)}
+:root[data-theme="dark"] .pricing-comparison-table .is-professional{color:#83d8cc;background:rgba(111,207,192,.075)}
+:root[data-theme="dark"] .pricing-comparison-table .is-price-row>*{color:var(--dark-text);background:var(--dark-surface-raised)}
