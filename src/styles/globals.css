@@ -12828,7 +12828,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   box-shadow:none;
 }
 .marketing-home-v3 .commerce-brand-logo img{display:block;max-width:100%;max-height:100%;object-fit:contain;transition:transform var(--motion-hover-duration,300ms) var(--motion-hover-ease,var(--home-lower-ease))}
-.marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--elm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:multiply}
+.marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--mlm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:multiply}
 .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:86px;height:61px}
 .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo img{width:86px;max-width:none;height:auto}
 .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,
@@ -12836,9 +12836,12 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo{width:60px;height:60px;padding:3px;overflow:visible;box-sizing:border-box}
 .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo img,
 .marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo img,
-.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo img{width:54px;height:54px;max-width:100%;max-height:100%;object-fit:contain}
+.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo img{max-width:100%;max-height:100%;object-fit:contain}
+.marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo img{width:54px;height:54px}
+.marketing-home-v3 :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{padding:7px;transform:translateY(-3px)}
+.marketing-home-v3 :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo img{width:46px;height:46px}
 .marketing-home-v3 .commerce-brand-card--blontix .commerce-brand-logo{width:64px;height:62px}
-.marketing-home-v3 .commerce-brand-card--elm .commerce-brand-logo{width:96px;height:60px;padding:3px;border-radius:7px;background:#fff}
+.marketing-home-v3 .commerce-brand-card--mlm .commerce-brand-logo{width:96px;height:60px;padding:3px;border-radius:7px;background:#fff}
 .marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:60px;height:60px;border-radius:8px;background:#e58318}
 .marketing-home-v3 .commerce-brand-card:hover .commerce-brand-logo img{transform:scale(var(--motion-hover-logo-scale,1.03))}
 .marketing-home-v3 .marketing-commerce-ecosystem.is-social-proof-settled .commerce-store-track article.is-whole:hover{transform:translateY(var(--motion-hover-y,-6px)) scale(var(--motion-hover-scale,1.015));border-color:#9bcfc7;box-shadow:0 20px 42px rgba(6,90,81,.12),0 0 0 1px rgba(44,163,148,.06)}
@@ -12929,7 +12932,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .commerce-brand-card .commerce-brand-logo{width:66px;height:53px}
   .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:72px;height:52px}
   .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:48px;height:48px}
-  .marketing-home-v3 .commerce-brand-card--elm .commerce-brand-logo{width:76px;height:48px}
+  .marketing-home-v3 .commerce-brand-card--mlm .commerce-brand-logo{width:76px;height:48px}
   .marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:49px;height:49px}
   .marketing-home-v3 .commerce-carousel-arrow{width:29px;height:29px}.marketing-home-v3 .commerce-carousel-arrow .line-icon{width:14px;height:14px}
 }
@@ -12954,7 +12957,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 :root[data-theme="dark"] .marketing-home-v3 :is(.marketing-step-card,.commerce-store-track article){background:#0b302c}
 :root[data-theme="dark"] .marketing-home-v3 .marketing-step-card::before{border-color:rgba(135,222,209,.055)}
 :root[data-theme="dark"] .marketing-home-v3 .commerce-carousel-arrow{color:#dcece8;border-color:#28544d;background:#0b302c}
-:root[data-theme="dark"] .marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--elm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:normal}
+:root[data-theme="dark"] .marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--mlm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:normal}
 :root[data-theme="dark"] .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card{border-color:#dce9e6;background:#fff}
 :root[data-theme="dark"] .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card strong{color:#0b4b45}
 
@@ -12978,6 +12981,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-arrow--next{right:0}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-carousel-pagination{grid-column:1;margin-top:3px}
   .marketing-home-v3 .marketing-commerce-ecosystem .commerce-store-track article{min-height:110px}
-  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--axion,.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{width:50px;height:50px;padding:3px}
-  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--axion,.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo img{width:44px;height:44px}
+  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--axion,.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{width:50px;height:50px}
+  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card--axion .commerce-brand-logo{padding:3px}
+  .marketing-home-v3 .marketing-commerce-ecosystem .commerce-brand-card--axion .commerce-brand-logo img{width:44px;height:44px}
+  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo{padding:7px;transform:translateY(-2px)}
+  .marketing-home-v3 .marketing-commerce-ecosystem :is(.commerce-brand-card--adovix,.commerce-brand-card--upload) .commerce-brand-logo img{width:36px;height:36px}
 }

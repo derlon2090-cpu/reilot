@@ -1796,7 +1796,7 @@ function marketingCommerceEcosystem() {
     { title: "Upload", logo: "/assets/brands/upload.png", brand: "upload" },
     { title: "Adovix", logo: "/assets/brands/adovix.png", brand: "adovix" },
     { title: "Blontix", logo: "/assets/brands/blontix.png", brand: "blontix" },
-    { title: localizedCopy("عِلم", "Elm"), logo: "/assets/brands/elm.png", brand: "elm" },
+    { title: localizedCopy("ملم", "Mlm"), logo: "/assets/brands/mlm.png", brand: "mlm" },
     { title: localizedCopy("الرعد للاتصالات", "Alraad Telecom"), logo: "/assets/brands/alraad-telecom.jpg", brand: "alraad" }
   ];
   const storeSet = (duplicate = false) => `<div class="commerce-store-set"${duplicate ? ' aria-hidden="true"' : ""}>${stores.map((item, index) => `<article class="commerce-brand-card commerce-brand-card--${item.brand}" data-motion-variant="logoCardReveal logoCardHover" data-motion-index="${index}"><span class="commerce-brand-logo"><img src="${item.logo}" alt="" loading="lazy" decoding="async" /></span><strong>${item.title}</strong></article>`).join("")}</div>`;
