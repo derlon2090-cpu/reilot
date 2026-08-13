@@ -523,6 +523,75 @@ const storage = {
   }
 };
 
+const publicPlansCacheKey = "renvix.public-plans.v1";
+const publicPlansCacheMaxAgeMs = 24 * 60 * 60 * 1000;
+
+function normalizedPublicPlansPayload(payload, { cached = false } = {}) {
+  if (!payload || !Array.isArray(payload.plans) || !payload.plans.length) return null;
+  const plans = payload.plans.filter((plan) => plan && typeof plan === "object" && typeof plan.slug === "string" && typeof plan.name === "string" && Array.isArray(plan.features));
+  if (!plans.length) return null;
+  return { ok: true, plans, ...(cached ? { cached: true } : {}) };
+}
+
+function readCachedPublicPlans() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(publicPlansCacheKey) || "null");
+    if (!cached || Date.now() - Number(cached.savedAt || 0) > publicPlansCacheMaxAgeMs) return null;
+    return normalizedPublicPlansPayload(cached.payload, { cached: true });
+  } catch {
+    return null;
+  }
+}
+
+function cachePublicPlans(payload) {
+  const normalized = normalizedPublicPlansPayload(payload);
+  if (!normalized) return;
+  try {
+    localStorage.setItem(publicPlansCacheKey, JSON.stringify({ savedAt: Date.now(), payload: normalized }));
+  } catch {
+    // The live catalog remains available in memory when browser storage is unavailable.
+  }
+}
+
+function publicPlansEndpoints() {
+  const endpoints = [];
+  const configuredOrigin = String(window.__RENVIX_CONFIG__?.authApiUrl || "").trim();
+  if (configuredOrigin) {
+    try {
+      const origin = new URL(configuredOrigin).origin;
+      if (["http:", "https:"].includes(new URL(origin).protocol) && origin !== location.origin) endpoints.push(`${origin}/api/public/plans`);
+    } catch {
+      // Fall back to the same-origin route when the public backend URL is invalid.
+    }
+  }
+  endpoints.push("/api/public/plans");
+  return [...new Set(endpoints)];
+}
+
+function publicPlansRetryDelay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function fetchPublicPlans(options = {}) {
+  let lastError = new Error("تعذر تحميل الباقات الحالية.");
+  for (const endpoint of publicPlansEndpoints()) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt) await publicPlansRetryDelay(420);
+      try {
+        const signal = typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(12_000) : options.signal;
+        const payload = await fetchJson(endpoint, { ...options, signal, timeoutMessage: "استغرق تحميل الباقات وقتًا أطول من المتوقع." });
+        const normalized = normalizedPublicPlansPayload(payload);
+        if (!normalized) throw new Error("لم يُرجع الخادم سجل الباقات الحالي.");
+        return normalized;
+      } catch (error) {
+        lastError = error;
+        if (Number(error?.status || 0) >= 400 && Number(error?.status || 0) < 500 && Number(error?.status || 0) !== 429) break;
+      }
+    }
+  }
+  throw lastError;
+}
+
 function readPreference(key, legacyKey, fallback) {
   const direct = localStorage.getItem(key);
   if (["ar", "en", "light", "dark", "system"].includes(direct)) return direct;
@@ -738,7 +807,8 @@ state.notificationTemplate = null;
 state.catalogTemplates = null;
 state.metaTemplates = null;
 state.billingOverview = null;
-state.publicPlans = null;
+state.publicPlans = readCachedPublicPlans();
+state.publicPlansRefreshRequired = Boolean(state.publicPlans);
 state.messageUsage = null;
 state.campaignsOverview = null;
 state.channelsOverview = null;
@@ -1169,7 +1239,7 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
   if (state.remoteLoading[key]) return null;
   state.remoteLoading[key] = true;
   try {
-    const payload = await fetchJson(url, options);
+    const payload = target === "publicPlans" ? await fetchPublicPlans(options) : await fetchJson(url, options);
     if (target === "dbSubscriptions") {
       state.dbSubscriptions = payload.items || [];
       state.subscriptionMeta = payload;
@@ -1199,6 +1269,9 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       } else {
         state.customIntegrations = payload;
       }
+    } else if (target === "publicPlans") {
+      state.publicPlans = payload;
+      cachePublicPlans(payload);
     } else if (target === "supportTicket") {
       state.supportTicket = payload.item || null;
     } else if (target === "aiConversation") {
@@ -1232,9 +1305,13 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       };
     }
   } catch (error) {
-    state[target] = target === "supportTicket"
-      ? { id: state.supportSelectedId || state.query.get("ticket") || "", error: error.message || "تعذر تحميل المحادثة" }
-      : { error: error.message || "تعذر تحميل البيانات" };
+    if (target === "publicPlans") {
+      state.publicPlans = readCachedPublicPlans() || (Array.isArray(state.publicPlans?.plans) ? { ...state.publicPlans, cached: true } : { error: error.message || "تعذر تحميل الباقات" });
+    } else {
+      state[target] = target === "supportTicket"
+        ? { id: state.supportSelectedId || state.query.get("ticket") || "", error: error.message || "تعذر تحميل المحادثة" }
+        : { error: error.message || "تعذر تحميل البيانات" };
+    }
   } finally {
     state.remoteLoading[key] = false;
     if (renderOnComplete) render();
@@ -1251,7 +1328,10 @@ function syncRouteData(force = false) {
     if (isDashboardHome && request) pending.push(request);
   };
 
-  if (state.route === "/pricing" && (force || state.publicPlans === null)) queue("publicPlans", "/api/public/plans", "publicPlans");
+  if (state.route === "/pricing" && (force || state.publicPlans === null || state.publicPlansRefreshRequired)) {
+    state.publicPlansRefreshRequired = false;
+    queue("publicPlans", "/api/public/plans", "publicPlans");
+  }
   const newsletterPublicId = state.route.match(/^\/newsletter\/subscribe\/([^/]+)$/)?.[1];
   if (newsletterPublicId && (force || state.publicNewsletterRequestedId !== newsletterPublicId)) {
     state.publicNewsletterRequestedId = newsletterPublicId;
@@ -2442,16 +2522,7 @@ function marketingMobileToolsAndCta() {
 }
 
 function marketingFeaturesPage() {
-  const benefits = [
-    [localizedCopy("تحديثات مستمرة", "Continuous updates"), localizedCopy("نصمم حلولًا جديدة باستمرار لتبقى دائمًا في المقدمة.", "Continuous improvements keep your workflow ahead."), "cloud"],
-    [localizedCopy("تجربة سلسة", "Seamless experience"), localizedCopy("واجهة حديثة وسهلة الاستخدام على جميع الأجهزة.", "A polished experience on every device."), "devices"],
-    [localizedCopy("مرن وقابل للتوسع", "Flexible and scalable"), localizedCopy("مصمم لينمو مع عملك اليوم وغدًا.", "Built to grow with your business."), "puzzle"],
-    [localizedCopy("أداء فائق", "Fast performance"), localizedCopy("منصة سريعة وموثوقة تعمل على مدار الساعة.", "Fast, reliable, and always available."), "bolt"],
-    [localizedCopy("دعم فني متميز", "Expert support"), localizedCopy("فريق دعم متخصص متاح لمساعدتك في كل خطوة.", "Specialized help at every step."), "support"],
-    [localizedCopy("آمن وموثوق", "Secure and trusted"), localizedCopy("حماية متقدمة لبياناتك وبيانات عملائك.", "Advanced protection for your business data."), "security"]
-  ];
-  const mobileBenefits = [["قابل للتوسع","ينمو مع عملك ويواكب احتياجاتك.","reports"],["دقة وموثوقية","بيانات دقيقة وتنبيهات في الوقت المناسب.","security"],["توفير الوقت","أتمتة ذكية تقلل العمل اليدوي.","clock"],["منصة موحدة","كل الأدوات التي تحتاجها في مكان واحد.","store"]];
-  return publicShell(`<main class="marketing-v3 marketing-features-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المميزات", "Features"), localizedCopy("كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.", "Everything you need to manage renewals, subscriptions, and customers in one intelligent platform."))}${marketingFlowNetwork("features")}</div></section><section class="marketing-feature-benefits"><div class="container">${benefits.map(([title, body, icon]) => `<article data-reveal><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}</div></section><section class="mobile-feature-benefits"><div class="container"><h2>${localizedCopy("لماذا Renvix؟", "Why Renvix?")}</h2><div>${mobileBenefits.map(([title,body,icon])=>`<article><span>${dashboardIcon(icon)}</span><h3>${localizedCopy(title,title)}</h3><p>${localizedCopy(body,body)}</p></article>`).join("")}</div></div></section><section class="mobile-feature-cta"><div class="container"><div class="mobile-public-cta"><h2>${localizedCopy("جاهز لتنظيم اشتراكاتك وزيادة رضا عملائك؟", "Ready to organize subscriptions and delight customers?")}</h2><p>${localizedCopy("ابدأ اليوم مجانًا واكتشف الفرق بنفسك.", "Start free today and see the difference.")}</p><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن مجانًا", "Start free now")}${dashboardIcon("arrowLeft")}</button></div></div></section></main>`);
+  return publicShell(`<main class="marketing-v3 marketing-features-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المميزات", "Features"), localizedCopy("كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.", "Everything you need to manage renewals, subscriptions, and customers in one intelligent platform."))}${marketingFlowNetwork("features")}</div></section><section class="mobile-feature-cta"><div class="container"><div class="mobile-public-cta"><h2>${localizedCopy("جاهز لتنظيم اشتراكاتك وزيادة رضا عملائك؟", "Ready to organize subscriptions and delight customers?")}</h2><p>${localizedCopy("ابدأ اليوم مجانًا واكتشف الفرق بنفسك.", "Start free today and see the difference.")}</p><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن مجانًا", "Start free now")}${dashboardIcon("arrowLeft")}</button></div></div></section></main>`);
 }
 
 function marketingPricingPage() {
@@ -2679,9 +2750,9 @@ function marketingSupportPage() {
     ["ما هو Renvix وكيف يعمل؟", "Renvix منصة لإدارة العملاء والاشتراكات والتجديدات وقنوات التذكير من لوحة واحدة. تضيف بيانات العميل واشتراكه، ثم تضبط القناة والموعد والقالب، وتتابع النتيجة من السجلات والتقارير."],
     ["كيف أربط قناة واتساب؟", "انتقل إلى «تطبيقاتنا»، افتح تكامل واتساب المتاح، واتبع خطوات الربط حتى تظهر الحالة «متصل». لن يبدأ الإرسال قبل اكتمال الاتصال وتوفر رقم واتساب صحيح للعميل."],
     ["هل يمكنني إلغاء التجديد؟", "يمكنك إدارة التجديد من صفحة الفوترة وفق الباقة وشروطها. إيقاف التجديد يمنع دورة التجديد التالية ولا يحذف بيانات حسابك أو اشتراكات عملائك."],
-    ["ما طرق الدفع المتاحة؟", "تظهر طرق الدفع المتاحة فعليًا أثناء اختيار الباقة أو إتمام عملية الدفع. إذا لم تظهر وسيلة مناسبة، أرسل طلبًا بعنوان «الفوترة والباقات» ليطلع الفريق على حالتك."],
+    ["ما طرق الدفع المتاحة؟", "تظهر طرق الدفع المتاحة فعليًا أثناء اختيار الباقة أو إتمام عملية الدفع. إذا لم تظهر وسيلة مناسبة، ابدأ محادثة الدعم ليطلع الفريق على حالتك."],
     ["كيف أتابع أداء الرسائل والتجديدات؟", "من قسم التقارير وسجل الإرسال يمكنك مراجعة الرسائل المجدولة والمرسلة والمتعثرة، ومعرفة الاشتراكات القريبة من التجديد واستخدام الفلاتر للوصول إلى السجل المطلوب."],
-    ["أين أجد رد فريق الدعم؟", "يرسل فريق الدعم الرد إلى البريد الذي كتبته في الطلب، ويحفظ الرد مع التذكرة داخل لوحة الإدارة. احتفظ برقم الطلب لتسهيل المتابعة."]
+    ["أين أجد رد فريق الدعم؟", "يرسل فريق الدعم الرد إلى البريد الذي كتبته في المحادثة، ويحفظ الرد مع التذكرة داخل لوحة الإدارة. احتفظ برقم التذكرة لتسهيل المتابعة."]
   ];
   const query = state.search.trim().toLowerCase();
   const visibleGuides = guides.filter((guide) => !query || `${guide.title} ${guide.summary} ${guide.steps.join(" ")}`.toLowerCase().includes(query));
@@ -2709,7 +2780,6 @@ function marketingSupportPage() {
       <section class="support-v3-search" data-reveal><i></i><i></i><h1>${localizedCopy("كيف نقدر نساعدك اليوم؟", "How can we help today?")}</h1><p>${localizedCopy("ابحث في مركز المساعدة عن إجابات سريعة وشروحات مفصلة لكل ما تحتاجه.", "Search for quick answers and detailed guides.")}</p><label>${dashboardIcon("search")}<input data-action="support-search" value="${escapeHtml(state.search)}" autocomplete="off" placeholder="${localizedCopy("ابحث عن موضوع أو سؤال...", "Search for a topic or question...")}"></label><div class="support-search-results" data-support-search-results hidden><div>${guides.map((guide) => `<button data-link="/blog/${guide.slug}" data-support-search-item data-search-text="${escapeHtml(`${guide.title} ${guide.summary} ${guide.steps.join(" ")}`.toLowerCase())}" hidden><span>${dashboardIcon(guide.icon)}</span><b>${guide.title}</b><small>${guide.summary}</small>${dashboardIcon("arrowLeft")}</button>`).join("")}</div><p data-support-search-status></p></div></section>
       <section class="support-v3-categories"><h2>${localizedCopy("تصفح حسب الفئة", "Browse by category")}</h2><div>${guides.map((guide) => `<button data-link="/blog/${guide.slug}" data-reveal><span>${dashboardIcon(guide.icon)}</span><strong>${guide.title}</strong><small>${guide.summary}</small></button>`).join("")}</div></section>
       <section class="support-v3-lower"><article class="support-v3-faq" id="faq" data-reveal><h2>${localizedCopy("المقالات الشائعة", "Popular articles")}</h2>${faqItems}<button data-link="/blog">${localizedCopy("عرض جميع المقالات", "View all articles")}${dashboardIcon("arrowLeft")}</button></article><article class="support-v3-contact" data-reveal><h2>${localizedCopy("تواصل معنا", "Contact us")}</h2><p>${localizedCopy("فريق الدعم جاهز لمساعدتك في أي وقت عبر القنوات التالية.", "Our support team is ready to help through these channels.")}</p><div>${cards.slice(0, 3).map(([title, body, label, action, mark]) => `<section><span>${dashboardIcon(mark)}</span><h3>${title}</h3><p>${body}</p>${action === "blog" ? `<button data-link="/blog">${label}</button>` : action === "faq" ? `<a href="#faq">${label}</a>` : `<button data-action="${action}">${label}</button>`}</section>`).join("")}</div></article></section>
-      <section class="support-v3-request" id="support-request" data-reveal><header><span>${dashboardIcon("send")}</span><div><h2>${localizedCopy("أرسل لنا طلب دعم", "Send a support request")}</h2><p>${localizedCopy("سيصل الطلب إلى فريق الدعم وسنرسل الرد إلى بريدك.", "Your request will reach our team and the reply will be sent to your email.")}</p></div></header><form data-submit="support-request" class="grid"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" minlength="2" maxlength="120" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" maxlength="254" required></label><label class="field"><span>نوع الطلب</span><select class="select" name="type" required><option value="INQUIRY">استفسار عام</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="BILLING">الفوترة والباقات</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="ACCOUNT">الحساب وتسجيل الدخول</option><option value="COMPLAINT">شكوى</option><option value="SUGGESTION">اقتراح</option><option value="OTHER">أخرى</option></select></label><label class="field"><span>عنوان الطلب</span><input class="input" name="subject" minlength="5" maxlength="150" placeholder="اكتب عنوانًا مختصرًا وواضحًا" required></label><label class="field support-v3-request-details"><span>تفاصيل الطلب</span><textarea class="textarea" name="details" minlength="10" maxlength="2000" placeholder="اشرح المشكلة والخطوات التي قمت بها..." required></textarea></label><button class="btn btn-primary" type="submit">${localizedCopy("إرسال الطلب", "Send request")}${dashboardIcon("send")}</button></form></section>
     </div></section></main>`);
 }
 

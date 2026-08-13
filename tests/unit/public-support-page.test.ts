@@ -41,8 +41,10 @@ describe("public support page", () => {
     expect(supportPageSource).not.toContain("ستجد الخطوات داخل مركز المساعدة، ويمكن لفريق الدعم مساعدتك");
   });
 
-  it("posts public requests and support conversations to the real endpoint", () => {
-    expect(supportPageSource).toContain('data-submit="support-request"');
+  it("removes the large request form while keeping the support conversation connected", () => {
+    expect(supportPageSource).not.toContain('class="support-v3-request"');
+    expect(supportPageSource).not.toContain('data-submit="support-request"');
+    expect(supportPageSource).not.toContain("أرسل لنا طلب دعم");
     expect(appSource).toContain('data-submit="support-chat"');
     expect(appSource).toContain('fetchJson("/api/public/support/tickets"');
     expect(appSource).toContain("payload.item?.ticketNumber");

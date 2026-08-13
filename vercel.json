@@ -10,6 +10,8 @@
     "AUTH_SPLIT_HOST_ENABLED": "true",
     "AUTH_COOKIE_DOMAIN": ".renvix.app",
     "BETTER_AUTH_URL": "https://accounts.renvix.app",
+    "NEXT_PUBLIC_API_BASE_URL": "https://api.renvix.app",
+    "API_PUBLIC_URL": "https://api.renvix.app",
     "COOKIE_SECURE": "true",
     "NODE_ENV": "production"
   },
