@@ -12780,6 +12780,32 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .marketing-home-v3 .commerce-store-track article>span{position:relative;z-index:1;display:grid;width:54px;height:54px;place-items:center;color:var(--home-lower-ink);transition:transform .35s var(--home-lower-ease)}
 .marketing-home-v3 .commerce-store-track article svg{width:42px;height:42px;stroke-width:1.55}
 .marketing-home-v3 .commerce-store-track article strong{position:relative;z-index:1;color:var(--home-lower-ink);font-size:11px;text-align:center}
+.marketing-home-v3 .commerce-store-track .commerce-brand-card{gap:8px;padding-top:13px;padding-bottom:14px}
+.marketing-home-v3 .commerce-brand-card .commerce-brand-logo{
+  display:flex;
+  width:82px;
+  height:66px;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.marketing-home-v3 .commerce-brand-logo img{display:block;max-width:100%;max-height:100%;object-fit:contain;transition:transform .38s var(--home-lower-ease),filter .38s ease}
+.marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--elm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:multiply}
+.marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:86px;height:61px}
+.marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo img{width:86px;max-width:none;height:auto}
+.marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,
+.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:56px;height:56px;border-radius:50%}
+.marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo img,
+.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo img{width:56px;max-width:none;height:auto;align-self:flex-start}
+.marketing-home-v3 .commerce-brand-card--upload .commerce-brand-logo{width:58px;height:58px}
+.marketing-home-v3 .commerce-brand-card--blontix .commerce-brand-logo{width:64px;height:62px}
+.marketing-home-v3 .commerce-brand-card--elm .commerce-brand-logo{width:92px;height:57px;border-radius:7px;background:#030706}
+.marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:60px;height:60px;border-radius:8px;background:#e58318}
+.marketing-home-v3 .commerce-brand-card:hover .commerce-brand-logo img{transform:scale(1.065);filter:drop-shadow(0 7px 8px rgba(6,73,66,.14))}
 .marketing-home-v3 .marketing-commerce-ecosystem.is-in-view .commerce-store-set:first-child article.is-whole{animation:homeApprovedStoreIn .64s var(--home-lower-ease) calc(var(--motion-index) * 65ms) both}
 .marketing-home-v3 .commerce-store-track article:hover{transform:translateY(-5px);border-color:#99d0c8;box-shadow:0 19px 36px rgba(6,90,81,.13)}
 .marketing-home-v3 .commerce-store-track article:hover::before{opacity:1;transform:translateX(-50%) scale(1)}
@@ -12868,6 +12894,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .marketing-home-v3 .commerce-carousel-window{padding-bottom:14px}
   .marketing-home-v3 .commerce-store-track article{min-height:105px;padding:13px 8px;border-radius:13px}
   .marketing-home-v3 .commerce-store-track article>span{width:44px;height:44px}.marketing-home-v3 .commerce-store-track article svg{width:34px;height:34px}.marketing-home-v3 .commerce-store-track article strong{font-size:9px}
+  .marketing-home-v3 .commerce-brand-card .commerce-brand-logo{width:66px;height:53px}
+  .marketing-home-v3 .commerce-brand-card--advanced-pro .commerce-brand-logo{width:72px;height:52px}
+  .marketing-home-v3 .commerce-brand-card--axion .commerce-brand-logo,.marketing-home-v3 .commerce-brand-card--adovix .commerce-brand-logo{width:48px;height:48px}
+  .marketing-home-v3 .commerce-brand-card--elm .commerce-brand-logo{width:76px;height:48px}
+  .marketing-home-v3 .commerce-brand-card--alraad .commerce-brand-logo{width:49px;height:49px}
   .marketing-home-v3 .commerce-carousel-arrow{width:29px;height:29px}.marketing-home-v3 .commerce-carousel-arrow .line-icon{width:14px;height:14px}
 }
 
@@ -12888,3 +12919,4 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 :root[data-theme="dark"] .marketing-home-v3 :is(.marketing-step-card,.commerce-store-track article){background:#0b302c}
 :root[data-theme="dark"] .marketing-home-v3 .marketing-step-card::before{border-color:rgba(135,222,209,.055)}
 :root[data-theme="dark"] .marketing-home-v3 .commerce-carousel-arrow{color:#dcece8;border-color:#28544d;background:#0b302c}
+:root[data-theme="dark"] .marketing-home-v3 .commerce-brand-card:not(.commerce-brand-card--elm):not(.commerce-brand-card--alraad) .commerce-brand-logo img{mix-blend-mode:normal}

@@ -1763,20 +1763,27 @@ function marketingRenewalJourney() {
 
 function marketingCommerceEcosystem() {
   const stores = [
-    [localizedCopy("اللياقة والصحة", "Fitness and wellness"), "heart"],
-    [localizedCopy("الاشتراكات الرقمية", "Digital subscriptions"), "play"],
-    [localizedCopy("متاجر التقنية", "Technology stores"), "devices"],
-    [localizedCopy("متاجر العطور", "Perfume stores"), "perfume"],
-    [localizedCopy("متاجر الأزياء", "Fashion stores"), "fashion"],
-    [localizedCopy("متاجر المنزل", "Home stores"), "publicHome"],
-    [localizedCopy("متاجر الإلكترونيات", "Electronics stores"), "support"],
-    [localizedCopy("المقاهي والمطاعم", "Cafes and restaurants"), "coffee"],
-    [localizedCopy("الجمال والعناية", "Beauty and care"), "sparkles"],
-    [localizedCopy("التعليم والدورات", "Education and courses"), "helpBook"],
-    [localizedCopy("الهدايا والمناسبات", "Gifts and occasions"), "gift"],
-    [localizedCopy("الخدمات والعضويات", "Services and memberships"), "subscriptions"]
+    { title: localizedCopy("اللياقة والصحة", "Fitness and wellness"), icon: "heart" },
+    { title: localizedCopy("الاشتراكات الرقمية", "Digital subscriptions"), icon: "play" },
+    { title: localizedCopy("متاجر التقنية", "Technology stores"), icon: "devices" },
+    { title: localizedCopy("متاجر العطور", "Perfume stores"), icon: "perfume" },
+    { title: localizedCopy("متاجر الأزياء", "Fashion stores"), icon: "fashion" },
+    { title: localizedCopy("متاجر المنزل", "Home stores"), icon: "publicHome" },
+    { title: localizedCopy("متاجر الإلكترونيات", "Electronics stores"), icon: "support" },
+    { title: localizedCopy("المقاهي والمطاعم", "Cafes and restaurants"), icon: "coffee" },
+    { title: localizedCopy("الجمال والعناية", "Beauty and care"), icon: "sparkles" },
+    { title: localizedCopy("التعليم والدورات", "Education and courses"), icon: "helpBook" },
+    { title: localizedCopy("الهدايا والمناسبات", "Gifts and occasions"), icon: "gift" },
+    { title: localizedCopy("الخدمات والعضويات", "Services and memberships"), icon: "subscriptions" },
+    { title: "Advanced Pro", logo: "/assets/brands/advanced-pro.png", brand: "advanced-pro" },
+    { title: "Axion", logo: "/assets/brands/axion.png", brand: "axion" },
+    { title: "Upload", logo: "/assets/brands/upload.png", brand: "upload" },
+    { title: "Adovix", logo: "/assets/brands/adovix.png", brand: "adovix" },
+    { title: "Blontix", logo: "/assets/brands/blontix.png", brand: "blontix" },
+    { title: localizedCopy("عِلم", "Elm"), logo: "/assets/brands/elm.jpg", brand: "elm" },
+    { title: localizedCopy("الرعد للاتصالات", "Alraad Telecom"), logo: "/assets/brands/alraad-telecom.jpg", brand: "alraad" }
   ];
-  const storeSet = (duplicate = false) => `<div class="commerce-store-set"${duplicate ? ' aria-hidden="true"' : ""}>${stores.map(([title, icon], index) => `<article style="--motion-index:${index}"><span>${dashboardIcon(icon)}</span><strong>${title}</strong></article>`).join("")}</div>`;
+  const storeSet = (duplicate = false) => `<div class="commerce-store-set"${duplicate ? ' aria-hidden="true"' : ""}>${stores.map((item, index) => `<article class="${item.logo ? `commerce-brand-card commerce-brand-card--${item.brand}` : "commerce-category-card"}" style="--motion-index:${index}"><span${item.logo ? ' class="commerce-brand-logo"' : ""}>${item.logo ? `<img src="${item.logo}" alt="" loading="lazy" decoding="async" />` : dashboardIcon(item.icon)}</span><strong>${item.title}</strong></article>`).join("")}</div>`;
   return `<section class="marketing-commerce-ecosystem" data-motion-scene>
     <div class="container">
       ${marketingSectionHeading(localizedCopy("منصات وأعمال تنمو مع Renvix", "Platforms and businesses grow with Renvix"), "")}
