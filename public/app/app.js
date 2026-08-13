@@ -720,6 +720,9 @@ state.notifications = null;
 state.activities = null;
 state.unsubscribes = null;
 state.accountSettings = null;
+state.accountStorageCleanupOpen = false;
+state.accountStorageCleanup = null;
+state.accountStorageCleanupBusy = false;
 state.publicNewsletter = null;
 state.publicNewsletterRequestedId = "";
 state.readiness = null;
@@ -7063,6 +7066,7 @@ function settingsReferencePage() {
   if (state.accountSettings?.error) return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}${emptyState("تعذر تحميل إعدادات الحساب", escapeHtml(state.accountSettings.error), "إعادة المحاولة", "reload-settings")}</section>`);
   const remote = state.accountSettings.settings || {};
   const storage = state.accountSettings.storage || { usedMb:0, limitMb:100, percent:0, breakdown:[] };
+  const canManageStorage = ["owner", "admin"].includes(String(remote.role || "").toLowerCase());
   const avatarUrl = remote.avatarUrl || remote.image;
   const fullName = remote.fullName || remote.name || "";
   const avatar = avatarUrl ? `<img class="settings-ref-avatar" src="${escapeHtml(avatarUrl)}" alt="صورة الحساب">` : `<span class="settings-ref-avatar fallback">${escapeHtml(fullName.trim().charAt(0) || "م")}</span>`;
@@ -7077,9 +7081,31 @@ function settingsReferencePage() {
       <article class="suite-card settings-ref-card account"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><h2>إعدادات الحساب</h2><p>معلوماتك الشخصية وبيانات التواصل.</p></div></div><div class="settings-ref-account"><div class="settings-ref-avatar-wrap">${avatar}<input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">${dashboardIcon("upload")} تغيير الصورة</button><small>PNG, JPG حتى 2MB</small></div><form data-submit="profile-settings" class="settings-ref-profile" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><div class="settings-ref-two"><label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(String(fullName).split(" ")[0] || fullName)}" readonly></label><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label></div><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly dir="ltr"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" value="${escapeHtml(remote.phone || "")}" dir="ltr"></label><input type="hidden" name="storeName" value="${escapeHtml(remote.storeName || "")}"><button class="btn btn-primary profile-save-button">حفظ التعديلات</button></form></div></article>
       <article class="suite-card settings-ref-card security"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>أمان الحساب</h2><p>تغيير كلمة المرور والتحقق الثنائي.</p></div></div><div class="settings-ref-mfa"><div><strong>تفعيل التحقق الثنائي</strong><p>عزز أمان حسابك بطبقة حماية إضافية عند تسجيل الدخول.</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><form data-submit="password" class="settings-ref-password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article>
       <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>رابط اشتراك مخصص لحسابك؛ كل مشترك جديد يُضاف تلقائيًا إلى عملائك.</p></div><span class="newsletter-live-badge"><i></i> مفعّلة</span></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr" aria-label="رابط النشرة المخصص"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}" ${newsletterUrl ? "" : "disabled"}>${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-link-note">${dashboardIcon("security")} الرابط مرتبط بحسابك، ويُمنع تكرار البريد نفسه تلقائيًا.</div><div class="store-customer-sync"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><strong>حفظ عملاء المتجر تلقائيًا</strong><p>عند تسجيل العميل دخوله إلى متجر سلة، تُنشأ بياناته أو تُحدّث في قسم العملاء دون تكرار.</p><small>${remote.storeCustomerSyncAvailable ? (remote.storeCustomerSyncEnabled ? "المزامنة مفعّلة وتستقبل تسجيلات الدخول الجديدة." : "المزامنة متوقفة؛ لن تُحفظ تسجيلات الدخول الجديدة.") : "اربط متجر سلة أولًا لتتمكن من تشغيل هذه الميزة."}</small></div><label class="switch-control" title="${remote.storeCustomerSyncAvailable ? "تشغيل أو إيقاف حفظ عملاء المتجر" : "اربط متجر سلة أولًا"}"><input type="checkbox" data-action="store-customer-sync-toggle" ${remote.storeCustomerSyncEnabled ? "checked" : ""} ${remote.storeCustomerSyncAvailable ? "" : "disabled"} aria-label="حفظ عملاء المتجر تلقائيًا"><span></span></label>${remote.storeCustomerSyncAvailable ? "" : `<button class="btn btn-secondary" data-link="/dashboard/apps">ربط سلة</button>`}</div></article>
-      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية محسوب من بياناتك الفعلية.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-list">${(storage.breakdown || []).slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${storageAmountLabel(item.mb, item.bytes)}</strong></div>`).join("") || `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></article>
+      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية محسوب من بياناتك الفعلية.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-list">${(storage.breakdown || []).slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${storageAmountLabel(item.mb, item.bytes)}</strong></div>`).join("") || `<p class="muted">لا توجد بيانات مخزنة حتى الآن.</p>`}</div><div class="settings-storage-actions"><button class="btn btn-primary" data-action="open-account-storage-cleanup" ${canManageStorage ? "" : "disabled"}>${dashboardIcon("delete")} إخلاء المساحة</button><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></div>${canManageStorage ? "" : `<small class="settings-storage-permission">إخلاء المساحة متاح لمالك الحساب أو المسؤول فقط.</small>`}</article>
     </div>
-  </section>`);
+  </section>${accountStorageCleanupDialog(canManageStorage)}`);
+}
+
+function accountStorageCleanupDialog(canManageStorage = false) {
+  if (!state.accountStorageCleanupOpen || !canManageStorage) return "";
+  const preview = state.accountStorageCleanup;
+  const cleanableBytes = Math.max(0, Number(preview?.cleanableBytes || 0));
+  const targets = cleanableBytes ? [.25,.5,.75,1].reduce((items, ratio) => {
+    const bytes = Math.max(1, Math.floor(cleanableBytes * ratio));
+    if (!items.some((item) => item.bytes === bytes)) items.push({ bytes, ratio });
+    return items;
+  }, []) : [];
+  const targetOptions = targets.map(({ bytes, ratio }, index) => `<option value="${bytes}">${index === targets.length - 1 ? "كامل المساحة المتاحة" : `${Math.round(ratio * 100)}%`} — ${storageAmountLabel(0, bytes)}</option>`).join("");
+  const categories = Array.isArray(preview?.categories) ? preview.categories : [];
+  const content = preview?.error
+    ? `<div class="account-storage-empty danger">${dashboardIcon("warning")}<div><strong>تعذر حساب البيانات القابلة للتنظيف</strong><span>${escapeHtml(preview.error)}</span></div></div>`
+    : preview === null
+      ? `<div class="account-storage-loading" role="status"><i></i><i></i><i></i></div>`
+      : `<div class="account-storage-summary"><span>${dashboardIcon("delete")}</span><div><small>المساحة المتاحة للإخلاء الآن</small><strong>${storageAmountLabel(0, cleanableBytes)}</strong><em>${Number(preview.cleanableRows || 0).toLocaleString("ar-SA")} سجل قديم قابل للتنظيف</em></div></div>
+        <fieldset class="account-storage-categories"><legend>اختر البيانات القديمة المراد تنظيفها</legend>${categories.map((item) => `<label class="${item.bytes ? "" : "is-empty"}"><input type="checkbox" name="storageCleanupCategory" value="${escapeHtml(item.key)}" ${item.bytes ? "checked" : "disabled"}><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.description)}</small></span><strong>${storageAmountLabel(0, item.bytes)}</strong></label>`).join("") || `<p>لا توجد بيانات قديمة قابلة للإخلاء حاليًا.</p>`}</fieldset>
+        <label class="account-storage-target"><span>المساحة التي تريد إخلاءها</span><select class="select" data-account-storage-target ${cleanableBytes ? "" : "disabled"}>${targetOptions || `<option value="0">لا توجد مساحة قابلة للإخلاء</option>`}</select></label>
+        <label class="account-storage-warning"><input type="checkbox" data-account-storage-confirm ${cleanableBytes ? "" : "disabled"}><span><b>تنبيه: قد يتم حذف بعض بياناتك المهمة</b><small>سيُحذف فقط المحتوى القديم الذي اخترته، ولا يمكن التراجع عن العملية بعد تنفيذها.</small></span></label>`;
+  return `<div class="account-storage-cleanup-backdrop"><button type="button" class="account-storage-cleanup-scrim" data-action="close-account-storage-cleanup" aria-label="إغلاق"></button><section class="account-storage-cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="account-storage-cleanup-title"><header><div><span>${dashboardIcon("billing")}</span><div><h2 id="account-storage-cleanup-title">إخلاء مساحة الحساب</h2><p>نظّف السجلات القديمة مع إبقاء البيانات النشطة والأساسية.</p></div></div><button type="button" data-action="close-account-storage-cleanup" aria-label="إغلاق">${dashboardIcon("close")}</button></header><div class="account-storage-cleanup-body">${content}</div><footer><button type="button" class="btn btn-secondary" data-action="close-account-storage-cleanup">إلغاء</button><button type="button" class="btn btn-primary" data-action="confirm-account-storage-cleanup" ${cleanableBytes && !state.accountStorageCleanupBusy ? "" : "disabled"}>${state.accountStorageCleanupBusy ? "جارٍ إخلاء المساحة…" : "إخلاء المساحة الآن"}</button></footer></section></div>`;
 }
 
 function storageAmountLabel(mbValue, bytesValue = null) {
@@ -8137,6 +8163,52 @@ async function handleAction(target) {
     state.billingTab = target.dataset.tab || "overview";
     storage.set("renvix.billing.tab", state.billingTab);
     return render();
+  }
+  if (action === "open-account-storage-cleanup") {
+    state.accountStorageCleanupOpen = true;
+    state.accountStorageCleanup = null;
+    render();
+    try {
+      const payload = await fetchJson("/api/settings/storage/cleanup");
+      state.accountStorageCleanup = payload.preview || { cleanableBytes: 0, cleanableRows: 0, categories: [] };
+    } catch (error) {
+      state.accountStorageCleanup = { error: error.message, cleanableBytes: 0, cleanableRows: 0, categories: [] };
+    }
+    return render();
+  }
+  if (action === "close-account-storage-cleanup") {
+    state.accountStorageCleanupOpen = false;
+    state.accountStorageCleanup = null;
+    return render();
+  }
+  if (action === "confirm-account-storage-cleanup") {
+    const dialog = target.closest(".account-storage-cleanup-dialog");
+    const targetBytes = Number(dialog?.querySelector("[data-account-storage-target]")?.value || 0);
+    const categories = [...(dialog?.querySelectorAll('input[name="storageCleanupCategory"]:checked') || [])].map((input) => input.value);
+    const confirmed = Boolean(dialog?.querySelector("[data-account-storage-confirm]")?.checked);
+    if (!categories.length) return toast("اختر نوعًا واحدًا على الأقل من البيانات القديمة.", "warning");
+    if (!confirmed) return toast("فعّل مربع التحذير الأحمر لتأكيد الإخلاء.", "warning");
+    if (!targetBytes || state.accountStorageCleanupBusy) return;
+    state.accountStorageCleanupBusy = true;
+    render();
+    try {
+      const payload = await fetchJson("/api/settings/storage/cleanup", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetBytes, categories, confirmation: "DELETE_OLD_ACCOUNT_DATA" })
+      });
+      const refreshed = await fetchJson("/api/settings");
+      state.accountSettings = refreshed;
+      state.accountStorageCleanup = payload.preview || null;
+      state.accountStorageCleanupOpen = false;
+      toast(payload.deletedRows ? `تم إخلاء ${storageAmountLabel(0, payload.freedBytes)} وحذف ${Number(payload.deletedRows).toLocaleString("ar-SA")} سجل قديم.` : "لا توجد بيانات قديمة مطابقة للاختيار.");
+    } catch (error) {
+      toast(error.message || "تعذر إخلاء مساحة الحساب.", "danger");
+    } finally {
+      state.accountStorageCleanupBusy = false;
+      render();
+    }
+    return;
   }
   if (action === "upgrade-storage-plan") {
     state.billingTab = "plans";
