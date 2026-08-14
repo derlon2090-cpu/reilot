@@ -43,7 +43,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-ipad-header-v125" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-ipad-header-v126" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
       </head>
       <body>

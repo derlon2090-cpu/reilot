@@ -13767,27 +13767,28 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   :root[data-home-tablet-layout="true"] .public-site .public-nav .nav-inner{
     width:calc(100% - 64px);
     min-height:116px;
-    grid-template-columns:126px minmax(0,1fr) 478px;
+    grid-template-columns:136px minmax(0,1fr) 478px;
     grid-template-areas:"brand links actions";
     grid-template-rows:116px;
     gap:14px;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
-    width:112px;
-    min-width:112px;
+    width:124px;
+    min-width:124px;
     justify-self:center;
-    transform:none;
+    transform:translateY(-3px);
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
-    width:112px!important;
-    max-width:112px!important;
-    max-height:28px!important;
+    width:124px!important;
+    max-width:124px!important;
+    max-height:31px!important;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-links{
     min-height:58px;
     gap:clamp(8px,1vw,14px);
     padding:0;
     border:0;
+    transform:translateY(-3px);
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-link{
     min-height:56px;
@@ -13799,6 +13800,17 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     min-height:56px!important;
     padding-inline:7px!important;
   }
+  :root[data-home-tablet-layout="true"] .public-site .nav-link:not(:last-child)::before{
+    content:"";
+    position:absolute;
+    top:50%;
+    inset-inline-end:-7px;
+    width:1px;
+    height:30px;
+    transform:translateY(-50%);
+    background:rgba(88,108,104,.2);
+    pointer-events:none;
+  }
   :root[data-home-tablet-layout="true"] .public-site .public-nav-icon .line-icon{
     width:18px;
     height:18px;
@@ -13808,6 +13820,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     min-width:0;
     justify-content:space-between;
     gap:16px;
+    transform:translateY(-3px);
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav-preferences{gap:14px}
   :root[data-home-tablet-layout="true"] .public-site .public-language-compact{
@@ -13848,27 +13861,28 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   :root[data-home-tablet-layout="true"] .public-site .public-nav .nav-inner{
     width:calc(100% - 40px);
     min-height:84px;
-    grid-template-columns:124px minmax(0,1fr) 334px;
+    grid-template-columns:132px minmax(0,1fr) 334px;
     grid-template-areas:"brand links actions";
     grid-template-rows:84px;
     gap:8px;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
-    width:112px;
-    min-width:112px;
+    width:120px;
+    min-width:120px;
     justify-self:center;
-    transform:none;
+    transform:translateY(-2px);
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
-    width:112px!important;
-    max-width:112px!important;
-    max-height:28px!important;
+    width:120px!important;
+    max-width:120px!important;
+    max-height:30px!important;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-links{
     min-height:48px;
-    gap:2px;
+    gap:10px;
     padding:0;
     border:0;
+    transform:translateY(-2px);
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-link{
     min-height:46px;
@@ -13880,6 +13894,17 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     min-height:46px!important;
     padding-inline:4px!important;
   }
+  :root[data-home-tablet-layout="true"] .public-site .nav-link:not(:last-child)::before{
+    content:"";
+    position:absolute;
+    top:50%;
+    inset-inline-end:-5px;
+    width:1px;
+    height:24px;
+    transform:translateY(-50%);
+    background:rgba(88,108,104,.2);
+    pointer-events:none;
+  }
   :root[data-home-tablet-layout="true"] .public-site .public-nav-icon .line-icon{
     width:16px;
     height:16px;
@@ -13889,6 +13914,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     min-width:0;
     justify-content:space-between;
     gap:6px;
+    transform:translateY(-2px);
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav-preferences{gap:4px}
   :root[data-home-tablet-layout="true"] .public-site .public-language-compact{
@@ -13925,13 +13951,25 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 
 @media (min-width:641px) and (max-width:900px){
   :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
-    width:126px;
-    min-width:126px;
-    transform:none;
+    width:132px;
+    min-width:132px;
+    transform:translateY(-2px);
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
-    width:126px!important;
-    max-width:126px!important;
-    max-height:31px!important;
+    width:132px!important;
+    max-width:132px!important;
+    max-height:33px!important;
+  }
+  :root[data-home-tablet-layout="true"] .public-site :is(.nav-links,.nav-actions){transform:translateY(-2px)}
+  :root[data-home-tablet-layout="true"] .public-site .nav-link:not(:last-child)::before{
+    content:"";
+    position:absolute;
+    top:50%;
+    inset-inline-end:clamp(-29px,-3.5vw,-22px);
+    width:1px;
+    height:24px;
+    transform:translateY(-50%);
+    background:rgba(88,108,104,.2);
+    pointer-events:none;
   }
 }
