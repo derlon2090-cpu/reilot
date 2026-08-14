@@ -39,6 +39,9 @@ function wordErrorRate(expected, actual) {
   return reference.length ? editDistance(reference, hypothesis) / reference.length : null;
 }
 
+const maximumAudioWordErrorRate = Math.max(0, Math.min(1, Number(process.env.MEDIA_EVAL_MAX_AUDIO_WER || 0.45)));
+const minimumImagePhraseRecall = Math.max(0, Math.min(1, Number(process.env.MEDIA_EVAL_MIN_IMAGE_RECALL || 0.6)));
+
 const manifestPath = String(process.env.MEDIA_EVAL_MANIFEST || "").trim();
 if (!manifestPath) {
   fail("MEDIA_EVAL_MANIFEST is required. No provider call was made.");
@@ -130,8 +133,17 @@ if (!manifestPath) {
     }
     const audioWer = results.filter((item) => item.type === "audio" && item.wordErrorRate != null).map((item) => item.wordErrorRate);
     const imageRecall = results.filter((item) => item.type === "image" && item.expectedPhraseRecall != null).map((item) => item.expectedPhraseRecall);
-    console.log(JSON.stringify({
+    const failedSampleIds = results.filter((item) => item.type === "audio"
+      ? !item.acceptable || !item.deepgramUsageConfirmed || !item.providerRequestIdReturned
+        || item.wordErrorRate == null || item.wordErrorRate > maximumAudioWordErrorRate
+        || (item.fallbackUsed && !item.fallbackUsageConfirmed)
+      : !item.schemaValid || !item.usageConfirmed || !item.providerRequestIdReturned
+        || item.expectedPhraseRecall == null || item.expectedPhraseRecall < minimumImagePhraseRecall)
+      .map((item) => item.id);
+    const report = {
+      ok: failedSampleIds.length === 0,
       evaluatedAt: new Date().toISOString(), sampleCount: results.length,
+      thresholds: { maximumAudioWordErrorRate, minimumImagePhraseRecall },
       audio: {
         samples: audioSamples.length,
         averageWordErrorRate: audioWer.length ? audioWer.reduce((sum, value) => sum + value, 0) / audioWer.length : null,
@@ -145,7 +157,10 @@ if (!manifestPath) {
         schemaValidCount: results.filter((item) => item.type === "image" && item.schemaValid).length,
         usageConfirmedCount: results.filter((item) => item.type === "image" && item.usageConfirmed).length
       },
+      failedSampleIds,
       results
-    }, null, 2));
+    };
+    console.log(JSON.stringify(report, null, 2));
+    if (!report.ok) process.exitCode = 1;
   }
 }
