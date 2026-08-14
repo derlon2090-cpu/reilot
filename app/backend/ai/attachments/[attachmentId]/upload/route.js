@@ -10,19 +10,63 @@ function jsonError(code, message, status) {
   return Response.json({ ok: false, code, message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+function validR2Hostname(value) {
+  const hostname = String(value || "").toLowerCase();
+  const suffix = ".r2.cloudflarestorage.com";
+  if (!hostname.endsWith(suffix)) return false;
+  const labels = hostname.slice(0, -suffix.length).split(".");
+  const accountId = labels.pop() || "";
+  if (!/^[a-f0-9]{16,64}$/.test(accountId)) return false;
+  if (!labels.length) return true;
+  const bucket = labels.join(".");
+  return bucket.length <= 63
+    && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(bucket)
+    && !bucket.includes("..");
+}
+
 function validSignedUploadUrl(value, attachmentId) {
   try {
     const url = new URL(String(value || ""));
     const query = new Map([...url.searchParams].map(([key, entry]) => [key.toLowerCase(), entry]));
     const escapedId = String(attachmentId || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return url.protocol === "https:"
-      && /^[a-f0-9]{16,64}\.r2\.cloudflarestorage\.com$/i.test(url.hostname)
+      && validR2Hostname(url.hostname)
       && new RegExp(`/${escapedId}\\.[a-z0-9]+$`, "i").test(decodeURIComponent(url.pathname))
       && Boolean(query.get("x-amz-signature"))
       && Boolean(query.get("x-amz-credential"))
       && Boolean(query.get("x-amz-expires"));
   } catch {
     return false;
+  }
+}
+
+async function uploadThroughBackend(request, attachmentId, contentType, body, fetchImpl) {
+  try {
+    const response = await fetchImpl(new URL(`/api/ai/attachments/${encodeURIComponent(attachmentId)}/upload`, backendOrigin()), {
+      method: "PUT",
+      headers: {
+        Cookie: request.headers.get("cookie") || "",
+        "Cache-Control": "no-store",
+        "Content-Type": contentType,
+        "Content-Length": String(body.byteLength),
+        "X-Renvix-Frontend-Gateway": "ai-upload-fallback"
+      },
+      body,
+      cache: "no-store",
+      redirect: "manual",
+      signal: request.signal
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok && payload.attachment) {
+      return Response.json({ ok: true, attachment: payload.attachment }, { headers: { "Cache-Control": "no-store" } });
+    }
+    return jsonError(
+      payload.code || "ATTACHMENT_UPLOAD_FAILED",
+      payload.message || "تعذر رفع المرفق عبر المسار الآمن.",
+      response.status || 502
+    );
+  } catch {
+    return jsonError("ATTACHMENT_UPLOAD_FAILED", "تعذر الوصول إلى خدمة رفع المرفقات مؤقتًا.", 503);
   }
 }
 
@@ -90,7 +134,15 @@ export async function relaySignedAttachmentUpload(request, { params }, fetchImpl
   const declaredSize = Number(request.headers.get("content-length") || 0);
   if (declaredSize > MAX_RELAY_BYTES) return jsonError("ATTACHMENT_TOO_LARGE", "حجم المرفق أكبر من حد بوابة الرفع.", 413);
   const signedUrl = request.headers.get("x-renvix-upload-url") || "";
-  if (!validSignedUploadUrl(signedUrl, attachmentId)) return jsonError("UPLOAD_URL_INVALID", "رابط رفع المرفق غير صالح.", 400);
+  if (!validSignedUploadUrl(signedUrl, attachmentId)) {
+    try {
+      const body = await readLimitedBody(request);
+      return uploadThroughBackend(request, attachmentId, contentType, body, fetchImpl);
+    } catch (error) {
+      if (error?.status) return jsonError(error.code, error.message, error.status);
+      return jsonError("ATTACHMENT_UPLOAD_FAILED", "تعذر رفع المرفق عبر المسار الآمن.", 502);
+    }
+  }
   const verificationError = await verifyPendingAttachment(request, attachmentId, fetchImpl);
   if (verificationError) return verificationError;
   try {

@@ -1341,10 +1341,11 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
 function syncRouteData(force = false) {
   const routeAtStart = state.route;
   const isDashboardHome = state.route === "/dashboard";
+  const batchesInitialRender = isDashboardHome || state.route === "/dashboard/support/ai";
   const pending = [];
   const queue = (key, url, target, options) => {
-    const request = loadRemotePage(key, url, target, options, { renderOnComplete: !isDashboardHome });
-    if (isDashboardHome && request) pending.push(request);
+    const request = loadRemotePage(key, url, target, options, { renderOnComplete: !batchesInitialRender });
+    if (batchesInitialRender && request) pending.push(request);
   };
 
   if (state.route === "/pricing" && (force || state.publicPlans === null || state.publicPlansRefreshRequired)) {
@@ -1445,7 +1446,13 @@ function syncRouteData(force = false) {
 
   if (pending.length) {
     void Promise.allSettled(pending).then(() => {
-      if (state.route === routeAtStart) render();
+      if (state.route !== routeAtStart) return;
+      if (routeAtStart === "/dashboard/support/ai" && state.aiStreaming) {
+        refreshAIUsageCards();
+        refreshAIConversationSidebar();
+        return;
+      }
+      render();
     });
   }
 }
@@ -10407,37 +10414,21 @@ function aiMessageListIsNearBottom(list, threshold = 110) {
   return list.scrollHeight - list.scrollTop - list.clientHeight <= threshold;
 }
 
-function queueAIMessageScroll({ force = false, immediate = false } = {}) {
+function queueAIMessageScroll({ force = false } = {}) {
   const list = document.querySelector("[data-ai-message-list]");
   if (!list || (!force && !state.aiAutoScroll)) return;
   state.aiScrollForce = state.aiScrollForce || force;
   if (state.aiScrollFrame) return;
-  const follow = () => {
-    state.aiScrollFrame = 0;
+  state.aiScrollFrame = requestAnimationFrame(() => {
     const current = document.querySelector("[data-ai-message-list]");
-    if (!current || (!state.aiScrollForce && !state.aiAutoScroll)) {
-      state.aiProgrammaticScroll = false;
-      state.aiScrollForce = false;
-      return;
-    }
-    state.aiProgrammaticScroll = true;
-    const target = Math.max(0, current.scrollHeight - current.clientHeight);
-    const distance = target - current.scrollTop;
-    if (immediate || Math.abs(distance) <= 2) current.scrollTop = target;
-    else {
-      const maxStep = state.aiStreaming ? 42 : 72;
-      const step = Math.min(maxStep, Math.max(10, Math.abs(distance) * 0.24));
-      current.scrollTop += Math.sign(distance) * Math.min(Math.abs(distance), step);
-    }
-    const remaining = Math.max(0, current.scrollHeight - current.clientHeight - current.scrollTop);
-    if (!immediate && remaining > 2 && (state.aiScrollForce || state.aiAutoScroll)) {
-      state.aiScrollFrame = requestAnimationFrame(follow);
-      return;
-    }
+    const shouldFollow = Boolean(current && (state.aiScrollForce || state.aiAutoScroll));
+    state.aiScrollFrame = 0;
     state.aiScrollForce = false;
+    if (!shouldFollow) return;
+    state.aiProgrammaticScroll = true;
+    current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight);
     requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
-  };
-  state.aiScrollFrame = requestAnimationFrame(follow);
+  });
 }
 
 function stopAIMessageFollowing() {
@@ -10584,6 +10575,10 @@ function setAIComposerStreaming(form, streaming) {
   const button = form?.querySelector(".rvx-ai-send,.rvx-ai-stop");
   if (!button) return;
   form?.classList.toggle("is-streaming", streaming);
+  document.querySelectorAll('[data-action="ai-quick-prompt"]').forEach((quickAction) => {
+    quickAction.disabled = streaming;
+    quickAction.setAttribute("aria-busy", streaming ? "true" : "false");
+  });
   form?.querySelectorAll('[data-action="ai-add-image"],[data-action="ai-record-audio"]').forEach((control) => control.toggleAttribute("disabled", streaming));
   form?.querySelectorAll('input[type="file"]').forEach((input) => { input.disabled = streaming; });
   if (streaming) {
@@ -10647,7 +10642,6 @@ function advanceAILiveMeter(value = "") {
   if (!live || !text) return;
   if (!live.tokensAuthoritative) live.estimatedTokens += Math.max(1, Math.ceil(text.length / 4));
   if (!live.storageSettled) live.pendingStorageBytes += aiUTF8Bytes(text);
-  scheduleAILiveMeterRefresh();
 }
 
 function confirmAILiveAttachmentStorage(bytes = 0) {
@@ -10838,6 +10832,17 @@ async function ensureAIConversationForAttachments(prompt, signal) {
   state.aiConversations = [payload.item, ...(state.aiConversations || []).filter((item) => item.id !== payload.item.id)];
   const url = new URL(location.href); url.searchParams.set("conversation", payload.item.id); history.replaceState({}, "", url);
   return payload.item.id;
+}
+
+function friendlyAIAttachmentError(error, item = {}) {
+  const message = String(error?.message || "").trim();
+  const audio = String(item?.type || "").startsWith("audio/");
+  if (!message || /failed to fetch|networkerror|load failed|network request failed|رابط رفع المرفق غير صالح/i.test(message)) {
+    return audio
+      ? "تعذر رفع الرسالة الصوتية مؤقتًا. تحقق من اتصالك ثم أعد الإرسال؛ التسجيل ما زال محفوظًا في المحرر."
+      : "تعذر رفع المرفق مؤقتًا. تحقق من اتصالك ثم أعد المحاولة؛ الملف ما زال محفوظًا في المحرر.";
+  }
+  return message;
 }
 
 async function uploadAIAttachments(conversationId, attachments, signal) {
@@ -11037,7 +11042,7 @@ async function handleAIMessageSubmit(form) {
     const list = document.querySelector("[data-ai-message-list]");
     if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading,.rvx-ai-start,.rvx-ai-onboarding")) list.innerHTML = "";
     const streamId = `ai-stream-${Date.now()}`;
-    list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: submittedPrompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><footer class="rvx-ai-message-meta"><time>${state.language === "en" ? "Now" : "الآن"}</time><button type="button" data-action="ai-copy-response" hidden>${dashboardIcon("copy")}<span>${state.language === "en" ? "Copy" : "نسخ"}</span></button></footer></div></article>`);
+    list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: submittedPrompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming" aria-live="polite" aria-busy="true"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><footer class="rvx-ai-message-meta"><time>${state.language === "en" ? "Now" : "الآن"}</time><button type="button" data-action="ai-copy-response" hidden>${dashboardIcon("copy")}<span>${state.language === "en" ? "Copy" : "نسخ"}</span></button></footer></div></article>`);
     streamNode = document.getElementById(streamId);
     textNode = streamNode?.querySelector("[data-ai-stream-text]");
     if (textNode) {
@@ -11074,11 +11079,9 @@ async function handleAIMessageSubmit(form) {
         if (payload.usage) applyAIAuthoritativeUsage(payload.usage);
         const url = new URL(location.href); url.searchParams.set("conversation", state.aiConversationId); history.replaceState({}, "", url);
       } else if (type === "tool") refreshAIToolProgress(payload);
-      else if (type === "meta" && blockNode) {
+      else if (type === "meta") {
         assistantBlocks = payload.blocks || [];
-        blockNode.innerHTML = assistantBlocks.map(renderAIBlock).join("");
         if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
-        queueAIMessageScroll();
       } else if (type === "token" && textNode && !state.aiStopRequested) {
         advanceAILiveMeter(payload.value || "");
         streamWriter?.append(payload.value || "");
@@ -11106,7 +11109,7 @@ async function handleAIMessageSubmit(form) {
       }
       const message = friendlyAIErrorMessage(error);
       if (textNode) streamWriter?.append(`\n${message}`);
-      else appToast.error("تعذر إرسال المرفق", { description: message, id: "ai-attachment-upload-error" });
+      else appToast.error("تعذر إرسال المرفق", { description: friendlyAIAttachmentError(error, attachmentDrafts[0]), id: "ai-attachment-upload-error" });
       streamNode?.classList.add("has-error");
     } else if (textNode) {
       assistantStatus = "interrupted";
@@ -11114,6 +11117,7 @@ async function handleAIMessageSubmit(form) {
     }
   } finally {
     await streamWriter?.drain();
+    streamWriter?.finalize();
     state.aiStreaming = false;
     state.aiAbortController = null;
     state.aiActiveStreamWriter = null;
@@ -11122,6 +11126,8 @@ async function handleAIMessageSubmit(form) {
     setAIComposerStreaming(form, false);
     form.classList.remove("is-uploading");
     streamNode?.classList.remove("is-streaming");
+    streamNode?.setAttribute("aria-busy", "false");
+    revealAIResponseBlocks(blockNode, assistantBlocks);
     const copyButton = streamNode?.querySelector('[data-action="ai-copy-response"]');
     if (copyButton && String(textNode?.dataset.aiRaw || "").trim()) copyButton.hidden = false;
     if (messageInserted && messageAccepted) {
@@ -11135,9 +11141,13 @@ async function handleAIMessageSubmit(form) {
       state.aiConversation = { ...(state.aiConversation || {}), id: state.aiConversationId, title: conversationTitle, messages: [...previous, userMessage, assistantMessage] };
       const currentItem = { id: state.aiConversationId, title: conversationTitle, status: "active", isPinned: false, lastMessageAt: new Date().toISOString(), lastMessage: assistantMessage.content };
       state.aiConversations = [currentItem, ...(state.aiConversations || []).filter((item) => item.id !== state.aiConversationId)];
-      queueAIMessageScroll();
       void reconcileAILiveMeter(liveMeter).then(refreshAIConversationSidebar);
     } else if (!messageAccepted) {
+      state.aiDraft = prompt;
+      if (form.elements.prompt) {
+        form.elements.prompt.value = prompt;
+        form.elements.prompt.dispatchEvent(new Event("input", { bubbles: true }));
+      }
       void discardAIAttachments(state.aiConversationId, uploadedAttachments).finally(() => reconcileAILiveMeter(liveMeter));
     }
   }
@@ -12568,6 +12578,10 @@ function updateSupportLiveStatus(status) {
   if (label) label.textContent = status === "connected" ? "متصل مباشر" : status === "fallback" ? "تحديث تلقائي" : "جارٍ الاتصال...";
 }
 
+function supportLiveRouteActive() {
+  return state.route.startsWith("/dashboard/support") && state.route !== "/dashboard/support/ai";
+}
+
 function stopSupportLiveFallback() {
   if (!state.supportLiveFallbackTimer) return;
   clearInterval(state.supportLiveFallbackTimer);
@@ -12578,7 +12592,7 @@ function startSupportLiveFallback() {
   if (state.supportLiveFallbackTimer) return;
   updateSupportLiveStatus("fallback");
   state.supportLiveFallbackTimer = setInterval(() => {
-    if (state.route.startsWith("/dashboard/support") && document.visibilityState === "visible") void refreshSupportLiveData();
+    if (supportLiveRouteActive() && document.visibilityState === "visible") void refreshSupportLiveData();
   }, 7_000);
 }
 
@@ -12593,7 +12607,7 @@ function closeSupportLiveConnection() {
 }
 
 async function refreshSupportLiveData() {
-  if (!state.route.startsWith("/dashboard/support")) return;
+  if (!supportLiveRouteActive()) return;
   if (state.supportLiveRefreshing) {
     state.supportLiveRefreshPending = true;
     return;
@@ -12614,7 +12628,7 @@ async function refreshSupportLiveData() {
     const requests = [fetchJson(`/api/support/tickets?filter=${encodeURIComponent(state.supportFilter)}&limit=25`)];
     if (selectedId) requests.push(fetchJson(`/api/support/tickets/${encodeURIComponent(selectedId)}`));
     const results = await Promise.allSettled(requests);
-    if (!state.route.startsWith("/dashboard/support") || selectedId !== state.supportSelectedId) return;
+    if (!supportLiveRouteActive() || selectedId !== state.supportSelectedId) return;
     if (results[0]?.status === "fulfilled") state.supportTickets = results[0].value;
     if (selectedId && results[1]?.status === "fulfilled") state.supportTicket = results[1].value.item || null;
     if (selectedId && Number(state.supportTicket?.userUnreadCount || 0) > 0) {
@@ -12638,7 +12652,7 @@ async function refreshSupportLiveData() {
 }
 
 function syncSupportLiveConnection() {
-  if (!state.route.startsWith("/dashboard/support")) {
+  if (!supportLiveRouteActive()) {
     closeSupportLiveConnection();
     return;
   }
@@ -12844,7 +12858,18 @@ function renderAIMessageContent(value) {
 function appendAIStreamText(node, value) {
   const raw = `${node.dataset.aiRaw || ""}${String(value || "")}`;
   node.dataset.aiRaw = raw;
-  node.innerHTML = renderAIMessageContent(raw);
+  const boundary = raw.lastIndexOf("\n");
+  const settled = boundary >= 0 ? raw.slice(0, boundary + 1) : "";
+  const activeLine = boundary >= 0 ? raw.slice(boundary + 1) : raw;
+  let line = node.querySelector("[data-ai-stream-line]");
+  if (node.dataset.aiSettledRaw !== settled || !line) {
+    node.innerHTML = settled ? renderAIMessageContent(settled) : "";
+    line = document.createElement("p");
+    line.dataset.aiStreamLine = "";
+    node.append(line);
+    node.dataset.aiSettledRaw = settled;
+  }
+  line.textContent = activeLine;
 }
 
 function createAIStreamWriter(node) {
@@ -12859,12 +12884,12 @@ function createAIStreamWriter(node) {
       settle();
       return;
     }
-    const amount = reducedMotion ? pending.length : Math.min(10, Math.max(1, Math.ceil(pending.length / 70)));
+    const amount = reducedMotion ? pending.length : Math.min(5, Math.max(1, Math.ceil(pending.length / 180)));
     const visible = pending.slice(0, amount);
     pending = pending.slice(amount);
     appendAIStreamText(node, visible);
     queueAIMessageScroll();
-    if (pending) timer = window.setTimeout(writeNext, reducedMotion ? 0 : 28);
+    if (pending) timer = window.setTimeout(writeNext, reducedMotion ? 0 : 34);
     else settle();
   };
   return {
@@ -12874,7 +12899,7 @@ function createAIStreamWriter(node) {
       pending += next;
       if (!timer) {
         if (!node.dataset.aiRaw) writeNext();
-        else timer = window.setTimeout(writeNext, reducedMotion ? 0 : 28);
+        else timer = window.setTimeout(writeNext, reducedMotion ? 0 : 34);
       }
     },
     drain() {
@@ -12886,8 +12911,28 @@ function createAIStreamWriter(node) {
       timer = 0;
       pending = "";
       settle();
+    },
+    finalize() {
+      node.innerHTML = renderAIMessageContent(node.dataset.aiRaw || "");
+      delete node.dataset.aiSettledRaw;
     }
   };
+}
+
+function revealAIResponseBlocks(blockNode, blocks = []) {
+  if (!blockNode || !Array.isArray(blocks) || !blocks.length) return;
+  const list = blockNode.closest("[data-ai-message-list]");
+  const shouldReveal = Boolean(list && state.aiAutoScroll && aiMessageListIsNearBottom(list, 180));
+  blockNode.innerHTML = blocks.map(renderAIBlock).join("");
+  if (!shouldReveal) return;
+  const listRect = list.getBoundingClientRect();
+  const blockRect = blockNode.getBoundingClientRect();
+  const advance = Math.max(0, blockRect.top - (listRect.top + list.clientHeight * .72));
+  if (advance <= 1) return;
+  state.aiProgrammaticScroll = true;
+  const maximum = Math.max(0, list.scrollHeight - list.clientHeight);
+  list.scrollTop = Math.min(maximum, list.scrollTop + Math.min(advance, list.clientHeight * .28));
+  requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
 }
 
 function renderAIMessage(message) {
@@ -12972,7 +13017,8 @@ function aiUsageCard() {
         ? (english ? `${formatAITokens(live.reservedTokens)} tokens reserved while responding` : `محجوز ${formatAITokens(live.reservedTokens)} توكن أثناء الرد`)
         : (english ? `Updating now: ${formatAITokens(provisionalTokens)} estimated tokens` : `يُحدّث الآن: ${formatAITokens(provisionalTokens)} توكن تقديري`))
     : "";
-  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div>${liveText ? `<p class="rvx-ai-live-meter"><i></i>${escapeHtml(liveText)}</p>` : ""}<div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(Number(chatStorage.totalBytes || 0) + provisionalStorageBytes)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
+  const signature = [warningLevel, remainingTokens, allowanceTokens, percent, liveText, provisionalStorageBytes, chatStorage.totalBytes, chatStorage.conversationCount].join("|");
+  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card data-ai-usage-signature="${escapeHtml(signature)}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div><p class="rvx-ai-live-meter${liveText ? " is-active" : ""}" aria-live="polite"><i></i><span>${escapeHtml(liveText)}</span></p><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(Number(chatStorage.totalBytes || 0) + provisionalStorageBytes)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
 }
 
 function refreshAIUsageCards() {
@@ -12980,7 +13026,11 @@ function refreshAIUsageCards() {
   if (!cards.length) return;
   const template = document.createElement("template");
   template.innerHTML = aiUsageCard().trim();
-  cards.forEach((card) => card.replaceWith(template.content.firstElementChild.cloneNode(true)));
+  const next = template.content.firstElementChild;
+  cards.forEach((card) => {
+    if (card.dataset.aiUsageSignature === next?.dataset.aiUsageSignature) return;
+    if (next) card.replaceWith(next.cloneNode(true));
+  });
 }
 
 function aiConversationItemsMarkup(items) {
@@ -14170,7 +14220,7 @@ document.addEventListener("paste", (event) => {
 });
 setInterval(updateEmailOtpCountdown, 1000);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && state.route.startsWith("/dashboard/support") && state.supportLiveRefreshPending) {
+  if (document.visibilityState === "visible" && supportLiveRouteActive() && state.supportLiveRefreshPending) {
     void refreshSupportLiveData();
   }
 });

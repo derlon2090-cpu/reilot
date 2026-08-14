@@ -83,6 +83,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(uploadRoute).not.toContain('access: "public"');
     expect(source).toContain("prepared.upload.url");
     expect(source).toContain('"X-Renvix-Upload-Url": prepared.upload.url');
+    expect(source).toContain("friendlyAIAttachmentError");
+    expect(source).toContain("الملف ما زال محفوظًا في المحرر");
     expect(source).toContain('/upload`');
     expect(source).toContain("/complete");
     expect(source).toContain("/process");
@@ -119,15 +121,36 @@ describe("Renvix Intelligence chat UI", () => {
     ]);
     expect(source).toContain("function createAIStreamWriter");
     expect(source).toContain("await streamWriter?.drain()");
+    expect(source).toContain("streamWriter?.finalize()");
+    expect(source).toContain("revealAIResponseBlocks(blockNode, assistantBlocks)");
+    expect(source).toContain("Math.ceil(pending.length / 180)");
     expect(source).toContain("state.aiProgrammaticScroll");
     expect(source).toContain("function stopAIMessageFollowing");
-    expect(source).toContain("const maxStep = state.aiStreaming ? 42 : 72");
-    expect(source).toContain("current.scrollTop += Math.sign(distance)");
-    expect(source).toContain("state.aiScrollFrame = requestAnimationFrame(follow)");
-    expect(source).toContain("remaining > 2 && (state.aiScrollForce || state.aiAutoScroll)");
+    expect(source).toContain("current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight)");
+    expect(source).not.toContain("const maxStep = state.aiStreaming ? 42 : 72");
+    expect(source).not.toContain("current.scrollTop += Math.sign(distance)");
     expect(source).not.toContain("current.scrollTo({ behavior: \"smooth\"");
     expect(source).not.toContain('streamNode?.scrollIntoView');
+    expect(css).toContain("overflow-y:scroll");
     expect(css).toContain("overflow-anchor:none");
+    expect(css).toContain("@keyframes rvx-ai-typing{50%{opacity:.38}}");
+    expect(css).toContain(".rvx-ai-tools{min-height:30px");
+  });
+
+  it("batches initial AI data and isolates ticket live refreshes from an active response", async () => {
+    const source = await readFile("src/app/app.js", "utf8");
+    expect(source).toContain('const batchesInitialRender = isDashboardHome || state.route === "/dashboard/support/ai"');
+    expect(source).toContain('routeAtStart === "/dashboard/support/ai" && state.aiStreaming');
+    expect(source).toContain('state.route !== "/dashboard/support/ai"');
+    expect(source).toContain("if (!supportLiveRouteActive())");
+  });
+
+  it("defers structured cards until the paced response text is complete", async () => {
+    const source = await readFile("src/app/app.js", "utf8");
+    const streamHandler = source.slice(source.indexOf("async function handleAIMessageSubmit"), source.indexOf("async function handleSubmit"));
+    expect(streamHandler.indexOf("await streamWriter?.drain()")).toBeLessThan(streamHandler.indexOf("revealAIResponseBlocks(blockNode, assistantBlocks)"));
+    expect(streamHandler).not.toContain("blockNode.innerHTML = assistantBlocks.map(renderAIBlock)");
+    expect(source).toContain("line.textContent = activeLine");
   });
 
   it("stops stream consumption, copies completed replies and refreshes usage without a page reload", async () => {
@@ -147,6 +170,9 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-live-meter");
     expect(source).toContain("عذرًا، نفد رصيد الذكاء المتاح. تواصل مع الدعم أو رقِّ الباقة للمتابعة.");
     expect(css).toContain(".rvx-ai-message-meta button");
+    const liveAdvance = source.slice(source.indexOf("function advanceAILiveMeter"), source.indexOf("function confirmAILiveAttachmentStorage"));
+    expect(liveAdvance).not.toContain("scheduleAILiveMeterRefresh");
+    expect(css).toContain("font-variant-numeric:tabular-nums");
   });
 
   it("publishes reserved usage and exact chat storage while the response is still live", async () => {

@@ -3,7 +3,7 @@ import { relaySignedAttachmentUpload } from "../../app/backend/ai/attachments/[a
 
 const originalApiOrigin = process.env.NEXT_PUBLIC_API_BASE_URL;
 const attachmentId = "28d08f50-236c-4f50-86e0-0ff2efad463b";
-const signedUrl = `https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/renvix/production/chat/tenant/conversation/${attachmentId}.webm?X-Amz-Credential=short-lived&X-Amz-Expires=300&X-Amz-Signature=signed`;
+const signedUrl = `https://renvix.0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/production/chat/tenant/conversation/${attachmentId}.webm?X-Amz-Credential=short-lived&X-Amz-Expires=300&X-Amz-Signature=signed`;
 
 function uploadRequest(overrides: { origin?: string; url?: string; size?: number } = {}) {
   const size = overrides.size ?? 4;
@@ -47,7 +47,8 @@ describe("same-origin signed attachment upload gateway", () => {
     expect(String(fetchImpl.mock.calls[2][0])).toBe(`https://api.renvix.app/api/ai/attachments/${attachmentId}/complete`);
   });
 
-  it("rejects cross-site and non-R2 upload URLs before any network request", async () => {
+  it("rejects cross-site requests and sends an unrecognized signed URL only to the fixed backend fallback", async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.renvix.app";
     const fetchImpl = vi.fn();
     const crossSite = await relaySignedAttachmentUpload(
       uploadRequest({ origin: "https://evil.example" }),
@@ -55,13 +56,20 @@ describe("same-origin signed attachment upload gateway", () => {
       fetchImpl
     );
     expect(crossSite.status).toBe(403);
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    fetchImpl.mockResolvedValueOnce(Response.json({ ok: true, attachment: { id: attachmentId, status: "ready" } }));
     const invalidUrl = await relaySignedAttachmentUpload(
       uploadRequest({ url: `https://evil.example/${attachmentId}.webm?X-Amz-Signature=x&X-Amz-Credential=x&X-Amz-Expires=300` }),
       { params: Promise.resolve({ attachmentId }) },
       fetchImpl
     );
-    expect(invalidUrl.status).toBe(400);
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(invalidUrl.status).toBe(200);
+    await expect(invalidUrl.json()).resolves.toMatchObject({ attachment: { id: attachmentId, status: "ready" } });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(String(fetchImpl.mock.calls[0][0])).toBe(`https://api.renvix.app/api/ai/attachments/${attachmentId}/upload`);
+    expect(String(fetchImpl.mock.calls[0][0])).not.toContain("evil.example");
+    expect(fetchImpl.mock.calls[0][1]).toMatchObject({ method: "PUT", redirect: "manual" });
   });
 
   it("does not contact R2 when ownership fails or the declared body exceeds the relay limit", async () => {
