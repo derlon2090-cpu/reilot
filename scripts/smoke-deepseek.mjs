@@ -25,7 +25,8 @@ if (environment.forbiddenPublicVariables.length) {
     const inputTokens = Number(usage.prompt_tokens || 0);
     const outputTokens = Number(usage.completion_tokens || 0);
     const totalTokens = Number(usage.total_tokens || inputTokens + outputTokens);
-    if (responseText !== "OK" || inputTokens <= 0 || outputTokens <= 0 || totalTokens <= 0) {
+    const providerRequestIdReturned = Boolean(String(result.providerRequestId || ""));
+    if (responseText !== "OK" || inputTokens <= 0 || outputTokens <= 0 || totalTokens <= 0 || !providerRequestIdReturned) {
       fail("AI_SMOKE_INVALID_RESPONSE", "DeepSeek responded, but the expected OK response or usage counters were missing.");
     } else {
       process.stdout.write(`${JSON.stringify({
@@ -34,6 +35,7 @@ if (environment.forbiddenPublicVariables.length) {
         model: provider.modelFor("flash"),
         response: "OK",
         usage: { inputTokens, outputTokens, totalTokens },
+        providerRequestIdReturned,
         latencyMs: Date.now() - startedAt
       })}\n`);
     }

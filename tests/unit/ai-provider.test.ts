@@ -35,6 +35,19 @@ describe("DeepSeekProvider", () => {
     });
   });
 
+  it("returns the provider request id for accounting correlation", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      id: "deepseek-request-1",
+      choices: [{ message: { role: "assistant", content: "OK" } }],
+      usage: { prompt_tokens: 4, completion_tokens: 1, total_tokens: 5 }
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const provider = new DeepSeekProvider({ apiKey: "test-key", fetchImpl });
+
+    const result = await provider.completeStructured({ messages: [{ role: "user", content: "OK" }] });
+
+    expect(result.providerRequestId).toBe("deepseek-request-1");
+  });
+
   it("parses streamed tokens while ignoring malformed and reasoning-only events", async () => {
     const payload = [
       'data: {"choices":[{"delta":{"reasoning_content":"internal"}}]}',

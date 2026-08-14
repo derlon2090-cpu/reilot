@@ -171,7 +171,11 @@ export class DeepSeekProvider extends AIProvider {
       max_tokens: maxTokens
     }, signal);
     const payload = await response.json();
-    return { message: payload.choices?.[0]?.message || {}, usage: payload.usage || {} };
+    return {
+      message: payload.choices?.[0]?.message || {},
+      usage: payload.usage || {},
+      providerRequestId: String(payload.id || "")
+    };
   }
 
   async *streamChat({
