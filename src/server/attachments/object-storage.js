@@ -12,6 +12,17 @@ const UPLOAD_TTL_SECONDS = 5 * 60;
 const DOWNLOAD_TTL_SECONDS = 2 * 60;
 let client;
 
+export function resolveObjectStorageEndpoint({
+  accountId = process.env.R2_ACCOUNT_ID,
+  endpoint = process.env.R2_ENDPOINT
+} = {}) {
+  const normalizedAccountId = String(accountId || "").trim();
+  if (normalizedAccountId) {
+    return `https://${normalizedAccountId}.r2.cloudflarestorage.com`;
+  }
+  return String(endpoint || "").trim().replace(/\/$/, "");
+}
+
 function configuration() {
   const accountId = String(process.env.R2_ACCOUNT_ID || "").trim();
   const accessKeyId = String(process.env.R2_ACCESS_KEY_ID || "").trim();
@@ -22,7 +33,7 @@ function configuration() {
     accessKeyId,
     secretAccessKey,
     bucket,
-    endpoint: String(process.env.R2_ENDPOINT || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : "")).replace(/\/$/, "")
+    endpoint: resolveObjectStorageEndpoint({ accountId, endpoint: process.env.R2_ENDPOINT })
   };
 }
 
