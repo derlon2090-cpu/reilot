@@ -2033,51 +2033,6 @@ function marketingSectionHeading(title, body, eyebrow = "") {
   return `<header class="marketing-v3-heading" data-reveal>${eyebrow ? `<span>${eyebrow}</span>` : ""}<h2>${title}</h2><p>${body}</p></header>`;
 }
 
-function marketingFlowNetwork(mode = "home") {
-  const connectedSources = [
-    ["meta", "Meta / WhatsApp API", "whatsapp"],
-    ["email", localizedCopy("البريد الإلكتروني", "Email"), "email"],
-    ["salla", localizedCopy("سلة", "Salla"), "subscriptions"],
-    ["zid", localizedCopy("زد", "Zid"), "puzzle"],
-    ["shopify", "Shopify", "store"]
-  ];
-  const featureRight = [
-    ["subscriptions", localizedCopy("إدارة الاشتراكات", "Subscription management"), "subscriptions", localizedCopy("إنشاء وإدارة الاشتراكات ومتابعة التجديدات.", "Create subscriptions and track renewals.")],
-    ["reminders", localizedCopy("تنبيهات التجديد", "Renewal reminders"), "notifications", localizedCopy("إشعارات ذكية قبل الانتهاء وفي الموعد.", "Smart reminders before expiry.")],
-    ["campaigns", localizedCopy("الحملات", "Campaigns"), "campaigns", localizedCopy("حملات موجهة واتصال منظم بالعملاء.", "Targeted campaigns and customer outreach.")],
-    ["whatsapp", localizedCopy("واتساب Meta", "Meta WhatsApp"), "whatsapp", localizedCopy("تواصل رسمي عبر واجهة Meta Business.", "Official messaging through Meta Business.")],
-    ["mail", localizedCopy("البريد الإلكتروني", "Email"), "email", localizedCopy("قوالب بريد احترافية وتجربة إرسال مرنة.", "Professional templates and flexible delivery.")]
-  ];
-  const featureLeft = [
-    ["channels", localizedCopy("القنوات والربط", "Channels & connections"), "link", localizedCopy("اربط قنواتك وتطبيقاتك من مكان واحد.", "Connect channels and apps in one place.")],
-    ["analytics", localizedCopy("التقارير والتحليلات", "Reports & analytics"), "reports", localizedCopy("مؤشرات واضحة لقرارات أدق وأسرع.", "Clear metrics for faster decisions.")],
-    ["order-links", localizedCopy("روابط معلومات الطلب", "Order information links"), "orderLink", localizedCopy("روابط آمنة ومخصصة لكل طلب وعميل.", "Secure links for every order and customer.")],
-    ["customers", localizedCopy("إدارة العملاء", "Customer management"), "customers", localizedCopy("سجل موحد للعملاء والاشتراكات والنشاط.", "One record for customers and activity.")],
-    ["automation", localizedCopy("الأتمتة", "Automation"), "settings", localizedCopy("قواعد ذكية تقلل العمل اليدوي والتكرار.", "Smart rules that reduce manual work.")]
-  ];
-  const defaultOutcomes = [
-    ["customers", localizedCopy("العملاء", "Customers"), "customers", localizedCopy("تجميع بيانات العملاء في مكان واحد.", "Customer data in one place.")],
-    ["campaigns", localizedCopy("الحملات", "Campaigns"), "campaigns", localizedCopy("إرسال منظم حسب القناة والتوقيت.", "Organized delivery by channel and time.")],
-    ["alerts", localizedCopy("التنبيهات الذكية", "Smart alerts"), "notifications", localizedCopy("تنبيهات تلقائية للتجديدات المهمة.", "Automatic alerts for key renewals.")],
-    ["reports", localizedCopy("التقارير والتحليلات", "Reports & analytics"), "reports", localizedCopy("مؤشرات واضحة لاتخاذ قرارات أفضل.", "Clear metrics for better decisions.")],
-    ["links", localizedCopy("روابط معلومات الطلب", "Order information links"), "link", localizedCopy("روابط آمنة ومخصصة لكل طلب.", "Secure links personalized per order.")]
-  ];
-  const inbound = mode === "features" ? featureRight : connectedSources;
-  const outbound = mode === "features" ? featureLeft : defaultOutcomes;
-  const ys = [42, 146, 250, 354, 458];
-  const paths = ys.map((y, index) => {
-    const curve = index === 2 ? `M 367 ${y} C 388 ${y}, 401 250, 419 250` : `M 367 ${y} C 390 ${y}, 401 ${250 + (index - 2) * 10}, 419 250`;
-    const rightCurve = index === 2 ? `M 581 250 C 599 250, 612 ${y}, 633 ${y}` : `M 581 250 C 599 ${250 + (index - 2) * 10}, 610 ${y}, 633 ${y}`;
-    return `<g data-flow-line="${inbound[index][0]}"><path class="flow-base" d="${curve}"/><path class="flow-pulse flow-in" d="${curve}"/><circle class="flow-terminal flow-terminal-card" cx="367" cy="${y}" r="4.5"/><circle class="flow-terminal flow-terminal-center" cx="419" cy="250" r="3.5"/></g><g data-flow-line="${outbound[index][0]}"><path class="flow-base" d="${rightCurve}"/><path class="flow-pulse flow-out" d="${rightCurve}"/><circle class="flow-terminal flow-terminal-card" cx="633" cy="${y}" r="4.5"/><circle class="flow-terminal flow-terminal-center" cx="581" cy="250" r="3.5"/></g>`;
-  }).join("");
-  return `<div class="flow-network ${mode === "features" ? "flow-network-features" : ""}" data-motion-scene>
-    <svg class="flow-network-svg"${mode === "features" ? " data-flow-geometry" : ""} viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="flow-glow"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${paths}</svg>
-    <div class="flow-side flow-side-in">${inbound.map(([key, label, icon], index) => `<article class="flow-node" data-flow-node="${key}" style="--flow-delay:${index * .24}s"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${localizedCopy("مصدر متصل", "Connected source")}</small></div></article>`).join("")}</div>
-    <div class="flow-center" data-flow-center><i></i><i></i><div>${logo()}</div><small>${localizedCopy("منصة موحدة تتصل بكل ما تحتاجه", "One platform connected to everything")}</small></div>
-    <div class="flow-side flow-side-out">${outbound.map(([key, label, icon, body], index) => `<article class="flow-node" data-flow-node="${key}" style="--flow-delay:${(index + .5) * .24}s"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${body || localizedCopy("نتيجة مؤتمتة", "Automated outcome")}</small></div></article>`).join("")}</div>
-  </div>`;
-}
-
 function marketingHomeOperationsScene({ compact = false } = {}) {
   const connections = [
     ["renewals", "M263 76 C340 76 360 184 425 214", [263, 76], [425, 214]], ["automation", "M500 136 C500 142 500 146 500 150", [500, 136], [500, 150]], ["reminders", "M737 92 C660 92 640 184 575 214", [737, 92], [575, 214]],
@@ -2906,7 +2861,71 @@ function marketingMobileToolsAndCta() {
 }
 
 function marketingFeaturesPage() {
-  return publicShell(`<main class="marketing-v3 marketing-features-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("المميزات", "Features"), localizedCopy("كل ما تحتاجه لإدارة التجديدات والاشتراكات والعملاء بكفاءة واحترافية في منصة واحدة ذكية.", "Everything you need to manage renewals, subscriptions, and customers in one intelligent platform."))}${marketingFlowNetwork("features")}</div></section><section class="mobile-feature-cta"><div class="container"><div class="mobile-public-cta"><h2>${localizedCopy("جاهز لتنظيم اشتراكاتك وزيادة رضا عملائك؟", "Ready to organize subscriptions and delight customers?")}</h2><p>${localizedCopy("ابدأ اليوم مجانًا واكتشف الفرق بنفسك.", "Start free today and see the difference.")}</p><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن مجانًا", "Start free now")}${dashboardIcon("arrowLeft")}</button></div></div></section></main>`);
+  const coreFeatures = [
+    [localizedCopy("إدارة الاشتراكات", "Subscription management"), localizedCopy("إنشاء وإدارة الاشتراكات بخطوات سهلة ومرنة.", "Create and manage subscriptions with a simple, flexible workflow."), "subscriptions"],
+    [localizedCopy("تنبيهات التجديد", "Renewal alerts"), localizedCopy("تنبيهات ذكية قبل التجديد لتقليل الإلغاءات وفقدان العملاء.", "Smart pre-renewal alerts that reduce cancellations and customer loss."), "notifications"],
+    [localizedCopy("واتساب والبريد", "WhatsApp and email"), localizedCopy("تواصل تلقائي عبر واتساب والبريد لإشعار عملائك.", "Automated WhatsApp and email communication that keeps customers informed."), "email"],
+    [localizedCopy("التقارير والتحليلات", "Reports and analytics"), localizedCopy("تقارير تفصيلية ولوحات بيانات لاتخاذ قرارات مبنية على البيانات.", "Detailed reports and dashboards for confident, data-led decisions."), "barChart"],
+    [localizedCopy("روابط معلومات الطلب", "Order information links"), localizedCopy("مشاركة روابط آمنة لعرض حالة الطلب بكل احترافية.", "Share secure links that present order status professionally."), "orderLink"],
+    [localizedCopy("الأتمتة", "Automation"), localizedCopy("أتمتة المهام المتكررة وتوفير الوقت والجهد.", "Automate repetitive work to save time and effort."), "settings"]
+  ];
+  const advancedFeatures = [
+    ["customers", localizedCopy("إدارة العملاء", "Customer management"), localizedCopy("عرض جميع بيانات العملاء، الاشتراكات، وسجل التفاعل في مكان واحد.", "View customer data, subscriptions, and engagement history in one place."), "customers"],
+    ["campaigns", localizedCopy("الحملات", "Campaigns"), localizedCopy("متابعة معدلات التحويل بسهولة لزيادة التفاعل والاحتفاظ بالعملاء.", "Track conversion performance to improve engagement and retention."), "campaigns"],
+    ["channels", localizedCopy("القنوات والربط", "Channels and connections"), localizedCopy("ربط جميع قنوات التواصل المفضلة في منصة واحدة.", "Connect every preferred communication channel in one platform."), "link"],
+    ["dashboard", localizedCopy("لوحة تحكم ذكية", "Smart dashboard"), localizedCopy("نظرة شاملة على أهم مؤشرات أداء الاشتراكات والتنبيهات.", "A complete view of the metrics that matter across subscriptions and alerts."), "home"],
+    ["notifications", localizedCopy("سجل الإشعارات", "Notification log"), localizedCopy("عرض كامل لسجل الإشعارات وحالات الإرسال مع البحث والتصفية.", "A complete, searchable record of notifications and delivery status."), "notifications"],
+    ["api", localizedCopy("API مخصص", "Custom API"), localizedCopy("واجهة برمجة تطبيقات مرنة لربط أنظمتك وتوسيع إمكانيات التكامل.", "A flexible API for connecting your systems and extending integrations."), "code"]
+  ];
+  const advancedPreview = (key) => {
+    if (key === "customers") return `<div class="feature-mini feature-mini-table feature-mini-customers"><div class="feature-mini-row is-head"><span>${localizedCopy("العميل", "Customer")}</span><span>${localizedCopy("الباقة", "Plan")}</span><span>${localizedCopy("الحالة", "Status")}</span><span>${localizedCopy("التجديد", "Renewal")}</span></div>${[[localizedCopy("أحمد محمد", "Ahmed M."), localizedCopy("سنوي", "Annual"), localizedCopy("نشط", "Active"), "15/05/2026", "active"], [localizedCopy("سارة علي", "Sarah A."), localizedCopy("شهري", "Monthly"), localizedCopy("معلق", "Pending"), "18/05/2026", "pending"], [localizedCopy("محمد خالد", "Mohammed K."), localizedCopy("سنوي", "Annual"), localizedCopy("نشط", "Active"), "20/05/2026", "active"]].map(([name, plan, statusLabel, date, tone]) => `<div class="feature-mini-row"><span><i></i>${name}</span><span>${plan}</span><span><b class="feature-status is-${tone}">${statusLabel}</b></span><span>${date}</span></div>`).join("")}</div>`;
+    if (key === "campaigns") return `<div class="feature-mini feature-campaign-preview"><div><small>${localizedCopy("معدل التحويل", "Conversion rate")}</small><strong>68%</strong><span><i></i></span></div><svg viewBox="0 0 220 82" role="img" aria-label="${localizedCopy("رسم معدل التحويل", "Conversion rate chart")}"><path class="feature-chart-area" d="M4 68 L38 43 L70 56 L103 31 L132 52 L166 26 L216 8 L216 78 L4 78Z"/><path class="feature-chart-line" d="M4 68 L38 43 L70 56 L103 31 L132 52 L166 26 L216 8"/><circle cx="216" cy="8" r="4"/></svg></div>`;
+    if (key === "channels") return `<div class="feature-mini feature-channel-preview">${[["whatsapp", "WhatsApp"], ["email", "Email"], ["message", localizedCopy("المحادثات", "Chat")], ["code", "API"]].map(([icon, label]) => `<span>${dashboardIcon(icon)}<small>${label}</small><i aria-label="${localizedCopy("متصل", "Connected")}"></i></span>`).join("")}</div>`;
+    if (key === "dashboard") return `<div class="feature-mini feature-dashboard-preview">${[[localizedCopy("إجمالي الإيرادات", "Total revenue"), "128,540", "M4 28 L22 20 L38 23 L57 10 L76 15 L96 5"], [localizedCopy("الاشتراكات النشطة", "Active subscriptions"), "2,431", "M4 27 L22 25 L39 14 L57 20 L76 8 L96 11"], [localizedCopy("معدل التجديد", "Renewal rate"), "72%", "M4 29 L22 16 L39 22 L57 12 L76 18 L96 4"]].map(([label, value, path]) => `<section><small>${label}</small><strong>${value}</strong><svg viewBox="0 0 100 34" aria-hidden="true"><path d="${path}"/></svg></section>`).join("")}</div>`;
+    if (key === "notifications") return `<div class="feature-mini feature-mini-table feature-notification-preview"><div class="feature-mini-row is-head"><span>${localizedCopy("الرسالة", "Message")}</span><span>${localizedCopy("القناة", "Channel")}</span><span>${localizedCopy("الحالة", "Status")}</span><span>${localizedCopy("التاريخ", "Date")}</span></div>${[[localizedCopy("تم تجديد الاشتراك بنجاح", "Subscription renewed"), "whatsapp", localizedCopy("تم الإرسال", "Sent"), "2026-05-14"], [localizedCopy("تذكير بموعد التجديد", "Renewal reminder"), "email", localizedCopy("تم التسليم", "Delivered"), "2026-05-11"], [localizedCopy("تم تحديث عملية الدفع", "Payment updated"), "whatsapp", localizedCopy("تم الإرسال", "Sent"), "2026-05-06"]].map(([message, icon, statusLabel, date]) => `<div class="feature-mini-row"><span>${message}</span><span>${dashboardIcon(icon)}</span><span><b class="feature-status is-active">${statusLabel}</b></span><span>${date}</span></div>`).join("")}</div>`;
+    return `<div class="feature-mini feature-api-preview"><header><b>POST</b><code>/api/v1/subscriptions</code><span>200 OK</span></header><pre><code>{
+  "status": "success",
+  "data": { ... }
+}</code></pre></div>`;
+  };
+  const performanceMetrics = [
+    [localizedCopy("إجمالي الإيرادات", "Total revenue"), localizedCopy("128,540 ر.س", "SAR 128,540"), "+15%"],
+    [localizedCopy("الاشتراكات النشطة", "Active subscriptions"), "2,431", "+12%"],
+    [localizedCopy("معدل التجديد", "Renewal rate"), "72%", "+7%"],
+    [localizedCopy("إجمالي الاشتراكات", "Total subscriptions"), "24,328", "+11%"]
+  ];
+  return publicShell(`<main class="marketing-v3 marketing-features-v3 features-production">
+    <section class="features-production-main">
+      <div class="container">
+        <header class="features-production-intro" data-reveal>
+          <h1>${localizedCopy("المميزات", "Features")}</h1>
+          <p>${localizedCopy("يوفر لك Renvix كل ما تحتاجه لإدارة اشتراكاتك، والتجديدات، والتنبيهات، والتواصل مع عملائك من منصة واحدة ذكية وآمنة.", "Renvix gives you everything you need to manage subscriptions, renewals, alerts, and customer communication from one smart, secure platform.")}</p>
+        </header>
+        <div class="features-core-grid">${coreFeatures.map(([title, body, icon], index) => `<article class="features-core-card" data-reveal style="--feature-delay:${index * 50}ms"><span class="features-card-icon">${dashboardIcon(icon)}</span><h2>${title}</h2><i></i><p>${body}</p></article>`).join("")}</div>
+        <section class="features-advanced-section">
+          <header class="features-section-title" data-reveal><h2>${localizedCopy("مميزات متقدمة تدعم عملك", "Advanced features that support your business")}</h2></header>
+          <div class="features-advanced-grid">${advancedFeatures.map(([key, title, body, icon], index) => `<article class="features-advanced-card feature-${key}" data-reveal style="--feature-delay:${index * 50}ms"><header><span>${dashboardIcon(icon)}</span><div><h3>${title}</h3><p>${body}</p></div></header>${advancedPreview(key)}</article>`).join("")}</div>
+        </section>
+        <section class="features-performance-section">
+          <header class="features-section-title" data-reveal><h2>${localizedCopy("رؤية واضحة لأداء أعمالك", "A clear view of business performance")}</h2></header>
+          <div class="features-performance-grid">
+            <div class="features-performance-dashboard" data-reveal>
+              <div class="features-performance-metrics">${performanceMetrics.map(([label, value, change]) => `<section><small>${label}</small><strong>${value}</strong><em>${change}</em></section>`).join("")}</div>
+              <div class="features-performance-charts">
+                <section class="features-performance-line"><header><strong>${localizedCopy("الإيرادات خلال آخر 30 يومًا", "Revenue over the last 30 days")}</strong></header><div><i></i><i></i><i></i><svg viewBox="0 0 500 155" role="img" aria-label="${localizedCopy("تطور الإيرادات", "Revenue trend")}"><path class="feature-chart-area" d="M8 132 C42 117 62 95 91 108 S142 91 169 71 S218 108 247 82 S297 47 330 68 S382 73 415 42 S458 45 490 18 L490 150 L8 150Z"/><path class="feature-chart-line" d="M8 132 C42 117 62 95 91 108 S142 91 169 71 S218 108 247 82 S297 47 330 68 S382 73 415 42 S458 45 490 18"/><circle cx="490" cy="18" r="4"/></svg></div></section>
+                <section class="features-performance-donut"><header><strong>${localizedCopy("توزيع الاشتراكات", "Subscription mix")}</strong></header><div><span><b>56%</b></span><ul><li><i></i>${localizedCopy("سنوي", "Annual")}<b>56%</b></li><li><i></i>${localizedCopy("شهري", "Monthly")}<b>28%</b></li><li><i></i>${localizedCopy("باقات مميزة", "Premium")}<b>16%</b></li></ul></div></section>
+              </div>
+            </div>
+            <aside class="features-performance-benefits" data-reveal>
+              <p>${dashboardIcon("check")}<span>${localizedCopy("بيانات لحظية تساعدك على اتخاذ قرارات ذكية وسريعة.", "Real-time data for faster, smarter decisions.")}</span></p>
+              <p>${dashboardIcon("check")}<span>${localizedCopy("تقارير تفصيلية قابلة للتخصيص حسب احتياجاتك.", "Detailed reports tailored to your needs.")}</span></p>
+              <p>${dashboardIcon("check")}<span>${localizedCopy("لوحات ذكية للتفاصيل التي تحتاج لمعرفتها.", "Smart dashboards for every detail you need to know.")}</span></p>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>`);
 }
 
 function pricingComparisonSection() {
