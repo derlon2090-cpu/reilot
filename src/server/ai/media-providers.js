@@ -64,6 +64,16 @@ function providerError(code, message, status = 502, cause) {
   return Object.assign(new Error(message, cause ? { cause } : undefined), { code, status });
 }
 
+const TRANSIENT_PROVIDER_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+function isExplicitTransientProviderError(error) {
+  return TRANSIENT_PROVIDER_STATUSES.has(Number(error?.status || error?.response?.status || 0));
+}
+
+function retryDelay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function jsonSchema(schema) {
   const result = z.toJSONSchema(schema);
   delete result.$schema;
@@ -146,11 +156,12 @@ export class SpeechQualityEvaluator {
 }
 
 export class GeminiVisionProvider {
-  constructor({ apiKey = process.env.GEMINI_API_KEY, model = MEDIA_PROVIDER_CONFIG.geminiModel, client } = {}) {
+  constructor({ apiKey = process.env.GEMINI_API_KEY, model = MEDIA_PROVIDER_CONFIG.geminiModel, client, retryDelay: wait = retryDelay } = {}) {
     this.apiKey = String(apiKey || "").trim();
     this.model = String(model || MEDIA_PROVIDER_CONFIG.geminiModel).trim();
     this.providerName = "gemini";
     this.client = client || (this.apiKey ? new GoogleGenAI({ apiKey: this.apiKey }) : null);
+    this.retryDelay = wait;
   }
 
   get available() { return Boolean(this.client && this.model); }
@@ -182,7 +193,9 @@ export class GeminiVisionProvider {
       }
     };
     let lastError;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    let schemaRetries = 0;
+    let transientRetries = 0;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
         const response = await this.client.models.generateContent(request);
         const parsed = VisionResultSchema.parse(parseJsonText(response.text));
@@ -197,7 +210,16 @@ export class GeminiVisionProvider {
       } catch (error) {
         lastError = error;
         const schemaFailure = error instanceof z.ZodError || error instanceof SyntaxError;
-        if (!schemaFailure || attempt === 1) break;
+        if (schemaFailure && schemaRetries < 1) {
+          schemaRetries += 1;
+          continue;
+        }
+        if (isExplicitTransientProviderError(error) && transientRetries < 2) {
+          await this.retryDelay(250 * (2 ** transientRetries));
+          transientRetries += 1;
+          continue;
+        }
+        break;
       }
     }
     throw providerError("VISION_PROCESSING_FAILED", "تعذر تحليل الصورة بصيغة موثوقة.", 502, lastError);
@@ -257,11 +279,12 @@ export class DeepgramSpeechProvider {
 }
 
 export class GeminiAudioFallbackProvider {
-  constructor({ apiKey = process.env.GEMINI_API_KEY, model = MEDIA_PROVIDER_CONFIG.geminiModel, client } = {}) {
+  constructor({ apiKey = process.env.GEMINI_API_KEY, model = MEDIA_PROVIDER_CONFIG.geminiModel, client, retryDelay: wait = retryDelay } = {}) {
     this.apiKey = String(apiKey || "").trim();
     this.model = String(model || MEDIA_PROVIDER_CONFIG.geminiModel).trim();
     this.providerName = "gemini";
     this.client = client || (this.apiKey ? new GoogleGenAI({ apiKey: this.apiKey }) : null);
+    this.retryDelay = wait;
   }
 
   get available() { return Boolean(this.client && this.model); }
@@ -279,32 +302,38 @@ export class GeminiAudioFallbackProvider {
   async transcribe({ bytes, mimeType, requiredTerms = [] }) {
     if (!this.available) throw providerError("AUDIO_FALLBACK_NOT_CONFIGURED", "المعالجة الاحتياطية للصوت غير مهيأة.", 503);
     const terms = deepgramKeyterms(requiredTerms).join(", ");
-    try {
-      const response = await this.client.models.generateContent({
-        model: this.model,
-        contents: [{ role: "user", parts: [
-          { text: `اكتب النص المنطوق حرفيًا دون تلخيص أو تصحيح للمعنى. حافظ على المزج العربي والإنجليزي وعلى أسماء المنتجات كما نُطقت. مصطلحات مرجعية محتملة وليست نصًا مفروضًا: ${terms}` },
-          { inlineData: { data: Buffer.from(bytes).toString("base64"), mimeType } }
-        ] }],
-        config: {
-          maxOutputTokens: 2_000, thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: "application/json", responseJsonSchema: jsonSchema(TranscriptResultSchema)
-        }
-      });
-      const parsed = TranscriptResultSchema.parse(parseJsonText(response.text));
-      return {
-        text: parsed.transcript,
-        language: parsed.language,
-        confidence: parsed.confidence,
-        preservedTerms: parsed.preservedTerms,
-        segments: [],
-        usage: normalizeGeminiUsage(response.usageMetadata),
-        providerRequestId: String(response.responseId || ""),
-        model: String(response.modelVersion || this.model),
-        usageConfirmed: Boolean(response.usageMetadata)
-      };
-    } catch (error) {
-      throw providerError("AUDIO_FALLBACK_FAILED", "تعذر استخراج نص موثوق من الرسالة الصوتية.", 502, error);
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await this.client.models.generateContent({
+          model: this.model,
+          contents: [{ role: "user", parts: [
+            { text: `اكتب النص المنطوق حرفيًا دون تلخيص أو تصحيح للمعنى. حافظ على المزج العربي والإنجليزي وعلى أسماء المنتجات كما نُطقت. مصطلحات مرجعية محتملة وليست نصًا مفروضًا: ${terms}` },
+            { inlineData: { data: Buffer.from(bytes).toString("base64"), mimeType } }
+          ] }],
+          config: {
+            maxOutputTokens: 2_000, thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            responseMimeType: "application/json", responseJsonSchema: jsonSchema(TranscriptResultSchema)
+          }
+        });
+        const parsed = TranscriptResultSchema.parse(parseJsonText(response.text));
+        return {
+          text: parsed.transcript,
+          language: parsed.language,
+          confidence: parsed.confidence,
+          preservedTerms: parsed.preservedTerms,
+          segments: [],
+          usage: normalizeGeminiUsage(response.usageMetadata),
+          providerRequestId: String(response.responseId || ""),
+          model: String(response.modelVersion || this.model),
+          usageConfirmed: Boolean(response.usageMetadata)
+        };
+      } catch (error) {
+        lastError = error;
+        if (!isExplicitTransientProviderError(error) || attempt === 2) break;
+        await this.retryDelay(250 * (2 ** attempt));
+      }
     }
+    throw providerError("AUDIO_FALLBACK_FAILED", "تعذر استخراج نص موثوق من الرسالة الصوتية.", 502, lastError);
   }
 }

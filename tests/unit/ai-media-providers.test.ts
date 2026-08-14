@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   DeepgramSpeechProvider,
+  GeminiAudioFallbackProvider,
   GeminiVisionProvider,
   SpeechQualityEvaluator,
   VisionResultSchema,
@@ -48,6 +49,46 @@ describe("production media provider contracts", () => {
     expect(VisionResultSchema.safeParse({ type: "photo", summary: "ok", confidence: 1, injected: true }).success).toBe(false);
     expect(selectGeminiMediaResolution(png(800, 600), "image/png")).toContain("MEDIUM");
     expect(selectGeminiMediaResolution(png(2600, 1800), "image/png")).toContain("HIGH");
+  });
+
+  it("retries only explicit transient Gemini failures", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const generateContent = vi.fn()
+      .mockRejectedValueOnce({ status: 503 })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          transcript: "تأكد إذا WhatsApp API connected أو لا",
+          language: "mixed",
+          preservedTerms: ["WhatsApp", "API", "connected"],
+          confidence: 0.91
+        }),
+        usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30, totalTokenCount: 150 },
+        responseId: "gemini-audio-2"
+      });
+    const provider = new GeminiAudioFallbackProvider({
+      client: { models: { generateContent } }, retryDelay: wait
+    });
+
+    const response = await provider.transcribe({
+      bytes: Buffer.from("audio"), mimeType: "audio/wav", requiredTerms: ["WhatsApp", "API"]
+    });
+
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(response).toMatchObject({ language: "mixed", usageConfirmed: true, providerRequestId: "gemini-audio-2" });
+  });
+
+  it("does not retry a non-transient Gemini client error", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const generateContent = vi.fn().mockRejectedValue({ status: 400 });
+    const provider = new GeminiAudioFallbackProvider({
+      client: { models: { generateContent } }, retryDelay: wait
+    });
+
+    await expect(provider.transcribe({ bytes: Buffer.from("audio"), mimeType: "audio/wav" }))
+      .rejects.toMatchObject({ code: "AUDIO_FALLBACK_FAILED" });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(wait).not.toHaveBeenCalled();
   });
 
   it("uses Nova-3 Arabic locale, smart formatting, keyterm, and provider duration", async () => {
