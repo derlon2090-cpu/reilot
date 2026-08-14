@@ -85,6 +85,20 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("/process");
   });
 
+  it("allows same-origin microphone capture and prevents duplicate message submission", async () => {
+    const [source, nextConfig] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("next.config.mjs", "utf8")
+    ]);
+    expect(nextConfig).toContain('microphone=(self)');
+    expect(nextConfig).not.toContain('microphone=()');
+    expect(source).toContain('form.dataset.aiSubmitting === "true"');
+    expect(source).toContain('form.dataset.aiSubmitting = "true"');
+    expect(source).toContain('delete form.dataset.aiSubmitting');
+    expect(source).toContain('form.elements.prompt.value = ""');
+    expect(source).toContain('form?.dataset.aiMicrophoneStarting === "true"');
+  });
+
   it("exposes professional media privacy settings", async () => {
     const source = await readFile("src/app/app.js", "utf8");
     expect(source).toContain('name="imageAnalysisEnabled"');
