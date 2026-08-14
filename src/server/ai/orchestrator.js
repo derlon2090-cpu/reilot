@@ -15,6 +15,7 @@ import {
 } from "./conversations.js";
 import { linkAttachmentsToMessage, resolveMessageAttachments } from "../attachments/service.js";
 import { redactAISecrets, sanitizeAIContext } from "./privacy.js";
+import { getAIChatStorage } from "./storage.js";
 
 const SYSTEM_PROMPT = `أنت ذكاء Renvix الشامل، محلل حساب داخل منصة إدارة الاشتراكات والتجديدات.
 استخدم أدوات Renvix للحصول على أي رقم أو حالة تخص حساب المستخدم، ولا تخترع بيانات.
@@ -205,7 +206,14 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
       let executions = [];
       let prefetchedContent = "";
       try {
-        emit("ready", { conversation: { id: conversation.id, title: conversation.title }, messageId: assistantMessage.id, userMessage });
+        emit("ready", {
+          conversation: { id: conversation.id, title: conversation.title },
+          messageId: assistantMessage.id,
+          userMessage,
+          usage: reservation.usage
+        });
+        const acceptedStorage = await getAIChatStorage(session, { keepConversationId: conversation.id }).catch(() => null);
+        if (acceptedStorage) emit("storage", { phase: "accepted", storage: acceptedStorage });
         const snapshot = preferences.accountContextEnabled && route.useTools
           ? await getAccountIntelligence(session.tenantId)
           : null;
@@ -350,8 +358,12 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
           outputTokens: usage.completion_tokens || 0, toolCalls: executions.length, latencyMs: Date.now() - startedAt,
           error: status === "failed"
         }).catch(() => {});
-        const updatedUsage = await getAIUsageSummary(session).catch(() => null);
+        const [updatedUsage, updatedStorage] = await Promise.all([
+          getAIUsageSummary(session).catch(() => null),
+          getAIChatStorage(session, { keepConversationId: conversation.id }).catch(() => null)
+        ]);
         if (updatedUsage) emit("usage", updatedUsage);
+        if (updatedStorage) emit("storage", { phase: "settled", storage: updatedStorage });
         emit("done", { status, conversationId: conversation.id, messageId: assistantMessage.id });
         controller.close();
       }

@@ -850,6 +850,8 @@ state.supportSearch = "";
 state.aiOverview = null;
 state.aiUsage = null;
 state.aiChatStorage = null;
+state.aiLiveMeter = null;
+state.aiLiveMeterRefreshTimer = 0;
 state.aiPreferences = storage.get("renvix.ai.preferences", null);
 state.aiConversations = null;
 state.aiConversation = null;
@@ -10405,7 +10407,7 @@ function aiMessageListIsNearBottom(list, threshold = 110) {
   return list.scrollHeight - list.scrollTop - list.clientHeight <= threshold;
 }
 
-function queueAIMessageScroll({ force = false } = {}) {
+function queueAIMessageScroll({ force = false, immediate = false } = {}) {
   const list = document.querySelector("[data-ai-message-list]");
   if (!list || (!force && !state.aiAutoScroll)) return;
   state.aiScrollForce = state.aiScrollForce || force;
@@ -10419,7 +10421,14 @@ function queueAIMessageScroll({ force = false } = {}) {
       return;
     }
     state.aiProgrammaticScroll = true;
-    current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight);
+    const target = Math.max(0, current.scrollHeight - current.clientHeight);
+    const distance = target - current.scrollTop;
+    if (immediate || Math.abs(distance) <= 2) current.scrollTop = target;
+    else {
+      const maxStep = state.aiStreaming ? 42 : 72;
+      const step = Math.min(maxStep, Math.max(10, Math.abs(distance) * 0.24));
+      current.scrollTop += Math.sign(distance) * Math.min(Math.abs(distance), step);
+    }
     state.aiScrollFrame = 0;
     state.aiScrollForce = false;
     requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
@@ -10592,6 +10601,84 @@ function refreshAIToolProgress(event) {
   const root = document.querySelector("[data-ai-tool-progress]");
   if (!root) return;
   root.innerHTML = state.aiToolProgress.slice(-3).map((item) => `<span class="${item.status}">${item.status === "completed" ? dashboardIcon("success") : item.status === "failed" ? dashboardIcon("warning") : `<i></i>`}${escapeHtml(item.status === "completed" ? `تم ${item.label}` : item.status === "failed" ? `تعذر ${item.label}` : `جارٍ ${item.label}...`)}</span>`).join("");
+}
+
+function aiUTF8Bytes(value = "") {
+  return new TextEncoder().encode(String(value || "")).byteLength;
+}
+
+function scheduleAILiveMeterRefresh({ immediate = false } = {}) {
+  if (immediate) {
+    if (state.aiLiveMeterRefreshTimer) window.clearTimeout(state.aiLiveMeterRefreshTimer);
+    state.aiLiveMeterRefreshTimer = 0;
+    refreshAIUsageCards();
+    return;
+  }
+  if (state.aiLiveMeterRefreshTimer) return;
+  state.aiLiveMeterRefreshTimer = window.setTimeout(() => {
+    state.aiLiveMeterRefreshTimer = 0;
+    refreshAIUsageCards();
+  }, 120);
+}
+
+function beginAILiveMeter(prompt, attachments = []) {
+  const promptText = String(prompt || "");
+  state.aiLiveMeter = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    estimatedTokens: Math.max(1, Math.ceil(promptText.length / 4)),
+    pendingStorageBytes: aiUTF8Bytes(promptText) + attachments.reduce((sum, item) => sum + Number(item?.size || 0), 0),
+    reservedTokens: 0,
+    tokensAuthoritative: false,
+    tokensSettled: false,
+    storageSettled: false
+  };
+  scheduleAILiveMeterRefresh({ immediate: true });
+  return state.aiLiveMeter;
+}
+
+function advanceAILiveMeter(value = "") {
+  const live = state.aiLiveMeter;
+  const text = String(value || "");
+  if (!live || !text) return;
+  if (!live.tokensAuthoritative) live.estimatedTokens += Math.max(1, Math.ceil(text.length / 4));
+  if (!live.storageSettled) live.pendingStorageBytes += aiUTF8Bytes(text);
+  scheduleAILiveMeterRefresh();
+}
+
+function confirmAILiveAttachmentStorage(bytes = 0) {
+  const live = state.aiLiveMeter;
+  if (!live || live.storageSettled) return;
+  live.pendingStorageBytes = Math.max(0, live.pendingStorageBytes - Math.max(0, Number(bytes || 0)));
+}
+
+function applyAIAuthoritativeUsage(usage, { settled = false } = {}) {
+  if (!usage) return;
+  state.aiUsage = usage;
+  if (state.aiLiveMeter) {
+    state.aiLiveMeter.tokensAuthoritative = true;
+    state.aiLiveMeter.tokensSettled = settled;
+    state.aiLiveMeter.reservedTokens = settled ? 0 : Number(usage.reservedTokens || 0);
+  }
+  scheduleAILiveMeterRefresh({ immediate: true });
+}
+
+function applyAIAuthoritativeStorage(payload = {}) {
+  const storage = payload.storage || payload;
+  if (!storage || typeof storage !== "object") return;
+  state.aiChatStorage = storage;
+  if (state.aiLiveMeter) {
+    state.aiLiveMeter.pendingStorageBytes = 0;
+    state.aiLiveMeter.storageSettled = payload.phase === "settled";
+  }
+  scheduleAILiveMeterRefresh({ immediate: true });
+}
+
+function reconcileAILiveMeter(meter) {
+  return refreshAIStateSilently().finally(() => {
+    if (state.aiLiveMeter?.id !== meter?.id) return;
+    state.aiLiveMeter = null;
+    scheduleAILiveMeterRefresh({ immediate: true });
+  });
 }
 
 async function readAIEventStream(response, onEvent, signal) {
@@ -10796,6 +10883,7 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
           ...(state.aiChatStorage || {}),
           totalBytes: Number(state.aiChatStorage?.totalBytes || 0) + Number(attachment.size || item.size || 0)
         };
+        confirmAILiveAttachmentStorage(attachment.size || item.size || 0);
         refreshAIUsageCards();
       } catch (error) {
         error.uploadedAttachments = [...results, attachment].filter((entry) => entry?.id);
@@ -10912,6 +11000,7 @@ async function handleAIMessageSubmit(form) {
   state.aiAutoScroll = true;
   state.aiToolProgress = [];
   state.aiDraft = "";
+  const liveMeter = beginAILiveMeter(prompt, attachmentDrafts);
   if (form.elements.prompt) {
     form.elements.prompt.value = "";
     form.elements.prompt.style.height = "auto";
@@ -10977,6 +11066,7 @@ async function handleAIMessageSubmit(form) {
         state.aiConversationId = payload.conversation?.id || state.aiConversationId;
         conversationTitle = payload.conversation?.title || conversationTitle;
         readyUserMessage = payload.userMessage || null;
+        if (payload.usage) applyAIAuthoritativeUsage(payload.usage);
         const url = new URL(location.href); url.searchParams.set("conversation", state.aiConversationId); history.replaceState({}, "", url);
       } else if (type === "tool") refreshAIToolProgress(payload);
       else if (type === "meta" && blockNode) {
@@ -10985,6 +11075,7 @@ async function handleAIMessageSubmit(form) {
         if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
         queueAIMessageScroll();
       } else if (type === "token" && textNode && !state.aiStopRequested) {
+        advanceAILiveMeter(payload.value || "");
         streamWriter?.append(payload.value || "");
       } else if (type === "error" && textNode) {
         assistantStatus = "failed";
@@ -10994,8 +11085,9 @@ async function handleAIMessageSubmit(form) {
         assistantStatus = "interrupted";
         streamWriter?.append(`\n\n${payload.message || "تم إيقاف إنشاء الرد."}`);
       } else if (type === "usage") {
-        state.aiUsage = payload;
-        refreshAIUsageCards();
+        applyAIAuthoritativeUsage(payload, { settled: true });
+      } else if (type === "storage") {
+        applyAIAuthoritativeStorage(payload);
       }
     }, controller.signal);
   } catch (error) {
@@ -11039,9 +11131,9 @@ async function handleAIMessageSubmit(form) {
       const currentItem = { id: state.aiConversationId, title: conversationTitle, status: "active", isPinned: false, lastMessageAt: new Date().toISOString(), lastMessage: assistantMessage.content };
       state.aiConversations = [currentItem, ...(state.aiConversations || []).filter((item) => item.id !== state.aiConversationId)];
       queueAIMessageScroll();
-      void refreshAIStateSilently().then(refreshAIConversationSidebar);
+      void reconcileAILiveMeter(liveMeter).then(refreshAIConversationSidebar);
     } else if (!messageAccepted) {
-      void discardAIAttachments(state.aiConversationId, uploadedAttachments).finally(() => refreshAIStateSilently());
+      void discardAIAttachments(state.aiConversationId, uploadedAttachments).finally(() => reconcileAILiveMeter(liveMeter));
     }
   }
 }
@@ -12838,17 +12930,24 @@ function aiUsageCard() {
   const english = state.language === "en";
   const usage = state.aiUsage || {};
   const chatStorage = state.aiChatStorage || {};
-  const percent = Math.min(100, Number(usage.percent || 0));
+  const live = state.aiLiveMeter;
+  const provisionalTokens = live && !live.tokensAuthoritative ? Math.max(0, Number(live.estimatedTokens || 0)) : 0;
+  const provisionalStorageBytes = live && !live.storageSettled ? Math.max(0, Number(live.pendingStorageBytes || 0)) : 0;
+  const allowanceTokens = Number(usage.allowanceTokens || usage.limitTokens || 0);
+  const remainingTokens = Math.max(0, Number(usage.remainingTokens || 0) - provisionalTokens);
+  const percent = allowanceTokens
+    ? Math.min(100, Math.round(((allowanceTokens - remainingTokens) / allowanceTokens) * 1000) / 10)
+    : Math.min(100, Number(usage.percent || 0));
   const limit = formatAITokens(usage.allowanceTokens || usage.limitTokens || 0);
-  const remaining = formatAITokens(usage.remainingTokens || 0);
-  const warningLevel = ["notice","warning","critical","exhausted"].includes(usage.warningLevel) ? usage.warningLevel : "normal";
+  const remaining = formatAITokens(remainingTokens);
+  const warningLevel = percent >= 100 ? "exhausted" : percent >= 95 ? "critical" : percent >= 85 ? "warning" : percent >= 70 ? "notice" : "normal";
   let refillText;
   if (usage.nextRefillAt) {
     refillText = percent >= 100
       ? (english
         ? `AI allowance exhausted. It refills on ${new Date(usage.nextRefillAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`
         : `استهلكت رصيد الذكاء المتاح لهذه الدورة. سيتجدد في ${new Date(usage.nextRefillAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" })}.`)
-      : Number(usage.remainingTokens || 0) >= Number(usage.allowanceTokens || usage.limitTokens || 0)
+      : remainingTokens >= Number(usage.allowanceTokens || usage.limitTokens || 0)
         ? (english ? `The next usage cycle starts in ${formatAIRefillTime(usage.nextRefillAt, true)}.` : `تبدأ دورة الاستخدام التالية بعد ${formatAIRefillTime(usage.nextRefillAt)}.`)
         : (english ? `Refills to ${limit} in ${formatAIRefillTime(usage.nextRefillAt, true)}.` : `يتجدد إلى ${limit} خلال ${formatAIRefillTime(usage.nextRefillAt)}.`);
   } else if (usage.maxCycles === 1) {
@@ -12861,7 +12960,14 @@ function aiUsageCard() {
     : warningLevel === "critical"
       ? (english ? "Your AI allowance is nearly exhausted." : "رصيد الذكاء أوشك على النفاد.")
       : "";
-  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(chatStorage.totalBytes || 0)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
+  const liveText = live && (!live.tokensSettled || !live.storageSettled)
+    ? (live.tokensSettled
+      ? (english ? "Finalizing chat storage now" : "جارٍ تثبيت مساحة المحادثة الآن")
+      : live.tokensAuthoritative
+        ? (english ? `${formatAITokens(live.reservedTokens)} tokens reserved while responding` : `محجوز ${formatAITokens(live.reservedTokens)} توكن أثناء الرد`)
+        : (english ? `Updating now: ${formatAITokens(provisionalTokens)} estimated tokens` : `يُحدّث الآن: ${formatAITokens(provisionalTokens)} توكن تقديري`))
+    : "";
+  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div>${liveText ? `<p class="rvx-ai-live-meter"><i></i>${escapeHtml(liveText)}</p>` : ""}<div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(Number(chatStorage.totalBytes || 0) + provisionalStorageBytes)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
 }
 
 function refreshAIUsageCards() {
