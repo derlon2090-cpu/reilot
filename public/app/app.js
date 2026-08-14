@@ -10762,11 +10762,13 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
         let completed;
         if (item.size <= 4 * 1024 * 1024) {
           const relayed = await fetch(`/backend/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/upload`, {
-            method: "PUT", headers: { "Content-Type": item.type }, body: item.file, signal
+            method: "PUT", headers: { "Content-Type": item.type, "X-Renvix-Upload-Url": prepared.upload.url }, body: item.file, signal
           });
-          if (relayed.ok) completed = await relayed.json();
-          else if (![404, 405].includes(relayed.status)) {
-            const payload = await relayed.json().catch(() => ({}));
+          const payload = await relayed.json().catch(() => null);
+          if (relayed.ok && payload?.ok && payload.attachment) completed = payload;
+          else if (relayed.ok && payload?.ok && payload.uploaded) {
+            completed = await fetchJson(`/backend/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/complete`, { method: "POST", signal });
+          } else if (payload) {
             const error = new Error(payload.message || "تعذر رفع المرفق إلى التخزين الخاص.");
             error.code = payload.code;
             throw error;

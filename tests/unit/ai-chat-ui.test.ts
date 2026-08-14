@@ -82,6 +82,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(uploadRoute).toContain("createAttachmentUpload");
     expect(uploadRoute).not.toContain('access: "public"');
     expect(source).toContain("prepared.upload.url");
+    expect(source).toContain('"X-Renvix-Upload-Url": prepared.upload.url');
     expect(source).toContain('/upload`');
     expect(source).toContain("/complete");
     expect(source).toContain("/process");

@@ -7,7 +7,7 @@ function normalizedOrigin(value) {
   try { return new URL(String(value || "").trim()).origin; } catch { return ""; }
 }
 
-function trustedFrontendRequest(request) {
+export function trustedFrontendRequest(request) {
   if (request.headers.get("sec-fetch-site") === "cross-site") return false;
   const origin = request.headers.get("origin");
   if (!origin) return true;
@@ -23,7 +23,7 @@ function trustedFrontendRequest(request) {
   return trustedOrigins.has(browserOrigin);
 }
 
-function backendOrigin() {
+export function backendOrigin() {
   const value = normalizedOrigin(process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_PUBLIC_URL || "https://api.renvix.app");
   if (!value || (process.env.NODE_ENV === "production" && !value.startsWith("https://"))) {
     throw new Error("AI backend origin is not configured securely.");
