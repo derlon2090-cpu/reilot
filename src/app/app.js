@@ -759,6 +759,14 @@ function cacheDashboardProfile(profile) {
   }
 }
 
+function cacheAuthenticatedUserProfile(user) {
+  if (!user?.name?.trim()) return;
+  cacheDashboardProfile({
+    name: user.name,
+    image: typeof user.image === "string" ? user.image : ""
+  });
+}
+
 function clearCachedDashboardProfile() {
   state.cachedDashboardProfile = null;
   state.aiUsage = null;
@@ -939,6 +947,9 @@ state.aiAutoScroll = true;
 state.aiScrollFrame = 0;
 state.aiProgrammaticScroll = false;
 state.aiScrollForce = false;
+state.aiLastScrollTop = 0;
+state.aiStreamResizeObserver = null;
+state.aiStreamObservedNode = null;
 state.aiConversationActionBusy = "";
 state.aiStorageSummarySchedule = null;
 state.sallaProductMappings = null;
@@ -1411,10 +1422,7 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       state.publicPlans = payload;
       cachePublicPlans(payload);
     } else if (target === "dashboardSessionProfile") {
-      const user = payload.user || {};
-      if (typeof user.name === "string" && user.name.trim()) {
-        cacheDashboardProfile({ name: user.name, email: user.email || "", image: "" });
-      }
+      cacheAuthenticatedUserProfile(payload.user);
     } else if (target === "supportTicket") {
       state.supportTicket = payload.item || null;
     } else if (target === "aiConversations") {
@@ -1518,15 +1526,20 @@ function syncRouteData(force = false) {
   const batchesInitialRender = isDashboardHome;
   const pending = [];
   const queue = (key, url, target, options) => {
-    const request = loadRemotePage(key, url, target, options, { renderOnComplete: !batchesInitialRender && !isAIPage });
+    const refreshesDashboardProfile = target === "dashboardSessionProfile";
+    const request = loadRemotePage(key, url, target, options, { renderOnComplete: !batchesInitialRender && !isAIPage && !refreshesDashboardProfile });
     if (batchesInitialRender && request) pending.push(request);
+    if (refreshesDashboardProfile && request) {
+      void request.then(() => {
+        if (state.route === routeAtStart) refreshDashboardProfileChrome();
+      });
+    }
     if (isAIPage && request) {
       void request.then(() => {
         if (state.route !== routeAtStart) return;
         if (["aiUsage", "aiStorageSummary"].includes(target)) refreshAIUsageCards();
         else if (target === "aiConversations") refreshAIConversationSidebar();
         else if (target === "aiConversation") refreshAIConversationWorkspace();
-        else if (target === "dashboardSessionProfile") refreshDashboardProfileChrome();
       });
     }
   };
@@ -1542,6 +1555,9 @@ function syncRouteData(force = false) {
     queue("publicNewsletter", `/api/public/newsletter/${encodeURIComponent(newsletterPublicId)}`, "publicNewsletter");
   }
 
+  if (state.route.startsWith("/dashboard") && (force || !state.cachedDashboardProfile?.name)) {
+    queue("dashboardSessionProfile", "/api/auth/session", "dashboardSessionProfile", { timeoutMs: 4_000 });
+  }
   const shouldLoadDashboardChromeData = state.route.startsWith("/dashboard") && !isAIPage;
   if (shouldLoadDashboardChromeData && (force || state.dashboardOverview === null)) queue("overview", "/api/dashboard/overview", "dashboardOverview");
   if (shouldLoadDashboardChromeData && (force || state.messageUsage === null)) queue("messageUsage", "/api/billing/message-usage", "messageUsage");
@@ -1623,9 +1639,6 @@ function syncRouteData(force = false) {
     if (state.route === "/dashboard/support/ai") {
       const requestedConversation = state.query.get("conversation") || state.aiConversationId;
       const aiReadOptions = { timeoutMs: 6_000, timeoutMessage: "استغرق تحميل بيانات الذكاء وقتًا أطول من المتوقع." };
-      if (force || !state.cachedDashboardProfile?.name) {
-        queue("dashboardSessionProfile", "/api/auth/session", "dashboardSessionProfile", { timeoutMs: 4_000 });
-      }
       if (force || state.aiOverview === null) queue("aiUsage", "/backend/ai/usage", "aiUsage", aiReadOptions);
       if (force || (!state.aiConversationsRetrying && !state.aiConversationsError && (state.aiConversations === null || state.aiConversationsRevalidationPending))) {
         state.aiConversationsRevalidationPending = false;
@@ -1682,7 +1695,10 @@ async function browserSessionIsValid() {
     const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "include" });
     const payload = await response.json().catch(() => null);
     const valid = response.ok && payload?.ok === true && Boolean(payload.user?.id);
-    if (valid) state.mustChangePassword = Boolean(payload.user?.mustChangePassword);
+    if (valid) {
+      state.mustChangePassword = Boolean(payload.user?.mustChangePassword);
+      cacheAuthenticatedUserProfile(payload.user);
+    }
     return valid;
   } catch {
     return false;
@@ -1753,8 +1769,8 @@ async function navigate(to, { sessionVerified = false } = {}) {
   if (state.route === "/dashboard/channels") void syncLinkedDevice();
 }
 
-async function enterDashboardAfterSessionVerification() {
-  if (!await browserSessionIsValid()) return false;
+async function enterDashboardAfterSessionVerification({ sessionVerified = false } = {}) {
+  if (!sessionVerified && !await browserSessionIsValid()) return false;
   const destination = state.mustChangePassword ? "/dashboard/settings" : safeAuthReturnTo(state.query.get("returnTo"));
   if (leaveAuthPortal(destination)) return true;
   history.pushState({}, "", destination);
@@ -10746,16 +10762,17 @@ async function handleGoogleAuthResult(event) {
     requestAnimationFrame(() => document.querySelector('[data-otp-digit="0"]')?.focus());
     return appToast.info(localizedCopy("أرسلنا رمز التحقق إلى بريدك", "We sent a verification code to your email"), { id: "google-email-otp-required" });
   }
+  clearCachedDashboardProfile();
+  cacheAuthenticatedUserProfile(payload.user);
   if (!await browserSessionIsValid()) {
     return appToast.error(localizedCopy("تعذر تثبيت جلسة الدخول", "Could not establish the sign-in session"), { id: "google-session-error" });
   }
-  clearCachedDashboardProfile();
   const created = payload.created === true;
   appToast.success(
     created ? localizedCopy("تم إنشاء حسابك عبر Google", "Account created with Google") : localizedCopy("تم تسجيل الدخول عبر Google", "Signed in with Google"),
     { description: created ? localizedCopy("أهلًا بك في Renvix، حسابك جاهز الآن.", "Welcome to Renvix. Your account is ready.") : localizedCopy("مرحبًا بك في Renvix.", "Welcome to Renvix."), id: "google-auth-success" }
   );
-  setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450);
+  void enterDashboardAfterSessionVerification({ sessionVerified: true });
 }
 
 function aiMessageListIsNearBottom(list, threshold = 110) {
@@ -10776,6 +10793,7 @@ function queueAIMessageScroll({ force = false } = {}) {
     if (!shouldFollow) return;
     state.aiProgrammaticScroll = true;
     current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight);
+    state.aiLastScrollTop = current.scrollTop;
     requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
   });
 }
@@ -10786,6 +10804,22 @@ function stopAIMessageFollowing() {
   state.aiProgrammaticScroll = false;
   if (state.aiScrollFrame) cancelAnimationFrame(state.aiScrollFrame);
   state.aiScrollFrame = 0;
+}
+
+function observeAIStreamGrowth(node) {
+  state.aiStreamResizeObserver?.disconnect();
+  state.aiStreamResizeObserver = null;
+  state.aiStreamObservedNode = node || null;
+  if (!node || typeof ResizeObserver === "undefined") return;
+  state.aiStreamResizeObserver = new ResizeObserver(() => queueAIMessageScroll());
+  state.aiStreamResizeObserver.observe(node);
+}
+
+function stopObservingAIStreamGrowth(node = null) {
+  if (node && state.aiStreamObservedNode !== node) return;
+  state.aiStreamResizeObserver?.disconnect();
+  state.aiStreamResizeObserver = null;
+  state.aiStreamObservedNode = null;
 }
 
 function renderAIPreservingScroll({ forceBottom = false } = {}) {
@@ -11482,6 +11516,7 @@ async function handleAIMessageSubmit(form) {
     const streamId = `ai-stream-${Date.now()}`;
     list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: submittedPrompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming" aria-live="polite" aria-busy="true"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><footer class="rvx-ai-message-meta"><time>${state.language === "en" ? "Now" : "الآن"}</time><button type="button" data-action="ai-copy-response" hidden>${dashboardIcon("copy")}<span>${state.language === "en" ? "Copy" : "نسخ"}</span></button></footer></div></article>`);
     streamNode = document.getElementById(streamId);
+    observeAIStreamGrowth(streamNode);
     textNode = streamNode?.querySelector("[data-ai-stream-text]");
     if (textNode) {
       streamWriter = createAIStreamWriter(textNode);
@@ -11570,6 +11605,11 @@ async function handleAIMessageSubmit(form) {
     streamNode?.classList.remove("is-streaming");
     streamNode?.setAttribute("aria-busy", "false");
     revealAIResponseBlocks(blockNode, assistantBlocks);
+    queueAIMessageScroll();
+    requestAnimationFrame(() => {
+      queueAIMessageScroll();
+      requestAnimationFrame(() => stopObservingAIStreamGrowth(streamNode));
+    });
     const copyButton = streamNode?.querySelector('[data-action="ai-copy-response"]');
     if (copyButton && String(textNode?.dataset.aiRaw || "").trim()) copyButton.hidden = false;
     if (messageInserted && messageAccepted) {
@@ -12330,6 +12370,7 @@ async function handleSubmit(form, event) {
     const button = form.querySelector("button[type='submit'], button:not([type])");
     setSubmitBusy(button, true, "جارٍ تسجيل الدخول...");
     let loginAccepted = false;
+    let authenticatedUser = null;
     let failureReason = "";
     let networkFailed = false;
     try {
@@ -12379,7 +12420,10 @@ async function handleSubmit(form, event) {
         return;
       }
       loginAccepted = response.ok && payload?.ok === true && Boolean(payload.user?.id);
-      if (loginAccepted) AuthGoogle.rememberAccount(payload.user);
+      if (loginAccepted) {
+        authenticatedUser = payload.user;
+        AuthGoogle.rememberAccount(payload.user);
+      }
       failureReason = payload?.reason || "";
     } catch {
       networkFailed = true;
@@ -12396,13 +12440,14 @@ async function handleSubmit(form, event) {
       if (failureReason === "server_error") return appToast.error("تعذر تسجيل الدخول مؤقتًا", { description: "حدث خطأ في الخادم ولم يتم التحقق من بياناتك. حاول مرة أخرى بعد قليل.", id: "login-server-error" });
       return appToast.error("تعذر تسجيل الدخول", { description: "البريد الإلكتروني أو كلمة المرور غير صحيحة.", id: "login-error" });
     }
+    clearCachedDashboardProfile();
+    cacheAuthenticatedUserProfile(authenticatedUser);
     if (!await browserSessionIsValid()) {
       setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
       return appToast.error("تعذر إكمال تسجيل الدخول", { description: "حدث خطأ غير متوقع. حاول مرة أخرى بعد قليل.", id: "login-session-error" });
     }
-    clearCachedDashboardProfile();
     appToast.success("تم تسجيل الدخول بنجاح", { description: "مرحبًا بك في Renvix، جاري تحويلك إلى لوحة التحكم.", id: "login-success", duration: 1800 });
-    setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 650);
+    void enterDashboardAfterSessionVerification({ sessionVerified: true });
     return;
   }
   if (type === "mfa-login") {
@@ -12472,6 +12517,7 @@ async function handleSubmit(form, event) {
       state.emailOtpStatus = null;
       if (payload.user) AuthGoogle.rememberAccount(payload.user);
       clearCachedDashboardProfile();
+      cacheAuthenticatedUserProfile(payload.user);
       if (payload.redirectUrl === "/admin") {
         window.location.replace("/admin");
         return;
@@ -12481,7 +12527,7 @@ async function handleSubmit(form, event) {
         id: "email-otp-success",
         duration: 1500
       });
-      setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450);
+      void enterDashboardAfterSessionVerification();
     } catch (error) {
       setSubmitBusy(button, false, "تحقق وتسجيل الدخول ←");
       form.querySelectorAll("[data-otp-digit]").forEach((input) => { input.value = ""; });
@@ -13370,14 +13416,7 @@ function revealAIResponseBlocks(blockNode, blocks = []) {
   const shouldReveal = Boolean(list && state.aiAutoScroll && aiMessageListIsNearBottom(list, 180));
   blockNode.innerHTML = blocks.map(renderAIBlock).join("");
   if (!shouldReveal) return;
-  const listRect = list.getBoundingClientRect();
-  const blockRect = blockNode.getBoundingClientRect();
-  const advance = Math.max(0, blockRect.top - (listRect.top + list.clientHeight * .72));
-  if (advance <= 1) return;
-  state.aiProgrammaticScroll = true;
-  const maximum = Math.max(0, list.scrollHeight - list.clientHeight);
-  list.scrollTop = Math.min(maximum, list.scrollTop + Math.min(advance, list.clientHeight * .28));
-  requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
+  queueAIMessageScroll();
 }
 
 function renderAIMessage(message) {
@@ -14358,14 +14397,20 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("scroll", (event) => {
   const list = event.target?.matches?.("[data-ai-message-list]") ? event.target : null;
-  if (list && !state.aiProgrammaticScroll) state.aiAutoScroll = aiMessageListIsNearBottom(list);
+  if (!list) return;
+  const currentTop = list.scrollTop;
+  const movedUp = currentTop < state.aiLastScrollTop - 1;
+  state.aiLastScrollTop = currentTop;
+  if (state.aiProgrammaticScroll) return;
+  if (state.aiStreaming && movedUp) stopAIMessageFollowing();
+  else if (aiMessageListIsNearBottom(list)) state.aiAutoScroll = true;
 }, true);
 
-["wheel", "touchstart", "pointerdown"].forEach((eventName) => {
-  document.addEventListener(eventName, (event) => {
-    if (event.target?.closest?.("[data-ai-message-list]") && state.aiStreaming) stopAIMessageFollowing();
-  }, { capture: true, passive: true });
-});
+document.addEventListener("wheel", (event) => {
+  if (event.deltaY < 0 && event.target?.closest?.("[data-ai-message-list]") && state.aiStreaming) {
+    stopAIMessageFollowing();
+  }
+}, { capture: true, passive: true });
 
 document.addEventListener("change", (event) => {
   const target = event.target;

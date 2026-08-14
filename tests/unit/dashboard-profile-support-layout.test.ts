@@ -13,6 +13,16 @@ describe("dashboard profile and support layout", () => {
     expect(appSource).not.toContain('profile.name || (state.language === "ar" ? "المستخدم" : "User")');
   });
 
+  it("hydrates the account identity from the verified session without delaying sign-in", () => {
+    expect(appSource).toContain("function cacheAuthenticatedUserProfile(user)");
+    expect(appSource).toContain("cacheAuthenticatedUserProfile(payload.user)");
+    expect(appSource).toContain("async function enterDashboardAfterSessionVerification({ sessionVerified = false } = {})");
+    expect(appSource).toContain("enterDashboardAfterSessionVerification({ sessionVerified: true })");
+    expect(appSource).toContain('state.route.startsWith("/dashboard") && (force || !state.cachedDashboardProfile?.name)');
+    expect(appSource).not.toContain("setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 650)");
+    expect(appSource).not.toContain("setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450)");
+  });
+
   it("clears the cached identity when authentication changes", () => {
     expect(appSource.match(/clearCachedDashboardProfile\(\)/g)?.length).toBeGreaterThanOrEqual(4);
   });
