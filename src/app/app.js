@@ -1433,9 +1433,9 @@ function syncRouteData(force = false) {
     if (requestedTicket && (force || state.supportTicket?.id !== requestedTicket)) queue("supportTicket", `/api/support/tickets/${encodeURIComponent(requestedTicket)}`, "supportTicket");
     if (state.route === "/dashboard/support/ai") {
       const requestedConversation = state.query.get("conversation") || state.aiConversationId;
-      if (force || state.aiOverview === null) queue("aiOverview", "/api/ai/overview", "aiOverview");
-      if (force || state.aiConversations === null) queue("aiConversations", `/api/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations");
-      if (requestedConversation && (force || state.aiConversation?.id !== requestedConversation)) queue("aiConversation", `/api/ai/conversations/${encodeURIComponent(requestedConversation)}`, "aiConversation");
+      if (force || state.aiOverview === null) queue("aiOverview", "/backend/ai/overview", "aiOverview");
+      if (force || state.aiConversations === null) queue("aiConversations", `/backend/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations");
+      if (requestedConversation && (force || state.aiConversation?.id !== requestedConversation)) queue("aiConversation", `/backend/ai/conversations/${encodeURIComponent(requestedConversation)}`, "aiConversation");
     }
   }
 
@@ -8234,7 +8234,7 @@ async function handleAction(target) {
   if (action === "ai-reprocess-attachment") {
     target.closest("details")?.removeAttribute("open");
     try {
-      await fetchJson(`/api/ai/attachments/${encodeURIComponent(target.dataset.id || "")}/process?force=1`, { method: "POST" });
+      await fetchJson(`/backend/ai/attachments/${encodeURIComponent(target.dataset.id || "")}/process?force=1`, { method: "POST" });
       await refreshCurrentAIConversation(); render();
       appToast.success("تمت إعادة تحليل المرفق", { id: "ai-attachment-reprocessed" });
     } catch (error) { appToast.error("تعذرت إعادة التحليل", { description: error.message, id: "ai-attachment-reprocess-error" }); }
@@ -8243,7 +8243,7 @@ async function handleAction(target) {
   if (action === "ai-delete-attachment") {
     target.closest("details")?.removeAttribute("open");
     try {
-      await fetchJson(`/api/ai/attachments/${encodeURIComponent(target.dataset.id || "")}`, { method: "DELETE" });
+      await fetchJson(`/backend/ai/attachments/${encodeURIComponent(target.dataset.id || "")}`, { method: "DELETE" });
       await refreshCurrentAIConversation(); render();
       appToast.success("تم حذف المرفق", { id: "ai-attachment-deleted" });
     } catch (error) { appToast.error("تعذر حذف المرفق", { description: error.message, id: "ai-attachment-delete-error" }); }
@@ -10466,8 +10466,8 @@ function closeAIConversationMenus(except = null) {
 async function refreshAIStateSilently() {
   if (state.route !== "/dashboard/support/ai") return;
   const [conversations, overview] = await Promise.allSettled([
-    fetchJson(`/api/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`),
-    fetchJson("/api/ai/overview")
+    fetchJson(`/backend/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`),
+    fetchJson("/backend/ai/overview")
   ]);
   if (conversations.status === "fulfilled") state.aiConversations = conversations.value.items || [];
   if (overview.status === "fulfilled") {
@@ -10479,7 +10479,7 @@ async function refreshAIStateSilently() {
 
 async function refreshCurrentAIConversation() {
   if (!state.aiConversationId) return;
-  const payload = await fetchJson(`/api/ai/conversations/${encodeURIComponent(state.aiConversationId)}`);
+  const payload = await fetchJson(`/backend/ai/conversations/${encodeURIComponent(state.aiConversationId)}`);
   state.aiConversation = payload.item;
 }
 
@@ -10487,7 +10487,7 @@ async function mutateAIConversation(conversationId, input, successMessage) {
   if (!conversationId || state.aiConversationActionBusy) return null;
   state.aiConversationActionBusy = conversationId;
   try {
-    const payload = await fetchJson(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, {
+    const payload = await fetchJson(`/backend/ai/conversations/${encodeURIComponent(conversationId)}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input)
     });
     const item = payload.item;
@@ -10516,7 +10516,7 @@ async function deleteAIConversationFromMenu(conversationId) {
   if (!conversationId || state.aiConversationActionBusy) return;
   state.aiConversationActionBusy = conversationId;
   try {
-    await fetchJson(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, { method: "DELETE" });
+    await fetchJson(`/backend/ai/conversations/${encodeURIComponent(conversationId)}`, { method: "DELETE" });
     state.aiConversations = (state.aiConversations || []).filter((row) => row.id !== conversationId);
     if (state.aiConversationId === conversationId) {
       state.aiConversationId = "";
@@ -10618,7 +10618,7 @@ const AI_ATTACHMENT_TYPES = new Set([
 
 function aiAttachmentUrl(item = {}) {
   const id = String(item.id || "");
-  return id ? `/api/ai/attachments?id=${encodeURIComponent(id)}` : String(item.url || "");
+  return id ? `/backend/ai/attachments?id=${encodeURIComponent(id)}` : String(item.url || "");
 }
 
 function formatAIAudioDuration(value) {
@@ -10696,7 +10696,7 @@ function addAIAttachments(files, form, { kind = "any", durationMs = 0 } = {}) {
 
 async function ensureAIConversationForAttachments(prompt, signal) {
   if (state.aiConversationId) return state.aiConversationId;
-  const payload = await fetchJson("/api/ai/conversations", {
+  const payload = await fetchJson("/backend/ai/conversations", {
     method: "POST", headers: { "Content-Type": "application/json" }, signal,
     body: JSON.stringify({ title: prompt, page: "support_ai" })
   });
@@ -10712,7 +10712,7 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
   const results = [];
   try {
     for (const item of attachments) {
-      const prepared = await fetchJson(`/api/ai/conversations/${encodeURIComponent(conversationId)}/attachments`, {
+      const prepared = await fetchJson(`/backend/ai/conversations/${encodeURIComponent(conversationId)}/attachments`, {
         method: "POST", headers: { "Content-Type": "application/json" }, signal,
         body: JSON.stringify({ name: item.name, mimeType: item.type, size: item.size, durationMs: item.durationMs || 0 })
       });
@@ -10722,11 +10722,11 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
           method: "PUT", headers: prepared.upload.headers, body: item.file, signal
         });
         if (!uploaded.ok) throw new Error("تعذر رفع المرفق إلى التخزين الخاص.");
-        const completed = await fetchJson(`/api/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/complete`, { method: "POST", signal });
+        const completed = await fetchJson(`/backend/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/complete`, { method: "POST", signal });
         attachment = { ...completed.attachment, durationMs: item.durationMs || completed.attachment.durationMs || 0 };
         if (attachment.purpose === "image" || attachment.purpose === "audio") {
           try {
-            const processed = await fetchJson(`/api/ai/attachments/${encodeURIComponent(attachment.id)}/process`, { method: "POST", signal });
+            const processed = await fetchJson(`/backend/ai/attachments/${encodeURIComponent(attachment.id)}/process`, { method: "POST", signal });
             attachment = { ...attachment, ...processed.attachment };
           } catch (error) {
             attachment.processingStatus = "failed";
@@ -10749,7 +10749,7 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
 async function discardAIAttachments(conversationId, attachments) {
   const ids = attachments.map((item) => item.id).filter(Boolean);
   if (!conversationId || !ids.length) return;
-  await Promise.allSettled(ids.map((id) => fetch(`/api/ai/attachments/${encodeURIComponent(id)}`, { method: "DELETE" })));
+  await Promise.allSettled(ids.map((id) => fetch(`/backend/ai/attachments/${encodeURIComponent(id)}`, { method: "DELETE" })));
 }
 
 function updateAIRecordingPanel(form, active) {
@@ -10887,8 +10887,8 @@ async function handleAIMessageSubmit(form) {
     messageInserted = true;
     queueAIMessageScroll({ force: true });
     const endpoint = state.aiConversationId
-      ? `/api/ai/conversations/${encodeURIComponent(state.aiConversationId)}/messages`
-      : "/api/ai/messages";
+      ? `/backend/ai/conversations/${encodeURIComponent(state.aiConversationId)}/messages`
+      : "/backend/ai/messages";
     const response = await fetch(endpoint, {
       method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
       body: JSON.stringify({ prompt: submittedPrompt, page: "support_ai", locale: state.language === "en" ? "en" : "ar", attachments: uploadedAttachments })
@@ -10982,7 +10982,7 @@ async function handleSubmit(form, event) {
     const button = form.querySelector('button[type="submit"]');
     setSubmitBusy(button, true, "جارٍ الحفظ...");
     try {
-      const payload = await fetchJson("/api/ai/settings", {
+      const payload = await fetchJson("/backend/ai/settings", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           responseStyle: data.responseStyle,

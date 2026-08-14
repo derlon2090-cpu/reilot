@@ -97,6 +97,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('delete form.dataset.aiSubmitting');
     expect(source).toContain('form.elements.prompt.value = ""');
     expect(source).toContain('form?.dataset.aiMicrophoneStarting === "true"');
+    expect(source).toContain('"/backend/ai/messages"');
+    expect(source).not.toContain('"/api/ai/messages"');
   });
 
   it("exposes professional media privacy settings", async () => {
