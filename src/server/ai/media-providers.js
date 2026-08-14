@@ -74,10 +74,25 @@ function retryDelay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const GEMINI_JSON_SCHEMA_KEYS = new Set([
+  "$id", "$defs", "$ref", "$anchor", "type", "format", "title", "description", "enum",
+  "items", "prefixItems", "minItems", "maxItems", "minimum", "maximum", "anyOf", "oneOf",
+  "properties", "additionalProperties", "required", "propertyOrdering"
+]);
+
+function sanitizeGeminiJsonSchema(value, parentKey = "") {
+  if (Array.isArray(value)) return value.map((item) => sanitizeGeminiJsonSchema(item));
+  if (!value || typeof value !== "object") return value;
+  const isSchemaMap = parentKey === "properties" || parentKey === "$defs";
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => isSchemaMap || GEMINI_JSON_SCHEMA_KEYS.has(key))
+    .map(([key, child]) => [key, sanitizeGeminiJsonSchema(child, key)]));
+}
+
 function jsonSchema(schema) {
   const result = z.toJSONSchema(schema);
   delete result.$schema;
-  return result;
+  return sanitizeGeminiJsonSchema(result);
 }
 
 function parseJsonText(text) {

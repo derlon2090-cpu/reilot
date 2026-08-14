@@ -40,6 +40,7 @@ describe("production media provider contracts", () => {
     expect(response.usage).toMatchObject({ inputTokens: 260, outputTokens: 40, totalTokens: 300 });
     expect(generateContent.mock.calls[0][0].config.responseMimeType).toBe("application/json");
     expect(generateContent.mock.calls[0][0].config.responseJsonSchema.additionalProperties).toBe(false);
+    expect(JSON.stringify(generateContent.mock.calls[0][0].config.responseJsonSchema)).not.toMatch(/"(?:default|minLength|maxLength)"/);
     expect(generateContent.mock.calls[0][0].config.thinkingConfig).toEqual({ thinkingLevel: "LOW" });
     expect(generateContent.mock.calls[0][0].config).not.toHaveProperty("temperature");
     expect(generateContent.mock.calls[0][0].config.thinkingConfig).not.toHaveProperty("thinkingBudget");
