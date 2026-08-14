@@ -32,7 +32,33 @@ export function sameOriginRequest(request) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    return new URL(origin).origin === new URL(request.url).origin;
+    const requestOrigin = new URL(request.url).origin;
+    const browserOrigin = new URL(origin).origin;
+    if (browserOrigin === requestOrigin) return true;
+
+    // A browser request to the Vercel frontend remains same-origin from the
+    // browser's point of view even when Vercel rewrites /api to Render. Fetch
+    // Metadata headers cannot be set by cross-site browser JavaScript, so this
+    // preserves CSRF protection without comparing the public UI origin to the
+    // internal backend URL created by the rewrite.
+    if (request.headers.get("sec-fetch-site") === "same-origin") return true;
+
+    const trustedOrigins = new Set([
+      "https://renvix.app",
+      "https://www.renvix.app",
+      "https://reilot.vercel.app"
+    ]);
+    for (const value of [
+      process.env.APP_URL,
+      process.env.NEXT_PUBLIC_APP_URL,
+      process.env.API_PUBLIC_URL,
+      process.env.NEXT_PUBLIC_API_BASE_URL,
+      ...(process.env.TRUSTED_APP_ORIGINS || "").split(",")
+    ]) {
+      if (!String(value || "").trim()) continue;
+      try { trustedOrigins.add(new URL(String(value).trim()).origin); } catch {}
+    }
+    return trustedOrigins.has(browserOrigin);
   } catch {
     return false;
   }

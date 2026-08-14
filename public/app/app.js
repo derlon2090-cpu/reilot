@@ -10769,10 +10769,14 @@ function stopAIRecordingTracks() {
 }
 
 async function startAIRecording(form) {
-  if (state.aiStreaming || state.aiRecorder?.state === "recording") return;
+  if (state.aiStreaming || state.aiRecorder?.state === "recording" || form?.dataset.aiMicrophoneStarting === "true") return;
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
     return appToast.warning("التسجيل الصوتي غير مدعوم", { description: "استخدم متصفحًا حديثًا واسمح لـRenvix باستخدام الميكروفون.", id: "ai-audio-unsupported" });
   }
+  if (!window.isSecureContext) {
+    return appToast.error("تعذر بدء التسجيل", { description: "الميكروفون يعمل فقط عبر اتصال HTTPS آمن.", id: "ai-audio-permission" });
+  }
+  if (form) form.dataset.aiMicrophoneStarting = "true";
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const preferred = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported?.(type));
@@ -10792,7 +10796,17 @@ async function startAIRecording(form) {
     }, 250);
   } catch (error) {
     stopAIRecordingTracks();
-    appToast.error("تعذر بدء التسجيل", { description: error?.name === "NotAllowedError" ? "فعّل إذن الميكروفون من إعدادات المتصفح ثم حاول مجددًا." : "تأكد من اتصال الميكروفون ثم حاول مرة أخرى.", id: "ai-audio-permission" });
+    const descriptions = {
+      NotAllowedError: "اسمح لـRenvix باستخدام الميكروفون، ثم حدّث الصفحة وحاول مجددًا.",
+      NotFoundError: "لم يعثر المتصفح على ميكروفون متصل بالجهاز.",
+      NotReadableError: "الميكروفون مستخدم من تطبيق آخر أو تعذر على المتصفح تشغيله.",
+      AbortError: "تعذر تشغيل الميكروفون مؤقتًا. أغلق التطبيقات التي تستخدمه ثم حاول مجددًا.",
+      SecurityError: "المتصفح منع الميكروفون بسبب إعداد أمان الصفحة.",
+      OverconstrainedError: "إعدادات الميكروفون الحالية غير متوافقة مع جهازك. حاول اختيار ميكروفون آخر."
+    };
+    appToast.error("تعذر بدء التسجيل", { description: descriptions[error?.name] || "تأكد من اتصال الميكروفون ثم حاول مرة أخرى.", id: "ai-audio-permission" });
+  } finally {
+    if (form) delete form.dataset.aiMicrophoneStarting;
   }
 }
 
@@ -10825,14 +10839,19 @@ function cancelAIRecording(form) {
 }
 
 async function handleAIMessageSubmit(form) {
-  if (state.aiStreaming) return;
+  if (state.aiStreaming || form.dataset.aiSubmitting === "true") return;
   const prompt = String(form.elements.prompt?.value || "").trim();
   if (prompt.length < 2 && !state.aiAttachments.length) return appToast.warning("اكتب سؤالك أو أضف مرفقًا", { description: "يمكنك إرسال نص أو صورة أو رسالة صوتية.", id: "ai-prompt-empty" });
   const attachmentDrafts = [...state.aiAttachments];
+  form.dataset.aiSubmitting = "true";
   state.aiStreaming = true;
   state.aiAutoScroll = true;
   state.aiToolProgress = [];
-  state.aiDraft = prompt;
+  state.aiDraft = "";
+  if (form.elements.prompt) {
+    form.elements.prompt.value = "";
+    form.elements.prompt.style.height = "auto";
+  }
   const controller = new AbortController();
   state.aiAbortController = controller;
   setAIComposerStreaming(form, true);
@@ -10923,6 +10942,7 @@ async function handleAIMessageSubmit(form) {
     await streamWriter?.drain();
     state.aiStreaming = false;
     state.aiAbortController = null;
+    delete form.dataset.aiSubmitting;
     setAIComposerStreaming(form, false);
     form.classList.remove("is-uploading");
     streamNode?.classList.remove("is-streaming");
@@ -10940,7 +10960,6 @@ async function handleAIMessageSubmit(form) {
       queueAIMessageScroll();
       void refreshAIStateSilently().then(refreshAIConversationSidebar);
     } else if (!messageAccepted) {
-      state.aiDraft = prompt;
       void discardAIAttachments(state.aiConversationId, uploadedAttachments);
     }
   }
