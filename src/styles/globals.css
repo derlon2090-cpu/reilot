@@ -14344,14 +14344,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .node-cloud { right: 0; bottom: 120px; animation-duration: 5.3s; }
 @keyframes home-node-float { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
 
-.home-brands { padding-block: 24px 28px; border-top: 1px solid #eef3f2; border-bottom: 1px solid #e7efed; background: #fbfdfc; }
-.home-brands h2 { margin: 0 0 17px; color: #52706b; font-size: 13px; font-weight: 700; text-align: center; }
+.home-brands { padding-block: 26px 30px; border-top: 1px solid #eef3f2; border-bottom: 1px solid #e7efed; background: #fbfdfc; }
+.home-brands h2 { margin: 0 0 18px; color: #52706b; font-size: 13px; font-weight: 700; text-align: center; }
 .home-brands-viewport { position: relative; overflow: hidden; direction: ltr; -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); }
 .home-brands-track { width: max-content; display: flex; gap: 16px; animation: home-brand-scroll 36s linear infinite; will-change: transform; }
 .trusted-brands-set { display: flex; gap: 16px; }
-.home-brand-item { width: var(--trusted-brand-card-width, 210px); height: 58px; padding: 7px 16px; display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 10px; color: #48645f; border: 1px solid transparent; border-radius: 13px; background: rgba(255,255,255,.56); opacity: 1; transition: transform .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.home-brand-item { width: var(--trusted-brand-card-width, 220px); height: 70px; padding: 8px 18px; display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 10px; color: #48645f; border: 1px solid transparent; border-radius: 15px; background: rgba(255,255,255,.62); opacity: 1; transition: transform .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
 .home-brand-item:hover { transform: translateY(-2px); border-color: #dce9e7; background: #fff; box-shadow: 0 8px 22px rgba(7,55,50,.06); }
-.home-brand-item img { max-width: 96px; max-height: 31px; object-fit: contain; filter: none !important; opacity: 1 !important; }
+.home-brand-item img { width: auto; height: auto; max-width: 138px; max-height: 43px; object-fit: contain; filter: none !important; opacity: 1 !important; }
 .home-brand-item > span { width: 29px; height: 29px; display: grid; place-items: center; color: #446a65; border-radius: 9px; background: #edf5f3; }
 .home-brand-item .line-icon { width: 17px; height: 17px; }
 .home-brand-item strong { font-family: var(--font-arabic); font-size: 13px; white-space: nowrap; }
@@ -14552,6 +14552,24 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .public-site > .marketing-footer .marketing-footer-bottom { width: calc(100% - 48px) !important; }
 }
 
+/* Preserve the reference dashboard's proportions when the hero becomes a
+   single column. The base preview is intentionally scaled as one unit so its
+   type, charts, radii and integration nodes remain visually consistent. */
+@media (min-width: 852px) and (max-width: 1100px) {
+  .home-hero-visual {
+    width: 804px;
+    max-width: 100%;
+    min-height: 627px;
+  }
+  .home-dashboard-scene {
+    width: 643.2px;
+    margin-inline: auto;
+    padding: 28px 38px;
+    transform: scale(1.25);
+    transform-origin: top center;
+  }
+}
+
 @media (max-width: 900px) {
   .public-site > .public-nav { min-height: 66px; }
   .public-site > .public-nav .nav-inner { min-height: 66px !important; display: flex !important; gap: 9px !important; }
@@ -14647,10 +14665,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .home-dashboard-lower > section { min-height: 58px; padding: 8px; }
   .home-integration-node,
   .home-integration-lines { display: none; }
-  .home-brands { padding-block: 21px 24px; }
-  .home-brands h2 { margin-bottom: 11px; font-size: 11px; }
-  .home-brand-item { height: 46px; padding-inline: 8px; gap: 6px; }
-  .home-brand-item img { max-width: 58px; max-height: 22px; }
+  .home-brands { padding-block: 23px 26px; }
+  .home-brands h2 { margin-bottom: 14px; font-size: 12px; }
+  .home-brand-item { height: 58px; padding-inline: 10px; gap: 6px; border-radius: 13px; }
+  .home-brand-item img { max-width: 92px; max-height: 36px; }
   .home-brand-item > span { width: 25px; height: 25px; }
   .home-brand-item strong { font-size: 10px; }
   .home-section-heading { margin-bottom: 30px; }
