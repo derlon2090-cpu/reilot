@@ -233,3 +233,23 @@
 :root[data-theme="dark"] .notification-item-icon{color:var(--dark-icon-strong)!important;background:var(--dark-surface-soft)!important}
 
 @media (prefers-contrast:more){:root[data-theme="dark"]{--dark-line:#4b8077;--dark-muted:#c0d4d0;--dark-faint:#a8beb9}}
+
+/* Legal policy pages. */
+:root[data-theme="dark"] .policy-page{--policy-ink:var(--dark-text);--policy-copy:var(--dark-muted);--policy-brand:#83d8cc;--policy-line:var(--dark-line);--policy-paper:var(--dark-surface);--policy-soft:var(--dark-surface-soft);background:var(--dark-canvas)!important}
+:root[data-theme="dark"] .policy-page .policy-hero{border-color:var(--dark-line)!important;background:linear-gradient(180deg,#082b27,#061f1c)!important}
+:root[data-theme="dark"] .policy-page .policy-hero :is(h1,p){color:var(--policy-ink)!important}
+:root[data-theme="dark"] .policy-page .policy-hero p{color:var(--policy-copy)!important}
+:root[data-theme="dark"] .policy-hero-pattern{opacity:.2}
+:root[data-theme="dark"] .policy-hero-mark{color:#8de3d5;opacity:.13}
+:root[data-theme="dark"] .policy-updated{color:#d7ebe7!important;border-color:var(--dark-line)!important;background:rgba(7,29,26,.78)!important;box-shadow:none!important}
+:root[data-theme="dark"] .policy-page .policy-section{background:var(--dark-canvas)!important}
+:root[data-theme="dark"] .policy-page :is(.policy-summary,.policy-help-card,.policy-card){color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important;box-shadow:none!important}
+:root[data-theme="dark"] .policy-page :is(.policy-summary h2,.policy-help-card h2,.policy-content h2,.policy-contact strong){color:var(--dark-text)!important}
+:root[data-theme="dark"] .policy-page :is(.policy-summary a,.policy-help-card p,.policy-copy p,.policy-contact p){color:var(--dark-muted)!important}
+:root[data-theme="dark"] .policy-page .policy-summary a span{border-color:var(--dark-icon)!important;background:transparent!important}
+:root[data-theme="dark"] .policy-page .policy-summary a:hover,
+:root[data-theme="dark"] .policy-page .policy-summary a:focus-visible{color:var(--dark-icon-strong)!important;background:transparent!important}
+:root[data-theme="dark"] .policy-page :is(.policy-help-card>span,.policy-card-icon,.policy-contact-icon){color:var(--dark-icon-strong)!important;border:1px solid rgba(141,227,213,.14)!important;background:var(--dark-surface-soft)!important}
+:root[data-theme="dark"] .policy-page .policy-card:hover{border-color:#437d73!important;background:var(--dark-surface-raised)!important;box-shadow:0 12px 28px rgba(0,0,0,.14)!important}
+:root[data-theme="dark"] .policy-page .policy-contact{border-color:var(--dark-line)!important;background:linear-gradient(90deg,#0b3832,#0a2d29)!important}
+:root[data-theme="dark"] .policy-page :is(.policy-help-card .btn,.policy-contact .btn){color:#eafffb!important;border-color:#4e877d!important;background:#0c4941!important}

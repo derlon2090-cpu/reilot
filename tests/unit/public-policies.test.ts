@@ -31,16 +31,27 @@ describe("Renvix public policies", () => {
     expect(policySource).toContain("مفاتيح API");
   });
 
-  it("preserves statutory refund and delayed-delivery protections", () => {
-    expect(policySource).toContain("حق الإلغاء خلال سبعة أيام");
-    expect(policySource).toContain("إذا لم يستخدم الخدمة ولم ينتفع بها");
-    expect(policySource).toContain("أكثر من خمسة عشر يومًا");
-    expect(policySource).toContain("دون الانتقاص من الحقوق المقررة نظامًا");
+  it("applies the requested first-subscription refund rules", () => {
+    expect(policySource).toContain("خلال ٣ أيام");
+    expect(policySource).toContain("الاشتراك المدفوع الأول");
+    expect(policySource).toContain("لا ينطبق الاسترجاع على الاشتراكات المجدّدة");
+    expect(policySource).toContain("٤٨ ساعة عمل");
+    expect(policySource).toContain("٧ إلى ١٤ يوم عمل");
+    expect(policySource).toContain("دون الإخلال بأي حق لا يجوز تقييده نظامًا");
+  });
+
+  it("states the non-refundable add-ons and direct Meta charges", () => {
+    expect(policySource).toContain("واتساب الأعمال الرسمي (API)");
+    expect(policySource).toContain("غير قابلة للاسترجاع أو الاستبدال أو النقل");
+    expect(policySource).toContain("يدفعها العميل إلى Meta مباشرة");
+    expect(policySource).toContain("محفظة المنصة لاشتراكات سلة وزد");
   });
 
   it("uses the Renvix support address and a precise update date", () => {
     expect(policySource).toContain("support@renvix.app");
-    expect(policySource).toContain("آخر تحديث: 31 يوليو 2026");
-    expect(policySource).toContain("Last updated: July 31, 2026");
+    expect(policySource).toContain("31 يوليو 2026");
+    expect(policySource).toContain("July 31, 2026");
+    expect(policySource).toContain("14 أغسطس 2026");
+    expect(policySource).toContain("August 14, 2026");
   });
 });
