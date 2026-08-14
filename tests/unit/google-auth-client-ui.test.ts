@@ -20,14 +20,16 @@ describe("Google authentication client routing", () => {
     expect(googleSource).toContain("window.location.assign(target)");
   });
 
-  it("keeps a safe production backend fallback when stale frontend configuration is cached", () => {
-    expect(googleSource).toContain('const PRODUCTION_AUTH_API_ORIGIN = "https://api.renvix.app"');
-    expect(googleSource).toContain('window.location.hostname.endsWith(".renvix.app")');
+  it("keeps the browser on the accounts gateway and retries only explicit warm-up responses", () => {
+    expect(googleSource).toContain("const portal = normalizedOrigin(config().authUrl)");
+    expect(googleSource).toContain('requestGoogleGateway("/api/auth/google/config")');
+    expect(googleSource).toContain('lastReason !== "auth_backend_warming"');
+    expect(googleSource).not.toContain('const PRODUCTION_AUTH_API_ORIGIN = "https://api.renvix.app"');
   });
 
   it("forces fresh Google and Turnstile modules after an authentication deployment", () => {
     expect(appSource).toContain('auth-turnstile.js?v=20260813-auth-routing-v110');
-    expect(appSource).toContain('auth-google.js?v=20260813-google-gis-v117');
+    expect(appSource).toContain('auth-google.js?v=20260814-auth-gateway-v118');
   });
 
   it("keeps actionable redirect errors and created-account handling", () => {

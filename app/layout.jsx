@@ -48,7 +48,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260814-policy-pages-v122" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260814-auth-gateway-v123" strategy="afterInteractive" />
       </body>
     </html>
   );

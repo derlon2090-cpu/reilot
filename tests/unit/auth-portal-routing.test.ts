@@ -47,11 +47,14 @@ describe("accounts authentication portal", () => {
     expect(shouldProxyAuthApi("/api/auth/session", "api.renvix.app", apiOrigin, env)).toBe(false);
   });
 
-  it("forwards only the registered Google callback to the secret-owning backend", () => {
+  it("keeps every Google and session continuation request behind the accounts gateway", () => {
     const env = { NODE_ENV: "production", NEXT_PUBLIC_API_BASE_URL: "https://api.renvix.app" };
     const apiOrigin = configuredAuthApiOrigin(env);
-    expect(shouldProxyAuthApi("/api/auth/google/start", "accounts.renvix.app", apiOrigin, env)).toBe(false);
+    expect(shouldProxyAuthApi("/api/auth/google", "accounts.renvix.app", apiOrigin, env)).toBe(true);
+    expect(shouldProxyAuthApi("/api/auth/google/config", "accounts.renvix.app", apiOrigin, env)).toBe(true);
+    expect(shouldProxyAuthApi("/api/auth/google/start", "accounts.renvix.app", apiOrigin, env)).toBe(true);
     expect(shouldProxyAuthApi("/api/auth/google/callback", "accounts.renvix.app", apiOrigin, env)).toBe(true);
+    expect(shouldProxyAuthApi("/api/auth/session/continue", "accounts.renvix.app", apiOrigin, env)).toBe(true);
   });
 
   it("ignores a stale authentication host until split hosting is explicitly enabled", () => {
@@ -86,7 +89,8 @@ describe("accounts authentication portal", () => {
   it("keeps authentication static modules on the accounts host", () => {
     const middlewareSource = readFileSync("middleware.js", "utf8");
     expect(middlewareSource).toContain("|app/|assets/|data/");
-    expect(middlewareSource).toContain("NextResponse.rewrite(target)");
+    expect(middlewareSource).toContain("await proxyAuthBackendRequest(request, target.origin)");
+    expect(middlewareSource).not.toContain("NextResponse.rewrite(target)");
   });
 
   it("sends client-side authentication entry directly to the configured portal", () => {
