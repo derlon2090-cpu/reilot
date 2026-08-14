@@ -51,12 +51,31 @@ function responseHeaders(source) {
 }
 
 const TRANSIENT_READ_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
-const DEFAULT_READ_RETRY_DELAYS = [0, 500, 1500, 3000];
+const DEFAULT_READ_RETRY_DELAYS = [0, 400];
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function boundedReadSignal(parentSignal, timeoutMs) {
+  if (!Number.isFinite(Number(timeoutMs)) || Number(timeoutMs) < 1 || typeof AbortController === "undefined") {
+    return { signal: parentSignal, dispose() {} };
+  }
+  const controller = new AbortController();
+  const abortFromParent = () => controller.abort(parentSignal?.reason);
+  if (parentSignal?.aborted) abortFromParent();
+  else parentSignal?.addEventListener("abort", abortFromParent, { once: true });
+  const timeout = setTimeout(() => controller.abort(), Number(timeoutMs));
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timeout);
+      parentSignal?.removeEventListener("abort", abortFromParent);
+    }
+  };
+}
 
 export async function proxyAIBackendRequest(request, { params }, fetchImpl = fetch, {
   sleepImpl = wait,
-  retryDelays = DEFAULT_READ_RETRY_DELAYS
+  retryDelays = DEFAULT_READ_RETRY_DELAYS,
+  attemptTimeoutMs = 6_000
 } = {}) {
   if (!trustedFrontendRequest(request)) {
     return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
@@ -71,6 +90,9 @@ export async function proxyAIBackendRequest(request, { params }, fetchImpl = fet
   const delays = canRetry && Array.isArray(retryDelays) && retryDelays.length ? retryDelays : [0];
   for (let attempt = 0; attempt < delays.length; attempt += 1) {
     if (attempt > 0) await sleepImpl(Math.max(0, Number(delays[attempt] || 0)));
+    const readSignal = canRetry
+      ? boundedReadSignal(request.signal, attemptTimeoutMs)
+      : { signal: request.signal, dispose() {} };
     try {
       const backendResponse = await fetchImpl(target, {
         method,
@@ -78,8 +100,9 @@ export async function proxyAIBackendRequest(request, { params }, fetchImpl = fet
         body,
         cache: "no-store",
         redirect: "manual",
-        signal: request.signal
+        signal: readSignal.signal
       });
+      readSignal.dispose();
       if (attempt < delays.length - 1 && TRANSIENT_READ_STATUSES.has(backendResponse.status)) {
         await backendResponse.body?.cancel().catch(() => {});
         continue;
@@ -90,6 +113,7 @@ export async function proxyAIBackendRequest(request, { params }, fetchImpl = fet
         headers: responseHeaders(backendResponse.headers)
       });
     } catch {
+      readSignal.dispose();
       if (attempt < delays.length - 1 && !request.signal.aborted) continue;
     }
   }

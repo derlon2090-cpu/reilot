@@ -22,6 +22,8 @@ describe("AI token entitlement database and service contract", () => {
 
   it("uses transactional tenant locking, reservations, actual response usage, and idempotent provider ids", () => {
     expect(service).toContain("pg_advisory_xact_lock");
+    expect(service).toContain("SET LOCAL lock_timeout = '2500ms'");
+    expect(service).toContain("SET LOCAL statement_timeout = '8000ms'");
     expect(service).toContain("AI_BURST_LIMIT_REACHED");
     expect(service).toContain("actualTokenUsage(input.usage)");
     expect(service).toContain("providerRequestId");

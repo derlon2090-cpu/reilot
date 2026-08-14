@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
-import { getAIChatStorage, selectAIStorageCleanupCandidates } from "../../src/server/ai/storage.js";
+import { getAIChatStorage, getAIChatStorageSummary, selectAIStorageCleanupCandidates } from "../../src/server/ai/storage.js";
 
 const rows = [
   { id: "00000000-0000-4000-8000-000000000001", status: "deleted", isPinned: false, lastMessageAt: "2026-01-01", storageBytes: 300 },
@@ -10,6 +10,21 @@ const rows = [
 ];
 
 describe("AI chat storage cleanup selection", () => {
+  it("loads the live card summary with one aggregate query and skips cleanup candidate scans", async () => {
+    const calls: string[] = [];
+    const runner = {
+      query: async (sql: string) => {
+        calls.push(sql);
+        return { rows: [{ totalBytes: 4_096, conversationCount: 6 }] };
+      }
+    };
+
+    await expect(getAIChatStorageSummary({ tenantId: "tenant-1", userId: "user-1" }, runner))
+      .resolves.toEqual({ totalBytes: 4_096, conversationCount: 6 });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).not.toContain("LIMIT 500");
+  });
+
   it("reports the current user's complete chat footprint without counting shared AI data", async () => {
     const runner = {
       query: async (sql: string) => sql.includes('AS "totalBytes"')

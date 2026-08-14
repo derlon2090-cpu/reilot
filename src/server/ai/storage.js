@@ -88,7 +88,7 @@ async function conversationStorageRows(session, runner, keepConversationId = nul
   return result.rows;
 }
 
-async function totalAIChatStorage(session, runner) {
+export async function getAIChatStorageSummary(session, runner = { query }) {
   const parameters = [session.tenantId, session.userId];
   const result = await withLegacyAttachmentFallback(() => runner.query(
     `SELECT (
@@ -122,7 +122,7 @@ async function totalAIChatStorage(session, runner) {
 
 export async function getAIChatStorage(session, { keepConversationId = null } = {}, runner = { query }) {
   const [total, rows] = await Promise.all([
-    totalAIChatStorage(session, runner),
+    getAIChatStorageSummary(session, runner),
     conversationStorageRows(session, runner, keepConversationId)
   ]);
   const keepId = safeConversationId(keepConversationId);

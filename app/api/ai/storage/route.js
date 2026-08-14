@@ -1,6 +1,6 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../src/server/campaign-contacts.js";
-import { cleanupAIChatStorage, getAIChatStorage } from "../../../../src/server/ai/storage.js";
+import { cleanupAIChatStorage, getAIChatStorage, getAIChatStorageSummary } from "../../../../src/server/ai/storage.js";
 
 function fail(error) {
   return Response.json({
@@ -13,8 +13,11 @@ export async function GET(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   try {
-    const keepConversationId = new URL(request.url).searchParams.get("keepConversationId");
-    const storage = await getAIChatStorage(auth.session, { keepConversationId });
+    const searchParams = new URL(request.url).searchParams;
+    const keepConversationId = searchParams.get("keepConversationId");
+    const storage = searchParams.get("summary") === "1"
+      ? await getAIChatStorageSummary(auth.session)
+      : await getAIChatStorage(auth.session, { keepConversationId });
     return Response.json({ ok: true, storage });
   } catch (error) {
     return fail(error);

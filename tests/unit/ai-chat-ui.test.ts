@@ -43,7 +43,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('class="rvx-ai-rich-text"');
     expect(source).toContain("state.aiChatStorage = payload.chatStorage || null");
     expect(css).toContain(".rvx-ai-rich-text h3");
-    expect(overviewRoute).toContain("getAIChatStorage(auth.session)");
+    expect(overviewRoute).toContain("getAIChatStorageSummary(auth.session)");
+    expect(overviewRoute).not.toContain("getAccountIntelligence");
     expect(overviewRoute).toContain('preferences: preferencesResult.status === "fulfilled"');
     expect(overviewRoute).toContain('chatStorage: chatStorageResult.status === "fulfilled"');
     expect(orchestrator).toContain("لا تستخدم الفواصل الزخرفية");
@@ -140,7 +141,8 @@ describe("Renvix Intelligence chat UI", () => {
 
   it("batches initial AI data and isolates ticket live refreshes from an active response", async () => {
     const source = await readFile("src/app/app.js", "utf8");
-    expect(source).toContain('const batchesInitialRender = isDashboardHome || state.route === "/dashboard/support/ai"');
+    expect(source).toContain('const isAIPage = state.route === "/dashboard/support/ai"');
+    expect(source).toContain("const batchesInitialRender = isDashboardHome || isAIPage");
     expect(source).toContain('routeAtStart === "/dashboard/support/ai" && state.aiStreaming');
     expect(source).toContain('state.route !== "/dashboard/support/ai"');
     expect(source).toContain("if (!supportLiveRouteActive())");
@@ -213,7 +215,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(orchestrator).toContain("usage: reservation.usage");
     expect(orchestrator).toContain('emit("storage", { phase: "accepted", storage: acceptedStorage })');
     expect(orchestrator).toContain('emit("storage", { phase: "settled", storage: updatedStorage })');
-    expect(orchestrator).toContain("getAIChatStorage(session, { keepConversationId: conversation.id })");
+    expect(orchestrator).toContain("getAIChatStorageSummary(session)");
   });
 
   it("keeps usage and response data cards compact across chat viewports", async () => {
@@ -260,5 +262,17 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-usage-card.is-critical");
     const card = source.slice(source.indexOf("function aiUsageCard()"), source.indexOf("function aiConversationItemsMarkup"));
     expect(card).not.toMatch(/deepseek|cache hit|provider cost|flash thinking/i);
+  });
+
+  it("loads the balance independently with bounded requests and paints it without waiting for the dashboard batch", async () => {
+    const source = await readFile("src/app/app.js", "utf8");
+    expect(source).toContain('queue("aiUsage", "/backend/ai/usage", "aiUsage", aiReadOptions)');
+    expect(source).toContain('queue("aiStorageSummary", "/backend/ai/storage?summary=1"');
+    expect(source).toContain("timeoutMs: 8_000");
+    expect(source).toContain("Promise.race([settled, new Promise((resolve) => setTimeout(resolve, 1200))])");
+    expect(source).toContain('if (["aiUsage", "aiStorageSummary"].includes(target)) refreshAIUsageCards()');
+    expect(source).toContain('timeoutError.code = "REQUEST_TIMEOUT"');
+    expect(source).toContain('class="rvx-ai-usage-error" role="status"');
+    expect(source).toContain("تم إنهاؤه بأمان. أعد تحميل الرصيد");
   });
 });

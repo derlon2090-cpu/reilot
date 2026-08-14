@@ -94,4 +94,20 @@ describe("AI frontend gateway", () => {
     expect(response.status).toBe(503);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("aborts a stalled read attempt instead of leaving the browser pending indefinitely", async () => {
+    const request = new Request("https://renvix.app/backend/ai/usage", {
+      headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" }
+    });
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+    }));
+
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["usage"] }) }, fetchImpl, {
+      retryDelays: [0], attemptTimeoutMs: 10, sleepImpl: async () => {}
+    });
+
+    expect(response.status).toBe(503);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });

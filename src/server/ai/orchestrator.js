@@ -15,7 +15,7 @@ import {
 } from "./conversations.js";
 import { linkAttachmentsToMessage, resolveMessageAttachments } from "../attachments/service.js";
 import { redactAISecrets, sanitizeAIContext } from "./privacy.js";
-import { getAIChatStorage } from "./storage.js";
+import { getAIChatStorageSummary } from "./storage.js";
 
 const SYSTEM_PROMPT = `أنت ذكاء Renvix الشامل، محلل حساب داخل منصة إدارة الاشتراكات والتجديدات.
 استخدم أدوات Renvix للحصول على أي رقم أو حالة تخص حساب المستخدم، ولا تخترع بيانات.
@@ -212,7 +212,7 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
           userMessage,
           usage: reservation.usage
         });
-        const acceptedStorage = await getAIChatStorage(session, { keepConversationId: conversation.id }).catch(() => null);
+        const acceptedStorage = await getAIChatStorageSummary(session).catch(() => null);
         if (acceptedStorage) emit("storage", { phase: "accepted", storage: acceptedStorage });
         const snapshot = preferences.accountContextEnabled && route.useTools
           ? await getAccountIntelligence(session.tenantId)
@@ -360,7 +360,7 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
         }).catch(() => {});
         const [updatedUsage, updatedStorage] = await Promise.all([
           getAIUsageSummary(session).catch(() => null),
-          getAIChatStorage(session, { keepConversationId: conversation.id }).catch(() => null)
+          getAIChatStorageSummary(session).catch(() => null)
         ]);
         if (updatedUsage) emit("usage", updatedUsage);
         if (updatedStorage) emit("storage", { phase: "settled", storage: updatedStorage });

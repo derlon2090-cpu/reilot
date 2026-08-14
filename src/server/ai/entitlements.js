@@ -228,6 +228,10 @@ function usageSummary(entitlement, requestCount = 0) {
 
 export async function getAIEntitlementSummary(session, { now = new Date() } = {}) {
   return transaction(async (client) => {
+    // A balance read must never wait indefinitely behind a stalled writer or query.
+    // These limits are transaction-local and do not affect message generation work.
+    await client.query("SET LOCAL lock_timeout = '2500ms'");
+    await client.query("SET LOCAL statement_timeout = '8000ms'");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [String(session.tenantId)]);
     await releaseExpiredReservations(session.tenantId, client);
     const entitlement = await materializeEntitlement(session.tenantId, now, client);

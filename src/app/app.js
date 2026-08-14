@@ -763,6 +763,7 @@ function clearCachedDashboardProfile() {
   state.cachedDashboardProfile = null;
   state.aiUsage = null;
   state.aiChatStorage = null;
+  state.aiChatStorageStatus = null;
   state.aiConversations = null;
   clearAIRemoteRetries();
   clearCachedAIViewState();
@@ -900,6 +901,7 @@ state.supportSearch = "";
 state.aiOverview = null;
 state.aiUsage = cachedAIViewState?.usage || null;
 state.aiChatStorage = cachedAIViewState?.chatStorage || null;
+state.aiChatStorageStatus = cachedAIViewState?.chatStorage ? { loaded: true } : null;
 state.aiLiveMeter = null;
 state.aiLiveMeterRefreshTimer = 0;
 state.aiPreferences = storage.get("renvix.ai.preferences", null);
@@ -1265,19 +1267,44 @@ function applyPreferences() {
 }
 
 async function fetchJson(url, options = {}) {
-  const { timeoutMessage, ...fetchOptions } = options;
+  const { timeoutMessage, timeoutMs = 0, ...fetchOptions } = options;
+  const requestTimeoutMs = Math.max(0, Number(timeoutMs || 0));
+  const externalSignal = fetchOptions.signal;
+  const timeoutController = requestTimeoutMs > 0 && typeof AbortController !== "undefined"
+    ? new AbortController()
+    : null;
+  let timeoutId = 0;
+  let didTimeout = false;
+  let detachExternalAbort = null;
+  if (timeoutController) {
+    const abortFromExternal = () => timeoutController.abort(externalSignal?.reason);
+    if (externalSignal?.aborted) abortFromExternal();
+    else if (externalSignal) {
+      externalSignal.addEventListener("abort", abortFromExternal, { once: true });
+      detachExternalAbort = () => externalSignal.removeEventListener("abort", abortFromExternal);
+    }
+    timeoutId = setTimeout(() => {
+      didTimeout = true;
+      timeoutController.abort();
+    }, requestTimeoutMs);
+    fetchOptions.signal = timeoutController.signal;
+  }
   let response;
+  let rawPayload = "";
   try {
     response = await fetch(url, { credentials: "include", ...fetchOptions });
+    rawPayload = await response.text();
   } catch (error) {
-    if (["AbortError", "TimeoutError"].includes(error?.name)) {
+    if (didTimeout || ["AbortError", "TimeoutError"].includes(error?.name)) {
       const timeoutError = new Error(timeoutMessage || "استغرق الطلب وقتًا أطول من المتوقع. حاول مرة أخرى.");
-      timeoutError.code = "EVOLUTION_TIMEOUT";
+      timeoutError.code = "REQUEST_TIMEOUT";
       throw timeoutError;
     }
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    detachExternalAbort?.();
   }
-  const rawPayload = await response.text().catch(() => "");
   let payload = {};
   if (rawPayload) {
     try {
@@ -1309,7 +1336,7 @@ function isRealQrDataUri(value) {
   return typeof value === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(value);
 }
 
-const aiRemoteRetryDelays = [2000, 5000, 12000, 25000];
+const aiRemoteRetryDelays = [1200, 3000];
 
 function clearAIRemoteRetry(key) {
   clearTimeout(state.aiRemoteRetryTimers[key]);
@@ -1323,7 +1350,7 @@ function clearAIRemoteRetries() {
 }
 
 function scheduleAIRemoteRetry(key, url, target, options, error) {
-  if (!["aiOverview", "aiConversations"].includes(target)) return false;
+  if (!["aiUsage", "aiOverview", "aiConversations", "aiStorageSummary"].includes(target)) return false;
   const transient = !error?.status || [408, 425, 429, 500, 502, 503, 504].includes(Number(error.status));
   const attempt = Number(state.aiRemoteRetryAttempts[key] || 0);
   if (!transient || attempt >= aiRemoteRetryDelays.length) return false;
@@ -1333,6 +1360,7 @@ function scheduleAIRemoteRetry(key, url, target, options, error) {
     delete state.aiRemoteRetryTimers[key];
     if (state.route !== "/dashboard/support/ai") {
       if (target === "aiConversations") state.aiConversationsRetrying = false;
+      else if (target === "aiStorageSummary") state.aiChatStorageStatus = null;
       else if (!state.aiUsage) state.aiOverview = null;
       return;
     }
@@ -1387,6 +1415,14 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       if (!state.aiConversationSearch) cacheAIViewState({ conversations: state.aiConversations });
     } else if (target === "aiConversation") {
       state.aiConversation = payload.item || null;
+    } else if (target === "aiUsage") {
+      state.aiOverview = { loaded: true };
+      state.aiUsage = payload.usage || null;
+      if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage });
+    } else if (target === "aiStorageSummary") {
+      state.aiChatStorage = payload.storage || null;
+      state.aiChatStorageStatus = { loaded: true };
+      if (state.aiChatStorage) cacheAIViewState({ chatStorage: state.aiChatStorage });
     } else if (target === "aiOverview") {
       state.aiOverview = payload.snapshot || { loaded: true };
       state.aiUsage = payload.usage || null;
@@ -1417,16 +1453,21 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         renewAuto: Boolean(payload.settings.security?.renewAuto)
       };
     }
-    if (["aiOverview", "aiConversations"].includes(target)) clearAIRemoteRetry(key);
+    if (["aiUsage", "aiOverview", "aiConversations", "aiStorageSummary"].includes(target)) clearAIRemoteRetry(key);
   } catch (error) {
     if (target === "publicPlans") {
       state.publicPlans = readCachedPublicPlans() || (Array.isArray(state.publicPlans?.plans) ? { ...state.publicPlans, cached: true } : { error: error.message || "تعذر تحميل الباقات" });
     } else if (scheduleAIRemoteRetry(key, url, target, options, error)) {
-      if (target === "aiOverview") state.aiOverview = { loading: true, retrying: true };
+      if (["aiUsage", "aiOverview"].includes(target)) state.aiOverview = { loading: true, retrying: true };
+      if (target === "aiStorageSummary") state.aiChatStorageStatus = { loading: true, retrying: true };
       if (target === "aiConversations") {
         state.aiConversationsRetrying = true;
         state.aiConversationsError = "";
       }
+    } else if (target === "aiUsage") {
+      state.aiOverview = { error: error.message || "تعذر تحميل رصيد الذكاء" };
+    } else if (target === "aiStorageSummary") {
+      state.aiChatStorageStatus = { error: error.message || "تعذر حساب مساحة المحادثات" };
     } else if (target === "aiConversations") {
       state.aiConversationsRetrying = false;
       state.aiConversationsError = error.message || "تعذر تحميل المحادثات";
@@ -1445,11 +1486,20 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
 function syncRouteData(force = false) {
   const routeAtStart = state.route;
   const isDashboardHome = state.route === "/dashboard";
-  const batchesInitialRender = isDashboardHome || state.route === "/dashboard/support/ai";
+  const isAIPage = state.route === "/dashboard/support/ai";
+  const batchesInitialRender = isDashboardHome || isAIPage;
   const pending = [];
   const queue = (key, url, target, options) => {
     const request = loadRemotePage(key, url, target, options, { renderOnComplete: !batchesInitialRender });
     if (batchesInitialRender && request) pending.push(request);
+    if (isAIPage && request) {
+      void request.then(() => {
+        if (state.route !== routeAtStart) return;
+        if (["aiUsage", "aiStorageSummary"].includes(target)) refreshAIUsageCards();
+        else if (target === "aiConversations") refreshAIConversationSidebar();
+        else if (target === "aiConversation") render();
+      });
+    }
   };
 
   if (["/", "/pricing"].includes(state.route) && (force || state.publicPlans === null || state.publicPlansRefreshRequired)) {
@@ -1542,17 +1592,23 @@ function syncRouteData(force = false) {
     if (requestedTicket && (force || state.supportTicket?.id !== requestedTicket)) queue("supportTicket", `/api/support/tickets/${encodeURIComponent(requestedTicket)}`, "supportTicket");
     if (state.route === "/dashboard/support/ai") {
       const requestedConversation = state.query.get("conversation") || state.aiConversationId;
-      if (force || state.aiOverview === null) queue("aiOverview", "/backend/ai/overview", "aiOverview");
+      const aiReadOptions = { timeoutMs: 8_000, timeoutMessage: "استغرق تحميل بيانات الذكاء وقتًا أطول من المتوقع." };
+      if (force || state.aiOverview === null) queue("aiUsage", "/backend/ai/usage", "aiUsage", aiReadOptions);
+      if (force || state.aiChatStorageStatus === null) queue("aiStorageSummary", "/backend/ai/storage?summary=1", "aiStorageSummary", aiReadOptions);
       if (force || (!state.aiConversationsRetrying && !state.aiConversationsError && (state.aiConversations === null || state.aiConversationsRevalidationPending))) {
         state.aiConversationsRevalidationPending = false;
-        queue("aiConversations", `/backend/ai/conversations?limit=100&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations");
+        queue("aiConversations", `/backend/ai/conversations?limit=100&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations", aiReadOptions);
       }
-      if (requestedConversation && (force || state.aiConversation?.id !== requestedConversation)) queue("aiConversation", `/backend/ai/conversations/${encodeURIComponent(requestedConversation)}`, "aiConversation");
+      if (requestedConversation && (force || state.aiConversation?.id !== requestedConversation)) queue("aiConversation", `/backend/ai/conversations/${encodeURIComponent(requestedConversation)}`, "aiConversation", aiReadOptions);
     }
   }
 
   if (pending.length) {
-    void Promise.allSettled(pending).then(() => {
+    const settled = Promise.allSettled(pending);
+    const readyToPaint = isAIPage
+      ? Promise.race([settled, new Promise((resolve) => setTimeout(resolve, 1200))])
+      : settled;
+    void readyToPaint.then(() => {
       if (state.route !== routeAtStart) return;
       if (routeAtStart === "/dashboard/support/ai" && state.aiStreaming) {
         refreshAIUsageCards();
@@ -8349,6 +8405,7 @@ async function handleAction(target) {
     state.aiConversationsRetrying = false;
     state.aiConversationsError = "";
     if (!state.aiUsage) state.aiOverview = null;
+    state.aiChatStorageStatus = null;
     if (!Array.isArray(state.aiConversations)) state.aiConversations = null;
     syncRouteData(true);
     return render();
@@ -10681,21 +10738,26 @@ function closeAIConversationMenus(except = null) {
 
 async function refreshAIStateSilently() {
   if (state.route !== "/dashboard/support/ai") return;
-  const [conversations, overview] = await Promise.allSettled([
-    fetchJson(`/backend/ai/conversations?limit=100&search=${encodeURIComponent(state.aiConversationSearch)}`),
-    fetchJson("/backend/ai/overview")
+  const aiReadOptions = { timeoutMs: 8_000, timeoutMessage: "استغرق تحديث بيانات الذكاء وقتًا أطول من المتوقع." };
+  const [conversations, usage, chatStorage] = await Promise.allSettled([
+    fetchJson(`/backend/ai/conversations?limit=100&search=${encodeURIComponent(state.aiConversationSearch)}`, aiReadOptions),
+    fetchJson("/backend/ai/usage", aiReadOptions),
+    fetchJson("/backend/ai/storage?summary=1", aiReadOptions)
   ]);
   if (conversations.status === "fulfilled") {
     state.aiConversations = conversations.value.items || [];
     if (!state.aiConversationSearch) cacheAIViewState({ conversations: state.aiConversations });
   }
-  if (overview.status === "fulfilled") {
-    state.aiOverview = overview.value.snapshot || state.aiOverview;
-    state.aiUsage = overview.value.usage || state.aiUsage;
-    state.aiChatStorage = overview.value.chatStorage || state.aiChatStorage;
-    if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage, chatStorage: state.aiChatStorage });
-    refreshAIUsageCards();
+  if (usage.status === "fulfilled") {
+    state.aiOverview = { loaded: true };
+    state.aiUsage = usage.value.usage || state.aiUsage;
   }
+  if (chatStorage.status === "fulfilled") {
+    state.aiChatStorage = chatStorage.value.storage || state.aiChatStorage;
+    state.aiChatStorageStatus = { loaded: true };
+  }
+  if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage, chatStorage: state.aiChatStorage });
+  refreshAIUsageCards();
 }
 
 async function refreshCurrentAIConversation() {
@@ -13198,13 +13260,10 @@ function aiUsageCard() {
   const english = state.language === "en";
   if (!state.aiUsage) {
     const failed = Boolean(state.aiOverview?.error);
-    const label = failed
-      ? (english ? "Balance temporarily unavailable" : "تعذر تحميل الرصيد مؤقتًا")
-      : (english ? "Loading your balance…" : "جارٍ تحميل رصيدك…");
-    const retry = failed
-      ? `<button type="button" class="rvx-ai-data-retry" data-action="ai-retry-data">${english ? "Try again" : "إعادة المحاولة"}</button>`
-      : "";
-    return `<section class="rvx-ai-usage-card is-loading${failed ? " is-unavailable" : ""}" data-ai-usage-card data-ai-usage-signature="${failed ? "unavailable" : "loading"}" aria-busy="${failed ? "false" : "true"}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${label}</small></div></header><div class="rvx-ai-usage-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>${retry}</section>`;
+    if (failed) {
+      return `<section class="rvx-ai-usage-card is-unavailable" data-ai-usage-card data-ai-usage-signature="unavailable" aria-busy="false"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Balance temporarily unavailable" : "تعذر تحميل الرصيد مؤقتًا"}</small></div></header><div class="rvx-ai-usage-error" role="status" aria-live="polite"><p>${english ? "The request stopped responding, so it was safely closed. Try loading the balance again." : "توقف طلب الرصيد عن الاستجابة، لذلك تم إنهاؤه بأمان. أعد تحميل الرصيد."}</p><button type="button" class="rvx-ai-data-retry" data-action="ai-retry-data">${english ? "Try again" : "إعادة المحاولة"}</button></div></section>`;
+    }
+    return `<section class="rvx-ai-usage-card is-loading" data-ai-usage-card data-ai-usage-signature="loading" aria-busy="true"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Loading your balance…" : "جارٍ تحميل رصيدك…"}</small></div></header><div class="rvx-ai-usage-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></section>`;
   }
   const usage = state.aiUsage || {};
   const chatStorage = state.aiChatStorage || {};
