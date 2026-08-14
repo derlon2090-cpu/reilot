@@ -44,7 +44,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("state.aiChatStorage = payload.chatStorage || null");
     expect(css).toContain(".rvx-ai-rich-text h3");
     expect(overviewRoute).toContain("getAIChatStorage(auth.session)");
-    expect(overviewRoute).toContain("preferences, chatStorage");
+    expect(overviewRoute).toContain('preferences: preferencesResult.status === "fulfilled"');
+    expect(overviewRoute).toContain('chatStorage: chatStorageResult.status === "fulfilled"');
     expect(orchestrator).toContain("لا تستخدم الفواصل الزخرفية");
   });
 
@@ -145,6 +146,34 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("if (!supportLiveRouteActive())");
   });
 
+  it("hydrates recent chats and balance without flashing an empty or zero state", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(source).toContain("function readCachedAIViewState");
+    expect(source).toContain("function cacheAIViewState");
+    expect(source).toContain("cachedAIViewState?.conversations || null");
+    expect(source).toContain("state.aiConversationsRevalidationPending = false");
+    expect(source).toContain("cachedAIViewState?.usage || null");
+    expect(source).toContain("if (!state.aiUsage)");
+    expect(source).toContain("rvx-ai-conversation-skeleton");
+    expect(source).toContain("function aiConversationLoadingMarkup");
+    expect(css).toContain(".rvx-ai-conversation-skeleton");
+    expect(css).toContain(".rvx-ai-conversation-loading");
+    expect(css).toContain(".rvx-ai-usage-card.is-loading");
+  });
+
+  it("preserves text entered while an assistant response is streaming", async () => {
+    const source = await readFile("src/app/app.js", "utf8");
+    const streamHandler = source.slice(source.indexOf("async function handleAIMessageSubmit"), source.indexOf("async function handleSubmit"));
+    expect(source).toContain("if (state.aiStreaming) state.aiDraftEditedDuringStream = true");
+    expect(streamHandler).toContain("const composerDraft = String(form.elements.prompt?.value || \"\")");
+    expect(streamHandler).toContain("state.aiDraft = composerDraft");
+    expect(streamHandler).toContain("const restoredDraft = draftEditedDuringStream ? composerDraft : (composerDraft || prompt)");
+    expect(streamHandler).not.toContain('if (messageInserted && messageAccepted) {\n      state.aiDraft = "";');
+  });
+
   it("defers structured cards until the paced response text is complete", async () => {
     const source = await readFile("src/app/app.js", "utf8");
     const streamHandler = source.slice(source.indexOf("async function handleAIMessageSubmit"), source.indexOf("async function handleSubmit"));
@@ -185,7 +214,7 @@ describe("Renvix Intelligence chat UI", () => {
 
   it("keeps usage and response data cards compact across chat viewports", async () => {
     const css = await readFile("src/styles/globals.css", "utf8");
-    expect(css).toContain(".rvx-ai-side-bottom .rvx-ai-usage-card{gap:4px;padding:7px 9px");
+    expect(css).toContain(".rvx-ai-side-bottom .rvx-ai-usage-card{gap:4px;min-height:142px;padding:7px 9px");
     expect(css).toContain(".rvx-ai-assistant-message .rvx-ai-data-card{width:min(100%,640px)");
     expect(css).toContain("@media(max-width:700px){.rvx-ai-assistant-message .rvx-ai-data-card{width:100%");
   });
