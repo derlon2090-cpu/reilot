@@ -58,7 +58,7 @@ describe("Renvix Intelligence chat UI", () => {
     }
     expect(source).toContain("function queueAIMessageScroll");
     expect(source).not.toContain('streamNode?.scrollIntoView');
-    expect(source).toContain("refreshAIStateSilently().then(refreshAIConversationSidebar)");
+    expect(source).toContain("reconcileAILiveMeter(liveMeter).then(refreshAIConversationSidebar)");
     expect(css).toContain(".rvx-ai-conversation-menu");
   });
 
@@ -121,8 +121,9 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("await streamWriter?.drain()");
     expect(source).toContain("state.aiProgrammaticScroll");
     expect(source).toContain("function stopAIMessageFollowing");
-    expect(source).toContain("current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight)");
-    expect(source).not.toContain("const step = Math.sign(distance)");
+    expect(source).toContain("const maxStep = state.aiStreaming ? 42 : 72");
+    expect(source).toContain("current.scrollTop += Math.sign(distance)");
+    expect(source).not.toContain("current.scrollTo({ behavior: \"smooth\"");
     expect(source).not.toContain('streamNode?.scrollIntoView');
     expect(css).toContain("overflow-anchor:none");
   });
@@ -138,8 +139,20 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('data-action="ai-copy-response"');
     expect(source).toContain("function refreshAIUsageCards");
     expect(source).toContain("refreshAIUsageCards();");
+    expect(source).toContain("function beginAILiveMeter");
+    expect(source).toContain("applyAIAuthoritativeUsage(payload.usage)");
+    expect(source).toContain('type === "storage"');
+    expect(css).toContain(".rvx-ai-live-meter");
     expect(source).toContain("عذرًا، نفد رصيد الذكاء المتاح. تواصل مع الدعم أو رقِّ الباقة للمتابعة.");
     expect(css).toContain(".rvx-ai-message-meta button");
+  });
+
+  it("publishes reserved usage and exact chat storage while the response is still live", async () => {
+    const orchestrator = await readFile("src/server/ai/orchestrator.js", "utf8");
+    expect(orchestrator).toContain("usage: reservation.usage");
+    expect(orchestrator).toContain('emit("storage", { phase: "accepted", storage: acceptedStorage })');
+    expect(orchestrator).toContain('emit("storage", { phase: "settled", storage: updatedStorage })');
+    expect(orchestrator).toContain("getAIChatStorage(session, { keepConversationId: conversation.id })");
   });
 
   it("keeps usage and response data cards compact across chat viewports", async () => {
@@ -177,7 +190,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("رصيد الذكاء");
     expect(source).toContain("يتجدد إلى");
     expect(source).toContain("لا توجد تعبئة خامسة");
-    expect(source).toContain("usage.warningLevel");
+    expect(source).toContain('percent >= 100 ? "exhausted"');
     expect(css).toContain(".rvx-ai-usage-card.is-warning");
     expect(css).toContain(".rvx-ai-usage-card.is-critical");
     const card = source.slice(source.indexOf("function aiUsageCard()"), source.indexOf("function aiConversationItemsMarkup"));
