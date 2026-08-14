@@ -4190,9 +4190,24 @@ function refreshDashboardProfileChrome() {
   const avatar = document.querySelector("[data-dashboard-profile-avatar]");
   const label = document.querySelector("[data-dashboard-profile-label]");
   if (avatar) {
-    avatar.className = "avatar";
-    avatar.removeAttribute("aria-hidden");
-    avatar.textContent = Array.from(profileName)[0] || "";
+    const profileImage = String(state.cachedDashboardProfile?.image || "").trim();
+    if (profileImage && avatar.tagName !== "IMG") {
+      const image = document.createElement("img");
+      image.className = "avatar avatar-image";
+      image.dataset.dashboardProfileAvatar = "";
+      image.src = profileImage;
+      image.alt = profileName;
+      avatar.replaceWith(image);
+    } else if (profileImage) {
+      avatar.className = "avatar avatar-image";
+      avatar.removeAttribute("aria-hidden");
+      avatar.src = profileImage;
+      avatar.alt = profileName;
+    } else {
+      avatar.className = "avatar";
+      avatar.removeAttribute("aria-hidden");
+      avatar.textContent = Array.from(profileName)[0] || "";
+    }
   }
   if (label) {
     label.className = "";

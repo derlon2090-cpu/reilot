@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createGoogleNonce, googleAuthIntentAllowsSignup, googleAutoLinkAllowed, googleClientId, googleEmailOtpRequired, normalizeGoogleAuthIntent, normalizeGoogleClientId, verifyGoogleCredential } from "../../src/server/google-auth.js";
+import { readFileSync } from "node:fs";
+import { createGoogleNonce, googleAuthIntentAllowsSignup, googleAutoLinkAllowed, googleClientId, googleEmailOtpRequired, normalizeGoogleAuthIntent, normalizeGoogleClientId, resolveGoogleProfileFields, verifyGoogleCredential } from "../../src/server/google-auth.js";
 import { sha256 } from "../../src/server/security.js";
 
 const originalClientId = process.env.GOOGLE_CLIENT_ID;
@@ -72,6 +73,29 @@ describe("Google identity verification", () => {
 });
 
 describe("Google account linking policy", () => {
+  it("imports Google identity only for a newly created account", () => {
+    const profile = { name: "Google Name", email: "user@gmail.com", picture: "https://example.com/google.png" };
+    expect(resolveGoogleProfileFields(profile)).toEqual({ name: "Google Name", image: "https://example.com/google.png" });
+  });
+
+  it("preserves the Renvix profile for Google login and automatic linking", () => {
+    const profile = { name: "Changed Google Name", email: "user@gmail.com", picture: "https://example.com/changed.png" };
+    expect(resolveGoogleProfileFields(profile, { name: "Renvix Name", image: "/api/settings/profile/avatar" })).toEqual({
+      name: "Renvix Name",
+      image: "/api/settings/profile/avatar"
+    });
+    expect(resolveGoogleProfileFields(profile, { name: "Renvix Name", image: "" })).toEqual({ name: "Renvix Name", image: "" });
+  });
+
+  it("never overwrites an existing user name or image during Google authentication", () => {
+    const source = readFileSync(new URL("../../src/server/google-auth.js", import.meta.url), "utf8");
+    expect(source).not.toContain("SET name=COALESCE(NULLIF($2,''),name),image=COALESCE");
+    expect(source).not.toContain("image=COALESCE(NULLIF($2,''),image)");
+    expect(source).toContain("const importedProfile = resolveGoogleProfileFields(profile)");
+    expect(source).toContain("const preservedProfile = resolveGoogleProfileFields(profile, linked.rows[0])");
+    expect(source).toContain("const preservedProfile = resolveGoogleProfileFields(profile, existing.rows[0])");
+  });
+
   it("creates a new account only from an explicit registration flow", () => {
     expect(normalizeGoogleAuthIntent("register")).toBe("register");
     expect(normalizeGoogleAuthIntent("login")).toBe("login");

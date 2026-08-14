@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("../../src/app/app.js", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../../src/styles/globals.css", import.meta.url), "utf8");
+const sessionSource = readFileSync(new URL("../../src/server/session.js", import.meta.url), "utf8");
 
 describe("dashboard profile and support layout", () => {
   it("reuses the verified profile during refresh without rendering a generic user name", () => {
@@ -21,6 +22,9 @@ describe("dashboard profile and support layout", () => {
     expect(appSource).toContain('state.route.startsWith("/dashboard") && (force || !state.cachedDashboardProfile?.name)');
     expect(appSource).not.toContain("setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 650)");
     expect(appSource).not.toContain("setTimeout(() => { void enterDashboardAfterSessionVerification(); }, 450)");
+    expect(sessionSource).toContain('u.email, u.name, u.image, u.must_change_password AS "mustChangePassword"');
+    expect(appSource).toContain('image.dataset.dashboardProfileAvatar = ""');
+    expect(appSource).toContain("avatar.replaceWith(image)");
   });
 
   it("clears the cached identity when authentication changes", () => {

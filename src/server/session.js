@@ -43,7 +43,7 @@ export async function getSessionWithToken(req, { allowInactiveTenant = false } =
     ? "LEFT JOIN tenants t ON t.id = u.tenant_id"
     : "JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'";
   const result = await query(
-    `SELECT s.id, s.token AS "_tokenHash", s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.must_change_password AS "mustChangePassword",
+    `SELECT s.id, s.token AS "_tokenHash", s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.image, u.must_change_password AS "mustChangePassword",
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
        FROM sessions s
        JOIN users u ON u.id = s.user_id

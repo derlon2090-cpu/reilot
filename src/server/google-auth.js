@@ -97,6 +97,19 @@ export function googleAutoLinkAllowed(profile) {
   return profile.emailVerified === true && (domain === "gmail.com" || Boolean(profile.hostedDomain));
 }
 
+export function resolveGoogleProfileFields(profile, currentUser = null) {
+  if (currentUser) {
+    return {
+      name: String(currentUser.name || ""),
+      image: String(currentUser.image || "")
+    };
+  }
+  return {
+    name: String(profile?.name || profile?.email?.split("@")[0] || "Renvix").trim().slice(0, 160),
+    image: String(profile?.picture || "").trim().slice(0, 1000)
+  };
+}
+
 function safeUser(row) {
   return {
     id: row.id,
@@ -123,8 +136,9 @@ async function loadGoogleUser(client, profile, intent) {
     [profile.subject]
   );
   if (linked.rows[0]) {
-    await client.query("UPDATE users SET name=COALESCE(NULLIF($2,''),name),image=COALESCE(NULLIF($3,''),image),email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),updated_at=now() WHERE id=$1", [linked.rows[0].id, profile.name, profile.picture]);
-    return { user: { ...linked.rows[0], name: profile.name || linked.rows[0].name, image: profile.picture || linked.rows[0].image }, created: false, linked: false };
+    const preservedProfile = resolveGoogleProfileFields(profile, linked.rows[0]);
+    await client.query("UPDATE users SET email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),updated_at=now() WHERE id=$1", [linked.rows[0].id]);
+    return { user: { ...linked.rows[0], ...preservedProfile }, created: false, linked: false };
   }
 
   const existing = await client.query(
@@ -139,16 +153,18 @@ async function loadGoogleUser(client, profile, intent) {
   );
   if (existing.rows[0]) {
     if (!googleAutoLinkAllowed(profile)) return { error: { ok: false, status: 409, reason: "account_link_verification_required" } };
+    const preservedProfile = resolveGoogleProfileFields(profile, existing.rows[0]);
     await client.query("INSERT INTO accounts (user_id,account_id,provider_id) VALUES ($1,$2,'google') ON CONFLICT DO NOTHING", [existing.rows[0].id, profile.subject]);
-    await client.query("UPDATE users SET email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),image=COALESCE(NULLIF($2,''),image),updated_at=now() WHERE id=$1", [existing.rows[0].id, profile.picture]);
-    return { user: { ...existing.rows[0], image: profile.picture || existing.rows[0].image }, created: false, linked: true };
+    await client.query("UPDATE users SET email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),updated_at=now() WHERE id=$1", [existing.rows[0].id]);
+    return { user: { ...existing.rows[0], ...preservedProfile }, created: false, linked: true };
   }
 
   if (!googleAuthIntentAllowsSignup(intent)) {
     return { error: { ok: false, status: 404, reason: "google_account_not_found" } };
   }
 
-  const workspace = profile.name || profile.email.split("@")[0] || "Renvix";
+  const importedProfile = resolveGoogleProfileFields(profile);
+  const workspace = importedProfile.name;
   const slugBase = workspace.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "renvix";
   const tenant = await client.query("INSERT INTO tenants (name,slug,status) VALUES ($1,$2,'trial') RETURNING id", [workspace, `${slugBase}-${crypto.randomBytes(4).toString("hex")}`]);
   const tenantId = tenant.rows[0].id;
@@ -158,7 +174,7 @@ async function loadGoogleUser(client, profile, intent) {
      VALUES ($1,$2,$3,true,now(),NULLIF($4,''),'owner',true,false)
      RETURNING id,tenant_id AS "tenantId",name,email,image,role,must_change_password AS "mustChangePassword",
                email_otp_enabled AS "emailOtpEnabled",mfa_enabled AS "mfaEnabled",mfa_secret_encrypted AS "mfaSecret"`,
-    [tenantId, workspace, profile.email, profile.picture]
+    [tenantId, workspace, profile.email, importedProfile.image]
   );
   const user = inserted.rows[0];
   await client.query("INSERT INTO accounts (user_id,account_id,provider_id) VALUES ($1,$2,'google')", [user.id, profile.subject]);
