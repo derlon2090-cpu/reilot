@@ -10412,10 +10412,10 @@ function queueAIMessageScroll({ force = false, immediate = false } = {}) {
   if (!list || (!force && !state.aiAutoScroll)) return;
   state.aiScrollForce = state.aiScrollForce || force;
   if (state.aiScrollFrame) return;
-  state.aiScrollFrame = requestAnimationFrame(() => {
+  const follow = () => {
+    state.aiScrollFrame = 0;
     const current = document.querySelector("[data-ai-message-list]");
     if (!current || (!state.aiScrollForce && !state.aiAutoScroll)) {
-      state.aiScrollFrame = 0;
       state.aiProgrammaticScroll = false;
       state.aiScrollForce = false;
       return;
@@ -10429,10 +10429,15 @@ function queueAIMessageScroll({ force = false, immediate = false } = {}) {
       const step = Math.min(maxStep, Math.max(10, Math.abs(distance) * 0.24));
       current.scrollTop += Math.sign(distance) * Math.min(Math.abs(distance), step);
     }
-    state.aiScrollFrame = 0;
+    const remaining = Math.max(0, current.scrollHeight - current.clientHeight - current.scrollTop);
+    if (!immediate && remaining > 2 && (state.aiScrollForce || state.aiAutoScroll)) {
+      state.aiScrollFrame = requestAnimationFrame(follow);
+      return;
+    }
     state.aiScrollForce = false;
     requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
-  });
+  };
+  state.aiScrollFrame = requestAnimationFrame(follow);
 }
 
 function stopAIMessageFollowing() {

@@ -123,6 +123,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("function stopAIMessageFollowing");
     expect(source).toContain("const maxStep = state.aiStreaming ? 42 : 72");
     expect(source).toContain("current.scrollTop += Math.sign(distance)");
+    expect(source).toContain("state.aiScrollFrame = requestAnimationFrame(follow)");
+    expect(source).toContain("remaining > 2 && (state.aiScrollForce || state.aiAutoScroll)");
     expect(source).not.toContain("current.scrollTo({ behavior: \"smooth\"");
     expect(source).not.toContain('streamNode?.scrollIntoView');
     expect(css).toContain("overflow-anchor:none");
