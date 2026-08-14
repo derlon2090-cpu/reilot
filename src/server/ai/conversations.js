@@ -8,7 +8,7 @@ function compactTitle(value = "") {
   return words.length > 64 ? `${words.slice(0, 61)}…` : words;
 }
 
-export async function listAIConversations(session, { search = "", limit = 30 } = {}) {
+export async function listAIConversations(session, { search = "", limit = 100 } = {}) {
   const values = [session.tenantId, session.userId];
   let searchSql = "";
   const term = String(search || "").trim();
@@ -16,7 +16,7 @@ export async function listAIConversations(session, { search = "", limit = 30 } =
     values.push(`%${term}%`);
     searchSql = `AND (c.title ILIKE $3 OR EXISTS (SELECT 1 FROM ai_messages m WHERE m.conversation_id=c.id AND m.content ILIKE $3))`;
   }
-  values.push(Math.min(50, Math.max(1, Number(limit) || 30)));
+  values.push(Math.min(100, Math.max(1, Number(limit) || 100)));
   const result = await query(
     `SELECT c.id,c.title,c.status,c.is_pinned AS "isPinned",c.last_message_at AS "lastMessageAt",c.created_at AS "createdAt",
       (pg_column_size(c)

@@ -156,6 +156,10 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("cachedAIViewState?.conversations || null");
     expect(source).toContain("state.aiConversationsRevalidationPending = false");
     expect(source).toContain("cachedAIViewState?.usage || null");
+    expect(source).toContain("cachedAIViewState?.chatStorage || null");
+    expect(source).toContain("scheduleAIRemoteRetry");
+    expect(source).toContain("/backend/ai/conversations?limit=100");
+    expect(source).toContain("payload.snapshot || { loaded: true }");
     expect(source).toContain("if (!state.aiUsage)");
     expect(source).toContain("rvx-ai-conversation-skeleton");
     expect(source).toContain("function aiConversationLoadingMarkup");
@@ -235,6 +239,8 @@ describe("Renvix Intelligence chat UI", () => {
     const css = await readFile("src/styles/globals.css", "utf8");
     expect(css).toContain(".rvx-ai-conversation-open small{display:flex;align-items:center;justify-content:space-between;gap:12px");
     expect(css).toContain("min-width:max-content;margin-inline-start:8px;direction:ltr");
+    expect(css).toContain("border:1px solid #e5efed;border-radius:11px;background:#fff");
+    expect(css).toContain("border-inline-start:1px solid #dce8e6");
     expect(css).toContain(".rvx-ai-conversation-item.active{border-color:#b8ddd7;background:#e9f7f4;box-shadow:none}");
     expect(css).not.toContain("box-shadow:inset 3px 0 0 #0b776c");
   });
@@ -248,6 +254,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("يتجدد إلى");
     expect(source).toContain("لا توجد تعبئة خامسة");
     expect(source).toContain('percent >= 100 ? "exhausted"');
+    expect(source).toContain("visibleStorageBytes");
+    expect(source).toContain('english ? "Calculating…" : "جارٍ الحساب…"');
     expect(css).toContain(".rvx-ai-usage-card.is-warning");
     expect(css).toContain(".rvx-ai-usage-card.is-critical");
     const card = source.slice(source.indexOf("function aiUsageCard()"), source.indexOf("function aiConversationItemsMarkup"));

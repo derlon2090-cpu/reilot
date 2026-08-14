@@ -28,6 +28,25 @@ describe("AI chat storage cleanup selection", () => {
     expect(result.cleanableConversations).toBe(1);
   });
 
+  it("falls back to message attachment metadata during a rolling attachment-table migration", async () => {
+    const queried: string[] = [];
+    const runner = {
+      query: async (sql: string) => {
+        queried.push(sql);
+        if (sql.includes("ai_attachments")) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
+        return sql.includes('AS "totalBytes"')
+          ? { rows: [{ totalBytes: 9_876, conversationCount: 3 }] }
+          : { rows: [{ id: rows[1].id, status: "active", isPinned: false, lastMessageAt: "2026-02-01", storageBytes: 9_876 }] };
+      }
+    };
+
+    const result = await getAIChatStorage({ tenantId: "tenant-1", userId: "user-1" }, {}, runner);
+
+    expect(result).toMatchObject({ totalBytes: 9_876, conversationCount: 3 });
+    expect(queried.filter((sql) => sql.includes("ai_attachments"))).toHaveLength(2);
+    expect(queried.filter((sql) => sql.includes("jsonb_array_elements"))).toHaveLength(2);
+  });
+
   it("deletes oldest unpinned conversations until the requested space is met", () => {
     const result = selectAIStorageCleanupCandidates(rows, 650, {
       keepConversationId: "00000000-0000-4000-8000-000000000004"

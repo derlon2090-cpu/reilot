@@ -700,24 +700,28 @@ function readCachedAIViewState() {
     const cached = JSON.parse(sessionStorage.getItem(aiViewSessionCacheKey) || "null");
     if (!cached || Date.now() - Number(cached.savedAt || 0) > aiViewSessionCacheMaxAgeMs) return null;
     const conversations = Array.isArray(cached.conversations)
-      ? cached.conversations.filter((item) => item && typeof item.id === "string").slice(0, 30)
+      ? cached.conversations.filter((item) => item && typeof item.id === "string").slice(0, 100)
       : null;
     const usage = cached.usage && Number(cached.usage.allowanceTokens || cached.usage.limitTokens || 0) > 0
       ? cached.usage
       : null;
-    return { conversations, usage };
+    const chatStorage = cached.chatStorage && Number.isFinite(Number(cached.chatStorage.totalBytes))
+      ? cached.chatStorage
+      : null;
+    return { conversations, usage, chatStorage };
   } catch {
     return null;
   }
 }
 
-function cacheAIViewState({ conversations, usage } = {}) {
+function cacheAIViewState({ conversations, usage, chatStorage } = {}) {
   try {
     const current = readCachedAIViewState() || {};
     const next = {
       savedAt: Date.now(),
       conversations: conversations === undefined ? current.conversations : conversations,
-      usage: usage === undefined ? current.usage : usage
+      usage: usage === undefined ? current.usage : usage,
+      chatStorage: chatStorage === undefined ? current.chatStorage : chatStorage
     };
     sessionStorage.setItem(aiViewSessionCacheKey, JSON.stringify(next));
   } catch {
@@ -758,7 +762,9 @@ function cacheDashboardProfile(profile) {
 function clearCachedDashboardProfile() {
   state.cachedDashboardProfile = null;
   state.aiUsage = null;
+  state.aiChatStorage = null;
   state.aiConversations = null;
+  clearAIRemoteRetries();
   clearCachedAIViewState();
   try {
     sessionStorage.removeItem(dashboardProfileCacheKey);
@@ -893,12 +899,16 @@ state.supportReplyDrafts = {};
 state.supportSearch = "";
 state.aiOverview = null;
 state.aiUsage = cachedAIViewState?.usage || null;
-state.aiChatStorage = null;
+state.aiChatStorage = cachedAIViewState?.chatStorage || null;
 state.aiLiveMeter = null;
 state.aiLiveMeterRefreshTimer = 0;
 state.aiPreferences = storage.get("renvix.ai.preferences", null);
 state.aiConversations = cachedAIViewState?.conversations || null;
 state.aiConversationsRevalidationPending = Array.isArray(cachedAIViewState?.conversations);
+state.aiConversationsRetrying = false;
+state.aiConversationsError = "";
+state.aiRemoteRetryAttempts = {};
+state.aiRemoteRetryTimers = {};
 state.aiConversation = null;
 state.aiConversationId = state.query.get("conversation") || "";
 state.aiConversationOpenAtBottom = Boolean(state.aiConversationId);
@@ -1299,6 +1309,38 @@ function isRealQrDataUri(value) {
   return typeof value === "string" && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]{1000,}$/.test(value);
 }
 
+const aiRemoteRetryDelays = [2000, 5000, 12000, 25000];
+
+function clearAIRemoteRetry(key) {
+  clearTimeout(state.aiRemoteRetryTimers[key]);
+  delete state.aiRemoteRetryTimers[key];
+  delete state.aiRemoteRetryAttempts[key];
+}
+
+function clearAIRemoteRetries() {
+  Object.keys(state.aiRemoteRetryTimers || {}).forEach(clearAIRemoteRetry);
+  state.aiRemoteRetryAttempts = {};
+}
+
+function scheduleAIRemoteRetry(key, url, target, options, error) {
+  if (!["aiOverview", "aiConversations"].includes(target)) return false;
+  const transient = !error?.status || [408, 425, 429, 500, 502, 503, 504].includes(Number(error.status));
+  const attempt = Number(state.aiRemoteRetryAttempts[key] || 0);
+  if (!transient || attempt >= aiRemoteRetryDelays.length) return false;
+  state.aiRemoteRetryAttempts[key] = attempt + 1;
+  clearTimeout(state.aiRemoteRetryTimers[key]);
+  state.aiRemoteRetryTimers[key] = setTimeout(() => {
+    delete state.aiRemoteRetryTimers[key];
+    if (state.route !== "/dashboard/support/ai") {
+      if (target === "aiConversations") state.aiConversationsRetrying = false;
+      else if (!state.aiUsage) state.aiOverview = null;
+      return;
+    }
+    void loadRemotePage(key, url, target, options);
+  }, aiRemoteRetryDelays[attempt]);
+  return true;
+}
+
 async function loadRemotePage(key, url, target, options, { renderOnComplete = true } = {}) {
   if (state.remoteLoading[key]) return null;
   state.remoteLoading[key] = true;
@@ -1340,15 +1382,17 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
       state.supportTicket = payload.item || null;
     } else if (target === "aiConversations") {
       state.aiConversations = payload.items || [];
+      state.aiConversationsRetrying = false;
+      state.aiConversationsError = "";
       if (!state.aiConversationSearch) cacheAIViewState({ conversations: state.aiConversations });
     } else if (target === "aiConversation") {
       state.aiConversation = payload.item || null;
     } else if (target === "aiOverview") {
-      state.aiOverview = payload.snapshot || null;
+      state.aiOverview = payload.snapshot || { loaded: true };
       state.aiUsage = payload.usage || null;
       state.aiChatStorage = payload.chatStorage || null;
       state.aiPreferences = payload.preferences || null;
-      if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage });
+      if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage, chatStorage: state.aiChatStorage });
       if (state.aiPreferences) storage.set("renvix.ai.preferences", state.aiPreferences);
     } else state[target] = ["orderLinks", "notifications", "campaignsOverview", "contactsOverview", "contactStatistics", "metaTemplates", "supportTickets"].includes(target)
       ? payload
@@ -1373,9 +1417,19 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         renewAuto: Boolean(payload.settings.security?.renewAuto)
       };
     }
+    if (["aiOverview", "aiConversations"].includes(target)) clearAIRemoteRetry(key);
   } catch (error) {
     if (target === "publicPlans") {
       state.publicPlans = readCachedPublicPlans() || (Array.isArray(state.publicPlans?.plans) ? { ...state.publicPlans, cached: true } : { error: error.message || "تعذر تحميل الباقات" });
+    } else if (scheduleAIRemoteRetry(key, url, target, options, error)) {
+      if (target === "aiOverview") state.aiOverview = { loading: true, retrying: true };
+      if (target === "aiConversations") {
+        state.aiConversationsRetrying = true;
+        state.aiConversationsError = "";
+      }
+    } else if (target === "aiConversations") {
+      state.aiConversationsRetrying = false;
+      state.aiConversationsError = error.message || "تعذر تحميل المحادثات";
     } else {
       state[target] = target === "supportTicket"
         ? { id: state.supportSelectedId || state.query.get("ticket") || "", error: error.message || "تعذر تحميل المحادثة" }
@@ -1489,9 +1543,9 @@ function syncRouteData(force = false) {
     if (state.route === "/dashboard/support/ai") {
       const requestedConversation = state.query.get("conversation") || state.aiConversationId;
       if (force || state.aiOverview === null) queue("aiOverview", "/backend/ai/overview", "aiOverview");
-      if (force || state.aiConversations === null || state.aiConversationsRevalidationPending) {
+      if (force || (!state.aiConversationsRetrying && !state.aiConversationsError && (state.aiConversations === null || state.aiConversationsRevalidationPending))) {
         state.aiConversationsRevalidationPending = false;
-        queue("aiConversations", `/backend/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations");
+        queue("aiConversations", `/backend/ai/conversations?limit=100&search=${encodeURIComponent(state.aiConversationSearch)}`, "aiConversations");
       }
       if (requestedConversation && (force || state.aiConversation?.id !== requestedConversation)) queue("aiConversation", `/backend/ai/conversations/${encodeURIComponent(requestedConversation)}`, "aiConversation");
     }
@@ -8208,6 +8262,15 @@ async function handleAction(target) {
     });
     return;
   }
+  if (action === "ai-retry-data") {
+    clearAIRemoteRetries();
+    state.aiConversationsRetrying = false;
+    state.aiConversationsError = "";
+    if (!state.aiUsage) state.aiOverview = null;
+    if (!Array.isArray(state.aiConversations)) state.aiConversations = null;
+    syncRouteData(true);
+    return render();
+  }
   if (action === "ai-new-conversation") {
     resetAIAttachments();
     state.aiConversationId = "";
@@ -10537,7 +10600,7 @@ function closeAIConversationMenus(except = null) {
 async function refreshAIStateSilently() {
   if (state.route !== "/dashboard/support/ai") return;
   const [conversations, overview] = await Promise.allSettled([
-    fetchJson(`/backend/ai/conversations?limit=30&search=${encodeURIComponent(state.aiConversationSearch)}`),
+    fetchJson(`/backend/ai/conversations?limit=100&search=${encodeURIComponent(state.aiConversationSearch)}`),
     fetchJson("/backend/ai/overview")
   ]);
   if (conversations.status === "fulfilled") {
@@ -10548,7 +10611,7 @@ async function refreshAIStateSilently() {
     state.aiOverview = overview.value.snapshot || state.aiOverview;
     state.aiUsage = overview.value.usage || state.aiUsage;
     state.aiChatStorage = overview.value.chatStorage || state.aiChatStorage;
-    if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage });
+    if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage, chatStorage: state.aiChatStorage });
     refreshAIUsageCards();
   }
 }
@@ -10728,6 +10791,7 @@ function applyAIAuthoritativeStorage(payload = {}) {
   const storage = payload.storage || payload;
   if (!storage || typeof storage !== "object") return;
   state.aiChatStorage = storage;
+  cacheAIViewState({ chatStorage: storage });
   if (state.aiLiveMeter) {
     state.aiLiveMeter.pendingStorageBytes = 0;
     state.aiLiveMeter.storageSettled = payload.phase === "settled";
@@ -13055,10 +13119,24 @@ function aiUsageCard() {
     const label = failed
       ? (english ? "Balance temporarily unavailable" : "تعذر تحميل الرصيد مؤقتًا")
       : (english ? "Loading your balance…" : "جارٍ تحميل رصيدك…");
-    return `<section class="rvx-ai-usage-card is-loading${failed ? " is-unavailable" : ""}" data-ai-usage-card data-ai-usage-signature="${failed ? "unavailable" : "loading"}" aria-busy="${failed ? "false" : "true"}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${label}</small></div></header><div class="rvx-ai-usage-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></section>`;
+    const retry = failed
+      ? `<button type="button" class="rvx-ai-data-retry" data-action="ai-retry-data">${english ? "Try again" : "إعادة المحاولة"}</button>`
+      : "";
+    return `<section class="rvx-ai-usage-card is-loading${failed ? " is-unavailable" : ""}" data-ai-usage-card data-ai-usage-signature="${failed ? "unavailable" : "loading"}" aria-busy="${failed ? "false" : "true"}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${label}</small></div></header><div class="rvx-ai-usage-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>${retry}</section>`;
   }
   const usage = state.aiUsage || {};
   const chatStorage = state.aiChatStorage || {};
+  const visibleConversations = Array.isArray(state.aiConversations) ? state.aiConversations : [];
+  const visibleStorageBytes = visibleConversations.reduce((sum, item) => sum + Math.max(0, Number(item?.storageBytes || 0)), 0);
+  const storageAvailable = Boolean(state.aiChatStorage && Number.isFinite(Number(state.aiChatStorage.totalBytes)));
+  const storageTotalBytes = storageAvailable
+    ? Math.max(Number(chatStorage.totalBytes || 0), visibleStorageBytes)
+    : visibleStorageBytes > 0
+      ? visibleStorageBytes
+      : null;
+  const storageConversationCount = storageAvailable
+    ? Math.max(Number(chatStorage.conversationCount || 0), visibleConversations.length)
+    : visibleConversations.length || null;
   const live = state.aiLiveMeter;
   const provisionalTokens = live && !live.tokensAuthoritative ? Math.max(0, Number(live.estimatedTokens || 0)) : 0;
   const provisionalStorageBytes = live && !live.storageSettled ? Math.max(0, Number(live.pendingStorageBytes || 0)) : 0;
@@ -13096,8 +13174,14 @@ function aiUsageCard() {
         ? (english ? `${formatAITokens(live.reservedTokens)} tokens reserved while responding` : `محجوز ${formatAITokens(live.reservedTokens)} توكن أثناء الرد`)
         : (english ? `Updating now: ${formatAITokens(provisionalTokens)} estimated tokens` : `يُحدّث الآن: ${formatAITokens(provisionalTokens)} توكن تقديري`))
     : "";
-  const signature = [warningLevel, remainingTokens, allowanceTokens, percent, liveText, provisionalStorageBytes, chatStorage.totalBytes, chatStorage.conversationCount].join("|");
-  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card data-ai-usage-signature="${escapeHtml(signature)}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div><p class="rvx-ai-live-meter${liveText ? " is-active" : ""}" aria-live="polite"><i></i><span>${escapeHtml(liveText)}</span></p><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(Number(chatStorage.totalBytes || 0) + provisionalStorageBytes)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
+  const storageBytesMarkup = storageTotalBytes === null
+    ? (english ? "Calculating…" : "جارٍ الحساب…")
+    : formatAIStorageBytes(storageTotalBytes + provisionalStorageBytes);
+  const storageCountMarkup = storageConversationCount === null
+    ? (english ? "Syncing chat storage" : "تتم مزامنة مساحة المحادثات")
+    : `${storageConversationCount.toLocaleString(english ? "en-US" : "ar-SA")} ${english ? (storageAvailable ? "chats" : "visible chats") : (storageAvailable ? "محادثة" : "محادثة ظاهرة")}`;
+  const signature = [warningLevel, remainingTokens, allowanceTokens, percent, liveText, provisionalStorageBytes, storageTotalBytes, storageConversationCount, storageAvailable].join("|");
+  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card data-ai-usage-signature="${escapeHtml(signature)}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div><p class="rvx-ai-live-meter${liveText ? " is-active" : ""}" aria-live="polite"><i></i><span>${escapeHtml(liveText)}</span></p><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${storageBytesMarkup}</b><small>${storageCountMarkup}</small></div></section>`;
 }
 
 function refreshAIUsageCards() {
@@ -13112,10 +13196,11 @@ function refreshAIUsageCards() {
   });
 }
 
-function aiConversationItemsMarkup(items, { loading = false } = {}) {
+function aiConversationItemsMarkup(items, { loading = false, error = "" } = {}) {
   const english = state.language === "en";
   const locale = english ? "en-US" : "ar-SA";
   if (loading) return `<div class="rvx-ai-conversation-skeleton" aria-label="${english ? "Loading recent chats" : "جارٍ تحميل المحادثات الحديثة"}" aria-busy="true">${Array.from({ length: 4 }, () => `<i><span></span><b></b></i>`).join("")}</div>`;
+  if (error && !items.length) return `<div class="rvx-ai-list-error" role="status"><span>${english ? "Chats could not be loaded yet." : "تعذر تحميل المحادثات حتى الآن."}</span><button type="button" data-action="ai-retry-data">${english ? "Try again" : "إعادة المحاولة"}</button></div>`;
   if (!items.length) return `<p>${english ? "Start a new chat and it will appear here automatically." : "ابدأ محادثة جديدة، وستظهر هنا تلقائيًا."}</p>`;
   return items.map((item) => {
     const id = escapeHtml(item.id || "");
@@ -13137,13 +13222,13 @@ function aiConversationItemsMarkup(items, { loading = false } = {}) {
 function refreshAIConversationSidebar() {
   const nav = document.querySelector("[data-ai-conversation-nav]");
   if (!nav) return;
-  nav.innerHTML = aiConversationItemsMarkup(Array.isArray(state.aiConversations) ? state.aiConversations : [], { loading: state.aiConversations === null });
+  nav.innerHTML = aiConversationItemsMarkup(Array.isArray(state.aiConversations) ? state.aiConversations : [], { loading: state.aiConversations === null, error: state.aiConversationsError });
 }
 
 function aiConversationSidebar() {
   const english = state.language === "en";
   const items = Array.isArray(state.aiConversations) ? state.aiConversations : [];
-  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><div class="rvx-ai-side-head"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} ${english ? "New chat" : "محادثة جديدة"}</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="${english ? "Search chats" : "ابحث في المحادثات"}"></label></div><h3>${dashboardIcon("clock")} ${english ? "Recent chats" : "المحادثات الحديثة"}</h3><nav data-ai-conversation-nav>${aiConversationItemsMarkup(items, { loading: state.aiConversations === null })}</nav><div class="rvx-ai-side-bottom">${aiUsageCard()}<footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} <span>${english ? "Tickets" : "التذاكر"}</span></button><button data-action="ai-open-settings">${dashboardIcon("settings")} <span>${english ? "Chat settings" : "إعدادات الشات"}</span></button></footer></div></aside>`;
+  return `<aside class="rvx-ai-sidebar ${state.aiSidebarOpen ? "open" : ""}"><div class="rvx-ai-side-head"><button class="rvx-ai-new" data-action="ai-new-conversation">${dashboardIcon("add")} ${english ? "New chat" : "محادثة جديدة"}</button><label>${dashboardIcon("search")}<input data-action="ai-conversation-search" value="${escapeHtml(state.aiConversationSearch)}" placeholder="${english ? "Search chats" : "ابحث في المحادثات"}"></label></div><h3>${dashboardIcon("clock")} ${english ? "Recent chats" : "المحادثات الحديثة"}</h3><nav data-ai-conversation-nav>${aiConversationItemsMarkup(items, { loading: state.aiConversations === null, error: state.aiConversationsError })}</nav><div class="rvx-ai-side-bottom">${aiUsageCard()}<footer><button data-link="/dashboard/support/tickets">${dashboardIcon("support")} <span>${english ? "Tickets" : "التذاكر"}</span></button><button data-action="ai-open-settings">${dashboardIcon("settings")} <span>${english ? "Chat settings" : "إعدادات الشات"}</span></button></footer></div></aside>`;
 }
 
 function aiConversationLoadingMarkup() {
@@ -13678,6 +13763,9 @@ document.addEventListener("input", (event) => {
     state.aiConversationSearch = target.value;
     clearTimeout(state.aiConversationSearchTimer);
     state.aiConversationSearchTimer = setTimeout(() => {
+      clearAIRemoteRetry("aiConversations");
+      state.aiConversationsRetrying = false;
+      state.aiConversationsError = "";
       state.aiConversations = null;
       syncRouteData(true);
     }, 280);

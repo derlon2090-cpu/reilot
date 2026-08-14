@@ -12,6 +12,9 @@ const tenantId = crypto.randomUUID();
 const userId = crypto.randomUUID();
 const subscriptionId = crypto.randomUUID();
 const session = { tenantId, userId };
+const missingTrialTenantId = crypto.randomUUID();
+const missingTrialUserId = crypto.randomUUID();
+const missingTrialSession = { tenantId: missingTrialTenantId, userId: missingTrialUserId };
 
 describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
   beforeAll(async () => {
@@ -27,11 +30,19 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
        VALUES($1,$2,$3,'active','monthly',now()-interval '1 day',now()+interval '30 days')`,
       [subscriptionId, tenantId, plan.rows[0].id]
     );
+    await query("INSERT INTO tenants(id,name,slug,status) VALUES($1,'AI missing trial test',$2,'active')", [missingTrialTenantId, `ai-missing-${missingTrialTenantId}`]);
+    await query(
+      "INSERT INTO users(id,tenant_id,name,email,email_verified,role) VALUES($1,$2,'AI Missing Trial',$3,true,'owner')",
+      [missingTrialUserId, missingTrialTenantId, `ai-missing-${missingTrialUserId}@example.test`]
+    );
   });
 
   afterAll(async () => {
     await query("DELETE FROM users WHERE id=$1", [userId]);
+    await query("DELETE FROM users WHERE id=$1", [missingTrialUserId]);
     await query("DELETE FROM tenant_storage_usage WHERE tenant_id=$1", [tenantId]);
+    await query("DELETE FROM tenant_storage_usage WHERE tenant_id=$1", [missingTrialTenantId]);
+    await query("DELETE FROM tenants WHERE id=$1", [missingTrialTenantId]);
     await query("DELETE FROM tenants WHERE id=$1", [tenantId]);
   }, 30_000);
 
@@ -50,6 +61,16 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
        SELECT entitlement_period_id,tenant_id,5,now(),now()+interval '7 days',now()+interval '7 days',3000000
        FROM ai_entitlement_cycles WHERE tenant_id=$1 LIMIT 1`, [tenantId]
     )).rejects.toMatchObject({ code: "23514" });
+  });
+
+  it("self-heals the one missing trial subscription for a new account", async () => {
+    const usage = await getAIEntitlementSummary(missingTrialSession);
+    expect(usage).toMatchObject({ allowanceTokens: 100_000, remainingTokens: 100_000, cycleNumber: 1, maxCycles: 1 });
+    const subscriptions = await query(
+      "SELECT count(*)::int AS count,max(status) AS status FROM platform_subscriptions WHERE tenant_id=$1",
+      [missingTrialTenantId]
+    );
+    expect(subscriptions.rows[0]).toMatchObject({ count: 1, status: "trial" });
   });
 
   it("settles only actual response.usage and deduplicates a provider request id", async () => {

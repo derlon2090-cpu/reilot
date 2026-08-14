@@ -13,6 +13,19 @@ function rowBytes(row) {
   return Math.max(0, Number(row?.storageBytes || 0));
 }
 
+function attachmentSchemaUnavailable(error) {
+  return ["42P01", "42703"].includes(String(error?.code || error?.cause?.code || ""));
+}
+
+async function withLegacyAttachmentFallback(primary, fallback) {
+  try {
+    return await primary();
+  } catch (error) {
+    if (!attachmentSchemaUnavailable(error)) throw error;
+    return fallback();
+  }
+}
+
 export function selectAIStorageCleanupCandidates(rows = [], targetBytes = 0, { keepConversationId = null } = {}) {
   const requested = Math.min(MAX_CLEANUP_BYTES, Math.max(1, Number(targetBytes || 0)));
   const keepId = safeConversationId(keepConversationId);
@@ -32,7 +45,8 @@ export function selectAIStorageCleanupCandidates(rows = [], targetBytes = 0, { k
 }
 
 async function conversationStorageRows(session, runner, keepConversationId = null) {
-  const result = await runner.query(
+  const parameters = [session.tenantId, session.userId, safeConversationId(keepConversationId)];
+  const result = await withLegacyAttachmentFallback(() => runner.query(
     `SELECT c.id,c.status,c.is_pinned AS "isPinned",c.last_message_at AS "lastMessageAt",
        (pg_column_size(c)
         + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.conversation_id=c.id),0)
@@ -47,13 +61,36 @@ async function conversationStorageRows(session, runner, keepConversationId = nul
       ORDER BY CASE c.status WHEN 'deleted' THEN 0 WHEN 'archived' THEN 1 ELSE 2 END,
                c.last_message_at ASC
       LIMIT 500`,
-    [session.tenantId, session.userId, safeConversationId(keepConversationId)]
-  );
+    parameters
+  ), () => runner.query(
+    `SELECT c.id,c.status,c.is_pinned AS "isPinned",c.last_message_at AS "lastMessageAt",
+       (pg_column_size(c)
+        + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.conversation_id=c.id),0)
+        + COALESCE((SELECT sum(CASE WHEN attachment->>'size' ~ '^[0-9]+$'
+                                      THEN (attachment->>'size')::bigint ELSE 0 END)
+            FROM ai_messages m
+            CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+           WHERE m.conversation_id=c.id),0)
+        + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.conversation_id=c.id),0))::bigint AS "storageBytes",
+       ARRAY(SELECT DISTINCT COALESCE(attachment->>'objectKey',attachment->>'object_key')
+          FROM ai_messages m
+          CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+         WHERE m.conversation_id=c.id
+           AND COALESCE(attachment->>'objectKey',attachment->>'object_key') IS NOT NULL) AS "attachmentKeys"
+       FROM ai_conversations c
+      WHERE c.tenant_id=$1 AND c.user_id=$2
+        AND ($3::uuid IS NULL OR c.id <> $3::uuid)
+      ORDER BY CASE c.status WHEN 'deleted' THEN 0 WHEN 'archived' THEN 1 ELSE 2 END,
+               c.last_message_at ASC
+      LIMIT 500`,
+    parameters
+  ));
   return result.rows;
 }
 
 async function totalAIChatStorage(session, runner) {
-  const result = await runner.query(
+  const parameters = [session.tenantId, session.userId];
+  const result = await withLegacyAttachmentFallback(() => runner.query(
     `SELECT (
        COALESCE((SELECT sum(pg_column_size(c)) FROM ai_conversations c WHERE c.tenant_id=$1 AND c.user_id=$2),0)
        + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.tenant_id=$1 AND m.user_id=$2),0)
@@ -62,8 +99,21 @@ async function totalAIChatStorage(session, runner) {
        + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.tenant_id=$1 AND x.user_id=$2),0)
      )::bigint AS "totalBytes",
      (SELECT count(*)::int FROM ai_conversations c WHERE c.tenant_id=$1 AND c.user_id=$2 AND c.status <> 'deleted') AS "conversationCount"`,
-    [session.tenantId, session.userId]
-  );
+    parameters
+  ), () => runner.query(
+    `SELECT (
+       COALESCE((SELECT sum(pg_column_size(c)) FROM ai_conversations c WHERE c.tenant_id=$1 AND c.user_id=$2),0)
+       + COALESCE((SELECT sum(pg_column_size(m)) FROM ai_messages m WHERE m.tenant_id=$1 AND m.user_id=$2),0)
+       + COALESCE((SELECT sum(CASE WHEN attachment->>'size' ~ '^[0-9]+$'
+                                     THEN (attachment->>'size')::bigint ELSE 0 END)
+           FROM ai_messages m
+           CROSS JOIN LATERAL jsonb_array_elements(COALESCE(m.attachments,'[]'::jsonb)) attachment
+          WHERE m.tenant_id=$1 AND m.user_id=$2),0)
+       + COALESCE((SELECT sum(pg_column_size(x)) FROM ai_tool_executions x WHERE x.tenant_id=$1 AND x.user_id=$2),0)
+     )::bigint AS "totalBytes",
+     (SELECT count(*)::int FROM ai_conversations c WHERE c.tenant_id=$1 AND c.user_id=$2 AND c.status <> 'deleted') AS "conversationCount"`,
+    parameters
+  ));
   return {
     totalBytes: Math.max(0, Number(result.rows[0]?.totalBytes || 0)),
     conversationCount: Math.max(0, Number(result.rows[0]?.conversationCount || 0))
