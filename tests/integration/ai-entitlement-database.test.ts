@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { query } from "../../src/server/db.js";
 import {
+  getAIEntitlementSnapshot,
   getAIEntitlementSummary,
   releaseAITokenReservation,
   reserveAITokens,
@@ -49,6 +50,8 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
   it("materializes one period with exactly four Professional cycles and no cycle five", async () => {
     const usage = await getAIEntitlementSummary(session);
     expect(usage).toMatchObject({ allowanceTokens: 3_000_000, remainingTokens: 3_000_000, cycleNumber: 1, maxCycles: 4 });
+    const snapshot = await getAIEntitlementSnapshot(session);
+    expect(snapshot).toMatchObject({ allowanceTokens: 3_000_000, remainingTokens: 3_000_000, cycleNumber: 1, maxCycles: 4 });
     const cycles = await query(
       `SELECT cycle_number AS "cycleNumber",allowance_tokens AS "allowanceTokens"
        FROM ai_entitlement_cycles WHERE tenant_id=$1 ORDER BY cycle_number`, [tenantId]

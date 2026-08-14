@@ -51,7 +51,7 @@ function responseHeaders(source) {
 }
 
 const TRANSIENT_READ_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
-const DEFAULT_READ_RETRY_DELAYS = [0, 400];
+const DEFAULT_READ_RETRY_DELAYS = [0];
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function boundedReadSignal(parentSignal, timeoutMs) {
@@ -75,7 +75,7 @@ function boundedReadSignal(parentSignal, timeoutMs) {
 export async function proxyAIBackendRequest(request, { params }, fetchImpl = fetch, {
   sleepImpl = wait,
   retryDelays = DEFAULT_READ_RETRY_DELAYS,
-  attemptTimeoutMs = 6_000
+  attemptTimeoutMs = 5_000
 } = {}) {
   if (!trustedFrontendRequest(request)) {
     return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
@@ -102,12 +102,18 @@ export async function proxyAIBackendRequest(request, { params }, fetchImpl = fet
         redirect: "manual",
         signal: readSignal.signal
       });
-      readSignal.dispose();
       if (attempt < delays.length - 1 && TRANSIENT_READ_STATUSES.has(backendResponse.status)) {
         await backendResponse.body?.cancel().catch(() => {});
+        readSignal.dispose();
         continue;
       }
-      return new Response(method === "HEAD" ? null : backendResponse.body, {
+      const responseBody = method === "HEAD"
+        ? null
+        : canRetry
+          ? await backendResponse.arrayBuffer()
+          : backendResponse.body;
+      readSignal.dispose();
+      return new Response(responseBody, {
         status: backendResponse.status,
         statusText: backendResponse.statusText,
         headers: responseHeaders(backendResponse.headers)

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("AI token entitlement database and service contract", () => {
   const migration = readFileSync("drizzle/0079_ai_token_entitlements.sql", "utf8");
   const service = readFileSync("src/server/ai/entitlements.js", "utf8");
+  const usage = readFileSync("src/server/ai/usage.js", "utf8");
   const orchestrator = readFileSync("src/server/ai/orchestrator.js", "utf8");
 
   it("enforces four cycles, unique period-cycle numbering, and nonnegative balances in PostgreSQL", () => {
@@ -30,5 +31,12 @@ describe("AI token entitlement database and service contract", () => {
     expect(orchestrator).toContain("reserveAITokens");
     expect(orchestrator).toContain("settleAITokenReservation");
     expect(orchestrator).toContain("releaseAITokenReservation");
+  });
+
+  it("reads an existing balance without taking the entitlement writer lock", () => {
+    expect(service).toContain("export async function getAIEntitlementSnapshot");
+    expect(service).toContain("query_timeout: 2500");
+    expect(usage).toContain("const snapshot = await getAIEntitlementSnapshot(session)");
+    expect(usage).toContain("return snapshot || getAIEntitlementSummary(session)");
   });
 });

@@ -110,4 +110,22 @@ describe("AI frontend gateway", () => {
     expect(response.status).toBe(503);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the read deadline active while a JSON response body is stalled", async () => {
+    const request = new Request("https://renvix.app/backend/ai/usage", {
+      headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" }
+    });
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => new Response(new ReadableStream({
+      start(controller) {
+        init?.signal?.addEventListener("abort", () => controller.error(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+      }
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["usage"] }) }, fetchImpl, {
+      retryDelays: [0], attemptTimeoutMs: 10, sleepImpl: async () => {}
+    });
+
+    expect(response.status).toBe(503);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });

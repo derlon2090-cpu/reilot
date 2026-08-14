@@ -58,15 +58,18 @@ function isRetryableReadQuery(text) {
 }
 
 export async function query(text, values = []) {
+  const config = text && typeof text === "object" ? text : null;
+  const statement = config ? config.text : text;
+  const execute = () => config ? getPool().query(config) : getPool().query(text, values);
   try {
-    return await getPool().query(text, values);
+    return await execute();
   } catch (error) {
     // A write may have reached PostgreSQL before the connection dropped. Only
     // retry read-only statements so a transient outage can never duplicate a
     // mutation such as an audit record, session, or rate-limit increment.
-    if (!isTransientDatabaseError(error) || !isRetryableReadQuery(text)) throw error;
+    if (!isTransientDatabaseError(error) || !isRetryableReadQuery(statement)) throw error;
     await retryDelay();
-    return getPool().query(text, values);
+    return execute();
   }
 }
 

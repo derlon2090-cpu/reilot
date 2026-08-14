@@ -12,10 +12,10 @@ describe("dashboard home refresh stability", () => {
 
   it("batches dashboard data requests into one final render", () => {
     expect(appSource).toContain('const isAIPage = state.route === "/dashboard/support/ai"');
-    expect(appSource).toContain("const batchesInitialRender = isDashboardHome || isAIPage");
-    expect(appSource).toContain("renderOnComplete: !batchesInitialRender");
+    expect(appSource).toContain("const batchesInitialRender = isDashboardHome");
+    expect(appSource).toContain("renderOnComplete: !batchesInitialRender && !isAIPage");
     expect(appSource).toContain("const settled = Promise.allSettled(pending)");
-    expect(appSource).toContain("void readyToPaint.then(() => {");
+    expect(appSource).toContain("void settled.then(() => {");
     expect(appSource).toContain("if (state.route !== routeAtStart) return;");
     expect(appSource).toContain("render();");
   });

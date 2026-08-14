@@ -10,7 +10,8 @@ export async function GET(request, { params }) {
   const auth = await requireSession(request); if (!auth.ok) return auth.response;
   const { conversationId } = await params;
   try {
-    const item = await getAIConversation(auth.session, conversationId);
+    const limit = new URL(request.url).searchParams.get("limit");
+    const item = await getAIConversation(auth.session, conversationId, { limit });
     if (!item) return Response.json({ ok: false, message: "المحادثة غير موجودة." }, { status: 404 });
     return Response.json({ ok: true, item });
   } catch (error) { return fail(error); }

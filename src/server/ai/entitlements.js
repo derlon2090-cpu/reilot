@@ -226,6 +226,72 @@ function usageSummary(entitlement, requestCount = 0) {
   };
 }
 
+export async function getAIEntitlementSnapshot(session, { now = new Date() } = {}) {
+  const result = await query({
+    text: `SELECT pp.name AS "planName",pp.slug AS "planSlug",
+            ep.period_start AS "periodStart",ep.period_end AS "periodEnd",
+            ep.period_token_cap AS "periodCap",ep.max_cycles AS "maxCycles",
+            ec.id AS "cycleId",ec.cycle_number AS "cycleNumber",ec.cycle_start AS "cycleStart",
+            ec.cycle_end AS "cycleEnd",ec.access_ends_at AS "accessEndsAt",
+            ec.allowance_tokens AS "allowanceTokens",ec.used_tokens AS "usedTokens",
+            COALESCE((SELECT sum(r.requested_tokens) FROM ai_token_reservations r
+                       WHERE r.tenant_id=ps.tenant_id AND r.cycle_id=ec.id
+                         AND r.status='reserved' AND r.expires_at>$2),0)::bigint AS "reservedTokens",
+            ec.status AS "cycleStatus"
+       FROM platform_subscriptions ps
+       JOIN platform_plans pp ON pp.id=ps.plan_id
+       JOIN LATERAL (
+         SELECT p.id,p.period_start,p.period_end,p.period_token_cap,p.max_cycles
+           FROM ai_entitlement_periods p
+          WHERE p.tenant_id=ps.tenant_id AND p.subscription_id=ps.id AND p.status='active'
+            AND p.period_start<=$2 AND p.period_end>$2
+          ORDER BY p.period_start DESC LIMIT 1
+       ) ep ON true
+       JOIN LATERAL (
+         SELECT c.id,c.cycle_number,c.cycle_start,c.cycle_end,c.access_ends_at,
+                c.allowance_tokens,c.used_tokens,c.reserved_tokens,c.status
+           FROM ai_entitlement_cycles c
+          WHERE c.entitlement_period_id=ep.id AND c.cycle_start<=$2 AND c.access_ends_at>$2
+          ORDER BY c.cycle_number DESC LIMIT 1
+       ) ec ON true
+      WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial')
+        AND ps.current_period_start<=$2::timestamptz+interval '1 minute' AND ps.current_period_end>$2
+      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,ps.created_at DESC
+      LIMIT 1`,
+    values: [session.tenantId, now],
+    query_timeout: 2500
+  });
+  const row = result.rows[0];
+  if (!row) return null;
+  const resolution = resolveAIEntitlementCycle({
+    planSlug: row.planSlug,
+    periodStart: row.periodStart,
+    periodEnd: row.periodEnd,
+    now,
+    subscriptionActive: true
+  });
+  return usageSummary({
+    planName: row.planName,
+    planSlug: row.planSlug,
+    periodStart: row.periodStart,
+    periodEnd: row.periodEnd,
+    periodCap: row.periodCap,
+    maxCycles: row.maxCycles,
+    state: resolution.state,
+    cycle: {
+      id: row.cycleId,
+      cycleNumber: row.cycleNumber,
+      cycleStart: row.cycleStart,
+      cycleEnd: row.cycleEnd,
+      accessEndsAt: row.accessEndsAt,
+      allowanceTokens: row.allowanceTokens,
+      usedTokens: row.usedTokens,
+      reservedTokens: row.reservedTokens,
+      status: row.cycleStatus
+    }
+  });
+}
+
 export async function getAIEntitlementSummary(session, { now = new Date() } = {}) {
   return transaction(async (client) => {
     // A balance read must never wait indefinitely behind a stalled writer or query.

@@ -139,11 +139,13 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-tools{min-height:30px");
   });
 
-  it("batches initial AI data and isolates ticket live refreshes from an active response", async () => {
+  it("keeps AI data updates local and isolates ticket live refreshes from the chat", async () => {
     const source = await readFile("src/app/app.js", "utf8");
     expect(source).toContain('const isAIPage = state.route === "/dashboard/support/ai"');
-    expect(source).toContain("const batchesInitialRender = isDashboardHome || isAIPage");
-    expect(source).toContain('routeAtStart === "/dashboard/support/ai" && state.aiStreaming');
+    expect(source).toContain("const batchesInitialRender = isDashboardHome");
+    expect(source).toContain("renderOnComplete: !batchesInitialRender && !isAIPage");
+    expect(source).toContain('else if (target === "aiConversation") refreshAIConversationWorkspace()');
+    expect(source).toContain("const shouldLoadDashboardChromeData = state.route.startsWith(\"/dashboard\") && !isAIPage");
     expect(source).toContain('state.route !== "/dashboard/support/ai"');
     expect(source).toContain("if (!supportLiveRouteActive())");
   });
@@ -160,7 +162,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("cachedAIViewState?.usage || null");
     expect(source).toContain("cachedAIViewState?.chatStorage || null");
     expect(source).toContain("scheduleAIRemoteRetry");
-    expect(source).toContain("/backend/ai/conversations?limit=100");
+    expect(source).toContain("/backend/ai/conversations?limit=40");
     expect(source).toContain("payload.snapshot || { loaded: true }");
     expect(source).toContain("if (!state.aiUsage)");
     expect(source).toContain("rvx-ai-conversation-skeleton");
@@ -237,6 +239,26 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-storage-value{display:inline-block;direction:ltr;unicode-bidi:isolate;white-space:nowrap");
   });
 
+  it("opens saved conversations with a cancellable targeted update for tablet performance", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    const openHandler = source.slice(source.indexOf('if (action === "ai-open-conversation")'), source.indexOf('if (action === "ai-toggle-sidebar")'));
+    const sidebarHandler = source.slice(source.indexOf('if (action === "ai-toggle-sidebar")'), source.indexOf('if (action === "ai-open-settings")'));
+    expect(source).toContain("state.aiConversationRequestController?.abort()");
+    expect(source).toContain("function refreshAIConversationWorkspace()");
+    expect(source).toContain("?limit=40");
+    expect(openHandler).toContain("refreshAIConversationSelection()");
+    expect(openHandler).toContain("void loadAIConversation(state.aiConversationId, { force: true })");
+    expect(openHandler).not.toContain("syncRouteData(true)");
+    expect(openHandler).not.toContain("return render()");
+    expect(sidebarHandler).toContain('.classList.toggle("open", state.aiSidebarOpen)');
+    expect(sidebarHandler).not.toContain("render()");
+    expect(css).toContain("content-visibility:auto");
+    expect(css).toContain("contain-intrinsic-size:auto 112px");
+  });
+
   it("separates conversation metadata without an active edge stripe", async () => {
     const css = await readFile("src/styles/globals.css", "utf8");
     expect(css).toContain(".rvx-ai-conversation-open small{display:flex;align-items:center;justify-content:space-between;gap:12px");
@@ -267,12 +289,13 @@ describe("Renvix Intelligence chat UI", () => {
   it("loads the balance independently with bounded requests and paints it without waiting for the dashboard batch", async () => {
     const source = await readFile("src/app/app.js", "utf8");
     expect(source).toContain('queue("aiUsage", "/backend/ai/usage", "aiUsage", aiReadOptions)');
-    expect(source).toContain('queue("aiStorageSummary", "/backend/ai/storage?summary=1"');
-    expect(source).toContain("timeoutMs: 8_000");
-    expect(source).toContain("Promise.race([settled, new Promise((resolve) => setTimeout(resolve, 1200))])");
+    expect(source).toContain("scheduleAIStorageSummaryRefresh({ force })");
+    expect(source).toContain("requestIdleCallback(start, { timeout: 2500 })");
+    expect(source).toContain("timeoutMs: 6_000");
     expect(source).toContain('if (["aiUsage", "aiStorageSummary"].includes(target)) refreshAIUsageCards()');
     expect(source).toContain('timeoutError.code = "REQUEST_TIMEOUT"');
     expect(source).toContain('class="rvx-ai-usage-error" role="status"');
     expect(source).toContain("تم إنهاؤه بأمان. أعد تحميل الرصيد");
+    expect(source).toContain('{ error: error.message || "تعذر تحميل رصيد الذكاء", retrying: true }');
   });
 });

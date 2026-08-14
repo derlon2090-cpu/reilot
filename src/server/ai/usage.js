@@ -1,5 +1,5 @@
 import { query } from "../db.js";
-import { getAIEntitlementSummary } from "./entitlements.js";
+import { getAIEntitlementSnapshot, getAIEntitlementSummary } from "./entitlements.js";
 
 const safeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 
@@ -9,7 +9,8 @@ export function estimateAITokens(value = "") {
 }
 
 export async function getAIUsageSummary(session) {
-  return getAIEntitlementSummary(session);
+  const snapshot = await getAIEntitlementSnapshot(session);
+  return snapshot || getAIEntitlementSummary(session);
 }
 
 export async function assertAIUsageAvailable(session, estimatedInputTokens = 0) {
