@@ -62,7 +62,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain(".rvx-ai-conversation-menu");
   });
 
-  it("separates image, file and voice controls and uploads through private presigned R2", async () => {
+  it("separates image, file and voice controls and supports a private backend upload relay", async () => {
     const [source, css, uploadRoute] = await Promise.all([
       readFile("src/app/app.js", "utf8"),
       readFile("src/styles/globals.css", "utf8"),
@@ -74,6 +74,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('data-action="ai-record-audio"');
     expect(source).toContain("navigator.mediaDevices.getUserMedia");
     expect(source).toContain("new MediaRecorder");
+    expect(source).toContain('.split(";", 1)[0].trim().toLowerCase()');
     expect(source).toContain('data-ai-recording-time');
     expect(source).toContain("function uploadAIAttachments");
     expect(source).toContain("rvx-ai-attachment-preview");
@@ -81,6 +82,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(uploadRoute).toContain("createAttachmentUpload");
     expect(uploadRoute).not.toContain('access: "public"');
     expect(source).toContain("prepared.upload.url");
+    expect(source).toContain('/upload`');
     expect(source).toContain("/complete");
     expect(source).toContain("/process");
   });
@@ -118,8 +120,25 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("await streamWriter?.drain()");
     expect(source).toContain("state.aiProgrammaticScroll");
     expect(source).toContain("function stopAIMessageFollowing");
+    expect(source).toContain("current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight)");
+    expect(source).not.toContain("const step = Math.sign(distance)");
     expect(source).not.toContain('streamNode?.scrollIntoView');
     expect(css).toContain("overflow-anchor:none");
+  });
+
+  it("stops stream consumption, copies completed replies and refreshes usage without a page reload", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(source).toContain("state.aiStopRequested = true");
+    expect(source).toContain("state.aiActiveStreamWriter?.cancel()");
+    expect(source).toContain('signal?.addEventListener("abort", stopReading');
+    expect(source).toContain('data-action="ai-copy-response"');
+    expect(source).toContain("function refreshAIUsageCards");
+    expect(source).toContain("refreshAIUsageCards();");
+    expect(source).toContain("عذرًا، نفد رصيد الذكاء المتاح. تواصل مع الدعم أو رقِّ الباقة للمتابعة.");
+    expect(css).toContain(".rvx-ai-message-meta button");
   });
 
   it("keeps usage and response data cards compact across chat viewports", async () => {

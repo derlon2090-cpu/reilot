@@ -7,7 +7,8 @@ import {
   deletePrivateObject,
   deletePrivateObjectsAndVerify,
   inspectPrivateObject,
-  readPrivateObjectPrefix
+  readPrivateObjectPrefix,
+  writePrivateObject
 } from "./object-storage.js";
 import { recordAttachmentMetric } from "./metrics.js";
 import { reconcileTenantStorageUsage } from "../tenant-storage.js";
@@ -156,6 +157,25 @@ export async function completeAttachmentUpload(session, attachmentId) {
     recordAttachmentMetric(session.tenantId, "uploaded_bytes", { count: 0, value: inspected.size })
   ]).catch(() => {});
   return publicAttachment(result.rows[0] || row);
+}
+
+export async function uploadAttachmentBytes(session, attachmentId, body, contentType) {
+  const row = await getAttachmentForUser(session, attachmentId, { requireReady: false });
+  if (["ready", "processing", "processed"].includes(row.status)) return publicAttachment(row);
+  if (row.status !== "uploading") throw attachmentError("ATTACHMENT_NOT_READY", 409);
+  const bytes = Buffer.isBuffer(body) ? body : Buffer.from(body || []);
+  if (bytes.length !== Number(row.sizeBytes)) throw attachmentError("UPLOAD_SIZE_MISMATCH", 409);
+  if (String(contentType || "").split(";", 1)[0].trim().toLowerCase() !== row.mimeType) {
+    throw attachmentError("UPLOAD_MIME_MISMATCH", 409);
+  }
+  if (!RULES[row.mimeType]?.valid(bytes.subarray(0, 64))) throw attachmentError("UPLOAD_MIME_MISMATCH", 409);
+  try {
+    await writePrivateObject({ objectKey: row.objectKey, contentType: row.mimeType, body: bytes });
+  } catch {
+    await recordAttachmentMetric(session.tenantId, "uploads_failed").catch(() => {});
+    throw attachmentError("R2_UNAVAILABLE", 503);
+  }
+  return completeAttachmentUpload(session, attachmentId);
 }
 
 export async function getAttachmentForUser(session, attachmentId, { requireReady = true } = {}) {

@@ -253,7 +253,7 @@ export async function reserveAITokens(session, input = {}) {
     if (remaining < minimumTokens) {
       const usage = usageSummary(entitlement);
       throw entitlementError("AI_PLAN_TOKEN_LIMIT_REACHED",
-        "استهلكت رصيد ذكاء Renvix المتاح لهذه الدورة.", 429, { usage });
+        "عذرًا، نفد رصيد الذكاء المتاح. تواصل مع الدعم أو رقِّ الباقة للمتابعة.", 429, { usage });
     }
     const reservedTokens = Math.min(requestedTokens, remaining);
     const inserted = await client.query(

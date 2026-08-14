@@ -858,6 +858,8 @@ state.aiConversationOpenAtBottom = Boolean(state.aiConversationId);
 state.aiConversationSearch = "";
 state.aiStreaming = false;
 state.aiAbortController = null;
+state.aiActiveStreamWriter = null;
+state.aiStopRequested = false;
 state.aiDraft = "";
 state.aiSidebarOpen = false;
 state.aiSettingsOpen = false;
@@ -8191,7 +8193,24 @@ async function handleAction(target) {
     return;
   }
   if (action === "ai-stop") {
+    state.aiStopRequested = true;
+    state.aiActiveStreamWriter?.cancel();
     state.aiAbortController?.abort();
+    return;
+  }
+  if (action === "ai-copy-response") {
+    const message = target.closest(".rvx-ai-assistant-message");
+    const content = message?.querySelector(".rvx-ai-rich-text");
+    const value = String(content?.dataset.aiRaw || content?.innerText || "").trim();
+    if (!value) return;
+    await copyText(value, state.language === "en" ? "Response copied" : "تم نسخ الرد");
+    target.classList.add("is-copied");
+    target.innerHTML = `${dashboardIcon("success")}<span>${state.language === "en" ? "Copied" : "تم النسخ"}</span>`;
+    window.setTimeout(() => {
+      if (!target.isConnected) return;
+      target.classList.remove("is-copied");
+      target.innerHTML = `${dashboardIcon("copy")}<span>${state.language === "en" ? "Copy" : "نسخ"}</span>`;
+    }, 1600);
     return;
   }
   if (action === "ai-add-image") {
@@ -10391,7 +10410,7 @@ function queueAIMessageScroll({ force = false } = {}) {
   if (!list || (!force && !state.aiAutoScroll)) return;
   state.aiScrollForce = state.aiScrollForce || force;
   if (state.aiScrollFrame) return;
-  const follow = () => {
+  state.aiScrollFrame = requestAnimationFrame(() => {
     const current = document.querySelector("[data-ai-message-list]");
     if (!current || (!state.aiScrollForce && !state.aiAutoScroll)) {
       state.aiScrollFrame = 0;
@@ -10400,20 +10419,11 @@ function queueAIMessageScroll({ force = false } = {}) {
       return;
     }
     state.aiProgrammaticScroll = true;
-    const target = Math.max(0, current.scrollHeight - current.clientHeight);
-    const distance = target - current.scrollTop;
-    if (Math.abs(distance) <= 1) {
-      current.scrollTop = target;
-      state.aiScrollFrame = 0;
-      state.aiProgrammaticScroll = false;
-      state.aiScrollForce = false;
-      return;
-    }
-    const step = Math.sign(distance) * Math.min(Math.abs(distance), Math.max(12, Math.min(58, Math.abs(distance) * .24)));
-    current.scrollTop += step;
-    state.aiScrollFrame = requestAnimationFrame(follow);
-  };
-  state.aiScrollFrame = requestAnimationFrame(follow);
+    current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight);
+    state.aiScrollFrame = 0;
+    state.aiScrollForce = false;
+    requestAnimationFrame(() => { state.aiProgrammaticScroll = false; });
+  });
 }
 
 function stopAIMessageFollowing() {
@@ -10474,6 +10484,7 @@ async function refreshAIStateSilently() {
     state.aiOverview = overview.value.snapshot || state.aiOverview;
     state.aiUsage = overview.value.usage || state.aiUsage;
     state.aiChatStorage = overview.value.chatStorage || state.aiChatStorage;
+    refreshAIUsageCards();
   }
 }
 
@@ -10565,7 +10576,7 @@ function setAIComposerStreaming(form, streaming) {
     button.type = "button";
     button.className = "rvx-ai-stop";
     button.dataset.action = "ai-stop";
-    button.innerHTML = `${dashboardIcon("close")} إيقاف`;
+    button.innerHTML = `${dashboardIcon("close")} ${state.language === "en" ? "Stop" : "إيقاف"}`;
   } else {
     button.type = "submit";
     button.className = "rvx-ai-send";
@@ -10583,32 +10594,61 @@ function refreshAIToolProgress(event) {
   root.innerHTML = state.aiToolProgress.slice(-3).map((item) => `<span class="${item.status}">${item.status === "completed" ? dashboardIcon("success") : item.status === "failed" ? dashboardIcon("warning") : `<i></i>`}${escapeHtml(item.status === "completed" ? `تم ${item.label}` : item.status === "failed" ? `تعذر ${item.label}` : `جارٍ ${item.label}...`)}</span>`).join("");
 }
 
-async function readAIEventStream(response, onEvent) {
+async function readAIEventStream(response, onEvent, signal) {
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok || !contentType.includes("text/event-stream")) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.message || "تعذر تشغيل ذكاء Renvix.");
+    const error = new Error(payload.message || "تعذر تشغيل ذكاء Renvix.");
+    error.code = payload.code;
+    error.status = response.status;
+    error.usage = payload.usage;
+    throw error;
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-    const packets = buffer.split(/\n\n/);
-    buffer = packets.pop() || "";
-    for (const packet of packets) {
-      let type = "message"; let data = {};
-      for (const line of packet.split(/\r?\n/)) {
-        if (line.startsWith("event:")) type = line.slice(6).trim();
-        if (line.startsWith("data:")) {
-          try { data = JSON.parse(line.slice(5).trim()); } catch { data = {}; }
+  let aborted = signal?.aborted === true;
+  const stopReading = () => {
+    aborted = true;
+    void reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener("abort", stopReading, { once: true });
+  try {
+    while (!aborted) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const packets = buffer.split(/\n\n/);
+      buffer = packets.pop() || "";
+      for (const packet of packets) {
+        let type = "message"; let data = {};
+        for (const line of packet.split(/\r?\n/)) {
+          if (line.startsWith("event:")) type = line.slice(6).trim();
+          if (line.startsWith("data:")) {
+            try { data = JSON.parse(line.slice(5).trim()); } catch { data = {}; }
+          }
         }
+        if (!aborted) onEvent(type, data);
       }
-      onEvent(type, data);
+      if (done) break;
     }
-    if (done) break;
+    if (aborted) throw new DOMException("The operation was aborted.", "AbortError");
+  } finally {
+    signal?.removeEventListener("abort", stopReading);
   }
+}
+
+function friendlyAIErrorMessage(error = {}) {
+  if (error.code === "AI_PLAN_TOKEN_LIMIT_REACHED" || error.code === "AI_ACTUAL_USAGE_EXCEEDS_CYCLE") {
+    return state.language === "en"
+      ? "Sorry, your AI balance is exhausted. Contact support or upgrade your plan to continue."
+      : "عذرًا، نفد رصيد الذكاء المتاح. تواصل مع الدعم أو رقِّ الباقة للمتابعة.";
+  }
+  if (error.code === "STORAGE_QUOTA_EXCEEDED") {
+    return state.language === "en"
+      ? "Your storage is full. Remove unneeded files or upgrade your plan to continue."
+      : "مساحة حسابك ممتلئة. احذف الملفات غير اللازمة أو رقِّ الباقة للمتابعة.";
+  }
+  return error.message || (state.language === "en" ? "Renvix Intelligence could not complete the response." : "تعذر إكمال الرد.");
 }
 
 const AI_ATTACHMENT_TYPES = new Set([
@@ -10668,7 +10708,8 @@ function addAIAttachments(files, form, { kind = "any", durationMs = 0 } = {}) {
   const incoming = Array.from(files || []);
   const accepted = [];
   for (const file of incoming) {
-    const normalizedType = file.type || (/\.(txt|log)$/i.test(file.name) ? "text/plain" : "");
+    const normalizedType = String(file.type || (/\.(txt|log)$/i.test(file.name) ? "text/plain" : ""))
+      .split(";", 1)[0].trim().toLowerCase();
     if (kind === "image" && !normalizedType.startsWith("image/")) continue;
     if (kind === "file" && (normalizedType.startsWith("image/") || normalizedType.startsWith("audio/"))) continue;
     if (!AI_ATTACHMENT_TYPES.has(normalizedType)) {
@@ -10718,11 +10759,26 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
       });
       let attachment = prepared.attachment;
       try {
-        const uploaded = await fetch(prepared.upload.url, {
-          method: "PUT", headers: prepared.upload.headers, body: item.file, signal
-        });
-        if (!uploaded.ok) throw new Error("تعذر رفع المرفق إلى التخزين الخاص.");
-        const completed = await fetchJson(`/backend/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/complete`, { method: "POST", signal });
+        let completed;
+        if (item.size <= 4 * 1024 * 1024) {
+          const relayed = await fetch(`/backend/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/upload`, {
+            method: "PUT", headers: { "Content-Type": item.type }, body: item.file, signal
+          });
+          if (relayed.ok) completed = await relayed.json();
+          else if (![404, 405].includes(relayed.status)) {
+            const payload = await relayed.json().catch(() => ({}));
+            const error = new Error(payload.message || "تعذر رفع المرفق إلى التخزين الخاص.");
+            error.code = payload.code;
+            throw error;
+          }
+        }
+        if (!completed) {
+          const uploaded = await fetch(prepared.upload.url, {
+            method: "PUT", headers: prepared.upload.headers, body: item.file, signal
+          });
+          if (!uploaded.ok) throw new Error("تعذر رفع المرفق إلى التخزين الخاص.");
+          completed = await fetchJson(`/backend/ai/attachments/${encodeURIComponent(prepared.attachment.id)}/complete`, { method: "POST", signal });
+        }
         attachment = { ...completed.attachment, durationMs: item.durationMs || completed.attachment.durationMs || 0 };
         if (attachment.purpose === "image" || attachment.purpose === "audio") {
           try {
@@ -10734,6 +10790,11 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
           }
         }
         results.push(attachment);
+        state.aiChatStorage = {
+          ...(state.aiChatStorage || {}),
+          totalBytes: Number(state.aiChatStorage?.totalBytes || 0) + Number(attachment.size || item.size || 0)
+        };
+        refreshAIUsageCards();
       } catch (error) {
         error.uploadedAttachments = [...results, attachment].filter((entry) => entry?.id);
         throw error;
@@ -10845,6 +10906,7 @@ async function handleAIMessageSubmit(form) {
   const attachmentDrafts = [...state.aiAttachments];
   form.dataset.aiSubmitting = "true";
   state.aiStreaming = true;
+  state.aiStopRequested = false;
   state.aiAutoScroll = true;
   state.aiToolProgress = [];
   state.aiDraft = "";
@@ -10879,10 +10941,13 @@ async function handleAIMessageSubmit(form) {
     const list = document.querySelector("[data-ai-message-list]");
     if (list?.querySelector(".rvx-ai-welcome,.rvx-ai-loading,.rvx-ai-start,.rvx-ai-onboarding")) list.innerHTML = "";
     const streamId = `ai-stream-${Date.now()}`;
-    list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: submittedPrompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><time>الآن</time></div></article>`);
+    list?.insertAdjacentHTML("beforeend", `${renderAIMessage({ role: "user", content: submittedPrompt, attachments: uploadedAttachments })}<article id="${streamId}" class="rvx-ai-message rvx-ai-assistant-message is-streaming"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-stream-text data-ai-raw=""></div><div data-ai-stream-blocks></div><footer class="rvx-ai-message-meta"><time>${state.language === "en" ? "Now" : "الآن"}</time><button type="button" data-action="ai-copy-response" hidden>${dashboardIcon("copy")}<span>${state.language === "en" ? "Copy" : "نسخ"}</span></button></footer></div></article>`);
     streamNode = document.getElementById(streamId);
     textNode = streamNode?.querySelector("[data-ai-stream-text]");
-    if (textNode) streamWriter = createAIStreamWriter(textNode);
+    if (textNode) {
+      streamWriter = createAIStreamWriter(textNode);
+      state.aiActiveStreamWriter = streamWriter;
+    }
     blockNode = streamNode?.querySelector("[data-ai-stream-blocks]");
     messageInserted = true;
     queueAIMessageScroll({ force: true });
@@ -10895,9 +10960,13 @@ async function handleAIMessageSubmit(form) {
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      if (payload.usage) state.aiUsage = payload.usage;
+      if (payload.usage) {
+        state.aiUsage = payload.usage;
+        refreshAIUsageCards();
+      }
       const error = new Error(payload.message || "تعذر إكمال الرد.");
       error.code = payload.code;
+      error.status = response.status;
       throw error;
     }
     await readAIEventStream(response, (type, payload) => {
@@ -10913,26 +10982,32 @@ async function handleAIMessageSubmit(form) {
         blockNode.innerHTML = assistantBlocks.map(renderAIBlock).join("");
         if (payload.snapshot) state.aiOverview = { ...(state.aiOverview || {}), ...payload.snapshot };
         queueAIMessageScroll();
-      } else if (type === "token" && textNode) {
+      } else if (type === "token" && textNode && !state.aiStopRequested) {
         streamWriter?.append(payload.value || "");
       } else if (type === "error" && textNode) {
         assistantStatus = "failed";
-        streamWriter?.append(`\n${payload.message || "تعذر إكمال الرد."}`);
+        streamWriter?.append(`\n${friendlyAIErrorMessage(payload)}`);
         streamNode?.classList.add("has-error");
       } else if (type === "interrupted" && textNode) {
         assistantStatus = "interrupted";
         streamWriter?.append(`\n\n${payload.message || "تم إيقاف إنشاء الرد."}`);
       } else if (type === "usage") {
         state.aiUsage = payload;
+        refreshAIUsageCards();
       }
-    });
+    }, controller.signal);
   } catch (error) {
     if (Array.isArray(error.uploadedAttachments)) uploadedAttachments = error.uploadedAttachments;
     form.classList.remove("is-uploading");
     if (error.name !== "AbortError") {
       assistantStatus = "failed";
-      if (textNode) streamWriter?.append(`\n${error.message || "تعذر إكمال الرد."}`);
-      else appToast.error("تعذر إرسال المرفق", { description: error.message || "حاول مرة أخرى.", id: "ai-attachment-upload-error" });
+      if (error.usage) {
+        state.aiUsage = error.usage;
+        refreshAIUsageCards();
+      }
+      const message = friendlyAIErrorMessage(error);
+      if (textNode) streamWriter?.append(`\n${message}`);
+      else appToast.error("تعذر إرسال المرفق", { description: message, id: "ai-attachment-upload-error" });
       streamNode?.classList.add("has-error");
     } else if (textNode) {
       assistantStatus = "interrupted";
@@ -10942,10 +11017,14 @@ async function handleAIMessageSubmit(form) {
     await streamWriter?.drain();
     state.aiStreaming = false;
     state.aiAbortController = null;
+    state.aiActiveStreamWriter = null;
+    state.aiStopRequested = false;
     delete form.dataset.aiSubmitting;
     setAIComposerStreaming(form, false);
     form.classList.remove("is-uploading");
     streamNode?.classList.remove("is-streaming");
+    const copyButton = streamNode?.querySelector('[data-action="ai-copy-response"]');
+    if (copyButton && String(textNode?.dataset.aiRaw || "").trim()) copyButton.hidden = false;
     if (messageInserted && messageAccepted) {
       state.aiDraft = "";
       if (form.elements.prompt) { form.elements.prompt.value = ""; form.elements.prompt.style.height = "auto"; }
@@ -10960,7 +11039,7 @@ async function handleAIMessageSubmit(form) {
       queueAIMessageScroll();
       void refreshAIStateSilently().then(refreshAIConversationSidebar);
     } else if (!messageAccepted) {
-      void discardAIAttachments(state.aiConversationId, uploadedAttachments);
+      void discardAIAttachments(state.aiConversationId, uploadedAttachments).finally(() => refreshAIStateSilently());
     }
   }
 }
@@ -12702,6 +12781,12 @@ function createAIStreamWriter(node) {
     drain() {
       if (!pending && !timer) return Promise.resolve();
       return new Promise((resolve) => waiters.push(resolve));
+    },
+    cancel() {
+      if (timer) window.clearTimeout(timer);
+      timer = 0;
+      pending = "";
+      settle();
     }
   };
 }
@@ -12710,7 +12795,9 @@ function renderAIMessage(message) {
   const blocks = Array.isArray(message.segments) ? message.segments : [];
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
   if (message.role === "user") return `<article class="rvx-ai-message rvx-ai-user-message"><div><p>${escapeHtml(message.content || "").replace(/\n/g,"<br>")}</p>${attachments.length ? `<div class="rvx-ai-message-attachments">${attachments.map((item, index) => aiAttachmentPreviewMarkup(item, index)).join("")}</div>` : ""}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
-  return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text">${renderAIMessageContent(message.content || "")}</div>${blocks.map(renderAIBlock).join("")}<time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time></div></article>`;
+  const content = String(message.content || "");
+  const copyLabel = state.language === "en" ? "Copy" : "نسخ";
+  return `<article class="rvx-ai-message rvx-ai-assistant-message"><span><img src="/assets/renvix-mark-deep-teal.svg" alt=""></span><div><div class="rvx-ai-rich-text" data-ai-raw="${escapeHtml(content)}">${renderAIMessageContent(content)}</div>${blocks.map(renderAIBlock).join("")}<footer class="rvx-ai-message-meta"><time>${message.createdAt ? new Date(message.createdAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "الآن"}</time>${content.trim() ? `<button type="button" data-action="ai-copy-response">${dashboardIcon("copy")}<span>${copyLabel}</span></button>` : ""}</footer></div></article>`;
 }
 
 function formatAITokens(value) {
@@ -12772,7 +12859,15 @@ function aiUsageCard() {
     : warningLevel === "critical"
       ? (english ? "Your AI allowance is nearly exhausted." : "رصيد الذكاء أوشك على النفاد.")
       : "";
-  return `<section class="rvx-ai-usage-card is-${warningLevel}"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(chatStorage.totalBytes || 0)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
+  return `<section class="rvx-ai-usage-card is-${warningLevel}" data-ai-usage-card><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Plan" : "باقة"} ${escapeHtml(usage.planName || "Renvix")} · ${english ? "Cycle" : "الدورة"} ${Number(usage.cycleNumber || 1).toLocaleString(english ? "en-US" : "ar-SA")}/${Number(usage.maxCycles || 1).toLocaleString(english ? "en-US" : "ar-SA")}</small></div></header><div class="rvx-ai-usage-numbers"><b>${remaining}</b><span>${english ? `remaining of ${limit}` : `متبقي من ${limit}`}</span></div><div class="rvx-ai-usage-track"><i style="width:${percent}%"></i></div><footer><span>${escapeHtml(refillText)}</span><b>${percent}%</b></footer>${warningText ? `<p class="rvx-ai-usage-warning">${warningText}</p>` : ""}<div class="rvx-ai-chat-storage"><span>${english ? "Your chat storage" : "مساحة محادثاتك"}</span><b>${formatAIStorageBytes(chatStorage.totalBytes || 0)}</b><small>${Number(chatStorage.conversationCount || 0).toLocaleString(english ? "en-US" : "ar-SA")} ${english ? "chats" : "محادثة"}</small></div></section>`;
+}
+
+function refreshAIUsageCards() {
+  const cards = document.querySelectorAll("[data-ai-usage-card]");
+  if (!cards.length) return;
+  const template = document.createElement("template");
+  template.innerHTML = aiUsageCard().trim();
+  cards.forEach((card) => card.replaceWith(template.content.firstElementChild.cloneNode(true)));
 }
 
 function aiConversationItemsMarkup(items) {

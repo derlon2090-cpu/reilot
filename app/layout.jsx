@@ -43,12 +43,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-ipad-header-device-v128" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-ai-chat-live-ux-v129" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260814-ai-gateway-v127" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260814-ai-chat-live-ux-v129" strategy="afterInteractive" />
       </body>
     </html>
   );
