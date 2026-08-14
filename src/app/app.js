@@ -1398,7 +1398,7 @@ function syncRouteData(force = false) {
     if (batchesInitialRender && request) pending.push(request);
   };
 
-  if (state.route === "/pricing" && (force || state.publicPlans === null || state.publicPlansRefreshRequired)) {
+  if (["/", "/pricing"].includes(state.route) && (force || state.publicPlans === null || state.publicPlansRefreshRequired)) {
     state.publicPlansRefreshRequired = false;
     queue("publicPlans", "/api/public/plans", "publicPlans");
   }
@@ -1686,7 +1686,7 @@ function logo(compact = false) {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image${compact ? " brand-logo-image--mark" : ""}" src="${compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-exact.png"}" ${compact ? 'width="64" height="48"' : 'width="1029" height="221"'} alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image${compact ? " brand-logo-image--mark" : ""}" src="${compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-deep-teal.svg"}" ${compact ? 'width="64" height="48"' : 'width="190" height="55"'} alt="${escapeHtml(appName)}">
   </button>`;
 }
 
@@ -1821,11 +1821,12 @@ function ensurePasswordToggles() {
 
 function publicNavbar() {
   const navIcons = ["publicHome", "publicFeatures", "publicPlans", "publicBlog", "support"];
-  const links = routes.map(([path, key], index) => `<button class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}" aria-current="${state.route === path ? "page" : "false"}"><span class="public-nav-icon">${dashboardIcon(navIcons[index])}</span><span>${t(key)}</span></button>`).join("");
+  const links = routes.map(([path, key], index) => `<a href="${path}" class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}" ${state.route === path ? 'aria-current="page"' : ""}><span class="public-nav-icon">${dashboardIcon(navIcons[index])}</span><span>${t(key)}</span></a>`).join("");
+  const moreLinks = routes.slice(3).map(([path, key], index) => `<a href="${path}" data-link="${path}">${dashboardIcon(navIcons[index + 3])}<span>${t(key)}</span></a>`).join("");
   return `<nav class="public-nav ${state.navOpen ? "open" : ""}">
     <div class="container nav-inner">
       ${logo()}
-      <div class="nav-links" aria-label="${state.language === "en" ? "Primary navigation" : "التنقل الرئيسي"}">${links}</div>
+      <div class="nav-links" aria-label="${state.language === "en" ? "Primary navigation" : "التنقل الرئيسي"}">${links}<details class="public-nav-more"><summary>${dashboardIcon("more")}<span>${localizedCopy("المزيد", "More")}</span></summary><div>${moreLinks}</div></details></div>
       <div class="nav-actions">
         <div class="public-nav-preferences">
           <span class="public-nav-preference-label">${state.language === "en" ? "Language" : "اللغة"}</span>
@@ -1842,8 +1843,17 @@ function publicNavbar() {
           <button class="btn btn-primary public-register-action" data-link="/register"><span>${t("auth.createAccount")}</span>${dashboardIcon("publicRegister")}</button>
         </div>
       </div>
-      <button class="mobile-public-login" data-link="/login">${dashboardIcon("publicLogin")}<span>${t("auth.loginTitle")}</span></button>
+      <a href="/register" class="mobile-public-login" data-link="/register">${dashboardIcon("publicRegister")}<span>${t("auth.createAccount")}</span></a>
       <button class="mobile-menu ${state.navOpen ? "is-open" : ""}" data-action="toggle-public-nav" aria-label="${state.navOpen ? (state.language === "en" ? "Close menu" : "إغلاق القائمة") : (state.language === "en" ? "Open menu" : "فتح القائمة")}" aria-expanded="${state.navOpen ? "true" : "false"}">${state.navOpen ? dashboardIcon("close") : dashboardIcon("menu")}</button>
+    </div>
+    <div class="public-mobile-drawer" aria-hidden="${state.navOpen ? "false" : "true"}">
+      <button class="public-mobile-scrim" type="button" data-action="toggle-public-nav" aria-label="${localizedCopy("إغلاق القائمة", "Close menu")}"></button>
+      <aside aria-label="${localizedCopy("قائمة الموقع", "Site menu")}">
+        <header>${logo()}<button type="button" data-action="toggle-public-nav" aria-label="${localizedCopy("إغلاق القائمة", "Close menu")}">${dashboardIcon("close")}</button></header>
+        <nav aria-label="${localizedCopy("التنقل الرئيسي", "Primary navigation")}">${links}</nav>
+        <div class="public-mobile-preferences"><button class="public-language-compact" data-action="language" data-language="${state.language === "ar" ? "en" : "ar"}">${dashboardIcon("globe")}<span>${state.language === "ar" ? "English" : "العربية"}</span></button><button class="public-theme" data-action="theme">${state.theme === "dark" ? dashboardIcon("moon") : dashboardIcon("sun")}<span>${state.theme === "dark" ? localizedCopy("داكن", "Dark") : localizedCopy("فاتح", "Light")}</span></button></div>
+        <footer><a href="/login" class="btn btn-secondary" data-link="/login">${dashboardIcon("publicLogin")}${t("auth.loginTitle")}</a><a href="/register" class="btn btn-primary" data-link="/register">${dashboardIcon("publicRegister")}${t("auth.createAccount")}</a></footer>
+      </aside>
     </div>
   </nav>`;
 }
@@ -1860,9 +1870,9 @@ function publicFooter() {
   ];
   return `<footer class="public-footer marketing-footer"><div class="container marketing-footer-grid">
     <section class="marketing-footer-brand" data-reveal>${logo()}<p>${localizedCopy("منصة سعودية تساعدك على إدارة اشتراكاتك وتجديداتك بذكاء، والتكامل مع قنوات التواصل لتعزيز أعمالك.", "A Saudi platform for intelligent subscription, renewal, and customer communication management.")}</p><div class="marketing-meta-partner" aria-label="Meta Business Partner"><span><small>TECH PROVIDER</small><strong>Meta Business Partner</strong></span><b>${dashboardIcon("infinity")}</b></div><div class="footer-social" aria-label="${localizedCopy("وسائل التواصل الاجتماعي", "Social media")}"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">${dashboardIcon("instagram")}</a></div></section>
-    ${columns.map(([title, links]) => `<nav class="marketing-footer-column" aria-label="${title}" data-reveal><h2>${title}</h2>${links.map(([path, label]) => `<button data-link="${path}">${label}</button>`).join("")}</nav>`).join("")}
+    ${columns.map(([title, links]) => `<nav class="marketing-footer-column" aria-label="${title}" data-reveal><h2>${title}</h2>${links.map(([path, label]) => `<a href="${path}" data-link="${path}">${label}</a>`).join("")}</nav>`).join("")}
     <section class="marketing-footer-newsletter" data-reveal><h2>${localizedCopy("اشترك في نشرتنا البريدية", "Join our newsletter")}</h2><p>${localizedCopy("احصل على آخر التحديثات والنصائح والعروض الحصرية لتنمية اشتراكاتك.", "Get product updates and practical growth tips in your inbox.")}</p><form data-submit="newsletter"><label><span class="sr-only">${localizedCopy("البريد الإلكتروني", "Email")}</span><input type="email" name="email" placeholder="${localizedCopy("أدخل بريدك الإلكتروني", "Enter your email")}" required>${dashboardIcon("email")}</label><button type="submit" aria-label="${localizedCopy("اشتراك", "Subscribe")}">${dashboardIcon("send")}</button></form></section>
-  </div><div class="container marketing-footer-bottom"><span>©2026 Renvix. ${localizedCopy("جميع الحقوق محفوظة.", "All rights reserved.")}</span><nav aria-label="${localizedCopy("السياسات القانونية", "Legal policies")}"><button data-link="/terms">${localizedCopy("الشروط والأحكام", "Terms")}</button><button data-link="/privacy">${localizedCopy("سياسة الخصوصية", "Privacy")}</button><button data-link="/refund-policy">${localizedCopy("سياسة الاستبدال والاسترجاع", "Refund policy")}</button></nav></div></footer>`;
+  </div><div class="container marketing-footer-bottom"><span>©2026 Renvix. ${localizedCopy("جميع الحقوق محفوظة.", "All rights reserved.")}</span><nav aria-label="${localizedCopy("السياسات القانونية", "Legal policies")}"><a href="/terms" data-link="/terms">${localizedCopy("الشروط والأحكام", "Terms")}</a><a href="/privacy" data-link="/privacy">${localizedCopy("سياسة الخصوصية", "Privacy")}</a><a href="/refund-policy" data-link="/refund-policy">${localizedCopy("سياسة الاستبدال والاسترجاع", "Refund policy")}</a></nav></div></footer>`;
 }
 
 function marketingSectionHeading(title, body, eyebrow = "") {
@@ -2125,7 +2135,7 @@ function initMarketingMotion() {
     const start = Number(element.dataset.countStart || target);
     const decimals = Number(element.dataset.countDecimals || 0);
     const prefix = element.dataset.countPrefix || "";
-    const suffix = decimals ? "%" : "";
+    const suffix = element.dataset.countSuffix ?? (decimals ? "%" : "");
     if (reducedMotion) {
       element.textContent = `${prefix}${formatCounter(target, decimals)}${suffix}`;
       return;
@@ -2314,7 +2324,7 @@ function initMarketingMotion() {
       const available = Math.max(250, viewport.clientWidth);
       const gap = Number.parseFloat(getComputedStyle(firstSet).gap || "16") || 16;
       const screenWidth = window.innerWidth;
-      const visibleCards = screenWidth >= 1440 ? 6 : screenWidth >= 1200 ? 5 : screenWidth >= 992 ? 4 : screenWidth >= 768 ? 3 : screenWidth >= 480 ? 2 : 1.2;
+      const visibleCards = screenWidth >= 1440 ? 5 : screenWidth >= 1200 ? 5 : screenWidth >= 992 ? 4 : screenWidth >= 768 ? 3 : 2;
       const cardWidth = (available - gap * (visibleCards - 1)) / visibleCards;
       track.style.setProperty("--trusted-brand-card-width", `${cardWidth}px`);
       track.style.setProperty("--trusted-brands-shift", `-${firstSet.children.length * (cardWidth + gap)}px`);
@@ -2616,24 +2626,96 @@ const publicBlogPosts = [
   }
 ];
 
-function marketingHomePage() {
-  const heroMetrics = [
-    ["4.9/5", localizedCopy("تقييم العملاء", "Customer rating"), localizedCopy("رضا مرتفع", "High satisfaction"), "heart", "success"],
-    ["98.7%", localizedCopy("معدل نجاح التسليم", "Delivery success"), localizedCopy("تحسن مستمر", "Always improving"), "reports", "reports"],
-    [localizedCopy("رسمي", "Official"), localizedCopy("تكامل رسمي مع Meta", "Official Meta integration"), localizedCopy("واتساب موثق", "Verified WhatsApp"), "infinity", "success"],
-    ["24/7", localizedCopy("دعم عربي", "Arabic support"), localizedCopy("استجابة سريعة", "Fast response"), "support", "bolt"]
+function homeDashboardPreview() {
+  const metrics = [
+    [localizedCopy("إجمالي الاشتراكات", "Total subscriptions"), "1,248", "+12%", "subscriptions", "positive"],
+    [localizedCopy("تجديدات هذا الشهر", "Renewals this month"), "328", "+8%", "refresh", "positive"],
+    [localizedCopy("تنبيهات اليوم", "Alerts today"), "24", "-10%", "notifications", "negative"],
+    [localizedCopy("إيرادات متوقعة", "Expected revenue"), localizedCopy("248,540 ر.س", "SAR 248,540"), "+15%", "reports", "positive"]
   ];
-  return publicShell(`<main class="marketing-v3 marketing-home-v3">
-    <section class="marketing-v3-hero"><div class="container marketing-v3-hero-grid">
-      <div class="marketing-v3-copy" data-reveal><span class="marketing-v3-kicker"><i></i>${localizedCopy("اشتراكات منظمة، تجديدات في وقتها", "Organized subscriptions, timely renewals")} ${dashboardIcon("infinity")}</span><h1>${localizedCopy("أدر اشتراكاتك وتجديدات", "Manage subscriptions and renewals")}<br>${localizedCopy("عملائك بذكاء مع", "intelligently with")} <span>Renvix</span></h1><p>${localizedCopy("منصة متكاملة لإدارة الاشتراكات والتذكيرات والحملات التسويقية عبر واتساب Meta والبريد الإلكتروني وقنوات متعددة.", "One intelligent platform for subscriptions, reminders, and campaigns across Meta WhatsApp, email, and multiple channels.")}</p><div class="hero-actions"><button class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ الآن", "Get started")}${dashboardIcon("arrowLeft")}</button><button class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}${dashboardIcon("play")}</button></div><div class="marketing-v3-assurances"><span>${dashboardIcon("check")}${localizedCopy("دون بطاقة ائتمان", "No credit card")}</span><span>${dashboardIcon("check")}${localizedCopy("إعداد سريع في دقائق", "Setup in minutes")}</span><span>${dashboardIcon("check")}${localizedCopy("دعم عربي 24/7", "24/7 Arabic support")}</span></div></div>
-      <div class="marketing-v3-hero-visual" data-reveal>${marketingHomeOperationsScene({ compact: true })}</div>
-      ${marketingMobileHomeNetwork()}
-      <div class="marketing-hero-metrics" aria-label="${localizedCopy("مؤشرات المنصة", "Platform highlights")}">${heroMetrics.map(([value, label, note, icon, noteIcon]) => `<article data-static-hero-metric><span aria-hidden="true">${dashboardIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><em>${note}${dashboardIcon(noteIcon)}</em></div></article>`).join("")}</div>
+  return `<div class="home-dashboard-scene" data-motion-scene>
+    <span class="home-integration-node node-whatsapp" style="--node-delay:.12s" aria-label="WhatsApp">${dashboardIcon("whatsapp")}</span>
+    <span class="home-integration-node node-email" style="--node-delay:.2s" aria-label="Email">${dashboardIcon("email")}</span>
+    <span class="home-integration-node node-api" style="--node-delay:.28s" aria-label="API">${dashboardIcon("code")}</span>
+    <span class="home-integration-node node-cloud" style="--node-delay:.36s" aria-label="Cloud">${dashboardIcon("store")}</span>
+    <svg class="home-integration-lines" viewBox="0 0 760 510" preserveAspectRatio="none" aria-hidden="true"><path d="M30 170 C70 170 72 216 112 216"/><path d="M30 324 C72 324 72 284 112 284"/><path d="M730 172 C692 172 692 218 650 218"/><path d="M730 326 C690 326 690 286 650 286"/></svg>
+    <article class="home-dashboard" aria-label="${localizedCopy("معاينة حية للوحة تحكم Renvix", "Live Renvix dashboard preview")}">
+      <header class="home-dashboard-header"><img src="/assets/renvix-logo-deep-teal.svg" width="112" height="33" alt="Renvix"><div><strong>${localizedCopy("مرحبًا، أحمد", "Welcome, Ahmed")}</strong><small>${localizedCopy("إليك ملخص أداء اشتراكاتك اليوم", "Here is today's subscription summary")}</small></div><button type="button" tabindex="-1" aria-hidden="true">${dashboardIcon("notifications")}<i></i></button></header>
+      <div class="home-dashboard-metrics">${metrics.map(([label, value, change, icon, tone]) => `<section><header><span>${dashboardIcon(icon)}</span><small>${label}</small></header><strong>${value}</strong><em class="${tone}">${change}</em></section>`).join("")}</div>
+      <div class="home-dashboard-analytics">
+        <section class="home-line-chart"><header><div><strong>${localizedCopy("الإيرادات المتوقعة", "Expected revenue")}</strong><small>${localizedCopy("آخر 30 يومًا", "Last 30 days")}</small></div><b>+24.8%</b></header><div class="home-line-chart-canvas"><i></i><i></i><i></i><i></i><svg viewBox="0 0 460 155" role="img" aria-label="${localizedCopy("مخطط نمو الإيرادات خلال الشهر", "Revenue growth during the month")}"><path class="home-chart-area" d="M8 132 C46 120 65 125 94 99 S145 68 177 91 S228 115 263 71 S314 74 346 48 S396 52 452 18 L452 150 L8 150Z"/><path class="home-chart-line" d="M8 132 C46 120 65 125 94 99 S145 68 177 91 S228 115 263 71 S314 74 346 48 S396 52 452 18"/><circle cx="94" cy="99" r="4"/><circle cx="263" cy="71" r="4"/><circle cx="452" cy="18" r="4"/></svg></div><footer><span>${localizedCopy("20 يوليو", "Jul 20")}</span><span>${localizedCopy("27 يوليو", "Jul 27")}</span><span>${localizedCopy("4 أغسطس", "Aug 4")}</span><span>${localizedCopy("18 أغسطس", "Aug 18")}</span></footer></section>
+        <section class="home-donut-card"><header><strong>${localizedCopy("حالة الاشتراكات", "Subscription status")}</strong><small>${localizedCopy("محدث الآن", "Updated now")}</small></header><div class="home-donut"><span><strong>72%</strong><small>${localizedCopy("نشطة", "Active")}</small></span></div><ul><li><i></i><span>${localizedCopy("نشطة", "Active")}</span><b>72%</b></li><li><i></i><span>${localizedCopy("قيد التجديد", "Renewing")}</span><b>18%</b></li><li><i></i><span>${localizedCopy("منتهية", "Expired")}</span><b>10%</b></li></ul></section>
+      </div>
+      <div class="home-dashboard-lower"><section><header><strong>${localizedCopy("القنوات المتصلة", "Connected channels")}</strong><small>${localizedCopy("كل الأنظمة تعمل", "All systems operational")}</small></header><div class="home-channel-row"><span class="whatsapp">${dashboardIcon("whatsapp")}</span><span class="email">${dashboardIcon("email")}</span><span class="api">API</span><b>+3</b></div></section><section><header><strong>${localizedCopy("آخر التنبيهات", "Latest alerts")}</strong><small>${localizedCopy("عرض الكل", "View all")}</small></header><p><i></i><span>${localizedCopy("تم تجديد اشتراك متجر أثر", "Athar Store renewed")}</span><time>${localizedCopy("منذ 4 د", "4m ago")}</time></p><p><i></i><span>${localizedCopy("تنبيه تجديد لعميل جديد", "New renewal alert")}</span><time>${localizedCopy("منذ 9 د", "9m ago")}</time></p></section></div>
+    </article>
+  </div>`;
+}
+
+function homeTrustedBrands() {
+  const brands = [
+    ["Advanced Pro", "/assets/brands/advanced-pro.png"],
+    ["Axion", "/assets/brands/axion.png"],
+    ["Upload", "/assets/brands/upload.png"],
+    ["Adovix", "/assets/brands/adovix.png"],
+    ["Blontix", "/assets/brands/blontix.png"],
+    [localizedCopy("ملم", "Mlm"), "/assets/brands/mlm.png"],
+    [localizedCopy("الرعد للاتصالات", "Alraad Telecom"), "/assets/brands/alraad-telecom.jpg"]
+  ];
+  const set = (duplicate = false) => `<div class="trusted-brands-set" role="list"${duplicate ? ' aria-hidden="true"' : ""}>${brands.map(([name, image]) => `<div class="home-brand-item" role="listitem"><img src="${image}" width="112" height="42" alt="${duplicate ? "" : escapeHtml(name)}" loading="lazy" decoding="async"></div>`).join("")}</div>`;
+  return `<section class="home-brands" aria-labelledby="home-brands-title"><div class="container"><h2 id="home-brands-title">${localizedCopy("يستخدم Renvix مع جهات موثوقة", "Trusted teams use Renvix")}</h2><div class="trusted-brands-marquee" data-trusted-brands-marquee><div class="home-brands-viewport" data-trusted-brands-viewport><div class="home-brands-track" data-trusted-brands-track>${set()}${set(true)}</div></div></div></div></section>`;
+}
+
+function homeFeaturesSection() {
+  const items = [
+    [localizedCopy("إدارة الاشتراكات", "Subscription management"), localizedCopy("نظّم الاشتراكات ومواعيد التجديد وبيانات العملاء من مساحة عمل واحدة.", "Organize subscriptions, renewal dates, and customer data in one workspace."), "subscriptions"],
+    [localizedCopy("تنبيهات التجديد", "Renewal alerts"), localizedCopy("أتمت التنبيهات في الوقت المناسب وقلّل حالات الانقطاع أو التأخر.", "Automate timely alerts and reduce interruptions or late renewals."), "notifications"],
+    [localizedCopy("واتساب والبريد", "WhatsApp and email"), localizedCopy("تواصل عبر القناة الأنسب بقوالب احترافية ورسائل قابلة للقياس.", "Reach customers through the right channel with measurable templates."), "whatsapp"],
+    [localizedCopy("الحملات", "Campaigns"), localizedCopy("ابنِ حملات موجهة لشرائح عملائك وتابع أثرها بوضوح.", "Build targeted customer campaigns and measure their impact."), "campaigns"],
+    [localizedCopy("التقارير والتحليلات", "Reports and analytics"), localizedCopy("حوّل بيانات التجديد والتواصل إلى مؤشرات تساعدك على اتخاذ القرار.", "Turn renewal and communication data into decision-ready metrics."), "reports"],
+    [localizedCopy("روابط معلومات الطلب", "Order information links"), localizedCopy("شارك تفاصيل الطلب والتجديد عبر روابط آمنة بهوية متجرك.", "Share order and renewal details through secure branded links."), "link"]
+  ];
+  return `<section class="home-section home-features" id="features"><div class="container"><header class="home-section-heading" data-reveal><span>${localizedCopy("منصة واحدة، تشغيل أوضح", "One platform, clearer operations")}</span><h2>${localizedCopy("كل ما تحتاجه لإدارة اشتراكاتك بذكاء", "Everything you need to manage subscriptions intelligently")}</h2><p>${localizedCopy("أدوات مترابطة تساعد فريقك من أول اشتراك حتى اكتمال التجديد.", "Connected tools that support your team from first subscription to completed renewal.")}</p></header><div class="home-feature-grid">${items.map(([title, body, icon], index) => `<article data-reveal style="--rvx-delay:${index * 60}ms"><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p></article>`).join("")}</div></div></section>`;
+}
+
+function homeJourneySection() {
+  const steps = [
+    [localizedCopy("إنشاء الحساب", "Create account"), localizedCopy("سجّل حسابك وأضف بيانات نشاطك بخطوات بسيطة.", "Create your account and add business details in a few steps."), "publicRegister"],
+    [localizedCopy("الربط والتكامل", "Connect and integrate"), localizedCopy("اربط واتساب والبريد ومتجرك بالقنوات التي تحتاجها.", "Connect WhatsApp, email, and the channels you need."), "link"],
+    [localizedCopy("التخصيص", "Customize"), localizedCopy("اضبط القوالب والتنبيهات ومواعيد رحلة التجديد.", "Set templates, alerts, and your renewal journey."), "settings"],
+    [localizedCopy("البدء والنمو", "Launch and grow"), localizedCopy("شغّل الأتمتة وراقب النتائج وحسّن أداء فريقك.", "Launch automation, track results, and improve performance."), "bolt"]
+  ];
+  return `<section class="home-section home-journey" aria-labelledby="home-journey-title"><div class="container"><header class="home-section-heading" data-reveal><span>${localizedCopy("ابدأ بلا تعقيد", "Start without complexity")}</span><h2 id="home-journey-title">${localizedCopy("رحلة بسيطة لبدء العمل", "A simple journey to get started")}</h2><p>${localizedCopy("من إنشاء الحساب إلى تشغيل أول رحلة تجديد في أربع خطوات واضحة.", "From account creation to your first renewal workflow in four clear steps.")}</p></header><div class="home-journey-grid" data-steps-scene>${steps.map(([title, body, icon], index) => `<article data-reveal style="--rvx-delay:${index * 100}ms"><b>${String(index + 1).padStart(2, "0")}</b><span>${dashboardIcon(icon)}</span><h3>${title}</h3><p>${body}</p>${index < steps.length - 1 ? '<i aria-hidden="true"><em></em></i>' : ""}</article>`).join("")}</div></div></section>`;
+}
+
+function homePricingSection() {
+  return `<section class="home-section home-pricing" id="pricing"><div class="container"><header class="home-section-heading" data-reveal><span>${localizedCopy("خطط مرنة", "Flexible plans")}</span><h2>${localizedCopy("اختر الباقة المناسبة لنمو أعمالك", "Choose the right plan for your growth")}</h2><p>${localizedCopy("ابدأ بما يناسب فريقك، وطوّر حدودك عندما يتوسع عملك.", "Start with what fits your team and grow your limits as you scale.")}</p></header><div class="home-pricing-cards">${pricingCards(true)}</div><a href="/pricing" class="home-text-link" data-link="/pricing">${localizedCopy("قارن جميع تفاصيل الباقات", "Compare all plan details")}${dashboardIcon("arrowLeft")}</a></div></section>`;
+}
+
+function homeSupportSection() {
+  const services = [
+    [localizedCopy("مساعد Renvix الذكي", "Renvix smart assistant"), localizedCopy("مساعد يفهم اشتراكاتك وتقاريرك ويساعدك في الوصول إلى الإجابة بسرعة.", "An assistant that understands subscriptions and reports to help you faster."), localizedCopy("جرّب المساعد", "Try the assistant"), "/dashboard/support/ai", "sparkles", "assistant"],
+    [localizedCopy("تذاكر الدعم", "Support tickets"), localizedCopy("دعم منظم ومتابعة كاملة لتذاكرك من الإنشاء حتى الحل.", "Organized support and complete ticket follow-up from creation to resolution."), localizedCopy("فتح تذكرة جديدة", "Open a ticket"), "/dashboard/support/new", "support", "ticket"],
+    [localizedCopy("قاعدة المعرفة", "Knowledge base"), localizedCopy("إجابات وأدلة عملية تساعدك على استخدام المنصة بكفاءة.", "Practical answers and guides that help you use the platform efficiently."), localizedCopy("استكشف المقالات", "Explore articles"), "/support", "helpBook", "knowledge"]
+  ];
+  const stats = [
+    ["4.9", "4.9", "1", "/5", localizedCopy("رضا العملاء", "Customer satisfaction")],
+    ["92", "92", "0", "%", localizedCopy("الحل من أول رد", "Solved on first response")],
+    ["15", "15", "0", localizedCopy(" دقيقة", " min"), localizedCopy("متوسط الاستجابة", "Average response")]
+  ];
+  return `<section class="home-section home-support" aria-labelledby="home-support-title"><div class="container"><header class="home-section-heading" data-reveal><span>${localizedCopy("نحن معك", "We are here")}</span><h2 id="home-support-title">${localizedCopy("دعم يساعدك على الاستمرار بثقة", "Support that keeps you moving confidently")}</h2><p>${localizedCopy("اختر المسار الأنسب لك واحصل على مساعدة عربية واضحة وسريعة.", "Choose the right path and get clear, responsive support.")}</p></header><div class="home-support-grid">${services.map(([title, body, label, path, icon, kind], index) => `<article class="${kind}" data-reveal style="--rvx-delay:${index * 70}ms">${kind === "assistant" ? `<div class="home-assistant-illustration" aria-hidden="true"><span><i></i><i></i></span><b>${dashboardIcon("sparkles")}</b></div>` : `<span>${dashboardIcon(icon)}</span>`}<h3>${title}</h3><p>${body}</p><a href="${path}" data-link="${path}">${label}${dashboardIcon("arrowLeft")}</a></article>`).join("")}</div><div class="home-trust-stats" data-reveal>${stats.map(([start, target, decimals, suffix, label]) => `<article><strong data-count-target="${target}" data-count-start="${start === target ? "0" : start}" data-count-decimals="${decimals}" data-count-suffix="${suffix}">${target}${suffix}</strong><span>${label}</span></article>`).join("")}</div></div></section>`;
+}
+
+function marketingHomePage() {
+  return publicShell(`<main class="marketing-v3 renvix-home">
+    <section class="home-hero"><div class="container home-hero-grid">
+      <div class="home-hero-copy" data-reveal><span class="home-hero-badge"><i></i>${localizedCopy("منصة ذكية لإدارة الاشتراكات والتجديدات", "Smart subscription and renewal management")}</span><h1>${localizedCopy("أدر اشتراكات عملائك", "Manage customer subscriptions")}<br>${localizedCopy("وجدّدها بذكاء مع", "and renew intelligently with")} <em>Renvix</em></h1><p>${localizedCopy("منصة متكاملة تساعدك على إدارة الاشتراكات، أتمتة التنبيهات، التواصل عبر واتساب والبريد، وتحليل الأداء لتنمو أعمالك بثقة واستدامة.", "An integrated platform for subscriptions, automated alerts, WhatsApp and email communication, and performance insights that help your business grow with confidence.")}</p><div class="home-hero-actions"><a href="/register" class="btn btn-primary" data-link="/register">${localizedCopy("ابدأ مجانًا الآن", "Start free now")}${dashboardIcon("arrowLeft")}</a><a href="/features" class="btn btn-secondary" data-link="/features">${localizedCopy("استكشف المميزات", "Explore features")}</a></div><div class="home-hero-trust"><span>${dashboardIcon("check")}${localizedCopy("تجربة مجانية 14 يومًا", "14-day free trial")}</span><span>${dashboardIcon("check")}${localizedCopy("لا بطاقة ائتمانية مطلوبة", "No credit card required")}</span><span>${dashboardIcon("check")}${localizedCopy("إعداد سريع خلال دقائق", "Setup in minutes")}</span></div></div>
+      <div class="home-hero-visual" data-reveal>${homeDashboardPreview()}</div>
     </div></section>
-    <section class="marketing-v3-section marketing-steps-section" data-home-immediate><div class="container">${marketingSectionHeading(localizedCopy("4 خطوات للبدء مع Renvix", "Start with Renvix in four steps"), localizedCopy("مسار واضح من إنشاء الحساب حتى تشغيل الأتمتة.", "A clear path from account creation to live automation."))}${marketingSteps()}</div></section>
-    ${marketingRenewalJourney()}
-    ${marketingCommerceEcosystem()}
-    ${marketingMobileToolsAndCta()}
+    ${homeTrustedBrands()}
+    ${homeFeaturesSection()}
+    ${homeJourneySection()}
+    ${homePricingSection()}
+    ${homeSupportSection()}
   </main>`);
 }
 
