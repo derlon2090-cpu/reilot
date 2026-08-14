@@ -44,7 +44,7 @@ describe("iPad public header", () => {
     expect(publicStyles).toContain(sourceRules.trim());
     const nextStyleVersion = rootLayout.match(/globals\.css\?v=([^"']+)/)?.[1];
     const staticStyleVersion = staticIndex.match(/globals\.css\?v=([^"']+)/)?.[1];
-    expect(nextStyleVersion).toBe("20260814-ipad-header-v126");
+    expect(nextStyleVersion).toBe("20260814-ai-gateway-v127");
     expect(staticStyleVersion).toBe(nextStyleVersion);
   });
 });
