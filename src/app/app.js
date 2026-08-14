@@ -12772,7 +12772,7 @@ function supportTicketTone(status) {
 }
 
 function supportTeamAvatars() {
-  return `<div class="rvx-team-avatars" aria-label="فريق نجاح عملاء Renvix"><span>س</span><span>ن</span><span>أ</span></div>`;
+  return `<div class="rvx-team-avatars" aria-label="فريق نجاح عملاء Renvix"><span><img src="/assets/support-team/avatar-1.png" alt="" decoding="async"></span><span><img src="/assets/support-team/avatar-2.png" alt="" decoding="async"></span><span><img src="/assets/support-team/avatar-3.png" alt="" decoding="async"></span></div>`;
 }
 
 function supportSuiteHeader(title, description, icon = "support", back = "/dashboard/support") {
