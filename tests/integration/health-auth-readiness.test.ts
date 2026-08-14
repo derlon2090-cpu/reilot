@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/server/db.js", () => ({ databaseHealth: async () => ({ ok: true }) }));
 vi.mock("../../src/server/auth-schema-readiness.js", () => ({ authSchemaHealth: async () => ({ ok: true, migrationApplied: true }) }));
+vi.mock("../../src/server/platform-schema-readiness.js", () => ({ platformSchemaHealth: async () => ({ ok: true, migrationApplied: true }) }));
 vi.mock("../../src/server/evolution-client.js", () => ({
   evolutionHealth: async () => ({ ok: true }),
   evolutionEndpointProfile: () => "test-profile"
