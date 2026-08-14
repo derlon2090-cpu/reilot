@@ -9,7 +9,7 @@ export async function GET(request) {
     return Response.json({ ok: true, usage }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error?.code === "AI_ENTITLEMENT_INACTIVE") {
-      return Response.json({ ok: false, code: error.code, message: error.message }, {
+      return Response.json({ ok: false, code: error.code, message: error.message, entitlement: error.entitlement || null }, {
         status: Number(error.status || 403),
         headers: { "Cache-Control": "no-store" }
       });

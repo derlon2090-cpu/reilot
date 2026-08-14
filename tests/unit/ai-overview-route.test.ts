@@ -56,14 +56,19 @@ describe("AI overview route resilience", () => {
 
   it("preserves a permanent inactive-entitlement response instead of retrying it as an outage", async () => {
     mocks.getAIUsageSummary.mockRejectedValue(Object.assign(new Error("لا يوجد اشتراك نشط يمنح رصيد الذكاء حاليًا."), {
-      code: "AI_ENTITLEMENT_INACTIVE", status: 403
+      code: "AI_ENTITLEMENT_INACTIVE", status: 403,
+      entitlement: { state: "inactive", reason: "trial_expired", planSlug: "trial", endsAt: "2026-08-04T00:00:00.000Z" }
     }));
 
     const response = await getOverview(new Request("https://renvix.app/api/ai/overview"));
     const payload = await response.json();
 
     expect(response.status).toBe(403);
-    expect(payload).toMatchObject({ ok: false, code: "AI_ENTITLEMENT_INACTIVE" });
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "AI_ENTITLEMENT_INACTIVE",
+      entitlement: { state: "inactive", reason: "trial_expired", planSlug: "trial" }
+    });
   });
 
   it("serves the balance through a dedicated fast path without starting optional analytics or storage work", async () => {
@@ -86,6 +91,25 @@ describe("AI overview route resilience", () => {
     expect(payload).toMatchObject({
       ok: true,
       usage: { allowanceTokens: 100_000, remainingTokens: 100_000 }
+    });
+  });
+
+  it("serves a terminal expired-trial state through the local frontend balance route", async () => {
+    mocks.getAIUsageSummary.mockRejectedValue(Object.assign(new Error("لا يوجد اشتراك نشط يمنح رصيد الذكاء حاليًا."), {
+      code: "AI_ENTITLEMENT_INACTIVE",
+      status: 403,
+      entitlement: { state: "inactive", reason: "trial_expired", planSlug: "trial", endsAt: "2026-08-04T00:00:00.000Z" }
+    }));
+
+    const response = await getFrontendUsage(new Request("https://renvix.app/backend/ai/usage"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "AI_ENTITLEMENT_INACTIVE",
+      entitlement: { state: "inactive", reason: "trial_expired", planSlug: "trial" }
     });
   });
 });

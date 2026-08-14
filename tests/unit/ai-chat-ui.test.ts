@@ -287,7 +287,10 @@ describe("Renvix Intelligence chat UI", () => {
   });
 
   it("loads the balance independently with bounded requests and paints it without waiting for the dashboard batch", async () => {
-    const source = await readFile("src/app/app.js", "utf8");
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
     expect(source).toContain('queue("aiUsage", "/backend/ai/usage", "aiUsage", aiReadOptions)');
     expect(source).toContain("scheduleAIStorageSummaryRefresh({ force })");
     expect(source).toContain("requestIdleCallback(start, { timeout: 2500 })");
@@ -299,5 +302,11 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('{ error: error.message || "تعذر تحميل رصيد الذكاء", retrying: true }');
     expect(source).toContain('code: "AI_USAGE_INVALID_RESPONSE"');
     expect(source).toContain("state.aiOverview?.error || state.aiOverview?.loaded");
+    expect(source).toContain('error.code === "AI_ENTITLEMENT_INACTIVE"');
+    expect(source).toContain("cacheAIViewState({ usage: null })");
+    expect(source).toContain('entitlement.reason === "trial_expired"');
+    expect(source).toContain("انتهت التجربة المجانية");
+    expect(source).toContain('data-link="/dashboard/billing"');
+    expect(css).toContain(".rvx-ai-usage-card.is-inactive");
   });
 });

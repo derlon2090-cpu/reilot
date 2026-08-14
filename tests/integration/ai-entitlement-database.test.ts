@@ -76,6 +76,24 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
     expect(subscriptions.rows[0]).toMatchObject({ count: 1, status: "trial" });
   });
 
+  it("reports an expired trial as a terminal entitlement without reminting the Free balance", async () => {
+    await query(
+      `UPDATE platform_subscriptions SET status='expired',current_period_end=now()-interval '1 day',
+         trial_ends_at=now()-interval '1 day' WHERE tenant_id=$1`,
+      [missingTrialTenantId]
+    );
+    await expect(getAIEntitlementSummary(missingTrialSession)).rejects.toMatchObject({
+      code: "AI_ENTITLEMENT_INACTIVE",
+      status: 403,
+      entitlement: { state: "inactive", reason: "trial_expired", status: "expired", planSlug: "trial" }
+    });
+    const subscriptions = await query(
+      "SELECT count(*)::int AS count FROM platform_subscriptions WHERE tenant_id=$1",
+      [missingTrialTenantId]
+    );
+    expect(subscriptions.rows[0].count).toBe(1);
+  });
+
   it("settles only actual response.usage and deduplicates a provider request id", async () => {
     const reservation = await reserveAITokens(session, { requestedTokens: 20_000, minimumTokens: 128 });
     const settled = await settleAITokenReservation(session, reservation.id, {

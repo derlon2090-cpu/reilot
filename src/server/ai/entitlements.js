@@ -65,17 +65,52 @@ async function provisionMissingTrialSubscription(tenantId, runner) {
   return Boolean(result.rows[0]);
 }
 
+async function inactiveEntitlementDetails(tenantId, now, runner) {
+  const result = await runner.query(
+    `SELECT ps.status,ps.current_period_end AS "periodEnd",ps.trial_ends_at AS "trialEndsAt",
+            pp.name AS "planName",pp.slug AS "planSlug"
+       FROM platform_subscriptions ps
+       JOIN platform_plans pp ON pp.id=ps.plan_id
+      WHERE ps.tenant_id=$1
+      ORDER BY ps.created_at DESC LIMIT 1`,
+    [tenantId]
+  );
+  const subscription = result.rows[0] || null;
+  if (!subscription) {
+    return { state: "inactive", reason: "subscription_missing", status: null, planName: null, planSlug: null, endsAt: null };
+  }
+  const endsAt = subscription.trialEndsAt || subscription.periodEnd || null;
+  const ended = endsAt ? new Date(endsAt).getTime() <= new Date(now).getTime() : false;
+  const trialPlan = ["trial", "retired_free"].includes(subscription.planSlug);
+  const reason = trialPlan && ended
+    ? "trial_expired"
+    : subscription.status === "past_due"
+      ? "payment_required"
+      : ended
+        ? "subscription_expired"
+        : "subscription_inactive";
+  return {
+    state: "inactive",
+    reason,
+    status: subscription.status,
+    planName: subscription.planName,
+    planSlug: subscription.planSlug,
+    endsAt
+  };
+}
+
 async function materializeEntitlement(tenantId, now, runner) {
   let subscription = await activeSubscription(tenantId, now, runner);
   if (!subscription && await provisionMissingTrialSubscription(tenantId, runner)) {
     subscription = await activeSubscription(tenantId, now, runner);
   }
   if (!subscription || !ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)) {
+    const entitlement = await inactiveEntitlementDetails(tenantId, now, runner);
     await runner.query(
       `UPDATE ai_entitlement_periods SET status='suspended',updated_at=now()
         WHERE tenant_id=$1 AND status='active'`, [tenantId]
     );
-    throw entitlementError("AI_ENTITLEMENT_INACTIVE", "لا يوجد اشتراك نشط يمنح رصيد الذكاء حاليًا.", 403);
+    throw entitlementError("AI_ENTITLEMENT_INACTIVE", "لا يوجد اشتراك نشط يمنح رصيد الذكاء حاليًا.", 403, { entitlement });
   }
   const fallback = getAIPlanPolicy(subscription.planSlug);
   const weeklyLimit = safeInteger(subscription.weeklyTokenLimit) || fallback.weeklyLimit;

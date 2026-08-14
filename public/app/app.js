@@ -1478,7 +1478,17 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         state.aiConversationsError = "";
       }
     } else if (target === "aiUsage") {
-      state.aiOverview = { error: error.message || "تعذر تحميل رصيد الذكاء" };
+      const inactiveEntitlement = error.code === "AI_ENTITLEMENT_INACTIVE";
+      if (inactiveEntitlement) {
+        state.aiUsage = null;
+        cacheAIViewState({ usage: null });
+      }
+      state.aiOverview = {
+        error: error.message || "تعذر تحميل رصيد الذكاء",
+        code: error.code || "AI_USAGE_UNAVAILABLE",
+        entitlement: error.payload?.entitlement || null,
+        terminal: inactiveEntitlement
+      };
     } else if (target === "aiStorageSummary") {
       state.aiChatStorageStatus = { error: error.message || "تعذر حساب مساحة المحادثات" };
     } else if (target === "aiConversations") {
@@ -11119,6 +11129,11 @@ async function readAIEventStream(response, onEvent, signal) {
 }
 
 function friendlyAIErrorMessage(error = {}) {
+  if (error.code === "AI_ENTITLEMENT_INACTIVE") {
+    return state.language === "en"
+      ? "Your trial or subscription has ended. Choose a plan from Billing to continue."
+      : "انتهت التجربة أو الاشتراك. اختر باقة من الفوترة للمتابعة.";
+  }
   if (error.code === "AI_PLAN_TOKEN_LIMIT_REACHED" || error.code === "AI_ACTUAL_USAGE_EXCEEDS_CYCLE") {
     return state.language === "en"
       ? "Sorry, your AI balance is exhausted. Contact support or upgrade your plan to continue."
@@ -13383,6 +13398,27 @@ function aiOverviewWelcome() {
 function aiUsageCard() {
   const english = state.language === "en";
   if (!state.aiUsage) {
+    if (state.aiOverview?.code === "AI_ENTITLEMENT_INACTIVE") {
+      const entitlement = state.aiOverview.entitlement || {};
+      const trialExpired = entitlement.reason === "trial_expired";
+      const endedAt = entitlement.endsAt ? new Date(entitlement.endsAt) : null;
+      const validEndDate = endedAt && Number.isFinite(endedAt.getTime());
+      const endDateText = validEndDate
+        ? endedAt.toLocaleDateString(english ? "en-US" : "ar-SA", { year: "numeric", month: "long", day: "numeric" })
+        : "";
+      const signature = `inactive:${entitlement.reason || "subscription_inactive"}:${entitlement.endsAt || ""}`;
+      const title = trialExpired
+        ? (english ? "Free trial ended" : "انتهت التجربة المجانية")
+        : (english ? "AI access is inactive" : "اشتراك الذكاء غير نشط");
+      const description = trialExpired
+        ? (english
+          ? `Your free trial${endDateText ? ` ended on ${endDateText}` : " has ended"}. Choose a plan to reactivate the AI balance.`
+          : `انتهت تجربتك المجانية${endDateText ? ` بتاريخ ${endDateText}` : ""}. اختر باقة لإعادة تفعيل رصيد الذكاء.`)
+        : (english
+          ? "Choose or renew a plan to reactivate the AI balance."
+          : "اختر باقة أو جدّد اشتراكك لإعادة تفعيل رصيد الذكاء.");
+      return `<section class="rvx-ai-usage-card is-inactive" data-ai-usage-card data-ai-usage-signature="${escapeHtml(signature)}" aria-busy="false"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${title}</small></div></header><div class="rvx-ai-usage-inactive" role="status" aria-live="polite"><p>${escapeHtml(description)}</p><button type="button" class="rvx-ai-data-retry" data-link="/dashboard/billing">${english ? "View plans" : "عرض الباقات"}</button></div></section>`;
+    }
     const failed = Boolean(state.aiOverview?.error || state.aiOverview?.loaded);
     if (failed) {
       return `<section class="rvx-ai-usage-card is-unavailable" data-ai-usage-card data-ai-usage-signature="unavailable" aria-busy="false"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Balance temporarily unavailable" : "تعذر تحميل الرصيد مؤقتًا"}</small></div></header><div class="rvx-ai-usage-error" role="status" aria-live="polite"><p>${english ? "The request stopped responding, so it was safely closed. Try loading the balance again." : "توقف طلب الرصيد عن الاستجابة، لذلك تم إنهاؤه بأمان. أعد تحميل الرصيد."}</p><button type="button" class="rvx-ai-data-retry" data-action="ai-retry-data" data-retry-target="usage">${english ? "Try again" : "إعادة المحاولة"}</button></div></section>`;
