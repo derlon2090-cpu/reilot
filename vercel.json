@@ -15,6 +15,12 @@
     "COOKIE_SECURE": "true",
     "NODE_ENV": "production"
   },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.renvix.app/api/:path*"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/salla-webhook-worker",

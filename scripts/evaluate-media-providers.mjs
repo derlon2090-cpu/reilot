@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   DeepgramSpeechProvider,
+  GeminiAudioFallbackProvider,
   GeminiVisionProvider,
   SpeechQualityEvaluator
 } from "../src/server/ai/media-providers.js";
@@ -53,29 +54,73 @@ if (!manifestPath) {
   } else {
     const speech = new DeepgramSpeechProvider();
     const vision = new GeminiVisionProvider();
+    const audioFallback = new GeminiAudioFallbackProvider();
     const evaluator = new SpeechQualityEvaluator();
     const results = [];
     for (const sample of samples) {
       const bytes = await readFile(path.resolve(path.dirname(manifestPath), sample.path));
       if (sample.type === "audio") {
-        const response = await speech.transcribe({
+        const startedAt = Date.now();
+        const primary = await speech.transcribe({
           bytes, locale: sample.locale || "ar-SA", dynamicTerms: sample.dynamicTerms || []
         });
-        const quality = evaluator.evaluate(response, { requiredTerms: sample.requiredTerms || [] });
+        const deepgramLatencyMs = Date.now() - startedAt;
+        let finalResponse = primary;
+        let quality = evaluator.evaluate(primary, { requiredTerms: sample.requiredTerms || [] });
+        let fallbackUsed = false;
+        let fallbackLatencyMs = 0;
+        let fallbackUsageConfirmed = false;
+        if (!quality.acceptable) {
+          const fallbackStartedAt = Date.now();
+          finalResponse = await audioFallback.transcribe({
+            bytes,
+            mimeType: sample.mimeType || "audio/wav",
+            requiredTerms: sample.requiredTerms || []
+          });
+          fallbackLatencyMs = Date.now() - fallbackStartedAt;
+          fallbackUsed = true;
+          fallbackUsageConfirmed = finalResponse.usageConfirmed;
+          quality = evaluator.evaluate(finalResponse, {
+            requiredTerms: sample.requiredTerms || [],
+            requireConfidence: false
+          });
+        }
         results.push({
           id: String(sample.id || sample.path), type: "audio", locale: sample.locale || "ar-SA",
+          language: finalResponse.language,
           acceptable: quality.acceptable, reasons: quality.reasons,
-          confidence: response.confidence, durationSeconds: response.usage.durationSeconds,
-          wordErrorRate: wordErrorRate(sample.expectedText, response.text),
+          confidence: finalResponse.confidence,
+          durationSeconds: primary.usage.durationSeconds,
+          deepgramLatencyMs,
+          fallbackLatencyMs,
+          totalLatencyMs: deepgramLatencyMs + fallbackLatencyMs,
+          keytermsUsed: sample.dynamicTerms || [],
+          fallbackUsed,
+          deepgramUsageConfirmed: primary.usageConfirmed,
+          fallbackUsageConfirmed,
+          providerRequestIdReturned: Boolean(primary.providerRequestId),
+          wordErrorRate: wordErrorRate(sample.expectedText, finalResponse.text),
           requiredTermsPreserved: quality.missingRequiredTerms.length === 0
         });
       } else if (sample.type === "image") {
+        const startedAt = Date.now();
         const response = await vision.analyzeImage({ bytes, mimeType: sample.mimeType });
+        const latencyMs = Date.now() - startedAt;
         const serialized = JSON.stringify(response.result).toLocaleLowerCase();
         const phrases = Array.isArray(sample.expectedPhrases) ? sample.expectedPhrases : [];
         results.push({
           id: String(sample.id || sample.path), type: "image",
           schemaValid: true, confidence: response.result.confidence,
+          latencyMs,
+          usageConfirmed: response.usageConfirmed,
+          providerRequestIdReturned: Boolean(response.providerRequestId),
+          usage: {
+            inputTokens: response.usage.inputTokens,
+            outputTokens: response.usage.outputTokens,
+            thoughtTokens: response.usage.thoughtTokens,
+            cachedTokens: response.usage.cachedTokens,
+            totalTokens: response.usage.totalTokens
+          },
           expectedPhraseRecall: phrases.length
             ? phrases.filter((phrase) => serialized.includes(String(phrase).toLocaleLowerCase())).length / phrases.length
             : null,
@@ -90,12 +135,15 @@ if (!manifestPath) {
       audio: {
         samples: audioSamples.length,
         averageWordErrorRate: audioWer.length ? audioWer.reduce((sum, value) => sum + value, 0) / audioWer.length : null,
-        acceptableCount: results.filter((item) => item.type === "audio" && item.acceptable).length
+        acceptableCount: results.filter((item) => item.type === "audio" && item.acceptable).length,
+        fallbackCount: results.filter((item) => item.type === "audio" && item.fallbackUsed).length,
+        usageConfirmedCount: results.filter((item) => item.type === "audio" && item.deepgramUsageConfirmed).length
       },
       images: {
         samples: imageSamples.length,
         averageExpectedPhraseRecall: imageRecall.length ? imageRecall.reduce((sum, value) => sum + value, 0) / imageRecall.length : null,
-        schemaValidCount: results.filter((item) => item.type === "image" && item.schemaValid).length
+        schemaValidCount: results.filter((item) => item.type === "image" && item.schemaValid).length,
+        usageConfirmedCount: results.filter((item) => item.type === "image" && item.usageConfirmed).length
       },
       results
     }, null, 2));

@@ -1,5 +1,5 @@
 import { DeepgramClient } from "@deepgram/sdk";
-import { GoogleGenAI, MediaResolution } from "@google/genai";
+import { GoogleGenAI, MediaResolution, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { normalizeDeepgramUsage, normalizeGeminiUsage } from "./provider-accounting.js";
 
@@ -174,9 +174,8 @@ export class GeminiVisionProvider {
         { inlineData: { data: Buffer.from(bytes).toString("base64"), mimeType } }
       ] }],
       config: {
-        temperature: 0,
         maxOutputTokens: 2_000,
-        thinkingConfig: { thinkingBudget: 512 },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: "application/json",
         responseJsonSchema: jsonSchema(VisionResultSchema),
         mediaResolution: resolution
@@ -288,7 +287,7 @@ export class GeminiAudioFallbackProvider {
           { inlineData: { data: Buffer.from(bytes).toString("base64"), mimeType } }
         ] }],
         config: {
-          temperature: 0, maxOutputTokens: 2_000, thinkingConfig: { thinkingBudget: 512 },
+          maxOutputTokens: 2_000, thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: "application/json", responseJsonSchema: jsonSchema(TranscriptResultSchema)
         }
       });
