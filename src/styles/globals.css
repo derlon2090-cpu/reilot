@@ -13758,3 +13758,180 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .public-footer.marketing-footer>.marketing-footer-bottom nav{gap:6px 14px}
 }
 @media(prefers-reduced-motion:reduce){.policy-page .policy-card,.policy-page .policy-summary a{transition:none}}
+
+/* iPad public header: compact brand, balanced controls, and a single landscape rail. */
+@media (min-width:1181px) and (max-width:1400px){
+  :root[data-home-tablet-layout="true"] .public-site .public-nav{
+    min-height:116px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav .nav-inner{
+    width:calc(100% - 64px);
+    min-height:116px;
+    grid-template-columns:126px minmax(0,1fr) 478px;
+    grid-template-areas:"brand links actions";
+    grid-template-rows:116px;
+    gap:14px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
+    width:112px;
+    min-width:112px;
+    justify-self:center;
+    transform:none;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
+    width:112px!important;
+    max-width:112px!important;
+    max-height:28px!important;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-links{
+    min-height:58px;
+    gap:clamp(8px,1vw,14px);
+    padding:0;
+    border:0;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-link{
+    min-height:56px;
+    gap:7px;
+    padding-inline:7px;
+    font-size:13px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-link.active{
+    min-height:56px!important;
+    padding-inline:7px!important;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav-icon .line-icon{
+    width:18px;
+    height:18px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-actions{
+    width:100%;
+    min-width:0;
+    justify-content:space-between;
+    gap:16px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav-preferences{gap:14px}
+  :root[data-home-tablet-layout="true"] .public-site .public-language-compact{
+    width:98px;
+    min-width:98px;
+    min-height:58px;
+    padding-inline:11px;
+    border-radius:14px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-theme{
+    width:50px;
+    min-width:50px;
+    min-height:58px;
+    padding:0;
+    border-radius:14px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-auth-actions{gap:16px}
+  :root[data-home-tablet-layout="true"] .public-site .public-auth-actions .btn{
+    min-height:58px;
+    padding-inline:13px;
+    border-radius:14px;
+    font-size:13px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-register-action{
+    width:130px;
+    min-width:130px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-login-action{
+    width:148px;
+    min-width:148px;
+  }
+}
+
+@media (min-width:901px) and (max-width:1180px){
+  :root[data-home-tablet-layout="true"] .public-site .public-nav{
+    min-height:84px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav .nav-inner{
+    width:calc(100% - 40px);
+    min-height:84px;
+    grid-template-columns:124px minmax(0,1fr) 334px;
+    grid-template-areas:"brand links actions";
+    grid-template-rows:84px;
+    gap:8px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
+    width:112px;
+    min-width:112px;
+    justify-self:center;
+    transform:none;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
+    width:112px!important;
+    max-width:112px!important;
+    max-height:28px!important;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-links{
+    min-height:48px;
+    gap:2px;
+    padding:0;
+    border:0;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-link{
+    min-height:46px;
+    gap:4px;
+    padding-inline:4px;
+    font-size:11px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-link.active{
+    min-height:46px!important;
+    padding-inline:4px!important;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav-icon .line-icon{
+    width:16px;
+    height:16px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .nav-actions{
+    width:100%;
+    min-width:0;
+    justify-content:space-between;
+    gap:6px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav-preferences{gap:4px}
+  :root[data-home-tablet-layout="true"] .public-site .public-language-compact{
+    width:70px;
+    min-width:70px;
+    min-height:46px;
+    padding-inline:6px;
+    border-radius:12px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-theme{
+    width:42px;
+    min-width:42px;
+    min-height:46px;
+    padding:0;
+    border-radius:12px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-auth-actions{gap:5px}
+  :root[data-home-tablet-layout="true"] .public-site .public-auth-actions .btn{
+    min-height:46px;
+    gap:6px;
+    padding-inline:7px;
+    border-radius:12px;
+    font-size:11px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-register-action{
+    width:106px;
+    min-width:106px;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-login-action{
+    width:100px;
+    min-width:100px;
+  }
+}
+
+@media (min-width:641px) and (max-width:900px){
+  :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
+    width:126px;
+    min-width:126px;
+    transform:none;
+  }
+  :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
+    width:126px!important;
+    max-width:126px!important;
+    max-height:31px!important;
+  }
+}
