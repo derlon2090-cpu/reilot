@@ -94,8 +94,11 @@ describe("public page cleanup and pricing comparison", () => {
     expect(styles).toContain("homeJourneyPathReveal");
     expect(styles).toContain("homeJourneySendDrift");
     expect(styles).toContain(".marketing-home-v3 .trusted-brands-track{");
-    expect(styles).toMatch(/animation:trustedBrandsMarquee 32s linear infinite;\r?\n\s*animation-play-state:running/);
-    expect(styles).toContain(".trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}");
+    expect(styles).toMatch(/animation:trustedBrandsMarquee 32s linear infinite;\s+animation-play-state:running/);
+    expect(styles).not.toContain(".trusted-brands-viewport:hover .trusted-brands-track{animation-play-state:paused}");
+    expect(app).toContain('data-continuous-marquee');
+    expect(app).not.toMatch(/class="marketing-commerce-ecosystem"[^>]*data-motion-scene/);
+    expect(app).toContain('loading="eager" decoding="async"');
     expect(app).toContain("}, 1600)");
   });
 });

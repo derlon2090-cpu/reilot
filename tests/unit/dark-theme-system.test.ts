@@ -33,6 +33,8 @@ describe("site-wide dark theme system", () => {
     expect(css).toContain('color:#d8ebe7!important');
     expect(css).toContain('.policy-hero .eyebrow');
     expect(css).toContain('.policy-content>section>span');
+    expect(css).toContain('.policy-page .policy-card:hover');
+    expect(css).toContain('.policy-page .policy-contact');
     const authCss = await readFile(`${root}/src/styles/globals.css`, "utf8");
     expect(authCss).toContain("Canonical accounts.renvix.app dark theme");
     expect(authCss).toContain('.auth-suite-page[data-auth-theme="dark"] .auth-showcase-art');

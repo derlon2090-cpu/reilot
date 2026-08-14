@@ -2,7 +2,7 @@ import { features, knowledgeBase } from "../data/publicData.js?v=20260811-centra
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
 import { AuthTurnstile } from "./auth-turnstile.js?v=20260813-auth-routing-v110";
-import { AuthGoogle } from "./auth-google.js?v=20260813-google-gis-v117";
+import { AuthGoogle } from "./auth-google.js?v=20260814-auth-gateway-v118";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -1798,7 +1798,7 @@ function publicFooter() {
     <section class="marketing-footer-brand" data-reveal>${logo()}<p>${localizedCopy("منصة سعودية تساعدك على إدارة اشتراكاتك وتجديداتك بذكاء، والتكامل مع قنوات التواصل لتعزيز أعمالك.", "A Saudi platform for intelligent subscription, renewal, and customer communication management.")}</p><div class="marketing-meta-partner" aria-label="Meta Business Partner"><span><small>TECH PROVIDER</small><strong>Meta Business Partner</strong></span><b>${dashboardIcon("infinity")}</b></div><div class="footer-social" aria-label="${localizedCopy("وسائل التواصل الاجتماعي", "Social media")}"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">${dashboardIcon("instagram")}</a></div></section>
     ${columns.map(([title, links]) => `<nav class="marketing-footer-column" aria-label="${title}" data-reveal><h2>${title}</h2>${links.map(([path, label]) => `<button data-link="${path}">${label}</button>`).join("")}</nav>`).join("")}
     <section class="marketing-footer-newsletter" data-reveal><h2>${localizedCopy("اشترك في نشرتنا البريدية", "Join our newsletter")}</h2><p>${localizedCopy("احصل على آخر التحديثات والنصائح والعروض الحصرية لتنمية اشتراكاتك.", "Get product updates and practical growth tips in your inbox.")}</p><form data-submit="newsletter"><label><span class="sr-only">${localizedCopy("البريد الإلكتروني", "Email")}</span><input type="email" name="email" placeholder="${localizedCopy("أدخل بريدك الإلكتروني", "Enter your email")}" required>${dashboardIcon("email")}</label><button type="submit" aria-label="${localizedCopy("اشتراك", "Subscribe")}">${dashboardIcon("send")}</button></form></section>
-  </div><div class="container marketing-footer-bottom"><span>©2026 Renvix. ${localizedCopy("جميع الحقوق محفوظة.", "All rights reserved.")}</span><nav><button data-link="/terms">${localizedCopy("الشروط والأحكام", "Terms")}</button><button data-link="/privacy">${localizedCopy("سياسة الخصوصية", "Privacy")}</button></nav></div></footer>`;
+  </div><div class="container marketing-footer-bottom"><span>©2026 Renvix. ${localizedCopy("جميع الحقوق محفوظة.", "All rights reserved.")}</span><nav aria-label="${localizedCopy("السياسات القانونية", "Legal policies")}"><button data-link="/terms">${localizedCopy("الشروط والأحكام", "Terms")}</button><button data-link="/privacy">${localizedCopy("سياسة الخصوصية", "Privacy")}</button><button data-link="/refund-policy">${localizedCopy("سياسة الاستبدال والاسترجاع", "Refund policy")}</button></nav></div></footer>`;
 }
 
 function marketingSectionHeading(title, body, eyebrow = "") {
@@ -1913,7 +1913,6 @@ const socialProofMotionVariants = Object.freeze({
   sectionReveal: Object.freeze({ duration: 720, delay: 0, y: 12, scale: .995, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   titleReveal: Object.freeze({ duration: 680, delay: 70, y: 18, scale: 1, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   subtitleReveal: Object.freeze({ duration: 640, delay: 150, y: 14, scale: 1, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
-  logoCardReveal: Object.freeze({ duration: 680, delay: 250, stagger: 85, y: 18, scale: .97, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }),
   logoCardHover: Object.freeze({ duration: 220, y: -3, scale: 1, logoScale: 1.02, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
 });
 
@@ -1946,8 +1945,8 @@ function marketingCommerceEcosystem() {
     { title: localizedCopy("ملم", "Mlm"), logo: "/assets/brands/mlm.png", brand: "mlm" },
     { title: localizedCopy("الرعد للاتصالات", "Alraad Telecom"), logo: "/assets/brands/alraad-telecom.jpg", brand: "alraad" }
   ];
-  const brandSet = (duplicate = false) => `<div class="trusted-brands-set"${duplicate ? ' aria-hidden="true"' : ""}>${trustedBrands.map((item, index) => `<article class="trusted-brand-card trusted-brand-card--${item.brand}" data-motion-variant="logoCardReveal logoCardHover" data-motion-index="${index}" aria-label="${escapeHtml(item.title)}"><span class="trusted-brand-logo"><img src="${item.logo}" alt="${duplicate ? "" : escapeHtml(item.title)}" width="112" height="76" loading="lazy" decoding="async" /></span></article>`).join("")}</div>`;
-  return `<section class="marketing-commerce-ecosystem" data-motion-scene data-social-proof data-home-immediate>
+  const brandSet = (duplicate = false) => `<div class="trusted-brands-set"${duplicate ? ' aria-hidden="true"' : ""}>${trustedBrands.map((item) => `<article class="trusted-brand-card trusted-brand-card--${item.brand}" data-motion-variant="logoCardHover" aria-label="${escapeHtml(item.title)}"><span class="trusted-brand-logo"><img src="${item.logo}" alt="${duplicate ? "" : escapeHtml(item.title)}" width="112" height="76" loading="eager" decoding="async" /></span></article>`).join("")}</div>`;
+  return `<section class="marketing-commerce-ecosystem" data-social-proof data-continuous-marquee data-home-immediate>
     <div class="container" data-social-proof-reveal data-motion-variant="sectionReveal">
       <header class="marketing-v3-heading commerce-proof-heading">
         <h2 data-social-proof-reveal data-motion-variant="titleReveal">${localizedCopy("شركات تثق بـ Renvix", "Companies that trust Renvix")}</h2>
@@ -1992,7 +1991,55 @@ function initMarketingMotion() {
     entry.target.classList.add("is-visible");
     observer?.unobserve(entry.target);
   });
-  observe([...root.querySelectorAll("[data-motion-scene]")], (entry) => entry.target.classList.toggle("is-in-view", entry.isIntersecting), { threshold: .2 });
+  const motionScenes = [...root.querySelectorAll("[data-motion-scene]")];
+  const motionVisibility = new Map(motionScenes.map((scene) => [scene, 0]));
+  const motionActivity = new WeakMap();
+  let motionFrame = 0;
+  const setMotionSceneActive = (scene, active) => {
+    const shouldRun = active && !reducedMotion && !document.hidden;
+    if (motionActivity.get(scene) === shouldRun) return;
+    motionActivity.set(scene, shouldRun);
+    scene.classList.toggle("is-in-view", shouldRun);
+    scene.querySelectorAll("svg").forEach((svg) => {
+      try {
+        if (shouldRun) svg.unpauseAnimations?.();
+        else svg.pauseAnimations?.();
+      } catch {
+        // Some embedded SVG implementations do not expose SMIL controls.
+      }
+    });
+  };
+  const syncMotionScenes = () => {
+    motionFrame = 0;
+    let activeScene = null;
+    let activeRatio = 0;
+    motionScenes.forEach((scene) => {
+      const ratio = motionVisibility.get(scene) || 0;
+      if (ratio <= activeRatio) return;
+      activeScene = scene;
+      activeRatio = ratio;
+    });
+    motionScenes.forEach((scene) => setMotionSceneActive(scene, scene === activeScene && activeRatio > 0));
+  };
+  const queueMotionSync = () => {
+    if (!motionFrame) motionFrame = requestAnimationFrame(syncMotionScenes);
+  };
+  motionScenes.forEach((scene) => setMotionSceneActive(scene, false));
+  observe(motionScenes, (entry) => {
+    const ratio = Number(entry.intersectionRatio);
+    motionVisibility.set(entry.target, entry.isIntersecting ? (Number.isFinite(ratio) ? ratio : 1) : 0);
+    queueMotionSync();
+  }, { threshold: [0, .12, .3, .5, .75, 1] });
+  const handleMotionVisibility = () => {
+    if (document.hidden) motionScenes.forEach((scene) => setMotionSceneActive(scene, false));
+    else queueMotionSync();
+  };
+  document.addEventListener("visibilitychange", handleMotionVisibility);
+  disposers.push(() => {
+    document.removeEventListener("visibilitychange", handleMotionVisibility);
+    if (motionFrame) cancelAnimationFrame(motionFrame);
+    motionScenes.forEach((scene) => setMotionSceneActive(scene, false));
+  });
   observe([...root.querySelectorAll("[data-social-proof]")], (entry, observer) => {
     if (!entry.isIntersecting) return;
     entry.target.classList.add("is-social-proof-visible");
@@ -3302,18 +3349,16 @@ function policyPage() {
     },
     "/refund-policy": {
       title: "سياسة الاستبدال والاسترجاع - رينفكس",
-      intro: "توضح هذه السياسة آلية إلغاء الخدمات الرقمية واسترداد المبالغ في رينفكس بصورة عادلة وشفافة، دون الانتقاص من الحقوق المقررة نظامًا.",
+      intro: "نحرص في Renvix على رضاك التام. توضّح هذه السياسة الحالات التي يمكنك فيها طلب استرجاع قيمة اشتراكك، وطريقة تقديم الطلب والمدة المتوقعة لمعالجته. تنطبق هذه السياسة على اشتراكات Renvix المدفوعة، دون الإخلال بأي حق لا يجوز تقييده نظامًا.",
+      updated: "14 أغسطس 2026",
       sections: [
-        ["نطاق السياسة", "تسري هذه السياسة على الباقات والرصيد والخدمات الرقمية المشتراة عبر renvix.app أو renvix.click. ولأن رينفكس تقدم خدمات رقمية وليست سلعًا مادية، فلا ينطبق الاستبدال بصورته الخاصة بالمنتجات المادية؛ ويُقصد به هنا معالجة خلل الخدمة أو توفير البديل المناسب متى كان ذلك ممكنًا."],
-        ["حق الإلغاء خلال سبعة أيام", "يجوز للمستهلك طلب فسخ التعاقد واسترداد المبلغ خلال سبعة أيام من تاريخ التعاقد إذا لم يستخدم الخدمة ولم ينتفع بها، وذلك وفق نظام التجارة الإلكترونية وما ينطبق من استثناءاته. ويُعد تفعيل الخصائص المدفوعة أو إرسال الرسائل أو استهلاك الرصيد أو استخدام التكاملات انتفاعًا بالخدمة بالقدر المستهلك."],
-        ["الحالات المؤهلة للاسترداد", "تشمل الحالات التي تستحق المراجعة: الخصم المكرر، أو تحصيل مبلغ مخالف لما ظهر عند الشراء، أو عدم إتاحة الخدمة المدفوعة بسبب خلل جوهري من رينفكس تعذر إصلاحه خلال مدة معقولة، أو تأخر تقديم الخدمة أكثر من خمسة عشر يومًا عن الموعد المتفق عليه ما لم يكن التأخير بسبب قوة قاهرة، إضافة إلى أي حالة يقرر النظام فيها حق الاسترداد."],
-        ["معالجة العيوب التقنية", "عند وجود عيب تقني، نطلب معلومات كافية للتحقق منه ونسعى أولًا إلى إصلاحه أو إعادة إتاحة المنفعة دون تكلفة إضافية. إذا تعذر الإصلاح وكان الخلل مؤثرًا في الخدمة المدفوعة، يُحدد الاسترداد الكامل أو الجزئي بحسب أثر الخلل ومدة الانتفاع، مع مراعاة الحقوق النظامية."],
-        ["الحالات غير المؤهلة عادةً", "لا تُسترد عادةً قيمة المدة أو الرسائل أو الرصيد الذي استُخدم فعليًا، أو الخدمات المخصصة بعد بدء تنفيذها بموافقة العميل، أو المبالغ الناتجة عن مخالفة سياسة الاستخدام، أو عدم توافق سببه إعداد خاطئ من المستخدم. كما لا يكون تعطل مزود خارجي وحده سببًا تلقائيًا للاسترداد متى ظلت خدمة رينفكس الأساسية متاحة، ما لم يقرر النظام أو وصف الخدمة خلاف ذلك."],
-        ["إلغاء التجديد وتغيير الخطة", "يمكن إيقاف التجديد للدورات المستقبلية عبر القنوات المتاحة، ويستمر الوصول عادةً حتى نهاية المدة المدفوعة. لا يؤدي إيقاف التجديد إلى استرداد تلقائي للمدة المستخدمة. وتُطبق الترقية فورًا بحسب السعر المعروض، بينما يبدأ التخفيض من دورة الفوترة التالية ما لم يُذكر خلاف ذلك قبل التأكيد."],
-        ["تقديم طلب الاسترداد", "يُقدم الطلب من مركز الدعم أو عبر support@renvix.app، مع بريد الحساب ورقم الفاتورة وتاريخ العملية ووصف واضح للسبب وأي مستند مؤيد. لا ترسل رقم البطاقة الكامل أو كلمة المرور أو رمز التحقق. وقد نطلب معلومات إضافية للتحقق من صاحب الحساب ومن العملية."],
-        ["المراجعة وإعادة المبلغ", "تراجع رينفكس الفاتورة وسجل الاستخدام والخلل المبلغ عنه، ثم ترسل نتيجة الطلب إلى البريد المسجل. عند قبول الاسترداد، يُعاد المبلغ المستحق إلى وسيلة الدفع الأصلية متى كان ذلك متاحًا، وقد تختلف مدة ظهوره بحسب بوابة الدفع والبنك المصدر. لا تشمل المدة الزمنية إجراءات الجهات المالية الخارجة عن سيطرة رينفكس."],
-        ["المدفوعات غير المصرح بها", "إذا اشتبهت في عملية غير مصرح بها، تواصل معنا فورًا وأبلغ البنك أو مزود الدفع. سنراجع سجلات الحساب ونتعاون في حدود الصلاحيات المتاحة، وقد نوقف الوصول مؤقتًا لحماية الحساب إلى حين اكتمال التحقق."],
-        ["الشكاوى والتواصل", "لأي اعتراض على قرار فوترة، أرسل رقم الطلب المرجعي والمعلومات الداعمة عبر مركز الدعم أو support@renvix.app. سنعيد مراجعة الطلب، ولا تمنع هذه الآلية المستفيد من ممارسة حقوقه لدى الجهات المختصة وفق الأنظمة المعمول بها."]
+        ["أهلية الاسترجاع", ["يمكنك طلب استرجاع كامل خلال ٣ أيام من تاريخ بدء أول اشتراك مدفوع على حسابك، بشرط أن يكون هذا هو الاشتراك المدفوع الأول للحساب.", "لا ينطبق الاسترجاع على الاشتراكات المجدّدة، سواء تم التجديد تلقائيًا أو يدويًا. ويمكنك بدلًا من ذلك إلغاء التجديد التلقائي، مع استمرار الخدمة حتى نهاية الفترة المدفوعة."]],
+        ["الفوترة والتجديد", ["تتجدد الاشتراكات تلقائيًا في نهاية كل دورة فوترة عندما تكون خاصية التجديد التلقائي مفعّلة. ويمكنك إلغاء التجديد في أي وقت من لوحة التحكم لتجنب الرسوم اللاحقة.", "عند الإلغاء تظل الخدمة فعّالة حتى نهاية الفترة المدفوعة الحالية، ولا يُمنح استرجاع جزئي عن الأيام المتبقية."]],
+        ["نافذة الاسترجاع", ["تُقبل طلبات الاسترجاع المؤهلة خلال ٣ أيام من تاريخ بدء الاشتراك المدفوع الأول فقط.", "الاشتراكات المنفذة عبر متجر تطبيقات سلة أو زد تخضع كذلك لآليات الاسترجاع المعتمدة لدى تلك المنصات، مثل إعادة المبلغ إلى محفظة المنصة، بالإضافة إلى هذه السياسة."]],
+        ["كيفية تقديم الطلب", ["لتقديم طلب استرجاع، تواصل مع فريق الدعم عبر واتساب، واذكر البريد الإلكتروني المسجل ورقم العملية وسبب الطلب بوضوح. لا ترسل بيانات البطاقة الكاملة أو كلمة المرور أو رمز التحقق.", "سنراجع طلبك ونرد عليك خلال ٤٨ ساعة عمل بقرار الموافقة أو بطلب معلومات إضافية عند الحاجة."]],
+        ["حالات غير قابلة للاسترجاع", ["لا تشمل أهلية الاسترجاع الإضافات المدفوعة، مثل اشتراك واتساب الأعمال الرسمي (API)، والخادم أو الجهاز المخصص، وسائر الإضافات، وكذلك رسوم الإعداد لمرة واحدة والرسوم المستهلكة، بما فيها الرسائل التي أُرسلت فعليًا.", "نقاط ورصيد رسائل واتساب الأعمال الرسمي (API) غير قابلة للاسترجاع أو الاستبدال أو النقل من حساب إلى آخر.", "رسوم واتساب الرسمي (Meta)، مثل رسوم المحادثات والقوالب، يدفعها العميل إلى Meta مباشرة، ولا تدخل في ذمة Renvix؛ لذلك لا تلتزم Renvix باستردادها أو التعويض عنها.", "لا يُمنح استرجاع عند مخالفة شروط الاستخدام أو إساءة استخدام المنصة بما يؤدي إلى تعليق الحساب أو إيقافه."]],
+        ["مدة المعالجة", "بعد الموافقة على الاسترجاع، يُعاد المبلغ إلى وسيلة الدفع الأصلية، أو إلى محفظة المنصة لاشتراكات سلة وزد، خلال ٧ إلى ١٤ يوم عمل بحسب مزود الدفع أو البنك."],
+        ["تواصل معنا", "لأي استفسار حول الاسترجاع أو الفوترة، تواصل مع فريق Renvix عبر واتساب أو مركز الدعم، وسيساعدك الفريق في متابعة الطلب والحصول على رقم مرجعي."]
       ]
     },
     "/contact": { title: "تواصل معنا", intro: "اختر القناة المناسبة وسنوجه طلبك إلى الفريق المختص بأسرع وقت ممكن.", sections: [["الدعم الفني", "لأخطاء الحساب، ربط الأجهزة، الجلسات، أو التكاملات استخدم نموذج مركز الدعم وأرفق وصفًا واضحًا ووقت حدوث المشكلة دون مشاركة أي مفتاح سري."], ["المبيعات والباقات", "للاستفسار عن الخطط وحدود الاستخدام واحتياجات المؤسسات، أرسل طلبًا بعنوان المبيعات والباقات مع حجم الفريق وعدد العملاء المتوقع."], ["الفوترة", "للفواتير أو المدفوعات اذكر رقم الفاتورة والبريد المسجل فقط. لن يطلب فريقنا كلمة المرور أو رمز التحقق أو بيانات البطاقة الكاملة."], ["الأمان والخصوصية", "للإبلاغ عن مشكلة أمنية أو طلب متعلق ببياناتك، استخدم قناة الدعم واكتب بوضوح أن الطلب متعلق بالأمان أو الخصوصية ليتم تصعيده للفريق المختص."], ["أوقات الاستجابة", "نراجع الطلبات حسب الأولوية والتأثير. تظهر الحالات الحرجة المتعلقة بتعطل الخدمة أو الأمان في مقدمة قائمة المعالجة."], ["البريد الرسمي", "يمكن مراسلتنا عبر support@renewpilot.ai، أو استخدام مركز الدعم للحصول على رقم مرجعي ومتابعة حالة الطلب."]] }
@@ -3357,25 +3402,68 @@ function policyPage() {
     },
     "/refund-policy": {
       title: "Refund and Replacement Policy - Renvix",
-      intro: "This policy explains cancellation and refund handling for Renvix digital services without limiting rights granted by applicable law.",
+      intro: "Your satisfaction matters to Renvix. This policy explains when you may request a subscription refund, how to submit your request, and the expected processing time. It applies to paid Renvix subscriptions without limiting any right that cannot lawfully be restricted.",
+      updated: "August 14, 2026",
       sections: [
-        ["Scope", "This policy applies to digital plans, credits, and services purchased through renvix.app or renvix.click. Renvix does not sell physical goods, so physical product replacement does not apply; replacement means correcting a service defect or providing a suitable digital alternative where possible."],
-        ["Seven-day cancellation right", "A consumer may request cancellation and a refund within seven days of contracting if the service has not been used and no benefit has been received, subject to the Saudi E-Commerce Law and applicable exceptions. Activating paid features, sending messages, consuming credits, or using integrations constitutes use to the extent consumed."],
-        ["Eligible cases", "Reviewable cases include duplicate charges, an amount different from that displayed at checkout, a material Renvix defect that prevents delivery of the paid service and cannot be remedied within a reasonable time, or a delay exceeding fifteen days beyond the agreed delivery date unless caused by force majeure, as well as any case where applicable law requires a refund."],
-        ["Technical defects", "When a technical defect is reported, we request enough information to verify it and first attempt to restore the paid benefit without additional charge. If correction is not possible and the defect materially affects the service, a full or proportionate refund is determined based on impact and actual use, subject to statutory rights."],
-        ["Normally non-refundable cases", "Used subscription time, messages, or credits are normally non-refundable, as are customized services after work begins with customer approval, charges arising from prohibited use, or incompatibility caused by incorrect user configuration. A third-party outage alone does not automatically qualify where the core Renvix service remains available, unless law or the service description provides otherwise."],
-        ["Renewal cancellation and plan changes", "Future automatic renewal may be stopped through available channels, and access normally continues through the paid term. Stopping renewal does not automatically refund consumed time. Upgrades apply according to the displayed price, while downgrades begin with the next billing cycle unless checkout states otherwise."],
-        ["Submitting a request", "Submit a request through the Support Center or support@renvix.app with the account email, invoice number, transaction date, reason, and supporting information. Never send a full card number, password, or verification code. Additional information may be requested to verify the account and transaction."],
-        ["Review and payment return", "Renvix reviews the invoice, usage, and reported issue and sends the outcome to the registered email. Approved amounts are returned to the original payment method where available. Posting times vary by gateway and issuing bank and are outside Renvix's processing time."],
-        ["Unauthorized payments", "If you suspect an unauthorized payment, contact us immediately and notify your bank or payment provider. We will review account records and cooperate within our authority, and access may be temporarily restricted to protect the account during verification."],
-        ["Complaints and contact", "To challenge a billing decision, submit the reference number and supporting information through the Support Center or support@renvix.app. We will review the request again, and this process does not prevent the customer from exercising rights before the competent authorities."]
+        ["Refund eligibility", ["You may request a full refund within three days of the start date of the first paid subscription on your account, provided it is the account's first paid subscription.", "Renewed subscriptions are not refundable, whether renewed automatically or manually. You may instead cancel automatic renewal, and the service will remain available until the end of the paid term."]],
+        ["Billing and renewal", ["Subscriptions renew at the end of each billing cycle when automatic renewal is enabled. You may cancel renewal at any time from the dashboard to avoid future charges.", "After cancellation, the service remains active through the current paid term. No partial refund is issued for unused days in that term."]],
+        ["Refund window", ["Eligible refund requests are accepted only within three days of the first paid subscription's start date.", "Subscriptions purchased through the Salla or Zid app stores are also subject to those platforms' refund mechanisms, such as crediting the platform wallet, in addition to this policy."]],
+        ["How to submit a request", ["Contact support through WhatsApp and provide the registered email address, transaction number, and a clear reason for the request. Never send full card details, a password, or a verification code.", "We will review the request and respond within 48 business hours with a decision or a request for additional information where needed."]],
+        ["Non-refundable items", ["Paid add-ons are not refundable, including the official WhatsApp Business API subscription, a dedicated server or device, other add-ons, one-time setup fees, and consumed charges such as messages already sent.", "Official WhatsApp Business API message points and credits cannot be refunded, exchanged, or transferred between accounts.", "Official WhatsApp (Meta) conversation and template charges are paid by the customer directly to Meta and are not held by Renvix; Renvix therefore does not refund or compensate those charges.", "No refund is issued where a breach of the Terms of Use or platform abuse results in account suspension or termination."]],
+        ["Processing time", "After approval, the amount is returned to the original payment method, or to the platform wallet for Salla and Zid subscriptions, within 7 to 14 business days depending on the payment provider or bank."],
+        ["Contact us", "For questions about refunds or billing, contact the Renvix team through WhatsApp or the Support Center. The team will help track the request and provide a reference number."]
       ]
     },
     "/contact": { title: "Contact Us", intro: "Choose the right channel and we will route your request to the appropriate team as quickly as possible.", sections: [["Technical support", "For account errors, device linking, sessions, or integrations, use the support form and include a clear description and time of occurrence without sharing secrets."], ["Sales and plans", "For plans, limits, and enterprise requirements, submit a Sales and Plans request with the expected team size and customer volume."], ["Billing", "For invoices or payments, provide only the invoice number and registered email. Our team will never ask for your password, verification code, or full card details."], ["Security and privacy", "Clearly mark security or privacy requests in the support channel so they can be escalated to the appropriate specialist."], ["Response times", "Requests are reviewed by priority and impact. Critical service availability and security issues are moved to the front of the queue."], ["Official email", "You can email support@renewpilot.ai or use the support center to receive a reference number and track your request."]] }
   };
   const selectedPolicies = state.language === "en" ? englishPolicies : policies;
   const content = selectedPolicies[state.route] || selectedPolicies["/privacy"];
-  return publicShell(`<main class="policy-page"><section class="policy-hero"><div class="container"><span class="eyebrow">${localizedCopy("معلومات قانونية وتشغيلية", "Legal and operational information")}</span><h1>${content.title}</h1><p>${content.intro}</p><small>${localizedCopy("آخر تحديث: 31 يوليو 2026", "Last updated: July 31, 2026")}</small></div></section><section class="section policy-section"><div class="container policy-layout"><aside class="policy-summary"><h2>${localizedCopy("في هذه الصفحة", "On this page")}</h2>${content.sections.map(([title], index) => `<a href="#policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span>${title}</a>`).join("")}<button class="btn btn-primary" data-link="/support">${localizedCopy("تواصل مع الدعم", "Contact support")}</button></aside><article class="policy-content">${content.sections.map(([title, body], index) => `<section id="policy-${index + 1}"><span>${String(index + 1).padStart(2, "0")}</span><div><h2>${title}</h2><p>${body}</p></div></section>`).join("")}<div class="policy-contact"><strong>${localizedCopy("هل تحتاج إلى توضيح إضافي؟", "Need more information?")}</strong><p>${localizedCopy("راسلنا عبر support@renvix.app أو افتح طلبًا من مركز الدعم.", "Email support@renvix.app or open a request in the Support Center.")}</p><button class="btn btn-secondary" data-link="/support">${localizedCopy("الانتقال إلى مركز الدعم", "Go to Support Center")}</button></div></article></div></section></main>`);
+  const policyKind = state.route === "/terms" ? "terms" : state.route === "/refund-policy" ? "refund" : "privacy";
+  const policyHeroIcon = { privacy: "security", terms: "passwordReset", refund: "refresh" }[policyKind];
+  const policySectionIcons = {
+    privacy: ["publicRegister", "document", "reports", "settings", "customers", "security", "globe", "clock", "key", "notifications", "email"],
+    terms: ["publicRegister", "document", "customers", "security", "warning", "apps", "billing", "key", "cloud", "passwordReset", "security", "document", "email"],
+    refund: ["publicRegister", "billing", "clock", "whatsapp", "warning", "calendar", "email"]
+  }[policyKind];
+  const displayTitle = content.title.replace(/\s*-\s*(?:رينفكس|Renvix)$/u, "");
+  const updatedAt = content.updated || localizedCopy("31 يوليو 2026", "July 31, 2026");
+  const updatedLabel = localizedCopy(`آخر تحديث: ${updatedAt}`, `Last updated: ${updatedAt}`);
+  const updatedIso = policyKind === "refund" ? "2026-08-14" : "2026-07-31";
+  const renderPolicyBody = (body) => (Array.isArray(body) ? body : [body])
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
+
+  return publicShell(`<main class="policy-page policy-page--${policyKind}" dir="${state.language === "en" ? "ltr" : "rtl"}">
+    <section class="policy-hero">
+      <div class="policy-hero-pattern" aria-hidden="true"></div>
+      <span class="policy-hero-mark" aria-hidden="true">${dashboardIcon(policyHeroIcon)}</span>
+      <div class="container policy-hero-copy">
+        <h1>${escapeHtml(displayTitle)}</h1>
+        <p>${escapeHtml(content.intro)}</p>
+        <time class="policy-updated" datetime="${updatedIso}">${dashboardIcon("calendar")}<span>${escapeHtml(updatedLabel)}</span></time>
+      </div>
+    </section>
+    <section class="section policy-section">
+      <div class="container policy-layout">
+        <aside class="policy-aside">
+          <nav class="policy-summary" aria-label="${localizedCopy("محتويات السياسة", "Policy contents")}">
+            <h2>${localizedCopy("في هذه الصفحة", "On this page")}</h2>
+            ${content.sections.map(([title], index) => `<a href="#policy-${index + 1}" data-policy-anchor="policy-${index + 1}"><span aria-hidden="true"></span>${escapeHtml(title)}</a>`).join("")}
+          </nav>
+          <section class="policy-help-card">
+            <span aria-hidden="true">${dashboardIcon("support")}</span>
+            <h2>${localizedCopy("هل لديك سؤال؟", "Have a question?")}</h2>
+            <p>${localizedCopy("نحن هنا لمساعدتك وتوضيح أي بند.", "We are here to help clarify any section.")}</p>
+            <button class="btn btn-secondary" data-link="/support">${localizedCopy("تواصل مع الدعم", "Contact support")}</button>
+          </section>
+        </aside>
+        <article class="policy-content">
+          ${content.sections.map(([title, body], index) => `<section class="policy-card" id="policy-${index + 1}"><span class="policy-card-icon" aria-hidden="true">${dashboardIcon(policySectionIcons[index] || "document")}</span><div><h2><b>${index + 1}.</b> ${escapeHtml(title)}</h2><div class="policy-copy">${renderPolicyBody(body)}</div></div></section>`).join("")}
+          <div class="policy-contact"><span class="policy-contact-icon" aria-hidden="true">${dashboardIcon("security")}</span><div><strong>${localizedCopy("وضوحك وحقوقك تهمنا", "Clarity and your rights matter")}</strong><p>${localizedCopy("راسلنا عبر support@renvix.app أو افتح طلبًا من مركز الدعم، وسنساعدك بأسرع وقت ممكن.", "Email support@renvix.app or open a request in the Support Center, and we will help as quickly as possible.")}</p></div><button class="btn btn-secondary" data-link="/support">${localizedCopy("الانتقال إلى مركز الدعم", "Go to Support Center")}</button></div>
+        </article>
+      </div>
+    </section>
+  </main>`);
 }
 
 function authSuiteFrame(content, pageClass = "auth-light-page") {
@@ -13132,9 +13220,20 @@ document.addEventListener("click", (event) => {
   }
   const link = event.target.closest("[data-link]");
   const action = event.target.closest("[data-action]");
+  const policyAnchor = event.target.closest("[data-policy-anchor]");
   if (state.actionMenu && !event.target.closest(".suite-menu-cell,.suite-channel-actions") && !link && !action) {
     state.actionMenu = "";
     render();
+    return;
+  }
+  if (policyAnchor) {
+    event.preventDefault();
+    const sectionId = policyAnchor.dataset.policyAnchor;
+    const section = document.getElementById(sectionId);
+    if (section) {
+      history.replaceState({}, "", `${location.pathname}${location.search}#${sectionId}`);
+      section.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }
     return;
   }
   if (link) {
