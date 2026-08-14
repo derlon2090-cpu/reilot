@@ -38,7 +38,13 @@ describe("homepage lower-section scroll performance", () => {
   });
 
   it("forces browsers to fetch the optimized motion bundle and stylesheet", () => {
-    expect(rootLayout).toContain("20260814-ai-gateway-v127");
-    expect(staticIndex).toContain("20260814-ai-gateway-v127");
+    const versions = (source: string) => ({
+      styles: source.match(/globals\.css\?v=([^"']+)/)?.[1],
+      app: source.match(/app\.js\?v=([^"']+)/)?.[1]
+    });
+    const next = versions(rootLayout);
+    expect(next.styles).toBeTruthy();
+    expect(next.app).toBe(next.styles);
+    expect(versions(staticIndex)).toEqual(next);
   });
 });

@@ -77,6 +77,17 @@ export async function createPrivateUpload({ objectKey, contentType, size }) {
   };
 }
 
+export async function writePrivateObject({ objectKey, contentType, body }) {
+  const bytes = Buffer.isBuffer(body) ? body : Buffer.from(body || []);
+  await storageClient().send(new PutObjectCommand({
+    Bucket: bucketName(),
+    Key: objectKey,
+    ContentType: contentType,
+    ContentLength: bytes.length,
+    Body: bytes
+  }));
+}
+
 export async function inspectPrivateObject(objectKey) {
   const result = await storageClient().send(new HeadObjectCommand({ Bucket: bucketName(), Key: objectKey }));
   return {

@@ -15,7 +15,7 @@ export async function getAIUsageSummary(session) {
 export async function assertAIUsageAvailable(session, estimatedInputTokens = 0) {
   const usage = await getAIUsageSummary(session);
   if ((usage.remainingTokens || 0) < Math.max(128, safeNumber(estimatedInputTokens))) {
-    throw Object.assign(new Error("استهلكت رصيد ذكاء Renvix المتاح لهذه الدورة."), {
+    throw Object.assign(new Error("عذرًا، نفد رصيد الذكاء المتاح. تواصل مع الدعم أو رقِّ الباقة للمتابعة."), {
       status: 429,
       code: "AI_PLAN_TOKEN_LIMIT_REACHED",
       usage
