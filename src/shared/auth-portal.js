@@ -63,8 +63,7 @@ export function configuredAuthApiOrigin(env = process.env) {
 
 export function shouldProxyAuthApi(pathname, requestHost, apiOrigin, env = process.env) {
   const path = String(pathname || "");
-  const googleCallback = path === "/api/auth/google/callback";
-  if (env.NODE_ENV !== "production" || !path.startsWith("/api/auth/") || (path.startsWith("/api/auth/google/") && !googleCallback)) return false;
+  if (env.NODE_ENV !== "production" || !path.startsWith("/api/auth/")) return false;
   if (!apiOrigin) return false;
   try {
     return new URL(apiOrigin).hostname.toLowerCase() !== String(requestHost || "").toLowerCase();

@@ -2,7 +2,7 @@ import { features, knowledgeBase } from "../data/publicData.js?v=20260811-centra
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
 import { AuthTurnstile } from "./auth-turnstile.js?v=20260813-auth-routing-v110";
-import { AuthGoogle } from "./auth-google.js?v=20260813-google-gis-v117";
+import { AuthGoogle } from "./auth-google.js?v=20260814-auth-gateway-v118";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");

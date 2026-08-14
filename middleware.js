@@ -10,8 +10,9 @@ import {
   safeReturnTo,
   shouldProxyAuthApi
 } from "./src/shared/auth-portal.js";
+import { proxyAuthBackendRequest } from "./src/shared/auth-backend-proxy.js";
 
-export function middleware(request) {
+export async function middleware(request) {
   const path = request.nextUrl.pathname;
   const hasSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const origins = configuredOrigins();
@@ -26,8 +27,7 @@ export function middleware(request) {
   if (isSetupPage || isSetupApi) return secureNext();
   if (shouldProxyAuthApi(path, requestHost, authApiOrigin)) {
     const target = new URL(`${path}${request.nextUrl.search}`, authApiOrigin);
-    const response = NextResponse.rewrite(target);
-    response.headers.set("Cache-Control", "no-store");
+    const response = await proxyAuthBackendRequest(request, target.origin);
     response.headers.set("Referrer-Policy", "no-referrer");
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;

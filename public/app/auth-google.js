@@ -1,6 +1,6 @@
 const GOOGLE_SCRIPT_URL = "https://accounts.google.com/gsi/client";
 const KNOWN_ACCOUNT_KEY = "renvix.auth.known-account.v1";
-const PRODUCTION_AUTH_API_ORIGIN = "https://api.renvix.app";
+const GOOGLE_GATEWAY_RETRY_DELAYS_MS = Object.freeze([0, 700, 1_500]);
 let googleScriptPromise;
 
 function config() {
@@ -17,18 +17,44 @@ function normalizedOrigin(value) {
 }
 
 function authApiBaseUrl() {
-  const configured = normalizedOrigin(config().authApiUrl);
-  if (configured) return configured;
-  if (/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) return window.location.origin;
-  return window.location.hostname === "renvix.app" || window.location.hostname.endsWith(".renvix.app")
-    ? PRODUCTION_AUTH_API_ORIGIN
-    : "";
+  const portal = normalizedOrigin(config().authUrl);
+  if (portal) return portal;
+  return window.location.origin;
 }
 
 function authApiUrl(path) {
   const baseUrl = authApiBaseUrl();
   if (!baseUrl) throw new Error("auth_backend_required");
   return new URL(path, baseUrl).toString();
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+async function requestGoogleGateway(path, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  let lastReason = "google_backend_unavailable";
+  for (const delay of GOOGLE_GATEWAY_RETRY_DELAYS_MS) {
+    if (delay) await wait(delay);
+    let response;
+    try {
+      response = await fetch(authApiUrl(path), {
+        credentials: "include",
+        cache: "no-store",
+        ...options
+      });
+    } catch (error) {
+      if (method !== "GET") throw error;
+      lastReason = "google_backend_unavailable";
+      continue;
+    }
+    const payload = await response.json().catch(() => null);
+    if (response.ok) return { response, payload };
+    lastReason = payload?.reason || "google_backend_unavailable";
+    if (response.status !== 503 || lastReason !== "auth_backend_warming") return { response, payload };
+  }
+  throw new Error(lastReason);
 }
 
 function languageFor(element) {
@@ -79,8 +105,7 @@ function loadGoogleIdentity() {
 }
 
 async function requestGoogleConfig() {
-  const response = await fetch(authApiUrl("/api/auth/google/config"), { credentials: "include", cache: "no-store", mode: "cors" });
-  const payload = await response.json().catch(() => null);
+  const { response, payload } = await requestGoogleGateway("/api/auth/google/config");
   if (!response.ok) throw new Error(payload?.reason || "google_backend_unavailable");
   const clientId = normalizeGoogleClientId(payload?.clientId);
   if (!clientId) throw new Error("google_backend_not_configured");
@@ -88,8 +113,7 @@ async function requestGoogleConfig() {
 }
 
 async function requestGoogleNonce() {
-  const response = await fetch(authApiUrl("/api/auth/google/nonce"), { credentials: "include", cache: "no-store", mode: "cors" });
-  const payload = await response.json().catch(() => null);
+  const { response, payload } = await requestGoogleGateway("/api/auth/google/nonce");
   if (!response.ok || !payload?.nonce) throw new Error(payload?.reason || "google_nonce_unavailable");
   return payload.nonce;
 }
@@ -138,6 +162,7 @@ function showGoogleRecovery(host, english, reason) {
   }
   const messages = {
     auth_backend_required: english ? "The secure authentication backend is not connected." : "خادم المصادقة الآمن غير متصل.",
+    auth_backend_warming: english ? "Secure sign-in is being prepared. Please retry in a moment." : "جاري تجهيز تسجيل الدخول الآمن. أعد المحاولة بعد لحظات.",
     google_backend_unavailable: english ? "The authentication backend is temporarily unavailable." : "خادم المصادقة غير متاح مؤقتًا.",
     google_backend_not_configured: english ? "Google is not configured correctly on the authentication backend." : "إعداد Google غير مكتمل على خادم المصادقة.",
     google_not_configured: english ? "Google is not configured correctly on the authentication backend." : "إعداد Google غير مكتمل على خادم المصادقة.",
@@ -156,15 +181,11 @@ async function submitGoogleCredential(host, credential) {
     ? (english ? "Creating your account securely…" : "جارٍ إنشاء حسابك بأمان…")
     : (english ? "Signing in securely…" : "جارٍ تسجيل الدخول بأمان…"), "info");
   try {
-    const response = await fetch(authApiUrl("/api/auth/google"), {
+    const { response, payload } = await requestGoogleGateway("/api/auth/google", {
       method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      mode: "cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ credential, locale: english ? "en" : "ar", intent })
     });
-    const payload = await response.json().catch(() => null);
     window.dispatchEvent(new CustomEvent("renvix:google-auth-result", { detail: { responseOk: response.ok, status: response.status, payload, intent } }));
     if (!response.ok || payload?.ok !== true) throw new Error(payload?.reason || "google_auth_failed");
     setGoogleStatus(host, "", "info");
