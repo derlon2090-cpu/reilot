@@ -1,0 +1,77 @@
+{
+  "samples": [
+    {
+      "id": "audio-ar-sa-subscription",
+      "type": "audio",
+      "path": "audio/01-ar-sa-subscription.wav",
+      "locale": "ar-SA",
+      "expectedText": "أبغى أعرف ليش الاشتراك ما تجدد",
+      "requiredTerms": []
+    },
+    {
+      "id": "audio-en-us-campaign",
+      "type": "audio",
+      "path": "audio/02-en-us-campaign.wav",
+      "locale": "en-US",
+      "expectedText": "Show me the latest failed campaign",
+      "requiredTerms": ["campaign"]
+    },
+    {
+      "id": "audio-ar-en-mixed",
+      "type": "audio",
+      "path": "audio/03-ar-en-mixed.wav",
+      "locale": "ar-SA",
+      "expectedText": "تأكد إذا WhatsApp API connected أو لا",
+      "requiredTerms": ["WhatsApp", "API", "connected"],
+      "dynamicTerms": ["WhatsApp", "API", "connected"]
+    },
+    {
+      "id": "audio-ar-en-keyterms",
+      "type": "audio",
+      "path": "audio/04-ar-en-keyterms.wav",
+      "locale": "ar-SA",
+      "expectedText": "Renvix يتابع Webhook وحالة Meta Campaign",
+      "requiredTerms": ["Renvix", "Webhook", "Meta", "Campaign"],
+      "dynamicTerms": ["Renvix", "Webhook", "Meta", "Campaign"]
+    },
+    {
+      "id": "audio-en-us-keyterms",
+      "type": "audio",
+      "path": "audio/05-en-us-keyterms.wav",
+      "locale": "en-US",
+      "expectedText": "Please check the Renvix API webhook status",
+      "requiredTerms": ["Renvix", "API", "webhook"],
+      "dynamicTerms": ["Renvix", "API", "webhook"]
+    },
+    {
+      "id": "audio-ar-sa-keyterms",
+      "type": "audio",
+      "path": "audio/06-ar-sa-keyterms.wav",
+      "locale": "ar-SA",
+      "expectedText": "تم ربط Meta وWhatsApp API بنجاح",
+      "requiredTerms": ["Meta", "WhatsApp", "API"],
+      "dynamicTerms": ["Meta", "WhatsApp", "API"]
+    },
+    {
+      "id": "image-arabic-interface",
+      "type": "image",
+      "path": "images/01-arabic-interface.png",
+      "mimeType": "image/png",
+      "expectedPhrases": ["مركز دعم رينفكس", "حالة الاشتراك", "محاولة دفع فاشلة"]
+    },
+    {
+      "id": "image-mixed-screenshot",
+      "type": "image",
+      "path": "images/02-mixed-screenshot.jpg",
+      "mimeType": "image/jpeg",
+      "expectedPhrases": ["pdf", "1.2 MB", "رينفكس"]
+    },
+    {
+      "id": "image-dashboard-table",
+      "type": "image",
+      "path": "images/03-dashboard-table.png",
+      "mimeType": "image/png",
+      "expectedPhrases": ["Campaign Dashboard", "12,480", "98.7%", "WhatsApp API", "Failed"]
+    }
+  ]
+}

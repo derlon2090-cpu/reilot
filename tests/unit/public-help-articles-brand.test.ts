@@ -10,10 +10,12 @@ const faviconSource = fs.readFileSync(path.join(root, "public/assets/renvix-favi
 
 describe("public help articles and Renvix browser identity", () => {
   it("uses the Renvix mark for browser icons instead of the default globe", () => {
-    expect(layoutSource).toContain('url: "/assets/renvix-favicon.svg?v=20260812-brand-v105"');
-    expect(layoutSource).toContain('shortcut: "/assets/renvix-favicon.svg?v=20260812-brand-v105"');
-    expect(layoutSource).toContain('apple: "/assets/renvix-favicon.svg?v=20260812-brand-v105"');
-    expect(staticIndexSource).toContain('/assets/renvix-favicon.svg?v=20260812-brand-v105');
+    const layoutIcon = layoutSource.match(/url: "(\/assets\/renvix-favicon\.svg\?v=[^"]+)"/)?.[1];
+    const staticIcon = staticIndexSource.match(/href="(\/assets\/renvix-favicon\.svg\?v=[^"]+)"/)?.[1];
+    expect(layoutIcon).toBeTruthy();
+    expect(staticIcon).toBe(layoutIcon);
+    expect(layoutSource).toContain(`shortcut: "${layoutIcon}"`);
+    expect(layoutSource).toContain(`apple: "${layoutIcon}"`);
     expect(faviconSource).toContain('stroke="#0B3F3B"');
     expect(faviconSource).not.toContain("<rect");
     expect(faviconSource).not.toContain("#eaf8f5");
@@ -46,7 +48,13 @@ describe("public help articles and Renvix browser identity", () => {
   });
 
   it("uses one cache version for the updated public script and styles", () => {
-    expect(layoutSource).toContain("20260812-brand-v105");
-    expect(staticIndexSource).toContain("20260812-brand-v105");
+    const versions = (source: string) => ({
+      styles: source.match(/globals\.css\?v=([^"']+)/)?.[1],
+      app: source.match(/app\.js\?v=([^"']+)/)?.[1]
+    });
+    const nextVersions = versions(layoutSource);
+    expect(nextVersions.styles).toBeTruthy();
+    expect(nextVersions.styles).toBe(nextVersions.app);
+    expect(versions(staticIndexSource)).toEqual(nextVersions);
   });
 });

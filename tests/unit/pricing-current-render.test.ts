@@ -25,8 +25,18 @@ describe("current pricing catalog renderer", () => {
 
   it("busts both Next and static caches with the same current pricing version", () => {
     for (const markup of [rootLayout, staticIndex]) {
-      expect(markup).toContain("globals.css?v=20260814-policy-pages-v122");
-      expect(markup).toContain("app.js?v=20260814-policy-pages-v122");
+      expect(markup).toContain("globals.css?v=20260814-auth-gateway-v123");
+      expect(markup).toContain("app.js?v=20260814-auth-gateway-v123");
     }
+    const assetVersions = (markup: string) => ({
+      styles: markup.match(/globals\.css\?v=([^"']+)/)?.[1],
+      app: markup.match(/app\.js\?v=([^"']+)/)?.[1]
+    });
+    const nextVersions = assetVersions(rootLayout);
+    const staticVersions = assetVersions(staticIndex);
+    expect(nextVersions.styles).toBeTruthy();
+    expect(nextVersions.app).toBeTruthy();
+    expect(nextVersions.styles).toBe(nextVersions.app);
+    expect(staticVersions).toEqual(nextVersions);
   });
 });

@@ -1,7 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
-import { DeepSeekProvider } from "../../src/server/ai/provider.js";
+import { DeepSeekProvider, deepSeekEnvironmentStatus } from "../../src/server/ai/provider.js";
 
 describe("DeepSeekProvider", () => {
+  it("requires the server-only key and rejects public DeepSeek variable names", () => {
+    expect(deepSeekEnvironmentStatus({ DEEPSEEK_API_KEY: "server-secret" })).toMatchObject({
+      configured: true,
+      serverOnly: true,
+      missingVariables: [],
+      forbiddenPublicVariables: []
+    });
+    expect(deepSeekEnvironmentStatus({ NEXT_PUBLIC_DEEPSEEK_API_KEY: "public-secret" })).toMatchObject({
+      configured: false,
+      serverOnly: false,
+      missingVariables: ["DEEPSEEK_API_KEY"],
+      forbiddenPublicVariables: ["NEXT_PUBLIC_DEEPSEEK_API_KEY"]
+    });
+  });
+
   it("keeps the provider contract behind the configured endpoint", async () => {
     const fetchImpl = vi.fn(async (_url, options) => new Response(JSON.stringify({
       choices: [{ message: { role: "assistant", content: "تم" } }],
@@ -18,6 +33,19 @@ describe("DeepSeekProvider", () => {
       temperature: 0.2,
       thinking: { type: "disabled" }
     });
+  });
+
+  it("returns the provider request id for accounting correlation", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      id: "deepseek-request-1",
+      choices: [{ message: { role: "assistant", content: "OK" } }],
+      usage: { prompt_tokens: 4, completion_tokens: 1, total_tokens: 5 }
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const provider = new DeepSeekProvider({ apiKey: "test-key", fetchImpl });
+
+    const result = await provider.completeStructured({ messages: [{ role: "user", content: "OK" }] });
+
+    expect(result.providerRequestId).toBe("deepseek-request-1");
   });
 
   it("parses streamed tokens while ignoring malformed and reasoning-only events", async () => {

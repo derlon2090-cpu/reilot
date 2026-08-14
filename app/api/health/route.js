@@ -2,8 +2,10 @@ import { databaseHealth } from "../../../src/server/db.js";
 import { evolutionEndpointProfile, evolutionHealth } from "../../../src/server/evolution-client.js";
 import { safeErrorMessage } from "../../../src/server/security.js";
 import { authSchemaHealth } from "../../../src/server/auth-schema-readiness.js";
+import { platformSchemaHealth } from "../../../src/server/platform-schema-readiness.js";
 import { resendProviderHealth } from "../../../src/lib/email/resend.js";
 import { mfaChallengeSigningConfigured } from "../../../src/server/login-mfa.js";
+import { objectStorageHealth } from "../../../src/server/attachments/object-storage.js";
 
 export async function GET() {
   const policy = {
@@ -27,6 +29,7 @@ export async function GET() {
   const checks = {
     database: { ok: false },
     authSchema: { ok: false },
+    platformSchema: { ok: false },
     authPolicy: { ...policy, ok: authPolicyReady },
     resend: {
       configured: resendReady,
@@ -36,14 +39,24 @@ export async function GET() {
     },
     emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
     mfaChallenge: { required: policy.secondFactorRequired, signingKeyConfigured: mfaChallengeReady, ok: !policy.secondFactorRequired || mfaChallengeReady },
+    objectStorage: { configured: false, ok: false },
     evolution: { configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY), ok: false, endpoint: evolutionEndpointProfile() }
+  };
+  const objectStorage = await objectStorageHealth();
+  checks.objectStorage = {
+    configured: objectStorage.objectStorage !== "unconfigured",
+    ok: objectStorage.objectStorage === "healthy",
+    status: objectStorage.objectStorage,
+    ...(objectStorage.error ? { error: objectStorage.error } : {})
   };
   try {
     checks.database = await databaseHealth();
     checks.authSchema = await authSchemaHealth();
+    checks.platformSchema = await platformSchemaHealth();
   } catch (error) {
     checks.database = { ok: false, error: safeErrorMessage(error) };
     checks.authSchema = { ok: false, error: safeErrorMessage(error) };
+    checks.platformSchema = { ok: false, error: safeErrorMessage(error) };
   }
   if (resendReady) {
     checks.resend = { ...checks.resend, ...(await resendProviderHealth()) };
@@ -56,7 +69,7 @@ export async function GET() {
       checks.evolution = { configured: true, ok: false, endpoint: evolutionEndpointProfile(), errorCode: error?.code || "EVOLUTION_ERROR", error: safeErrorMessage(error) };
     }
   }
-  const ok = checks.database.ok && checks.authSchema.ok && checks.authPolicy.ok && checks.emailOtp.ok && checks.mfaChallenge.ok && (!checks.evolution.configured || checks.evolution.ok);
+  const ok = checks.database.ok && checks.authSchema.ok && checks.platformSchema.ok && checks.authPolicy.ok && checks.emailOtp.ok && checks.mfaChallenge.ok && (!checks.evolution.configured || checks.evolution.ok);
   return Response.json({
     ok,
     service: "renewpilot-ai",

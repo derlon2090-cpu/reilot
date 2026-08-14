@@ -17,6 +17,9 @@ import { safeErrorMessage } from "./security.js";
 import { runDueSubscriptionReminders } from "./renewal-reminders.js";
 import { runPlatformNotificationWorker } from "./platform-notifications.js";
 import { sendMetaImageMessage, sendMetaTextMessage } from "./meta-interactive-service.js";
+import { cleanupAbandonedAttachmentUploads } from "./attachments/service.js";
+import { reconcileDeletingAttachments, runAttachmentCleanupWorker } from "./attachments/cleanup-jobs.js";
+import { reconcileAIProviderUsage } from "./ai/provider-accounting.js";
 
 export async function runRenewalReminders() {
   return runDueSubscriptionReminders();
@@ -469,8 +472,13 @@ export async function runCleanup() {
   const sessions = await query("DELETE FROM sessions WHERE expires_at < now() RETURNING id");
   const resets = await query("DELETE FROM password_reset_codes WHERE created_at < now() - interval '30 days' RETURNING id");
   const queue = await query("DELETE FROM message_queue WHERE status = 'sent' AND updated_at < now() - interval '30 days' RETURNING id");
+  const attachments = await cleanupAbandonedAttachmentUploads();
+  const attachmentCleanupJobs = await runAttachmentCleanupWorker();
+  const deletingAttachments = await reconcileDeletingAttachments();
+  const aiProviderUsage = await reconcileAIProviderUsage();
   await query("UPDATE whatsapp_channels SET qr_code_cache = NULL WHERE status NOT IN ('pending_qr', 'connecting') AND qr_code_cache IS NOT NULL");
-  return { expiredSessions: sessions.rowCount, expiredResetCodes: resets.rowCount, oldQueueItems: queue.rowCount };
+  return { expiredSessions: sessions.rowCount, expiredResetCodes: resets.rowCount, oldQueueItems: queue.rowCount,
+    attachments, attachmentCleanupJobs, deletingAttachments, aiProviderUsage };
 }
 
 export async function runAdminMessaging() {

@@ -16,6 +16,7 @@ const TABLE_GROUPS = {
   activity_logs: "الرسائل والسجلات",
   ai_conversations: "محادثات ذكاء Renvix",
   ai_messages: "محادثات ذكاء Renvix",
+  ai_attachments: "مرفقات ذكاء Renvix",
   ai_tool_executions: "محادثات ذكاء Renvix",
   ai_usage_daily: "محادثات ذكاء Renvix",
   ai_user_preferences: "محادثات ذكاء Renvix",
@@ -138,8 +139,8 @@ export async function getTenantStorage(tenantId, runner = { query }) {
   for (const row of tables.rows) {
     const table = safeTableName(row.tableName);
     if (!table) continue;
-    const recordSize = table === "ai_messages"
-      ? `pg_column_size(record) + COALESCE((SELECT sum(CASE WHEN (attachment->>'size') ~ '^[0-9]+$' THEN (attachment->>'size')::bigint ELSE 0 END) FROM jsonb_array_elements(COALESCE(record.attachments,'[]'::jsonb)) attachment),0)`
+    const recordSize = table === "ai_attachments"
+      ? "pg_column_size(record) + record.size_bytes"
       : "pg_column_size(record)";
     const result = await runner.query(
       `SELECT COALESCE(sum(${recordSize}), 0)::bigint AS bytes
@@ -160,4 +161,14 @@ export async function getTenantStorage(tenantId, runner = { query }) {
       .filter((item) => item.bytes > 0)
       .sort((a, b) => b.bytes - a.bytes)
   };
+}
+
+export async function reconcileTenantStorageUsage(tenantId, runner = { query }) {
+  const storage = await getTenantStorage(tenantId, runner);
+  await runner.query(
+    `INSERT INTO tenant_storage_usage(tenant_id,used_bytes) VALUES($1,$2)
+     ON CONFLICT(tenant_id) DO UPDATE SET used_bytes=EXCLUDED.used_bytes,updated_at=now()`,
+    [tenantId, storage.usedBytes]
+  );
+  return storage;
 }

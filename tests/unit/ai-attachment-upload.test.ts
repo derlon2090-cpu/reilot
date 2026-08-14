@@ -1,53 +1,56 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { deleteMock, putMock, getConversationMock } = vi.hoisted(() => ({
-  deleteMock: vi.fn(),
-  putMock: vi.fn(),
-  getConversationMock: vi.fn()
+const { createUploadMock, completeMock, inspectMock } = vi.hoisted(() => ({
+  createUploadMock: vi.fn(),
+  completeMock: vi.fn(),
+  inspectMock: vi.fn()
 }));
 
-vi.mock("@vercel/blob", () => ({ del: deleteMock, put: putMock }));
 vi.mock("../../src/server/session.js", () => ({
   requireSession: vi.fn(async () => ({ ok: true, session: { tenantId: "tenant-1", userId: "user-1" } }))
 }));
 vi.mock("../../src/server/campaign-contacts.js", () => ({ sameOriginRequest: vi.fn(() => true) }));
-vi.mock("../../src/server/ai/conversations.js", () => ({ getAIConversation: getConversationMock }));
-vi.mock("../../src/server/tenant-storage.js", () => ({
-  getTenantStorageLimitState: vi.fn(async () => ({ isUnlimited: false, remainingBytes: 20 * 1024 * 1024 }))
+vi.mock("../../src/server/attachments/service.js", () => ({
+  createAttachmentUpload: createUploadMock,
+  completeAttachmentUpload: completeMock
 }));
+vi.mock("../../src/server/attachments/object-storage.js", () => ({ inspectPrivateObject: inspectMock }));
 
-import { POST } from "../../app/api/ai/conversations/[conversationId]/attachments/route.js";
+import { POST as prepareUpload } from "../../app/api/ai/conversations/[conversationId]/attachments/route.js";
+import { POST as completeUpload } from "../../app/api/ai/attachments/[attachmentId]/complete/route.js";
 
-const context = { params: Promise.resolve({ conversationId: "conversation-1" }) };
-
-function uploadRequest(bytes: number[], type = "image/png", name = "chat.png") {
-  const data = new FormData();
-  data.append("files", new Blob([Uint8Array.from(bytes)], { type }), name);
-  return new Request("https://renvix.test/api/ai/conversations/conversation-1/attachments", {
-    method: "POST", headers: { origin: "https://renvix.test" }, body: data
-  });
-}
-
-describe("AI conversation attachments", () => {
+describe("private AI conversation attachment upload", () => {
   beforeEach(() => {
-    process.env.BLOB_READ_WRITE_TOKEN = "test-token";
-    deleteMock.mockReset().mockResolvedValue(undefined);
-    putMock.mockReset().mockResolvedValue({ url: "https://assets.test/chat.png" });
-    getConversationMock.mockReset().mockResolvedValue({ id: "conversation-1" });
+    createUploadMock.mockReset().mockResolvedValue({
+      attachment: { id: "attachment-1", name: "chat.png", type: "image/png", size: 842000, status: "uploading" },
+      upload: { method: "PUT", url: "https://signed-r2.test/upload", headers: { "Content-Type": "image/png" }, expiresAt: "2026-08-13T20:00:00Z" }
+    });
+    completeMock.mockReset().mockResolvedValue({ id: "attachment-1", status: "ready", processingStatus: "queued" });
   });
 
-  it("stores a validated attachment under the authenticated tenant and user path", async () => {
-    const response = await POST(uploadRequest([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]), context);
+  it("returns an object-specific short-lived direct upload without credentials", async () => {
+    const request = new Request("https://renvix.test/api/ai/conversations/conversation-1/attachments", {
+      method: "POST",
+      headers: { origin: "https://renvix.test", "content-type": "application/json" },
+      body: JSON.stringify({ name: "chat.png", mimeType: "image/png", size: 842000 })
+    });
+    const response = await prepareUpload(request, { params: Promise.resolve({ conversationId: "conversation-1" }) });
     const payload = await response.json();
     expect(response.status).toBe(201);
-    expect(payload.items[0]).toEqual(expect.objectContaining({ name: "chat.png", type: "image/png", size: 6 }));
-    expect(payload.items[0].path).toMatch(/^ai\/tenant-1\/user-1\/conversation-1\/[0-9a-f-]+\.png$/);
-    expect(putMock).toHaveBeenCalledWith(payload.items[0].path, expect.any(Buffer), expect.objectContaining({ access: "public", contentType: "image/png" }));
+    expect(createUploadMock).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }), {
+      conversationId: "conversation-1", name: "chat.png", mimeType: "image/png", size: 842000, durationMs: undefined
+    });
+    expect(payload.upload).toMatchObject({ method: "PUT", headers: { "Content-Type": "image/png" } });
+    expect(JSON.stringify(payload)).not.toMatch(/secret|accessKey|credential/i);
   });
 
-  it("rejects spoofed image content before storage", async () => {
-    const response = await POST(uploadRequest([0x00, 0x01, 0x02]), context);
-    expect(response.status).toBe(400);
-    expect(putMock).not.toHaveBeenCalled();
+  it("uses an idempotent complete endpoint backed by server-side verification", async () => {
+    const request = new Request("https://renvix.test/api/ai/attachments/attachment-1/complete", {
+      method: "POST", headers: { origin: "https://renvix.test" }
+    });
+    const response = await completeUpload(request, { params: Promise.resolve({ attachmentId: "attachment-1" }) });
+    expect(response.status).toBe(200);
+    expect(completeMock).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "tenant-1" }), "attachment-1");
+    await expect(response.json()).resolves.toMatchObject({ attachment: { status: "ready" } });
   });
 });

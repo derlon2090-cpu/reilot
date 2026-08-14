@@ -1,0 +1,166 @@
+import { describe, expect, it, vi } from "vitest";
+import {
+  DeepgramSpeechProvider,
+  GeminiAudioFallbackProvider,
+  GeminiVisionProvider,
+  SpeechQualityEvaluator,
+  VisionResultSchema,
+  deepgramKeyterms,
+  deepgramLanguage,
+  selectGeminiMediaResolution
+} from "../../src/server/ai/media-providers.js";
+import {
+  calculateProviderCost,
+  normalizeDeepgramUsage,
+  normalizeGeminiUsage,
+  quotaUnitsForCost
+} from "../../src/server/ai/provider-accounting.js";
+
+function png(width = 800, height = 600) {
+  const bytes = Buffer.alloc(24);
+  bytes.set([0x89, 0x50, 0x4e, 0x47], 0);
+  bytes.writeUInt32BE(width, 16);
+  bytes.writeUInt32BE(height, 20);
+  return bytes;
+}
+
+describe("production media provider contracts", () => {
+  it("uses strict Gemini JSON and retries only one invalid schema response", async () => {
+    const generateContent = vi.fn()
+      .mockResolvedValueOnce({ text: "not-json", usageMetadata: { totalTokenCount: 12 }, responseId: "first" })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 }),
+        usageMetadata: { promptTokenCount: 260, candidatesTokenCount: 40, totalTokenCount: 300 },
+        responseId: "gemini-request-2", modelVersion: "gemini-3.6-flash"
+      });
+    const provider = new GeminiVisionProvider({ model: "gemini-3.6-flash", client: { models: { generateContent } } });
+    const response = await provider.analyzeImage({ bytes: png(), mimeType: "image/png" });
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(response.result).toMatchObject({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 });
+    expect(response.usage).toMatchObject({ inputTokens: 260, outputTokens: 40, totalTokens: 300 });
+    expect(generateContent.mock.calls[0][0].config.responseMimeType).toBe("application/json");
+    expect(generateContent.mock.calls[0][0].config.responseJsonSchema.additionalProperties).toBe(false);
+    expect(JSON.stringify(generateContent.mock.calls[0][0].config.responseJsonSchema)).not.toMatch(/"(?:default|minLength|maxLength)"/);
+    expect(generateContent.mock.calls[0][0].config.thinkingConfig).toEqual({ thinkingLevel: "LOW" });
+    expect(generateContent.mock.calls[0][0].config).not.toHaveProperty("temperature");
+    expect(generateContent.mock.calls[0][0].config.thinkingConfig).not.toHaveProperty("thinkingBudget");
+  });
+
+  it("rejects unexpected fields and chooses high resolution only for large dense images", () => {
+    expect(VisionResultSchema.safeParse({ type: "photo", summary: "ok", confidence: 1, injected: true }).success).toBe(false);
+    expect(selectGeminiMediaResolution(png(800, 600), "image/png")).toContain("MEDIUM");
+    expect(selectGeminiMediaResolution(png(2600, 1800), "image/png")).toContain("HIGH");
+  });
+
+  it("retries only explicit transient Gemini failures", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const generateContent = vi.fn()
+      .mockRejectedValueOnce({ status: 503 })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          transcript: "تأكد إذا WhatsApp API connected أو لا",
+          language: "mixed",
+          preservedTerms: ["WhatsApp", "API", "connected"],
+          confidence: 0.91
+        }),
+        usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30, totalTokenCount: 150 },
+        responseId: "gemini-audio-2"
+      });
+    const provider = new GeminiAudioFallbackProvider({
+      client: { models: { generateContent } }, retryDelay: wait
+    });
+
+    const response = await provider.transcribe({
+      bytes: Buffer.from("audio"), mimeType: "audio/wav", requiredTerms: ["WhatsApp", "API"]
+    });
+
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(response).toMatchObject({ language: "mixed", usageConfirmed: true, providerRequestId: "gemini-audio-2" });
+  });
+
+  it("does not retry a non-transient Gemini client error", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const generateContent = vi.fn().mockRejectedValue({ status: 400 });
+    const provider = new GeminiAudioFallbackProvider({
+      client: { models: { generateContent } }, retryDelay: wait
+    });
+
+    await expect(provider.transcribe({ bytes: Buffer.from("audio"), mimeType: "audio/wav" }))
+      .rejects.toMatchObject({ code: "AUDIO_FALLBACK_FAILED" });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it("uses Nova-3 Arabic locale, smart formatting, keyterm, and provider duration", async () => {
+    const transcribeFile = vi.fn().mockResolvedValue({
+      metadata: { request_id: "dg-request-1", duration: 4.25, channels: 1 },
+      results: { channels: [{ alternatives: [{
+        transcript: "افتح Renvix و WhatsApp",
+        confidence: 0.93,
+        words: [{ word: "Renvix", start: 0.5, end: 1, confidence: 0.96 }]
+      }] }] }
+    });
+    const provider = new DeepgramSpeechProvider({
+      model: "nova-3", client: { listen: { v1: { media: { transcribeFile } } } }
+    });
+    const response = await provider.transcribe({ bytes: Buffer.from("audio"), locale: "ar", dynamicTerms: ["Order 42", "bad:semicolon"] });
+    const options = transcribeFile.mock.calls[0][1];
+    expect(options).toMatchObject({ model: "nova-3", language: "ar-SA", smart_format: true, mip_opt_out: true });
+    expect(options.keyterm).toContain("Renvix");
+    expect(options.keyterm).toContain("Order 42");
+    expect(options).not.toHaveProperty("keywords");
+    expect(response).toMatchObject({ durationMs: 4250, providerRequestId: "dg-request-1", confidence: 0.93 });
+  });
+
+  it("does not select multi blindly and bounds dynamic keyterms", () => {
+    expect(deepgramLanguage("ar-EG")).toBe("ar-SA");
+    expect(deepgramLanguage("en-GB")).toBe("en-US");
+    const terms = deepgramKeyterms(Array.from({ length: 30 }, (_, index) => `Term ${index}`));
+    expect(terms.length).toBeLessThanOrEqual(50);
+    expect(terms).toContain("Gemini");
+  });
+
+  it("triggers fallback criteria for low confidence and missing required mixed terms", () => {
+    const evaluator = new SpeechQualityEvaluator({ minimumConfidence: 0.8 });
+    expect(evaluator.evaluate({ text: "افتح المتجر", confidence: 0.92, words: [] }).acceptable).toBe(true);
+    const poor = evaluator.evaluate({ text: "افتح المتجر", confidence: 0.4, words: [] }, { requiredTerms: ["Webhook"] });
+    expect(poor.acceptable).toBe(false);
+    expect(poor.reasons).toEqual(expect.arrayContaining(["low_confidence", "required_mixed_terms_missing"]));
+  });
+});
+
+describe("provider-native accounting", () => {
+  it("normalizes actual Gemini usage metadata, including thought and cached tokens", () => {
+    expect(normalizeGeminiUsage({
+      promptTokenCount: 300, candidatesTokenCount: 80, thoughtsTokenCount: 20,
+      cachedContentTokenCount: 50, totalTokenCount: 400,
+      promptTokensDetails: [{ modality: "IMAGE", tokenCount: 256 }]
+    })).toMatchObject({ inputTokens: 300, outputTokens: 80, thoughtTokens: 20, cachedTokens: 50, totalTokens: 400, imageInputTokens: 256 });
+  });
+
+  it("calculates Deepgram by actual seconds times channels and keyterm add-on", () => {
+    const usage = normalizeDeepgramUsage({ metadata: { request_id: "dg", duration: 30, channels: 2 } }, {
+      model: "nova-3", language: "ar-SA", keyterm: ["Renvix"]
+    });
+    const cost = calculateProviderCost("deepgram", usage, [
+      { usageType: "audio_second", nativeUnit: "second", pricePerUnitUsd: 0.000128333333, pricingVersion: "v1", variant: "mip_opt_out" },
+      { usageType: "keyterm_audio_second", nativeUnit: "second", pricePerUnitUsd: 0.000021666667, pricingVersion: "v1", variant: "mip_opt_out" }
+    ]);
+    expect(cost.components[0].nativeAmount).toBe(60);
+    expect(cost.actualCostUsd).toBeCloseTo(0.009, 8);
+    expect(quotaUnitsForCost(cost.actualCostUsd, 0.000001)).toBe(9000);
+  });
+
+  it("calculates Gemini input, output, and thought prices without treating estimates as actual", () => {
+    const cost = calculateProviderCost("gemini", {
+      inputTokens: 1_000, cachedTokens: 200, outputTokens: 100, thoughtTokens: 50
+    }, [
+      { usageType: "input_token", nativeUnit: "token", pricePerUnitUsd: 0.00000075, pricingVersion: "2026-h2", variant: "standard" },
+      { usageType: "cached_input_token", nativeUnit: "token", pricePerUnitUsd: 0.000000075, pricingVersion: "2026-h2", variant: "standard" },
+      { usageType: "output_token", nativeUnit: "token", pricePerUnitUsd: 0.00000375, pricingVersion: "2026-h2", variant: "standard" },
+      { usageType: "thought_token", nativeUnit: "token", pricePerUnitUsd: 0.00000375, pricingVersion: "2026-h2", variant: "standard" }
+    ]);
+    expect(cost.actualCostUsd).toBeCloseTo(0.0011775, 10);
+  });
+});

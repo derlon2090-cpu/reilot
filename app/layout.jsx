@@ -43,7 +43,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-policy-pages-v122" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-auth-gateway-v123" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
       </head>
       <body>

@@ -107,7 +107,12 @@ export async function adminSupportVersion() {
 export function createSupportEventStream(request, getVersion, options = {}) {
   const pollMs = Math.max(250, Number(options.pollMs || 5_000));
   const heartbeatMs = Math.max(1_000, Number(options.heartbeatMs || 15_000));
+  // Vercel terminates functions at 300 seconds. End the stream deliberately
+  // before that boundary so EventSource reconnects instead of recording a
+  // platform timeout and leaving the PostgreSQL listener subscribed.
+  const maxDurationMs = Math.max(50, Number(options.maxDurationMs || 240_000));
   let timer = null;
+  let lifetimeTimer = null;
   let controllerRef = null;
   let closed = false;
   let lastVersion = null;
@@ -122,6 +127,7 @@ export function createSupportEventStream(request, getVersion, options = {}) {
     if (closed) return;
     closed = true;
     if (timer) clearTimeout(timer);
+    if (lifetimeTimer) clearTimeout(lifetimeTimer);
     unsubscribe?.();
     unsubscribe = null;
     try { controllerRef?.close(); } catch {}
@@ -139,6 +145,10 @@ export function createSupportEventStream(request, getVersion, options = {}) {
         lastHeartbeat = Date.now();
         enqueue(eventChunk("support-change", { ...payload, transport: "postgres-notify" }));
       });
+      lifetimeTimer = setTimeout(() => {
+        enqueue(eventChunk("support-reconnect", { reason: "stream_rotation" }));
+        close();
+      }, maxDurationMs);
 
       const tick = async () => {
         if (closed) return;
@@ -168,6 +178,7 @@ export function createSupportEventStream(request, getVersion, options = {}) {
     cancel() {
       closed = true;
       if (timer) clearTimeout(timer);
+      if (lifetimeTimer) clearTimeout(lifetimeTimer);
       unsubscribe?.();
       unsubscribe = null;
     }

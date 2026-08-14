@@ -1,6 +1,23 @@
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_FLASH_MODEL = "deepseek-v4-flash";
 const DEFAULT_PRO_MODEL = "deepseek-v4-pro";
+const FORBIDDEN_PUBLIC_KEY_NAMES = Object.freeze([
+  "NEXT_PUBLIC_DEEPSEEK_API_KEY",
+  "VITE_DEEPSEEK_API_KEY",
+  "PUBLIC_DEEPSEEK_API_KEY"
+]);
+
+export function deepSeekEnvironmentStatus(environment = process.env) {
+  const forbiddenPublicVariables = FORBIDDEN_PUBLIC_KEY_NAMES.filter((name) => Boolean(String(environment?.[name] || "").trim()));
+  const configured = Boolean(String(environment?.DEEPSEEK_API_KEY || "").trim());
+  return Object.freeze({
+    configured,
+    requiredVariables: Object.freeze(["DEEPSEEK_API_KEY"]),
+    missingVariables: configured ? Object.freeze([]) : Object.freeze(["DEEPSEEK_API_KEY"]),
+    forbiddenPublicVariables: Object.freeze(forbiddenPublicVariables),
+    serverOnly: forbiddenPublicVariables.length === 0
+  });
+}
 
 export class AIProviderError extends Error {
   constructor(code, message, status = 500) {
@@ -92,8 +109,12 @@ export class AIProvider {
 export class DeepSeekProvider extends AIProvider {
   constructor({ apiKey, baseUrl, flashModel, proModel, fetchImpl = fetch } = {}) {
     super();
+    const environmentStatus = deepSeekEnvironmentStatus();
     this.name = "deepseek";
-    this.apiKey = apiKey || process.env.DEEPSEEK_API_KEY || "";
+    this.apiKey = apiKey == null ? String(process.env.DEEPSEEK_API_KEY || "").trim() : String(apiKey).trim();
+    this.configurationError = apiKey == null && environmentStatus.forbiddenPublicVariables.length
+      ? "AI_PROVIDER_PUBLIC_SECRET_FORBIDDEN"
+      : null;
     this.baseUrl = String(baseUrl || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
     this.models = Object.freeze({
       flash: flashModel || process.env.DEEPSEEK_FLASH_MODEL || DEFAULT_FLASH_MODEL,
@@ -111,6 +132,13 @@ export class DeepSeekProvider extends AIProvider {
   }
 
   async request(body, signal) {
+    if (this.configurationError) {
+      throw new AIProviderError(
+        this.configurationError,
+        "إعداد مزود الذكاء غير آمن. يجب حفظ المفتاح في بيئة الخادم فقط.",
+        503
+      );
+    }
     if (!this.available) throw new AIProviderError("AI_PROVIDER_DISABLED", "ذكاء Renvix غير مفعّل بعد.", 503);
     let response;
     try {
@@ -143,7 +171,11 @@ export class DeepSeekProvider extends AIProvider {
       max_tokens: maxTokens
     }, signal);
     const payload = await response.json();
-    return { message: payload.choices?.[0]?.message || {}, usage: payload.usage || {} };
+    return {
+      message: payload.choices?.[0]?.message || {},
+      usage: payload.usage || {},
+      providerRequestId: String(payload.id || "")
+    };
   }
 
   async *streamChat({

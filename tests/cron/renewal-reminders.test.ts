@@ -9,11 +9,14 @@ describe("renewal reminders cron", () => {
 
   it("rejects missing authorization and accepts the correct CRON_SECRET", async () => {
     process.env.CRON_SECRET = "cron-secret";
+    const databaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
 
     const unauthorized = await GET(new Request("https://renew.test/api/cron/renewal-reminders"));
     const authorized = await GET(new Request("https://renew.test/api/cron/renewal-reminders", {
       headers: { authorization: "Bearer cron-secret" }
     }));
+    if (databaseUrl) process.env.DATABASE_URL = databaseUrl;
 
     expect(unauthorized.status).toBe(401);
     expect(authorized.status).toBe(200);
