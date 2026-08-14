@@ -146,6 +146,9 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain("renderOnComplete: !batchesInitialRender && !isAIPage");
     expect(source).toContain('else if (target === "aiConversation") refreshAIConversationWorkspace()');
     expect(source).toContain("const shouldLoadDashboardChromeData = state.route.startsWith(\"/dashboard\") && !isAIPage");
+    expect(source).toContain('queue("dashboardSessionProfile", "/api/auth/session", "dashboardSessionProfile"');
+    expect(source).toContain('else if (target === "dashboardSessionProfile") refreshDashboardProfileChrome()');
+    expect(source).toContain("function refreshDashboardProfileChrome()");
     expect(source).toContain('state.route !== "/dashboard/support/ai"');
     expect(source).toContain("if (!supportLiveRouteActive())");
   });

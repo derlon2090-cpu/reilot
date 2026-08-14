@@ -1410,6 +1410,11 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     } else if (target === "publicPlans") {
       state.publicPlans = payload;
       cachePublicPlans(payload);
+    } else if (target === "dashboardSessionProfile") {
+      const user = payload.user || {};
+      if (typeof user.name === "string" && user.name.trim()) {
+        cacheDashboardProfile({ name: user.name, email: user.email || "", image: "" });
+      }
     } else if (target === "supportTicket") {
       state.supportTicket = payload.item || null;
     } else if (target === "aiConversations") {
@@ -1521,6 +1526,7 @@ function syncRouteData(force = false) {
         if (["aiUsage", "aiStorageSummary"].includes(target)) refreshAIUsageCards();
         else if (target === "aiConversations") refreshAIConversationSidebar();
         else if (target === "aiConversation") refreshAIConversationWorkspace();
+        else if (target === "dashboardSessionProfile") refreshDashboardProfileChrome();
       });
     }
   };
@@ -1617,6 +1623,9 @@ function syncRouteData(force = false) {
     if (state.route === "/dashboard/support/ai") {
       const requestedConversation = state.query.get("conversation") || state.aiConversationId;
       const aiReadOptions = { timeoutMs: 6_000, timeoutMessage: "استغرق تحميل بيانات الذكاء وقتًا أطول من المتوقع." };
+      if (force || !state.cachedDashboardProfile?.name) {
+        queue("dashboardSessionProfile", "/api/auth/session", "dashboardSessionProfile", { timeoutMs: 4_000 });
+      }
       if (force || state.aiOverview === null) queue("aiUsage", "/backend/ai/usage", "aiUsage", aiReadOptions);
       if (force || (!state.aiConversationsRetrying && !state.aiConversationsError && (state.aiConversations === null || state.aiConversationsRevalidationPending))) {
         state.aiConversationsRevalidationPending = false;
@@ -4118,13 +4127,13 @@ function dashboardShell(content) {
   const profileName = String(profile.name || "").trim();
   const profileInitial = Array.from(profileName)[0] || "";
   const profileAvatar = profile.image
-    ? `<img class="avatar avatar-image" src="${escapeHtml(profile.image)}" alt="${escapeHtml(profileName)}">`
+    ? `<img class="avatar avatar-image" data-dashboard-profile-avatar src="${escapeHtml(profile.image)}" alt="${escapeHtml(profileName)}">`
     : profileInitial
-      ? `<span class="avatar">${escapeHtml(profileInitial)}</span>`
-      : `<span class="avatar profile-avatar-skeleton" aria-hidden="true"></span>`;
+      ? `<span class="avatar" data-dashboard-profile-avatar>${escapeHtml(profileInitial)}</span>`
+      : `<span class="avatar profile-avatar-skeleton" data-dashboard-profile-avatar aria-hidden="true"></span>`;
   const profileLabel = profileName
-    ? `<strong>${escapeHtml(profileName)}</strong>`
-    : `<span class="profile-name-skeleton" aria-label="${state.language === "ar" ? "جاري تحميل اسم الحساب" : "Loading account name"}"></span>`;
+    ? `<strong data-dashboard-profile-label>${escapeHtml(profileName)}</strong>`
+    : `<span class="profile-name-skeleton" data-dashboard-profile-label aria-label="${state.language === "ar" ? "جاري تحميل اسم الحساب" : "Loading account name"}"></span>`;
   const unreadNotifications = Number(state.notifications?.summary?.unread || 0);
   const sidebarToggleLabel = state.sidebarCollapsed
     ? (state.language === "ar" ? "إظهار القائمة كاملة" : "Expand navigation")
@@ -4157,6 +4166,23 @@ function dashboardShell(content) {
       <div class="content">${content}</div>
     </main>
   </div>`;
+}
+
+function refreshDashboardProfileChrome() {
+  const profileName = String(state.cachedDashboardProfile?.name || "").trim();
+  if (!profileName) return;
+  const avatar = document.querySelector("[data-dashboard-profile-avatar]");
+  const label = document.querySelector("[data-dashboard-profile-label]");
+  if (avatar) {
+    avatar.className = "avatar";
+    avatar.removeAttribute("aria-hidden");
+    avatar.textContent = Array.from(profileName)[0] || "";
+  }
+  if (label) {
+    label.className = "";
+    label.removeAttribute("aria-label");
+    label.textContent = profileName;
+  }
 }
 
 function messageUsageTone(usage = {}) {
