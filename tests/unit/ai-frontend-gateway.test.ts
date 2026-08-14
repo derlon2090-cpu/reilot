@@ -128,4 +128,33 @@ describe("AI frontend gateway", () => {
     expect(response.status).toBe(503);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("rejects a successful HTML holding page instead of exposing it as AI JSON", async () => {
+    const request = new Request("https://renvix.app/backend/ai/conversations", {
+      headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" }
+    });
+    const fetchImpl = vi.fn(async () => new Response("<!doctype html><title>RenewPilot AI</title>", {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" }
+    }));
+
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["conversations"] }) }, fetchImpl);
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(payload).toMatchObject({ ok: false, code: "AI_BACKEND_INVALID_RESPONSE" });
+  });
+
+  it("rejects malformed successful JSON without a protocol status", async () => {
+    const request = new Request("https://renvix.app/backend/ai/storage", {
+      headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" }
+    });
+    const fetchImpl = vi.fn(async () => Response.json({ storage: null }, { status: 200 }));
+
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["storage"] }) }, fetchImpl);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: "AI_BACKEND_INVALID_RESPONSE" });
+  });
 });

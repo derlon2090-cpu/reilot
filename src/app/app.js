@@ -1420,8 +1420,13 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     } else if (target === "aiConversation") {
       state.aiConversation = payload.item || null;
     } else if (target === "aiUsage") {
+      if (!payload?.usage || typeof payload.usage !== "object") {
+        throw Object.assign(new Error("خدمة الرصيد أعادت استجابة غير مكتملة. أعد المحاولة."), {
+          code: "AI_USAGE_INVALID_RESPONSE"
+        });
+      }
       state.aiOverview = { loaded: true };
-      state.aiUsage = payload.usage || null;
+      state.aiUsage = payload.usage;
       if (state.aiUsage) cacheAIViewState({ usage: state.aiUsage });
     } else if (target === "aiStorageSummary") {
       state.aiChatStorage = payload.storage || null;
@@ -13378,7 +13383,7 @@ function aiOverviewWelcome() {
 function aiUsageCard() {
   const english = state.language === "en";
   if (!state.aiUsage) {
-    const failed = Boolean(state.aiOverview?.error);
+    const failed = Boolean(state.aiOverview?.error || state.aiOverview?.loaded);
     if (failed) {
       return `<section class="rvx-ai-usage-card is-unavailable" data-ai-usage-card data-ai-usage-signature="unavailable" aria-busy="false"><header><span>${dashboardIcon("sparkles")}</span><div><strong>${english ? "AI balance" : "رصيد الذكاء"}</strong><small>${english ? "Balance temporarily unavailable" : "تعذر تحميل الرصيد مؤقتًا"}</small></div></header><div class="rvx-ai-usage-error" role="status" aria-live="polite"><p>${english ? "The request stopped responding, so it was safely closed. Try loading the balance again." : "توقف طلب الرصيد عن الاستجابة، لذلك تم إنهاؤه بأمان. أعد تحميل الرصيد."}</p><button type="button" class="rvx-ai-data-retry" data-action="ai-retry-data" data-retry-target="usage">${english ? "Try again" : "إعادة المحاولة"}</button></div></section>`;
     }

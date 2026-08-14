@@ -16,6 +16,7 @@ vi.mock("../../src/server/ai/storage.js", () => ({ getAIChatStorageSummary: mock
 
 import { GET as getOverview } from "../../app/api/ai/overview/route.js";
 import { GET as getUsage } from "../../app/api/ai/usage/route.js";
+import { GET as getFrontendUsage } from "../../app/backend/ai/usage/route.js";
 
 describe("AI overview route resilience", () => {
   beforeEach(() => {
@@ -74,5 +75,17 @@ describe("AI overview route resilience", () => {
     expect(payload).toMatchObject({ usage: { allowanceTokens: 100_000, remainingTokens: 100_000 } });
     expect(mocks.getAIUserPreferences).not.toHaveBeenCalled();
     expect(mocks.getAIChatStorageSummary).not.toHaveBeenCalled();
+  });
+
+  it("serves the same authoritative balance locally when the public API hostname is unhealthy", async () => {
+    const response = await getFrontendUsage(new Request("https://renvix.app/backend/ai/usage"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(payload).toMatchObject({
+      ok: true,
+      usage: { allowanceTokens: 100_000, remainingTokens: 100_000 }
+    });
   });
 });

@@ -54,6 +54,18 @@ const TRANSIENT_READ_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const DEFAULT_READ_RETRY_DELAYS = [0];
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+function validBufferedReadResponse(response, body) {
+  if (!response.ok) return true;
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json") && !contentType.includes("+json")) return false;
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(body));
+    return Boolean(payload && typeof payload === "object" && typeof payload.ok === "boolean");
+  } catch {
+    return false;
+  }
+}
+
 function boundedReadSignal(parentSignal, timeoutMs) {
   if (!Number.isFinite(Number(timeoutMs)) || Number(timeoutMs) < 1 || typeof AbortController === "undefined") {
     return { signal: parentSignal, dispose() {} };
@@ -112,6 +124,18 @@ export async function proxyAIBackendRequest(request, { params }, fetchImpl = fet
         : canRetry
           ? await backendResponse.arrayBuffer()
           : backendResponse.body;
+      if (method === "GET" && !validBufferedReadResponse(backendResponse, responseBody)) {
+        readSignal.dispose();
+        if (attempt < delays.length - 1) continue;
+        return Response.json({
+          ok: false,
+          code: "AI_BACKEND_INVALID_RESPONSE",
+          message: "خدمة الذكاء أعادت استجابة غير صالحة. أعد المحاولة بعد قليل."
+        }, {
+          status: 502,
+          headers: { "Cache-Control": "no-store", "Retry-After": "3" }
+        });
+      }
       readSignal.dispose();
       return new Response(responseBody, {
         status: backendResponse.status,

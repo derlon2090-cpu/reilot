@@ -297,5 +297,7 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('class="rvx-ai-usage-error" role="status"');
     expect(source).toContain("تم إنهاؤه بأمان. أعد تحميل الرصيد");
     expect(source).toContain('{ error: error.message || "تعذر تحميل رصيد الذكاء", retrying: true }');
+    expect(source).toContain('code: "AI_USAGE_INVALID_RESPONSE"');
+    expect(source).toContain("state.aiOverview?.error || state.aiOverview?.loaded");
   });
 });
