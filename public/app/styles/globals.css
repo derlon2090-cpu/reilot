@@ -13760,97 +13760,97 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @media(prefers-reduced-motion:reduce){.policy-page .policy-card,.policy-page .policy-summary a{transition:none}}
 
 /* iPad public header: compact brand, balanced controls, and a single landscape rail. */
-@media (min-width:1181px) and (max-width:1400px){
+@media (min-width:1181px) and (max-width:1700px){
   :root[data-home-tablet-layout="true"] .public-site .public-nav{
-    min-height:116px;
+    min-height:100px;
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav .nav-inner{
     width:calc(100% - 64px);
-    min-height:116px;
-    grid-template-columns:136px minmax(0,1fr) 478px;
+    min-height:100px;
+    grid-template-columns:144px minmax(0,1fr) 414px;
     grid-template-areas:"brand links actions";
-    grid-template-rows:116px;
-    gap:14px;
+    grid-template-rows:100px;
+    gap:12px;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-inner>.brand{
-    width:124px;
-    min-width:124px;
+    width:132px;
+    min-width:132px;
     justify-self:center;
-    transform:translateY(-3px);
+    transform:translateY(-4px);
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav .brand-logo-image{
-    width:124px!important;
-    max-width:124px!important;
-    max-height:31px!important;
+    width:132px!important;
+    max-width:132px!important;
+    max-height:33px!important;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-links{
-    min-height:58px;
-    gap:clamp(8px,1vw,14px);
+    min-height:50px;
+    gap:clamp(8px,.8vw,12px);
     padding:0;
     border:0;
-    transform:translateY(-3px);
+    transform:translateY(-4px);
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-link{
-    min-height:56px;
-    gap:7px;
-    padding-inline:7px;
-    font-size:13px;
+    min-height:48px;
+    gap:6px;
+    padding-inline:6px;
+    font-size:12px;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-link.active{
-    min-height:56px!important;
-    padding-inline:7px!important;
+    min-height:48px!important;
+    padding-inline:6px!important;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-link:not(:last-child)::before{
     content:"";
     position:absolute;
     top:50%;
-    inset-inline-end:-7px;
+    inset-inline-end:-6px;
     width:1px;
-    height:30px;
+    height:26px;
     transform:translateY(-50%);
     background:rgba(88,108,104,.2);
     pointer-events:none;
   }
   :root[data-home-tablet-layout="true"] .public-site .public-nav-icon .line-icon{
-    width:18px;
-    height:18px;
+    width:17px;
+    height:17px;
   }
   :root[data-home-tablet-layout="true"] .public-site .nav-actions{
     width:100%;
     min-width:0;
     justify-content:space-between;
-    gap:16px;
-    transform:translateY(-3px);
+    gap:12px;
+    transform:translateY(-4px);
   }
-  :root[data-home-tablet-layout="true"] .public-site .public-nav-preferences{gap:14px}
+  :root[data-home-tablet-layout="true"] .public-site .public-nav-preferences{gap:10px}
   :root[data-home-tablet-layout="true"] .public-site .public-language-compact{
-    width:98px;
-    min-width:98px;
-    min-height:58px;
-    padding-inline:11px;
-    border-radius:14px;
+    width:88px;
+    min-width:88px;
+    min-height:50px;
+    padding-inline:9px;
+    border-radius:13px;
   }
   :root[data-home-tablet-layout="true"] .public-site .public-theme{
-    width:50px;
-    min-width:50px;
-    min-height:58px;
+    width:44px;
+    min-width:44px;
+    min-height:50px;
     padding:0;
-    border-radius:14px;
+    border-radius:13px;
   }
-  :root[data-home-tablet-layout="true"] .public-site .public-auth-actions{gap:16px}
+  :root[data-home-tablet-layout="true"] .public-site .public-auth-actions{gap:12px}
   :root[data-home-tablet-layout="true"] .public-site .public-auth-actions .btn{
-    min-height:58px;
-    padding-inline:13px;
-    border-radius:14px;
-    font-size:13px;
+    min-height:50px;
+    padding-inline:11px;
+    border-radius:13px;
+    font-size:12px;
   }
   :root[data-home-tablet-layout="true"] .public-site .public-register-action{
-    width:130px;
-    min-width:130px;
+    width:116px;
+    min-width:116px;
   }
   :root[data-home-tablet-layout="true"] .public-site .public-login-action{
-    width:148px;
-    min-width:148px;
+    width:132px;
+    min-width:132px;
   }
 }
 

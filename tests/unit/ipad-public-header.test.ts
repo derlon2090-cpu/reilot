@@ -11,17 +11,17 @@ const sourceRules = sourceStyles.slice(sourceStyles.indexOf(marker));
 
 describe("iPad public header", () => {
   it("uses the reference proportions on wide iPad layouts", () => {
-    expect(sourceRules).toContain('@media (min-width:1181px) and (max-width:1400px)');
+    expect(sourceRules).toContain('@media (min-width:1181px) and (max-width:1700px)');
     expect(sourceRules).toContain(':root[data-home-tablet-layout="true"] .public-site .public-nav');
-    expect(sourceRules).toContain("min-height:116px");
-    expect(sourceRules).toContain("grid-template-columns:136px minmax(0,1fr) 478px");
-    expect(sourceRules).toContain("width:124px!important");
-    expect(sourceRules).toContain("min-height:56px!important");
-    expect(sourceRules).toContain("transform:translateY(-3px)");
-    expect(sourceRules).toContain("inset-inline-end:-7px");
+    expect(sourceRules).toContain("min-height:100px");
+    expect(sourceRules).toContain("grid-template-columns:144px minmax(0,1fr) 414px");
+    expect(sourceRules).toContain("width:132px!important");
+    expect(sourceRules).toContain("min-height:48px!important");
+    expect(sourceRules).toContain("transform:translateY(-4px)");
+    expect(sourceRules).toContain("inset-inline-end:-6px");
     expect(sourceRules).toContain("background:rgba(88,108,104,.2)");
-    expect(sourceRules).toContain("width:130px");
-    expect(sourceRules).toContain("width:148px");
+    expect(sourceRules).toContain("width:116px");
+    expect(sourceRules).toContain("width:132px");
   });
 
   it("keeps a compact single-row rail at smaller landscape widths", () => {
@@ -44,7 +44,7 @@ describe("iPad public header", () => {
     expect(publicStyles).toContain(sourceRules.trim());
     const nextStyleVersion = rootLayout.match(/globals\.css\?v=([^"']+)/)?.[1];
     const staticStyleVersion = staticIndex.match(/globals\.css\?v=([^"']+)/)?.[1];
-    expect(nextStyleVersion).toBe("20260814-ai-gateway-v127");
+    expect(nextStyleVersion).toBe("20260814-ipad-header-device-v128");
     expect(staticStyleVersion).toBe(nextStyleVersion);
   });
 });
