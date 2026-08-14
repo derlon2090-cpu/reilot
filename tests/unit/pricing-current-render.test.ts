@@ -25,8 +25,8 @@ describe("current pricing catalog renderer", () => {
 
   it("busts both Next and static caches with the same current pricing version", () => {
     for (const markup of [rootLayout, staticIndex]) {
-      expect(markup).toContain("globals.css?v=20260814-trusted-brands-v121");
-      expect(markup).toContain("app.js?v=20260814-trusted-brands-v121");
+      expect(markup).toContain("globals.css?v=20260814-policy-pages-v122");
+      expect(markup).toContain("app.js?v=20260814-policy-pages-v122");
     }
   });
 });
