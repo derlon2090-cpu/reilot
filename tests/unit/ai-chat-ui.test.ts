@@ -37,6 +37,21 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).not.toContain('.dashboard-shell:has(.rvx-ai-page){grid-template-columns:minmax(0,1fr)}');
   });
 
+  it("keeps the mobile chat below its wrapping toolbar and closes the history drawer accessibly", async () => {
+    const [source, css] = await Promise.all([
+      readFile("src/app/app.js", "utf8"),
+      readFile("src/styles/globals.css", "utf8")
+    ]);
+    expect(source).toContain('class="rvx-ai-drawer-close"');
+    expect(source).toContain('class="rvx-ai-sidebar-backdrop"');
+    expect(source).toContain('data-action="ai-toggle-sidebar"');
+    expect(css).toContain("grid-template-rows: auto minmax(0, 1fr) !important");
+    expect(css).toContain("height: 100% !important");
+    expect(css).toContain(".rvx-ai-sidebar-backdrop");
+    expect(css).toContain("width: min(340px, 88vw)");
+    expect(css).toContain(".rvx-ai-support-return > span { display: none; }");
+  });
+
   it("renders safe structured assistant copy and reports real chat storage", async () => {
     const [source, css, overviewRoute, orchestrator] = await readUI();
     expect(source).toContain("function renderAIMessageContent");

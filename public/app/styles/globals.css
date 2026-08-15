@@ -15062,3 +15062,456 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .features-production *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .features-production [data-reveal] { opacity: 1 !important; transform: none !important; }
 }
+
+/* ========================================================================== */
+/* Renvix Center + Intelligence responsive hardening — 2026-08-15            */
+/* ========================================================================== */
+
+.content:has(> .rvx-support-suite) {
+  width: 100%;
+  max-width: 1680px;
+  overflow-x: clip;
+}
+
+.rvx-support-suite,
+.rvx-support-suite > *,
+.rvx-ai-page,
+.rvx-ai-workspace,
+.rvx-ai-workspace > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rvx-ai-page {
+  isolation: isolate;
+  width: 100%;
+}
+
+.rvx-ai-drawer-close,
+.rvx-ai-sidebar-backdrop {
+  display: none;
+}
+
+.rvx-ai-drawer-close {
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  color: #365f5a;
+  border: 1px solid #dce9e7;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.rvx-ai-drawer-close .line-icon { width: 18px; height: 18px; }
+
+/* iPad landscape and compact laptops: give the workspace the complete width. */
+@media (max-width: 1365px) {
+  .dashboard-shell:has(.rvx-support-suite),
+  .dashboard-shell:has(.rvx-ai-page),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
+  .dashboard-shell:has(.rvx-ai-page) > .sidebar {
+    position: fixed;
+    z-index: 45;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: min(320px, 86vw);
+    height: 100dvh;
+    padding: 20px 14px;
+    transform: translateX(110%);
+    transition: transform .24s cubic-bezier(.22, 1, .36, 1);
+    box-shadow: -20px 0 50px rgba(6, 43, 40, .16);
+  }
+
+  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar,
+  [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar {
+    transform: translateX(-110%);
+    box-shadow: 20px 0 50px rgba(6, 43, 40, .16);
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
+  .dashboard-shell:has(.rvx-ai-page) > .sidebar.open,
+  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
+  [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle,
+  .dashboard-shell:has(.rvx-ai-page) .mobile-side-toggle {
+    display: inline-flex;
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) .dashboard-sidebar-toggle,
+  .dashboard-shell:has(.rvx-ai-page) .dashboard-sidebar-toggle {
+    display: none;
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) .topbar .dashboard-search,
+  .dashboard-shell:has(.rvx-ai-page) .topbar .dashboard-search {
+    transform: none;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar {
+    width: min(320px, 86vw);
+    padding: 20px 14px;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar-brand,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar-brand {
+    justify-content: flex-start;
+    padding-inline: 8px;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar .brand,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar .brand {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar .brand-logo-image--mark,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar .brand-logo-image--mark {
+    content: url('/assets/renvix-logo-exact.png');
+    width: 142px;
+    height: auto;
+    max-height: 42px;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) :is(.side-group-title, .side-link span, .sidebar-support-link span),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) :is(.side-group-title, .side-link span, .sidebar-support-link span) {
+    display: inline;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) :is(.side-link, .sidebar-support-link),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) :is(.side-link, .sidebar-support-link) {
+    width: 100%;
+    min-width: 0;
+    margin-inline: 0;
+    padding-inline: 12px;
+    justify-content: flex-start;
+  }
+
+  .content:has(> .rvx-support-suite) {
+    max-width: none;
+    padding: 24px clamp(18px, 3vw, 34px) 40px;
+  }
+
+  .rvx-support-home-actions { width: min(94%, 1120px); }
+}
+
+/* Chat history becomes a real modal drawer instead of covering the workspace. */
+@media (max-width: 1180px) {
+  .rvx-ai-sidebar {
+    z-index: 13;
+    width: min(360px, 88vw);
+    max-width: 100%;
+    box-shadow: none;
+  }
+
+  .rvx-ai-sidebar.open {
+    box-shadow: 18px 0 44px rgba(6, 43, 40, .2);
+  }
+
+  .rvx-ai-sidebar-backdrop {
+    position: absolute;
+    z-index: 12;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(4, 38, 34, .28);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+    cursor: default;
+  }
+
+  .rvx-ai-side-head {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    align-items: center;
+  }
+
+  .rvx-ai-side-head .rvx-ai-new { grid-column: 1; grid-row: 1; }
+  .rvx-ai-drawer-close { display: grid; grid-column: 2; grid-row: 1; }
+  .rvx-ai-side-head > label { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (min-width: 701px) and (max-width: 1180px) {
+  .rvx-ticket-toolbar { grid-template-columns: minmax(260px, 1fr) auto; }
+  .rvx-ticket-toolbar > nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+  .rvx-ticket-toolbar > button { grid-column: 2; grid-row: 1; }
+  .rvx-tickets-table-card { overflow: hidden; }
+}
+
+/* Portrait tablets: rows read better as cards than as a squeezed seven-column table. */
+@media (min-width: 701px) and (max-width: 900px) {
+  .rvx-tickets-table { display: grid; gap: 10px; overflow: visible; border: 0; border-radius: 0; }
+  .rvx-ticket-th { display: none; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "number status"
+      "subject subject"
+      "category priority"
+      "time menu";
+    min-width: 0;
+    min-height: 0;
+    gap: 10px 14px;
+    padding: 15px;
+    border: 1px solid var(--rvx-line);
+    border-radius: 13px;
+    box-shadow: 0 5px 15px rgba(6, 43, 40, .035);
+  }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > code { grid-area: number; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > strong { grid-area: subject; min-width: 0; overflow-wrap: anywhere; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > span { grid-area: category; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > em { grid-area: priority; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > b { grid-area: status; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > time { grid-area: time; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > svg { grid-area: menu; justify-self: end; }
+}
+
+@media (max-width: 700px) {
+  .content:has(> .rvx-support-suite) {
+    padding: 12px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .dashboard-main:has(.rvx-ai-page) {
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .topbar {
+    position: relative;
+    z-index: 30;
+    min-height: 0;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .topbar > .topbar-tools {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .topbar .dashboard-search {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .content {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .rvx-ai-page,
+  .rvx-ai-workspace {
+    width: 100%;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100%;
+  }
+
+  .rvx-ai-workspace {
+    grid-template-rows: 60px minmax(0, 1fr) auto auto auto !important;
+  }
+
+  .rvx-ai-workspace > header {
+    min-height: 60px;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .rvx-ai-workspace > header > div {
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 8px;
+  }
+
+  .rvx-ai-workspace > header > div > span { min-width: 0; }
+  .rvx-ai-workspace > header img { width: 36px; height: 36px; padding: 6px; flex: 0 0 36px; }
+  .rvx-ai-workspace > header h1 { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .rvx-ai-support-return { width: 36px; min-width: 36px; height: 36px; min-height: 36px; justify-content: center; padding: 0; }
+  .rvx-ai-support-return > span { display: none; }
+  .rvx-ai-drawer-toggle { width: 36px; height: 36px; flex: 0 0 36px; }
+
+  .rvx-ai-sidebar {
+    width: min(340px, 88vw);
+    padding: 12px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .rvx-ai-side-head { gap: 8px; }
+  .rvx-ai-sidebar h3 { margin: 12px 4px 6px; }
+  .rvx-ai-sidebar nav { overscroll-behavior: contain; }
+  .rvx-ai-side-bottom { gap: 7px; padding-top: 7px; }
+  .rvx-ai-side-bottom .rvx-ai-usage-card { min-height: 0; }
+
+  .rvx-ai-messages {
+    min-height: 0;
+    padding: 12px 10px;
+    overflow-x: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .rvx-ai-start,
+  .rvx-ai-onboarding { align-self: center; }
+  .rvx-ai-start h2,
+  .rvx-ai-onboarding h2 { font-size: clamp(23px, 7vw, 29px); }
+  .rvx-ai-start p,
+  .rvx-ai-onboarding p { max-width: 320px; }
+
+  .rvx-ai-quick-actions {
+    display: flex;
+    min-height: 42px;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 4px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-inline: contain;
+  }
+
+  .rvx-ai-quick-actions::-webkit-scrollbar { display: none; }
+  .rvx-ai-quick-actions button { width: auto; min-width: max-content; min-height: 32px; padding-inline: 10px; font-size: 9px; }
+  .rvx-ai-tools { padding-inline: 8px; }
+  .rvx-ai-composer { margin: 0 8px calc(7px + env(safe-area-inset-bottom)); }
+  .rvx-ai-composer > small { max-width: 100%; }
+
+  .rvx-support-welcome {
+    display: grid;
+    min-height: 0;
+    padding: 24px 16px 16px;
+    border-radius: 20px;
+  }
+
+  .rvx-support-welcome > .rvx-team-avatars { top: 18px; left: 20px; }
+  .rvx-welcome-copy { width: 100%; max-width: 420px; margin: 68px auto 4px; text-align: center; }
+  .rvx-welcome-copy > span { font-size: 18px; }
+  .rvx-welcome-copy h1 { font-size: clamp(28px, 9vw, 36px); }
+  .rvx-welcome-copy p { max-width: 360px; margin-inline: auto; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+
+  .rvx-support-summary {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    min-height: 0;
+    margin-top: 18px;
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(6, 43, 40, .05);
+  }
+
+  .rvx-support-summary article { min-width: 0; padding: 17px 15px; }
+  .rvx-support-summary article > span { width: 54px; height: 54px; flex-basis: 54px; border-radius: 15px; }
+  .rvx-support-summary article > div { min-width: 0; }
+  .rvx-support-summary strong { font-size: 16px; }
+  .rvx-support-summary small { font-size: 11px; overflow-wrap: anywhere; }
+
+  .rvx-support-home-actions { width: 100%; gap: 10px; }
+  .rvx-support-home-actions > button { min-height: 88px; gap: 12px; border-radius: 15px; }
+  .rvx-support-home-actions > button > div { min-width: 0; }
+  .rvx-support-home-actions small { line-height: 1.65; overflow-wrap: anywhere; }
+
+  .rvx-suite-heading { min-height: 66px; gap: 10px; }
+  .rvx-suite-heading h1 { font-size: 22px; }
+  .rvx-suite-heading p { font-size: 11px; line-height: 1.65; }
+
+  .rvx-ticket-form-layout { gap: 12px; padding: 10px; border-radius: 17px; }
+  .rvx-ticket-form-card,
+  .rvx-info-card { padding: 14px; border-radius: 14px; }
+
+  .rvx-ticket-stats { min-height: 0; border-radius: 15px; }
+  .rvx-ticket-stats > div { min-height: 86px; padding: 12px 8px; }
+  .rvx-ticket-stats > div:first-child { min-height: 94px; }
+  .rvx-ticket-stats strong { font-size: 23px; }
+
+  .rvx-tickets-table-card { padding: 12px; border-radius: 15px; }
+  .rvx-ticket-toolbar { gap: 9px; }
+  .rvx-ticket-toolbar nav { padding-bottom: 3px; overscroll-behavior-inline: contain; }
+  .rvx-ticket-toolbar nav button { flex: 0 0 auto; }
+
+  .rvx-tickets-table { display: grid; gap: 9px; overflow: visible; border: 0; border-radius: 0; }
+  .rvx-ticket-th { display: none; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "number status"
+      "subject subject"
+      "category priority"
+      "time menu";
+    min-width: 0;
+    min-height: 0;
+    gap: 9px 12px;
+    padding: 13px;
+    border: 1px solid var(--rvx-line);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(6, 43, 40, .035);
+  }
+
+  .rvx-ticket-tr:not(.rvx-ticket-th) > code { grid-area: number; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > strong { grid-area: subject; min-width: 0; overflow-wrap: anywhere; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > span { grid-area: category; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > em { grid-area: priority; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > b { grid-area: status; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > time { grid-area: time; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > svg { grid-area: menu; justify-self: end; }
+
+  .rvx-recent-list > button { gap: 12px; border-radius: 14px; }
+  .rvx-recent-list dl { gap: 8px; }
+  .rvx-recent-list dl > div { padding: 0 8px; }
+
+  .rvx-messages-layout { min-height: 0; gap: 12px; }
+  .rvx-messages-layout > section,
+  .rvx-inline-conversation { padding: 13px; border-radius: 14px; }
+  .rvx-message-row { grid-template-columns: 44px minmax(0, 1fr); min-height: 76px; padding: 10px; }
+  .rvx-message-row > span { width: 42px; height: 42px; }
+  .rvx-message-row > time { grid-column: 2; }
+
+  .rvx-ticket-detail-banner { align-items: flex-start; gap: 12px; border-radius: 15px; }
+  .rvx-ticket-detail-banner > div { min-width: 0; }
+  .rvx-ticket-detail-banner h1 { overflow-wrap: anywhere; }
+  .rvx-ticket-detail-grid { gap: 12px; }
+  .rvx-ticket-side > section,
+  .rvx-ticket-chat { padding: 14px; border-radius: 14px; }
+  .rvx-ticket-chat .support-thread-messages { min-height: 230px; max-height: 50dvh; }
+}
+
+@media (max-width: 440px) {
+  .content:has(> .rvx-support-suite) { padding-inline: 10px; }
+  .topbar .language-topbar-button { min-width: 66px; padding-inline: 10px; }
+  .dashboard-main:has(.rvx-ai-page) > .topbar { padding-inline: 10px; }
+  .rvx-ai-sidebar { width: min(350px, 92vw); }
+  .rvx-ai-workspace > header h1 { font-size: 12px; }
+  .rvx-ai-start-mark { width: 50px; height: 50px; }
+  .rvx-ai-start-mark img { width: 28px; height: 28px; }
+  .rvx-ai-composer { margin-inline: 6px; }
+  .rvx-support-home-actions > button { grid-template-columns: 48px minmax(0, 1fr) 18px; padding: 12px; }
+  .rvx-support-home-actions > button > span { width: 48px; height: 48px; }
+  .rvx-ticket-detail-banner > span { width: 44px; height: 44px; flex: 0 0 44px; }
+}
+
+:root[data-theme="dark"] .rvx-ai-drawer-close {
+  color: #dcece8;
+  border-color: #31534e;
+  background: #123632;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
+  .dashboard-shell:has(.rvx-ai-page) > .sidebar,
+  .rvx-ai-sidebar-backdrop { transition: none !important; }
+}
