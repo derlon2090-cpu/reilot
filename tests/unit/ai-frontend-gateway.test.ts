@@ -56,9 +56,42 @@ describe("AI frontend gateway", () => {
     const request = new Request("https://renvix.app/backend/ai/overview", {
       headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" }
     });
-    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["overview"] }) }, vi.fn(async () => { throw new Error("secret detail"); }));
+    const fetchImpl = vi.fn(async () => { throw new Error("secret detail"); });
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["overview"] }) }, fetchImpl, {
+      retryDelays: [0, 0], sleepImpl: async () => {}
+    });
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.text()).not.toContain("secret detail");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries transient read failures and returns the recovered response", async () => {
+    const request = new Request("https://renvix.app/backend/ai/conversations?limit=100", {
+      headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" }
+    });
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ ok: true, items: [{ id: "chat-1" }] }));
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["conversations"] }) }, fetchImpl, {
+      retryDelays: [0, 0], sleepImpl: async () => {}
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ items: [{ id: "chat-1" }] });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("never retries a mutating request", async () => {
+    const request = new Request("https://renvix.app/backend/ai/messages", {
+      method: "POST",
+      headers: { Origin: "https://renvix.app", "Sec-Fetch-Site": "same-origin" },
+      body: "{}"
+    });
+    const fetchImpl = vi.fn(async () => { throw new Error("temporary"); });
+    const response = await proxyAIBackendRequest(request, { params: Promise.resolve({ path: ["messages"] }) }, fetchImpl, {
+      retryDelays: [0, 0], sleepImpl: async () => {}
+    });
+    expect(response.status).toBe(503);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

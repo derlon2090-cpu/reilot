@@ -14,6 +14,10 @@ export async function GET(request) {
       getAIChatStorage(auth.session)
     ]);
     if (usageResult.status === "rejected") {
+      const reason = usageResult.reason;
+      if (reason?.code === "AI_ENTITLEMENT_INACTIVE") {
+        return Response.json({ ok: false, code: reason.code, message: reason.message }, { status: Number(reason.status || 403) });
+      }
       return Response.json({ ok: false, code: "AI_USAGE_UNAVAILABLE", message: "تعذر تحميل رصيد الذكاء حاليًا. حاول مرة أخرى بعد قليل." }, { status: 503 });
     }
     const warnings = [];

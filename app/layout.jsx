@@ -43,12 +43,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260814-ai-upload-gateway-v130" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260815-support-responsive-v137" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260814-ai-upload-gateway-v130" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260815-support-responsive-v137" strategy="afterInteractive" />
       </body>
     </html>
   );

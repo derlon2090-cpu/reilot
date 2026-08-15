@@ -55,4 +55,16 @@ describe("AI overview route resilience", () => {
     expect(payload).toMatchObject({ ok: false, code: "AI_USAGE_UNAVAILABLE" });
     expect(payload).not.toHaveProperty("usage.remainingTokens", 0);
   });
+
+  it("preserves a permanent inactive-entitlement response instead of retrying it as an outage", async () => {
+    mocks.getAIUsageSummary.mockRejectedValue(Object.assign(new Error("لا يوجد اشتراك نشط يمنح رصيد الذكاء حاليًا."), {
+      code: "AI_ENTITLEMENT_INACTIVE", status: 403
+    }));
+
+    const response = await GET(new Request("https://renvix.app/api/ai/overview"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload).toMatchObject({ ok: false, code: "AI_ENTITLEMENT_INACTIVE" });
+  });
 });

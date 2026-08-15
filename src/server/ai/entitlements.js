@@ -43,15 +43,33 @@ async function activeSubscription(tenantId, now, runner) {
             pp.ai_max_cycles AS "maxCycles"
        FROM platform_subscriptions ps JOIN platform_plans pp ON pp.id=ps.plan_id
       WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial')
-        AND ps.current_period_start <= $2 AND ps.current_period_end > $2
+        AND ps.current_period_start <= $2::timestamptz + interval '1 minute' AND ps.current_period_end > $2::timestamptz
       ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,ps.created_at DESC LIMIT 1`,
     [tenantId, now]
   );
   return result.rows[0] || null;
 }
 
+async function provisionMissingTrialSubscription(tenantId, runner) {
+  const result = await runner.query(
+    `INSERT INTO platform_subscriptions
+       (tenant_id,plan_id,status,billing_cycle,current_period_start,current_period_end,trial_started_at,trial_ends_at)
+     SELECT t.id,pp.id,'trial','monthly',now(),now()+interval '7 days',now(),now()+interval '7 days'
+       FROM tenants t
+       JOIN platform_plans pp ON pp.slug='trial'
+      WHERE t.id=$1 AND t.status IN ('active','trial')
+        AND NOT EXISTS (SELECT 1 FROM platform_subscriptions history WHERE history.tenant_id=t.id)
+     RETURNING id`,
+    [tenantId]
+  );
+  return Boolean(result.rows[0]);
+}
+
 async function materializeEntitlement(tenantId, now, runner) {
-  const subscription = await activeSubscription(tenantId, now, runner);
+  let subscription = await activeSubscription(tenantId, now, runner);
+  if (!subscription && await provisionMissingTrialSubscription(tenantId, runner)) {
+    subscription = await activeSubscription(tenantId, now, runner);
+  }
   if (!subscription || !ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)) {
     await runner.query(
       `UPDATE ai_entitlement_periods SET status='suspended',updated_at=now()

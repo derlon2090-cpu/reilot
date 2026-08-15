@@ -13196,8 +13196,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .rvx-ai-live-meter{display:flex;align-items:center;gap:6px!important;min-height:13px;margin:0!important;color:#0b6b62!important;font-size:8px!important;font-weight:800}.rvx-ai-live-meter:not(.is-active){visibility:hidden}.rvx-ai-live-meter i{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#0b8f80;box-shadow:0 0 0 4px rgba(11,143,128,.1);animation:rvx-ai-live-meter-pulse 1s ease-in-out infinite}@keyframes rvx-ai-live-meter-pulse{50%{opacity:.45}}@media(prefers-reduced-motion:reduce){.rvx-ai-live-meter i{animation:none}}
 .rvx-ai-usage-card.is-loading{align-content:start}.rvx-ai-usage-skeleton{display:grid;gap:8px;margin-top:4px}.rvx-ai-usage-skeleton i{display:block;height:10px;border-radius:999px;background:#dceae7;animation:rvx-ai-skeleton-pulse 1.25s ease-in-out infinite}.rvx-ai-usage-skeleton i:nth-child(1){width:58%;height:18px}.rvx-ai-usage-skeleton i:nth-child(2){width:100%;height:7px}.rvx-ai-usage-skeleton i:nth-child(3){width:76%}
 .rvx-ai-usage-card.is-unavailable .rvx-ai-usage-skeleton i{animation:none;opacity:.58}
+.rvx-ai-data-retry{justify-self:start;min-height:28px;padding:0 10px;border:1px solid #9acdc5;border-radius:8px;color:#086b61;background:#fff;font:800 9px "Tajawal",sans-serif;cursor:pointer}.rvx-ai-data-retry:hover{background:#e9f7f4}
+.rvx-ai-list-error{display:grid;justify-items:start;gap:8px;margin:8px 3px;padding:12px;border:1px solid #e6d7c5;border-radius:10px;color:#7c6548;background:#fffaf3;font-size:9px}.rvx-ai-list-error button{min-height:27px;padding:0 9px;border:1px solid #d6bc98;border-radius:8px;color:#72542e;background:#fff;font:800 9px "Tajawal",sans-serif;cursor:pointer}
 .rvx-ai-storage-value{display:inline-block;direction:ltr;unicode-bidi:isolate;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:0}
-.rvx-ai-conversation-open small em{min-width:max-content;margin-inline-start:8px;direction:ltr;unicode-bidi:isolate}
+.rvx-ai-conversation-open small em{min-width:max-content;margin-inline-start:8px;direction:ltr;unicode-bidi:isolate;padding-inline-start:8px;border-inline-start:1px solid #dce8e6}
 
 .rvx-ai-workspace{grid-template-rows:96px minmax(0,1fr) auto auto auto;height:100%;min-height:0;background:#f8fbfa}
 .rvx-ai-workspace>header{min-height:96px;padding:16px clamp(20px,3vw,42px)}
@@ -13510,7 +13512,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .rvx-ai-message-meta button:hover,.rvx-ai-message-meta button:focus-visible{color:#0b6259;border-color:#cce3df;background:#f1faf8;outline:0}.rvx-ai-message-meta button.is-copied{color:#087267;background:#e8f7f3}.rvx-ai-message-meta button svg{width:13px;height:13px}
 .rvx-ai-message-meta button[hidden]{display:none}
 .rvx-ai-sidebar nav{overflow:auto}
-.rvx-ai-conversation-item{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;min-height:52px;border:1px solid transparent;border-radius:11px;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}
+.rvx-ai-conversation-item{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;min-height:52px;margin-block-end:4px;border:1px solid #e5efed;border-radius:11px;background:#fff;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}
 .rvx-ai-conversation-skeleton{display:grid;gap:4px}.rvx-ai-conversation-skeleton>i{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:8px;min-height:52px;padding:6px 5px;border-radius:11px}.rvx-ai-conversation-skeleton>i>span{width:28px;height:28px;border-radius:8px;background:#e3efed;animation:rvx-ai-skeleton-pulse 1.25s ease-in-out infinite}.rvx-ai-conversation-skeleton>i>b{display:block;width:78%;height:20px;border-radius:7px;background:#e9f2f0;animation:rvx-ai-skeleton-pulse 1.25s ease-in-out infinite}
 .rvx-ai-conversation-item:hover{border-color:#dbe9e7;background:#f7fbfa}.rvx-ai-conversation-item.active{border-color:#b8ddd7;background:#e9f7f4;box-shadow:none}
 .rvx-ai-conversation-open{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;min-height:50px;padding:6px 4px 6px 7px;border:0;color:#183b37;background:transparent;text-align:start;cursor:pointer}.rvx-ai-conversation-open>span{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;color:#0b6259;background:#eef8f6}.rvx-ai-conversation-open>span svg{width:15px}.rvx-ai-conversation-open>div{display:grid;gap:4px;min-width:0}.rvx-ai-conversation-open strong{overflow:hidden;font-size:10px;text-overflow:ellipsis;white-space:nowrap}.rvx-ai-conversation-open small{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;color:#7d8d8a;font-size:8px}.rvx-ai-conversation-open small time{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rvx-ai-conversation-open small em{color:#0b776c;font-style:normal;font-weight:750;white-space:nowrap}
@@ -13519,7 +13521,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .rvx-ai-composer{grid-template-columns:minmax(0,1fr)!important}.rvx-ai-attachment-preview{grid-column:1;grid-row:1;display:flex;gap:7px;max-width:100%;padding:2px 1px 5px;overflow-x:auto;scrollbar-width:thin}.rvx-ai-attachment-preview[hidden]{display:none}.rvx-ai-composer textarea{grid-column:1!important;grid-row:2!important;appearance:none;-webkit-appearance:none;border:0!important;outline:0!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;caret-color:#0b3f3b}.rvx-ai-composer textarea:focus,.rvx-ai-composer textarea:focus-visible{border:0!important;outline:0!important;box-shadow:none!important}.rvx-ai-composer-actions{grid-column:1!important;grid-row:3!important}.rvx-ai-composer>small{grid-column:1!important;grid-row:4!important}
 .rvx-ai-composer.is-uploading::after{content:"جارٍ رفع المرفق…";position:absolute;inset:0;z-index:3;display:grid;place-items:center;border-radius:inherit;color:#0b6259;background:rgba(255,255,255,.88);font-size:11px;font-weight:800;backdrop-filter:blur(2px)}.rvx-ai-composer.is-streaming .rvx-ai-composer-actions>span{opacity:.48;pointer-events:none}.rvx-ai-composer-actions button:disabled{cursor:not-allowed}
 .rvx-ai-attachment-chip{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:7px;min-width:150px;max-width:230px;min-height:46px;padding:5px 6px;border:1px solid #dbe8e6;border-radius:11px;color:#264843;background:#f8fbfa}.rvx-ai-attachment-chip>img,.rvx-ai-attachment-chip>span{width:34px;height:34px;border-radius:8px}.rvx-ai-attachment-chip>img{display:block;object-fit:cover}.rvx-ai-attachment-chip>span{display:grid;place-items:center;color:#0b776c;background:#e8f6f3}.rvx-ai-attachment-chip>span svg{width:17px}.rvx-ai-attachment-chip>div{display:grid;gap:2px;min-width:0}.rvx-ai-attachment-chip strong{overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.rvx-ai-attachment-chip small{color:#78908b;font-size:8px}.rvx-ai-attachment-chip>button{display:grid;place-items:center;width:25px;height:25px;padding:0;border:0;border-radius:7px;color:#667c78;background:transparent;cursor:pointer}.rvx-ai-attachment-chip>button:hover{color:#9d3d49;background:#fff0f2}.rvx-ai-attachment-chip>button svg{width:13px}.rvx-ai-message-attachments{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.rvx-ai-user-message .rvx-ai-attachment-chip{border-color:rgba(255,255,255,.28);color:#123d38;background:rgba(255,255,255,.96)}.rvx-ai-user-message .rvx-ai-attachment-chip small{color:#63817c}
-:root[data-theme="dark"] .rvx-ai-conversation-item:hover{border-color:#28504a;background:#10332f}:root[data-theme="dark"] .rvx-ai-conversation-item.active{border-color:#347067;background:#133c37}:root[data-theme="dark"] .rvx-ai-conversation-open{color:#dcebe8}:root[data-theme="dark"] .rvx-ai-conversation-menu{border-color:#31534e;background:#102d29}:root[data-theme="dark"] .rvx-ai-conversation-menu button{color:#dcebe8}:root[data-theme="dark"] .rvx-ai-conversation-menu button:hover{background:#173e38}:root[data-theme="dark"] .rvx-ai-attachment-chip{border-color:#31534e;color:#dcebe8;background:#102d29}:root[data-theme="dark"] .rvx-ai-composer.is-uploading::after{background:rgba(10,38,34,.9)}:root[data-theme="dark"] .rvx-ai-conversation-skeleton>i>span,:root[data-theme="dark"] .rvx-ai-conversation-skeleton>i>b,:root[data-theme="dark"] .rvx-ai-conversation-loading i,:root[data-theme="dark"] .rvx-ai-usage-skeleton i{background:#21443f}
+:root[data-theme="dark"] .rvx-ai-conversation-item{border-color:#244640;background:#0f302c}:root[data-theme="dark"] .rvx-ai-conversation-item:hover{border-color:#28504a;background:#10332f}:root[data-theme="dark"] .rvx-ai-conversation-item.active{border-color:#347067;background:#133c37}:root[data-theme="dark"] .rvx-ai-conversation-open{color:#dcebe8}:root[data-theme="dark"] .rvx-ai-conversation-open small em{border-color:#31534e}:root[data-theme="dark"] .rvx-ai-conversation-menu{border-color:#31534e;background:#102d29}:root[data-theme="dark"] .rvx-ai-conversation-menu button{color:#dcebe8}:root[data-theme="dark"] .rvx-ai-conversation-menu button:hover{background:#173e38}:root[data-theme="dark"] .rvx-ai-attachment-chip{border-color:#31534e;color:#dcebe8;background:#102d29}:root[data-theme="dark"] .rvx-ai-composer.is-uploading::after{background:rgba(10,38,34,.9)}:root[data-theme="dark"] .rvx-ai-conversation-skeleton>i>span,:root[data-theme="dark"] .rvx-ai-conversation-skeleton>i>b,:root[data-theme="dark"] .rvx-ai-conversation-loading i,:root[data-theme="dark"] .rvx-ai-usage-skeleton i{background:#21443f}:root[data-theme="dark"] .rvx-ai-data-retry{color:#8de0d2;border-color:#315b54;background:#123632}:root[data-theme="dark"] .rvx-ai-list-error{color:#dac19d;border-color:#5d4c34;background:#352d20}:root[data-theme="dark"] .rvx-ai-list-error button{color:#e4cda9;border-color:#6b583a;background:#443723}
 :root[data-theme="dark"] .rvx-ai-message-meta button{color:#a8bbb7}:root[data-theme="dark"] .rvx-ai-message-meta button:hover,:root[data-theme="dark"] .rvx-ai-message-meta button:focus-visible{color:#8de0d2;border-color:#315b54;background:#153b36}
 @media(max-width:700px){.rvx-ai-conversation-menu{width:170px;inset-inline-end:3px}.rvx-ai-attachment-preview{padding-bottom:3px}.rvx-ai-attachment-chip{min-width:132px;max-width:190px;min-height:42px}.rvx-ai-attachment-chip>img,.rvx-ai-attachment-chip>span{width:30px;height:30px}.rvx-ai-user-message>div{max-width:86%}}
 @media(prefers-reduced-motion:reduce){.rvx-ai-conversation-item,.rvx-ai-conversation-more,.rvx-ai-conversation-menu{animation:none;transition:none}.rvx-ai-conversation-skeleton>i>span,.rvx-ai-conversation-skeleton>i>b,.rvx-ai-conversation-loading i,.rvx-ai-usage-skeleton i{animation:none}}
@@ -15056,4 +15058,457 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .features-production *::before,
   .features-production *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .features-production [data-reveal] { opacity: 1 !important; transform: none !important; }
+}
+
+/* ========================================================================== */
+/* Renvix Center + Intelligence responsive hardening — 2026-08-15            */
+/* ========================================================================== */
+
+.content:has(> .rvx-support-suite) {
+  width: 100%;
+  max-width: 1680px;
+  overflow-x: clip;
+}
+
+.rvx-support-suite,
+.rvx-support-suite > *,
+.rvx-ai-page,
+.rvx-ai-workspace,
+.rvx-ai-workspace > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rvx-ai-page {
+  isolation: isolate;
+  width: 100%;
+}
+
+.rvx-ai-drawer-close,
+.rvx-ai-sidebar-backdrop {
+  display: none;
+}
+
+.rvx-ai-drawer-close {
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  color: #365f5a;
+  border: 1px solid #dce9e7;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.rvx-ai-drawer-close .line-icon { width: 18px; height: 18px; }
+
+/* iPad landscape and compact laptops: give the workspace the complete width. */
+@media (max-width: 1365px) {
+  .dashboard-shell:has(.rvx-support-suite),
+  .dashboard-shell:has(.rvx-ai-page),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
+  .dashboard-shell:has(.rvx-ai-page) > .sidebar {
+    position: fixed;
+    z-index: 45;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: min(320px, 86vw);
+    height: 100dvh;
+    padding: 20px 14px;
+    transform: translateX(110%);
+    transition: transform .24s cubic-bezier(.22, 1, .36, 1);
+    box-shadow: -20px 0 50px rgba(6, 43, 40, .16);
+  }
+
+  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar,
+  [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar {
+    transform: translateX(-110%);
+    box-shadow: 20px 0 50px rgba(6, 43, 40, .16);
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
+  .dashboard-shell:has(.rvx-ai-page) > .sidebar.open,
+  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
+  [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle,
+  .dashboard-shell:has(.rvx-ai-page) .mobile-side-toggle {
+    display: inline-flex;
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) .dashboard-sidebar-toggle,
+  .dashboard-shell:has(.rvx-ai-page) .dashboard-sidebar-toggle {
+    display: none;
+  }
+
+  .dashboard-shell:has(.rvx-support-suite) .topbar .dashboard-search,
+  .dashboard-shell:has(.rvx-ai-page) .topbar .dashboard-search {
+    transform: none;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar {
+    width: min(320px, 86vw);
+    padding: 20px 14px;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar-brand,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar-brand {
+    justify-content: flex-start;
+    padding-inline: 8px;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar .brand,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar .brand {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar .brand-logo-image--mark,
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar .brand-logo-image--mark {
+    content: url('/assets/renvix-logo-exact.png');
+    width: 142px;
+    height: auto;
+    max-height: 42px;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) :is(.side-group-title, .side-link span, .sidebar-support-link span),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) :is(.side-group-title, .side-link span, .sidebar-support-link span) {
+    display: inline;
+  }
+
+  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) :is(.side-link, .sidebar-support-link),
+  .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) :is(.side-link, .sidebar-support-link) {
+    width: 100%;
+    min-width: 0;
+    margin-inline: 0;
+    padding-inline: 12px;
+    justify-content: flex-start;
+  }
+
+  .content:has(> .rvx-support-suite) {
+    max-width: none;
+    padding: 24px clamp(18px, 3vw, 34px) 40px;
+  }
+
+  .rvx-support-home-actions { width: min(94%, 1120px); }
+}
+
+/* Chat history becomes a real modal drawer instead of covering the workspace. */
+@media (max-width: 1180px) {
+  .rvx-ai-sidebar {
+    z-index: 13;
+    width: min(360px, 88vw);
+    max-width: 100%;
+    box-shadow: none;
+  }
+
+  .rvx-ai-sidebar.open {
+    box-shadow: 18px 0 44px rgba(6, 43, 40, .2);
+  }
+
+  .rvx-ai-sidebar-backdrop {
+    position: absolute;
+    z-index: 12;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(4, 38, 34, .28);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+    cursor: default;
+  }
+
+  .rvx-ai-side-head {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    align-items: center;
+  }
+
+  .rvx-ai-side-head .rvx-ai-new { grid-column: 1; grid-row: 1; }
+  .rvx-ai-drawer-close { display: grid; grid-column: 2; grid-row: 1; }
+  .rvx-ai-side-head > label { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (min-width: 701px) and (max-width: 1180px) {
+  .rvx-ticket-toolbar { grid-template-columns: minmax(260px, 1fr) auto; }
+  .rvx-ticket-toolbar > nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+  .rvx-ticket-toolbar > button { grid-column: 2; grid-row: 1; }
+  .rvx-tickets-table-card { overflow: hidden; }
+}
+
+/* Portrait tablets: rows read better as cards than as a squeezed seven-column table. */
+@media (min-width: 701px) and (max-width: 900px) {
+  .rvx-tickets-table { display: grid; gap: 10px; overflow: visible; border: 0; border-radius: 0; }
+  .rvx-ticket-th { display: none; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "number status"
+      "subject subject"
+      "category priority"
+      "time menu";
+    min-width: 0;
+    min-height: 0;
+    gap: 10px 14px;
+    padding: 15px;
+    border: 1px solid var(--rvx-line);
+    border-radius: 13px;
+    box-shadow: 0 5px 15px rgba(6, 43, 40, .035);
+  }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > code { grid-area: number; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > strong { grid-area: subject; min-width: 0; overflow-wrap: anywhere; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > span { grid-area: category; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > em { grid-area: priority; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > b { grid-area: status; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > time { grid-area: time; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > svg { grid-area: menu; justify-self: end; }
+}
+
+@media (max-width: 700px) {
+  .content:has(> .rvx-support-suite) {
+    padding: 12px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .dashboard-main:has(.rvx-ai-page) {
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .topbar {
+    position: relative;
+    z-index: 30;
+    min-height: 0;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .topbar > .topbar-tools {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .topbar .dashboard-search {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dashboard-main:has(.rvx-ai-page) > .content {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .rvx-ai-page,
+  .rvx-ai-workspace {
+    width: 100%;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100%;
+  }
+
+  .rvx-ai-workspace {
+    grid-template-rows: 60px minmax(0, 1fr) auto auto auto !important;
+  }
+
+  .rvx-ai-workspace > header {
+    min-height: 60px;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .rvx-ai-workspace > header > div {
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 8px;
+  }
+
+  .rvx-ai-workspace > header > div > span { min-width: 0; }
+  .rvx-ai-workspace > header img { width: 36px; height: 36px; padding: 6px; flex: 0 0 36px; }
+  .rvx-ai-workspace > header h1 { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .rvx-ai-support-return { width: 36px; min-width: 36px; height: 36px; min-height: 36px; justify-content: center; padding: 0; }
+  .rvx-ai-support-return > span { display: none; }
+  .rvx-ai-drawer-toggle { width: 36px; height: 36px; flex: 0 0 36px; }
+
+  .rvx-ai-sidebar {
+    width: min(340px, 88vw);
+    padding: 12px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .rvx-ai-side-head { gap: 8px; }
+  .rvx-ai-sidebar h3 { margin: 12px 4px 6px; }
+  .rvx-ai-sidebar nav { overscroll-behavior: contain; }
+  .rvx-ai-side-bottom { gap: 7px; padding-top: 7px; }
+  .rvx-ai-side-bottom .rvx-ai-usage-card { min-height: 0; }
+
+  .rvx-ai-messages {
+    min-height: 0;
+    padding: 12px 10px;
+    overflow-x: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .rvx-ai-start,
+  .rvx-ai-onboarding { align-self: center; }
+  .rvx-ai-start h2,
+  .rvx-ai-onboarding h2 { font-size: clamp(23px, 7vw, 29px); }
+  .rvx-ai-start p,
+  .rvx-ai-onboarding p { max-width: 320px; }
+
+  .rvx-ai-quick-actions {
+    display: flex;
+    min-height: 42px;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 4px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-inline: contain;
+  }
+
+  .rvx-ai-quick-actions::-webkit-scrollbar { display: none; }
+  .rvx-ai-quick-actions button { width: auto; min-width: max-content; min-height: 32px; padding-inline: 10px; font-size: 9px; }
+  .rvx-ai-tools { padding-inline: 8px; }
+  .rvx-ai-composer { margin: 0 8px calc(7px + env(safe-area-inset-bottom)); }
+  .rvx-ai-composer > small { max-width: 100%; }
+
+  .rvx-support-welcome {
+    display: grid;
+    min-height: 0;
+    padding: 24px 16px 16px;
+    border-radius: 20px;
+  }
+
+  .rvx-support-welcome > .rvx-team-avatars { top: 18px; left: 20px; }
+  .rvx-welcome-copy { width: 100%; max-width: 420px; margin: 68px auto 4px; text-align: center; }
+  .rvx-welcome-copy > span { font-size: 18px; }
+  .rvx-welcome-copy h1 { font-size: clamp(28px, 9vw, 36px); }
+  .rvx-welcome-copy p { max-width: 360px; margin-inline: auto; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+
+  .rvx-support-summary {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    min-height: 0;
+    margin-top: 18px;
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(6, 43, 40, .05);
+  }
+
+  .rvx-support-summary article { min-width: 0; padding: 17px 15px; }
+  .rvx-support-summary article > span { width: 54px; height: 54px; flex-basis: 54px; border-radius: 15px; }
+  .rvx-support-summary article > div { min-width: 0; }
+  .rvx-support-summary strong { font-size: 16px; }
+  .rvx-support-summary small { font-size: 11px; overflow-wrap: anywhere; }
+
+  .rvx-support-home-actions { width: 100%; gap: 10px; }
+  .rvx-support-home-actions > button { min-height: 88px; gap: 12px; border-radius: 15px; }
+  .rvx-support-home-actions > button > div { min-width: 0; }
+  .rvx-support-home-actions small { line-height: 1.65; overflow-wrap: anywhere; }
+
+  .rvx-suite-heading { min-height: 66px; gap: 10px; }
+  .rvx-suite-heading h1 { font-size: 22px; }
+  .rvx-suite-heading p { font-size: 11px; line-height: 1.65; }
+
+  .rvx-ticket-form-layout { gap: 12px; padding: 10px; border-radius: 17px; }
+  .rvx-ticket-form-card,
+  .rvx-info-card { padding: 14px; border-radius: 14px; }
+
+  .rvx-ticket-stats { min-height: 0; border-radius: 15px; }
+  .rvx-ticket-stats > div { min-height: 86px; padding: 12px 8px; }
+  .rvx-ticket-stats > div:first-child { min-height: 94px; }
+  .rvx-ticket-stats strong { font-size: 23px; }
+
+  .rvx-tickets-table-card { padding: 12px; border-radius: 15px; }
+  .rvx-ticket-toolbar { gap: 9px; }
+  .rvx-ticket-toolbar nav { padding-bottom: 3px; overscroll-behavior-inline: contain; }
+  .rvx-ticket-toolbar nav button { flex: 0 0 auto; }
+
+  .rvx-tickets-table { display: grid; gap: 9px; overflow: visible; border: 0; border-radius: 0; }
+  .rvx-ticket-th { display: none; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "number status"
+      "subject subject"
+      "category priority"
+      "time menu";
+    min-width: 0;
+    min-height: 0;
+    gap: 9px 12px;
+    padding: 13px;
+    border: 1px solid var(--rvx-line);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(6, 43, 40, .035);
+  }
+
+  .rvx-ticket-tr:not(.rvx-ticket-th) > code { grid-area: number; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > strong { grid-area: subject; min-width: 0; overflow-wrap: anywhere; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > span { grid-area: category; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > em { grid-area: priority; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > b { grid-area: status; justify-self: end; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > time { grid-area: time; }
+  .rvx-ticket-tr:not(.rvx-ticket-th) > svg { grid-area: menu; justify-self: end; }
+
+  .rvx-recent-list > button { gap: 12px; border-radius: 14px; }
+  .rvx-recent-list dl { gap: 8px; }
+  .rvx-recent-list dl > div { padding: 0 8px; }
+
+  .rvx-messages-layout { min-height: 0; gap: 12px; }
+  .rvx-messages-layout > section,
+  .rvx-inline-conversation { padding: 13px; border-radius: 14px; }
+  .rvx-message-row { grid-template-columns: 44px minmax(0, 1fr); min-height: 76px; padding: 10px; }
+  .rvx-message-row > span { width: 42px; height: 42px; }
+  .rvx-message-row > time { grid-column: 2; }
+
+  .rvx-ticket-detail-banner { align-items: flex-start; gap: 12px; border-radius: 15px; }
+  .rvx-ticket-detail-banner > div { min-width: 0; }
+  .rvx-ticket-detail-banner h1 { overflow-wrap: anywhere; }
+  .rvx-ticket-detail-grid { gap: 12px; }
+  .rvx-ticket-side > section,
+  .rvx-ticket-chat { padding: 14px; border-radius: 14px; }
+  .rvx-ticket-chat .support-thread-messages { min-height: 230px; max-height: 50dvh; }
+}
+
+@media (max-width: 440px) {
+  .content:has(> .rvx-support-suite) { padding-inline: 10px; }
+  .topbar .language-topbar-button { min-width: 66px; padding-inline: 10px; }
+  .dashboard-main:has(.rvx-ai-page) > .topbar { padding-inline: 10px; }
+  .rvx-ai-sidebar { width: min(350px, 92vw); }
+  .rvx-ai-workspace > header h1 { font-size: 12px; }
+  .rvx-ai-start-mark { width: 50px; height: 50px; }
+  .rvx-ai-start-mark img { width: 28px; height: 28px; }
+  .rvx-ai-composer { margin-inline: 6px; }
+  .rvx-support-home-actions > button { grid-template-columns: 48px minmax(0, 1fr) 18px; padding: 12px; }
+  .rvx-support-home-actions > button > span { width: 48px; height: 48px; }
+  .rvx-ticket-detail-banner > span { width: 44px; height: 44px; flex: 0 0 44px; }
+}
+
+:root[data-theme="dark"] .rvx-ai-drawer-close {
+  color: #dcece8;
+  border-color: #31534e;
+  background: #123632;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
+  .dashboard-shell:has(.rvx-ai-page) > .sidebar,
+  .rvx-ai-sidebar-backdrop { transition: none !important; }
 }

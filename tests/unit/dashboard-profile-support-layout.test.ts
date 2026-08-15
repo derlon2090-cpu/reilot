@@ -39,4 +39,16 @@ describe("dashboard profile and support layout", () => {
     expect(styles).toContain(".rvx-ticket-tr:not(.rvx-ticket-th):hover");
     expect(styles).toContain(".rvx-ticket-th");
   });
+
+  it("uses a full-width iPad workspace and card-based mobile ticket rows", () => {
+    expect(styles).toContain("Renvix Center + Intelligence responsive hardening");
+    expect(styles).toContain("@media (max-width: 1365px)");
+    expect(styles).toContain(".dashboard-shell:has(.rvx-support-suite)");
+    expect(styles).toContain("grid-template-columns: minmax(0, 1fr) !important");
+    expect(styles).toContain(".dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle");
+    expect(styles).toContain("@media (min-width: 701px) and (max-width: 900px)");
+    expect(styles).toContain(".rvx-ticket-tr:not(.rvx-ticket-th)");
+    expect(styles).toContain('"number status"');
+    expect(styles).toContain("overflow-x: clip");
+  });
 });
