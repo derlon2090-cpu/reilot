@@ -2749,10 +2749,13 @@ function homeDashboardPreview() {
     <span class="home-integration-node node-payments" aria-label="Payments">${dashboardIcon("payments")}</span>
     <span class="home-integration-node node-cloud" aria-label="Cloud">${dashboardIcon("cloud")}</span>
     <span class="home-integration-node node-api" aria-label="API">${dashboardIcon("code")}</span>
-    <svg class="home-integration-lines" viewBox="0 0 760 390" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M28 98 C72 98 72 118 116 118"/><path d="M28 194 C72 194 72 194 116 194"/><path d="M28 290 C72 290 72 270 116 270"/>
-      <path d="M732 98 C688 98 688 118 644 118"/><path d="M732 194 C688 194 688 194 644 194"/><path d="M732 290 C688 290 688 270 644 270"/>
-      <circle cx="72" cy="98" r="2"/><circle cx="72" cy="194" r="2"/><circle cx="72" cy="290" r="2"/><circle cx="688" cy="98" r="2"/><circle cx="688" cy="194" r="2"/><circle cx="688" cy="290" r="2"/>
+    <svg class="home-integration-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M4 25 H7 Q9 25 9 28 V72 Q9 75 7 75 H4 M4 50 H14.25"/>
+      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M96 25 H93 Q91 25 91 28 V72 Q91 75 93 75 H96 M96 50 H85.75"/>
+      <g class="home-branch-points">
+        <circle cx="9" cy="25" r=".42"/><circle cx="9" cy="50" r=".42"/><circle cx="9" cy="75" r=".42"/><circle cx="14.25" cy="50" r=".42"/>
+        <circle cx="91" cy="25" r=".42"/><circle cx="91" cy="50" r=".42"/><circle cx="91" cy="75" r=".42"/><circle cx="85.75" cy="50" r=".42"/>
+      </g>
     </svg>
     <article class="home-dashboard" aria-label="${localizedCopy("معاينة حية للوحة تحكم Renvix", "Live Renvix dashboard preview")}">
       <header class="home-dashboard-header"><img src="/assets/renvix-logo-deep-teal.svg" width="112" height="33" alt="Renvix"><div><strong>${localizedCopy("مرحبًا، أحمد", "Welcome, Ahmed")}</strong><small>${localizedCopy("إليك نظرة عامة على اشتراكاتك والتنبيهات اليوم", "Here is today's subscription and alerts overview")}</small></div></header>
