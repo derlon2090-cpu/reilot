@@ -14170,20 +14170,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   position: relative;
   overflow: hidden;
   padding-block: 24px 20px;
-  background: #fff;
+  background: linear-gradient(180deg, #fff 0%, #fbfdfc 100%);
 }
-.home-hero::before,
-.home-hero::after {
-  content: "";
-  position: absolute;
-  width: 620px;
-  height: 260px;
-  border: 1px solid rgba(11, 63, 59, .055);
-  border-radius: 50%;
-  pointer-events: none;
-}
-.home-hero::before { top: -180px; right: -210px; transform: rotate(-11deg); }
-.home-hero::after { bottom: -200px; left: -250px; transform: rotate(13deg); }
 .home-hero-grid {
   position: relative;
   z-index: 1;
@@ -14809,36 +14797,12 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   --features-soft: #eef8f6;
   overflow: hidden !important;
   color: var(--features-ink);
-  background: #fbfdfc !important;
+  background: linear-gradient(180deg, #fbfdfc 0%, #f8fbfa 42%, #fff 100%) !important;
 }
 .features-production-main {
   position: relative;
   padding: 70px 0 88px;
   isolation: isolate;
-}
-.features-production-main::before {
-  position: absolute;
-  z-index: -1;
-  top: 22px;
-  left: 20px;
-  width: 78px;
-  height: 78px;
-  opacity: .48;
-  background-image: radial-gradient(circle, #a8d8d1 1.4px, transparent 1.6px);
-  background-size: 10px 10px;
-  content: "";
-}
-.features-production-main::after {
-  position: absolute;
-  z-index: -1;
-  top: -176px;
-  right: -120px;
-  width: 390px;
-  height: 390px;
-  border: 1px solid rgba(31, 142, 130, .09);
-  border-radius: 50%;
-  box-shadow: 0 0 0 27px rgba(31, 142, 130, .035), 0 0 0 58px rgba(31, 142, 130, .025), 0 0 0 89px rgba(31, 142, 130, .018);
-  content: "";
 }
 .features-production .container { width: min(1420px, calc(100% - 64px)); }
 .features-production [data-reveal] {
@@ -15035,8 +14999,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @media (max-width: 680px) {
   .features-production-main { padding: 42px 0 64px; }
   .features-production .container { width: min(100% - 28px, 600px); }
-  .features-production-main::before { left: 5px; transform: scale(.72); transform-origin: top left; }
-  .features-production-main::after { top: -210px; right: -230px; }
   .features-production-intro p { margin-top: 12px; font-size: 14px; line-height: 1.85; }
   .features-advanced-section { margin-top: 62px; }
   .features-advanced-grid { grid-template-columns: 1fr; gap: 14px; }
