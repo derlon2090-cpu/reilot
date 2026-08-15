@@ -31,17 +31,20 @@ export function destinationHash(value) {
 export function sameOriginRequest(request) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
+
+  // Some privacy-focused and embedded browsers (notably iPad/Safari variants)
+  // send an opaque `Origin: null` for a request that is still initiated by the
+  // current page. Fetch Metadata is a forbidden browser-controlled header, so
+  // check it before parsing Origin. Cross-site JavaScript cannot forge this as
+  // `same-origin`, which keeps the CSRF boundary intact.
+  if (String(request.headers.get("sec-fetch-site") || "").trim().toLowerCase() === "same-origin") {
+    return true;
+  }
+
   try {
     const requestOrigin = new URL(request.url).origin;
     const browserOrigin = new URL(origin).origin;
     if (browserOrigin === requestOrigin) return true;
-
-    // A browser request to the Vercel frontend remains same-origin from the
-    // browser's point of view even when Vercel rewrites /api to Render. Fetch
-    // Metadata headers cannot be set by cross-site browser JavaScript, so this
-    // preserves CSRF protection without comparing the public UI origin to the
-    // internal backend URL created by the rewrite.
-    if (request.headers.get("sec-fetch-site") === "same-origin") return true;
 
     const trustedOrigins = new Set([
       "https://renvix.app",

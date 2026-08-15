@@ -27,6 +27,15 @@ describe("sameOriginRequest", () => {
     expect(sameOriginRequest(request("https://preview.example", { "sec-fetch-site": "same-origin" }))).toBe(true);
   });
 
+  it("accepts an opaque browser Origin only when Fetch Metadata proves it is same-origin", () => {
+    expect(sameOriginRequest(request("null", { "sec-fetch-site": "same-origin" }))).toBe(true);
+    expect(sameOriginRequest(request("null", { "sec-fetch-site": "cross-site" }))).toBe(false);
+  });
+
+  it("rejects a malformed Origin without same-origin Fetch Metadata", () => {
+    expect(sameOriginRequest(request("not-a-valid-origin"))).toBe(false);
+  });
+
   it("accepts only explicitly configured frontend origins when Fetch Metadata is unavailable", () => {
     process.env.TRUSTED_APP_ORIGINS = "https://portal.example";
     expect(sameOriginRequest(request("https://portal.example"))).toBe(true);
