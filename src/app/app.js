@@ -2751,11 +2751,11 @@ function homeDashboardPreview() {
     <span class="home-integration-node node-cloud" aria-label="Cloud">${dashboardIcon("cloud")}</span>
     <span class="home-integration-node node-api" aria-label="API">${dashboardIcon("code")}</span>
     <svg class="home-integration-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M4 25 H7 Q9 25 9 28 V72 Q9 75 7 75 H4 M4 50 H14.25"/>
-      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M96 25 H93 Q91 25 91 28 V72 Q91 75 93 75 H96 M96 50 H85.75"/>
+      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M8.6 25 H9.7 Q10.8 25 10.8 28 V72 Q10.8 75 9.7 75 H8.6 M10.8 50 H13.5"/>
+      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M91.4 25 H90.3 Q89.2 25 89.2 28 V72 Q89.2 75 90.3 75 H91.4 M89.2 50 H86.5"/>
       <g class="home-branch-points">
-        <circle cx="9" cy="25" r=".42"/><circle cx="9" cy="50" r=".42"/><circle cx="9" cy="75" r=".42"/><circle cx="14.25" cy="50" r=".42"/>
-        <circle cx="91" cy="25" r=".42"/><circle cx="91" cy="50" r=".42"/><circle cx="91" cy="75" r=".42"/><circle cx="85.75" cy="50" r=".42"/>
+        <circle cx="10.8" cy="25" r=".42"/><circle cx="10.8" cy="50" r=".42"/><circle cx="10.8" cy="75" r=".42"/><circle cx="13.5" cy="50" r=".42"/>
+        <circle cx="89.2" cy="25" r=".42"/><circle cx="89.2" cy="50" r=".42"/><circle cx="89.2" cy="75" r=".42"/><circle cx="86.5" cy="50" r=".42"/>
       </g>
     </svg>
     <article class="home-dashboard" aria-label="${localizedCopy("معاينة حية للوحة تحكم Renvix", "Live Renvix dashboard preview")}">
@@ -2827,7 +2827,7 @@ function homeSupportSection() {
   ];
   const supportVisual = (kind, icon) => {
     if (kind === "assistant") return `<div class="home-support-visual home-assistant-illustration" aria-hidden="true"><img src="/assets/support-robot-v2.png" width="1254" height="1254" alt="" loading="lazy" decoding="async"><em></em></div>`;
-    if (kind === "ticket") return `<div class="home-support-visual home-ticket-illustration" aria-hidden="true"><i>${dashboardIcon("chat")}</i><b>${dashboardIcon(icon)}</b><em></em></div>`;
+    if (kind === "ticket") return `<div class="home-support-visual home-ticket-illustration" aria-hidden="true"><i>${dashboardIcon("message")}</i><b>•••</b><em></em></div>`;
     return `<div class="home-support-visual home-knowledge-illustration" aria-hidden="true"><span>${dashboardIcon(icon)}</span><i></i><i></i></div>`;
   };
   return `<section class="home-section home-support" aria-labelledby="home-support-title"><div class="container"><header class="home-section-heading home-support-heading" data-reveal><span>${localizedCopy("دعم متكامل متى احتجته", "Complete support when you need it")}</span><h2 id="home-support-title">${localizedCopy("دعم يساعدك على الاستمرار بثقة", "Support that keeps you moving confidently")}</h2><p>${localizedCopy("مساعد ذكي، فريق دعم عربي، وقاعدة معرفة واضحة — كل ما تحتاجه للوصول إلى الحل بسرعة.", "Smart assistance, an Arabic support team, and a clear knowledge base—everything you need to reach a solution quickly.")}</p></header><div class="home-support-panel" data-reveal><div class="home-support-grid">${services.map(([title, body, label, path, icon, kind], index) => `<article class="${kind}" data-reveal style="--rvx-delay:${index * 70}ms">${supportVisual(kind, icon)}<div class="home-support-copy"><h3>${title}</h3><p>${body}</p><a href="${path}" data-link="${path}">${label}${dashboardIcon("arrowLeft")}</a></div></article>`).join("")}</div><div class="home-trust-stats" aria-label="${localizedCopy("مؤشرات جودة الدعم", "Support quality indicators")}">${stats.map(([target, decimals, suffix, label, icon]) => `<article><span>${dashboardIcon(icon)}</span><strong data-count-target="${target}" data-count-start="0" data-count-decimals="${decimals}" data-count-locale="en-US" data-count-suffix="${suffix}">${target}${suffix}</strong><small>${label}</small></article>`).join("")}</div></div></div></section>`;
