@@ -2238,15 +2238,16 @@ function initMarketingMotion() {
     observer?.unobserve(entry.target);
   }, { threshold: .18 });
 
-  const formatCounter = (value, decimals) => Number(value).toLocaleString(state.language === "ar" ? "ar-SA" : "en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const formatCounter = (value, decimals, locale = state.language === "ar" ? "ar-SA" : "en-US") => Number(value).toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   const animateCounter = (element) => {
     const target = Number(element.dataset.countTarget || 0);
     const start = Number(element.dataset.countStart || target);
     const decimals = Number(element.dataset.countDecimals || 0);
+    const locale = element.dataset.countLocale || (state.language === "ar" ? "ar-SA" : "en-US");
     const prefix = element.dataset.countPrefix || "";
     const suffix = element.dataset.countSuffix ?? (decimals ? "%" : "");
     if (reducedMotion) {
-      element.textContent = `${prefix}${formatCounter(target, decimals)}${suffix}`;
+      element.textContent = `${prefix}${formatCounter(target, decimals, locale)}${suffix}`;
       return;
     }
     const startedAt = performance.now();
@@ -2254,7 +2255,7 @@ function initMarketingMotion() {
     const tick = (now) => {
       const progress = Math.min(1, (now - startedAt) / 1150);
       const eased = 1 - Math.pow(1 - progress, 3);
-      element.textContent = `${prefix}${formatCounter(start + (target - start) * eased, decimals)}${suffix}`;
+      element.textContent = `${prefix}${formatCounter(start + (target - start) * eased, decimals, locale)}${suffix}`;
       element.classList.toggle("is-changing", progress < 1);
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
@@ -2825,11 +2826,11 @@ function homeSupportSection() {
     ["15", "0", localizedCopy(" دقيقة", " min"), localizedCopy("متوسط وقت الاستجابة", "Average response time"), "clock"]
   ];
   const supportVisual = (kind, icon) => {
-    if (kind === "assistant") return `<div class="home-support-visual home-assistant-illustration" aria-hidden="true"><span><i></i><i></i></span><b>${dashboardIcon("sparkles")}</b><em></em></div>`;
+    if (kind === "assistant") return `<div class="home-support-visual home-assistant-illustration" aria-hidden="true"><span><i></i><i></i></span><b>${dashboardIcon("sparkles")}</b><em></em><u></u></div>`;
     if (kind === "ticket") return `<div class="home-support-visual home-ticket-illustration" aria-hidden="true"><i>${dashboardIcon("chat")}</i><b>${dashboardIcon(icon)}</b><em></em></div>`;
     return `<div class="home-support-visual home-knowledge-illustration" aria-hidden="true"><span>${dashboardIcon(icon)}</span><i></i><i></i></div>`;
   };
-  return `<section class="home-section home-support" aria-labelledby="home-support-title"><div class="container"><header class="home-section-heading home-support-heading" data-reveal><span>${localizedCopy("دعم متكامل متى احتجته", "Complete support when you need it")}</span><h2 id="home-support-title">${localizedCopy("دعم يساعدك على الاستمرار بثقة", "Support that keeps you moving confidently")}</h2><p>${localizedCopy("مساعد ذكي، فريق دعم عربي، وقاعدة معرفة واضحة — كل ما تحتاجه للوصول إلى الحل بسرعة.", "Smart assistance, an Arabic support team, and a clear knowledge base—everything you need to reach a solution quickly.")}</p></header><div class="home-support-panel" data-reveal><div class="home-support-grid">${services.map(([title, body, label, path, icon, kind], index) => `<article class="${kind}" data-reveal style="--rvx-delay:${index * 70}ms">${supportVisual(kind, icon)}<div class="home-support-copy"><h3>${title}</h3><p>${body}</p><a href="${path}" data-link="${path}">${label}${dashboardIcon("arrowLeft")}</a></div></article>`).join("")}</div><div class="home-trust-stats" aria-label="${localizedCopy("مؤشرات جودة الدعم", "Support quality indicators")}">${stats.map(([target, decimals, suffix, label, icon]) => `<article><span>${dashboardIcon(icon)}</span><strong data-count-target="${target}" data-count-start="0" data-count-decimals="${decimals}" data-count-suffix="${suffix}">${target}${suffix}</strong><small>${label}</small></article>`).join("")}</div></div></div></section>`;
+  return `<section class="home-section home-support" aria-labelledby="home-support-title"><div class="container"><header class="home-section-heading home-support-heading" data-reveal><span>${localizedCopy("دعم متكامل متى احتجته", "Complete support when you need it")}</span><h2 id="home-support-title">${localizedCopy("دعم يساعدك على الاستمرار بثقة", "Support that keeps you moving confidently")}</h2><p>${localizedCopy("مساعد ذكي، فريق دعم عربي، وقاعدة معرفة واضحة — كل ما تحتاجه للوصول إلى الحل بسرعة.", "Smart assistance, an Arabic support team, and a clear knowledge base—everything you need to reach a solution quickly.")}</p></header><div class="home-support-panel" data-reveal><div class="home-support-grid">${services.map(([title, body, label, path, icon, kind], index) => `<article class="${kind}" data-reveal style="--rvx-delay:${index * 70}ms">${supportVisual(kind, icon)}<div class="home-support-copy"><h3>${title}</h3><p>${body}</p><a href="${path}" data-link="${path}">${label}${dashboardIcon("arrowLeft")}</a></div></article>`).join("")}</div><div class="home-trust-stats" aria-label="${localizedCopy("مؤشرات جودة الدعم", "Support quality indicators")}">${stats.map(([target, decimals, suffix, label, icon]) => `<article><span>${dashboardIcon(icon)}</span><strong data-count-target="${target}" data-count-start="0" data-count-decimals="${decimals}" data-count-locale="en-US" data-count-suffix="${suffix}">${target}${suffix}</strong><small>${label}</small></article>`).join("")}</div></div></div></section>`;
 }
 
 function marketingHomePage() {
