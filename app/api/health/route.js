@@ -19,6 +19,7 @@ export async function GET() {
   const emailOtpRequired = true;
   const otpPepperReady = (process.env.EMAIL_OTP_PEPPER?.trim().length || 0) >= 24;
   const resendReady = Boolean(process.env.RESEND_API_KEY?.trim());
+  const deepseekReady = Boolean(process.env.DEEPSEEK_API_KEY?.trim());
   const mfaChallengeReady = mfaChallengeSigningConfigured();
   const authPolicyReady = policy.secondFactorRequired
     && policy.signupEmailOtpRequired
@@ -37,6 +38,7 @@ export async function GET() {
       ok: false,
       fromConfigured: true
     },
+    deepseek: { configured: deepseekReady, ok: deepseekReady },
     emailOtp: { required: emailOtpRequired, pepperConfigured: otpPepperReady, ok: !emailOtpRequired || (resendReady && otpPepperReady) },
     mfaChallenge: { required: policy.secondFactorRequired, signingKeyConfigured: mfaChallengeReady, ok: !policy.secondFactorRequired || mfaChallengeReady },
     objectStorage: { configured: false, ok: false },

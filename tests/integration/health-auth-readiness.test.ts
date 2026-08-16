@@ -12,7 +12,7 @@ vi.mock("../../src/lib/email/resend.js", () => ({
 }));
 import { GET } from "../../app/api/health/route.js";
 
-const keys = ["AUTH_SECOND_FACTOR_REQUIRED", "EMAIL_SIGNUP_OTP_REQUIRED", "EMAIL_OTP_FALLBACK_ENABLED", "TRUSTED_BROWSER_ENABLED", "TRUSTED_BROWSER_HOURS", "EMAIL_OTP_ENFORCE_ALL", "EMAIL_OTP_PEPPER", "RESEND_API_KEY", "EVOLUTION_API_URL", "EVOLUTION_API_KEY"];
+const keys = ["AUTH_SECOND_FACTOR_REQUIRED", "EMAIL_SIGNUP_OTP_REQUIRED", "EMAIL_OTP_FALLBACK_ENABLED", "TRUSTED_BROWSER_ENABLED", "TRUSTED_BROWSER_HOURS", "EMAIL_OTP_ENFORCE_ALL", "EMAIL_OTP_PEPPER", "RESEND_API_KEY", "DEEPSEEK_API_KEY", "EVOLUTION_API_URL", "EVOLUTION_API_KEY"];
 
 describe("authentication readiness", () => {
   beforeEach(() => {
@@ -40,5 +40,14 @@ describe("authentication readiness", () => {
     expect(body.checks.authPolicy).toMatchObject({ ok: true, trustedBrowserHours: 48, emailOtpEnforceAllDisabled: true });
     expect(body.checks.authSchema).toMatchObject({ ok: true, migrationApplied: true });
     expect(body.checks.emailOtp.ok).toBe(true);
+    expect(body.checks.deepseek).toEqual({ configured: false, ok: false });
+  });
+
+  it("reports only the safe DeepSeek configuration status", async () => {
+    process.env.DEEPSEEK_API_KEY = "server-only-test-secret";
+    const response = await GET();
+    const body = await response.json();
+    expect(body.checks.deepseek).toEqual({ configured: true, ok: true });
+    expect(JSON.stringify(body)).not.toContain("server-only-test-secret");
   });
 });
