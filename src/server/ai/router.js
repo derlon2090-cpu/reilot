@@ -93,23 +93,6 @@ export function classifyEmailTemplateCodeRequest({ prompt = "", existingHtml = "
   });
 }
 
-export function classifyCampaignCopyRequest({ title = "", existingContent = "", mode = "generate", channel = "email" } = {}) {
-  const sourceLength = String(title).length + String(existingContent).length;
-  const rewriting = mode === "regenerate";
-  const complex = sourceLength > 3500 || /سلسلة|إطلاق|مقارنة|launch|sequence|comparison/i.test(`${title} ${existingContent}`);
-  const complexityScore = Math.min(100, 14 + (rewriting ? 12 : 0) + (channel === "email" ? 8 : 0) + (complex ? 35 : 0));
-  return Object.freeze({
-    intent: rewriting ? "campaign_copy_regenerate" : "campaign_copy_generate",
-    modelTier: complexityScore >= 66 ? "pro" : "flash",
-    thinking: complexityScore >= 45 ? "enabled" : "disabled",
-    reasoningEffort: complexityScore >= 66 ? "high" : complexityScore >= 45 ? "low" : null,
-    useTools: false,
-    maxToolIterations: 0,
-    requiresConfirmation: false,
-    complexityScore
-  });
-}
-
 export function routingSystemInstruction(route = {}) {
   if (route.requiresConfirmation) {
     return "الطلب يتضمن إجراءً حساسًا. لا تدّع التنفيذ ولا تستدعِ أي أداة كتابية قبل التحقق من الصلاحية وعرض ملخص واضح والحصول على تأكيد صريح من المستخدم. أدوات هذه المحادثة الحالية للقراءة فقط.";

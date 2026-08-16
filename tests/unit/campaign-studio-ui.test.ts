@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("../../src/app/app.js", import.meta.url), "utf8");
@@ -65,6 +65,16 @@ describe("campaign studio", () => {
     expect(appSource).toContain("الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك");
     expect(stylesSource).toContain(".campaign-template-thumb.design-luxury");
     expect(stylesSource).toContain(".campaign-studio-email-preview.design-spotlight");
+  });
+
+  it("keeps campaign copy manual while preserving the local HTML template generator", () => {
+    expect(appSource).not.toContain("مساعد صياغة الحملة");
+    expect(appSource).not.toContain("campaign-ai-generate");
+    expect(appSource).not.toContain("/api/ai/campaign-copy/generate");
+    expect(existsSync(new URL("../../app/api/ai/campaign-copy/generate/route.js", import.meta.url))).toBe(false);
+    expect(appSource).toContain("توليد قالب برمجي (HTML)");
+    expect(appSource).toContain('data-action="campaign-studio-generate-html"');
+    expect(appSource).toContain("campaignStudioGeneratedHtml(form)");
   });
 
   it("renders valid social links as icons inside the email preview and generated HTML", () => {

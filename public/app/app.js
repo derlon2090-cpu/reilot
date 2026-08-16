@@ -774,7 +774,6 @@ function clearCachedDashboardProfile() {
   state.aiChatStorageStatus = null;
   state.aiConversations = null;
   state.emailTemplateAI = { status: "idle", mode: "generate", prompt: "", result: null, error: "", previewOpen: false, contextKey: "", history: [], suggestions: null };
-  state.campaignAI = { status: "idle", mode: "generate", tone: "professional", result: null, error: "" };
   clearAIRemoteRetries();
   clearCachedAIViewState();
   try {
@@ -886,7 +885,6 @@ state.campaignBuilderCards = [];
 state.campaignBuilderDraft = null;
 state.campaignBuilderDraftTimer = null;
 state.campaignBuilderPreviewMode = "desktop";
-state.campaignAI = { status: "idle", mode: "generate", tone: "professional", result: null, error: "" };
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -1620,7 +1618,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.trustedBrowsers === null)) queue("trustedBrowsers", "/api/settings/security/trusted-devices", "trustedBrowsers");
   if ((state.route === "/dashboard/security" || state.route.startsWith("/dashboard/channels")) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
-  if ((state.route.startsWith("/dashboard/templates") || state.route.startsWith("/dashboard/apps/salla/templates/") || state.route.startsWith("/dashboard/campaigns")) && (force || state.aiUsage === null)) queue("emailTemplateAIUsage", "/backend/ai/usage", "aiUsage");
+  if ((state.route.startsWith("/dashboard/templates") || state.route.startsWith("/dashboard/apps/salla/templates/")) && (force || state.aiUsage === null)) queue("emailTemplateAIUsage", "/backend/ai/usage", "aiUsage");
   if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
   if (state.route === "/dashboard/templates" && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
@@ -5600,31 +5598,6 @@ function campaignStudioDraftValue(name, fallback = "") {
   return state.campaignBuilderDraft?.values?.[name] ?? fallback;
 }
 
-function campaignAIResultMarkup() {
-  const ai = state.campaignAI || {};
-  if (ai.status === "loading") return `<div class="campaign-ai-loading" role="status"><i class="email-ai-spark"></i><span><b>جارٍ إعداد مسودة الحملة...</b><small>لن يتم استبدال أي حقل تلقائيًا.</small></span></div>`;
-  if (ai.status === "error") return `<div class="renewal-email-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر إنشاء المسودة</b><small>${escapeHtml(ai.error || "حاول مرة أخرى.")}</small></span></div>`;
-  if (ai.status !== "success" || !ai.result?.body) return `<div class="campaign-ai-empty">اكتب اسمًا واضحًا للحملة ثم اطلب مسودة. لا يتم إرسال طلب أثناء الكتابة.</div>`;
-  const result = ai.result;
-  return `<article class="campaign-ai-draft"><header><span>${dashboardIcon("success")}</span><div><strong>المسودة جاهزة للمراجعة</strong><small>${escapeHtml(result.summary || "راجع النص قبل استخدامه في الحملة.")}</small></div></header>${result.subject ? `<label><span>العنوان</span><b>${escapeHtml(result.subject)}</b></label>` : ""}${result.preheader ? `<label><span>النص التمهيدي</span><b>${escapeHtml(result.preheader)}</b></label>` : ""}<label><span>المحتوى</span><p>${escapeHtml(result.body)}</p></label>${result.ctaText ? `<label><span>زر الإجراء</span><b>${escapeHtml(result.ctaText)}</b></label>` : ""}<div class="campaign-ai-actions"><button type="button" class="btn btn-primary" data-action="campaign-ai-apply">استخدام هذه المسودة</button><button type="button" class="btn btn-secondary" data-action="campaign-ai-generate" data-mode="regenerate">إعادة الصياغة</button><small>خُصم ${formatAITokens(result.quota?.charged || 0)} توكن · المتبقي ${formatAITokens(result.quota?.remaining || 0)}</small></div></article>`;
-}
-
-function campaignAIEditorMarkup(channel, kind) {
-  const ai = state.campaignAI || {};
-  const tones = [["professional", "احترافية"], ["friendly", "ودية"], ["concise", "مختصرة"], ["persuasive", "إقناعية"], ["formal", "رسمية"]];
-  return `<section class="campaign-studio-section campaign-ai-assistant" data-campaign-ai data-channel="${channel}" data-kind="${kind}"><header><span>✨</span><div><h2>مساعد صياغة الحملة</h2><p>يحوّل اسم الحملة إلى مسودة ${channel === "email" ? "عنوان ونص بريد" : "رسالة واتساب"} قابلة للمراجعة، دون تطبيق تلقائي.</p></div><span data-campaign-ai-balance>${emailTemplateAIBalanceMarkup()}</span></header><div class="campaign-ai-toolbar"><div class="campaign-ai-tones">${tones.map(([tone,label]) => `<button type="button" data-action="campaign-ai-tone" data-tone="${tone}" class="${ai.tone === tone ? "active" : ""}">${label}</button>`).join("")}</div><button type="button" class="btn btn-primary" data-action="campaign-ai-generate" data-mode="generate">✨ إنشاء مسودة من الاسم</button></div><div data-campaign-ai-result>${campaignAIResultMarkup()}</div></section>`;
-}
-
-function refreshCampaignAI() {
-  const panel = document.querySelector("[data-campaign-ai]");
-  if (!panel) return;
-  const result = panel.querySelector("[data-campaign-ai-result]");
-  if (result) result.innerHTML = campaignAIResultMarkup();
-  panel.querySelectorAll('[data-action="campaign-ai-generate"]').forEach((button) => { button.disabled = state.campaignAI.status === "loading"; });
-  const balance = panel.querySelector("[data-campaign-ai-balance]");
-  if (balance) balance.innerHTML = emailTemplateAIBalanceMarkup();
-}
-
 function campaignStudioPage() {
   const channel = state.campaignBuilderChannel === "email" ? "email" : state.campaignBuilderChannel === "whatsapp" ? "whatsapp" : null;
   const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
@@ -5671,8 +5644,7 @@ function campaignStudioPage() {
   return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}" data-campaign-channel="${channel}" data-campaign-kind="${kind}">
     <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
     <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
-      <section class="campaign-studio-section" open><header><span>${dashboardIcon("template")}</span><div><h2>أساسيات الحملة</h2><p>القناة والنوع محددان مسبقًا ولا يظهر أي اختيار مكرر.</p></div></header><div class="campaign-studio-basics"><label class="field"><span>اسم الحملة</span><input class="input" name="name" data-campaign-ai-title maxlength="160" required value="${escapeHtml(campaignStudioDraftValue("name"))}" placeholder="اكتب اسمًا داخليًا للحملة"><small data-campaign-ai-title-hint>اكتب اسمًا وصفيًا؛ سيظهر اقتراح المساعد بعد مغادرة الحقل.</small></label>${channelFields}<label class="field"><span>الجمهور المستهدف</span><select class="select" name="groupId" data-action="campaign-studio-audience"><option value="" data-count="${audienceTotal}">جميع جهات الاتصال المؤهلة — ${suiteNumber(audienceTotal)}</option>${groupOptions}</select><small><b data-campaign-audience-count>${suiteNumber(audienceTotal)}</b> جهة مؤهلة عبر ${channel === "email" ? "البريد" : "واتساب"}</small></label><div class="field campaign-send-schedule"><span>جدولة الإرسال</span><div><label><input type="radio" name="sendTiming" value="now" ${campaignStudioDraftValue("sendTiming", "now") === "now" ? "checked" : ""}> إرسال فوري</label><label><input type="radio" name="sendTiming" value="later" ${campaignStudioDraftValue("sendTiming") === "later" ? "checked" : ""}> جدولة لاحقًا</label></div><div class="campaign-schedule-fields" ${campaignStudioDraftValue("sendTiming", "now") === "later" ? "" : "hidden"}><input class="input" type="date" name="startDate" value="${startDate}" min="${localStart.slice(0, 10)}"><input class="input" type="time" name="startTime" value="${startTime}"></div></div></div></section>
-      ${campaignAIEditorMarkup(channel, kind)}
+      <section class="campaign-studio-section" open><header><span>${dashboardIcon("template")}</span><div><h2>أساسيات الحملة</h2><p>القناة والنوع محددان مسبقًا ولا يظهر أي اختيار مكرر.</p></div></header><div class="campaign-studio-basics"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required value="${escapeHtml(campaignStudioDraftValue("name"))}" placeholder="اكتب اسمًا داخليًا للحملة"><small>اسم داخلي واضح يساعدك على تمييز الحملة في القائمة والتقارير.</small></label>${channelFields}<label class="field"><span>الجمهور المستهدف</span><select class="select" name="groupId" data-action="campaign-studio-audience"><option value="" data-count="${audienceTotal}">جميع جهات الاتصال المؤهلة — ${suiteNumber(audienceTotal)}</option>${groupOptions}</select><small><b data-campaign-audience-count>${suiteNumber(audienceTotal)}</b> جهة مؤهلة عبر ${channel === "email" ? "البريد" : "واتساب"}</small></label><div class="field campaign-send-schedule"><span>جدولة الإرسال</span><div><label><input type="radio" name="sendTiming" value="now" ${campaignStudioDraftValue("sendTiming", "now") === "now" ? "checked" : ""}> إرسال فوري</label><label><input type="radio" name="sendTiming" value="later" ${campaignStudioDraftValue("sendTiming") === "later" ? "checked" : ""}> جدولة لاحقًا</label></div><div class="campaign-schedule-fields" ${campaignStudioDraftValue("sendTiming", "now") === "later" ? "" : "hidden"}><input class="input" type="date" name="startDate" value="${startDate}" min="${localStart.slice(0, 10)}"><input class="input" type="time" name="startTime" value="${startTime}"></div></div></div></section>
       ${templatesSection}
       <section class="campaign-studio-section campaign-main-message"><header><span>${dashboardIcon("edit")}</span><div><h2>${channel === "whatsapp" ? "النص الرئيسي" : "محتوى البريد"}</h2><p>${channel === "whatsapp" ? "يظهر أعلى بطاقات الحملة ويلتزم بحدود قالب Meta." : "عنوان رئيسي ونص تمهيدي يتحدثان مباشرة في المعاينة."}</p></div></header><label class="field"><textarea class="textarea" name="body" data-campaign-preview-field="body" rows="5" maxlength="${mainBodyLimit}" required placeholder="اكتب محتوى الحملة هنا">${escapeHtml(campaignStudioDraftValue("body"))}</textarea><small><b data-count-for="body">${String(campaignStudioDraftValue("body")).length}</b>/${mainBodyLimit}</small></label>${channel === "email" ? `<label class="field"><span>Footer Text</span><input class="input" name="footer" data-campaign-preview-field="footer" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("footer"))}" placeholder="نص تذييل البريد"></label>` : ""}</section>
       <section class="campaign-studio-section campaign-card-builder"><header><span>${dashboardIcon(kind === "product" ? "storeBag" : "payments")}</span><div><h2>${kind === "product" ? (channel === "email" ? "منتجات من المتجر" : "بطاقات المنتجات") : "بطاقات مخصصة"}</h2><p>${kind === "product" ? "المنتجات الفعلية المختارة من كتالوج المتجر، ويمكن تخصيص النص والزر." : "ابدأ ببطاقتين فارغتين وأضف صورة وعنوانًا ونصًا وزرًا لكل بطاقة."}</p></div><b class="campaign-card-counter"><span data-campaign-card-count>${cards.length}</span> / 10</b></header><div class="campaign-studio-card-list" data-campaign-card-list>${cards.map((card,index) => campaignStudioCardMarkup(card,index,kind)).join("")}</div><button type="button" class="campaign-add-card" data-action="campaign-studio-card-add" data-kind="${kind}" ${cards.length >= 10 ? "disabled" : ""}>${dashboardIcon("add")} <span>${kind === "product" ? "إضافة منتج" : "إضافة بطاقة"}</span><small>الحد الأقصى 10 بطاقات</small></button></section>
@@ -9196,60 +9168,6 @@ async function handleAction(target) {
     }
     return;
   }
-  if (action === "campaign-ai-tone") {
-    state.campaignAI = { ...state.campaignAI, tone: target.dataset.tone || "professional" };
-    target.closest("[data-campaign-ai]")?.querySelectorAll('[data-action="campaign-ai-tone"]').forEach((button) => button.classList.toggle("active", button === target));
-    return;
-  }
-  if (action === "campaign-ai-generate") {
-    const form = target.closest("form[data-campaign-studio]");
-    const panel = target.closest("[data-campaign-ai]");
-    const title = String(form?.elements.name?.value || "").trim();
-    if (!form || !panel || title.length < 3) return toast("اكتب اسمًا وصفيًا للحملة أولًا.", "warning");
-    if (state.campaignAI.status === "loading") return;
-    const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
-    const cards = campaignStudioFormCards(form);
-    const mode = target.dataset.mode === "regenerate" || state.campaignAI.result ? "regenerate" : "generate";
-    const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    state.campaignAI = { ...state.campaignAI, status: "loading", mode, result: null, error: "" };
-    refreshCampaignAI();
-    try {
-      const payload = await fetchJson("/api/ai/campaign-copy/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
-        body: JSON.stringify({
-          title, channel, campaignType: panel.dataset.kind === "product" ? "product" : "custom", mode,
-          tone: state.campaignAI.tone || "professional", language: "auto",
-          existingContent: { subject: form.elements.subject?.value || "", preheader: form.elements.previewText?.value || "", body: form.elements.body?.value || "" },
-          productIds: cards.map((card) => card.productId).filter(Boolean)
-        }),
-        timeoutMs: 90000,
-        timeoutMessage: "استغرق إعداد المسودة وقتًا أطول من المتوقع. حاول مرة أخرى."
-      });
-      state.campaignAI = { ...state.campaignAI, status: "success", result: payload, error: "" };
-      syncAIQuota(payload);
-    } catch (error) {
-      syncAIQuota(error.payload);
-      state.campaignAI = { ...state.campaignAI, status: "error", error: error.message || "تعذر إنشاء نص الحملة." };
-    }
-    refreshCampaignAI();
-    return;
-  }
-  if (action === "campaign-ai-apply") {
-    const form = target.closest("form[data-campaign-studio]");
-    const result = state.campaignAI?.result;
-    if (!form || !result?.body) return toast("لا توجد مسودة جاهزة.", "warning");
-    if (form.elements.subject && result.subject) form.elements.subject.value = result.subject;
-    if (form.elements.previewText && result.preheader) form.elements.previewText.value = result.preheader;
-    form.elements.body.value = result.body;
-    const firstCta = form.querySelector('[name="cardButtonText"]');
-    if (firstCta && result.ctaText) firstCta.value = result.ctaText.slice(0, 25);
-    [form.elements.subject, form.elements.previewText, form.elements.body, firstCta].filter(Boolean).forEach((field) => field.dispatchEvent(new Event("input", { bubbles: true })));
-    captureCampaignStudioDraft(form);
-    refreshCampaignStudioPreview(form);
-    toast("تم نقل المسودة إلى حقول الحملة. راجعها قبل الحفظ أو الإرسال التجريبي.");
-    return;
-  }
   if (action === "campaign-reload") { state.campaignsOverview=null; syncRouteData(true); return render(); }
   if (action === "contacts-reload") { state.contactsOverview=null; state.contactStatistics=null; syncRouteData(true); return render(); }
   if (action === "contact-channel-filter") { state.contactChannelFilter=target.dataset.channel||"all"; render(); return; }
@@ -9282,7 +9200,6 @@ async function handleAction(target) {
     state.campaignBuilderProducts = [];
     state.campaignBuilderCards = [];
     state.campaignBuilderDraft = null;
-    state.campaignAI = { status: "idle", mode: "generate", tone: "professional", result: null, error: "" };
     return navigate("/dashboard/campaigns/new");
   }
   if (action === "campaign-builder-exit") {
@@ -9294,7 +9211,6 @@ async function handleAction(target) {
     state.campaignBuilderCards = [];
     state.campaignBuilderDraft = null;
     state.campaignBuilderKind = "custom";
-    state.campaignAI = { status: "idle", mode: "generate", tone: "professional", result: null, error: "" };
     closePortal();
     return navigate("/dashboard/campaigns");
   }
@@ -12315,7 +12231,6 @@ async function handleSubmit(form, event) {
     state.campaignBuilderProduct = products[0];
     state.campaignBuilderCards = products.map(campaignStudioCardFromProduct);
     state.campaignBuilderDraft = null;
-    state.campaignAI = { status: "idle", mode: "generate", tone: "professional", result: null, error: "" };
     closePortal();
     return navigate("/dashboard/campaigns/new");
   }
@@ -12419,7 +12334,6 @@ async function handleSubmit(form, event) {
       state.campaignBuilderCards = [];
       state.campaignBuilderDraft = null;
       state.campaignBuilderKind = "custom";
-      state.campaignAI = { status: "idle", mode: "generate", tone: "professional", result: null, error: "" };
       localStorage.removeItem(`renvix.campaign-studio.${data.channel}.${completedKind}`);
       if (state.route === "/dashboard/campaigns/new") await navigate("/dashboard/campaigns");
       else await syncRouteData(true);
@@ -14706,15 +14620,6 @@ document.addEventListener("input", (event) => {
     state.orderLinkDraft.additionalNotes[Number(target.dataset.orderNote)] = target.value;
     refreshOrderLinkPreview();
   }
-});
-
-document.addEventListener("focusout", (event) => {
-  if (!event.target?.matches?.("[data-campaign-ai-title]")) return;
-  const hint = event.target.closest(".field")?.querySelector("[data-campaign-ai-title-hint]");
-  if (!hint) return;
-  hint.textContent = String(event.target.value || "").trim().length >= 3
-    ? "الاسم جاهز. اضغط «إنشاء مسودة من الاسم» لاستخدام مساعد الصياغة."
-    : "اكتب اسمًا وصفيًا من 3 أحرف على الأقل.";
 });
 
 document.addEventListener("focusin", (event) => {
