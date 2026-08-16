@@ -29,7 +29,7 @@ describe("production media provider contracts", () => {
     const createInteraction = vi.fn()
       .mockResolvedValueOnce({ output_text: "not-json", usage: { total_tokens: 12 }, id: "first" })
       .mockResolvedValueOnce({
-        output_text: JSON.stringify({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 }),
+        output_text: JSON.stringify({ analysis: "لوحة تحكم" }),
         usage: {
           total_input_tokens: 260,
           total_output_tokens: 40,
@@ -44,14 +44,14 @@ describe("production media provider contracts", () => {
     });
     const response = await provider.analyzeImage({ bytes: png(), mimeType: "image/png" });
     expect(createInteraction).toHaveBeenCalledTimes(2);
-    expect(response.result).toMatchObject({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 });
+    expect(response.result).toMatchObject({ type: "other", summary: "لوحة تحكم", confidence: 0.8 });
     expect(response.usage).toMatchObject({ inputTokens: 260, outputTokens: 40, totalTokens: 300, imageInputTokens: 256 });
     const request = createInteraction.mock.calls[0][0];
     expect(request.response_format).toMatchObject({ type: "text", mime_type: "application/json" });
     expect(request.response_format.schema.additionalProperties).toBe(false);
     expect(JSON.stringify(request.response_format.schema)).not.toMatch(/"(?:default|minLength|maxLength)"/);
     expect(JSON.stringify(request.response_format.schema)).not.toContain('"anyOf"');
-    expect(request.response_format.schema.properties.tables.items.properties).toHaveProperty("markdown");
+    expect(Object.keys(request.response_format.schema.properties)).toEqual(["analysis"]);
     expect(request.input[1]).toMatchObject({ type: "image", mime_type: "image/png", resolution: "medium" });
     expect(request.input[1].data).toBeTypeOf("string");
     expect(request.generation_config).toEqual({ max_output_tokens: 2_000, thinking_level: "low" });
