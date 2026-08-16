@@ -11588,6 +11588,9 @@ async function ensureAIConversationForAttachments(prompt, signal) {
 function friendlyAIAttachmentError(error, item = {}) {
   const message = String(error?.message || "").trim();
   const audio = String(item?.type || "").startsWith("audio/");
+  if (error?.code === "VISION_PROCESSING_FAILED") {
+    return "تعذر تحليل الصورة الآن، لذلك لم تُرسل الرسالة دون فهم محتواها. الصورة ما زالت محفوظة في المحرر؛ أعد المحاولة بعد قليل.";
+  }
   if (!message || /failed to fetch|networkerror|load failed|network request failed|رابط رفع المرفق غير صالح/i.test(message)) {
     return audio
       ? "تعذر رفع الرسالة الصوتية مؤقتًا. تحقق من اتصالك ثم أعد الإرسال؛ التسجيل ما زال محفوظًا في المحرر."
@@ -11636,7 +11639,7 @@ async function uploadAIAttachments(conversationId, attachments, signal) {
             attachment = { ...attachment, ...processed.attachment };
           } catch (error) {
             attachment.processingStatus = "failed";
-            if (attachment.purpose === "audio") throw error;
+            throw error;
           }
         }
         results.push(attachment);

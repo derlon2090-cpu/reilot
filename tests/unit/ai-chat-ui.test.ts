@@ -102,6 +102,8 @@ describe("Renvix Intelligence chat UI", () => {
     expect(source).toContain('"X-Renvix-Upload-Url": prepared.upload.url');
     expect(source).toContain("friendlyAIAttachmentError");
     expect(source).toContain("الملف ما زال محفوظًا في المحرر");
+    expect(source).toContain("لم تُرسل الرسالة دون فهم محتواها");
+    expect(source).not.toContain('if (attachment.purpose === "audio") throw error');
     expect(source).toContain('/upload`');
     expect(source).toContain("/complete");
     expect(source).toContain("/process");

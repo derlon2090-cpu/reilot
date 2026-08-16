@@ -6,15 +6,17 @@ const safeInteger = (value) => Math.max(0, Math.floor(Number(value || 0)));
 const safeDecimal = (value) => Math.max(0, Number(value || 0));
 
 export function normalizeGeminiUsage(metadata = {}) {
-  const inputTokens = safeInteger(metadata.promptTokenCount);
-  const outputTokens = safeInteger(metadata.candidatesTokenCount);
-  const thoughtTokens = safeInteger(metadata.thoughtsTokenCount);
-  const cachedTokens = safeInteger(metadata.cachedContentTokenCount);
-  const totalTokens = safeInteger(metadata.totalTokenCount) || inputTokens + outputTokens + thoughtTokens;
-  const promptDetails = Array.isArray(metadata.promptTokensDetails) ? metadata.promptTokensDetails : [];
+  const inputTokens = safeInteger(metadata.promptTokenCount ?? metadata.total_input_tokens);
+  const outputTokens = safeInteger(metadata.candidatesTokenCount ?? metadata.responseTokenCount ?? metadata.total_output_tokens);
+  const thoughtTokens = safeInteger(metadata.thoughtsTokenCount ?? metadata.total_thought_tokens);
+  const cachedTokens = safeInteger(metadata.cachedContentTokenCount ?? metadata.total_cached_tokens);
+  const totalTokens = safeInteger(metadata.totalTokenCount ?? metadata.total_tokens) || inputTokens + outputTokens + thoughtTokens;
+  const promptDetails = Array.isArray(metadata.promptTokensDetails)
+    ? metadata.promptTokensDetails
+    : Array.isArray(metadata.input_tokens_by_modality) ? metadata.input_tokens_by_modality : [];
   const modalityTokens = (name) => promptDetails
     .filter((item) => String(item?.modality || "").toLowerCase() === name)
-    .reduce((sum, item) => sum + safeInteger(item.tokenCount), 0);
+    .reduce((sum, item) => sum + safeInteger(item.tokenCount ?? item.tokens), 0);
   return Object.freeze({
     inputTokens,
     outputTokens,

@@ -26,24 +26,33 @@ function png(width = 800, height = 600) {
 
 describe("production media provider contracts", () => {
   it("uses strict Gemini JSON and retries only one invalid schema response", async () => {
-    const generateContent = vi.fn()
-      .mockResolvedValueOnce({ text: "not-json", usageMetadata: { totalTokenCount: 12 }, responseId: "first" })
+    const createInteraction = vi.fn()
+      .mockResolvedValueOnce({ output_text: "not-json", usage: { total_tokens: 12 }, id: "first" })
       .mockResolvedValueOnce({
-        text: JSON.stringify({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 }),
-        usageMetadata: { promptTokenCount: 260, candidatesTokenCount: 40, totalTokenCount: 300 },
-        responseId: "gemini-request-2", modelVersion: "gemini-3.6-flash"
+        output_text: JSON.stringify({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 }),
+        usage: {
+          total_input_tokens: 260,
+          total_output_tokens: 40,
+          total_tokens: 300,
+          input_tokens_by_modality: [{ modality: "image", tokens: 256 }]
+        },
+        id: "gemini-request-2", model: "gemini-3.6-flash"
       });
-    const provider = new GeminiVisionProvider({ model: "gemini-3.6-flash", client: { models: { generateContent } } });
+    const provider = new GeminiVisionProvider({
+      model: "gemini-3.6-flash",
+      client: { interactions: { create: createInteraction } }
+    });
     const response = await provider.analyzeImage({ bytes: png(), mimeType: "image/png" });
-    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(createInteraction).toHaveBeenCalledTimes(2);
     expect(response.result).toMatchObject({ type: "screenshot", summary: "لوحة تحكم", confidence: 0.95 });
-    expect(response.usage).toMatchObject({ inputTokens: 260, outputTokens: 40, totalTokens: 300 });
-    expect(generateContent.mock.calls[0][0].config.responseMimeType).toBe("application/json");
-    expect(generateContent.mock.calls[0][0].config.responseJsonSchema.additionalProperties).toBe(false);
-    expect(JSON.stringify(generateContent.mock.calls[0][0].config.responseJsonSchema)).not.toMatch(/"(?:default|minLength|maxLength)"/);
-    expect(generateContent.mock.calls[0][0].config.thinkingConfig).toEqual({ thinkingLevel: "LOW" });
-    expect(generateContent.mock.calls[0][0].config).not.toHaveProperty("temperature");
-    expect(generateContent.mock.calls[0][0].config.thinkingConfig).not.toHaveProperty("thinkingBudget");
+    expect(response.usage).toMatchObject({ inputTokens: 260, outputTokens: 40, totalTokens: 300, imageInputTokens: 256 });
+    const request = createInteraction.mock.calls[0][0];
+    expect(request.response_format).toMatchObject({ type: "text", mime_type: "application/json" });
+    expect(request.response_format.schema.additionalProperties).toBe(false);
+    expect(JSON.stringify(request.response_format.schema)).not.toMatch(/"(?:default|minLength|maxLength)"/);
+    expect(request.input[1]).toMatchObject({ type: "image", mime_type: "image/png", resolution: "medium" });
+    expect(request.input[1].data).toBeTypeOf("string");
+    expect(request.generation_config).toEqual({ max_output_tokens: 2_000, thinking_level: "low" });
   });
 
   it("rejects unexpected fields and chooses high resolution only for large dense images", () => {
@@ -137,6 +146,25 @@ describe("provider-native accounting", () => {
       cachedContentTokenCount: 50, totalTokenCount: 400,
       promptTokensDetails: [{ modality: "IMAGE", tokenCount: 256 }]
     })).toMatchObject({ inputTokens: 300, outputTokens: 80, thoughtTokens: 20, cachedTokens: 50, totalTokens: 400, imageInputTokens: 256 });
+  });
+
+  it("normalizes Interactions API usage and its image modality breakdown", () => {
+    expect(normalizeGeminiUsage({
+      total_input_tokens: 310,
+      total_output_tokens: 90,
+      total_thought_tokens: 25,
+      total_cached_tokens: 40,
+      total_tokens: 425,
+      input_tokens_by_modality: [{ modality: "image", tokens: 280 }, { modality: "text", tokens: 30 }]
+    })).toEqual({
+      inputTokens: 310,
+      outputTokens: 90,
+      thoughtTokens: 25,
+      cachedTokens: 40,
+      totalTokens: 425,
+      imageInputTokens: 280,
+      textInputTokens: 30
+    });
   });
 
   it("calculates Deepgram by actual seconds times channels and keyterm add-on", () => {

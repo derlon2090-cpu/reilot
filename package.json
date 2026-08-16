@@ -18,6 +18,7 @@
     "ai:smoke": "node scripts/smoke-deepseek.mjs",
     "ai:unified-balance-live": "node --experimental-default-type=module scripts/verify-unified-ai-balance-live.mjs",
     "ai:r2-smoke": "node scripts/smoke-r2.mjs",
+    "ai:vision-smoke": "node --experimental-default-type=module scripts/smoke-gemini-vision.mjs",
     "ai:live-system": "node scripts/verify-live-media-system.mjs",
     "ai:media-eval": "node scripts/evaluate-media-providers.mjs",
     "lint": "eslint .",
