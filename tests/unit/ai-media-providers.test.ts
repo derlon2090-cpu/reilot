@@ -50,6 +50,8 @@ describe("production media provider contracts", () => {
     expect(request.response_format).toMatchObject({ type: "text", mime_type: "application/json" });
     expect(request.response_format.schema.additionalProperties).toBe(false);
     expect(JSON.stringify(request.response_format.schema)).not.toMatch(/"(?:default|minLength|maxLength)"/);
+    expect(JSON.stringify(request.response_format.schema)).not.toContain('"anyOf"');
+    expect(request.response_format.schema.properties.tables.items.properties).toHaveProperty("markdown");
     expect(request.input[1]).toMatchObject({ type: "image", mime_type: "image/png", resolution: "medium" });
     expect(request.input[1].data).toBeTypeOf("string");
     expect(request.generation_config).toEqual({ max_output_tokens: 2_000, thinking_level: "low" });
