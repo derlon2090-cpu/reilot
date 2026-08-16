@@ -397,6 +397,7 @@ export async function reserveAITokens(session, input = {}) {
 
 export async function settleAITokenReservation(session, reservationId, input = {}) {
   return transaction(async (client) => {
+    const taskType = String(input.taskType || "chat").slice(0, 80);
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [String(session.tenantId)]);
     const reservationResult = await client.query(
       `SELECT r.id,r.cycle_id AS "cycleId",r.requested_tokens AS "requestedTokens",r.status,r.provider_request_id AS "providerRequestId",
@@ -454,19 +455,19 @@ export async function settleAITokenReservation(session, reservationId, input = {
     await client.query(
       `INSERT INTO ai_token_usage_ledger
         (tenant_id,user_id,cycle_id,reservation_id,provider_request_id,model,routing_mode,input_tokens,output_tokens,
-         cache_hit_tokens,cache_miss_tokens,actual_tokens,estimated_cost_micros)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+         cache_hit_tokens,cache_miss_tokens,actual_tokens,estimated_cost_micros,task_type,ai_run_id)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [session.tenantId, session.userId, reservation.cycleId, reservationId, providerRequestId,
         String(input.model || "unknown"), String(input.routingMode || "flash"), usage.inputTokens, usage.outputTokens, usage.cacheHitTokens,
-        usage.cacheMissTokens, usage.actualTokens, costMicros]
+        usage.cacheMissTokens, usage.actualTokens, costMicros, taskType, input.aiRunId || null]
     );
     await client.query(
       `INSERT INTO ai_provider_usage_ledger
         (tenant_id,user_id,subscription_id,entitlement_cycle_id,reservation_id,provider,model,modality,
          native_usage_type,native_usage_amount,input_tokens,output_tokens,cached_tokens,total_tokens,
          actual_cost_usd,quota_conversion_version,quota_units_charged,provider_request_id,idempotency_key,
-         pricing_snapshot,provider_usage_raw,status)
-       VALUES($1,$2,$3,$4,$5,'deepseek',$6,'text','token',$7::numeric,$8,$9,$10,$7::bigint,$11,$12,$7::bigint,$13,$14,$15::jsonb,$16::jsonb,'confirmed')
+         pricing_snapshot,provider_usage_raw,status,ai_run_id,task_type,processing_latency_ms)
+       VALUES($1,$2,$3,$4,$5,'deepseek',$6,'text','token',$7::numeric,$8,$9,$10,$7::bigint,$11,$12,$7::bigint,$13,$14,$15::jsonb,$16::jsonb,'confirmed',$17,$18,$19)
        ON CONFLICT(tenant_id,provider,idempotency_key) DO NOTHING`,
       [session.tenantId, session.userId, reservation.subscriptionId, reservation.cycleId, reservationId,
         String(input.model || "unknown"), usage.actualTokens, usage.inputTokens, usage.outputTokens,
@@ -476,7 +477,8 @@ export async function settleAITokenReservation(session, reservationId, input = {
           costSource: "versioned_server_environment" }),
         JSON.stringify({ inputTokens: usage.inputTokens, outputTokens: usage.outputTokens,
           cacheHitTokens: usage.cacheHitTokens, cacheMissTokens: usage.cacheMissTokens,
-          totalTokens: usage.actualTokens })]
+          totalTokens: usage.actualTokens }), input.aiRunId || null, taskType,
+        Math.max(0, safeInteger(input.processingLatencyMs)) || null]
     );
     await client.query(
       `INSERT INTO ai_cost_usage_daily
@@ -490,6 +492,15 @@ export async function settleAITokenReservation(session, reservationId, input = {
          estimated_cost_micros=ai_cost_usage_daily.estimated_cost_micros+EXCLUDED.estimated_cost_micros`,
       [session.tenantId, String(input.model || "unknown"), usage.actualTokens, usage.cacheHitTokens, usage.cacheMissTokens, costMicros]
     );
+    if (input.aiRunId) {
+      const runStatus = input.completeRun === false ? "processing" : "completed";
+      await client.query(
+        `UPDATE ai_runs SET total_quota_units=total_quota_units+$2,status=$4,
+           completed_at=CASE WHEN $4='completed' THEN now() ELSE completed_at END
+          WHERE id=$1 AND tenant_id=$3`,
+        [input.aiRunId, usage.actualTokens, session.tenantId, runStatus]
+      );
+    }
     return { idempotent: false, ...usage, costMicros };
   });
 }

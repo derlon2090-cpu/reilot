@@ -10,7 +10,11 @@ const requiredColumns = [
   "ai_attachments.derived_object_keys",
   "ai_attachments.processing_generation",
   "ai_provider_pricing.approval_status",
-  "ai_provider_usage_ledger.idempotency_key"
+  "ai_provider_usage_ledger.idempotency_key",
+  "ai_provider_usage_ledger.task_type",
+  "ai_token_usage_ledger.ai_run_id",
+  "ai_token_usage_ledger.task_type",
+  "ai_runs.task_type"
 ];
 
 describe("platform database schema readiness", () => {
@@ -21,6 +25,7 @@ describe("platform database schema readiness", () => {
       migration_applied: true,
       attachments_table: true,
       provider_ledger_table: true,
+      email_template_generations_table: true,
       deletion_tombstones_table: true,
       storage_trigger_ready: true,
       available_columns: requiredColumns
@@ -39,6 +44,7 @@ describe("platform database schema readiness", () => {
       migration_applied: false,
       attachments_table: true,
       provider_ledger_table: false,
+      email_template_generations_table: false,
       deletion_tombstones_table: false,
       storage_trigger_ready: false,
       available_columns: requiredColumns.slice(0, -1)
@@ -47,6 +53,6 @@ describe("platform database schema readiness", () => {
     expect(result.ok).toBe(false);
     expect(result.migrationApplied).toBe(false);
     expect(result.providerLedgerTable).toBe(false);
-    expect(result.missingColumns).toEqual(["ai_provider_usage_ledger.idempotency_key"]);
+    expect(result.missingColumns).toEqual(["ai_runs.task_type"]);
   });
 });

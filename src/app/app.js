@@ -773,6 +773,7 @@ function clearCachedDashboardProfile() {
   state.aiChatStorage = null;
   state.aiChatStorageStatus = null;
   state.aiConversations = null;
+  state.emailTemplateAI = { status: "idle", mode: "generate", prompt: "", result: null, error: "", previewOpen: false };
   clearAIRemoteRetries();
   clearCachedAIViewState();
   try {
@@ -948,6 +949,7 @@ state.aiScrollFrame = 0;
 state.aiProgrammaticScroll = false;
 state.aiScrollForce = false;
 state.aiLastScrollTop = 0;
+state.emailTemplateAI = { status: "idle", mode: "generate", prompt: "", result: null, error: "", previewOpen: false };
 state.aiStreamResizeObserver = null;
 state.aiStreamObservedNode = null;
 state.aiConversationActionBusy = "";
@@ -1616,6 +1618,7 @@ function syncRouteData(force = false) {
   if (state.route === "/dashboard/security" && (force || state.trustedBrowsers === null)) queue("trustedBrowsers", "/api/settings/security/trusted-devices", "trustedBrowsers");
   if ((state.route === "/dashboard/security" || state.route.startsWith("/dashboard/channels")) && (force || state.whatsappHealth === null)) queue("whatsappHealth", "/api/whatsapp/health", "whatsappHealth");
   if (state.route === "/dashboard/templates" && (force || state.notificationTemplate === null)) queue("renewalTemplate", "/api/templates/renewal", "notificationTemplate");
+  if (state.route === "/dashboard/templates" && (force || state.aiUsage === null)) queue("emailTemplateAIUsage", "/backend/ai/usage", "aiUsage");
   if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
   if (state.route === "/dashboard/templates" && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
@@ -6570,13 +6573,44 @@ function emailTemplatePreview(template) {
   const paragraphs = content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean).map((item) => `<p>${escapeHtml(item).replaceAll("\n", "<br>")}</p>`).join("");
   const customInspection = contentMode === "html" ? inspectEmailHtmlClient(template.emailHtmlContent) : null;
   const messageContent = customInspection?.ok
-    ? `<div class="email-custom-html-preview">${customInspection.html}</div>`
+    ? `<iframe class="email-custom-html-preview-frame" sandbox="" referrerpolicy="no-referrer" title="معاينة كود البريد" srcdoc="${escapeHtml(customInspection.html)}"></iframe>`
     : `${paragraphs}<a href="#" tabindex="-1">${escapeHtml(buttonLabel)}</a><div class="email-trust-note">${dashboardIcon("security")} بياناتك محمية وتُستخدم لاستمرارية الخدمة والدعم الكامل.</div><p class="email-thanks">${escapeHtml(footerText)} ♥</p>`;
   return `<div class="email-envelope design-${design} ${customInspection?.ok ? "uses-custom-html" : ""}" style="--email-theme:${theme}">
     <div class="email-preview-brand"><span class="email-store-icon ${storeLogoUrl ? "has-store-logo" : ""}">${storeLogoImage(storeLogoUrl, "email-store-logo", storeName, storeLogoRadius)}</span><strong>${escapeHtml(storeName)}</strong><small>حلول رقمية متكاملة</small></div>
     <div class="email-preview-body"><h3>${escapeHtml(subject)}</h3>${messageContent}</div>
     <div class="email-preview-footer">© ${new Date().getFullYear()} ${escapeHtml(storeName)}. جميع الحقوق محفوظة.</div>
   </div>`;
+}
+
+function emailTemplateAIBalanceMarkup(usage = state.aiUsage) {
+  if (!usage) return `<span class="renewal-email-ai-balance is-loading">الرصيد: جارٍ التحميل...</span>`;
+  return `<span class="renewal-email-ai-balance">الرصيد المتبقي: <b>${formatAITokens(usage.remainingTokens || 0)}</b> توكن</span>`;
+}
+
+function emailTemplateAIResultMarkup() {
+  const ai = state.emailTemplateAI || {};
+  if (ai.status === "loading") return `<div class="renewal-email-ai-progress" role="status"><i></i><span><b>جارٍ إنشاء القالب...</b><small>يتم إنشاء الكود وفحصه أمنيًا قبل عرضه.</small></span></div>`;
+  if (ai.status === "error") return `<div class="renewal-email-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر إنشاء القالب</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span></div>`;
+  if (ai.status !== "success" || !ai.result?.html) return `<div class="renewal-email-ai-empty">سيظهر الكود المقترح هنا قبل تطبيقه على القالب.</div>`;
+  const quota = ai.result.quota || {};
+  return `<div class="renewal-email-ai-success"><div class="renewal-email-ai-success-head">${dashboardIcon("success")}<span><b>القالب جاهز للمراجعة</b><small>لم يتم استبدال محتواك الحالي بعد.</small></span></div>
+    <div class="renewal-email-ai-result-actions"><button type="button" class="btn btn-primary" data-action="email-ai-apply">تطبيق الكود</button><button type="button" class="btn btn-secondary" data-action="email-ai-preview-result">${dashboardIcon("eye")} معاينة</button><button type="button" class="btn btn-secondary" data-action="email-ai-copy">${dashboardIcon("copy")} نسخ</button><button type="button" class="btn btn-ghost" data-action="email-ai-regenerate">إعادة التوليد</button></div>
+    <div class="renewal-email-ai-result-preview ${ai.previewOpen ? "is-open" : ""}" data-email-ai-result-preview><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة القالب المقترح" srcdoc="${escapeHtml(ai.result.html)}"></iframe></div>
+    <details class="renewal-email-ai-code"><summary>عرض كود HTML الناتج</summary><textarea readonly dir="ltr" spellcheck="false">${escapeHtml(ai.result.html)}</textarea></details>
+    <small class="renewal-email-ai-charge">تم خصم ${formatAITokens(quota.charged || 0)} توكن فعليًا · المتبقي ${formatAITokens(quota.remaining || 0)}</small></div>`;
+}
+
+function refreshEmailTemplateAIResult(card = document.querySelector("[data-email-ai-card]")) {
+  if (!card) return;
+  const result = card.querySelector("[data-email-ai-result]");
+  if (result) result.innerHTML = emailTemplateAIResultMarkup();
+  const button = card.querySelector('[data-action="email-ai-generate"]');
+  if (button) {
+    button.disabled = state.emailTemplateAI.status === "loading";
+    button.innerHTML = state.emailTemplateAI.status === "loading" ? `<i class="email-ai-spark"></i> جارٍ إنشاء القالب...` : `✨ إنشاء بالذكاء`;
+  }
+  const balance = card.querySelector("[data-email-ai-balance]");
+  if (balance) balance.innerHTML = emailTemplateAIBalanceMarkup();
 }
 
 function readEmailTemplateForm(form = document.querySelector("form[data-submit='renewal-template']")) {
@@ -6813,47 +6847,6 @@ function templatesCatalogPage() {
     ${loading ? "" : metaNotice}`);
 }
 
-function templatesPage() {
-  const editorKey = state.query.get("edit") || "";
-  if (["renewal_whatsapp", "renewal_email"].includes(editorKey)) {
-    return renewalTemplateEditorPage(editorKey.endsWith("email") ? "email" : "whatsapp");
-  }
-  const loading = state.notificationTemplate === null;
-  const items = templateCatalogItems();
-  const channel = state.templateCatalogChannel || "all";
-  const search = String(state.templateCatalogSearch || "").trim().toLocaleLowerCase("ar");
-  const filtered = items.filter((item) => (channel === "all" || item.channel === channel) && (!search || `${item.name} ${item.description}`.toLocaleLowerCase("ar").includes(search)));
-  const total = items.length;
-  const active = items.filter((item) => item.isActive).length;
-  const inactive = total - active;
-  const channelTabs = [["all", "الكل"], ["whatsapp", "واتساب"], ["email", "بريد إلكتروني"]];
-  const rows = filtered.map((item) => {
-    const editTarget = item.kind === "renewal" ? `/dashboard/templates?edit=${encodeURIComponent(item.key)}` : `/dashboard/order-links?templateId=${encodeURIComponent(item.id)}`;
-    const updated = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("ar-SA") : "لم يُحدّث بعد";
-    return `<article class="template-catalog-row">
-      ${templateCatalogIcon(item)}
-      <div class="template-catalog-copy"><div class="template-row-heading"><h2>${escapeHtml(item.name)}</h2><span class="channel-pill ${item.channel}">${templateChannelLabel(item.channel)}</span></div><p>${escapeHtml(item.description)}</p><div class="template-row-meta"><span>${status(item.isActive ? "active" : "paused")}</span><span>آخر تحديث: ${escapeHtml(updated)}</span>${item.kind === "order" ? `<span>${item.openedCount} فتح فعلي</span>` : `<span>الإصدار ${Number(item.templateVersion || 1)}</span>`}</div></div>
-      <div class="template-row-actions"><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("eye")} معاينة</button><button class="btn btn-secondary" data-link="${editTarget}">${dashboardIcon("settings")} تحرير</button></div>
-    </article>`;
-  }).join("");
-  const body = loading
-    ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>`
-    : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${items.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب محفوظة حتى الآن"}</strong><p>${items.length ? "غيّر البحث أو القناة لعرض القوالب." : "يمكنك إعداد قالب التجديد لواتساب أو البريد، أو إنشاء قالب معلومات طلب من القسم المخصص."}</p>${items.length ? "" : `<div class="inline-actions"><button class="btn btn-primary" data-link="/dashboard/templates?edit=renewal_whatsapp">إعداد قالب واتساب</button><button class="btn btn-secondary" data-link="/dashboard/templates?edit=renewal_email">إعداد قالب البريد</button><button class="btn btn-secondary" data-link="/dashboard/order-links">قالب معلومات الطلب</button></div>`}</div>`;
-  return dashboardShell(`<div class="template-breadcrumb"><span>الرئيسية</span><b>/</b><strong>القوالب</strong></div>
-    ${pageTitle("قوالب التجديد")}
-    <p class="page-kicker">إدارة رسائل تذكير العملاء عبر واتساب والبريد الإلكتروني.</p>
-    <section class="template-summary-grid">
-      <article class="card"><span class="template-summary-icon">${dashboardIcon("template")}</span><div><small>إجمالي القوالب</small><strong>${total}</strong></div></article>
-      <article class="card"><span class="template-summary-icon success">${dashboardIcon("security")}</span><div><small>قوالب نشطة</small><strong>${active}</strong></div></article>
-      <article class="card"><span class="template-summary-icon warning">${dashboardIcon("reports")}</span><div><small>مسودات أو متوقفة</small><strong>${inactive}</strong></div></article>
-    </section>
-    <section class="card template-catalog-card">
-      <div class="template-catalog-toolbar"><label class="template-search-wrap">${dashboardIcon("reports")}<input class="input" data-action="template-catalog-search" value="${escapeHtml(state.templateCatalogSearch || "")}" placeholder="ابحث عن قالب..."></label><select class="select template-channel-select" data-action="template-catalog-channel"><option value="all" ${channel === "all" ? "selected" : ""}>كل القنوات</option>${channelTabs.slice(1).map(([value,label]) => `<option value="${value}" ${channel === value ? "selected" : ""}>${label}</option>`).join("")}</select><div class="template-channel-tabs">${channelTabs.map(([value,label]) => `<button class="${channel === value ? "active" : ""}" data-action="template-catalog-channel" data-channel="${value}">${label}</button>`).join("")}</div></div>
-      <div class="template-catalog-list">${body}</div>
-      ${!loading && filtered.length ? `<div class="template-catalog-footer"><span>عرض ${filtered.length} من ${total}</span><span>جميع الأرقام من القوالب المحفوظة في مساحة العمل.</span></div>` : ""}
-    </section>`);
-}
-
 function catalogTemplateEditorPage(templateKey) {
   const template = (Array.isArray(state.catalogTemplates) ? state.catalogTemplates : []).find((item) => item.templateKey === templateKey);
   const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
@@ -6886,7 +6879,6 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
   const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
   const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
   const body = template.body || "";
-  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>`;
   const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
   const variableButtons = (variables) => variables.map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("");
   const preservedReminderSettings = `<input type="hidden" name="daysOffset" value="${Number(rule.daysOffset || 7)}">${template.isActive !== false ? '<input type="hidden" name="isActive" value="on">' : ""}`;
@@ -6907,86 +6899,38 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
       </section>`);
   }
 
-  const variables = ["{{customer_name}}", "{{store_name}}", "{{plan_name}}", "{{expiry_date}}", "{{renewal_url}}", "{{support_url}}"];
+  const variables = ["{{customer_name}}", "{{customer_email}}", "{{service_name}}", "{{plan_name}}", "{{expiry_date}}", "{{renewal_url}}", "{{support_url}}", "{{store_name}}"];
   const contentJson = template.contentJson && typeof template.contentJson === "object" ? template.contentJson : {};
   const emailDesign = template.emailDesign || contentJson.emailDesign || "classic";
   const emailContentMode = template.emailContentMode || contentJson.emailContentMode || "preset";
   const emailHtmlContent = template.emailHtmlContent || contentJson.emailHtmlContent || "";
   const templateDescription = contentJson.templateDescription || `يرسل تلقائيًا قبل ${Number(rule.daysOffset || 7)} أيام من انتهاء الاشتراك النشط.`;
   const templateForPreview = { ...template, emailDesign, emailContentMode, emailHtmlContent };
-  const renewalDesignIds = ["classic", "modern", "editorial", "premium"];
+  const selectedTheme = safeEmailTheme(template.themeColor || "#087F75");
+  const aiMode = state.emailTemplateAI?.mode === "edit" ? "edit" : "generate";
   return dashboardShell(`${pageTitle("قالب رسالة التجديد - البريد الإلكتروني", backButton)}<p class="page-kicker">صمّم رسالة التجديد، اعتمد النمط المناسب، وراجع النتيجة قبل الحفظ أو الإرسال التجريبي.</p>
     <section class="template-editor-v2 template-editor-v2-email renewal-email-page"><form data-submit="renewal-template" class="email-builder-form renewal-email-builder">
       <div class="renewal-email-main">
         <article class="card renewal-email-profile-card">
-          <input type="hidden" name="channel" value="email"><input type="hidden" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}"><input type="hidden" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}"><input type="hidden" name="daysOffset" value="${Number(rule.daysOffset || 7)}">
+          <input type="hidden" name="channel" value="email"><input type="hidden" name="storeName" data-email-field value="${escapeHtml(template.storeName || "Renvix Store")}"><input type="hidden" name="title" data-email-field value="${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}"><input type="hidden" name="daysOffset" value="${Number(rule.daysOffset || 7)}"><input type="hidden" name="emailDesign" value="${escapeHtml(emailDesign)}"><input type="hidden" name="emailContentMode" value="${escapeHtml(emailContentMode)}"><input type="hidden" name="themeColor" value="${selectedTheme}">
           <label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "تذكير التجديد")}" required></label>
           <label class="field renewal-email-description-field"><span>وصف القالب</span><input class="input" name="templateDescription" value="${escapeHtml(templateDescription)}" maxlength="300" required></label>
           <label class="renewal-email-status-control"><span>الحالة</span><span class="renewal-email-status-line"><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}><b>${template.isActive !== false ? "نشط" : "متوقف"}</b></span></label>
         </article>
-        <article class="card template-editor-card-v2 email-editor-v2 renewal-email-content-card"><div class="section-head"><div><h2>محتوى البريد</h2><p>حرّر الرسالة واستخدم المتغيرات المعتمدة، ثم اختر الصورة والتصميم واللون.</p></div>${dashboardIcon("email")}</div>
-          <div class="renewal-email-compose-grid">
-            <aside class="renewal-email-tools">
-              <section class="renewal-email-tool-section renewal-email-variable-section"><div class="renewal-email-tool-title"><strong>المتغيرات المتاحة</strong>${dashboardIcon("info")}</div><div class="renewal-email-variable-grid">${variableButtons(variables)}</div></section>
-              <section class="renewal-email-tool-section renewal-email-image-section"><strong>إضافة صورة للبريد</strong>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}</section>
-              <section class="renewal-email-tool-section renewal-email-design-section">${emailDesignBuilder({ selectedDesign: emailDesign, contentMode: emailContentMode, htmlContent: emailHtmlContent, themeColor: safeEmailTheme(template.themeColor), presetIds: renewalDesignIds, compact: true })}</section>
-            </aside>
-            <section class="renewal-email-message-panel"><div class="editor-toolbar renewal-email-editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص البريد الآمن</span></div><textarea class="textarea template-editor email-content-editor renewal-email-message-input" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body || "")}</textarea><div class="template-meta-grid renewal-email-cta-fields"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel || "جدد اشتراكك الآن")}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText || "شكرًا لثقتك بنا")}" required></label></div></section>
+        <article class="card template-editor-card-v2 email-editor-v2 renewal-email-content-card"><div class="section-head"><div><h2>${dashboardIcon("email")} محتوى البريد</h2><p>حرّر الرسالة واستخدم المتغيرات المعتمدة، ثم راجع المعاينة قبل الحفظ.</p></div></div>
+          <section class="renewal-email-message-panel"><div class="editor-toolbar renewal-email-editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص البريد الآمن</span><button type="button" title="قائمة">☷</button><button type="button" title="محاذاة">≡</button></div><textarea class="textarea template-editor email-content-editor renewal-email-message-input" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body || "")}</textarea><div class="template-meta-grid renewal-email-cta-fields"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel || "جدد اشتراكك الآن")}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText || "شكرًا لثقتك بنا")}" required></label></div></section>
+          <div class="renewal-email-utility-grid">
+            <section class="renewal-email-tool-section renewal-email-ai-card" data-email-ai-card><div class="renewal-email-tool-title"><span><strong>✨ توليد الكود بالذكاء الاصطناعي</strong><small>صف ما تريد، وسيُنشئ Renvix كود HTML متوافقًا مع البريد وجاهزًا للتعديل.</small></span></div><div class="renewal-email-ai-mode" role="group" aria-label="نوع مهمة الذكاء"><button type="button" data-action="email-ai-mode" data-mode="generate" class="${aiMode === "generate" ? "active" : ""}">إنشاء جديد</button><button type="button" data-action="email-ai-mode" data-mode="edit" class="${aiMode === "edit" ? "active" : ""}">تعديل الكود الحالي</button></div><textarea class="textarea" data-email-ai-prompt maxlength="2000" placeholder="مثال: أنشئ رسالة تجديد ودية مع زر واضح للتجديد وتصميم بسيط.">${escapeHtml(state.emailTemplateAI?.prompt || "")}</textarea><div class="renewal-email-ai-controls"><span data-email-ai-balance>${emailTemplateAIBalanceMarkup()}</span><button type="button" class="btn btn-primary" data-action="email-ai-generate">✨ إنشاء بالذكاء</button></div><div data-email-ai-result>${emailTemplateAIResultMarkup()}</div></section>
+            <section class="renewal-email-tool-section renewal-email-variable-section"><div class="renewal-email-tool-title"><span><strong>المتغيرات المتاحة</strong><small>اضغط على أي متغير لإضافته إلى نص الرسالة.</small></span>${dashboardIcon("info")}</div><div class="renewal-email-variable-grid">${variableButtons(variables)}</div></section>
+            <section class="renewal-email-tool-section renewal-email-colors-section"><div class="renewal-email-tool-title"><span><strong>الألوان</strong><small>لون الهوية المستخدم في العنوان والزر.</small></span></div><div class="email-theme-palette renewal-email-theme-palette">${EMAIL_THEME_PALETTE.map((color) => `<button type="button" data-action="template-theme" data-color="${color}" class="email-color ${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" value="${selectedTheme}" data-action="renewal-email-custom-color" aria-label="لون مخصص"><span>${dashboardIcon("edit")}</span></label></div></section>
+            <section class="renewal-email-tool-section renewal-email-image-section"><div class="renewal-email-tool-title"><span><strong>إضافة صورة للبريد</strong><small>استخدم صورة موثوقة من هوية متجرك.</small></span></div>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}</section>
           </div>
+          <details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر كود HTML الآمن <span>${emailContentMode === "html" ? "الكود المعتمد" : "اختياري"}</span></summary><div><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" maxlength="30000" placeholder="سيظهر هنا الكود المطبق من مولّد الذكاء...">${escapeHtml(emailHtmlContent)}</textarea><div class="renewal-email-code-actions"><button type="button" class="btn btn-primary" data-action="adopt-email-html">فحص واعتماد الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "لن يستخدم الكود حتى يتم فحصه واعتماده."}</div></div></details>
         </article>
         <div class="renewal-email-form-actions"><button class="btn btn-primary">حفظ التعديلات ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة ${dashboardIcon("eye")}</button></div>
       </div>
       <aside class="template-preview-v2 email-preview-v2 renewal-email-preview-column"><article class="card renewal-email-preview-card"><div class="section-head"><div><h2>معاينة البريد الإلكتروني</h2><p>تعرض الشكل والمحتوى المعتمدين قبل الإرسال.</p></div>${dashboardIcon("email")}</div><div class="renewal-email-browser"><div class="renewal-email-browser-bar"><span class="renewal-browser-dots"><i></i><i></i><i></i></span><b>‹</b><b>›</b><em></em></div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-email-preview-subject>الموضوع: ${escapeHtml(template.title || "تذكير بتجديد اشتراكك")}</span></div><div data-email-preview>${emailTemplatePreview(templateForPreview)}</div></div><button type="button" class="btn btn-secondary renewal-email-test-button" data-action="test-template">إرسال رسالة اختبار ${dashboardIcon("send")}</button><p class="renewal-email-preview-note">سيتم إرسال رسالة اختبار إلى بريد تختاره لمعاينة الشكل والمحتوى قبل الحفظ النهائي.</p></article></aside>
     </form></section>`);
-}
-
-function renewalTemplateEditorPage(forcedChannel = "") {
-  const payload = state.notificationTemplate || {};
-  const templates = Array.isArray(payload.templates) ? payload.templates : (payload.template ? [payload.template] : []);
-  const rules = Array.isArray(payload.rules) ? payload.rules : (payload.rule ? [payload.rule] : []);
-  const channel = forcedChannel || state.templateChannel || payload.template?.channel || "whatsapp";
-  const defaults = { ...localDefaultEmailTemplate, ...(payload.defaultEmailTemplate || {}) };
-  const storedTemplate = templates.find((item) => item.channel === channel);
-  const template = channel === "email" ? { ...defaults, ...(storedTemplate || {}) } : (storedTemplate || {});
-  const rule = rules.find((item) => item.templateId === template.id || item.channel === channel) || {};
-  const body = template.body || "";
-  const isWhatsappReady = overviewStats().connectedDevices > 0;
-  const channelSelect = `<label class="field"><span>قناة الإرسال</span><select class="select" name="channel" data-action="template-channel"><option value="whatsapp" ${channel === "whatsapp" ? "selected" : ""}>واتساب</option><option value="email" ${channel === "email" ? "selected" : ""}>البريد الإلكتروني</option></select></label>`;
-
-  if (channel === "whatsapp") {
-    const preview = body ? escapeHtml(body).replaceAll("\n", "<br>") : `<div class="template-empty"><strong>لا يوجد محتوى محفوظ بعد</strong><p>اكتب رسالة التجديد ثم احفظ القالب لتظهر المعاينة هنا.</p></div>`;
-    return dashboardShell(`${pageTitle("قالب رسالة التجديد - واتساب", `<button class="btn btn-secondary" data-link="/dashboard/templates">‹ العودة إلى القوالب</button>`)}
-      <p class="page-kicker">أنشئ وخصص رسالة التجديد التي سيتم إرسالها للعملاء قبل انتهاء اشتراكاتهم.</p>
-      <section class="template-workspace"><article class="card template-editor-card"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر محتوى الرسالة باستخدام المتغيرات الذكية.</p></div>${dashboardIcon("template")}</div><form data-submit="renewal-template" class="grid">
-        <div class="template-meta-grid"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name || "")}" placeholder="مثال: تذكير قبل التجديد"></label>${channelSelect}</div>
-        <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>النص</span></div><textarea class="textarea template-editor" name="body" data-action="template-body" placeholder="اكتب رسالة التجديد هنا...">${escapeHtml(body)}</textarea><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}", "{{service_name}}", "{{end_date}}", "{{renewal_link}}"].map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
-        <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
-        <div class="template-actions"><button class="btn btn-primary">حفظ القالب</button><button type="button" class="btn btn-secondary" data-action="test-template" ${!isWhatsappReady ? "disabled title=\"اربط جهازًا أولًا حتى تتمكن من إرسال رسالة تجريبية.\"" : ""}>إرسال رسالة تجريبية</button></div></form></article>
-        <aside class="template-side"><article class="card template-preview-card"><div class="section-head"><h2>معاينة الرسالة</h2>${dashboardIcon("reports")}</div><div class="whatsapp-preview"><span class="preview-day">معاينة القالب</span><div class="message-bubble">${preview}<small>معاينة فقط ✓✓</small></div></div><p class="preview-note">المعاينة تعرض المتغيرات كما هي، ولا تستخدم بيانات عميل أو طلب مختلقة.</p></article><article class="card"><h2>إعدادات الإرسال</h2><p>القناة الحالية: <strong>واتساب</strong></p><p class="muted">لن ترسل المنصة أي رسالة تلقائيًا ما لم يكن القالب مفعلاً والقناة جاهزة.</p></article></aside>
-      </section>`);
-  }
-
-  const colors = ["#062B28", "#0B3F3B", "#0B3F3B", "#22C55E", "#F97316", "#64748B"];
-  const variables = ["{{اسم_العميل}}", "{{اسم_الخدمة}}", "{{تاريخ_الانتهاء}}", "{{الأيام_المتبقية}}", "{{رابط_التجديد}}", "{{رقم_الطلب}}", "{{اسم_المتجر}}"];
-  return dashboardShell(`${pageTitle("قالب البريد الإلكتروني للتجديد", `<button class="btn btn-secondary" data-link="/dashboard/templates">‹ العودة إلى القوالب</button>`)}
-    <p class="page-kicker">خصص رسالة البريد التي ستصل للعميل قبل انتهاء اشتراكه، من داخل صفحة القالب الحالية.</p>
-    <section class="email-template-layout">
-      <article class="card template-editor-card email-template-editor"><div class="section-head"><div><h2>محتوى الرسالة</h2><p>محرر بريد آمن مع متغيرات معتمدة ومعاينة مطابقة للقالب المرسل.</p></div>${dashboardIcon("template")}</div>
-        <form data-submit="renewal-template" class="grid">
-          <div class="email-template-meta"><label class="field"><span>اسم القالب</span><input class="input" name="name" value="${escapeHtml(template.name)}" required></label><label class="field"><span>اسم المتجر</span><input class="input" name="storeName" data-email-field value="${escapeHtml(template.storeName)}" required></label>${channelSelect}</div>
-          ${storeLogoEditor(state.orderLinkProfile?.logoUrl)}
-          <label class="field"><span>عنوان البريد</span><input class="input" name="title" data-email-field value="${escapeHtml(template.title)}" required></label>
-          <div class="email-theme-row"><span>لون القالب</span><input type="hidden" name="themeColor" value="${safeEmailTheme(template.themeColor)}">${colors.map((color) => `<button type="button" class="email-color ${safeEmailTheme(template.themeColor) === color ? "active" : ""}" style="--swatch:${color}" data-action="template-theme" data-color="${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label class="email-custom-color" title="لون مخصص">✎<input type="color" value="${safeEmailTheme(template.themeColor)}" data-action="template-custom-theme"></label></div>
-          <div class="editor-toolbar"><button type="button" title="تراجع">↶</button><button type="button" title="إعادة">↷</button><button type="button"><b>B</b></button><button type="button"><i>I</i></button><button type="button"><u>U</u></button><span>نص آمن</span></div>
-          <textarea class="textarea template-editor email-content-editor" name="body" data-email-field placeholder="اكتب محتوى رسالة التجديد..." required>${escapeHtml(template.body)}</textarea>
-          <div class="variables-row email-variables"><span>المتغيرات المتاحة</span>${variables.map((item) => `<button type="button" class="chip" data-action="insert-template-variable" data-variable="${item}">${item}</button>`).join("")}</div>
-          <div class="template-meta-grid"><label class="field"><span>نص زر التجديد</span><input class="input" name="buttonLabel" data-email-field value="${escapeHtml(template.buttonLabel)}" required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" data-email-field value="${escapeHtml(template.footerText)}" required></label></div>
-          <div class="template-settings"><label class="field"><span>موعد الإرسال</span><select class="select" name="daysOffset"><option value="7" ${Number(rule.daysOffset || 7) === 7 ? "selected" : ""}>قبل انتهاء الاشتراك بـ7 أيام</option><option value="3" ${Number(rule.daysOffset) === 3 ? "selected" : ""}>قبل انتهاء الاشتراك بـ3 أيام</option><option value="1" ${Number(rule.daysOffset) === 1 ? "selected" : ""}>قبل انتهاء الاشتراك بيوم</option></select></label><label class="setting-row setting-toggle"><span>تفعيل القالب</span><input type="checkbox" name="isActive" ${template.isActive !== false ? "checked" : ""}></label></div>
-          <div class="email-template-actions"><button class="btn btn-primary">حفظ القالب ✓</button><button type="button" class="btn btn-secondary" data-action="test-template">إرسال رسالة تجريبية</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة</button><button type="button" class="btn btn-ghost" data-action="restore-email-template">استعادة الافتراضي</button></div>
-        </form>
-      </article>
-      <aside class="template-side email-preview-side"><article class="card template-preview-card"><div class="section-head"><div><h2>معاينة القالب</h2><p>هذه معاينة تقريبية لما سيصل إلى البريد الإلكتروني.</p></div>${dashboardIcon("reports")}</div><div class="email-header-preview"><span>من: <b>Renvix &lt;noreply@notify.renvix.app&gt;</b></span><span>الرد إلى: <b>support@renvix.app</b></span></div><div data-email-preview>${emailTemplatePreview(template)}</div></article><article class="card email-safety-card"><strong>إرسال آمن وموثوق</strong><p>يُثبّت عنوان المرسل والرد من الخادم، ويُمنع HTML والسكربتات والروابط غير الآمنة.</p></article></aside>
-    </section>`);
 }
 
 const orderLinkStyleOptions = [
@@ -9434,6 +9378,109 @@ async function handleAction(target) {
     textarea.focus();
     textarea.setSelectionRange(start + value.length, start + value.length);
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    return;
+  }
+  if (action === "email-ai-mode") {
+    const card = target.closest("[data-email-ai-card]");
+    const mode = target.dataset.mode === "edit" ? "edit" : "generate";
+    state.emailTemplateAI = { ...(state.emailTemplateAI || {}), mode };
+    card?.querySelectorAll("[data-action='email-ai-mode']").forEach((button) => button.classList.toggle("active", button === target));
+    return;
+  }
+  if (action === "email-ai-generate") {
+    const card = target.closest("[data-email-ai-card]");
+    const form = target.closest("form[data-submit='renewal-template']");
+    const prompt = String(card?.querySelector("[data-email-ai-prompt]")?.value || "").trim();
+    const mode = state.emailTemplateAI?.mode === "edit" ? "edit" : "generate";
+    if (prompt.length < 3) return toast("اكتب وصفًا واضحًا للقالب الذي تريده.", "warning");
+    let existingHtml = "";
+    if (mode === "edit") {
+      const inspection = inspectEmailHtmlClient(form?.elements.emailHtmlContent?.value || "");
+      if (!inspection.ok) return toast("وضع التعديل يتطلب كود HTML حاليًا صالحًا ومعتمدًا.", "warning");
+      existingHtml = inspection.html;
+    }
+    const idempotencyKey = globalThis.crypto?.randomUUID?.() || `email_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    state.emailTemplateAI = { status: "loading", mode, prompt, result: null, error: "", previewOpen: false, idempotencyKey };
+    refreshEmailTemplateAIResult(card);
+    try {
+      const payload = await fetchJson("/api/ai/email-template/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          prompt,
+          ...(mode === "edit" ? { existingHtml } : {}),
+          mode,
+          selectedTemplateColor: form?.elements.themeColor?.value || "#087F75",
+          templateContext: { templateType: "renewal", channel: "email", selectedColor: form?.elements.themeColor?.value || "#087F75" }
+        }),
+        timeoutMs: 90000,
+        timeoutMessage: "استغرق إنشاء القالب وقتًا أطول من المتوقع. حاول مرة أخرى."
+      });
+      state.emailTemplateAI = { ...state.emailTemplateAI, status: "success", result: payload, error: "" };
+      if (payload.quota && state.aiUsage) {
+        state.aiUsage = { ...state.aiUsage, remainingTokens: payload.quota.remaining, nextRefillAt: payload.quota.nextRefillAt || state.aiUsage.nextRefillAt };
+        cacheAIViewState({ usage: state.aiUsage });
+      }
+      refreshEmailTemplateAIResult(card);
+    } catch (error) {
+      const quota = error.payload?.quota;
+      if (quota && state.aiUsage && quota.remaining !== null) state.aiUsage = { ...state.aiUsage, remainingTokens: quota.remaining, nextRefillAt: quota.nextRefillAt || state.aiUsage.nextRefillAt };
+      const refillMessage = error.code === "AI_QUOTA_EXHAUSTED" && quota?.nextRefillAt
+        ? ` سيتجدد رصيدك في ${new Date(quota.nextRefillAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" })}.`
+        : "";
+      state.emailTemplateAI = { ...state.emailTemplateAI, status: "error", error: `${error.message || "تعذر إنشاء القالب."}${refillMessage}` };
+      refreshEmailTemplateAIResult(card);
+    }
+    return;
+  }
+  if (action === "email-ai-regenerate") {
+    target.closest("[data-email-ai-card]")?.querySelector('[data-action="email-ai-generate"]')?.click();
+    return;
+  }
+  if (action === "email-ai-preview-result") {
+    state.emailTemplateAI.previewOpen = !state.emailTemplateAI.previewOpen;
+    const preview = target.closest("[data-email-ai-card]")?.querySelector("[data-email-ai-result-preview]");
+    preview?.classList.toggle("is-open", state.emailTemplateAI.previewOpen);
+    target.innerHTML = `${dashboardIcon("eye")} ${state.emailTemplateAI.previewOpen ? "إخفاء المعاينة" : "معاينة"}`;
+    return;
+  }
+  if (action === "email-ai-copy" || action === "email-code-copy") {
+    const form = target.closest("form[data-submit='renewal-template']");
+    const value = action === "email-ai-copy" ? state.emailTemplateAI?.result?.html : form?.elements.emailHtmlContent?.value;
+    if (!String(value || "").trim()) return toast("لا يوجد كود لنسخه.", "warning");
+    try {
+      await navigator.clipboard.writeText(String(value));
+      toast("تم نسخ كود HTML.");
+    } catch {
+      toast("تعذر نسخ الكود من المتصفح.", "danger");
+    }
+    return;
+  }
+  if (action === "email-ai-apply") {
+    const form = target.closest("form[data-submit='renewal-template']");
+    const html = state.emailTemplateAI?.result?.html || "";
+    const inspection = inspectEmailHtmlClient(html);
+    if (!form || !inspection.ok) return toast(inspection.errors?.[0] || "الكود المقترح غير صالح.", "danger");
+    form.elements.emailHtmlContent.value = inspection.html;
+    form.elements.emailContentMode.value = "html";
+    const details = form.querySelector(".renewal-email-code-editor");
+    if (details) details.open = true;
+    const validationNode = form.querySelector("[data-email-code-validation]");
+    if (validationNode) {
+      validationNode.className = "email-code-validation success";
+      validationNode.textContent = "تم تطبيق الكود وفحصه. احفظ التعديلات لتثبيته.";
+    }
+    form.classList.add("is-dirty");
+    refreshEmailTemplatePreview();
+    toast("تم تطبيق الكود على القالب. راجعه ثم احفظ التعديلات.");
+    document.querySelector("[data-email-preview]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  if (action === "email-code-preview") {
+    const form = target.closest("form[data-submit='renewal-template']");
+    const inspection = inspectEmailHtmlClient(form?.elements.emailHtmlContent?.value || "");
+    if (!inspection.ok) return toast(inspection.errors[0], "danger");
+    openModal("معاينة كود البريد", `<div class="renewal-email-code-modal"><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة كود البريد" srcdoc="${escapeHtml(inspection.html)}"></iframe><p>معاينة معزولة؛ لا يتم تنفيذ سكربتات أو نماذج.</p></div>`);
     return;
   }
   if (action === "adopt-email-design") {
@@ -14275,6 +14322,16 @@ document.addEventListener("input", (event) => {
     if (button) button.disabled = !(nameChanged || storeChanged || phoneChanged);
   }
   const renewalEmailForm = target.closest?.('form[data-submit="renewal-template"]');
+  if (target.dataset.emailAiPrompt !== undefined) {
+    state.emailTemplateAI = { ...(state.emailTemplateAI || {}), prompt: target.value };
+  }
+  if (target.dataset.action === "renewal-email-custom-color" && renewalEmailForm) {
+    const color = safeEmailTheme(target.value);
+    state.emailThemeColor = color;
+    if (renewalEmailForm.elements.themeColor) renewalEmailForm.elements.themeColor.value = color;
+    renewalEmailForm.querySelectorAll(".email-color").forEach((button) => button.classList.remove("active"));
+    refreshEmailTemplatePreview();
+  }
   if (target.name === "isActive" && target.closest?.(".renewal-email-profile-card")) {
     const statusLabel = target.closest(".renewal-email-status-line")?.querySelector("b");
     if (statusLabel) statusLabel.textContent = target.checked ? "نشط" : "متوقف";
@@ -14282,7 +14339,7 @@ document.addEventListener("input", (event) => {
   if (target.name === "emailThemeColor" && renewalEmailForm) {
     renewalEmailForm.querySelectorAll("[data-action='set-email-theme-color']").forEach((button) => button.classList.remove("active"));
   }
-  if (target.dataset.emailField !== undefined || (target.name === "emailThemeColor" && renewalEmailForm) || (target.name === "emailHtmlContent" && renewalEmailForm?.elements.emailContentMode?.value === "html")) refreshEmailTemplatePreview();
+  if (target.dataset.emailField !== undefined || target.dataset.action === "renewal-email-custom-color" || (target.name === "emailThemeColor" && renewalEmailForm) || (target.name === "emailHtmlContent" && renewalEmailForm?.elements.emailContentMode?.value === "html")) refreshEmailTemplatePreview();
   if (target.dataset.action === "template-body") {
     const preview = document.querySelector("[data-whatsapp-preview-body]");
     if (preview) preview.textContent = target.value || "اكتب محتوى الرسالة ليظهر هنا.";

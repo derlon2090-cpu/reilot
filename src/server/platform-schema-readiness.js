@@ -1,6 +1,6 @@
 import { query } from "./db.js";
 
-export const REQUIRED_PLATFORM_MIGRATION = "0087_ai_attachment_storage_reconciliation.sql";
+export const REQUIRED_PLATFORM_MIGRATION = "0088_email_template_ai_generation.sql";
 
 const REQUIRED_COLUMNS = [
   "ai_attachments.deletion_completed_at",
@@ -8,7 +8,11 @@ const REQUIRED_COLUMNS = [
   "ai_attachments.derived_object_keys",
   "ai_attachments.processing_generation",
   "ai_provider_pricing.approval_status",
-  "ai_provider_usage_ledger.idempotency_key"
+  "ai_provider_usage_ledger.idempotency_key",
+  "ai_provider_usage_ledger.task_type",
+  "ai_token_usage_ledger.ai_run_id",
+  "ai_token_usage_ledger.task_type",
+  "ai_runs.task_type"
 ];
 
 export async function platformSchemaHealth() {
@@ -17,6 +21,7 @@ export async function platformSchemaHealth() {
        EXISTS (SELECT 1 FROM schema_migrations WHERE name = $1) AS migration_applied,
        to_regclass('public.ai_attachments') IS NOT NULL AS attachments_table,
        to_regclass('public.ai_provider_usage_ledger') IS NOT NULL AS provider_ledger_table,
+       to_regclass('public.ai_email_template_generations') IS NOT NULL AS email_template_generations_table,
        to_regclass('public.attachment_deletion_tombstones') IS NOT NULL AS deletion_tombstones_table,
        EXISTS (
          SELECT 1 FROM pg_trigger
@@ -31,7 +36,9 @@ export async function platformSchemaHealth() {
           'deletion_completed_at','deletion_requested_at','derived_object_keys','processing_generation'
         ))
         OR (table_name = 'ai_provider_pricing' AND column_name = 'approval_status')
-        OR (table_name = 'ai_provider_usage_ledger' AND column_name = 'idempotency_key')
+        OR (table_name = 'ai_provider_usage_ledger' AND column_name IN ('idempotency_key','task_type'))
+        OR (table_name = 'ai_token_usage_ledger' AND column_name IN ('ai_run_id','task_type'))
+        OR (table_name = 'ai_runs' AND column_name = 'task_type')
       )`,
     [REQUIRED_PLATFORM_MIGRATION]
   );
@@ -41,6 +48,7 @@ export async function platformSchemaHealth() {
   const ok = row.migration_applied === true
     && row.attachments_table === true
     && row.provider_ledger_table === true
+    && row.email_template_generations_table === true
     && row.deletion_tombstones_table === true
     && row.storage_trigger_ready === true
     && missingColumns.length === 0;
@@ -50,6 +58,7 @@ export async function platformSchemaHealth() {
     migrationApplied: row.migration_applied === true,
     attachmentsTable: row.attachments_table === true,
     providerLedgerTable: row.provider_ledger_table === true,
+    emailTemplateGenerationsTable: row.email_template_generations_table === true,
     deletionTombstonesTable: row.deletion_tombstones_table === true,
     storageTriggerReady: row.storage_trigger_ready === true,
     missingColumns

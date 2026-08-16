@@ -23,7 +23,7 @@ describe("DeepSeekProvider", () => {
       usage: { prompt_tokens: 4, completion_tokens: 1 }
     }), { status: 200, headers: { "content-type": "application/json" } }));
     const provider = new DeepSeekProvider({ apiKey: "test-key", baseUrl: "https://ai.example/v1", flashModel: "deepseek-test", fetchImpl });
-    const result = await provider.completeStructured({ messages: [{ role: "user", content: "مرحبا" }], model: provider.modelFor("flash") });
+    const result = await provider.completeStructured({ messages: [{ role: "user", content: "مرحبا" }], model: provider.modelFor("flash"), responseFormat: { type: "json_object" } });
     expect(result.message.content).toBe("تم");
     expect(fetchImpl).toHaveBeenCalledWith("https://ai.example/v1/chat/completions", expect.objectContaining({ method: "POST" }));
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
@@ -33,6 +33,7 @@ describe("DeepSeekProvider", () => {
       temperature: 0.2,
       thinking: { type: "disabled" }
     });
+    expect(body.response_format).toEqual({ type: "json_object" });
   });
 
   it("returns the provider request id for accounting correlation", async () => {

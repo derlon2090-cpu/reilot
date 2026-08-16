@@ -158,7 +158,7 @@ export class DeepSeekProvider extends AIProvider {
 
   async completeStructured({
     messages, tools = [], signal, maxTokens = 900, model,
-    thinking = "disabled", reasoningEffort = null
+    thinking = "disabled", reasoningEffort = null, responseFormat = null
   }) {
     const thinkingEnabled = thinking === "enabled";
     const response = await this.request({
@@ -167,6 +167,7 @@ export class DeepSeekProvider extends AIProvider {
       tools: tools.length ? tools : undefined,
       tool_choice: tools.length && !thinkingEnabled ? "auto" : undefined,
       stream: false,
+      response_format: responseFormat || undefined,
       ...inferenceOptions({ thinking, reasoningEffort }),
       max_tokens: maxTokens
     }, signal);

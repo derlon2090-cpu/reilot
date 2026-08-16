@@ -74,6 +74,25 @@ export function classifyAIRequest({
   });
 }
 
+export function classifyEmailTemplateCodeRequest({ prompt = "", existingHtml = "", mode = "generate" } = {}) {
+  const sourceLength = String(prompt || "").length + String(existingHtml || "").length;
+  const editing = mode === "edit";
+  const complex = sourceLength > 9000 || /جدول|فاتورة|أعمدة|تجاوب|responsive|invoice|columns|complex/i.test(String(prompt || ""));
+  const complexityScore = Math.min(100, 18 + (editing ? 18 : 0) + (complex ? 34 : 0) + (sourceLength > 18000 ? 20 : 0));
+  const deepAnalysis = complexityScore >= 66;
+  const thinking = complexityScore >= 45;
+  return Object.freeze({
+    intent: editing ? "email_template_code_edit" : "email_template_code_generation",
+    modelTier: deepAnalysis ? "pro" : "flash",
+    thinking: thinking ? "enabled" : "disabled",
+    reasoningEffort: deepAnalysis ? "high" : thinking ? "low" : null,
+    useTools: false,
+    maxToolIterations: 0,
+    requiresConfirmation: false,
+    complexityScore
+  });
+}
+
 export function routingSystemInstruction(route = {}) {
   if (route.requiresConfirmation) {
     return "الطلب يتضمن إجراءً حساسًا. لا تدّع التنفيذ ولا تستدعِ أي أداة كتابية قبل التحقق من الصلاحية وعرض ملخص واضح والحصول على تأكيد صريح من المستخدم. أدوات هذه المحادثة الحالية للقراءة فقط.";

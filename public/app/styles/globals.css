@@ -3868,6 +3868,138 @@ html[dir="rtl"] .meta-devices-layout > * { direction: rtl; }
 :root[data-theme="dark"] .renewal-email-tools,:root[data-theme="dark"] .renewal-email-message-panel,:root[data-theme="dark"] .renewal-email-editor-toolbar,:root[data-theme="dark"] .renewal-email-message-input,:root[data-theme="dark"] .renewal-email-browser { border-color: #315B56; background: #0D2B28; }
 :root[data-theme="dark"] .renewal-email-message-input { color: #F3F8F7; }
 
+/* Renewal email editor v3 — AI generation, isolated preview, and responsive workspace. */
+.renewal-email-page { margin-top: 18px; }
+.renewal-email-builder { display: grid; grid-template-columns: 360px minmax(0, 1fr); grid-template-areas: "preview main"; align-items: start; gap: 18px; direction: ltr; }
+.renewal-email-builder > * { min-width: 0; direction: rtl; }
+.renewal-email-main { grid-area: main; min-width: 0; display: grid; gap: 16px; }
+.renewal-email-preview-column { grid-area: preview; position: sticky; top: 88px; align-self: start; }
+.renewal-email-profile-card { padding: 18px; display: grid; grid-template-columns: minmax(190px, .9fr) minmax(300px, 1.8fr) 120px; align-items: end; gap: 14px; }
+.renewal-email-profile-card .field { margin: 0; }
+.renewal-email-content-card { padding: 18px; display: grid; gap: 16px; }
+.renewal-email-content-card > .section-head { margin: 0; padding-bottom: 14px; border-bottom: 1px solid #e7efee; }
+.renewal-email-content-card > .section-head h2 { display: flex; align-items: center; gap: 9px; }
+.renewal-email-content-card > .section-head h2 svg { width: 20px; height: 20px; color: #0b5d55; }
+.renewal-email-message-panel { min-width: 0; display: grid; grid-template-rows: auto minmax(235px, auto) auto; overflow: hidden; border: 1px solid #dfe9e7; border-radius: 12px; background: #fff; }
+.renewal-email-editor-toolbar { min-height: 48px; padding: 7px 11px; border: 0; border-bottom: 1px solid #e7efee; border-radius: 0; background: #fbfdfd; }
+.renewal-email-message-input { width: 100%; min-height: 235px !important; padding: 23px; border: 0; border-radius: 0; box-shadow: none; background: #fff; line-height: 2.1; resize: vertical; }
+.renewal-email-message-input:focus { outline: 0; box-shadow: inset 0 0 0 2px rgba(11,63,59,.08); }
+.renewal-email-cta-fields { margin: 0; padding: 13px; border-top: 1px solid #e7efee; background: #f8fbfa; }
+.renewal-email-utility-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "ai variables" "colors image"; gap: 14px; }
+.renewal-email-tool-section { min-width: 0; min-height: 176px; padding: 16px; display: grid; align-content: start; gap: 12px; border: 1px solid #e1ebe9; border-radius: 12px; background: #fff; box-shadow: 0 5px 15px rgba(6,43,40,.025); }
+.renewal-email-tool-section + .renewal-email-tool-section { padding-top: 16px; border-top: 1px solid #e1ebe9; }
+.renewal-email-ai-card { grid-area: ai; }
+.renewal-email-variable-section { grid-area: variables; }
+.renewal-email-colors-section { grid-area: colors; }
+.renewal-email-image-section { grid-area: image; }
+.renewal-email-tool-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.renewal-email-tool-title > span { min-width: 0; display: grid; gap: 5px; }
+.renewal-email-tool-title strong { color: #062b28; font-size: 14px; line-height: 1.45; }
+.renewal-email-tool-title small { color: #72827f; font-size: 10px; line-height: 1.65; }
+.renewal-email-tool-title > svg { width: 17px; height: 17px; flex: 0 0 auto; color: #6f817e; }
+.renewal-email-variable-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.renewal-email-variable-grid .chip { min-width: 0; min-height: 35px; padding: 7px 6px; justify-content: center; overflow: hidden; direction: ltr; color: #0b3f3b; border-color: #dbe8e6; background: #fdfefe; text-overflow: ellipsis; font-size: 9px; white-space: nowrap; }
+.renewal-email-variable-grid .chip:hover { border-color: #73a9a2; background: #f2f8f7; }
+.renewal-email-ai-mode { padding: 3px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; border-radius: 9px; background: #eef5f4; }
+.renewal-email-ai-mode button { min-height: 34px; padding: 6px; color: #56706c; border: 0; border-radius: 7px; background: transparent; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.renewal-email-ai-mode button.active { color: #fff; background: #0b514a; box-shadow: 0 3px 9px rgba(11,81,74,.18); }
+.renewal-email-ai-card > textarea { min-height: 104px; padding: 12px; line-height: 1.75; resize: vertical; }
+.renewal-email-ai-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.renewal-email-ai-controls .btn { min-width: 132px; }
+.renewal-email-ai-balance { display: inline-flex; align-items: center; gap: 4px; color: #566c68; font-size: 9px; }
+.renewal-email-ai-balance b { color: #0b514a; }
+.renewal-email-ai-balance.is-loading { opacity: .72; }
+.renewal-email-ai-empty { padding: 11px; color: #7a8c88; border: 1px dashed #d7e4e2; border-radius: 9px; background: #fafcfc; text-align: center; font-size: 9px; }
+.renewal-email-ai-progress,.renewal-email-ai-error,.renewal-email-ai-success-head { padding: 11px; display: flex; align-items: center; gap: 10px; border-radius: 9px; }
+.renewal-email-ai-progress { background: #f0f8f6; }
+.renewal-email-ai-progress > i { width: 18px; height: 18px; flex: 0 0 auto; border: 2px solid #a9cbc6; border-top-color: #087f75; border-radius: 50%; animation: renewal-email-spin .8s linear infinite; }
+.renewal-email-ai-progress span,.renewal-email-ai-error span,.renewal-email-ai-success-head span { display: grid; gap: 3px; }
+.renewal-email-ai-progress b,.renewal-email-ai-error b,.renewal-email-ai-success-head b { color: #083d38; font-size: 10px; }
+.renewal-email-ai-progress small,.renewal-email-ai-error small,.renewal-email-ai-success-head small { color: #687b77; font-size: 8px; line-height: 1.55; }
+.renewal-email-ai-error { color: #a53b3b; border: 1px solid #f1caca; background: #fff4f4; }
+.renewal-email-ai-error svg { width: 18px; height: 18px; }
+.renewal-email-ai-success { display: grid; gap: 10px; }
+.renewal-email-ai-success-head { color: #087267; border: 1px solid #cce6e1; background: #f1faf8; }
+.renewal-email-ai-success-head svg { width: 18px; height: 18px; }
+.renewal-email-ai-result-actions,.renewal-email-code-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.renewal-email-ai-result-actions .btn,.renewal-email-code-actions .btn { min-height: 34px; padding: 7px 10px; font-size: 9px; }
+.renewal-email-ai-result-preview { display: none; height: 260px; overflow: hidden; border: 1px solid #dbe8e6; border-radius: 10px; background: #fff; }
+.renewal-email-ai-result-preview.is-open { display: block; }
+.renewal-email-ai-result-preview iframe,.renewal-email-code-modal iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+.renewal-email-ai-code summary { color: #0b514a; cursor: pointer; font-size: 9px; font-weight: 800; }
+.renewal-email-ai-code textarea { width: 100%; min-height: 130px; margin-top: 8px; padding: 10px; direction: ltr; border: 1px solid #dce8e6; border-radius: 8px; font: 9px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace; resize: vertical; }
+.renewal-email-ai-charge { color: #71827f; font-size: 8px; }
+.email-ai-spark { width: 9px; height: 9px; display: inline-block; border-radius: 50%; background: #fff; animation: renewal-email-pulse 1s ease-in-out infinite; }
+@keyframes renewal-email-spin { to { transform: rotate(360deg); } }
+@keyframes renewal-email-pulse { 50% { opacity: .32; transform: scale(.72); } }
+.renewal-email-theme-palette { min-height: 62px; align-content: center; }
+.renewal-email-theme-palette > button,.renewal-email-theme-palette > label { width: 34px; height: 34px; }
+.renewal-email-image-section .store-logo-editor { min-height: 91px; padding: 10px; grid-template-columns: 62px minmax(0,1fr); gap: 10px; border-radius: 10px; background: #fbfdfd; }
+.renewal-email-image-section .store-logo-editor-preview { width: 62px; height: 62px; }
+.renewal-email-image-section .store-logo-editor-content > strong,.renewal-email-image-section .store-logo-editor-content > small { display: none; }
+.renewal-email-image-section .store-logo-editor-content .btn { min-height: 33px; padding: 6px 9px; font-size: 9px; }
+.renewal-email-image-section .store-logo-editor-content em { font-size: 8px; }
+.renewal-email-code-editor { overflow: hidden; border: 1px solid #dfe9e7; border-radius: 12px; background: #fbfdfd; }
+.renewal-email-code-editor summary { min-height: 49px; padding: 12px 15px; display: flex; align-items: center; gap: 9px; color: #083d38; cursor: pointer; font-size: 11px; font-weight: 800; }
+.renewal-email-code-editor summary svg { width: 18px; height: 18px; }
+.renewal-email-code-editor summary span { margin-inline-start: auto; color: #758985; font-size: 8px; }
+.renewal-email-code-editor > div { padding: 14px; display: grid; gap: 10px; border-top: 1px solid #e3ecea; }
+.renewal-email-code-editor .email-html-editor { min-height: 230px; padding: 13px; direction: ltr; font-size: 10px; line-height: 1.7; }
+.renewal-email-form-actions { display: flex; justify-content: flex-start; gap: 10px; }
+.renewal-email-form-actions .btn { min-width: 165px; }
+.renewal-email-builder.is-dirty .renewal-email-form-actions .btn-primary { box-shadow: 0 0 0 3px rgba(8,127,117,.12); }
+.email-custom-html-preview-frame { width: 100%; min-height: 430px; border: 0; background: #fff; }
+.renewal-email-browser .email-envelope.uses-custom-html { max-height: none; }
+.renewal-email-browser .email-envelope.uses-custom-html .email-preview-brand,.renewal-email-browser .email-envelope.uses-custom-html .email-preview-footer,.renewal-email-browser .email-envelope.uses-custom-html .email-preview-body > h3 { display: none; }
+.renewal-email-browser .email-envelope.uses-custom-html .email-preview-body { padding: 0; }
+.renewal-email-code-modal { width: min(760px,90vw); height: min(620px,72vh); display: grid; grid-template-rows: 1fr auto; gap: 10px; }
+.renewal-email-code-modal iframe { border: 1px solid #dce8e6; border-radius: 10px; }
+.renewal-email-code-modal p { margin: 0; color: #6d817d; text-align: center; font-size: 10px; }
+
+@media (max-width: 1280px) {
+  .renewal-email-builder { grid-template-columns: 320px minmax(0,1fr); }
+  .renewal-email-profile-card { grid-template-columns: minmax(160px,.8fr) minmax(230px,1.5fr) 105px; }
+}
+@media (max-width: 1120px) {
+  .renewal-email-builder { grid-template-columns: 1fr; grid-template-areas: "main" "preview"; }
+  .renewal-email-preview-column { position: static; }
+  .renewal-email-preview-card { max-width: 680px; }
+  .renewal-email-utility-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .renewal-email-page { margin-top: 12px; }
+  .renewal-email-profile-card { grid-template-columns: 1fr; align-items: stretch; }
+  .renewal-email-status-control { min-height: auto; padding: 3px 0; }
+  .renewal-email-content-card { padding: 12px; }
+  .renewal-email-message-input { min-height: 290px !important; padding: 17px; }
+  .renewal-email-cta-fields { grid-template-columns: 1fr; }
+  .renewal-email-utility-grid { grid-template-columns: 1fr; grid-template-areas: "variables" "ai" "colors" "image"; }
+  .renewal-email-tool-section { min-height: 0; padding: 14px; }
+  .renewal-email-ai-controls { align-items: stretch; flex-direction: column; }
+  .renewal-email-ai-controls .btn { width: 100%; }
+  .renewal-email-ai-result-actions,.renewal-email-code-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .renewal-email-form-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .renewal-email-form-actions .btn { min-width: 0; }
+  .renewal-email-preview-card > .section-head h2 { font-size: 15px; white-space: normal; }
+  .renewal-email-code-modal { width: 86vw; }
+}
+@media (max-width: 430px) {
+  .renewal-email-variable-grid { grid-template-columns: 1fr; }
+  .renewal-email-ai-result-actions,.renewal-email-code-actions,.renewal-email-form-actions { grid-template-columns: 1fr; }
+  .renewal-email-editor-toolbar span { display: none; }
+}
+
+:root[data-theme="dark"] .renewal-email-tool-section,
+:root[data-theme="dark"] .renewal-email-message-panel,
+:root[data-theme="dark"] .renewal-email-editor-toolbar,
+:root[data-theme="dark"] .renewal-email-message-input,
+:root[data-theme="dark"] .renewal-email-code-editor,
+:root[data-theme="dark"] .renewal-email-ai-code textarea { color: #f3f8f7; border-color: #315b56; background: #0d2b28; }
+:root[data-theme="dark"] .renewal-email-tool-title strong,
+:root[data-theme="dark"] .renewal-email-ai-progress b,
+:root[data-theme="dark"] .renewal-email-ai-success-head b,
+:root[data-theme="dark"] .renewal-email-code-editor summary { color: #eaf5f3; }
+
 /* Complete four-template catalog editors. */
 .catalog-special-editor .template-editor-v2-body { min-height: 190px; }
 .catalog-menu-options { padding: 16px; display: grid; gap: 12px; border: 1px solid #E8F1F0; border-radius: 11px; background: #F3F8F7; }

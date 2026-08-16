@@ -19,7 +19,7 @@ import {
 const allowedChannels = new Set(["whatsapp", "email"]);
 const whatsappVariables = ["customer_name", "plan_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number", "subscription_id", "service_name", "end_date", "renewal_link"];
 const emailVariables = ["اسم_العميل", "اسم_الخدمة", "تاريخ_الانتهاء", "الأيام_المتبقية", "رابط_التجديد", "رقم_الطلب", "اسم_المتجر"];
-const canonicalEmailVariables = ["customer_name", "plan_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number", "support_url", "service_name", "end_date", "renewal_link"];
+const canonicalEmailVariables = ["customer_name", "customer_email", "plan_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number", "support_url", "service_name", "end_date", "renewal_link"];
 const allowedEmailVariables = [...new Set([...emailVariables, ...canonicalEmailVariables])];
 const allTemplateVariables = [...new Set([...whatsappVariables, ...allowedEmailVariables])];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

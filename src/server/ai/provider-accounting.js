@@ -127,13 +127,24 @@ async function activePricing(runner, provider, model, variant, at = new Date()) 
   return result.rows;
 }
 
-export async function createAIRun(session, { conversationId = null, messageId = null } = {}) {
+export async function createAIRun(session, { conversationId = null, messageId = null, taskType = "chat" } = {}) {
   const result = await query(
-    `INSERT INTO ai_runs(tenant_id,user_id,conversation_id,message_id)
-     VALUES($1,$2,$3,$4) RETURNING id,status,created_at AS "createdAt"`,
-    [session.tenantId, session.userId, conversationId, messageId]
+    `INSERT INTO ai_runs(tenant_id,user_id,conversation_id,message_id,task_type)
+     VALUES($1,$2,$3,$4,$5) RETURNING id,status,task_type AS "taskType",created_at AS "createdAt"`,
+    [session.tenantId, session.userId, conversationId, messageId, String(taskType || "chat").slice(0, 80)]
   );
   return result.rows[0];
+}
+
+export async function finishAIRun(session, aiRunId, { status = "completed" } = {}) {
+  const safeStatus = status === "completed" ? "completed" : "failed";
+  const result = await query(
+    `UPDATE ai_runs SET status=$3,completed_at=now()
+      WHERE id=$1 AND tenant_id=$2 AND status='processing'
+      RETURNING id,status,completed_at AS "completedAt"`,
+    [aiRunId, session.tenantId, safeStatus]
+  );
+  return result.rows[0] || null;
 }
 
 export async function reserveProviderQuota(session, input) {

@@ -99,6 +99,7 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
     const settled = await settleAITokenReservation(session, reservation.id, {
       providerRequestId: "provider-actual-usage-1",
       model: "deepseek-v4-flash",
+      taskType: "email_template_code_generation",
       usage: { prompt_tokens: 10_000, completion_tokens: 2_435, prompt_cache_hit_tokens: 4_000 }
     });
     expect(settled.actualTokens).toBe(12_435);
@@ -115,6 +116,17 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
     expect(duplicate).toMatchObject({ idempotent: true, actualTokens: 12_435 });
     const ledger = await query("SELECT count(*)::int AS count FROM ai_token_usage_ledger WHERE tenant_id=$1", [tenantId]);
     expect(ledger.rows[0].count).toBe(1);
+    const taskLedger = await query(
+      `SELECT token.task_type AS "tokenTaskType",provider.task_type AS "providerTaskType"
+         FROM ai_token_usage_ledger token
+         JOIN ai_provider_usage_ledger provider ON provider.reservation_id=token.reservation_id
+        WHERE token.tenant_id=$1 AND token.provider_request_id=$2 LIMIT 1`,
+      [tenantId, "provider-actual-usage-1"]
+    );
+    expect(taskLedger.rows[0]).toMatchObject({
+      tokenTaskType: "email_template_code_generation",
+      providerTaskType: "email_template_code_generation"
+    });
   });
 
   it("aggregates a three-call message into one auditable 4,300-token deduction", async () => {

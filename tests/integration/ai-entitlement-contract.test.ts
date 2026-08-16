@@ -6,6 +6,7 @@ describe("AI token entitlement database and service contract", () => {
   const service = readFileSync("src/server/ai/entitlements.js", "utf8");
   const usage = readFileSync("src/server/ai/usage.js", "utf8");
   const orchestrator = readFileSync("src/server/ai/orchestrator.js", "utf8");
+  const emailGenerationMigration = readFileSync("drizzle/0088_email_template_ai_generation.sql", "utf8");
 
   it("enforces four cycles, unique period-cycle numbering, and nonnegative balances in PostgreSQL", () => {
     expect(migration).toContain("CHECK (cycle_number BETWEEN 1 AND 4)");
@@ -38,5 +39,12 @@ describe("AI token entitlement database and service contract", () => {
     expect(service).toContain("query_timeout: 2500");
     expect(usage).toContain("const snapshot = await getAIEntitlementSnapshot(session)");
     expect(usage).toContain("return snapshot || getAIEntitlementSummary(session)");
+  });
+
+  it("separates email-template tasks while retaining the unified entitlement and provider ledgers", () => {
+    expect(emailGenerationMigration).toContain("email_template_code_generation");
+    expect(emailGenerationMigration).toContain("email_template_code_edit");
+    expect(emailGenerationMigration).toContain("ai_token_usage_ledger ADD COLUMN IF NOT EXISTS task_type");
+    expect(emailGenerationMigration).toContain("ai_provider_usage_ledger ADD COLUMN IF NOT EXISTS task_type");
   });
 });
