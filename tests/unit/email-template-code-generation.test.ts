@@ -3,6 +3,8 @@ import {
   buildEmailTemplateCodeMessages,
   EMAIL_TEMPLATE_ALLOWED_VARIABLES,
   generateEmailTemplateCode,
+  generateEmailTemplateSuggestions,
+  resolveEmailTemplateContext,
   validateGeneratedEmailTemplate
 } from "../../src/server/ai/email-template-code.js";
 
@@ -75,7 +77,7 @@ describe("renewal email AI code generation", () => {
     ["invalid structured shape", { html: 123, usedVariables: "customer_name", warnings: [] }, "AI_EMAIL_INVALID_OUTPUT"],
     ["unknown variable", { html: "<p>{{secret_customer_id}}</p>", usedVariables: [], warnings: [] }, "AI_EMAIL_UNKNOWN_VARIABLE"],
     ["unapproved image", { html: '<img src="https://example.com/invented.png" alt="image">', usedVariables: [], warnings: [] }, "AI_EMAIL_UNAPPROVED_IMAGE"],
-    ["oversized html", { html: `<p>${"x".repeat(30001)}</p>`, usedVariables: [], warnings: [] }, "AI_EMAIL_INVALID_OUTPUT"]
+    ["oversized AI html", { html: `<p>${"x".repeat(160001)}</p>`, usedVariables: [], warnings: [] }, "AI_EMAIL_INVALID_OUTPUT"]
   ])("rejects %s", (_label, value, code) => {
     expect(() => validateGeneratedEmailTemplate(value)).toThrow(expect.objectContaining({ code }));
   });
@@ -116,7 +118,7 @@ describe("renewal email AI code generation", () => {
     expect(reservationInput.minimumTokens).toBe(reservationInput.requestedTokens);
     expect(deps.settle).toHaveBeenCalledWith(session, "reservation-1", expect.objectContaining({
       usage: { prompt_tokens: 120, completion_tokens: 80, total_tokens: 200 },
-      taskType: "email_template_code_generation",
+      taskType: "email_template_code_generate",
       aiRunId: "run-1",
       processingLatencyMs: expect.any(Number)
     }));
@@ -152,9 +154,50 @@ describe("renewal email AI code generation", () => {
     expect(providerInput.messages.map((item) => item.content).join("\n")).toContain(existingHtml);
   });
 
+  it.each([
+    ["replace", "email_template_code_replace"],
+    ["improve", "email_template_code_improve"],
+    ["fix", "email_template_code_fix"]
+  ])("supports the %s mode with a distinct accounting task", async (mode, taskType) => {
+    const deps = dependencies();
+    await generateEmailTemplateCode(session, {
+      ...input, mode, existingHtml: '<div dir="rtl"><p>مرحبًا {{customer_name}}</p></div>'
+    }, { idempotencyKey: `email-template-${mode}-0001`, dependencies: deps });
+    expect(deps.createRun).toHaveBeenCalledWith(session, { taskType });
+    expect(deps.settle).toHaveBeenCalledWith(session, "reservation-1", expect.objectContaining({ taskType }));
+  });
+
+  it("resolves per-template variables for every Salla email context on the server", async () => {
+    const shipped = await resolveEmailTemplateContext(session, { templateType: "salla:shipped", channel: "email" });
+    const cart = await resolveEmailTemplateContext(session, { templateType: "salla:abandoned_cart", channel: "email" });
+    expect(shipped.variables).toContain("tracking_url");
+    expect(shipped.variables).not.toContain("renewal_url");
+    expect(cart.variables).toContain("checkout_url");
+  });
+
+  it("returns review suggestions as a separately charged draft without modifying HTML", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured = vi.fn(async () => ({
+      message: { content: JSON.stringify({
+        score: 82,
+        summary: "القالب واضح ويحتاج تحسين زر الإجراء.",
+        suggestions: [{ title: "قوّ الزر", description: "زد التباين والمساحة حول الزر.", prompt: "حسّن زر الإجراء فقط", severity: "medium" }],
+        warnings: []
+      }) },
+      usage: { prompt_tokens: 70, completion_tokens: 30, total_tokens: 100 },
+      providerRequestId: "provider-email-suggest-1"
+    }));
+    const result = await generateEmailTemplateSuggestions(session, {
+      existingHtml: '<div dir="rtl"><p>مرحبًا {{customer_name}}</p></div>',
+      templateContext: { templateType: "renewal", channel: "email" }
+    }, { idempotencyKey: "email-template-suggest-0001", dependencies: deps });
+    expect(result).toMatchObject({ ok: true, score: 82, generationMode: "suggest" });
+    expect(deps.createRun).toHaveBeenCalledWith(session, { taskType: "email_template_suggestions" });
+  });
+
   it("rejects an oversized request before claiming, reserving, or calling DeepSeek", async () => {
     const deps = dependencies();
-    await expect(generateEmailTemplateCode(session, { ...input, prompt: "x".repeat(2001) }, {
+    await expect(generateEmailTemplateCode(session, { ...input, prompt: "x".repeat(4001) }, {
       idempotencyKey: "email-template-oversized-1",
       dependencies: deps
     })).rejects.toMatchObject({ code: "AI_EMAIL_INVALID_REQUEST", status: 400 });

@@ -10,13 +10,14 @@ CREATE TABLE IF NOT EXISTS ai_email_template_generations (
   idempotency_key text NOT NULL,
   ai_run_id uuid REFERENCES ai_runs(id) ON DELETE SET NULL,
   reservation_id uuid REFERENCES ai_token_reservations(id) ON DELETE SET NULL,
-  mode text NOT NULL CHECK (mode IN ('generate','edit')),
-  task_type text NOT NULL CHECK (task_type IN ('email_template_code_generation','email_template_code_edit')),
+  mode text NOT NULL CHECK (mode IN ('generate','edit','replace','improve','fix','suggest')),
+  task_type text NOT NULL CHECK (task_type IN ('email_template_code_generate','email_template_code_generation','email_template_code_edit','email_template_code_replace','email_template_code_improve','email_template_code_fix','email_template_suggestions')),
   prompt_sha256 text NOT NULL,
   status text NOT NULL DEFAULT 'processing' CHECK (status IN ('processing','completed','failed')),
   sanitized_html text,
   used_variables jsonb NOT NULL DEFAULT '[]'::jsonb,
   warnings jsonb NOT NULL DEFAULT '[]'::jsonb,
+  result_json jsonb,
   charged_tokens bigint NOT NULL DEFAULT 0 CHECK (charged_tokens >= 0),
   remaining_tokens bigint CHECK (remaining_tokens IS NULL OR remaining_tokens >= 0),
   next_refill_at timestamptz,
@@ -38,6 +39,6 @@ CREATE INDEX IF NOT EXISTS ai_email_template_generations_expiry_idx
   ON ai_email_template_generations(expires_at);
 
 COMMENT ON TABLE ai_email_template_generations IS
-  'Short-lived idempotency records for renewal-email AI generation. Prompts are represented by SHA-256 only.';
+  'Short-lived idempotency records for all email-template AI operations. Prompts are represented by SHA-256 only.';
 COMMENT ON COLUMN ai_runs.task_type IS
   'Logical product task, separate from provider, model, and billing modality.';

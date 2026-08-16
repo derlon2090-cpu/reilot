@@ -42,7 +42,7 @@ describe("AI token entitlement database and service contract", () => {
   });
 
   it("separates email-template tasks while retaining the unified entitlement and provider ledgers", () => {
-    expect(emailGenerationMigration).toContain("email_template_code_generation");
+    expect(emailGenerationMigration).toContain("email_template_code_generate");
     expect(emailGenerationMigration).toContain("email_template_code_edit");
     expect(emailGenerationMigration).toContain("ai_token_usage_ledger ADD COLUMN IF NOT EXISTS task_type");
     expect(emailGenerationMigration).toContain("ai_provider_usage_ledger ADD COLUMN IF NOT EXISTS task_type");

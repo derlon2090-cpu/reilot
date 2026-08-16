@@ -99,7 +99,7 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
     const settled = await settleAITokenReservation(session, reservation.id, {
       providerRequestId: "provider-actual-usage-1",
       model: "deepseek-v4-flash",
-      taskType: "email_template_code_generation",
+      taskType: "email_template_code_generate",
       usage: { prompt_tokens: 10_000, completion_tokens: 2_435, prompt_cache_hit_tokens: 4_000 }
     });
     expect(settled.actualTokens).toBe(12_435);
@@ -124,8 +124,8 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
       [tenantId, "provider-actual-usage-1"]
     );
     expect(taskLedger.rows[0]).toMatchObject({
-      tokenTaskType: "email_template_code_generation",
-      providerTaskType: "email_template_code_generation"
+      tokenTaskType: "email_template_code_generate",
+      providerTaskType: "email_template_code_generate"
     });
   });
 

@@ -21,6 +21,11 @@ const ACTIVE_CONTENT = /<(?:script|style|iframe|object|embed|form|input|button|t
 const UNSAFE_VALUE = /(?:javascript\s*:|vbscript\s*:|data\s*:\s*text\/html|expression\s*\(|@import|behavior\s*:|-moz-binding|url\s*\()/i;
 const VARIABLE_PATTERN = /^{{\s*[^{}]+\s*}}$/;
 
+export const EMAIL_TEMPLATE_MAX_HTML_CHARACTERS = Math.max(
+  30000,
+  Math.min(1000000, Math.floor(Number(process.env.EMAIL_TEMPLATE_MAX_HTML_CHARACTERS || 500000)))
+);
+
 function sanitizeUrl(value, attribute) {
   const input = String(value || "").trim();
   if (!input || UNSAFE_VALUE.test(input) || /&#(?:x0*6a|0*106);?/i.test(input)) return "";
@@ -50,7 +55,7 @@ function escapeAttribute(value) {
   return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function inspectCustomEmailHtml(value, { maxLength = 30000 } = {}) {
+export function inspectCustomEmailHtml(value, { maxLength = EMAIL_TEMPLATE_MAX_HTML_CHARACTERS } = {}) {
   const source = String(value || "").trim();
   const errors = [];
   const warnings = new Set();

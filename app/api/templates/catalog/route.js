@@ -1,13 +1,16 @@
 import { query, transaction } from "../../../../src/server/db.js";
 import { ensureDefaultTemplates, TEMPLATE_KEYS } from "../../../../src/server/default-templates.js";
 import { requireSession } from "../../../../src/server/session.js";
+import { inspectCustomEmailHtml } from "../../../../src/lib/email/custom-email-html.js";
 
 const catalogKeys = [
-  TEMPLATE_KEYS.RENEWAL_WHATSAPP
+  TEMPLATE_KEYS.RENEWAL_WHATSAPP,
+  TEMPLATE_KEYS.EMAIL_DELIVERY
 ];
 const allowedKeys = new Set(catalogKeys);
 const allowedVariables = {
-  [TEMPLATE_KEYS.RENEWAL_WHATSAPP]: new Set(["customer_name", "service_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number"])
+  [TEMPLATE_KEYS.RENEWAL_WHATSAPP]: new Set(["customer_name", "service_name", "expiry_date", "days_remaining", "renewal_url", "store_name", "order_number"]),
+  [TEMPLATE_KEYS.EMAIL_DELIVERY]: new Set(["customer_name", "order_number", "order_portal_url", "store_name"])
 };
 
 function sanitizeText(value, maxLength, required = true) {
@@ -71,6 +74,14 @@ export async function PUT(req) {
     return Response.json({ ok: false, message: "تحقق من محتوى القالب والمتغيرات المستخدمة" }, { status: 400 });
   }
   const contentJson = {};
+  if (templateKey === TEMPLATE_KEYS.EMAIL_DELIVERY && input.contentJson?.emailContentMode === "html") {
+    const inspection = inspectCustomEmailHtml(input.contentJson.emailHtmlContent || "");
+    if (!inspection.ok || !hasAllowedVariables(inspection.html, allowed)) {
+      return Response.json({ ok: false, message: inspection.errors?.[0] || "كود HTML يحتوي متغيرات غير معتمدة" }, { status: 400 });
+    }
+    contentJson.emailContentMode = "html";
+    contentJson.emailHtmlContent = inspection.html;
+  }
   const themeColor = /^#[0-9a-f]{6}$/i.test(String(input.themeColor || "")) ? String(input.themeColor).toUpperCase() : "#062B28";
   const saved = await transaction(async (client) => {
     await ensureDefaultTemplates(client, auth.session.tenantId);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { auditAdmin, requireAdminPermission } from "../../../../../../src/server/admin-auth.js";
 import { listSallaAdminCatalog, saveSallaAdminTemplate } from "../../../../../../src/server/salla-admin-catalog.js";
-import { inspectCustomEmailHtml } from "../../../../../../src/lib/email/custom-email-html.js";
+import { EMAIL_TEMPLATE_MAX_HTML_CHARACTERS, inspectCustomEmailHtml } from "../../../../../../src/lib/email/custom-email-html.js";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ const inputSchema = z.object({
     emailDesign: z.enum(["classic", "modern", "minimal", "premium", "editorial", "commerce", "aurora", "executive"]).optional(),
     emailContentMode: z.enum(["preset", "html"]).optional(),
     emailThemeColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
-    emailHtmlContent: z.string().max(30000).optional(),
+    emailHtmlContent: z.string().max(EMAIL_TEMPLATE_MAX_HTML_CHARACTERS).optional(),
     deliveryPageDesign: z.enum(["classic", "cards", "compact"]).optional(),
     deliveryPageCustomCss: z.string().max(4000).optional(),
     reviewTriggerStatus: z.enum(["shipped", "delivered", "completed"]).optional(),

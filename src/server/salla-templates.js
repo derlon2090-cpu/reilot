@@ -12,7 +12,7 @@ import {
 } from "./smart-delivery-content.js";
 import { durationWindow, resolveProductDurationWithDeepSeek } from "./product-duration-resolver.js";
 import { normalizeSallaPageCssCode } from "../data/sallaPageCss.js";
-import { inspectCustomEmailHtml, supportedEmailContentMode, supportedEmailDesign } from "../lib/email/custom-email-html.js";
+import { EMAIL_TEMPLATE_MAX_HTML_CHARACTERS, inspectCustomEmailHtml, supportedEmailContentMode, supportedEmailDesign } from "../lib/email/custom-email-html.js";
 import { escapeEmailHtml } from "../lib/email/templates/base-email.js";
 
 export const SALLA_TEMPLATE_KEYS = Object.freeze({
@@ -749,13 +749,13 @@ export function resolveSallaChannelContent({ input = {}, previous = {}, definiti
   const emailTextContent = String(
     input.emailTextContent ?? (channel === "email" ? input.messageBody : previous.emailTextContent) ?? definition.body ?? ""
   ).trim().slice(0, 10000);
-  const rawHtml = String(input.emailHtmlContent ?? previous.emailHtmlContent ?? "").trim().slice(0, 30000);
+  const rawHtml = String(input.emailHtmlContent ?? previous.emailHtmlContent ?? "").trim().slice(0, EMAIL_TEMPLATE_MAX_HTML_CHARACTERS);
   const emailContentMode = supportedEmailContentMode(input.settings?.emailContentMode, supportedEmailContentMode(previous.settings?.emailContentMode));
   const inspection = rawHtml ? inspectCustomEmailHtml(rawHtml) : { ok: false, html: "", errors: ["أدخل كود HTML قبل اعتماده."] };
   if (channel === "email" && emailContentMode === "html" && !inspection.ok) {
     throw apiError(inspection.errors[0], "INVALID_EMAIL_HTML");
   }
-  const emailHtmlContent = inspection.ok ? inspection.html : String(previous.emailHtmlContent || "").trim().slice(0, 30000);
+  const emailHtmlContent = inspection.ok ? inspection.html : String(previous.emailHtmlContent || "").trim().slice(0, EMAIL_TEMPLATE_MAX_HTML_CHARACTERS);
   return { whatsappContent, emailTextContent, emailHtmlContent };
 }
 
