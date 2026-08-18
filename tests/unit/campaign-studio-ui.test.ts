@@ -82,8 +82,9 @@ describe("campaign studio", () => {
     expect(appSource).toContain("data-campaign-social-preview");
     expect(appSource).toContain('campaignStudioDraftValue("socialLinksEnabled", "false") === "true"');
     expect(appSource).toContain('data-campaign-social-section ${socialLinksEnabled ? "open" : ""}');
-    expect(appSource).toContain('String(getValue("socialLinksEnabled")) !== "true"');
+    expect(appSource).toContain('Boolean(values.querySelector?.("[data-campaign-social-section]")?.open)');
     expect(appSource).toContain('document.addEventListener("toggle"');
+    expect(appSource).toContain('document.addEventListener("click"');
     expect(appSource).toContain('socialLinksEnabled = data.channel === "email" && Boolean(form.querySelector("[data-campaign-social-section]")?.open)');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");

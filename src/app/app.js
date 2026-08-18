@@ -5487,7 +5487,10 @@ function campaignStudioValidHttpUrl(value) {
 
 function campaignStudioSocialIconLinks(values) {
   const getValue = (name) => values?.elements ? values.elements[name]?.value : values?.[name];
-  if (String(getValue("socialLinksEnabled")) !== "true") return "";
+  const enabled = values?.elements
+    ? Boolean(values.querySelector?.("[data-campaign-social-section]")?.open)
+    : String(getValue("socialLinksEnabled")) === "true";
+  if (!enabled) return "";
   return campaignStudioSocialPlatforms().map(([name, label]) => {
     const url = campaignStudioValidHttpUrl(getValue(name));
     return url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${dashboardIcon(name)}</a>` : "";
@@ -14631,8 +14634,7 @@ document.addEventListener("input", (event) => {
   }
 });
 
-document.addEventListener("toggle", (event) => {
-  const section = event.target?.matches?.("[data-campaign-social-section]") ? event.target : null;
+function syncCampaignSocialSection(section) {
   if (!section) return;
   const form = section.closest("form[data-campaign-studio]");
   if (!form) return;
@@ -14640,6 +14642,17 @@ document.addEventListener("toggle", (event) => {
   if (form.elements.htmlContent) form.elements.htmlContent.value = "";
   refreshCampaignStudioPreview(form);
   scheduleCampaignStudioDraft(form);
+}
+
+document.addEventListener("toggle", (event) => {
+  const section = event.target?.matches?.("[data-campaign-social-section]") ? event.target : null;
+  syncCampaignSocialSection(section);
+}, true);
+
+document.addEventListener("click", (event) => {
+  const summary = event.target?.closest?.("[data-campaign-social-section] > summary");
+  if (!summary) return;
+  requestAnimationFrame(() => syncCampaignSocialSection(summary.parentElement));
 }, true);
 
 document.addEventListener("focusin", (event) => {
