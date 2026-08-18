@@ -5487,6 +5487,7 @@ function campaignStudioValidHttpUrl(value) {
 
 function campaignStudioSocialIconLinks(values) {
   const getValue = (name) => values?.elements ? values.elements[name]?.value : values?.[name];
+  if (String(getValue("socialLinksEnabled")) !== "true") return "";
   return campaignStudioSocialPlatforms().map(([name, label]) => {
     const url = campaignStudioValidHttpUrl(getValue(name));
     return url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${dashboardIcon(name)}</a>` : "";
@@ -5507,8 +5508,10 @@ function campaignStudioFormCards(form) {
 
 function captureCampaignStudioDraft(form) {
   if (!form) return null;
+  const socialSection = form.querySelector("[data-campaign-social-section]");
+  if (form.elements.socialLinksEnabled) form.elements.socialLinksEnabled.value = socialSection?.open ? "true" : "false";
   const values = {};
-  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","emailDesign","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
+  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","emailDesign","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
   state.campaignBuilderCards = campaignStudioFormCards(form);
   state.campaignBuilderDraft = { values, cards:state.campaignBuilderCards, updatedAt:new Date().toISOString() };
   return state.campaignBuilderDraft;
@@ -5586,11 +5589,11 @@ function campaignStudioGeneratedHtml(form) {
   };
   const theme = themes[design] || themes.showcase;
   const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
-  const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
+  const socialLinks = form?.querySelector("[data-campaign-social-section]")?.open ? campaignStudioSocialPlatforms().map(([name,label]) => {
     const url = campaignStudioValidHttpUrl(form?.elements[name]?.value);
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
-  }).join("");
+  }).join("") : "";
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
@@ -5633,7 +5636,8 @@ function campaignStudioPage() {
     const count = Number(group[channel === "whatsapp" ? "whatsappContactsCount" : "emailContactsCount"] ?? group.contactsCount ?? 0);
     return `<option value="${escapeHtml(group.id)}" data-count="${count}" ${campaignStudioDraftValue("groupId") === group.id ? "selected" : ""}>${escapeHtml(group.name)} — ${suiteNumber(count)}</option>`;
   }).join("");
-  const socialFields = channel === "email" ? `<details class="campaign-studio-section" open><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>اختيارية، وتظهر كأيقونات احترافية أسفل محتوى البريد عند إدخال رابط صحيح.</small></span></summary><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
+  const socialLinksEnabled = campaignStudioDraftValue("socialLinksEnabled", "false") === "true";
+  const socialFields = channel === "email" ? `<details class="campaign-studio-section" data-campaign-social-section ${socialLinksEnabled ? "open" : ""}><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>مغلقة افتراضيًا. افتح القسم وأضف رابطًا صحيحًا لإظهار أيقونته في البريد.</small></span></summary><input type="hidden" name="socialLinksEnabled" value="${socialLinksEnabled ? "true" : "false"}"><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
   const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>HTML آمن للبريد بتخطيط جداول وCSS مضمّن، دون JavaScript.</small></span></summary><div class="campaign-html-tools"><div><button type="button" class="btn btn-secondary" data-action="campaign-studio-generate-html">${dashboardIcon("code")} توليد الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="8" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea></div></details>` : "";
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
@@ -12277,7 +12281,8 @@ async function handleSubmit(form, event) {
       try { const url = new URL(card.buttonUrl); if (!/^https?:$/.test(url.protocol)) throw new Error(); }
       catch { return toast("تحقق من صحة روابط الأزرار في البطاقات.", "warning"); }
     }
-    const socialLinks = Object.fromEntries(["instagram","x","linkedin","youtube","snapchat","facebook"].map((name) => [name, String(data[name] || "").trim()]).filter(([,value]) => value));
+    const socialLinksEnabled = data.channel === "email" && Boolean(form.querySelector("[data-campaign-social-section]")?.open);
+    const socialLinks = socialLinksEnabled ? Object.fromEntries(["instagram","x","linkedin","youtube","snapchat","facebook"].map((name) => [name, String(data[name] || "").trim()]).filter(([,value]) => value)) : {};
     for (const value of Object.values(socialLinks)) {
       try { const url = new URL(value); if (!/^https?:$/.test(url.protocol)) throw new Error(); }
       catch { return toast("تحقق من صحة روابط التواصل الاجتماعي.", "warning"); }
@@ -12317,6 +12322,7 @@ async function handleSubmit(form, event) {
           replyTo: data.replyTo || null,
           emailDesign: data.channel === "email" ? data.emailDesign || "showcase" : null,
           cards: campaignCards,
+          socialLinksEnabled,
           socialLinks,
           htmlContent: data.channel === "email" ? data.htmlContent || campaignStudioGeneratedHtml(form) : null,
           trackClicks: Boolean(form.elements.trackClicks?.checked),
@@ -14409,6 +14415,9 @@ document.addEventListener("input", (event) => {
   }
   const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
   if (campaignStudioForm) {
+    if (["instagram","x","linkedin","youtube","snapchat","facebook"].includes(target.name) && campaignStudioForm.elements.htmlContent) {
+      campaignStudioForm.elements.htmlContent.value = "";
+    }
     const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
     if (counter) counter.textContent = String(target.value?.length || 0);
     refreshCampaignStudioPreview(campaignStudioForm);
@@ -14621,6 +14630,17 @@ document.addEventListener("input", (event) => {
     refreshOrderLinkPreview();
   }
 });
+
+document.addEventListener("toggle", (event) => {
+  const section = event.target?.matches?.("[data-campaign-social-section]") ? event.target : null;
+  if (!section) return;
+  const form = section.closest("form[data-campaign-studio]");
+  if (!form) return;
+  if (form.elements.socialLinksEnabled) form.elements.socialLinksEnabled.value = section.open ? "true" : "false";
+  if (form.elements.htmlContent) form.elements.htmlContent.value = "";
+  refreshCampaignStudioPreview(form);
+  scheduleCampaignStudioDraft(form);
+}, true);
 
 document.addEventListener("focusin", (event) => {
   const globalSearch = event.target.closest?.('[data-action="global-search"]');

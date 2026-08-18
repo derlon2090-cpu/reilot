@@ -77,12 +77,18 @@ describe("campaign studio", () => {
     expect(appSource).toContain("campaignStudioGeneratedHtml(form)");
   });
 
-  it("renders valid social links as icons inside the email preview and generated HTML", () => {
+  it("keeps social links collapsed and renders icons only while the section is enabled", () => {
     expect(appSource).toContain("function campaignStudioSocialIconLinks");
     expect(appSource).toContain("data-campaign-social-preview");
+    expect(appSource).toContain('campaignStudioDraftValue("socialLinksEnabled", "false") === "true"');
+    expect(appSource).toContain('data-campaign-social-section ${socialLinksEnabled ? "open" : ""}');
+    expect(appSource).toContain('String(getValue("socialLinksEnabled")) !== "true"');
+    expect(appSource).toContain('document.addEventListener("toggle"');
+    expect(appSource).toContain('socialLinksEnabled = data.channel === "email" && Boolean(form.querySelector("[data-campaign-social-section]")?.open)');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
     expect(appSource).toContain('data.htmlContent || campaignStudioGeneratedHtml(form)');
+    expect(appSource).toContain('campaignStudioForm.elements.htmlContent.value = ""');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });
 
