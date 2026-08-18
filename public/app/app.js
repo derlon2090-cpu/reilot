@@ -885,6 +885,7 @@ state.campaignBuilderCards = [];
 state.campaignBuilderDraft = null;
 state.campaignBuilderDraftTimer = null;
 state.campaignBuilderPreviewMode = "desktop";
+state.campaignStudioAI = null;
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -5603,6 +5604,75 @@ function campaignStudioGeneratedHtml(form) {
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
+function campaignStudioAIState() {
+  const contextKey = `${state.campaignBuilderChannel || "email"}:${state.campaignBuilderKind || "custom"}`;
+  if (!state.campaignStudioAI || state.campaignStudioAI.contextKey !== contextKey) {
+    state.campaignStudioAI = { contextKey, status: "idle", mode: "generate", prompt: "", result: null, error: "", beforeHtml: "" };
+  }
+  return state.campaignStudioAI;
+}
+
+function campaignStudioAIResultMarkup() {
+  const ai = campaignStudioAIState();
+  if (ai.status === "loading") return `<div class="campaign-html-ai-progress" role="status"><i></i><span><b>جارٍ توليد تصميم البريد...</b><small>يتم إنشاء الكود وفحصه أمنيًا قبل عرضه.</small></span></div>`;
+  if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span></div>`;
+  if (ai.status !== "success" || !ai.result?.html) return `<div class="campaign-html-ai-empty">اكتب وصف التصميم ثم اضغط توليد بالذكاء الاصطناعي.</div>`;
+  return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>التصميم جاهز للمراجعة</b><small>${escapeHtml(ai.result.summary || "راجع المعاينة ثم اعتمد الكود.")}</small></span></div><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة تصميم كود البريد" srcdoc="${escapeHtml(ai.result.html)}"></iframe><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد تصميم الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-replace">استبدال الكود بالكامل</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ</button></div>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
+}
+
+function campaignStudioAIBuilderMarkup() {
+  const ai = campaignStudioAIState();
+  const modes = [["generate", "إنشاء جديد"], ["improve", "تحسين"], ["fix", "إصلاح"], ["replace", "استبدال كامل"]];
+  return `<div class="campaign-html-ai" data-campaign-studio-ai><div class="campaign-html-ai-title"><span>${dashboardIcon("sparkles")}<strong>توليد كود البريد بالذكاء الاصطناعي</strong><small>أنشئ تصميمًا متجاوبًا وآمنًا ثم اعتمده داخل الحملة.</small></span></div><div class="campaign-html-ai-modes" role="group" aria-label="نوع توليد الكود">${modes.map(([mode, label]) => `<button type="button" data-action="campaign-studio-ai-mode" data-mode="${mode}" class="${ai.mode === mode ? "active" : ""}">${label}</button>`).join("")}</div><textarea class="textarea" data-campaign-ai-prompt maxlength="4000" placeholder="مثال: صمم رسالة عربية أنيقة بزر واضح ومتوافقة مع الجوال.">${escapeHtml(ai.prompt || "")}</textarea><div class="campaign-html-ai-controls"><small>لن يُستبدل الكود أو يُحفظ حتى تضغط اعتماد التصميم.</small><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-generate">${dashboardIcon("sparkles")} توليد بالذكاء الاصطناعي</button></div><div data-campaign-studio-ai-result>${campaignStudioAIResultMarkup()}</div></div>`;
+}
+
+function refreshCampaignStudioAIResult(form = document.querySelector("form[data-campaign-studio]")) {
+  const result = form?.querySelector("[data-campaign-studio-ai-result]");
+  if (result) result.innerHTML = campaignStudioAIResultMarkup();
+}
+
+async function requestCampaignStudioAICode(form) {
+  if (!form) return;
+  const ai = campaignStudioAIState();
+  const promptValue = String(form.querySelector("[data-campaign-ai-prompt]")?.value || ai.prompt || "").trim();
+  const fallbackPrompt = `صمم قالب بريد إلكتروني عربي احترافي ومتجاوب لحملة بعنوان ${form.elements.subject?.value || form.elements.name?.value || "حملة جديدة"} ومحتوى: ${form.elements.body?.value || "رسالة تسويقية واضحة"}`;
+  const prompt = promptValue.length >= 3 ? promptValue : fallbackPrompt;
+  const mode = ["generate", "improve", "fix", "replace"].includes(ai.mode) ? ai.mode : "generate";
+  let existingHtml = String(form.elements.htmlContent?.value || "").trim();
+  if (mode !== "generate" && existingHtml) {
+    const inspection = inspectEmailHtmlClient(existingHtml);
+    if (!inspection.ok) return toast("اعتمد كود HTML صالحًا قبل تحسينه أو استبداله.", "warning");
+    existingHtml = inspection.html;
+  }
+  const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  state.campaignStudioAI = { ...ai, status: "loading", mode, prompt, result: null, error: "", beforeHtml: existingHtml };
+  refreshCampaignStudioAIResult(form);
+  try {
+    const payload = await fetchJson("/api/ai/email-template/generate", {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ prompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.body?.value, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], mode, selectedTemplateColor: "#0b3f3b", templateContext: { templateType: "campaign_email", channel: "email", selectedColor: "#0b3f3b" } }),
+      timeoutMs: 90000, timeoutMessage: "استغرق توليد الكود وقتًا أطول من المتوقع. حاول مرة أخرى."
+    });
+    state.campaignStudioAI = { ...state.campaignStudioAI, status: "success", result: payload, error: "" };
+  } catch (error) {
+    state.campaignStudioAI = { ...state.campaignStudioAI, status: "error", error: error.message || "تعذر توليد الكود." };
+  }
+  refreshCampaignStudioAIResult(form);
+}
+
+function applyCampaignStudioAICode(form, replace = false) {
+  const html = state.campaignStudioAI?.result?.html || "";
+  const inspection = inspectEmailHtmlClient(html);
+  if (!form || !inspection.ok) return toast(inspection.errors?.[0] || "الكود المقترح غير صالح.", "danger");
+  if (replace && String(form.elements.htmlContent?.value || "").trim() && !window.confirm("سيتم استبدال كود الحملة الحالي بالكامل. هل تريد المتابعة؟")) return;
+  form.elements.htmlContent.value = inspection.html;
+  form.elements.htmlContent.dataset.approved = "true";
+  form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم اعتماد تصميم الكود وسيبقى محفوظًا عند إغلاق القسم."));
+  scheduleCampaignStudioDraft(form);
+  refreshCampaignStudioAIResult(form);
+  toast("تم اعتماد تصميم الكود داخل الحملة. احفظ الحملة لتثبيته.", "success");
+}
+
 function campaignStudioDraftValue(name, fallback = "") {
   return state.campaignBuilderDraft?.values?.[name] ?? fallback;
 }
@@ -5644,7 +5714,7 @@ function campaignStudioPage() {
   }).join("");
   const socialLinksEnabled = campaignStudioDraftValue("socialLinksEnabled", "false") === "true";
   const socialFields = channel === "email" ? `<details class="campaign-studio-section" data-campaign-social-section ${socialLinksEnabled ? "open" : ""}><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>مغلقة افتراضيًا. أضف روابطك، وستبقى أيقوناتها ظاهرة في المعاينة حتى بعد إغلاق القسم.</small></span></summary><input type="hidden" name="socialLinksEnabled" value="${socialLinksEnabled ? "true" : "false"}"><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
-  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>HTML آمن للبريد بتخطيط جداول وCSS مضمّن، دون JavaScript.</small></span></summary><div class="campaign-html-tools"><div><button type="button" class="btn btn-secondary" data-action="campaign-studio-generate-html">${dashboardIcon("code")} توليد الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="8" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea></div></details>` : "";
+  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span></summary><div class="campaign-html-tools"><div><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-generate">${dashboardIcon("sparkles")} توليد بالذكاء الاصطناعي</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-generate-html">${dashboardIcon("code")} توليد قالب أساسي</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="8" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea><small data-campaign-html-status>الكود اختياري؛ اعتمد تصميم الذكاء الاصطناعي قبل الحفظ.</small>${campaignStudioAIBuilderMarkup()}</div></details>` : "";
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
     : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
@@ -9231,6 +9301,7 @@ async function handleAction(target) {
     }
     state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
     state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : target.dataset.channel === "whatsapp" ? "whatsapp" : null;
+    state.campaignStudioAI = null;
     closePortal();
     if (!state.campaignBuilderChannel) return navigate("/dashboard/campaigns");
     return navigate("/dashboard/campaigns/new");
@@ -9238,6 +9309,7 @@ async function handleAction(target) {
   if (action === "campaign-create-whatsapp") {
     state.campaignBuilderKind = "custom";
     state.campaignBuilderChannel = "whatsapp";
+    state.campaignStudioAI = null;
     return navigate("/dashboard/campaigns/new");
   }
   if (action === "campaign-builder-channel") {
@@ -9323,9 +9395,40 @@ async function handleAction(target) {
   }
   if (action === "campaign-studio-generate-html") {
     const form = target.closest("form[data-campaign-studio]");
-    if (!form?.reportValidity()) return;
+    if (!form) return;
     form.elements.htmlContent.value = campaignStudioGeneratedHtml(form);
+    form.elements.htmlContent.dataset.approved = "true";
+    form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم توليد قالب أساسي واعتماده داخل المحرر."));
     scheduleCampaignStudioDraft(form); toast("تم توليد قالب HTML آمن للبريد."); return;
+  }
+  if (action === "campaign-studio-ai-mode") {
+    const form = target.closest("form[data-campaign-studio]");
+    const ai = campaignStudioAIState();
+    ai.mode = ["generate", "improve", "fix", "replace"].includes(target.dataset.mode) ? target.dataset.mode : "generate";
+    form?.querySelectorAll("[data-action='campaign-studio-ai-mode']").forEach((button) => button.classList.toggle("active", button === target));
+    return;
+  }
+  if (action === "campaign-studio-ai-generate") {
+    const form = target.closest("form[data-campaign-studio]");
+    if (!form) return;
+    const ai = campaignStudioAIState();
+    ai.prompt = String(form.querySelector("[data-campaign-ai-prompt]")?.value || ai.prompt || "").trim();
+    target.disabled = true;
+    await requestCampaignStudioAICode(form);
+    if (target.isConnected) target.disabled = false;
+    return;
+  }
+  if (action === "campaign-studio-ai-approve" || action === "campaign-studio-ai-replace") {
+    const form = target.closest("form[data-campaign-studio]");
+    applyCampaignStudioAICode(form, action === "campaign-studio-ai-replace");
+    return;
+  }
+  if (action === "campaign-studio-ai-copy") {
+    const value = state.campaignStudioAI?.result?.html || "";
+    if (!value) return toast("لا يوجد كود مولّد لنسخه.", "warning");
+    try { await navigator.clipboard.writeText(value); toast("تم نسخ كود التصميم."); }
+    catch { toast("تعذر نسخ كود التصميم.", "danger"); }
+    return;
   }
   if (action === "campaign-studio-copy-html") {
     const form = target.closest("form[data-campaign-studio]");
@@ -12241,6 +12344,7 @@ async function handleSubmit(form, event) {
     state.campaignBuilderProduct = products[0];
     state.campaignBuilderCards = products.map(campaignStudioCardFromProduct);
     state.campaignBuilderDraft = null;
+    state.campaignStudioAI = null;
     closePortal();
     return navigate("/dashboard/campaigns/new");
   }
@@ -12273,6 +12377,11 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "campaign-create") {
+    if (!form.checkValidity()) {
+      const invalid = form.querySelector(":invalid");
+      invalid?.focus();
+      return toast("أكمل الحقول المطلوبة قبل حفظ الحملة.", "warning");
+    }
     const completedKind = state.campaignBuilderKind === "product" ? "product" : "custom";
     const allowedDays = [...new FormData(form).getAll("allowedDays")].map(Number);
     const contactKeywords = [...new FormData(form).getAll("contactKeywords")].map(String);
@@ -14286,6 +14395,8 @@ document.addEventListener("click", (event) => {
   const link = event.target.closest("[data-link]");
   const action = event.target.closest("[data-action]");
   const policyAnchor = event.target.closest("[data-policy-anchor]");
+  const campaignSubmit = event.target.closest("form[data-campaign-studio] button[type='submit']");
+  if (campaignSubmit?.form) campaignSubmit.form.noValidate = true;
   if (state.actionMenu && !event.target.closest(".suite-menu-cell,.suite-channel-actions") && !link && !action) {
     state.actionMenu = "";
     render();
@@ -14420,9 +14531,6 @@ document.addEventListener("input", (event) => {
   }
   const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
   if (campaignStudioForm) {
-    if (["instagram","x","linkedin","youtube","snapchat","facebook"].includes(target.name) && campaignStudioForm.elements.htmlContent) {
-      campaignStudioForm.elements.htmlContent.value = "";
-    }
     const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
     if (counter) counter.textContent = String(target.value?.length || 0);
     refreshCampaignStudioPreview(campaignStudioForm);
@@ -14641,7 +14749,6 @@ function syncCampaignSocialSection(section) {
   const form = section.closest("form[data-campaign-studio]");
   if (!form) return;
   if (form.elements.socialLinksEnabled) form.elements.socialLinksEnabled.value = section.open ? "true" : "false";
-  if (form.elements.htmlContent) form.elements.htmlContent.value = "";
   refreshCampaignStudioPreview(form);
   scheduleCampaignStudioDraft(form);
 }
@@ -14753,6 +14860,7 @@ document.addEventListener("change", (event) => {
   }
   const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
   if (campaignStudioForm) {
+    if (target.matches?.("[data-campaign-ai-prompt]")) campaignStudioAIState().prompt = target.value;
     if (target.dataset.action === "campaign-studio-audience") {
       const count = target.selectedOptions?.[0]?.dataset.count || "0";
       const output = campaignStudioForm.querySelector("[data-campaign-audience-count]");

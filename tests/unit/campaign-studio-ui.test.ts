@@ -67,14 +67,27 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain(".campaign-studio-email-preview.design-spotlight");
   });
 
-  it("keeps campaign copy manual while preserving the local HTML template generator", () => {
+  it("provides an AI email-code workflow without removing the local HTML generator", () => {
     expect(appSource).not.toContain("مساعد صياغة الحملة");
-    expect(appSource).not.toContain("campaign-ai-generate");
     expect(appSource).not.toContain("/api/ai/campaign-copy/generate");
     expect(existsSync(new URL("../../app/api/ai/campaign-copy/generate/route.js", import.meta.url))).toBe(false);
     expect(appSource).toContain("توليد قالب برمجي (HTML)");
+    expect(appSource).toContain("campaignStudioAIState");
+    expect(appSource).toContain("/api/ai/email-template/generate");
+    expect(appSource).toContain('templateType: "campaign_email"');
+    expect(appSource).toContain('data-action="campaign-studio-ai-replace"');
+    expect(appSource).toContain('data-action="campaign-studio-ai-approve"');
     expect(appSource).toContain('data-action="campaign-studio-generate-html"');
     expect(appSource).toContain("campaignStudioGeneratedHtml(form)");
+    expect(appSource).toContain("data-campaign-html-status");
+  });
+
+  it("keeps generated code when sections close and makes campaign saving actionable", () => {
+    expect(appSource).not.toContain('form.elements.htmlContent.value = ""');
+    expect(appSource).toContain('if (!form.checkValidity())');
+    expect(appSource).toContain("campaignSubmit.form.noValidate = true");
+    expect(stylesSource).toContain("bottom:max(8px,env(safe-area-inset-bottom))");
+    expect(stylesSource).toContain("pointer-events:auto");
   });
 
   it("keeps social links collapsed while preserving entered icons in the preview", () => {
@@ -93,7 +106,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
     expect(appSource).toContain('data.htmlContent || campaignStudioGeneratedHtml(form)');
-    expect(appSource).toContain('campaignStudioForm.elements.htmlContent.value = ""');
+    expect(appSource).not.toContain('campaignStudioForm.elements.htmlContent.value = ""');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });
 
