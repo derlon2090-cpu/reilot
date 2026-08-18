@@ -6741,6 +6741,7 @@ function syncAIQuota(payload) {
   if (!payload?.quota || !state.aiUsage || payload.quota.remaining === null) return;
   state.aiUsage = { ...state.aiUsage, remainingTokens: payload.quota.remaining, nextRefillAt: payload.quota.nextRefillAt || state.aiUsage.nextRefillAt };
   cacheAIViewState({ usage: state.aiUsage });
+  refreshAIUsageCards();
 }
 
 async function requestEmailAIDraft(form, card, { replaceConfirmed = false } = {}) {
