@@ -77,17 +77,19 @@ describe("campaign studio", () => {
     expect(appSource).toContain("campaignStudioGeneratedHtml(form)");
   });
 
-  it("keeps social links collapsed and renders icons only while the section is enabled", () => {
+  it("keeps social links collapsed while preserving entered icons in the preview", () => {
     expect(appSource).toContain("function campaignStudioSocialIconLinks");
     expect(appSource).toContain("data-campaign-social-preview");
     expect(appSource).toContain('campaignStudioDraftValue("socialLinksEnabled", "false") === "true"');
     expect(appSource).toContain('data-campaign-social-section ${socialLinksEnabled ? "open" : ""}');
-    expect(appSource).toContain('Boolean(values.querySelector?.("[data-campaign-social-section]")?.open)');
+    expect(appSource).not.toContain('Boolean(values.querySelector?.("[data-campaign-social-section]")?.open)');
+    expect(appSource).toContain('const socialLinks = campaignStudioSocialPlatforms().map');
+    expect(appSource).toContain('if (!campaignStudioValidHttpUrl(value))');
     expect(appSource).toContain('const raw = String(getValue(name) || "").trim()');
     expect(appSource).toContain('campaign-email-social-icon is-invalid');
     expect(appSource).toContain('document.addEventListener("toggle"');
     expect(appSource).toContain('document.addEventListener("click"');
-    expect(appSource).toContain('socialLinksEnabled = data.channel === "email" && Boolean(form.querySelector("[data-campaign-social-section]")?.open)');
+    expect(appSource).toContain('const socialLinksEnabled = Object.keys(socialLinks).length > 0');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
     expect(appSource).toContain('data.htmlContent || campaignStudioGeneratedHtml(form)');

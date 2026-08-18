@@ -5490,10 +5490,6 @@ function campaignStudioValidHttpUrl(value) {
 
 function campaignStudioSocialIconLinks(values) {
   const getValue = (name) => values?.elements ? values.elements[name]?.value : values?.[name];
-  const enabled = values?.elements
-    ? Boolean(values.querySelector?.("[data-campaign-social-section]")?.open)
-    : String(getValue("socialLinksEnabled")) === "true";
-  if (!enabled) return "";
   return campaignStudioSocialPlatforms().map(([name, label]) => {
     const raw = String(getValue(name) || "").trim();
     if (!raw) return "";
@@ -5599,11 +5595,11 @@ function campaignStudioGeneratedHtml(form) {
   };
   const theme = themes[design] || themes.showcase;
   const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
-  const socialLinks = form?.querySelector("[data-campaign-social-section]")?.open ? campaignStudioSocialPlatforms().map(([name,label]) => {
+  const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
     const url = campaignStudioValidHttpUrl(form?.elements[name]?.value);
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
-  }).join("") : "";
+  }).join("");
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
@@ -5647,7 +5643,7 @@ function campaignStudioPage() {
     return `<option value="${escapeHtml(group.id)}" data-count="${count}" ${campaignStudioDraftValue("groupId") === group.id ? "selected" : ""}>${escapeHtml(group.name)} — ${suiteNumber(count)}</option>`;
   }).join("");
   const socialLinksEnabled = campaignStudioDraftValue("socialLinksEnabled", "false") === "true";
-  const socialFields = channel === "email" ? `<details class="campaign-studio-section" data-campaign-social-section ${socialLinksEnabled ? "open" : ""}><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>مغلقة افتراضيًا. افتح القسم وأضف رابطًا صحيحًا لإظهار أيقونته في البريد.</small></span></summary><input type="hidden" name="socialLinksEnabled" value="${socialLinksEnabled ? "true" : "false"}"><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
+  const socialFields = channel === "email" ? `<details class="campaign-studio-section" data-campaign-social-section ${socialLinksEnabled ? "open" : ""}><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>مغلقة افتراضيًا. أضف روابطك، وستبقى أيقوناتها ظاهرة في المعاينة حتى بعد إغلاق القسم.</small></span></summary><input type="hidden" name="socialLinksEnabled" value="${socialLinksEnabled ? "true" : "false"}"><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
   const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>HTML آمن للبريد بتخطيط جداول وCSS مضمّن، دون JavaScript.</small></span></summary><div class="campaign-html-tools"><div><button type="button" class="btn btn-secondary" data-action="campaign-studio-generate-html">${dashboardIcon("code")} توليد الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="8" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea></div></details>` : "";
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
@@ -12291,11 +12287,10 @@ async function handleSubmit(form, event) {
       try { const url = new URL(card.buttonUrl); if (!/^https?:$/.test(url.protocol)) throw new Error(); }
       catch { return toast("تحقق من صحة روابط الأزرار في البطاقات.", "warning"); }
     }
-    const socialLinksEnabled = data.channel === "email" && Boolean(form.querySelector("[data-campaign-social-section]")?.open);
-    const socialLinks = socialLinksEnabled ? Object.fromEntries(["instagram","x","linkedin","youtube","snapchat","facebook"].map((name) => [name, String(data[name] || "").trim()]).filter(([,value]) => value)) : {};
+    const socialLinks = data.channel === "email" ? Object.fromEntries(["instagram","x","linkedin","youtube","snapchat","facebook"].map((name) => [name, String(data[name] || "").trim()]).filter(([,value]) => value)) : {};
+    const socialLinksEnabled = Object.keys(socialLinks).length > 0;
     for (const value of Object.values(socialLinks)) {
-      try { const url = new URL(value); if (!/^https?:$/.test(url.protocol)) throw new Error(); }
-      catch { return toast("تحقق من صحة روابط التواصل الاجتماعي.", "warning"); }
+      if (!campaignStudioValidHttpUrl(value)) return toast("تحقق من صحة روابط التواصل الاجتماعي.", "warning");
     }
     if (!allowedDays.length) return toast("اختر يومًا واحدًا على الأقل لتشغيل الحملة.", "warning");
     if (maxDelaySeconds < minDelaySeconds) return toast("أقصى وقت بين الرسائل يجب أن يكون أكبر من أقل وقت أو مساويًا له.", "warning");
