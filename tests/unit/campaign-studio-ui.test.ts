@@ -67,7 +67,7 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain(".campaign-studio-email-preview.design-spotlight");
   });
 
-  it("provides an AI email-code workflow without removing the local HTML generator", () => {
+  it("provides a safe AI email-code workflow with focused code controls", () => {
     expect(appSource).not.toContain("مساعد صياغة الحملة");
     expect(appSource).not.toContain("/api/ai/campaign-copy/generate");
     expect(existsSync(new URL("../../app/api/ai/campaign-copy/generate/route.js", import.meta.url))).toBe(false);
@@ -77,8 +77,12 @@ describe("campaign studio", () => {
     expect(appSource).toContain('templateType: "campaign_email"');
     expect(appSource).toContain('data-action="campaign-studio-ai-replace"');
     expect(appSource).toContain('data-action="campaign-studio-ai-approve"');
-    expect(appSource).toContain('data-action="campaign-studio-generate-html"');
-    expect(appSource).toContain("campaignStudioGeneratedHtml(form)");
+    expect(appSource).toContain('data-action="campaign-studio-delete-html"');
+    expect(appSource).toContain('data-action="campaign-studio-replace-html"');
+    expect(appSource).toContain('data-action="campaign-studio-copy-html"');
+    expect(appSource).not.toContain("توليد قالب أساسي");
+    expect(appSource).toContain("syncAIQuota(payload)");
+    expect(appSource).toContain("inspectEmailHtmlClient(payload?.html || \"\")");
     expect(appSource).toContain("data-campaign-html-status");
   });
 
@@ -105,7 +109,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('const socialLinksEnabled = Object.keys(socialLinks).length > 0');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
-    expect(appSource).toContain('data.htmlContent || campaignStudioGeneratedHtml(form)');
+    expect(appSource).toContain('String(data.htmlContent || "").trim() || null');
     expect(appSource).not.toContain('campaignStudioForm.elements.htmlContent.value = ""');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });

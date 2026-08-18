@@ -15669,3 +15669,28 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 
 .campaign-html-ai{display:grid;gap:12px;margin-top:14px;padding:14px;border:1px solid #dce9e6;border-radius:14px;background:#f8fcfb}.campaign-html-ai-title{display:flex;align-items:center;gap:9px}.campaign-html-ai-title>span{display:grid;gap:3px}.campaign-html-ai-title>svg{width:22px;height:22px;color:#0b806f}.campaign-html-ai-title strong{color:#123d37;font-size:14px}.campaign-html-ai-title small,.campaign-html-ai-controls small{color:#78908a;font-size:10px}.campaign-html-ai-modes{display:flex;flex-wrap:wrap;gap:6px}.campaign-html-ai-modes button{padding:7px 11px;border:1px solid #d7e5e2;border-radius:999px;color:#46645e;background:#fff;font-size:11px;cursor:pointer}.campaign-html-ai-modes button.active{border-color:#0b806f;color:#fff;background:#0b806f}.campaign-html-ai-controls,.campaign-html-ai-result-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.campaign-html-ai-progress,.campaign-html-ai-error,.campaign-html-ai-empty{padding:12px;border-radius:10px;color:#627b75;background:#fff;font-size:11px}.campaign-html-ai-progress{display:flex;align-items:center;gap:8px}.campaign-html-ai-progress i{width:14px;height:14px;border:2px solid #b7d8d1;border-top-color:#0b806f;border-radius:50%;animation:spin .8s linear infinite}.campaign-html-ai-error{color:#9a3e45;background:#fff5f5}.campaign-html-ai-success{display:grid;gap:10px;padding:10px;border:1px solid #b9ded5;border-radius:11px;background:#fff}.campaign-html-ai-success-head{display:flex;align-items:center;gap:8px}.campaign-html-ai-success-head>svg{width:18px;height:18px;color:#0b806f}.campaign-html-ai-success-head span{display:grid;gap:2px}.campaign-html-ai-success-head small{color:#78908a;font-size:10px}.campaign-html-ai-success iframe{width:100%;min-height:260px;border:1px solid #e1ebe9;border-radius:9px;background:#fff}.campaign-html-ai-success ul{margin:0;padding-inline-start:20px;color:#8b6b32;font-size:10px}.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:sticky;bottom:max(8px,env(safe-area-inset-bottom));z-index:20;min-height:64px;pointer-events:auto}.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions .btn{position:relative;z-index:21;min-height:44px;pointer-events:auto}.campaign-html-code{min-height:210px}
 @media (max-width:700px){.campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:sticky;bottom:max(6px,env(safe-area-inset-bottom));grid-template-columns:repeat(2,minmax(0,1fr));margin-inline:0}.campaign-html-ai-controls{align-items:stretch;flex-direction:column}.campaign-html-ai-controls .btn{width:100%}}
+
+/* Campaign email code workspace: compact AI controls, larger editor, and reliable actions. */
+.campaign-html-tools{gap:12px}
+.campaign-html-tools>.campaign-html-toolbar{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px}
+.campaign-html-toolbar .btn{min-height:40px;padding-inline:14px;white-space:nowrap}
+.campaign-html-code{min-height:340px;max-height:68vh;resize:vertical;line-height:1.65}
+.campaign-html-tools>.campaign-html-ai{display:grid!important;gap:10px;margin-top:4px;padding:0;border:0;border-radius:0;background:transparent}
+.campaign-html-ai-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.campaign-html-ai-head>div:first-child{display:grid;gap:3px;min-width:0}
+.campaign-html-ai-head strong{display:flex;align-items:center;gap:6px;color:#123d37;font-size:14px}
+.campaign-html-ai-head strong svg{width:17px;height:17px;color:#0b806f}
+.campaign-html-ai-head small{color:#78908a;font-size:10px}
+.campaign-html-ai-prompt{min-height:108px;resize:vertical}
+.campaign-html-ai-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.campaign-html-ai-controls small{color:#78908a;font-size:10px}
+.campaign-html-ai-success{padding:12px;border-radius:12px}
+.campaign-html-ai-quota{color:#0b806f;font-size:10px}
+@media (max-width:700px){
+  .campaign-html-toolbar{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .campaign-html-toolbar .btn{width:100%;padding-inline:8px}
+  .campaign-html-code{min-height:260px}
+  .campaign-html-ai-head{align-items:stretch;flex-direction:column}
+  .campaign-html-ai-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .campaign-html-ai-modes button{min-height:36px}
+}
