@@ -83,6 +83,11 @@ describe("campaign studio", () => {
     expect(appSource).not.toContain("توليد قالب أساسي");
     expect(appSource).toContain("syncAIQuota(payload)");
     expect(appSource).toContain("inspectEmailHtmlClient(payload?.html || \"\")");
+    expect(appSource).toContain("campaignStudioAIModalMarkup");
+    expect(appSource).toContain('data-submit="campaign-ai-code-generate"');
+    expect(appSource).toContain('name="selectedColor"');
+    expect(appSource).toContain("refreshCampaignStudioPreview(form)");
+    expect(appSource).not.toContain("data-campaign-ai-prompt");
     expect(appSource).toContain("data-campaign-html-status");
   });
 

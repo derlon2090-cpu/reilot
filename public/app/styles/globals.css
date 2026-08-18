@@ -15694,3 +15694,15 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .campaign-html-ai-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
   .campaign-html-ai-modes button{min-height:36px}
 }
+.campaign-ai-code-modal{display:grid;gap:14px;min-width:min(560px,100%)}
+.campaign-ai-code-modal .inline-notice{margin:0;line-height:1.8}
+.campaign-ai-color-field{margin:0;padding:0;border:0}
+.campaign-ai-color-field legend{margin-bottom:8px;color:#173f3a;font-size:12px;font-weight:800}
+.campaign-ai-color-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.campaign-ai-color-grid label{display:grid;justify-items:center;gap:5px;padding:8px 4px;border:1px solid #dbe9e6;border-radius:10px;background:#fff;cursor:pointer}
+.campaign-ai-color-grid label:has(input:checked){border-color:#0b806f;box-shadow:0 0 0 2px rgba(11,128,111,.14)}
+.campaign-ai-color-grid input{position:absolute;opacity:0;pointer-events:none}
+.campaign-ai-color-grid span{width:28px;height:28px;border-radius:50%;background:var(--campaign-ai-color);box-shadow:inset 0 0 0 2px rgba(255,255,255,.65)}
+.campaign-ai-color-grid small{color:#5f7771;font-size:9px;text-align:center;white-space:nowrap}
+.campaign-ai-modal-note{color:#78908a;font-size:10px}
+@media (max-width:560px){.campaign-ai-code-modal{min-width:0}.campaign-ai-color-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
