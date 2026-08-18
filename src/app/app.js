@@ -5477,9 +5477,12 @@ function campaignStudioSocialPlatforms() {
 }
 
 function campaignStudioValidHttpUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
   try {
-    const url = new URL(String(value || "").trim());
-    return /^https?:$/.test(url.protocol) ? url.toString() : "";
+    const url = new URL(candidate);
+    return /^https?:$/.test(url.protocol) && url.hostname.includes(".") ? url.toString() : "";
   } catch {
     return "";
   }
@@ -5492,8 +5495,12 @@ function campaignStudioSocialIconLinks(values) {
     : String(getValue("socialLinksEnabled")) === "true";
   if (!enabled) return "";
   return campaignStudioSocialPlatforms().map(([name, label]) => {
-    const url = campaignStudioValidHttpUrl(getValue(name));
-    return url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${dashboardIcon(name)}</a>` : "";
+    const raw = String(getValue(name) || "").trim();
+    if (!raw) return "";
+    const url = campaignStudioValidHttpUrl(raw);
+    return url
+      ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${dashboardIcon(name)}</a>`
+      : `<span class="campaign-email-social-icon is-invalid" style="display:grid;width:32px;height:32px;place-items:center;border:1px dashed #d7e5e2;border-radius:50%;color:#8a9b97;background:#fff;opacity:.85" aria-label="${label}" title="أكمل الرابط ليصبح صالحًا">${dashboardIcon(name)}</span>`;
   }).join("");
 }
 
