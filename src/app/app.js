@@ -4471,6 +4471,7 @@ function pageTitle(title, actions = "") {
     "العملاء": "أدر عملاءك وتنبيهاتهم دون بيانات تجريبية.",
     "الحملات": "إدارة حملاتك ومتابعة أدائها في مكان واحد.",
     "القنوات والربط": "إدارة واتساب الرسمية والبريد الإلكتروني وحالة الربط.",
+    "قوالب عامة": "قوالب جاهزة لتواصل موحّد عبر واتساب والبريد الإلكتروني.",
     "القوالب": "إدارة قوالب الرسائل والروابط الجاهزة حسب القناة.",
     "إرسال معلومات الطلب": "صمم قالبًا واحدًا برابط ثابت وأضف إليه طلبات عملائك.",
     "تطبيقاتنا": "اربط متجرك بالتطبيقات الخارجية وشغّل المزامنة والأتمتة بأمان.",
@@ -4479,7 +4480,8 @@ function pageTitle(title, actions = "") {
     "التقارير": "تابع أداء الرسائل والقنوات والعملاء من مكان واحد.",
     "الإعدادات": "إدارة الحساب واللغة والمظهر والأمان."
   };
-  return `<div class="page-title"><div><h1>${title}</h1><p class="muted">${descriptions[title] || "Renvix"}</p></div><div class="toolbar">${pageActions}</div></div>`;
+  const description = descriptions[title];
+  return `<div class="page-title"><div><h1>${title}</h1>${description ? `<p class="muted">${description}</p>` : ""}</div><div class="toolbar">${pageActions}</div></div>`;
 }
 
 function activityList(items = []) {
@@ -6806,7 +6808,6 @@ function templatesCatalogPage() {
     ? (preferredMeta ? "" : `<div class="general-template-notice">${dashboardIcon("whatsapp")}<div><strong>لا توجد قوالب واتساب في حساب Meta المرتبط حتى الآن.</strong><p>أنشئ القالب من WhatsApp Manager أو من Renvix ثم اضغط مزامنة مع Meta.</p></div><div class="inline-actions"><button class="btn btn-secondary" data-action="meta-template-sync">${dashboardIcon("refresh")} مزامنة مع Meta</button><button class="btn btn-primary" data-action="meta-template-create">${dashboardIcon("template")} إنشاء قالب</button></div></div>`)
     : `<div class="general-template-notice">${dashboardIcon("whatsapp")}<div><strong>قوالب واتساب المعتمدة غير متاحة بعد.</strong><p>اربط حساب واتساب الرسمي عبر Meta Cloud API قبل إنشاء أو مزامنة القوالب المعتمدة.</p></div></div>`;
   return dashboardShell(`${pageTitle("قوالب عامة", `<button class="btn btn-secondary" data-link="/dashboard">${dashboardIcon("arrow-left")} العودة إلى اللوحة</button>`)}
-    <p class="page-kicker">قوالب ثابتة ولوحة المستخدم العامة التي يمكنك استخدامها في مراسلاتك عبر قنوات التواصل.</p>
     <section class="general-templates-list">
       ${loading ? `<div class="loading-state">جارٍ تحميل القوالب المحفوظة...</div>` : rows || `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>لا توجد قوالب عامة حتى الآن</strong><p>أعد تحميل الصفحة بعد اكتمال تهيئة مساحة العمل.</p></div>`}
     </section>
