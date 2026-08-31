@@ -15533,6 +15533,17 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 /* Contacts channel navigation */
+.contacts-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(250px, 1fr) auto auto;
+  align-items: center;
+}
+
+.contacts-search {
+  min-width: 0;
+  margin-inline-start: 0;
+}
+
 .contacts-channel-tabs {
   display: flex;
   align-items: stretch;
@@ -15609,12 +15620,25 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   transform: scaleX(1);
 }
 
+@media (max-width: 1180px) and (min-width: 561px) {
+  .contacts-toolbar {
+    grid-template-columns: auto minmax(240px, 1fr);
+  }
+
+  .contacts-toolbar > select,
+  .contacts-review-count { width: 100%; }
+
+  .contacts-review-count { justify-content: center; }
+}
+
 @media (max-width: 820px) {
-  .contacts-channel-tabs { flex: 1 1 100%; }
+  .contacts-channel-tabs { width: auto; min-width: 0; }
   .contacts-channel-tabs button { flex: 1 0 auto; }
 }
 
 @media (max-width: 560px) {
+  .contacts-toolbar { grid-template-columns: minmax(0, 1fr); }
+
   .contacts-channel-tabs {
     width: 100%;
     justify-content: flex-start;
