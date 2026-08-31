@@ -10,8 +10,9 @@
     "AUTH_URL": "https://accounts.renvix.app",
     "NEXT_PUBLIC_APP_URL": "https://dash.renvix.app",
     "APP_URL": "https://dash.renvix.app",
-    "NEXT_PUBLIC_ADMIN_URL": "https://admin.renvix.app",
-    "ADMIN_URL": "https://admin.renvix.app",
+    "NEXT_PUBLIC_ADMIN_URL": "https://wa.admin.renvix.app",
+    "ADMIN_URL": "https://wa.admin.renvix.app",
+    "HONEYPOT_PUBLIC_URL": "https://admin.renvix.app",
     "AUTH_COOKIE_DOMAIN": ".renvix.app",
     "BETTER_AUTH_URL": "https://accounts.renvix.app",
     "NEXT_PUBLIC_API_BASE_URL": "https://api.renvix.app",
@@ -57,6 +58,10 @@
     {
       "path": "/api/cron/recalculate-security-scores",
       "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/cron/security-inspector",
+      "schedule": "7 * * * *"
     }
   ]
 }

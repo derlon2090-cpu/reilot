@@ -20,6 +20,15 @@ import { sendMetaImageMessage, sendMetaTextMessage } from "./meta-interactive-se
 import { cleanupAbandonedAttachmentUploads } from "./attachments/service.js";
 import { reconcileDeletingAttachments, runAttachmentCleanupWorker } from "./attachments/cleanup-jobs.js";
 import { reconcileAIProviderUsage } from "./ai/provider-accounting.js";
+import { runSecurityInspector } from "./security-inspector.js";
+import { expireSecurityData, processSecurityAlerts } from "./security-center.js";
+
+export async function runSecurityOperations() {
+  const [inspector, alerts, retention] = await Promise.all([
+    runSecurityInspector({ triggerType: "scheduled" }), processSecurityAlerts(), expireSecurityData()
+  ]);
+  return { inspector, alerts, retention };
+}
 
 export async function runRenewalReminders() {
   return runDueSubscriptionReminders();
@@ -497,6 +506,7 @@ export async function runCronJob(jobName) {
     "platform-notifications": runPlatformNotificationWorker,
     "admin-template-events": runAdminMessaging,
     "whatsapp-health-check": runWhatsAppHealthCheck,
+    "security-inspector": runSecurityOperations,
     "usage-reset": runUsageReset,
     cleanup: runCleanup
   };

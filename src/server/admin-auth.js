@@ -20,7 +20,7 @@ const ROLE_PERMISSIONS = {
     devices: ["read", "update", "create", "pair", "reconnect", "logout", "delete", "view_metrics", "view_phone"],
     "evolution.devices": ["view", "create", "pair", "reconnect", "logout", "delete"],
     "evolution.metrics": ["view"],
-    security: ["read"],
+    security: ["read"], inspector: ["read"], incidents: ["read"],
     reports: ["read", "export"],
     stores: ["read", "update"],
     templates: ["read", "update"],
@@ -53,17 +53,18 @@ const ROLE_PERMISSIONS = {
     devices: ["read", "update", "pair", "reconnect", "logout", "view_metrics"],
     "evolution.devices": ["view", "pair", "manage_policy", "reconnect", "logout"],
     "evolution.metrics": ["view"],
-    security: ["read", "update"],
+    security: ["read", "update"], inspector: ["read", "run"], incidents: ["read", "manage"],
+    remediation: ["read", "approve"], "security.alerts": ["read", "manage"],
     audit: ["read"]
   },
   security_auditor: {
-    overview: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"],
+    overview: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"], inspector: ["read"], incidents: ["read"],
     "evolution.devices": ["view"], "evolution.metrics": ["view"],
     reports: ["read"], audit: ["read"]
   },
   read_only: {
     overview: ["read"], subscriptions: ["read"], customers: ["read"], stores: ["read"], campaigns: ["read"], contacts: ["read"],
-    templates: ["read"], notifications: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"],
+    templates: ["read"], notifications: ["read"], devices: ["read", "view_metrics"], integrations: ["read"], security: ["read"], inspector: ["read"], incidents: ["read"],
     "evolution.devices": ["view"], "evolution.metrics": ["view"],
     reports: ["read"], billing: ["read"], settings: ["read"], support: ["read"], audit: ["read"]
   },
@@ -73,7 +74,7 @@ const ROLE_PERMISSIONS = {
     customers: ["read"],
     devices: ["read", "view_metrics"],
     "evolution.devices": ["view"], "evolution.metrics": ["view"],
-    security: ["read"],
+    security: ["read"], inspector: ["read"], incidents: ["read"],
     reports: ["read"],
     support: ["read"],
     audit: ["read"]

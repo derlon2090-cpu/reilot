@@ -1,0 +1,17 @@
+name = "renvix-admin-honeypot"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = false
+
+routes = [
+  { pattern = "admin.renvix.app/*", zone_name = "renvix.app" }
+]
+
+[vars]
+SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"
+
+[[unsafe.bindings]]
+name = "HONEYPOT_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

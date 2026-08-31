@@ -8,6 +8,7 @@ import {
   trustedDeviceCookie,
   verifyEmailOtp
 } from "../../../../../src/server/email-otp-v2.js";
+import { recordSecuritySignal } from "../../../../../src/server/security-center.js";
 
 export async function POST(req) {
   try {
@@ -24,6 +25,12 @@ export async function POST(req) {
       existingBrowserToken: readTrustedBrowserCookie(req)
     });
     if (!result.ok) {
+      if (challenge.admin) await recordSecuritySignal({
+        eventType: "ADMIN_MFA_FAILED",
+        sourceIp: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+        requestedPath: "/admin/email-otp",
+        metadata: { reason: result.reason, attemptsRemaining: result.attemptsRemaining }
+      });
       return Response.json(
         { ok: false, reason: result.reason, attemptsRemaining: result.attemptsRemaining },
         { status: result.status }
