@@ -1979,7 +1979,16 @@ function ensurePasswordToggles() {
 
 function publicNavbar() {
   const navIcons = ["publicHome", "publicFeatures", "publicPlans", "publicBlog", "support"];
-  const isActiveRoute = (path) => path === "/" ? state.route === "/" : state.route === path || state.route.startsWith(`${path}/`);
+  const routeSections = {
+    "/features": ["/integrations", "/message-templates"],
+    "/blog": ["/article", "/product-updates"],
+    "/support": ["/faq", "/user-guide", "/contact"]
+  };
+  const isActiveRoute = (path) => {
+    if (path === "/") return state.route === "/";
+    const sectionRoutes = [path, ...(routeSections[path] || [])];
+    return sectionRoutes.some((sectionRoute) => state.route === sectionRoute || state.route.startsWith(`${sectionRoute}/`));
+  };
   const links = routes.map(([path, key], index) => `<a href="${path}" class="nav-link ${isActiveRoute(path) ? "active" : ""}" data-link="${path}" ${isActiveRoute(path) ? 'aria-current="page"' : ""}><span class="public-nav-icon">${dashboardIcon(navIcons[index])}</span><span>${t(key)}</span></a>`).join("");
   const moreLinks = routes.slice(3).map(([path, key], index) => `<a href="${path}" class="${isActiveRoute(path) ? "active" : ""}" data-link="${path}" ${isActiveRoute(path) ? 'aria-current="page"' : ""}>${dashboardIcon(navIcons[index + 3])}<span>${t(key)}</span></a>`).join("");
   const moreIsActive = routes.slice(3).some(([path]) => isActiveRoute(path));
