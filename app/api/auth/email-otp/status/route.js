@@ -1,17 +1,18 @@
 import {
-  EMAIL_OTP_CHALLENGE_COOKIE,
+  clearAdminChallengeCookie,
   clearChallengeCookie,
   getEmailOtpStatus,
-  readCookie
+  readEmailOtpChallengeCookie
 } from "../../../../../src/server/email-otp-v2.js";
 
 export async function GET(req) {
   try {
-    const result = await getEmailOtpStatus(readCookie(req, EMAIL_OTP_CHALLENGE_COOKIE));
+    const challenge = readEmailOtpChallengeCookie(req);
+    const result = await getEmailOtpStatus(challenge.value);
     if (!result.ok) {
       return Response.json(
         { ok: false, reason: result.reason },
-        { status: 401, headers: { "Set-Cookie": clearChallengeCookie() } }
+        { status: 401, headers: { "Set-Cookie": challenge.admin ? clearAdminChallengeCookie() : clearChallengeCookie() } }
       );
     }
     return Response.json(result);

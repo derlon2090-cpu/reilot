@@ -10,10 +10,13 @@ export function authAllowedOrigins(env = process.env) {
   return new Set([
     env.APP_URL,
     env.NEXT_PUBLIC_APP_URL,
+    env.NEXT_PUBLIC_AUTH_URL,
+    env.NEXT_PUBLIC_SITE_URL,
+    env.SITE_URL,
+    env.NEXT_PUBLIC_ADMIN_URL,
+    env.ADMIN_URL,
     env.AUTH_URL,
     env.BETTER_AUTH_URL,
-    "https://accounts.renvix.app",
-    "https://renvix.app",
     env.NODE_ENV !== "production" ? "http://localhost:3000" : ""
   ].map(normalizedOrigin).filter(Boolean));
 }

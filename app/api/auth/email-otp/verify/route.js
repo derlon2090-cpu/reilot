@@ -1,9 +1,9 @@
-import { sessionCookie } from "../../../../../src/server/session.js";
+import { adminSessionCookie, sessionCookie } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
 import {
-  EMAIL_OTP_CHALLENGE_COOKIE,
+  clearAdminChallengeCookie,
   clearChallengeCookie,
-  readCookie,
+  readEmailOtpChallengeCookie,
   readTrustedBrowserCookie,
   trustedDeviceCookie,
   verifyEmailOtp
@@ -15,8 +15,9 @@ export async function POST(req) {
     if (!body || typeof body !== "object") {
       return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
     }
+    const challenge = readEmailOtpChallengeCookie(req);
     const result = await verifyEmailOtp({
-      rawCookie: readCookie(req, EMAIL_OTP_CHALLENGE_COOKIE),
+      rawCookie: challenge.value,
       code: body.code,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
       userAgent: req.headers.get("user-agent"),
@@ -29,8 +30,11 @@ export async function POST(req) {
       );
     }
     const headers = new Headers();
-    headers.append("Set-Cookie", sessionCookie(result.session.token, result.sessionCookieMaxAge));
-    headers.append("Set-Cookie", clearChallengeCookie());
+    const adminSession = result.redirectUrl === "/admin";
+    headers.append("Set-Cookie", adminSession
+      ? adminSessionCookie(result.session.token, result.sessionCookieMaxAge)
+      : sessionCookie(result.session.token, result.sessionCookieMaxAge));
+    headers.append("Set-Cookie", adminSession || challenge.admin ? clearAdminChallengeCookie() : clearChallengeCookie());
     if (result.trustedToken) headers.append("Set-Cookie", trustedDeviceCookie(result.trustedToken));
     return Response.json({ ok: true, user: result.user, redirectUrl: result.redirectUrl, trustedUntil: result.trustedUntil }, { headers });
   } catch (error) {

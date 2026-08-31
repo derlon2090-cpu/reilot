@@ -1,7 +1,7 @@
-import { appBaseUrl } from "../src/server/app-url.js";
+import { siteBaseUrl } from "../src/server/app-url.js";
 
 export default function robots() {
-  const siteUrl = appBaseUrl();
+  const siteUrl = siteBaseUrl();
   return {
     rules: [
       {

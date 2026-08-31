@@ -21,11 +21,12 @@ vi.mock("../../src/server/db.js", () => ({
 }));
 vi.mock("../../src/server/password.js", () => ({ hashPassword: hashPasswordMock, needsRehash: needsRehashMock, verifyPassword: vi.fn(async () => true) }));
 vi.mock("../../src/server/session.js", () => ({
+  ADMIN_SESSION_COOKIE: "renvix_admin_session",
   destroySession: vi.fn(async () => undefined)
 }));
 vi.mock("../../src/server/email-otp-v2.js", () => ({
   createLoginEmailOtpChallenge: emailChallengeMock,
-  challengeCookie: (value: string) => `renvix_email_otp_challenge=${value}; HttpOnly`
+  adminChallengeCookie: (value: string) => `renvix_admin_email_otp_challenge=${value}; HttpOnly`
 }));
 
 import { classifyAdminAuthFailure, POST } from "../../app/api/admin/auth/login/route.js";
@@ -73,6 +74,8 @@ describe("admin login identifiers", () => {
 
     expect(response.status).toBe(202);
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(response.headers.get("set-cookie")).toContain("renvix_admin_email_otp_challenge=");
+    expect(response.headers.get("set-cookie")).not.toContain("Domain=");
     expect(queryMock.mock.calls[1][0]).toContain("lower(a.account_id)");
     expect(emailChallengeMock).toHaveBeenCalledWith(expect.objectContaining({ purpose: "admin_login" }));
     await expect(response.json()).resolves.toMatchObject({ ok: true, requiresEmailOtp: true });

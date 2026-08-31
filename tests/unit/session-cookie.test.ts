@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { sessionCookie } from "../../src/server/session.js";
+import { adminSessionCookie, sessionCookie } from "../../src/server/session.js";
 
 const originalNodeEnv = process.env.NODE_ENV;
 const originalCookieSecure = process.env.COOKIE_SECURE;
@@ -41,13 +41,25 @@ describe("session cookie security", () => {
     expect(sessionCookie("token")).not.toContain("; Secure");
   });
 
-  it("infers the shared Renvix domain in production when the deployment variable is missing", () => {
+  it("uses the explicit shared domain for the accounts-to-dashboard customer handoff", () => {
     process.env.NODE_ENV = "production";
     process.env.APP_URL = "https://renvix.app";
     process.env.AUTH_URL = "https://accounts.renvix.app";
-    delete process.env.AUTH_COOKIE_DOMAIN;
+    process.env.AUTH_COOKIE_DOMAIN = ".renvix.app";
 
     expect(sessionCookie("token")).toContain("; Domain=.renvix.app");
+  });
+
+  it("keeps administrator sessions host-only", () => {
+    process.env.NODE_ENV = "production";
+    process.env.COOKIE_SECURE = "true";
+    process.env.AUTH_COOKIE_DOMAIN = ".renvix.app";
+
+    const cookie = adminSessionCookie("admin-token", 3600);
+    expect(cookie).not.toContain("; Domain=");
+    expect(cookie).toContain("renvix_admin_session=");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("; Secure");
   });
 
   it("does not attach the Renvix domain to unrelated preview hosts", () => {

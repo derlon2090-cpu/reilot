@@ -1,5 +1,5 @@
 import Script from "next/script";
-import { appBaseUrl, authBaseUrl } from "../src/server/app-url.js";
+import { adminBaseUrl, appBaseUrl, authBaseUrl, siteBaseUrl } from "../src/server/app-url.js";
 import { publicAuthApiOrigin } from "../src/server/auth-backend-runtime.js";
 
 export const metadata = {
@@ -14,6 +14,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   const appUrl = appBaseUrl();
+  const adminUrl = adminBaseUrl();
+  const siteUrl = siteBaseUrl();
   const authUrl = authBaseUrl();
   const authApiUrl = publicAuthApiOrigin();
   return (
@@ -26,6 +28,8 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{
             __html: `window.__RENVIX_CONFIG__=${JSON.stringify({
               appUrl,
+              adminUrl,
+              siteUrl,
               authUrl,
               authApiUrl,
               turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "",

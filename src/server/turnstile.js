@@ -9,10 +9,11 @@ export const TURNSTILE_ACTIONS = Object.freeze({
 
 function expectedHostname(env) {
   if (env.TURNSTILE_EXPECTED_HOSTNAME) return env.TURNSTILE_EXPECTED_HOSTNAME.trim().toLowerCase();
-  if (env.AUTH_URL) {
-    try { return new URL(env.AUTH_URL).hostname.toLowerCase(); } catch { /* handled below */ }
+  const authUrl = env.NEXT_PUBLIC_AUTH_URL || env.AUTH_URL || env.BETTER_AUTH_URL;
+  if (authUrl) {
+    try { return new URL(authUrl).hostname.toLowerCase(); } catch { /* handled below */ }
   }
-  return env.NODE_ENV === "production" ? "accounts.renvix.app" : "";
+  return "";
 }
 
 function cloudflareClientIp(request) {
@@ -34,6 +35,8 @@ export async function verifyTurnstileToken({ token, expectedAction, request, env
   // Every environment fails closed. Automated tests use Cloudflare's official
   // test keys, while local development must opt in with its own configured key.
   if (!secret) return { ok: false, reason: "configuration_error" };
+  const configuredHostname = expectedHostname(env);
+  if (env.NODE_ENV === "production" && !configuredHostname) return { ok: false, reason: "configuration_error" };
 
   const responseToken = String(token || "").trim();
   if (!responseToken) return { ok: false, reason: "missing_token" };
@@ -62,8 +65,7 @@ export async function verifyTurnstileToken({ token, expectedAction, request, env
   if (payload?.success !== true) return { ok: false, reason: "challenge_failed" };
   if (String(payload.action || "") !== expectedAction) return { ok: false, reason: "action_mismatch" };
 
-  const hostname = expectedHostname(env);
-  if (hostname && String(payload.hostname || "").toLowerCase() !== hostname) {
+  if (configuredHostname && String(payload.hostname || "").toLowerCase() !== configuredHostname) {
     return { ok: false, reason: "hostname_mismatch" };
   }
 

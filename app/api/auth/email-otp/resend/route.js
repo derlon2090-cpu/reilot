@@ -1,14 +1,14 @@
 import {
-  EMAIL_OTP_CHALLENGE_COOKIE,
-  readCookie,
+  readEmailOtpChallengeCookie,
   resendEmailOtp
 } from "../../../../../src/server/email-otp-v2.js";
 
 export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}));
+    const challenge = readEmailOtpChallengeCookie(req);
     const result = await resendEmailOtp({
-      rawCookie: readCookie(req, EMAIL_OTP_CHALLENGE_COOKIE),
+      rawCookie: challenge.value,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
       userAgent: req.headers.get("user-agent"),
       locale: body.locale === "en" ? "en" : "ar"

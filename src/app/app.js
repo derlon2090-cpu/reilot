@@ -1721,7 +1721,7 @@ const authPortalPaths = new Set([
 
 function enterAuthPortal(to) {
   const config = window.__RENVIX_CONFIG__ || {};
-  if (!config.authUrl || config.authUrl === config.appUrl) return false;
+  if (!config.authUrl) return false;
   let requested;
   let authOrigin;
   try {
@@ -1735,8 +1735,39 @@ function enterAuthPortal(to) {
   return true;
 }
 
+function enterCanonicalPortal(to) {
+  const config = window.__RENVIX_CONFIG__ || {};
+  let requested;
+  try { requested = new URL(to, location.origin); } catch { return false; }
+  if (requested.origin !== location.origin) return false;
+
+  const adminPath = requested.pathname === "/admin"
+    || requested.pathname.startsWith("/admin/")
+    || requested.pathname === "/advanced-pro-control"
+    || requested.pathname.startsWith("/advanced-pro-control/");
+  const dashboardPath = requested.pathname === "/dashboard" || requested.pathname.startsWith("/dashboard/");
+  const authPath = authPortalPaths.has(requested.pathname) || requested.pathname.startsWith("/auth/");
+  const adminVerification = ["/verify-email", "/verify-mfa", "/auth/verify-email", "/auth/verify-mfa"].includes(requested.pathname)
+    && config.adminUrl
+    && location.origin === new URL(config.adminUrl).origin;
+
+  let targetOrigin = "";
+  if (adminPath) targetOrigin = config.adminUrl;
+  else if (adminVerification) targetOrigin = config.adminUrl;
+  else if (dashboardPath) targetOrigin = config.appUrl;
+  else if (authPath) targetOrigin = config.authUrl;
+  else targetOrigin = config.siteUrl;
+  if (!targetOrigin) return false;
+
+  let canonicalOrigin;
+  try { canonicalOrigin = new URL(targetOrigin).origin; } catch { return false; }
+  if (!adminPath && canonicalOrigin === location.origin) return false;
+  location.assign(new URL(`${requested.pathname}${requested.search}${requested.hash}`, canonicalOrigin).toString());
+  return true;
+}
+
 async function navigate(to, { sessionVerified = false } = {}) {
-  if (enterAuthPortal(to)) return;
+  if (enterCanonicalPortal(to) || enterAuthPortal(to)) return;
   const url = new URL(to, location.origin);
   url.pathname = dashboardAliases[url.pathname] || url.pathname;
   if (url.pathname.startsWith("/dashboard")) {
@@ -1795,8 +1826,8 @@ function safeAuthReturnTo(value) {
   const path = candidate.split("?")[0];
   if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//") || path.startsWith("/auth/") || ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/verify-mfa", "/recovery"].includes(path)) return "/dashboard";
   try {
-    const parsed = new URL(candidate, "https://renvix.app");
-    return parsed.origin === "https://renvix.app" ? `${parsed.pathname}${parsed.search}${parsed.hash}` : "/dashboard";
+    const parsed = new URL(candidate, location.origin);
+    return parsed.origin === location.origin ? `${parsed.pathname}${parsed.search}${parsed.hash}` : "/dashboard";
   } catch { return "/dashboard"; }
 }
 

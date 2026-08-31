@@ -12,7 +12,7 @@ export async function GET(req) {
       target.search = new URL(req.url).search;
       return Response.redirect(target, 307);
     }
-    const target = new URL(intent === "register" ? "/register" : "/login", process.env.AUTH_URL || req.url);
+    const target = new URL(intent === "register" ? "/register" : "/login", process.env.NEXT_PUBLIC_AUTH_URL || process.env.AUTH_URL || req.url);
     target.searchParams.set("google_error", "auth_backend_required");
     return Response.redirect(target, 302);
   }

@@ -11,7 +11,7 @@ vi.mock("../../src/server/session.js", () => ({
 }));
 
 vi.mock("../../src/server/app-url.js", () => ({
-  appBaseUrl: () => "https://renvix.app",
+  appBaseUrl: () => "https://dash.renvix.app",
   authPageUrl: (pathname: string, returnTo: string) => `https://accounts.renvix.app${pathname}?returnTo=${encodeURIComponent(returnTo)}`
 }));
 
@@ -29,7 +29,7 @@ describe("session continuation route", () => {
     const response = await GET(new Request("https://accounts.renvix.app/api/auth/session/continue?returnTo=%2Fdashboard"));
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("https://renvix.app/dashboard");
+    expect(response.headers.get("location")).toBe("https://dash.renvix.app/dashboard");
     expect(response.headers.get("set-cookie")).toContain("Domain=.renvix.app");
   });
 

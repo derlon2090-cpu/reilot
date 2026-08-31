@@ -6,7 +6,8 @@ const original = {
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   NODE_ENV: process.env.NODE_ENV,
   AUTH_URL: process.env.AUTH_URL,
-  API_PUBLIC_URL: process.env.API_PUBLIC_URL
+  API_PUBLIC_URL: process.env.API_PUBLIC_URL,
+  AUTH_COOKIE_DOMAIN: process.env.AUTH_COOKIE_DOMAIN
 };
 
 describe("Google OAuth redirect fallback", () => {
@@ -16,6 +17,7 @@ describe("Google OAuth redirect fallback", () => {
     process.env.NODE_ENV = "production";
     process.env.AUTH_URL = "https://accounts.renvix.app";
     process.env.API_PUBLIC_URL = "https://api.renvix.app";
+    process.env.AUTH_COOKIE_DOMAIN = ".renvix.app";
   });
 
   afterEach(() => {

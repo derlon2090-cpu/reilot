@@ -1,5 +1,5 @@
 import { query } from "./db.js";
-import { getSession } from "./session.js";
+import { ADMIN_SESSION_COOKIE, getSession } from "./session.js";
 import { safeErrorMessage, sha256 } from "./security.js";
 
 const ROLE_PERMISSIONS = {
@@ -102,7 +102,7 @@ export async function getAdminContext(req) {
   // Platform administrators must remain able to reach the control plane even
   // when their customer tenant is disabled. Regular user sessions still keep
   // the active-tenant restriction in getSession's default path.
-  const session = await getSession(req, { allowInactiveTenant: true });
+  const session = await getSession(req, { allowInactiveTenant: true, cookieName: ADMIN_SESSION_COOKIE });
   if (!session) return null;
 
   const result = await query(

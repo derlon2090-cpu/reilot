@@ -4,6 +4,7 @@ import { getTenantStorageLimitState, requestNeedsStorageCapacity, storageLimitRe
 import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 
 export const SESSION_COOKIE = "renewpilot_session";
+export const ADMIN_SESSION_COOKIE = "renvix_admin_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 14;
 
 function cookieValues(req, name) {
@@ -12,15 +13,25 @@ function cookieValues(req, name) {
     try { return decodeURIComponent(item.slice(name.length + 1)); } catch { return ""; }
   }).filter(Boolean))];
 }
-export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS) {
+export function sessionCookie(token, maxAge = SESSION_AGE_SECONDS, { hostOnly = false } = {}) {
   const secure = secureCookieEnabled() ? "; Secure" : "";
-  const domain = sharedCookieDomainAttribute();
+  const domain = hostOnly ? "" : sharedCookieDomainAttribute();
   const lifetime = maxAge === null ? "" : `; Max-Age=${Math.max(0, Number(maxAge) || 0)}`;
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${lifetime}${domain}${secure}`;
 }
 
-export function clearSessionCookie() {
-  return sessionCookie("", 0);
+export function clearSessionCookie(options = {}) {
+  return sessionCookie("", 0, options);
+}
+
+export function adminSessionCookie(token, maxAge = 60 * 60 * 12) {
+  const secure = secureCookieEnabled() ? "; Secure" : "";
+  const lifetime = maxAge === null ? "" : `; Max-Age=${Math.max(0, Number(maxAge) || 0)}`;
+  return `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict${lifetime}${secure}`;
+}
+
+export function clearAdminSessionCookie() {
+  return adminSessionCookie("", 0);
 }
 
 export async function createSession(client, { userId, ipAddress, userAgent, maxAgeSeconds = SESSION_AGE_SECONDS }) {
@@ -35,8 +46,8 @@ export async function createSession(client, { userId, ipAddress, userAgent, maxA
   return { token: rawToken, expiresAt };
 }
 
-export async function getSessionWithToken(req, { allowInactiveTenant = false } = {}) {
-  const rawTokens = cookieValues(req, SESSION_COOKIE);
+export async function getSessionWithToken(req, { allowInactiveTenant = false, cookieName = SESSION_COOKIE } = {}) {
+  const rawTokens = cookieValues(req, cookieName);
   if (!rawTokens.length) return null;
   const tokenHashes = rawTokens.map((token) => sha256(token));
   const tenantJoin = allowInactiveTenant
@@ -79,7 +90,7 @@ export async function requireSession(req) {
   return { ok: true, session };
 }
 
-export async function destroySession(req) {
-  const tokenHashes = cookieValues(req, SESSION_COOKIE).map((token) => sha256(token));
+export async function destroySession(req, { cookieName = SESSION_COOKIE } = {}) {
+  const tokenHashes = cookieValues(req, cookieName).map((token) => sha256(token));
   if (tokenHashes.length) await query("DELETE FROM sessions WHERE token = ANY($1::text[])", [tokenHashes]);
 }
