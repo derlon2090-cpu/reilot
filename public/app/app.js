@@ -1979,12 +1979,14 @@ function ensurePasswordToggles() {
 
 function publicNavbar() {
   const navIcons = ["publicHome", "publicFeatures", "publicPlans", "publicBlog", "support"];
-  const links = routes.map(([path, key], index) => `<a href="${path}" class="nav-link ${state.route === path ? "active" : ""}" data-link="${path}" ${state.route === path ? 'aria-current="page"' : ""}><span class="public-nav-icon">${dashboardIcon(navIcons[index])}</span><span>${t(key)}</span></a>`).join("");
-  const moreLinks = routes.slice(3).map(([path, key], index) => `<a href="${path}" data-link="${path}">${dashboardIcon(navIcons[index + 3])}<span>${t(key)}</span></a>`).join("");
+  const isActiveRoute = (path) => path === "/" ? state.route === "/" : state.route === path || state.route.startsWith(`${path}/`);
+  const links = routes.map(([path, key], index) => `<a href="${path}" class="nav-link ${isActiveRoute(path) ? "active" : ""}" data-link="${path}" ${isActiveRoute(path) ? 'aria-current="page"' : ""}><span class="public-nav-icon">${dashboardIcon(navIcons[index])}</span><span>${t(key)}</span></a>`).join("");
+  const moreLinks = routes.slice(3).map(([path, key], index) => `<a href="${path}" class="${isActiveRoute(path) ? "active" : ""}" data-link="${path}" ${isActiveRoute(path) ? 'aria-current="page"' : ""}>${dashboardIcon(navIcons[index + 3])}<span>${t(key)}</span></a>`).join("");
+  const moreIsActive = routes.slice(3).some(([path]) => isActiveRoute(path));
   return `<nav class="public-nav ${state.navOpen ? "open" : ""}">
     <div class="container nav-inner">
       ${logo()}
-      <div class="nav-links" aria-label="${state.language === "en" ? "Primary navigation" : "التنقل الرئيسي"}">${links}<details class="public-nav-more"><summary>${dashboardIcon("more")}<span>${localizedCopy("المزيد", "More")}</span></summary><div>${moreLinks}</div></details></div>
+      <div class="nav-links" aria-label="${state.language === "en" ? "Primary navigation" : "التنقل الرئيسي"}">${links}<details class="public-nav-more ${moreIsActive ? "active" : ""}"><summary>${dashboardIcon("more")}<span>${localizedCopy("المزيد", "More")}</span></summary><div>${moreLinks}</div></details></div>
       <div class="nav-actions">
         <div class="public-nav-preferences">
           <span class="public-nav-preference-label">${state.language === "en" ? "Language" : "اللغة"}</span>
