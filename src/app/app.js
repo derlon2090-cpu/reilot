@@ -4178,7 +4178,8 @@ function dashboardShell(content) {
   const links = routeGroups.map((group) => {
     const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => {
       const localizedLabel = state.language === "ar" ? label : englishLabels[label];
-      return `<button class="side-link ${state.route === path || (path === "/dashboard/apps" && state.route.startsWith("/dashboard/apps/")) ? "active" : ""}" data-link="${path}" data-sidebar-icon="${mark}" aria-label="${escapeHtml(localizedLabel)}" title="${escapeHtml(localizedLabel)}">${dashboardIcon(mark)}<span>${localizedLabel}</span></button>`;
+      const isActive = state.route === path || (path !== "/dashboard" && state.route.startsWith(`${path}/`));
+      return `<button class="side-link ${isActive ? "active" : ""}" data-link="${path}" data-sidebar-icon="${mark}" aria-label="${escapeHtml(localizedLabel)}" title="${escapeHtml(localizedLabel)}" ${isActive ? 'aria-current="page"' : ""}>${dashboardIcon(mark)}<span>${localizedLabel}</span></button>`;
     }).join("");
     return `<div class="side-group">${group.label ? `<span class="side-group-title">${group.label}</span>` : ""}${items}</div>`;
   }).join("");
