@@ -15649,3 +15649,241 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     padding-inline: 14px;
   }
 }
+
+/* Refined user dashboard navigation */
+@media (min-width: 981px) {
+  .dashboard-shell {
+    grid-template-columns: 308px minmax(0, 1fr);
+  }
+
+  .dashboard-shell > .sidebar {
+    width: auto;
+    height: calc(100vh - 24px);
+    margin: 12px;
+    padding: 16px 14px 14px;
+    gap: 14px;
+    border: 1px solid #e4ecea;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 28px rgba(6, 43, 40, .055);
+  }
+
+  .dashboard-shell.sidebar-collapsed {
+    grid-template-columns: 94px minmax(0, 1fr) !important;
+  }
+
+  .dashboard-shell.sidebar-collapsed > .sidebar {
+    margin: 10px;
+    padding: 14px 8px;
+  }
+}
+
+.dashboard-shell > .sidebar .sidebar-brand {
+  min-height: 52px;
+  padding: 0 10px 10px;
+  border-bottom: 1px solid #eef3f2;
+}
+
+.dashboard-shell > .sidebar {
+  scrollbar-width: none;
+}
+
+.dashboard-shell > .sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.dashboard-shell > .sidebar .side-links {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.dashboard-shell > .sidebar .side-group {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-shell > .sidebar .side-group + .side-group {
+  padding-top: 13px;
+  border-top: 1px solid #edf2f1;
+}
+
+.dashboard-shell > .sidebar .side-group-title {
+  padding: 0 14px 6px;
+  color: #889794;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link) {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  min-height: 46px;
+  align-items: center;
+  justify-content: initial;
+  gap: 11px;
+  margin: 0;
+  padding: 0 14px;
+  overflow: hidden;
+  color: #31554f;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: start;
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link) .line-icon {
+  width: 19px;
+  height: 19px;
+  flex: none;
+  justify-self: center;
+  stroke-width: 1.8;
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link) > span {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link):not(.active):is(:hover, :focus-visible) {
+  color: #123f39;
+  border-color: #e2eeeb;
+  background: #f5faf9;
+  box-shadow: 0 4px 12px rgba(6, 43, 40, .045);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link).active {
+  color: #083f3a !important;
+  border-color: #dcece8 !important;
+  background: #eaf5f3 !important;
+  box-shadow: 0 3px 10px rgba(6, 43, 40, .045) !important;
+  font-weight: 700;
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link).active :is(.line-icon, span) {
+  color: #083f3a !important;
+}
+
+.dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link).active::after {
+  position: absolute;
+  inset-block: 6px;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: 4px;
+  height: auto;
+  border-radius: 999px 0 0 999px;
+  background: #0a5b53 !important;
+  content: "";
+  opacity: 1;
+  transform: none;
+}
+
+[dir="ltr"] .dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link).active::after {
+  border-radius: 0 999px 999px 0;
+}
+
+.dashboard-shell > .sidebar .sidebar-support-link {
+  margin-top: auto;
+  color: #174b45;
+  border-color: #dce9e7;
+  background: #f8fbfa;
+}
+
+.dashboard-shell.sidebar-collapsed > .sidebar .sidebar-brand {
+  padding-inline: 0;
+}
+
+.dashboard-shell.sidebar-collapsed > .sidebar :is(.side-link, .sidebar-support-link) {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 52px;
+  min-width: 52px;
+  min-height: 48px;
+  margin-inline: auto;
+  padding: 0;
+}
+
+.dashboard-shell.sidebar-collapsed > .sidebar :is(.side-link, .sidebar-support-link).active::after {
+  display: block;
+}
+
+@media (max-width: 980px) {
+  .dashboard-shell > .sidebar,
+  .dashboard-shell.sidebar-collapsed > .sidebar {
+    width: min(320px, 85vw);
+    height: 100dvh;
+    margin: 0;
+    padding: 18px 14px 16px;
+    gap: 14px;
+    border: 0;
+    border-inline-end: 1px solid #e2ecea;
+    border-radius: 16px 0 0 16px;
+    box-shadow: -18px 0 44px rgba(6, 43, 40, .14);
+  }
+
+  [dir="ltr"] .dashboard-shell > .sidebar,
+  [dir="ltr"] .dashboard-shell.sidebar-collapsed > .sidebar {
+    border-radius: 0 16px 16px 0;
+    box-shadow: 18px 0 44px rgba(6, 43, 40, .14);
+  }
+
+  .dashboard-shell.sidebar-collapsed > .sidebar :is(.side-link, .sidebar-support-link) {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    padding-inline: 14px;
+  }
+}
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar {
+  border-color: #234c46 !important;
+  background: #0a2f2b !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+}
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar .sidebar-brand,
+:root[data-theme="dark"] .dashboard-shell > .sidebar .side-group + .side-group {
+  border-color: #20463f;
+}
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar .side-group-title { color: #8eaaa5; }
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link) {
+  color: #c9dcda;
+}
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link):not(.active):is(:hover, :focus-visible) {
+  color: #effaf8;
+  border-color: #2a554e;
+  background: #123b36;
+}
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link).active {
+  color: #e9faf7 !important;
+  border-color: #315f57 !important;
+  background: #174a43 !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link).active :is(.line-icon, span) {
+  color: #e9faf7 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell > .sidebar :is(.side-link, .sidebar-support-link) { transition: none; }
+}
