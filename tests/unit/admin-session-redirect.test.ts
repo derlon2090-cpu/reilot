@@ -24,14 +24,14 @@ describe("admin session redirect", () => {
   });
 
   it("allows the admin control plane to validate sessions without a customer tenant", async () => {
-    await getSession(new Request("https://renvix.app/admin", {
-      headers: { cookie: "renewpilot_session=admin-token" }
-    }), { allowInactiveTenant: true });
+    await getSession(new Request("https://admin.renvix.app/admin", {
+      headers: { cookie: "renvix_admin_session=admin-token" }
+    }), { allowInactiveTenant: true, cookieName: "renvix_admin_session" });
 
     expect(queryMock.mock.calls[0][0]).toContain("LEFT JOIN tenants t ON t.id = u.tenant_id");
     expect(queryMock.mock.calls[0][0]).not.toContain("AND t.status <> 'disabled'");
     const adminAuthSource = readFileSync(resolve("src/server/admin-auth.js"), "utf8");
-    expect(adminAuthSource).toContain("getSession(req, { allowInactiveTenant: true })");
+    expect(adminAuthSource).toContain("getSession(req, { allowInactiveTenant: true, cookieName: ADMIN_SESSION_COOKIE })");
   });
 
   it("verifies the session cookie before leaving the login form", () => {

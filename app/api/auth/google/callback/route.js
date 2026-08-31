@@ -6,7 +6,7 @@ import { mfaChallengeCookie } from "../../../../../src/server/login-mfa.js";
 import { isRenderAuthRuntime } from "../../../../../src/server/auth-backend-runtime.js";
 
 function configuredOrigin(value, fallback) { return value ? new URL(value).origin : fallback; }
-function authOrigin(req) { return configuredOrigin(process.env.AUTH_URL || process.env.BETTER_AUTH_URL, new URL(req.url).origin); }
+function authOrigin(req) { return configuredOrigin(process.env.NEXT_PUBLIC_AUTH_URL || process.env.AUTH_URL || process.env.BETTER_AUTH_URL, new URL(req.url).origin); }
 function appOrigin(req) { return configuredOrigin(process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL, new URL(req.url).origin); }
 function redirectWithCookies(location, cookies) {
   const headers = new Headers({ Location: location, "Cache-Control": "no-store" });

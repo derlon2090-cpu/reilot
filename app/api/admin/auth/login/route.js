@@ -4,8 +4,8 @@ import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
 import { databaseFailureReason, query } from "../../../../../src/server/db.js";
 import { hashPassword, needsRehash, verifyPassword } from "../../../../../src/server/password.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
-import { destroySession } from "../../../../../src/server/session.js";
-import { createLoginEmailOtpChallenge, challengeCookie } from "../../../../../src/server/email-otp-v2.js";
+import { ADMIN_SESSION_COOKIE, destroySession } from "../../../../../src/server/session.js";
+import { adminChallengeCookie, createLoginEmailOtpChallenge } from "../../../../../src/server/email-otp-v2.js";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني أو اسم المستخدم.").refine(
@@ -127,7 +127,7 @@ export async function POST(request) {
     ]);
   }
   authStage = "session_invalidation";
-  await destroySession(request);
+  await destroySession(request, { cookieName: ADMIN_SESSION_COOKIE });
   authStage = "email_otp_challenge";
   const challenge = await createLoginEmailOtpChallenge({
     user: { id: admin.userId, tenantId: admin.tenantId, email: admin.email, name: admin.name },
@@ -144,7 +144,7 @@ export async function POST(request) {
     resendAt: challenge.resendAt
   }, {
     status: 202,
-    headers: { "Set-Cookie": challengeCookie(challenge.challengeCookie) }
+    headers: { "Set-Cookie": adminChallengeCookie(challenge.challengeCookie) }
   });
   } catch (error) {
     if (error && typeof error === "object" && !error.authStage) error.authStage = authStage;

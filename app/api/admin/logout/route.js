@@ -1,5 +1,6 @@
 import { auditAdmin, getAdminContext } from "../../../../src/server/admin-auth.js";
-import { clearSessionCookie, destroySession } from "../../../../src/server/session.js";
+import { ADMIN_SESSION_COOKIE, clearAdminSessionCookie, destroySession } from "../../../../src/server/session.js";
+import { adminPageUrl } from "../../../../src/server/app-url.js";
 
 export async function POST(request) {
   const admin = await getAdminContext(request).catch(() => null);
@@ -10,9 +11,9 @@ export async function POST(request) {
       resource: "admin_portal"
     });
   }
-  await destroySession(request);
+  await destroySession(request, { cookieName: ADMIN_SESSION_COOKIE });
   return Response.json(
-    { ok: true, redirectUrl: "/advanced-pro-control" },
-    { headers: { "Set-Cookie": clearSessionCookie() } }
+    { ok: true, redirectUrl: adminPageUrl("/advanced-pro-control") },
+    { headers: { "Set-Cookie": clearAdminSessionCookie() } }
   );
 }

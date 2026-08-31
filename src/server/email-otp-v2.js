@@ -17,6 +17,7 @@ import {
 } from "./trusted-browser.js";
 
 export const EMAIL_OTP_CHALLENGE_COOKIE = "renvix_email_otp_challenge";
+export const ADMIN_EMAIL_OTP_CHALLENGE_COOKIE = "renvix_admin_email_otp_challenge";
 export const EMAIL_OTP_TTL_SECONDS = 5 * 60;
 export const EMAIL_OTP_RESEND_SECONDS = 60;
 export const TRUSTED_DEVICE_COOKIE = TRUSTED_BROWSER_COOKIE;
@@ -28,18 +29,26 @@ function otpPepper() {
   return value;
 }
 
-function cookie(name, value, maxAge, { forceSecure = false } = {}) {
+function cookie(name, value, maxAge, { forceSecure = false, hostOnly = false } = {}) {
   const secure = forceSecure || secureCookieEnabled() ? "; Secure" : "";
-  const domain = sharedCookieDomainAttribute();
+  const domain = hostOnly ? "" : sharedCookieDomainAttribute();
   return `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Number(maxAge) || 0)}; HttpOnly${domain}${secure}`;
 }
 
-export function challengeCookie(value) {
-  return cookie(EMAIL_OTP_CHALLENGE_COOKIE, value, 10 * 60);
+export function challengeCookie(value, options = {}) {
+  return cookie(EMAIL_OTP_CHALLENGE_COOKIE, value, 10 * 60, options);
 }
 
-export function clearChallengeCookie() {
-  return cookie(EMAIL_OTP_CHALLENGE_COOKIE, "", 0);
+export function clearChallengeCookie(options = {}) {
+  return cookie(EMAIL_OTP_CHALLENGE_COOKIE, "", 0, options);
+}
+
+export function adminChallengeCookie(value) {
+  return cookie(ADMIN_EMAIL_OTP_CHALLENGE_COOKIE, value, 10 * 60, { hostOnly: true });
+}
+
+export function clearAdminChallengeCookie() {
+  return cookie(ADMIN_EMAIL_OTP_CHALLENGE_COOKIE, "", 0, { hostOnly: true });
 }
 
 export function trustedDeviceCookie(value) {
@@ -60,6 +69,13 @@ export function readCookie(req, name) {
   const header = req.headers.get("cookie") || "";
   const entry = header.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
   return entry ? decodeURIComponent(entry.slice(name.length + 1)) : "";
+}
+
+export function readEmailOtpChallengeCookie(req) {
+  const adminValue = readCookie(req, ADMIN_EMAIL_OTP_CHALLENGE_COOKIE);
+  return adminValue
+    ? { value: adminValue, admin: true }
+    : { value: readCookie(req, EMAIL_OTP_CHALLENGE_COOKIE), admin: false };
 }
 
 export function readTrustedBrowserCookie(req) {

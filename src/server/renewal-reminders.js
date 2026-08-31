@@ -3,9 +3,10 @@ import { query, transaction } from "./db.js";
 import { enqueueMessage } from "./message-queue.js";
 import { isSubscriptionReminderEnabled, renderRenewalTemplate, validateRenewalTemplate } from "../lib/subscription-lifecycle.js";
 import { createRenewalRedirect } from "./product-renewal-options.js";
+import { siteBaseUrl } from "./app-url.js";
 
 function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://renvix.app").replace(/\/$/, "");
+  return siteBaseUrl();
 }
 
 function masked(value) {

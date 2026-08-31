@@ -12,8 +12,9 @@ import {
   verifySameOrigin
 } from "../../../../../src/server/admin-setup.js";
 import { requestIp } from "../../../../../src/server/admin-auth.js";
+import { adminPageUrl } from "../../../../../src/server/app-url.js";
 import { safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
-import { sessionCookie } from "../../../../../src/server/session.js";
+import { adminSessionCookie } from "../../../../../src/server/session.js";
 
 export const runtime = "nodejs";
 
@@ -47,8 +48,8 @@ export async function POST(request) {
       ipAddress: requestIp(request),
       userAgent: request.headers.get("user-agent")?.slice(0, 500) || null
     });
-    return responseJson({ ok: true, message: "تم إنشاء حساب المسؤول بنجاح", redirectUrl: "/admin" }, 201, {}, [
-      sessionCookie(created.session.token, 60 * 60 * 12),
+    return responseJson({ ok: true, message: "تم إنشاء حساب المسؤول بنجاح", redirectUrl: adminPageUrl("/admin") }, 201, {}, [
+      adminSessionCookie(created.session.token, 60 * 60 * 12),
       `${ADMIN_SETUP_ACCESS_COOKIE}=; Path=/api/admin/setup; HttpOnly; SameSite=Strict; Max-Age=0`,
       `${ADMIN_SETUP_CSRF_COOKIE}=; Path=/api/admin/setup; HttpOnly; SameSite=Strict; Max-Age=0`
     ]);

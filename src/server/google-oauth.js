@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 import { googleClientId, normalizeGoogleAuthIntent } from "./google-auth.js";
 import { randomToken, sha256 } from "./security.js";
+import { authBaseUrl } from "./app-url.js";
 
 export const GOOGLE_OAUTH_STATE_COOKIE = "renvix_google_oauth_state";
 export const GOOGLE_OAUTH_VERIFIER_COOKIE = "renvix_google_oauth_verifier";
@@ -23,9 +24,7 @@ function oauthCookie(name, value, maxAge = OAUTH_CHALLENGE_AGE_SECONDS) {
 export function googleOAuthRedirectUri() {
   // The Google Cloud client is registered against the public accounts portal.
   // Middleware forwards this callback to Render, where the secret exchange runs.
-  const configured = process.env.AUTH_URL || process.env.BETTER_AUTH_URL || process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "";
-  const origin = configured ? new URL(configured).origin : "http://localhost:3000";
-  return `${origin}/api/auth/google/callback`;
+  return `${authBaseUrl()}/api/auth/google/callback`;
 }
 
 export function createGoogleOAuthChallenge() {

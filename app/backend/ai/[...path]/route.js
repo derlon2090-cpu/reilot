@@ -14,17 +14,16 @@ export function trustedFrontendRequest(request) {
   const browserOrigin = normalizedOrigin(origin);
   const trustedOrigins = new Set([
     normalizedOrigin(request.url),
-    "https://renvix.app",
-    "https://www.renvix.app",
-    "https://reilot.vercel.app",
     normalizedOrigin(process.env.APP_URL),
-    normalizedOrigin(process.env.NEXT_PUBLIC_APP_URL)
+    normalizedOrigin(process.env.NEXT_PUBLIC_APP_URL),
+    normalizedOrigin(process.env.SITE_URL),
+    normalizedOrigin(process.env.NEXT_PUBLIC_SITE_URL)
   ].filter(Boolean));
   return trustedOrigins.has(browserOrigin);
 }
 
 export function backendOrigin() {
-  const value = normalizedOrigin(process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_PUBLIC_URL || "https://api.renvix.app");
+  const value = normalizedOrigin(process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_PUBLIC_URL);
   if (!value || (process.env.NODE_ENV === "production" && !value.startsWith("https://"))) {
     throw new Error("AI backend origin is not configured securely.");
   }

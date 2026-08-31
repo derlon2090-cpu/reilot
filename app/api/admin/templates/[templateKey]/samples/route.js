@@ -1,5 +1,6 @@
 import { requireAdminPermission } from "../../../../../../src/server/admin-auth.js";
 import { query } from "../../../../../../src/server/db.js";
+import { appBaseUrl, authBaseUrl, siteBaseUrl } from "../../../../../../src/server/app-url.js";
 
 function displayDate(value) {
   if (!value) return "";
@@ -8,8 +9,6 @@ function displayDate(value) {
     timeZone: process.env.APP_TIMEZONE || "Asia/Riyadh"
   }).format(new Date(value));
 }
-
-const appUrl = () => process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app";
 
 export async function GET(request, { params }) {
   const auth = await requireAdminPermission(request, "templates", "read");
@@ -38,8 +37,8 @@ export async function GET(request, { params }) {
         temporary_password: "••••••••••••",
         plan_name: row.plan_name || "Renvix",
         subscription_expiry: displayDate(row.current_period_end),
-        login_url: `${appUrl()}/login`,
-        support_url: `${appUrl()}/support`
+        login_url: `${authBaseUrl()}/login`,
+        support_url: `${siteBaseUrl()}/support`
       }
     }));
   } else if (templateKey === "admin_subscription_renewal_reminder") {
@@ -70,8 +69,8 @@ export async function GET(request, { params }) {
         store_name: row.store_name,
         expiry_date: displayDate(row.current_period_end),
         days_remaining: Math.max(1, Math.ceil((new Date(row.current_period_end).getTime() - Date.now()) / 86_400_000)),
-        renewal_url: `${appUrl()}/dashboard/billing`,
-        support_url: `${appUrl()}/support`
+        renewal_url: `${appBaseUrl()}/dashboard/billing`,
+        support_url: `${siteBaseUrl()}/support`
       }
     }));
   } else if (templateKey === "admin_subscription_renewed") {
@@ -95,8 +94,8 @@ export async function GET(request, { params }) {
         store_name: row.store_name,
         old_expiry: displayDate(row.previous_expires_at),
         new_expiry: displayDate(row.new_expires_at),
-        login_url: `${appUrl()}/login`,
-        support_url: `${appUrl()}/support`
+        login_url: `${authBaseUrl()}/login`,
+        support_url: `${siteBaseUrl()}/support`
       }
     }));
   } else if (templateKey === "admin_number_disconnected") {
@@ -115,8 +114,8 @@ export async function GET(request, { params }) {
         disconnected_phone: row.phone_number || "",
         disconnect_reason: row.last_error || "فصل مؤكد للقناة",
         disconnected_at: displayDate(row.disconnected_at),
-        reconnect_url: `${appUrl()}/dashboard/channels`,
-        support_url: `${appUrl()}/support`
+        reconnect_url: `${appBaseUrl()}/dashboard/channels`,
+        support_url: `${siteBaseUrl()}/support`
       }
     }));
   } else if (templateKey === "admin_salla_installed") {
@@ -139,9 +138,9 @@ export async function GET(request, { params }) {
         store_name: row.provider_store_name,
         store_domain: row.provider_store_domain || "",
         connected_at: displayDate(row.ready_at),
-        dashboard_url: `${appUrl()}/dashboard`,
-        integration_settings_url: `${appUrl()}/dashboard/apps`,
-        support_url: `${appUrl()}/support`
+        dashboard_url: `${appBaseUrl()}/dashboard`,
+        integration_settings_url: `${appBaseUrl()}/dashboard/apps`,
+        support_url: `${siteBaseUrl()}/support`
       }
     }));
   } else {

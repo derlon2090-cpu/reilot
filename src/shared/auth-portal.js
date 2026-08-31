@@ -14,6 +14,17 @@ export const LEGACY_AUTH_PATHS = Object.freeze({
 });
 
 const AUTH_PATH_SET = new Set(AUTH_PATHS);
+const LOCAL_ORIGIN = "http://localhost:3000";
+const ADMIN_AUTH_PAGE_SET = new Set(["/verify-email", "/verify-mfa", "/auth/verify-email", "/auth/verify-mfa"]);
+const ADMIN_AUTH_API_SET = new Set([
+  "/api/auth/email-otp/status",
+  "/api/auth/email-otp/verify",
+  "/api/auth/email-otp/resend",
+  "/api/auth/mfa/status",
+  "/api/auth/mfa/verify",
+  "/api/auth/logout"
+]);
+const DASHBOARD_AUTH_API_SET = new Set(["/api/auth/session", "/api/auth/logout"]);
 
 export function canonicalAuthPath(pathname) {
   const path = String(pathname || "/").replace(/\/{2,}/g, "/");
@@ -33,19 +44,53 @@ export function safeReturnTo(value, fallback = "/dashboard") {
   const candidate = String(value || "").trim();
   if (!candidate || candidate.length > 2048 || !candidate.startsWith("/") || candidate.startsWith("//")) return fallback;
   let parsed;
-  try { parsed = new URL(candidate, "https://renvix.app"); } catch { return fallback; }
-  if (parsed.origin !== "https://renvix.app" || isAuthPath(parsed.pathname) || parsed.pathname.startsWith("/auth/")) return fallback;
+  try { parsed = new URL(candidate, "https://relative.invalid"); } catch { return fallback; }
+  if (parsed.origin !== "https://relative.invalid" || isAuthPath(parsed.pathname) || parsed.pathname.startsWith("/auth/")) return fallback;
   return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 export function configuredOrigins(env = process.env) {
   const production = env.NODE_ENV === "production";
-  const fallback = production ? "https://renvix.app" : "http://localhost:3000";
-  const configuredApp = safeOrigin(env.APP_URL || env.NEXT_PUBLIC_APP_URL, fallback);
-  const app = production && new URL(configuredApp).hostname.endsWith(".vercel.app") ? fallback : configuredApp;
-  const splitHostEnabled = String(env.AUTH_SPLIT_HOST_ENABLED || "").toLowerCase() === "true";
-  const auth = splitHostEnabled ? safeOrigin(env.AUTH_URL, app) : app;
-  return { app, auth };
+  const app = platformOrigin(env.NEXT_PUBLIC_APP_URL || env.APP_URL, "NEXT_PUBLIC_APP_URL", production);
+  const auth = platformOrigin(env.NEXT_PUBLIC_AUTH_URL || env.AUTH_URL || env.BETTER_AUTH_URL, "NEXT_PUBLIC_AUTH_URL", production);
+  const admin = platformOrigin(env.NEXT_PUBLIC_ADMIN_URL || env.ADMIN_URL, "NEXT_PUBLIC_ADMIN_URL", production);
+  const site = platformOrigin(env.NEXT_PUBLIC_SITE_URL || env.SITE_URL, "NEXT_PUBLIC_SITE_URL", production);
+  return { site, auth, app, admin };
+}
+
+export function isAdminPagePath(pathname) {
+  const path = String(pathname || "/");
+  return path === "/admin" || path.startsWith("/admin/") || path === "/advanced-pro-control" || path.startsWith("/advanced-pro-control/");
+}
+
+export function isAdminApiPath(pathname) {
+  const path = String(pathname || "/");
+  return path === "/api/admin" || path.startsWith("/api/admin/");
+}
+
+export function isDashboardPagePath(pathname) {
+  return isProtectedAppPath(pathname);
+}
+
+export function isAdminVerificationPagePath(pathname) {
+  return ADMIN_AUTH_PAGE_SET.has(String(pathname || ""));
+}
+
+export function isAdminAuthBridgeApi(pathname) {
+  return ADMIN_AUTH_API_SET.has(String(pathname || ""));
+}
+
+export function isDashboardAuthApi(pathname) {
+  return DASHBOARD_AUTH_API_SET.has(String(pathname || ""));
+}
+
+export function platformHostKind(hostname, origins) {
+  const host = String(hostname || "").toLowerCase();
+  if (host === new URL(origins.app).hostname.toLowerCase()) return "app";
+  if (host === new URL(origins.auth).hostname.toLowerCase()) return "auth";
+  if (host === new URL(origins.admin).hostname.toLowerCase()) return "admin";
+  if (host === new URL(origins.site).hostname.toLowerCase()) return "site";
+  return "unknown";
 }
 
 export function configuredAuthApiOrigin(env = process.env) {
@@ -78,14 +123,18 @@ export function hostnameFromHeaders(headers) {
 }
 
 export function isSplitHostEnabled(origins) {
-  const appHost = new URL(origins.app).hostname;
-  const authHost = new URL(origins.auth).hostname;
-  return appHost !== authHost && ![appHost, authHost].some((host) => host === "localhost" || host === "127.0.0.1");
+  const hosts = [origins.site, origins.auth, origins.app, origins.admin].map((origin) => new URL(origin).hostname);
+  return new Set(hosts).size > 1 && !hosts.some((host) => ["localhost", "127.0.0.1", "::1"].includes(host));
 }
 
-function safeOrigin(value, fallback) {
+function platformOrigin(value, variableName, production) {
+  if (!String(value || "").trim() && production) throw new Error(`${variableName} is required in production`);
   let parsed;
-  try { parsed = new URL(String(value || fallback).trim()); } catch { parsed = new URL(fallback); }
-  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) return new URL(fallback).origin;
+  try { parsed = new URL(String(value || LOCAL_ORIGIN).trim()); } catch { throw new Error(`${variableName} is invalid`); }
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error(`${variableName} is unsafe`);
+  if (production && parsed.protocol !== "https:") throw new Error(`${variableName} must use HTTPS in production`);
+  if (production && (parsed.hostname.endsWith(".vercel.app") || ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname))) {
+    throw new Error(`${variableName} must use its canonical production domain`);
+  }
   return parsed.origin;
 }

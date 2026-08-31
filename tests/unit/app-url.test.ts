@@ -1,57 +1,33 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { appBaseUrl, authBaseUrl } from "../../src/server/app-url.js";
+import { describe, expect, it } from "vitest";
+import { adminBaseUrl, appBaseUrl, authBaseUrl, siteBaseUrl } from "../../src/server/app-url.js";
 
-const original = {
-  nodeEnv: process.env.NODE_ENV,
-  publicUrl: process.env.NEXT_PUBLIC_APP_URL,
-  authUrl: process.env.BETTER_AUTH_URL,
-  splitAuthUrl: process.env.AUTH_URL,
-  splitHostEnabled: process.env.AUTH_SPLIT_HOST_ENABLED
-};
+const productionEnv = {
+  NODE_ENV: "production",
+  NEXT_PUBLIC_SITE_URL: "https://renvix.app",
+  NEXT_PUBLIC_AUTH_URL: "https://accounts.renvix.app",
+  NEXT_PUBLIC_APP_URL: "https://dash.renvix.app",
+  NEXT_PUBLIC_ADMIN_URL: "https://admin.renvix.app"
+} as NodeJS.ProcessEnv;
 
-afterEach(() => {
-  for (const [key, value] of Object.entries({
-    NODE_ENV: original.nodeEnv,
-    NEXT_PUBLIC_APP_URL: original.publicUrl,
-    BETTER_AUTH_URL: original.authUrl,
-    AUTH_URL: original.splitAuthUrl,
-    AUTH_SPLIT_HOST_ENABLED: original.splitHostEnabled
-  })) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
-});
-
-describe("public application URL", () => {
-  it("uses the official HTTPS origin in production when configuration is absent", () => {
-    process.env.NODE_ENV = "production";
-    delete process.env.NEXT_PUBLIC_APP_URL;
-    delete process.env.BETTER_AUTH_URL;
-    expect(appBaseUrl()).toBe("https://renvix.app");
+describe("canonical platform URLs", () => {
+  it("keeps public, authentication, customer, and administration origins separate", () => {
+    expect(siteBaseUrl(productionEnv)).toBe("https://renvix.app");
+    expect(authBaseUrl(productionEnv)).toBe("https://accounts.renvix.app");
+    expect(appBaseUrl(productionEnv)).toBe("https://dash.renvix.app");
+    expect(adminBaseUrl(productionEnv)).toBe("https://admin.renvix.app");
   });
 
-  it("rejects HTTP and credential-bearing public URLs in production", () => {
-    process.env.NODE_ENV = "production";
-    process.env.NEXT_PUBLIC_APP_URL = "http://renvix.app";
-    expect(() => appBaseUrl()).toThrow("HTTPS");
-    process.env.NEXT_PUBLIC_APP_URL = "https://user:pass@renvix.app";
-    expect(() => appBaseUrl()).toThrow("not safe");
+  it("requires every canonical origin in production", () => {
+    expect(() => appBaseUrl({ NODE_ENV: "production" } as NodeJS.ProcessEnv)).toThrow("NEXT_PUBLIC_APP_URL");
+    expect(() => authBaseUrl({ NODE_ENV: "production" } as NodeJS.ProcessEnv)).toThrow("NEXT_PUBLIC_AUTH_URL");
+    expect(() => siteBaseUrl({ NODE_ENV: "production" } as NodeJS.ProcessEnv)).toThrow("NEXT_PUBLIC_SITE_URL");
+    expect(() => adminBaseUrl({ NODE_ENV: "production" } as NodeJS.ProcessEnv)).toThrow("NEXT_PUBLIC_ADMIN_URL");
   });
 
-  it("ignores a stale split authentication host until it is explicitly enabled", () => {
-    process.env.NODE_ENV = "production";
-    process.env.NEXT_PUBLIC_APP_URL = "https://renvix.app";
-    process.env.AUTH_URL = "https://accounts.renvix.app";
-    delete process.env.AUTH_SPLIT_HOST_ENABLED;
-    expect(authBaseUrl()).toBe("https://renvix.app");
-    process.env.AUTH_SPLIT_HOST_ENABLED = "true";
-    expect(authBaseUrl()).toBe("https://accounts.renvix.app");
-  });
-
-  it("never exposes an internal Vercel deployment as the production application URL", () => {
-    process.env.NODE_ENV = "production";
-    process.env.NEXT_PUBLIC_APP_URL = "https://reilot.vercel.app";
-    expect(appBaseUrl()).toBe("https://renvix.app");
-    expect(authBaseUrl()).toBe("https://renvix.app");
+  it("rejects HTTP, credential-bearing, local, and Vercel production origins", () => {
+    expect(() => appBaseUrl({ ...productionEnv, NEXT_PUBLIC_APP_URL: "http://dash.renvix.app" } as NodeJS.ProcessEnv)).toThrow("HTTPS");
+    expect(() => appBaseUrl({ ...productionEnv, NEXT_PUBLIC_APP_URL: "https://user:pass@dash.renvix.app" } as NodeJS.ProcessEnv)).toThrow("not safe");
+    expect(() => appBaseUrl({ ...productionEnv, NEXT_PUBLIC_APP_URL: "https://localhost" } as NodeJS.ProcessEnv)).toThrow("canonical");
+    expect(() => appBaseUrl({ ...productionEnv, NEXT_PUBLIC_APP_URL: "https://preview.vercel.app" } as NodeJS.ProcessEnv)).toThrow("canonical");
   });
 });

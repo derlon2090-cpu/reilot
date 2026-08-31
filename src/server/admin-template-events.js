@@ -7,6 +7,7 @@ import { encryptSecret } from "../lib/encryption.js";
 import { hashPassword } from "./password.js";
 import { normalizeSubscriptionPhone } from "../lib/subscription-lifecycle.js";
 import { generateTemporaryPassword } from "./temporary-credentials.js";
+import { appBaseUrl, authBaseUrl, siteBaseUrl } from "./app-url.js";
 
 export const ADMIN_TEMPLATE_KEYS = Object.freeze({
   ACCOUNT_CREATED: "admin_account_created",
@@ -197,8 +198,8 @@ export async function resolveAccountEvent(event, channel) {
       temporary_password: temporaryPassword,
       plan_name: row.planName,
       subscription_expiry: dateValue(row.subscriptionExpiry),
-      login_url: `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://renvix.app"}/login`,
-      support_url: `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://renvix.app"}/support`
+      login_url: `${authBaseUrl()}/login`,
+      support_url: `${siteBaseUrl()}/support`
     },
     sensitiveVariables: ["temporary_password"],
     provisioningJobId: jobId
@@ -241,8 +242,8 @@ async function resolveRenewalEvent(event, channel) {
         store_name: row.storeName,
         old_expiry: dateValue(row.oldExpiry),
         new_expiry: dateValue(row.newExpiry),
-        login_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/login`,
-        support_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/support`
+        login_url: `${authBaseUrl()}/login`,
+        support_url: `${siteBaseUrl()}/support`
       }
     };
   }
@@ -283,8 +284,8 @@ async function resolveRenewalEvent(event, channel) {
       store_name: row.storeName,
       old_expiry: dateValue(row.oldExpiry),
       new_expiry: dateValue(row.newExpiry),
-      login_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/login`,
-      support_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/support`
+      login_url: `${authBaseUrl()}/login`,
+      support_url: `${siteBaseUrl()}/support`
     }
   };
 }
@@ -318,7 +319,7 @@ export async function resolveRenewalReminderEvent(event, channel) {
   const recipient = channelRecipient(channel, { email: row.email, phone: row.phone });
   if (!recipient) return { skip: missingRecipientReason(channel) };
   const daysRemaining = Math.max(1, Math.ceil((new Date(row.periodEnd).getTime() - Date.now()) / 86_400_000));
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://renvix.app";
+  const appUrl = appBaseUrl();
   return {
     recipient,
     variables: {
@@ -328,7 +329,7 @@ export async function resolveRenewalReminderEvent(event, channel) {
       expiry_date: dateValue(row.periodEnd),
       days_remaining: daysRemaining,
       renewal_url: `${appUrl}/dashboard/billing`,
-      support_url: `${appUrl}/support`
+      support_url: `${siteBaseUrl()}/support`
     }
   };
 }
@@ -371,8 +372,8 @@ async function resolveDisconnectEvent(event, channel) {
         : "",
       disconnect_reason: row.reason,
       disconnected_at: dateValue(row.disconnectedAt),
-      reconnect_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/dashboard/devices`,
-      support_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/support`
+      reconnect_url: `${appBaseUrl()}/dashboard/devices`,
+      support_url: `${siteBaseUrl()}/support`
     }
   };
 }
@@ -409,9 +410,9 @@ async function resolveSallaEvent(event, channel) {
       store_name: row.storeName,
       store_domain: row.storeDomain || "",
       connected_at: dateValue(row.readyAt),
-      dashboard_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/dashboard`,
-      integration_settings_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/dashboard/apps`,
-      support_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://renvix.app"}/support`
+      dashboard_url: `${appBaseUrl()}/dashboard`,
+      integration_settings_url: `${appBaseUrl()}/dashboard/apps`,
+      support_url: `${siteBaseUrl()}/support`
     }
   };
 }

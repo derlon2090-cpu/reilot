@@ -43,14 +43,16 @@ export function sameOriginRequest(request) {
     // internal backend URL created by the rewrite.
     if (request.headers.get("sec-fetch-site") === "same-origin") return true;
 
-    const trustedOrigins = new Set([
-      "https://renvix.app",
-      "https://www.renvix.app",
-      "https://reilot.vercel.app"
-    ]);
+    const trustedOrigins = new Set();
     for (const value of [
       process.env.APP_URL,
       process.env.NEXT_PUBLIC_APP_URL,
+      process.env.AUTH_URL,
+      process.env.NEXT_PUBLIC_AUTH_URL,
+      process.env.SITE_URL,
+      process.env.NEXT_PUBLIC_SITE_URL,
+      process.env.ADMIN_URL,
+      process.env.NEXT_PUBLIC_ADMIN_URL,
       process.env.API_PUBLIC_URL,
       process.env.NEXT_PUBLIC_API_BASE_URL,
       ...(process.env.TRUSTED_APP_ORIGINS || "").split(",")

@@ -1,7 +1,7 @@
-import { appBaseUrl } from "../src/server/app-url.js";
+import { siteBaseUrl } from "../src/server/app-url.js";
 
 export default function sitemap() {
-  const baseUrl = appBaseUrl();
+  const baseUrl = siteBaseUrl();
   const now = new Date();
   const helpArticles = [
     "quick-start-guide",

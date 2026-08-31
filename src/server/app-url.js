@@ -1,48 +1,75 @@
-const PRODUCTION_APP_URL = "https://renvix.app";
-const LOCAL_APP_URL = "http://localhost:3000";
+const LOCAL_URL = "http://localhost:3000";
 
-export function appBaseUrl() {
-  const configured = String(
-    process.env.NEXT_PUBLIC_APP_URL
-      || process.env.BETTER_AUTH_URL
-      || (process.env.NODE_ENV === "production" ? PRODUCTION_APP_URL : LOCAL_APP_URL)
-  ).trim();
+const URL_CONFIG = Object.freeze({
+  app: { keys: ["NEXT_PUBLIC_APP_URL", "APP_URL"], label: "Dashboard" },
+  auth: { keys: ["NEXT_PUBLIC_AUTH_URL", "AUTH_URL", "BETTER_AUTH_URL"], label: "Authentication" },
+  admin: { keys: ["NEXT_PUBLIC_ADMIN_URL", "ADMIN_URL"], label: "Administration" },
+  site: { keys: ["NEXT_PUBLIC_SITE_URL", "SITE_URL"], label: "Public site" }
+});
+
+function configuredValue(keys, env) {
+  for (const key of keys) {
+    const value = String(env[key] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function configuredBaseUrl(kind, env = process.env) {
+  const config = URL_CONFIG[kind];
+  const production = env.NODE_ENV === "production";
+  const value = configuredValue(config.keys, env);
+  if (!value && production) {
+    throw new Error(`${config.label} URL is required in production (${config.keys[0]})`);
+  }
 
   let parsed;
   try {
-    parsed = new URL(configured);
+    parsed = new URL(value || LOCAL_URL);
   } catch {
-    throw new Error("Application URL is invalid");
+    throw new Error(`${config.label} URL is invalid`);
   }
 
-  if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") {
-    throw new Error("Application URL must use HTTPS in production");
-  }
   if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
-    throw new Error("Application URL is not safe");
+    throw new Error(`${config.label} URL is not safe`);
   }
-  if (process.env.NODE_ENV === "production" && parsed.hostname.endsWith(".vercel.app")) {
-    return PRODUCTION_APP_URL;
+  if (production && parsed.protocol !== "https:") {
+    throw new Error(`${config.label} URL must use HTTPS in production`);
+  }
+  if (production && (parsed.hostname.endsWith(".vercel.app") || ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname))) {
+    throw new Error(`${config.label} URL must use its canonical production domain`);
   }
   return parsed.origin;
 }
 
-export function authBaseUrl() {
-  // Split-host authentication is opt-in so a stale AUTH_URL cannot break login.
-  const splitHostEnabled = String(process.env.AUTH_SPLIT_HOST_ENABLED || "").toLowerCase() === "true";
-  return safeBaseUrl(splitHostEnabled ? (process.env.AUTH_URL || appBaseUrl()) : appBaseUrl(), "Authentication");
+export function appBaseUrl(env = process.env) {
+  return configuredBaseUrl("app", env);
 }
 
-export function authPageUrl(pathname = "/login", returnTo = "") {
-  const url = new URL(pathname, authBaseUrl());
+export const dashboardBaseUrl = appBaseUrl;
+
+export function adminBaseUrl(env = process.env) {
+  return configuredBaseUrl("admin", env);
+}
+
+export function siteBaseUrl(env = process.env) {
+  return configuredBaseUrl("site", env);
+}
+
+export function authBaseUrl(env = process.env) {
+  return configuredBaseUrl("auth", env);
+}
+
+export function authPageUrl(pathname = "/login", returnTo = "", env = process.env) {
+  const url = new URL(pathname, authBaseUrl(env));
   if (returnTo) url.searchParams.set("returnTo", returnTo);
   return url.toString();
 }
 
-function safeBaseUrl(value, label) {
-  let parsed;
-  try { parsed = new URL(String(value || "").trim()); } catch { throw new Error(`${label} URL is invalid`); }
-  if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") throw new Error(`${label} URL must use HTTPS in production`);
-  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error(`${label} URL is not safe`);
-  return parsed.origin;
+export function adminPageUrl(pathname = "/advanced-pro-control", env = process.env) {
+  return new URL(pathname, adminBaseUrl(env)).toString();
+}
+
+export function sitePageUrl(pathname = "/", env = process.env) {
+  return new URL(pathname, siteBaseUrl(env)).toString();
 }
