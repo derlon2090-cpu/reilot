@@ -1992,9 +1992,7 @@ function publicNavbar() {
             <button class="locale-link ${state.language === "ar" ? "active" : ""}" data-action="language" data-language="ar">${state.language === "en" ? "AR" : "عربي"}</button>
             <button class="locale-link ${state.language === "en" ? "active" : ""}" data-action="language" data-language="en">EN</button>
           </div>
-          <button class="public-language-compact" data-action="language" data-language="${state.language === "ar" ? "en" : "ar"}" aria-label="${state.language === "en" ? "Change language" : "تغيير اللغة"}"><strong>${state.language === "ar" ? "AR" : "EN"}</strong>${dashboardIcon("globe")}${dashboardIcon("chevronDown")}</button>
-          <span class="public-nav-preference-label">${state.language === "en" ? "Theme" : "المظهر"}</span>
-          <button class="public-theme" data-action="theme" title="${t("settings.theme")}">${state.theme === "dark" ? dashboardIcon("moon") : dashboardIcon("sun")}<span>${state.theme === "dark" ? (state.language === "en" ? "Dark" : "داكن") : (state.language === "en" ? "Light" : "فاتح")}</span></button>
+          <button class="public-language-compact" data-action="language" data-language="${state.language === "ar" ? "en" : "ar"}" aria-label="${state.language === "en" ? "Change language" : "تغيير اللغة"}"><strong>${state.language === "ar" ? "English" : "العربية"}</strong>${dashboardIcon("globe")}</button>
         </div>
         <div class="public-auth-actions">
           <button class="btn btn-secondary public-login-action" data-link="/login"><span>${t("auth.loginTitle")}</span>${dashboardIcon("publicLogin")}</button>
@@ -2009,7 +2007,7 @@ function publicNavbar() {
       <aside aria-label="${localizedCopy("قائمة الموقع", "Site menu")}">
         <header>${logo()}<button type="button" data-action="toggle-public-nav" aria-label="${localizedCopy("إغلاق القائمة", "Close menu")}">${dashboardIcon("close")}</button></header>
         <nav aria-label="${localizedCopy("التنقل الرئيسي", "Primary navigation")}">${links}</nav>
-        <div class="public-mobile-preferences"><button class="public-language-compact" data-action="language" data-language="${state.language === "ar" ? "en" : "ar"}">${dashboardIcon("globe")}<span>${state.language === "ar" ? "English" : "العربية"}</span></button><button class="public-theme" data-action="theme">${state.theme === "dark" ? dashboardIcon("moon") : dashboardIcon("sun")}<span>${state.theme === "dark" ? localizedCopy("داكن", "Dark") : localizedCopy("فاتح", "Light")}</span></button></div>
+        <div class="public-mobile-preferences"><button class="public-language-compact" data-action="language" data-language="${state.language === "ar" ? "en" : "ar"}">${dashboardIcon("globe")}<span>${state.language === "ar" ? "English" : "العربية"}</span></button></div>
         <footer><a href="/login" class="btn btn-secondary" data-link="/login">${dashboardIcon("publicLogin")}${t("auth.loginTitle")}</a><a href="/register" class="btn btn-primary" data-link="/register">${dashboardIcon("publicRegister")}${t("auth.createAccount")}</a></footer>
       </aside>
     </div>
