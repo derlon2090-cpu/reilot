@@ -50,6 +50,7 @@ describe("admin login identifiers", () => {
 
   it("accepts the permanent administrator username without weakening credential verification", async () => {
     queryMock
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ count: 0 }] })
       .mockResolvedValueOnce({ rows: [{
         userId: "user-1",
@@ -76,9 +77,28 @@ describe("admin login identifiers", () => {
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
     expect(response.headers.get("set-cookie")).toContain("renvix_admin_email_otp_challenge=");
     expect(response.headers.get("set-cookie")).not.toContain("Domain=");
-    expect(queryMock.mock.calls[1][0]).toContain("lower(a.account_id)");
+    expect(queryMock.mock.calls[2][0]).toContain("lower(a.account_id)");
     expect(emailChallengeMock).toHaveBeenCalledWith(expect.objectContaining({ purpose: "admin_login" }));
     await expect(response.json()).resolves.toMatchObject({ ok: true, requiresEmailOtp: true });
+  });
+
+  it("enforces an approved temporary source isolation before credential work", async () => {
+    queryMock.mockResolvedValueOnce({ rows: [{
+      type: "temporary_block",
+      expiresAt: new Date(Date.now() + 900_000),
+      retryAfterSeconds: 900
+    }] });
+
+    const response = await POST(new Request("http://localhost/api/admin/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "renvix_root_7X9K", password: "A-very-strong-password" })
+    }));
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("900");
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(emailChallengeMock).not.toHaveBeenCalled();
   });
 
   it("never accepts a trusted browser or creates a direct admin session", () => {

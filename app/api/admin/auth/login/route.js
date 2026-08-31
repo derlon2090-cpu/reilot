@@ -6,6 +6,7 @@ import { hashPassword, needsRehash, verifyPassword } from "../../../../../src/se
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { ADMIN_SESSION_COOKIE, destroySession } from "../../../../../src/server/session.js";
 import { adminChallengeCookie, createLoginEmailOtpChallenge } from "../../../../../src/server/email-otp-v2.js";
+import { activeTemporaryMitigation, recordSecuritySignal } from "../../../../../src/server/security-center.js";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني أو اسم المستخدم.").refine(
@@ -52,6 +53,13 @@ export async function POST(request) {
   }
   const identifier = normalizeEmail(parsed.data.email);
   const ip = requestIp(request);
+  const mitigation = await activeTemporaryMitigation(ip);
+  if (mitigation) {
+    return Response.json({ ok: false, reason: "temporarily_blocked", message: "تم عزل هذا المصدر مؤقتًا بقرار أمني." }, {
+      status: 429,
+      headers: { "Retry-After": String(mitigation.retryAfterSeconds), "Cache-Control": "no-store" }
+    });
+  }
   authStage = "rate_limit";
   const failures = await query(
     `SELECT count(*)::int AS count FROM login_attempts
@@ -60,6 +68,7 @@ export async function POST(request) {
     [identifier, ip]
   );
   if (failures.rows[0].count >= 5) {
+    await recordSecuritySignal({ eventType: "RATE_LIMIT_EXCEEDED", sourceIp: ip, requestedPath: "/admin/login", metadata: { surface: "admin_auth" } });
     return Response.json({ ok: false, reason: "rate_limited", message: "تم تجاوز عدد محاولات الدخول. حاول مرة أخرى لاحقًا." }, { status: 429 });
   }
 
@@ -94,6 +103,10 @@ export async function POST(request) {
   );
 
   if (!valid) {
+    await recordSecuritySignal({
+      eventType: "ADMIN_LOGIN_FAILED", sourceIp: ip, requestedPath: "/admin/login",
+      metadata: { reason: expired ? "expired" : passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials" }
+    });
     await auditAdmin(request, {
       userId: admin?.userId || null,
       action: "admin.login.failed",

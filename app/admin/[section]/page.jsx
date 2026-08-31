@@ -4,7 +4,7 @@ import { requireAdminPage } from "../../../src/lib/admin/require-admin.js";
 
 const SECTIONS = new Set([
   "subscriptions", "customers", "stores", "notifications", "support", "templates", "campaigns", "contacts", "messages", "devices",
-  "integrations", "security", "reports", "billing", "settings"
+  "integrations", "security", "security-center", "reports", "billing", "settings"
 ]);
 
 export const dynamic = "force-dynamic";

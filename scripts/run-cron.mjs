@@ -5,6 +5,7 @@ const job = process.argv[2];
 const allowed = new Set([
   "renewal-reminders",
   "whatsapp-health-check",
+  "security-inspector",
   "message-retry",
   "message-worker",
   "platform-notifications",

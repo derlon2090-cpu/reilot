@@ -8,6 +8,7 @@ import {
   trustedDeviceCookie,
   verifyEmailOtp
 } from "../../../../../src/server/email-otp-v2.js";
+import { activeTemporaryMitigation, recordSecuritySignal } from "../../../../../src/server/security-center.js";
 
 export async function POST(req) {
   try {
@@ -16,14 +17,30 @@ export async function POST(req) {
       return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
     }
     const challenge = readEmailOtpChallengeCookie(req);
+    const sourceIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || req.headers.get("x-real-ip")
+      || "";
+    if (challenge.admin) {
+      const mitigation = await activeTemporaryMitigation(sourceIp);
+      if (mitigation) return Response.json({ ok: false, reason: "temporarily_blocked" }, {
+        status: 429,
+        headers: { "Retry-After": String(mitigation.retryAfterSeconds), "Cache-Control": "no-store" }
+      });
+    }
     const result = await verifyEmailOtp({
       rawCookie: challenge.value,
       code: body.code,
-      ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      ipAddress: sourceIp,
       userAgent: req.headers.get("user-agent"),
       existingBrowserToken: readTrustedBrowserCookie(req)
     });
     if (!result.ok) {
+      if (challenge.admin) await recordSecuritySignal({
+        eventType: "ADMIN_MFA_FAILED",
+        sourceIp,
+        requestedPath: "/admin/email-otp",
+        metadata: { reason: result.reason, attemptsRemaining: result.attemptsRemaining }
+      });
       return Response.json(
         { ok: false, reason: result.reason, attemptsRemaining: result.attemptsRemaining },
         { status: result.status }

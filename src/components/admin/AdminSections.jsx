@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./AdminPortal.module.css";
+import SecurityCenter from "./SecurityCenter.jsx";
 
 const ICONS = {
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8M16 3.2a4 4 0 0 1 0 7.6"/>',
@@ -1213,13 +1214,13 @@ function Settings({ data, stats, admin }) {
   </>;
 }
 
-export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "campaigns", "devices", "integrations", "security", "reports", "settings"]);
+export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "campaigns", "devices", "integrations", "security", "security-center", "reports", "settings"]);
 
 export default function AdminSectionView({ panel, data, stats, admin, onRefresh }) {
   if (!data || !stats) return null;
   const components = {
     overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, notifications: Notifications, support: Support, templates: Templates,
-    campaigns: Campaigns, devices: Devices, integrations: Integrations, security: Security, reports: Reports, settings: Settings
+    campaigns: Campaigns, devices: Devices, integrations: Integrations, security: Security, "security-center": SecurityCenter, reports: Reports, settings: Settings
   };
   const Component = components[panel];
   return Component ? <Component data={data} stats={stats} admin={admin} onRefresh={onRefresh} /> : null;
