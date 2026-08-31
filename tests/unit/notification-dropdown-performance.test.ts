@@ -29,5 +29,8 @@ describe("dashboard notification dropdown", () => {
     expect(refinedNavigation).toContain("height: 100dvh;");
     expect(refinedNavigation).toContain("margin: 0;");
     expect(refinedNavigation).toContain("transition: color .18s ease");
+    expect(refinedNavigation).toContain("scrollbar-width: thin;");
+    expect(refinedNavigation).toContain("scrollbar-gutter: stable;");
+    expect(refinedNavigation).not.toContain("scrollbar-width: none;");
   });
 });

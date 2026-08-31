@@ -15690,12 +15690,32 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 .dashboard-shell > .sidebar {
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: #b8cfcb #f3f8f7;
+  scrollbar-gutter: stable;
 }
 
 .dashboard-shell > .sidebar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 7px;
+  height: 7px;
+}
+
+.dashboard-shell > .sidebar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #f3f8f7;
+}
+
+.dashboard-shell > .sidebar::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 2px solid #f3f8f7;
+  border-radius: 999px;
+  background: #b8cfcb;
+  background-clip: padding-box;
+}
+
+.dashboard-shell > .sidebar::-webkit-scrollbar-thumb:hover {
+  background: #7fa8a2;
+  background-clip: padding-box;
 }
 
 .dashboard-shell > .sidebar .side-links {
@@ -15859,7 +15879,15 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   border-color: #234c46 !important;
   background: #0a2f2b !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+  scrollbar-color: #47756e #123a35;
 }
+
+:root[data-theme="dark"] .dashboard-shell > .sidebar::-webkit-scrollbar-track { background: #123a35; }
+:root[data-theme="dark"] .dashboard-shell > .sidebar::-webkit-scrollbar-thumb {
+  border-color: #123a35;
+  background: #47756e;
+}
+:root[data-theme="dark"] .dashboard-shell > .sidebar::-webkit-scrollbar-thumb:hover { background: #65978f; }
 
 :root[data-theme="dark"] .dashboard-shell > .sidebar .sidebar-brand,
 :root[data-theme="dark"] .dashboard-shell > .sidebar .side-group + .side-group {
