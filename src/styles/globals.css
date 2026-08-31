@@ -14131,13 +14131,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   gap: 6px;
   color: #274b46 !important;
   border: 0 !important;
-  border-inline-start: 1px solid #edf1f0 !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
 .public-site > .public-nav .public-language-compact strong { font-size: 13px; font-weight: 650; }
 .public-site > .public-nav .public-language-compact .line-icon { width: 20px; height: 20px; }
+.public-site > .public-nav .public-nav-more.active summary { color: var(--home-primary); border-color: #cfe3df; background: #f1f8f6; }
+.public-site > .public-nav .public-nav-more > div a.active { color: var(--home-primary); background: #f1f8f6; font-weight: 700; }
 .public-site > .public-nav .public-auth-actions .btn {
   min-height: 40px !important;
   padding-inline: 13px !important;
