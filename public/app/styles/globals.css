@@ -15746,3 +15746,96 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .campaign-ai-color-grid small{color:#5f7771;font-size:9px;text-align:center;white-space:nowrap}
 .campaign-ai-modal-note{color:#78908a;font-size:10px}
 @media (max-width:560px){.campaign-ai-code-modal{min-width:0}.campaign-ai-color-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Contacts channel navigation */
+.contacts-channel-tabs {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 0;
+  border-bottom: 1px solid #dfe9e7;
+  border-radius: 0;
+  background: transparent;
+  scrollbar-width: none;
+}
+
+.contacts-channel-tabs::-webkit-scrollbar { display: none; }
+
+.contacts-channel-tabs button {
+  position: relative;
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 17px;
+  border: 0;
+  color: #697e7a;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .18s ease, background-color .18s ease;
+}
+
+.contacts-channel-tabs button::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: #0a514b;
+  content: "";
+  opacity: 0;
+  transform: scaleX(.45);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.contacts-channel-tabs button:hover {
+  color: #174c46;
+  background: #f7fbfa;
+}
+
+.contacts-channel-tabs button:focus-visible {
+  z-index: 1;
+  outline: 2px solid #6bb7ad;
+  outline-offset: -2px;
+}
+
+.contacts-channel-tabs button svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  stroke-width: 1.8;
+}
+
+.contacts-channel-tabs button.active {
+  color: #064c46;
+  background: transparent;
+  font-weight: 700;
+}
+
+.contacts-channel-tabs button.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+@media (max-width: 820px) {
+  .contacts-channel-tabs { flex: 1 1 100%; }
+  .contacts-channel-tabs button { flex: 1 0 auto; }
+}
+
+@media (max-width: 560px) {
+  .contacts-channel-tabs {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .contacts-channel-tabs button {
+    min-width: max-content;
+    padding-inline: 14px;
+  }
+}
