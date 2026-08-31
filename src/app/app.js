@@ -4115,7 +4115,7 @@ function notificationTone(item = {}) {
 function notificationDropdownMarkup() {
   const items = notificationItems().slice(0, 4);
   const unread = Number(state.notifications?.summary?.unread || 0);
-  return `<div class="notification-dropdown">
+  return `<div class="notification-dropdown" id="dashboard-notification-dropdown" role="region" aria-label="${state.language === "ar" ? "الإشعارات الأخيرة" : "Recent notifications"}">
     <div class="notification-dropdown-head"><strong>الإشعارات</strong><span class="badge">${unread}</span></div>
     <div class="notification-dropdown-list">${items.length ? items.map((item) => {
       const tone = notificationTone(item);
@@ -4130,6 +4130,24 @@ function notificationDropdownMarkup() {
     }).join("") : `<div class="notification-empty"><strong>لا توجد إشعارات جديدة</strong><span>ستظهر هنا تنبيهات الاشتراكات وحالة الرسائل.</span></div>`}</div>
     <div class="notification-dropdown-actions"><button class="btn btn-ghost" data-action="notification-mark-all" ${unread ? "" : "disabled"}>تحديد الكل كمقروء</button><button class="btn btn-secondary" data-link="/dashboard/notifications">عرض كل الإشعارات</button></div>
   </div>`;
+}
+
+function refreshNotificationDropdownChrome() {
+  const wrap = document.querySelector(".notification-trigger-wrap");
+  if (!wrap) return;
+  const trigger = wrap.querySelector(".notification-trigger");
+  const currentDropdown = wrap.querySelector(".notification-dropdown");
+  trigger?.setAttribute("aria-expanded", state.notificationDropdownOpen ? "true" : "false");
+  if (!state.notificationDropdownOpen) {
+    currentDropdown?.remove();
+    return;
+  }
+  const template = document.createElement("template");
+  template.innerHTML = notificationDropdownMarkup().trim();
+  const nextDropdown = template.content.firstElementChild;
+  if (!nextDropdown) return;
+  if (currentDropdown) currentDropdown.replaceWith(nextDropdown);
+  else wrap.appendChild(nextDropdown);
 }
 
 function notificationsPage() {
@@ -4221,7 +4239,7 @@ function dashboardShell(content) {
           <button class="btn btn-secondary language-topbar-button" data-action="language" title="${state.language === "ar" ? "اللغة" : "Language"}">${dashboardIcon("language")}<span>${state.language === "ar" ? "AR" : "EN"}</span></button>
           <button class="btn btn-ghost icon-btn theme-topbar-button" data-action="theme" title="${state.language === "ar" ? "تغيير المظهر" : "Change theme"}">${themeIcon}</button>
           <div class="notification-trigger-wrap">
-            <button class="btn btn-ghost icon-btn notification-trigger" data-action="notifications" title="${state.language === "ar" ? "الإشعارات" : "Notifications"}">${dashboardIcon("notifications")}${unreadNotifications ? `<span class="notification-badge">${unreadNotifications > 99 ? "99+" : unreadNotifications}</span>` : ""}</button>
+            <button class="btn btn-ghost icon-btn notification-trigger" data-action="notifications" title="${state.language === "ar" ? "الإشعارات" : "Notifications"}" aria-controls="dashboard-notification-dropdown" aria-haspopup="true" aria-expanded="${state.notificationDropdownOpen ? "true" : "false"}">${dashboardIcon("notifications")}${unreadNotifications ? `<span class="notification-badge">${unreadNotifications > 99 ? "99+" : unreadNotifications}</span>` : ""}</button>
             ${state.notificationDropdownOpen ? notificationDropdownMarkup() : ""}
           </div>
         </div>
@@ -9860,7 +9878,9 @@ async function handleAction(target) {
   }
   if (action === "notifications") {
     state.notificationDropdownOpen = !state.notificationDropdownOpen;
-    render();
+    state.profileOpen = false;
+    document.querySelector(".profile-menu")?.remove();
+    refreshNotificationDropdownChrome();
     return;
   }
   if (action === "notification-mark-all") {
@@ -14435,6 +14455,10 @@ function bindQrImageState() {
 }
 
 document.addEventListener("click", (event) => {
+  if (state.notificationDropdownOpen && !event.target.closest(".notification-trigger-wrap")) {
+    state.notificationDropdownOpen = false;
+    refreshNotificationDropdownChrome();
+  }
   if (!event.target.closest("[data-ai-conversation-item]")) closeAIConversationMenus();
   if (!event.target.closest(".dashboard-search")) {
     const quickSearchResults = document.querySelector("[data-global-search-results]");
@@ -14481,6 +14505,11 @@ window.addEventListener("renvix:google-auth-result", (event) => { void handleGoo
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && portal.innerHTML) closePortal();
+  if (event.key === "Escape" && state.notificationDropdownOpen) {
+    state.notificationDropdownOpen = false;
+    refreshNotificationDropdownChrome();
+    document.querySelector(".notification-trigger")?.focus();
+  }
   if (event.target?.matches?.('form[data-submit="ai-message"] textarea[name="prompt"]') && event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     event.target.form?.requestSubmit();

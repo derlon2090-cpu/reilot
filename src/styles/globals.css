@@ -15871,15 +15871,20 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   }
 
   .dashboard-shell > .sidebar {
+    position: sticky;
+    inset-block-start: 0;
+    align-self: start;
     width: auto;
-    height: calc(100vh - 24px);
-    margin: 12px;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
     padding: 16px 14px 14px;
     gap: 14px;
-    border: 1px solid #e4ecea;
-    border-radius: 16px;
+    border: 0;
+    border-inline-start: 1px solid #e4ecea;
+    border-radius: 0;
     background: #fff;
-    box-shadow: 0 8px 28px rgba(6, 43, 40, .055);
+    box-shadow: none;
   }
 
   .dashboard-shell.sidebar-collapsed {
@@ -15887,7 +15892,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   }
 
   .dashboard-shell.sidebar-collapsed > .sidebar {
-    margin: 10px;
+    margin: 0;
     padding: 14px 8px;
   }
 }
