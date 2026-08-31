@@ -14017,26 +14017,30 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 .public-site > .public-nav {
-  position: sticky !important;
+  position: fixed !important;
   z-index: 100 !important;
   top: 0;
-  min-height: 72px;
-  border-bottom: 1px solid rgba(11, 63, 59, .09) !important;
-  background: rgba(255, 255, 255, .92) !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  right: 0;
+  left: 0;
+  min-height: 74px;
+  border-bottom: 1px solid #edf1f0 !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(6, 43, 40, .035) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
+
+.page-shell.public-site { padding-top: 74px; }
 
 .public-site > .public-nav .nav-inner {
   width: min(calc(100% - 64px), 1320px) !important;
-  min-height: 72px !important;
+  min-height: 74px !important;
   margin-inline: auto;
   padding: 0 !important;
   display: grid !important;
   grid-template-columns: 190px minmax(0, 1fr) auto !important;
   align-items: center;
-  gap: 24px !important;
+  gap: 18px !important;
   direction: rtl;
 }
 
@@ -14063,22 +14067,22 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   display: flex !important;
   align-items: center;
   justify-content: center;
-  gap: 7px !important;
+  gap: 5px !important;
 }
 
 .public-site > .public-nav .nav-link {
-  min-height: 42px !important;
-  padding: 0 12px !important;
+  min-height: 40px !important;
+  padding: 0 11px !important;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   color: var(--home-text-secondary) !important;
   border: 1px solid transparent !important;
-  border-radius: 11px !important;
+  border-radius: 9px !important;
   background: transparent !important;
   box-shadow: none !important;
   font-size: 13px !important;
-  font-weight: 700;
+  font-weight: 650;
   text-decoration: none;
   transition: color .18s ease, border-color .18s ease, background-color .18s ease;
 }
@@ -14092,8 +14096,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .public-site > .public-nav .nav-link.active {
   color: var(--home-primary) !important;
-  border-color: var(--brand-primary-border) !important;
-  background: var(--home-surface-subtle) !important;
+  border-color: #cfe3df !important;
+  background: #f1f8f6 !important;
+  font-weight: 700;
 }
 .public-site > .public-nav .public-nav-more { position: relative; display: none; }
 .public-site > .public-nav .public-nav-more summary { min-height: 42px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; color: var(--home-text-secondary); border: 1px solid transparent; border-radius: 11px; font-size: 12px; font-weight: 750; cursor: pointer; list-style: none; }
@@ -14109,38 +14114,41 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   display: flex !important;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px !important;
+  gap: 8px !important;
   direction: rtl !important;
 }
 .public-site > .public-nav .public-nav-preferences,
 .public-site > .public-nav .public-auth-actions { display: flex; align-items: center; gap: 7px; }
 .public-site > .public-nav .public-nav-preference-label,
 .public-site > .public-nav .public-language-switch { display: none !important; }
-.public-site > .public-nav .public-language-compact,
-.public-site > .public-nav .public-theme {
-  min-width: 42px !important;
-  min-height: 42px !important;
-  padding: 0 10px !important;
+.public-site > .public-nav .public-language-compact {
+  min-width: auto !important;
+  min-height: 40px !important;
+  padding: 0 13px !important;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: var(--home-text-secondary) !important;
-  border: 1px solid var(--home-border) !important;
-  border-radius: var(--home-radius-control) !important;
-  background: var(--home-surface) !important;
+  color: #274b46 !important;
+  border: 0 !important;
+  border-inline-start: 1px solid #edf1f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
 }
-.public-site > .public-nav .public-language-compact { min-width: 70px !important; }
-.public-site > .public-nav .public-language-compact .line-icon:last-child,
-.public-site > .public-nav .public-theme span { display: none; }
+.public-site > .public-nav .public-language-compact strong { font-size: 13px; font-weight: 650; }
+.public-site > .public-nav .public-language-compact .line-icon { width: 20px; height: 20px; }
 .public-site > .public-nav .public-auth-actions .btn {
-  min-height: 42px !important;
-  padding-inline: 15px !important;
-  border-radius: var(--home-radius-control) !important;
+  min-height: 40px !important;
+  padding-inline: 13px !important;
+  border-radius: 9px !important;
   font-size: 12px !important;
+  font-weight: 650;
   white-space: nowrap;
 }
+.public-site > .public-nav .public-login-action { color: #173d37 !important; border-color: transparent !important; background: transparent !important; }
+.public-site > .public-nav .public-login-action:hover { color: var(--home-primary) !important; background: #f5faf9 !important; }
+.public-site > .public-nav .public-auth-actions .line-icon { width: 20px; height: 20px; }
 .public-site > .public-nav .mobile-public-login,
 .public-site > .public-nav .mobile-menu,
 .public-site > .public-nav .public-mobile-drawer { display: none !important; }
@@ -14556,6 +14564,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 @media (max-width: 900px) {
+  .page-shell.public-site { padding-top: 66px; }
   .public-site > .public-nav { min-height: 66px; }
   .public-site > .public-nav .nav-inner { min-height: 66px !important; display: flex !important; gap: 9px !important; }
   .public-site > .public-nav .nav-inner > .brand { width: 138px !important; margin-inline-end: auto; }
@@ -14966,10 +14975,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .features-core-card.is-visible:hover,
   .features-advanced-card.is-visible:hover { transform: translateY(-4px); border-color: rgba(11, 99, 90, .17); box-shadow: 0 14px 32px rgba(15, 23, 42, .065); }
 }
-.public-site:has(.features-production) > .public-nav { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.97); box-shadow: none; backdrop-filter: blur(14px); }
+.public-site:has(.features-production) > .public-nav { position: fixed; top: 0; z-index: 100; background: #fff; box-shadow: 0 2px 8px rgba(6,43,40,.035); backdrop-filter: none; }
 .public-site:has(.features-production) > .public-nav .nav-link { transition: color 250ms cubic-bezier(.22,1,.36,1), background-color 250ms cubic-bezier(.22,1,.36,1); }
-.public-site:has(.features-production) > .public-nav .nav-link.active { color: #075f58 !important; border-color: transparent !important; border-radius: 0 !important; background: rgba(11,99,90,.025) !important; box-shadow: none !important; font-weight: 650; }
-.public-site:has(.features-production) > .public-nav .nav-link.active::after { display: block !important; right: 18%; bottom: 10px; left: 18%; width: auto; height: 2px; border-radius: 99px; background: #0b766c; content: ""; transition: 250ms cubic-bezier(.22,1,.36,1); }
+.public-site:has(.features-production) > .public-nav .nav-link.active { color: #075f58 !important; border-color: #cfe3df !important; border-radius: 9px !important; background: #f1f8f6 !important; box-shadow: none !important; font-weight: 700; }
+.public-site:has(.features-production) > .public-nav .nav-link.active::after { display: none !important; }
 :root[data-theme="dark"] .features-production { --features-ink: #e9f7f4; --features-muted: #a9bfba; --features-line: rgba(139, 190, 181, .18); background: #071f1c !important; }
 :root[data-theme="dark"] .features-production :is(.features-core-card,.features-advanced-card,.features-performance-dashboard,.features-performance-metrics section,.features-performance-charts>section) { border-color: #264c46; background: #0b2a26; box-shadow: none; }
 :root[data-theme="dark"] .features-production .feature-mini { border-color: #294c47; background: #0d302b; }
