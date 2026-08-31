@@ -75,13 +75,14 @@ describe("templates catalog UI", () => {
     expect(renewalEmailSource).toContain('<input type="hidden" name="channel" value="email">');
     expect(renewalEmailSource).not.toContain("${channelSelect}");
     expect(renewalEmailSource).toContain('class="email-builder-form renewal-email-builder"');
-    expect(renewalEmailSource).toContain('class="renewal-email-compose-grid"');
+    expect(renewalEmailSource).toContain('class="renewal-email-main"');
+    expect(renewalEmailSource).toContain('class="renewal-email-message-panel"');
     expect(renewalEmailSource).toContain('class="renewal-email-browser"');
     expect(renewalEmailSource).toContain('name="templateDescription"');
     expect(renewalEmailSource).toContain('{{support_url}}');
-    expect(renewalEmailSource).toContain("compact: true");
+    expect(renewalEmailSource).toContain('templateType: "renewal"');
     expect(stylesSource).toContain(".renewal-email-builder { display: grid;");
-    expect(stylesSource).toContain(".renewal-email-compose-grid { min-height: 590px;");
+    expect(stylesSource).toContain(".renewal-email-utility-grid { display: grid;");
     expect(stylesSource).toContain(".renewal-email-preview-column { position: sticky;");
   });
 });

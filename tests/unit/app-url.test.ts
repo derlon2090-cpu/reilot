@@ -6,7 +6,7 @@ const productionEnv = {
   NEXT_PUBLIC_SITE_URL: "https://renvix.app",
   NEXT_PUBLIC_AUTH_URL: "https://accounts.renvix.app",
   NEXT_PUBLIC_APP_URL: "https://dash.renvix.app",
-  NEXT_PUBLIC_ADMIN_URL: "https://admin.renvix.app"
+  NEXT_PUBLIC_ADMIN_URL: "https://wa-admin.renvix.app"
 } as NodeJS.ProcessEnv;
 
 describe("canonical platform URLs", () => {
@@ -14,7 +14,7 @@ describe("canonical platform URLs", () => {
     expect(siteBaseUrl(productionEnv)).toBe("https://renvix.app");
     expect(authBaseUrl(productionEnv)).toBe("https://accounts.renvix.app");
     expect(appBaseUrl(productionEnv)).toBe("https://dash.renvix.app");
-    expect(adminBaseUrl(productionEnv)).toBe("https://admin.renvix.app");
+    expect(adminBaseUrl(productionEnv)).toBe("https://wa-admin.renvix.app");
   });
 
   it("requires every canonical origin in production", () => {

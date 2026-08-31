@@ -18,8 +18,13 @@ import {
   shouldProxyAuthApi
 } from "./src/shared/auth-portal.js";
 import { proxyAuthBackendRequest } from "./src/shared/auth-backend-proxy.js";
+import { verifyCloudflareAccessRequest } from "./src/shared/cloudflare-access.js";
 
 export async function middleware(request) {
+  return middlewareRequest(request);
+}
+
+export async function middlewareRequest(request, { verifyAccess = verifyCloudflareAccessRequest } = {}) {
   const path = request.nextUrl.pathname;
   const hasCustomerSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const hasAdminSession = Boolean(request.cookies.get("renvix_admin_session")?.value);
@@ -28,6 +33,7 @@ export async function middleware(request) {
   const requestHost = hostnameFromHeaders(request.headers);
   const hostKind = platformHostKind(requestHost, origins);
   const authApiOrigin = configuredAuthApiOrigin();
+  const directRequestHost = directHostname(request.headers);
   const isSetupPage = path === "/admin/setup";
   const isSetupApi = path.startsWith("/api/admin/setup/");
   const adminPage = isAdminPagePath(path);
@@ -37,10 +43,26 @@ export async function middleware(request) {
   const authPage = isAuthPath(canonicalAuth) || path.startsWith("/auth/");
   const authApi = path.startsWith("/api/auth/");
   const pageRequest = !path.startsWith("/api/") && !path.startsWith("/backend/");
+  const apiHost = authApiOrigin ? new URL(authApiOrigin).hostname.toLowerCase() : "";
+  const adminSurface = hostKind === "admin" && (
+    path === "/"
+    || adminPage
+    || adminApi
+    || isAdminVerificationPagePath(path)
+    || (authApi && isAdminAuthBridgeApi(path))
+  );
 
   if (splitHosts) {
-    if (adminPage && hostKind !== "admin") return portalRedirect(request, origins.admin, path);
-    if (adminApi && hostKind !== "admin" && hostKind !== "unknown") return wrongHostApiResponse();
+    if (adminPage && hostKind !== "admin") {
+      logAdminBoundaryEvent(request, "admin_page_wrong_host", requestHost, path);
+      return hostKind === "unknown"
+        ? wrongHostPageResponse()
+        : portalRedirect(request, origins.admin, path);
+    }
+    if (adminApi && hostKind !== "admin" && requestHost !== apiHost) {
+      logAdminBoundaryEvent(request, "admin_api_wrong_host", requestHost, path);
+      return wrongHostApiResponse();
+    }
 
     if (dashboardPage && hostKind !== "app") {
       return portalRedirect(request, origins.app, path);
@@ -57,6 +79,18 @@ export async function middleware(request) {
     }
     if (hostKind === "admin" && path.startsWith("/api/") && !adminApi && !(authApi && isAdminAuthBridgeApi(path))) {
       return wrongHostApiResponse();
+    }
+
+    // Cloudflare Access terminates at Vercel. Render remains protected by the
+    // independent Renvix admin session/RBAC checks and must not require the CF JWT.
+    if (adminSurface
+      && process.env.NODE_ENV === "production"
+      && directRequestHost === new URL(origins.admin).hostname.toLowerCase()) {
+      const access = await verifyAccess(request, process.env);
+      if (!access.ok) {
+        logAdminBoundaryEvent(request, access.reason, requestHost, path);
+        return cloudflareAccessResponse(access, adminApi || authApi);
+      }
     }
 
     if (hostKind === "app" && path === "/") {
@@ -80,7 +114,7 @@ export async function middleware(request) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;
   }
-  if (isSetupPage || isSetupApi) return secureNext();
+  if (isSetupPage || isSetupApi) return secureNext(request, adminSurface);
   if (path.startsWith("/admin") && !hasAdminSession) return secureRedirect(new URL("/advanced-pro-control", origins.admin));
   if (adminApi && !path.startsWith("/api/admin/auth/") && !path.endsWith("/login") && !hasAdminSession) {
     return NextResponse.json({ ok: false, reason: "admin_auth_required" }, { status: 401 });
@@ -90,7 +124,7 @@ export async function middleware(request) {
     login.searchParams.set("returnTo", safeReturnTo(`${path}${request.nextUrl.search}`));
     return secureRedirect(login);
   }
-  return NextResponse.next();
+  return adminSurface ? secureNext(request, true) : NextResponse.next();
 }
 
 function portalRedirect(request, origin, pathname) {
@@ -107,12 +141,60 @@ function secureRedirect(target) {
   return response;
 }
 
-function secureNext() {
-  const response = NextResponse.next();
+function secureNext(request, stripAccessAssertion = false) {
+  const response = stripAccessAssertion
+    ? NextResponse.next({ request: { headers: downstreamHeaders(request) } })
+    : NextResponse.next();
   response.headers.set("Cache-Control", "no-store");
   response.headers.set("Referrer-Policy", "no-referrer");
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
   return response;
+}
+
+function downstreamHeaders(request) {
+  const headers = new Headers(request.headers);
+  headers.delete("cf-access-jwt-assertion");
+  return headers;
+}
+
+function directHostname(headers) {
+  return String(headers.get("host") || "")
+    .split(",")[0]
+    .trim()
+    .replace(/:\d+$/, "")
+    .toLowerCase();
+}
+
+function cloudflareAccessResponse(access, apiRequest) {
+  const headers = {
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    "X-Robots-Tag": "noindex, nofollow"
+  };
+  if (apiRequest) {
+    return NextResponse.json(
+      { ok: false, reason: access.reason },
+      { status: access.status, headers }
+    );
+  }
+  return new NextResponse(null, { status: access.status, headers });
+}
+
+function wrongHostPageResponse() {
+  return new NextResponse(null, {
+    status: 404,
+    headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" }
+  });
+}
+
+function logAdminBoundaryEvent(request, reason, host, path) {
+  const requestId = request.headers.get("cf-ray") || request.headers.get("x-vercel-id") || "";
+  console.warn("renvix_admin_boundary_event", {
+    reason: String(reason || "unknown").slice(0, 80),
+    host: String(host || "unknown").replace(/[^a-z0-9.:-]/gi, "").slice(0, 253),
+    path: String(path || "/").slice(0, 300),
+    requestId: String(requestId).slice(0, 160)
+  });
 }
 
 function wrongHostApiResponse() {

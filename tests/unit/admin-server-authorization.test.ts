@@ -13,7 +13,7 @@ vi.mock("../../src/server/db.js", () => ({ query: mocks.query }));
 
 import { getAdminContext, requireAdminPermission } from "../../src/server/admin-auth.js";
 
-const request = new Request("https://admin.renvix.app/api/admin/overview");
+const request = new Request("https://wa-admin.renvix.app/api/admin/overview");
 
 describe("server-side administrator authorization", () => {
   beforeEach(() => {

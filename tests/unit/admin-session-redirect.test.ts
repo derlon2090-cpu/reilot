@@ -24,7 +24,7 @@ describe("admin session redirect", () => {
   });
 
   it("allows the admin control plane to validate sessions without a customer tenant", async () => {
-    await getSession(new Request("https://admin.renvix.app/admin", {
+    await getSession(new Request("https://wa-admin.renvix.app/admin", {
       headers: { cookie: "renvix_admin_session=admin-token" }
     }), { allowInactiveTenant: true, cookieName: "renvix_admin_session" });
 

@@ -85,9 +85,9 @@ describe("public page cleanup and pricing comparison", () => {
     expect(styles).toContain(".pricing-faq-item button:focus-visible");
   });
 
-  it("keeps the three approved home sections visible from first paint without removing their motion systems", async () => {
+  it("keeps the two immediate home scenes visible from first paint without removing their motion systems", async () => {
     const { app, styles } = await sources();
-    expect(app.match(/data-home-immediate/g)).toHaveLength(3);
+    expect(app.match(/data-home-immediate/g)).toHaveLength(2);
     expect(styles).toContain(".marketing-home-v3 [data-home-immediate] [data-reveal]");
     expect(styles).toContain(".marketing-home-v3 [data-home-immediate] [data-social-proof-reveal]");
     expect(styles).toContain(".marketing-home-v3 [data-home-immediate] .trusted-brand-card{opacity:1!important;transform:none!important}");

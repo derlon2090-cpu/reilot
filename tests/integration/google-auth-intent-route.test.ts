@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { authenticateGoogle } = vi.hoisted(() => ({ authenticateGoogle: vi.fn() }));
 
@@ -19,6 +19,8 @@ vi.mock("../../src/server/login-mfa.js", () => ({ mfaChallengeCookie: () => "" }
 
 import { POST } from "../../app/api/auth/google/route.js";
 
+const originalAuthUrl = process.env.NEXT_PUBLIC_AUTH_URL;
+
 function request(intent: "login" | "register") {
   return new Request("https://api.renvix.app/api/auth/google", {
     method: "POST",
@@ -28,7 +30,15 @@ function request(intent: "login" | "register") {
 }
 
 describe("Google authentication route intent", () => {
-  beforeEach(() => authenticateGoogle.mockReset());
+  beforeEach(() => {
+    authenticateGoogle.mockReset();
+    process.env.NEXT_PUBLIC_AUTH_URL = "https://accounts.renvix.app";
+  });
+
+  afterEach(() => {
+    if (originalAuthUrl === undefined) delete process.env.NEXT_PUBLIC_AUTH_URL;
+    else process.env.NEXT_PUBLIC_AUTH_URL = originalAuthUrl;
+  });
 
   it("does not create an account during the login flow", async () => {
     authenticateGoogle.mockResolvedValue({ ok: false, status: 404, reason: "google_account_not_found" });

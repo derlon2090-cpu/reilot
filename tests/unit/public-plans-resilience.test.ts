@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const catalogMock = vi.hoisted(() => vi.fn());
 
@@ -27,11 +27,24 @@ const plan = {
   yearlyPriceSar: 300
 };
 
-describe("public marketing resilience", () => {
-  beforeEach(() => catalogMock.mockReset());
+const originalAuthUrl = process.env.NEXT_PUBLIC_AUTH_URL;
 
-  it("removes the boxed feature strips while retaining the connected feature network", () => {
-    expect(featuresPageSource).toContain('marketingFlowNetwork("features")');
+describe("public marketing resilience", () => {
+  beforeEach(() => {
+    catalogMock.mockReset();
+    process.env.NEXT_PUBLIC_AUTH_URL = "https://accounts.renvix.app";
+  });
+
+  afterEach(() => {
+    if (originalAuthUrl === undefined) delete process.env.NEXT_PUBLIC_AUTH_URL;
+    else process.env.NEXT_PUBLIC_AUTH_URL = originalAuthUrl;
+  });
+
+  it("uses the current production feature hierarchy without the retired boxed strips", () => {
+    expect(featuresPageSource).toContain('class="features-production-main"');
+    expect(featuresPageSource).toContain('class="features-core-grid"');
+    expect(featuresPageSource).toContain('class="features-advanced-grid"');
+    expect(featuresPageSource).toContain('class="features-performance-section"');
     expect(featuresPageSource).not.toContain("marketing-feature-benefits");
     expect(featuresPageSource).not.toContain("mobile-feature-benefits");
     expect(stylesSource).not.toContain(".marketing-feature-benefits");

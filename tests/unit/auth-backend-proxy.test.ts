@@ -15,11 +15,14 @@ describe("stable authentication backend gateway", () => {
         return Response.json({ ok: true, service: "renvix-auth" });
       }
       expect(init?.headers instanceof Headers ? init.headers.get("x-renvix-auth-gateway") : null).toBe("accounts");
+      expect(init?.headers instanceof Headers ? init.headers.get("cf-access-jwt-assertion") : null).toBeNull();
       return Response.json({ ok: true, clientId: "web-client.apps.googleusercontent.com" });
     });
 
     const response = await proxyAuthBackendRequest(
-      new Request("https://accounts.renvix.app/api/auth/google/config", { headers: { Accept: "application/json" } }),
+      new Request("https://accounts.renvix.app/api/auth/google/config", {
+        headers: { Accept: "application/json", "Cf-Access-Jwt-Assertion": "must-not-reach-render" }
+      }),
       "https://api.renvix.app",
       { fetcher }
     );

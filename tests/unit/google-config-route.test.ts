@@ -6,7 +6,8 @@ const original = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   NODE_ENV: process.env.NODE_ENV,
   RENDER: process.env.RENDER,
-  VERCEL: process.env.VERCEL
+  VERCEL: process.env.VERCEL,
+  NEXT_PUBLIC_AUTH_URL: process.env.NEXT_PUBLIC_AUTH_URL
 };
 
 afterEach(() => {
@@ -21,6 +22,7 @@ describe("Google backend configuration", () => {
     process.env.NODE_ENV = "production";
     process.env.RENDER = "true";
     delete process.env.VERCEL;
+    process.env.NEXT_PUBLIC_AUTH_URL = "https://accounts.renvix.app";
     process.env.GOOGLE_CLIENT_ID = "https://web-client.apps.googleusercontent.com/";
 
     const response = await GET(new Request("https://api.renvix.app/api/auth/google/config", {

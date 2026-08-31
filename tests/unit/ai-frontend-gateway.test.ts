@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { proxyAIBackendRequest } from "../../app/backend/ai/[...path]/route.js";
 
 const originalApiOrigin = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+beforeEach(() => {
+  process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.renvix.app";
+});
 
 afterEach(() => {
   if (originalApiOrigin === undefined) delete process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -10,7 +14,6 @@ afterEach(() => {
 
 describe("AI frontend gateway", () => {
   it("validates the public origin then proxies cookies and streaming responses without forwarding Origin", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.renvix.app";
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response("event: done\ndata: {}\n\n", {
       status: 200,
       headers: { "Content-Type": "text/event-stream", "Content-Length": "24" }

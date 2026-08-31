@@ -3,24 +3,29 @@ import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync("src/app/app.js", "utf8");
 const stylesSource = readFileSync("src/styles/globals.css", "utf8");
+const homeSource = appSource.slice(
+  appSource.indexOf("function marketingHomePage()"),
+  appSource.indexOf("function marketingMobileHomeNetwork()")
+);
 
-describe("home hero metrics strip", () => {
-  it("keeps all four metrics in one static row on laptop and iPad", () => {
-    expect(stylesSource).toContain(".marketing-hero-metrics{grid-area:metrics;direction:rtl;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))");
-    expect(stylesSource).toMatch(/@media \(max-width:900px\)[^{]*\{[^}]*[\s\S]*?\.marketing-hero-metrics\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-    expect(stylesSource).toContain("@media (min-width:641px) and (max-width:900px)");
-    expect(stylesSource).toContain("animation:none!important;transform:none!important;transition:none!important");
+describe("current home hero", () => {
+  it("keeps a responsive two-column hero with the real dashboard preview", () => {
+    expect(homeSource).toContain('class="home-hero"');
+    expect(homeSource).toContain('class="container home-hero-grid"');
+    expect(homeSource).toContain("homeDashboardPreview()");
+    expect(stylesSource).toContain(".home-hero-grid");
+    expect(stylesSource).toContain("@media (max-width:900px)");
   });
 
-  it("uses the reference-aligned Meta mark and supporting status icons", () => {
-    expect(appSource).toContain('localizedCopy("تكامل رسمي مع Meta", "Official Meta integration")');
-    expect(appSource).toContain('"infinity", "success"');
-    expect(appSource).toContain("data-static-hero-metric");
-    expect(appSource).toContain("${note}${dashboardIcon(noteIcon)}");
+  it("shows the three concrete onboarding assurances with consistent status icons", () => {
+    expect(homeSource).toContain('localizedCopy("تجربة مجانية 14 يومًا", "14-day free trial")');
+    expect(homeSource).toContain('localizedCopy("لا بطاقة ائتمانية مطلوبة", "No credit card required")');
+    expect(homeSource).toContain('localizedCopy("إعداد سريع خلال دقائق", "Setup in minutes")');
+    expect(homeSource.match(/dashboardIcon\("check"\)/g)).toHaveLength(3);
   });
 
-  it("lifts the Meta value away from its supporting note", () => {
-    expect(stylesSource).toContain(".marketing-hero-metrics article:nth-child(3) strong{position:relative;top:-2px}");
-    expect(stylesSource).toContain(".marketing-hero-metrics article:nth-child(3) em{margin-top:2px}");
+  it("keeps the primary and secondary calls to action separate", () => {
+    expect(homeSource).toContain('href="/register" class="btn btn-primary"');
+    expect(homeSource).toContain('href="/features" class="btn btn-secondary"');
   });
 });

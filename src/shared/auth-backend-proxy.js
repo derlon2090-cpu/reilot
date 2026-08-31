@@ -32,7 +32,15 @@ function requestAcceptsHtml(request) {
 
 function backendHeaders(request) {
   const headers = new Headers(request.headers);
-  ["host", "content-length", "connection", "x-forwarded-host"].forEach((name) => headers.delete(name));
+  [
+    "host",
+    "content-length",
+    "connection",
+    "x-forwarded-host",
+    // Cloudflare Access is enforced at the Vercel admin boundary. Render keeps
+    // its independent Renvix authentication and must never depend on this JWT.
+    "cf-access-jwt-assertion"
+  ].forEach((name) => headers.delete(name));
   headers.set("Cache-Control", "no-store");
   headers.set("X-Renvix-Auth-Gateway", "accounts");
   return headers;

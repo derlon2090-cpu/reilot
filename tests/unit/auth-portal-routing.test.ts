@@ -18,7 +18,7 @@ const env = {
   NEXT_PUBLIC_SITE_URL: "https://renvix.app",
   NEXT_PUBLIC_AUTH_URL: "https://accounts.renvix.app",
   NEXT_PUBLIC_APP_URL: "https://dash.renvix.app",
-  NEXT_PUBLIC_ADMIN_URL: "https://admin.renvix.app",
+  NEXT_PUBLIC_ADMIN_URL: "https://wa-admin.renvix.app",
   NEXT_PUBLIC_API_BASE_URL: "https://api.renvix.app"
 } as NodeJS.ProcessEnv;
 
@@ -38,13 +38,14 @@ describe("platform domain routing", () => {
       site: "https://renvix.app",
       auth: "https://accounts.renvix.app",
       app: "https://dash.renvix.app",
-      admin: "https://admin.renvix.app"
+      admin: "https://wa-admin.renvix.app"
     });
     expect(isSplitHostEnabled(origins)).toBe(true);
     expect(platformHostKind("renvix.app", origins)).toBe("site");
     expect(platformHostKind("accounts.renvix.app", origins)).toBe("auth");
     expect(platformHostKind("dash.renvix.app", origins)).toBe("app");
-    expect(platformHostKind("admin.renvix.app", origins)).toBe("admin");
+    expect(platformHostKind("wa-admin.renvix.app", origins)).toBe("admin");
+    expect(platformHostKind("admin.renvix.app", origins)).toBe("unknown");
   });
 
   it("classifies customer and administrator routes without overlap", () => {

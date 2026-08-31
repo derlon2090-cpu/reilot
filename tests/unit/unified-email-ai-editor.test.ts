@@ -62,7 +62,9 @@ describe("unified email AI editor", () => {
       expect(source).not.toContain("settleAITokenReservation");
       expect(source).not.toContain("/api/ai/");
     }
-    expect(app.match(/\/api\/ai\/email-template\/generate/g)).toHaveLength(1);
+    // One endpoint is shared by the template editor and the campaign studio;
+    // both are explicit generation actions and both settle provider usage.
+    expect(app.match(/\/api\/ai\/email-template\/generate/g)).toHaveLength(2);
     expect(app.match(/\/api\/ai\/email-template\/suggestions/g)).toHaveLength(1);
     expect(app).toContain('data-action="email-ai-regenerate"');
   });
