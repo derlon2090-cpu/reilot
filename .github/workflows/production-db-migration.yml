@@ -1,0 +1,49 @@
+name: Production DB Migration
+
+"on":
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-db-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Run production database migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_DB_MIGRATIONS: "true"
+      MIGRATION_RELEASE_ID: ${{ github.sha }}
+      MIGRATION_LOCK_TIMEOUT_MS: "60000"
+      DATABASE_SSL: "true"
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate migration secret
+        shell: bash
+        run: |
+          if [[ -z "$DATABASE_URL" ]]; then
+            echo "::error::DATABASE_URL repository secret is not configured."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run production migrations
+        run: npm run db:migrate:production
+
+      - name: Verify authentication schema
+        run: npm run db:verify-auth-schema
