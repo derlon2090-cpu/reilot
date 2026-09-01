@@ -61,7 +61,7 @@
     },
     {
       "path": "/api/cron/security-inspector",
-      "schedule": "7 * * * *"
+      "schedule": "7 4 * * *"
     }
   ]
 }
