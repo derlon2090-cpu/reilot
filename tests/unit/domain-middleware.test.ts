@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { middlewareRequest } from "../../middleware.js";
+import { isStaticAssetPath, middlewareRequest } from "../../middleware.js";
 
 const keys = [
   "NODE_ENV", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_APP_URL",
@@ -50,6 +50,29 @@ afterEach(() => {
 });
 
 describe("canonical domain middleware", () => {
+  it.each([
+    "/_next/static/css/admin.css",
+    "/_next/static/chunks/admin.js",
+    "/_next/image?url=%2Fassets%2Flogo.png&w=256&q=75",
+    "/assets/logo.png",
+    "/app/styles/main.css",
+    "/app/assets/icon.svg",
+    "/app/app.js",
+    "/app/auth-turnstile.js",
+    "/app/locales/ar.json",
+    "/data/publicData.js",
+    "/data/sallaPageCss.js",
+    "/data/sallaTemplateUi.js",
+    "/favicon.ico"
+  ])("keeps the static asset %s on the administration deployment origin", async (path) => {
+    const response = await run(`https://wa-admin.renvix.app${path}`);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
+    expect(isStaticAssetPath(new URL(path, "https://wa-admin.renvix.app").pathname)).toBe(true);
+    expect(allowAccess).not.toHaveBeenCalled();
+    expect(recordHoneypot).not.toHaveBeenCalled();
+  });
+
   it("keeps the public site and accounts portal on their requested hosts", async () => {
     const publicResponse = await run("https://renvix.app/pricing");
     const authResponse = await run("https://accounts.renvix.app/login");
@@ -142,6 +165,12 @@ describe("canonical domain middleware", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://wa-admin.renvix.app/advanced-pro-control");
     expect(allowAccess).toHaveBeenCalledOnce();
+  });
+
+  it("does not expose an arbitrary public page on the administration host", async () => {
+    const response = await run("https://wa-admin.renvix.app/pricing");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://renvix.app/pricing");
   });
 
   it("accepts an admin session only after the Cloudflare assertion is valid", async () => {

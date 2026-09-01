@@ -22,6 +22,19 @@ import { verifyCloudflareAccessRequest } from "./src/shared/cloudflare-access.js
 import { isAdminHoneypotHost, recordAdminHoneypotRequest } from "./src/shared/admin-honeypot.js";
 import { checkSecurityBlockAtBoundary, neutralSecurityBlockResponse } from "./src/shared/security-block-boundary.js";
 
+const STATIC_ASSET_PREFIXES = Object.freeze([
+  "/_next/",
+  "/assets/",
+  "/app/",
+  "/data/"
+]);
+
+export function isStaticAssetPath(pathname) {
+  const path = String(pathname || "/");
+  return path === "/favicon.ico"
+    || STATIC_ASSET_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 export async function middleware(request, event) {
   return middlewareRequest(request, {
     waitUntil: event?.waitUntil ? event.waitUntil.bind(event) : null
@@ -48,6 +61,11 @@ export async function middlewareRequest(request, {
     const block = await checkSecurityBlockAtBoundary(request);
     if (block.blocked) return neutralSecurityBlockResponse(block.referenceId, path.startsWith("/api/") || path.startsWith("/backend/"));
   }
+  // The matcher intentionally covers every path so the reserved honeypot host
+  // can never bypass middleware. Once the honeypot and boundary block checks
+  // have passed, static files must stay on the requested deployment origin.
+  if (isStaticAssetPath(path)) return staticAssetNext(request);
+
   const hasCustomerSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const hasAdminSession = Boolean(request.cookies.get("renvix_admin_session")?.value);
   const origins = configuredOrigins();
@@ -179,6 +197,12 @@ function downstreamHeaders(request) {
   const headers = new Headers(request.headers);
   headers.delete("cf-access-jwt-assertion");
   return headers;
+}
+
+function staticAssetNext(request) {
+  return request.headers.has("cf-access-jwt-assertion")
+    ? NextResponse.next({ request: { headers: downstreamHeaders(request) } })
+    : NextResponse.next();
 }
 
 function directHostname(headers) {
