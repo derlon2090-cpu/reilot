@@ -1,11 +1,12 @@
 {
   "scripts": {
-    "prebuild": "node build.mjs && node scripts/migrate-on-production-build.mjs",
+    "prebuild": "node build.mjs",
     "build": "next build",
     "predev": "node build.mjs",
     "dev": "next dev",
     "start": "next start",
     "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:production": "node scripts/migrate-production.mjs",
     "db:verify-auth-schema": "node scripts/verify-auth-schema.mjs",
     "db:verify-auth-challenge-migration": "node scripts/verify-auth-challenge-migration.mjs",
     "db:local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-postgres.ps1",

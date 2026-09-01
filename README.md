@@ -61,7 +61,7 @@ docker compose ps
 curl -fsS http://127.0.0.1/api/health
 ```
 
-ترحيلات `drizzle/*.sql` تعمل تلقائيًا عند بدء الحاوية عبر `npm run db:migrate`. أضف مهام `deploy/renewpilot.cron.example` إلى crontab على الخادم بعد نجاح فحص البيئة.
+ترحيلات `drizzle/*.sql` لا تعمل داخل build أو عند بدء حاوية الويب. نفّذها من Release/Pre-deploy job مستقل عبر `npm run db:migrate:production` وفق [دليل migrations](docs/runbooks/production-migrations.md)، ثم شغّل فحص المخطط قبل تحويل الترافيك. أضف مهام `deploy/renewpilot.cron.example` إلى crontab على الخادم بعد نجاح فحص البيئة.
 
 لا تستخدم القيم التجريبية في `.env.production.example` في الإنتاج، ولا ترفع `.env.production` إلى المستودع.
 

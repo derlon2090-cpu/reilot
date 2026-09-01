@@ -74,7 +74,9 @@ const worker = {
       rateLimited = !outcome.success;
     }
     context.waitUntil(sendEvent(request, env, rateLimited).catch(() => undefined));
-    return neutralResponse(rateLimited ? 429 : 404);
+    // Keep the observable response identical for every path and attempt. The
+    // rate-limit signal is recorded server-side without becoming an oracle.
+    return neutralResponse(404);
   }
 };
 

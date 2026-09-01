@@ -187,28 +187,31 @@ function normalizeHoneypotInput(input = {}) {
   };
 }
 
+export function incidentAlertDedupeKey(incident, recipient, now = new Date()) {
+  const cooldown = new Date(now).toISOString().slice(0, 13);
+  return `${incident.id}:email:${sha256(cleanText(recipient, 254))}:${incident.severity}:${cooldown}`;
+}
+
 async function queueIncidentAlerts(client, incident) {
-  if (!['HIGH', 'CRITICAL'].includes(incident.severity)) return;
   const recipients = await client.query(
     `SELECT DISTINCT u.email FROM admin_users au JOIN users u ON u.id=au.user_id
       WHERE au.status='active' AND au.role IN ('super_admin','security_admin') AND u.email IS NOT NULL`
   );
   const configured = String(process.env.SECURITY_ALERT_RECIPIENTS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
   const emails = [...new Set([...recipients.rows.map((row) => row.email), ...configured])];
-  const cooldown = new Date().toISOString().slice(0, 13);
   for (const email of emails) {
     const recipient = cleanText(email, 254);
     await client.query(
       `INSERT INTO security_alert_deliveries (incident_id,channel,recipient,severity,dedupe_key)
        VALUES ($1,'email',$2,$3,$4) ON CONFLICT (dedupe_key) DO NOTHING`,
-      [incident.id, recipient, incident.severity, `${incident.id}:email:${sha256(recipient)}:${cooldown}`]
+      [incident.id, recipient, incident.severity, incidentAlertDedupeKey(incident, recipient)]
     );
   }
   if (incident.severity === 'CRITICAL' && process.env.SECURITY_CRITICAL_WEBHOOK_URL) {
     await client.query(
       `INSERT INTO security_alert_deliveries (incident_id,channel,recipient,severity,dedupe_key)
        VALUES ($1,'secondary_webhook','configured','CRITICAL',$2) ON CONFLICT (dedupe_key) DO NOTHING`,
-      [incident.id, `${incident.id}:secondary:${cooldown}`]
+      [incident.id, `${incident.id}:secondary:${new Date().toISOString().slice(0, 13)}`]
     );
   }
 }
@@ -262,7 +265,7 @@ export async function ingestHoneypotEvent(rawInput) {
       await appendIncidentEvent(client, incident.id, nextRisk > priorRisk ? "risk_score_changed" : "repeated_attempt", {
         previousRisk: priorRisk, riskScore: nextRisk, path: input.requestedPath, attempts
       }, { type: "worker" });
-    } else if (riskScore >= 50) {
+    } else {
       const inserted = await client.query(
         `INSERT INTO security_incidents
           (incident_type,category,title,description,severity,risk_score,source_key,affected_service,recommended_action)
@@ -409,6 +412,9 @@ function alertBodies(incident) {
     `حادث أمني ${incident.incident_number}`, `المستوى: ${incident.severity} (${incident.risk_score}/100)`,
     `وقت الاكتشاف: ${new Date(incident.first_seen).toISOString()}`, `الخدمة: ${incident.affected_service || "Renvix"}`,
     `المصدر: ${incident.source_ip || "غير متاح"}`, `الموقع التقريبي: ${location}`,
+    `المنطقة: ${incident.region || "غير متاح"}`, `ASN: ${incident.asn || "غير متاح"}`,
+    `العميل: ${incident.browser || "Unknown"} / ${incident.os || "Unknown"} / ${incident.device_class || "desktop"}`,
+    `آخر مسار: ${incident.requested_path || "/"}`,
     `عدد المحاولات: ${incident.occurrence_count}`, `فتح الحادث: ${link}`
   ].join("\n");
   const html = `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.9"><h2>تنبيه أمني من Renvix</h2>${text.split("\n").map((line) => `<p>${line.replace(/[&<>"']/g, (ch) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]))}</p>`).join("")}</div>`;
@@ -419,9 +425,10 @@ export async function processSecurityAlerts({ limit = 20 } = {}) {
   const rows = await transaction(async (client) => {
     const selected = await client.query(
       `SELECT sad.*,si.incident_number,si.title,si.risk_score,si.affected_service,si.first_seen,
-              si.occurrence_count,se.source_ip,se.country,se.city_approx
+              si.occurrence_count,se.source_ip,se.country,se.region,se.city_approx,se.asn,se.browser,se.os,
+              se.device_class,se.requested_path
          FROM security_alert_deliveries sad JOIN security_incidents si ON si.id=sad.incident_id
-         LEFT JOIN LATERAL (SELECT source_ip,country,city_approx FROM security_source_events x
+         LEFT JOIN LATERAL (SELECT source_ip,country,region,city_approx,asn,browser,os,device_class,requested_path FROM security_source_events x
            WHERE x.incident_id=si.id ORDER BY x.last_seen DESC LIMIT 1) se ON true
         WHERE sad.status IN ('pending','failed') AND sad.available_at<=now() AND sad.attempts<3
         ORDER BY sad.created_at FOR UPDATE OF sad SKIP LOCKED LIMIT $1`,

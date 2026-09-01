@@ -9,6 +9,7 @@ const keys = [
 ] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const allowAccess = vi.fn(async () => ({ ok: true as const, payload: { sub: "access-user" } }));
+const recordHoneypot = vi.fn(async () => ({ ok: true as const }));
 
 function request(url: string, session: "customer" | "admin" | "none" = "none", extraHeaders: Record<string, string> = {}) {
   const parsed = new URL(url);
@@ -23,11 +24,12 @@ function request(url: string, session: "customer" | "admin" | "none" = "none", e
 }
 
 function run(url: string, session: "customer" | "admin" | "none" = "none") {
-  return middlewareRequest(request(url, session), { verifyAccess: allowAccess });
+  return middlewareRequest(request(url, session), { verifyAccess: allowAccess, recordHoneypot });
 }
 
 beforeEach(() => {
   allowAccess.mockClear();
+  recordHoneypot.mockClear();
   process.env.NODE_ENV = "production";
   process.env.NEXT_PUBLIC_SITE_URL = "https://renvix.app";
   process.env.NEXT_PUBLIC_AUTH_URL = "https://accounts.renvix.app";
@@ -75,10 +77,9 @@ describe("canonical domain middleware", () => {
     await expect(adminApi.json()).resolves.toMatchObject({ reason: "misdirected_host" });
   });
 
-  it("returns an empty 404 for retired, reserved, and Vercel deployment admin hosts", async () => {
+  it("returns an empty 404 for retired and Vercel deployment admin hosts", async () => {
     for (const url of [
       "https://wa.admin.renvix.app/admin",
-      "https://admin.renvix.app/admin",
       "https://preview-name.vercel.app/advanced-pro-control"
     ]) {
       const response = await run(url);
@@ -88,16 +89,39 @@ describe("canonical domain middleware", () => {
     }
   });
 
-  it("never redirects sensitive admin APIs requested from retired, reserved, or deployment hosts", async () => {
+  it("never redirects sensitive admin APIs requested from retired or deployment hosts", async () => {
     for (const url of [
       "https://wa.admin.renvix.app/api/admin/overview",
-      "https://admin.renvix.app/api/admin/overview",
       "https://preview-name.vercel.app/api/admin/overview"
     ]) {
       const response = await run(url);
       expect(response.status).toBe(404);
       expect(response.headers.get("location")).toBeNull();
     }
+  });
+
+  it("serves one uniform blank honeypot response for every reserved-host path", async () => {
+    for (const path of ["/", "/random", "/admin", "/api/admin", "/.env", "/config", "/wp-admin", "/_next/static/app.js", "/assets/logo.svg"]) {
+      const response = await run(`https://admin.renvix.app${path}`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
+      expect(await response.text()).toBe("");
+    }
+    expect(recordHoneypot).toHaveBeenCalledTimes(9);
+    expect(allowAccess).not.toHaveBeenCalled();
+  });
+
+  it("intercepts the honeypot forwarded host before public routing", async () => {
+    const response = await middlewareRequest(
+      request("https://renvix.app/", "none", { "x-forwarded-host": "admin.renvix.app" }),
+      { verifyAccess: allowAccess, recordHoneypot }
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toBe("");
+    expect(recordHoneypot).toHaveBeenCalledOnce();
+    expect(allowAccess).not.toHaveBeenCalled();
   });
 
   it("fails closed when Cloudflare Access configuration is missing in production", async () => {
@@ -147,5 +171,21 @@ describe("canonical domain middleware", () => {
     expect(login.headers.get("x-middleware-next")).toBe("1");
     expect(verification.headers.get("x-middleware-next")).toBe("1");
     expect(allowAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it("redirects legacy admin verification paths to canonical paths only after Access", async () => {
+    const email = await run("https://wa-admin.renvix.app/auth/verify-email");
+    const mfa = await run("https://wa-admin.renvix.app/auth/verify-mfa");
+    expect(email.status).toBe(307);
+    expect(email.headers.get("location")).toBe("https://wa-admin.renvix.app/verify-email");
+    expect(mfa.headers.get("location")).toBe("https://wa-admin.renvix.app/verify-mfa");
+    expect(allowAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps customer email verification on the accounts host", async () => {
+    const response = await run("https://accounts.renvix.app/verify-email");
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
+    expect(allowAccess).not.toHaveBeenCalled();
   });
 });

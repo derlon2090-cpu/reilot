@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  calculateThreatScore, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
+  calculateThreatScore, incidentAlertDedupeKey, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
   remediationPolicy, severityForRisk, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
@@ -26,6 +26,14 @@ describe("security center risk and privacy policy", () => {
 
   it("uses a graduated score for broad path scanning", () => {
     expect(calculateThreatScore({ requestedPath: "/", attempts: 20, distinctPaths: 1 })).toBe(45);
+  });
+
+  it("deduplicates repeated alerts while allowing severity escalation", () => {
+    const now = new Date("2026-09-01T04:15:00.000Z");
+    const low = incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com", now);
+    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com", now)).toBe(low);
+    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "HIGH" }, "security@example.com", now)).not.toBe(low);
+    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com", new Date("2026-09-01T05:15:00.000Z"))).not.toBe(low);
   });
 
   it("redacts secrets recursively and bounds attacker controlled fields", () => {

@@ -1,15 +1,7 @@
 import process from "node:process";
 
-const shouldMigrate = process.env.VERCEL_ENV === "production"
-  || process.env.RUN_DB_MIGRATIONS === "true";
-
-if (!shouldMigrate) {
-  console.log("Skipping database migrations outside the production build.");
-} else if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required for the production database migration");
+if (process.env.RUN_DB_MIGRATIONS !== "true") {
+  console.log("Database migrations are disabled during application builds; use npm run db:migrate:production from a dedicated release job.");
 } else {
-  await import("./migrate.mjs");
-  if (process.env.ADMIN_BOOTSTRAP_ON_BUILD === "true") {
-    await import("./bootstrap-admin.mjs");
-  }
+  await import("./migrate-production.mjs");
 }

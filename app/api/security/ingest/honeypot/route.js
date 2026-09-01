@@ -1,4 +1,4 @@
-import { ingestHoneypotEvent, verifySignedIngestion } from "../../../../../src/server/security-center.js";
+import { ingestHoneypotEvent, processSecurityAlerts, verifySignedIngestion } from "../../../../../src/server/security-center.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
 
 export const runtime = "nodejs";
@@ -17,6 +17,9 @@ export async function POST(request) {
   try {
     const body = JSON.parse(rawBody);
     const outcome = await ingestHoneypotEvent(body);
+    await processSecurityAlerts({ limit: 10 }).catch((error) => {
+      console.error("immediate honeypot alert delivery failed", safeErrorMessage(error));
+    });
     return Response.json(outcome, { headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
   } catch (error) {
     console.error("honeypot ingestion failed", safeErrorMessage(error));

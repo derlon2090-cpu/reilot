@@ -67,9 +67,9 @@ Render backend
 - الخطر: توسيع نطاق توكن البوابة إلى طبقة لا تحتاجه وإغراء الباكند بالاعتماد عليه مستقبلًا.
 - الإصلاح: حذف `cf-access-jwt-assertion` من headers المنقولة إلى Render ومن request override بعد اجتياز بوابة Vercel.
 
-### P1 — High (لم تُنفذ في هذه الجولة)
+### P1 — High (بدأ التنفيذ بعد اعتماد P0)
 
-1. **Deployment migrations:** `vercel.json` و`prebuild` وDocker startup يمكنها تشغيل migrations أثناء deploy، وmigration runner لا يأخذ advisory lock شاملًا. يلزم فصل migration job وإضافة lock والتحقق/health gate.
+1. **Deployment migrations — مغلق في دفعة P1 الأولى:** فُصلت migrations عن Vercel build و`prebuild` وDocker web startup، وأضيف Release job صريح مع PostgreSQL advisory lock وchecksum ledger والتحقق قبل فك القفل. التفاصيل في `docs/p1-migration-safety-2026-08-31.md`.
 2. **CSRF consistency:** توجد حماية Origin جيدة في مسارات كثيرة، لكن التطبيق يستخدم أكثر من helper وبسياسات مختلفة، وبعض mutations تعتمد على SameSite أو route-specific checks. يلزم توحيد policy واختبار كل cookie-authenticated mutation.
 3. **Session rotation:** تغيير كلمة المرور يلغي الجلسات الأخرى، لكنه يبقي token الجلسة الحالية بدل تدويره. يلزم rotation ذري بعد password/MFA/privilege elevation مع اختبارات logout/invalidation.
 4. **Tenant isolation defense-in-depth:** الاستعلامات الأساسية tenant-scoped وتوجد اختبارات عزل، لكن لا توجد PostgreSQL RLS. يلزم جرد query-by-query ثم دراسة RLS أو repository boundary موحدة دون refactor ضخم.

@@ -19,21 +19,35 @@ import {
 } from "./src/shared/auth-portal.js";
 import { proxyAuthBackendRequest } from "./src/shared/auth-backend-proxy.js";
 import { verifyCloudflareAccessRequest } from "./src/shared/cloudflare-access.js";
+import { isAdminHoneypotHost, recordAdminHoneypotRequest } from "./src/shared/admin-honeypot.js";
 
-export async function middleware(request) {
-  return middlewareRequest(request);
+export async function middleware(request, event) {
+  return middlewareRequest(request, {
+    waitUntil: event?.waitUntil ? event.waitUntil.bind(event) : null
+  });
 }
 
-export async function middlewareRequest(request, { verifyAccess = verifyCloudflareAccessRequest } = {}) {
+export async function middlewareRequest(request, {
+  verifyAccess = verifyCloudflareAccessRequest,
+  recordHoneypot = recordAdminHoneypotRequest,
+  waitUntil = null
+} = {}) {
   const path = request.nextUrl.pathname;
+  const directRequestHost = directHostname(request.headers);
+  const requestHost = hostnameFromHeaders(request.headers);
+  if (isAdminHoneypotHost(directRequestHost) || isAdminHoneypotHost(requestHost)) {
+    const recording = Promise.resolve(recordHoneypot(request, process.env));
+    if (waitUntil) waitUntil(recording);
+    else void recording;
+    return adminHoneypotResponse();
+  }
+
   const hasCustomerSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const hasAdminSession = Boolean(request.cookies.get("renvix_admin_session")?.value);
   const origins = configuredOrigins();
   const splitHosts = isSplitHostEnabled(origins);
-  const requestHost = hostnameFromHeaders(request.headers);
   const hostKind = platformHostKind(requestHost, origins);
   const authApiOrigin = configuredAuthApiOrigin();
-  const directRequestHost = directHostname(request.headers);
   const isSetupPage = path === "/admin/setup";
   const isSetupApi = path.startsWith("/api/admin/setup/");
   const adminPage = isAdminPagePath(path);
@@ -91,6 +105,10 @@ export async function middlewareRequest(request, { verifyAccess = verifyCloudfla
         logAdminBoundaryEvent(request, access.reason, requestHost, path);
         return cloudflareAccessResponse(access, adminApi || authApi);
       }
+    }
+
+    if (hostKind === "admin" && isAdminVerificationPagePath(path) && canonicalAuth !== path) {
+      return portalRedirect(request, origins.admin, canonicalAuth);
     }
 
     if (hostKind === "app" && path === "/") {
@@ -187,6 +205,20 @@ function wrongHostPageResponse() {
   });
 }
 
+function adminHoneypotResponse() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Cache-Control": "no-store, max-age=0",
+      "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+      "Content-Type": "text/html; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow"
+    }
+  });
+}
+
 function logAdminBoundaryEvent(request, reason, host, path) {
   const requestId = request.headers.get("cf-ray") || request.headers.get("x-vercel-id") || "";
   console.warn("renvix_admin_boundary_event", {
@@ -205,5 +237,6 @@ function wrongHostApiResponse() {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|app/|assets/|data/).*)"]
+  // The reserved honeypot host must never bypass middleware for static assets.
+  matcher: ["/:path*"]
 };

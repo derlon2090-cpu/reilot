@@ -25,4 +25,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/src ./src
 USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]
+CMD ["node", "server.js"]

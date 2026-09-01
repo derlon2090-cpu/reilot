@@ -80,12 +80,12 @@ export default function AdminLoginForm() {
       }
       if (data.requiresMfa === true) {
         showToast("info", "التحقق بخطوتين مطلوب", "أدخل رمز تطبيق المصادقة لإكمال دخول الأدمن.");
-        window.setTimeout(() => window.location.replace("/auth/verify-mfa"), 250);
+        window.setTimeout(() => window.location.replace("/verify-mfa"), 250);
         return;
       }
       if (data.requiresEmailOtp === true) {
         showToast("info", "تحقق من بريدك الإلكتروني", "أرسلنا رمزًا إلى البريد المسجل لإكمال دخول الأدمن.");
-        window.setTimeout(() => window.location.replace("/auth/verify-email"), 250);
+        window.setTimeout(() => window.location.replace("/verify-email"), 250);
         return;
       }
       const sessionResponse = await fetch("/api/admin/me", {
