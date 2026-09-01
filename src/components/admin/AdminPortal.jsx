@@ -124,6 +124,20 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium" }).format(date);
 }
 
+function formatSecurityTime(value) {
+  if (!value) return "الآن";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "الآن";
+  const minutes = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 60000));
+  if (minutes < 1) return "الآن";
+  if (minutes < 60) return `منذ ${minutes} دقيقة`;
+  return formatDate(value);
+}
+
+function SeverityDot({ severity }) {
+  return <i className={`${styles.securityBellDot} ${styles[`securityBellDot_${String(severity || "MEDIUM").toLowerCase()}`]}`} aria-hidden="true" />;
+}
+
 function statusLabel(value) {
   const labels = { active: "نشط", trial: "تجريبي", expired: "منتهي", connected: "متصل", disconnected: "غير متصل", pending: "معلّق", sent: "تم الإرسال", failed: "فشل", disabled: "معطل" };
   return labels[value] || value || "—";
@@ -149,6 +163,8 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
   const [error, setError] = useState("");
   const [activePanel, setActivePanel] = useState(initialPanel);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [securityFeed, setSecurityFeed] = useState({ notifications: [], unreadCount: 0 });
+  const [securityFeedOpen, setSecurityFeedOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -177,6 +193,31 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadSecurityFeed = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/security-center/notifications?limit=10", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json();
+      setSecurityFeed({ notifications: payload.notifications || [], unreadCount: Number(payload.unreadCount || 0) });
+    } catch {
+      // The main admin surface remains usable if notification polling is temporarily unavailable.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSecurityFeed();
+    const timer = window.setInterval(loadSecurityFeed, 15000);
+    return () => window.clearInterval(timer);
+  }, [loadSecurityFeed]);
+
+  async function openSecurityNotification(item) {
+    await fetch("/api/admin/security-center/notifications", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ notificationId: item.id, read: true })
+    }).catch(() => null);
+    window.location.assign(`/admin/security-center?incident=${encodeURIComponent(item.incidentId)}`);
+  }
 
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" }).catch(() => null);
@@ -348,12 +389,20 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
           <div className={styles.topbarActions}>
             <button className={styles.iconButton} type="button" aria-label="اللغة العربية"><Icon name="globe" /></button>
             <button className={styles.iconButton} type="button" aria-label="المظهر الفاتح"><Icon name="sun" /></button>
-            <button className={styles.iconButton} type="button" aria-label="التنبيهات"><Icon name="bell" /><b>{data?.stats?.unreadNotifications || 0}</b></button>
+            <div className={styles.securityBellWrap}>
+              <button className={styles.iconButton} type="button" aria-label="تنبيهات مركز الأمان" aria-expanded={securityFeedOpen} onClick={() => setSecurityFeedOpen((value) => !value)}><Icon name="bell" />{securityFeed.unreadCount ? <b>{securityFeed.unreadCount > 99 ? "99+" : securityFeed.unreadCount}</b> : null}</button>
+              {securityFeedOpen ? <section className={styles.securityBellMenu} aria-label="آخر التنبيهات الأمنية">
+                <header><div><strong>مركز الإشعارات الأمنية</strong><span>{securityFeed.unreadCount} غير مقروء</span></div><button type="button" onClick={async () => { await fetch("/api/admin/security-center/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ all: true }) }); await loadSecurityFeed(); }}>تحديد الكل كمقروء</button></header>
+                <div>{securityFeed.notifications.length ? securityFeed.notifications.map((item) => <button type="button" key={item.id} className={`${styles.securityBellItem} ${item.unread ? styles.securityBellUnread : ""}`} onClick={() => openSecurityNotification(item)}><SeverityDot severity={item.severity} /><span><strong>{item.title}</strong><small>{item.reason} · {item.incidentNumber}</small><em>{formatSecurityTime(item.lastSeen)}</em></span></button>) : <p className={styles.securityBellEmpty}>لا توجد تنبيهات أمنية جديدة.</p>}</div>
+                <footer><button type="button" onClick={() => window.location.assign("/admin/security-center")}>فتح مركز الأمان</button></footer>
+              </section> : null}
+            </div>
             <button onClick={logout} className={styles.logoutButton}>تسجيل الخروج</button>
           </div>
         </header>
 
         <div className={styles.content}>
+          {securityFeed.notifications.find((item) => item.unread && ["HIGH", "CRITICAL"].includes(item.severity)) ? (() => { const alert = securityFeed.notifications.find((item) => item.unread && ["HIGH", "CRITICAL"].includes(item.severity)); return <button type="button" className={`${styles.securityAlertBanner} ${alert.severity === "CRITICAL" ? styles.securityAlertCritical : ""}`} onClick={() => openSecurityNotification(alert)}><span>⚠️</span><div><strong>{alert.title}</strong><small>{alert.reason} — الخطورة: {alert.severity} — {alert.incidentNumber}</small></div><b>عرض الحادث</b></button>; })() : null}
           {children ? children : <>
           <div className={styles.pageHeading}>
             <div>

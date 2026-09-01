@@ -6,7 +6,7 @@ import { hashPassword, needsRehash, verifyPassword } from "../../../../../src/se
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { ADMIN_SESSION_COOKIE, destroySession } from "../../../../../src/server/session.js";
 import { adminChallengeCookie, createLoginEmailOtpChallenge } from "../../../../../src/server/email-otp-v2.js";
-import { activeTemporaryMitigation, recordSecuritySignal } from "../../../../../src/server/security-center.js";
+import { activeTemporaryMitigation, findActiveSecurityBlock, recordSecuritySignal } from "../../../../../src/server/security-center.js";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني أو اسم المستخدم.").refine(
@@ -105,7 +105,8 @@ export async function POST(request) {
   if (!valid) {
     await recordSecuritySignal({
       eventType: "ADMIN_LOGIN_FAILED", sourceIp: ip, requestedPath: "/admin/login",
-      metadata: { reason: expired ? "expired" : passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials" }
+      metadata: { reason: expired ? "expired" : passwordValid && admin?.status === "disabled" ? "disabled" : "invalid_credentials" },
+      accountId: admin?.userId || null
     });
     await auditAdmin(request, {
       userId: admin?.userId || null,
@@ -122,6 +123,12 @@ export async function POST(request) {
     }
     return Response.json({ ok: false, reason: "invalid_credentials", message: "بيانات الدخول غير صحيحة أو لا تملك صلاحية الوصول إلى لوحة الأدمن." }, { status: 401 });
   }
+
+  const accountBlock = await findActiveSecurityBlock("account", admin.userId);
+  if (accountBlock) return Response.json({
+    ok: false, reason: "access_unavailable", referenceId: accountBlock.referenceId,
+    message: "تعذر الوصول حاليًا. إذا كنت تعتقد أن هذا خطأ، تواصل مع الدعم."
+  }, { status: 403, headers: { "Cache-Control": "no-store" } });
 
   // Administrator access is deliberately stricter than the customer portal:
   // every credential sign-in must complete a fresh email OTP challenge. A

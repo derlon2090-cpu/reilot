@@ -29,11 +29,9 @@ describe("security center risk and privacy policy", () => {
   });
 
   it("deduplicates repeated alerts while allowing severity escalation", () => {
-    const now = new Date("2026-09-01T04:15:00.000Z");
-    const low = incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com", now);
-    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com", now)).toBe(low);
-    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "HIGH" }, "security@example.com", now)).not.toBe(low);
-    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com", new Date("2026-09-01T05:15:00.000Z"))).not.toBe(low);
+    const low = incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com");
+    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com")).toBe(low);
+    expect(incidentAlertDedupeKey({ id: "incident-1", severity: "HIGH" }, "security@example.com")).not.toBe(low);
   });
 
   it("redacts secrets recursively and bounds attacker controlled fields", () => {

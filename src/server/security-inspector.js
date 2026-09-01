@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { databaseHealth, query } from "./db.js";
-import { ingestHoneypotEvent, recordInspectorFinding, redactSecurityValue } from "./security-center.js";
+import { ingestHoneypotEvent, processSecurityAlerts, recordInspectorFinding, redactSecurityValue } from "./security-center.js";
 import { safeErrorMessage } from "./security.js";
 
 export const INSPECTOR_INTERVAL_HOURS = 10;
@@ -133,6 +133,24 @@ async function checkIngestionProbe() {
   });
 }
 
+async function checkContainmentBoundary() {
+  const required = {
+    blockPepper: String(process.env.SECURITY_BLOCK_PEPPER || "").length >= 32,
+    boundarySecret: String(process.env.SECURITY_BLOCK_CHECK_SECRET || "").length >= 32,
+    boundaryEndpoint: Boolean(process.env.SECURITY_BLOCK_CHECK_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_PUBLIC_URL)
+  };
+  const edgeEnabled = process.env.CLOUDFLARE_SECURITY_BLOCKS_ENABLED === "true";
+  const edgeComplete = !edgeEnabled || (Boolean(process.env.CLOUDFLARE_ZONE_ID) && String(process.env.CLOUDFLARE_SECURITY_API_TOKEN || "").length >= 20);
+  const ok = Object.values(required).every(Boolean) && edgeComplete;
+  return result({
+    status: ok ? "passed" : "failed",
+    severity: ok ? "INFO" : (process.env.NODE_ENV === "production" ? "HIGH" : "LOW"),
+    description: ok ? "حد فحص الحظر المركزي ومفاتيح التجزئة مهيأة." : "إعداد الاحتواء المركزي أو مزود الحافة غير مكتمل.",
+    evidence: { ...required, edgeEnabled, edgeComplete },
+    recommendedAction: ok ? "استمر باختبار 403 المحايد وفك الحظر دوريًا." : "اضبط مفاتيح الحظر المستقلة، وإن فعّلت Cloudflare فأكمل zone token محدود الصلاحيات."
+  });
+}
+
 export const CHECK_REGISTRY = Object.freeze([
   { checkId: "database.connectivity", category: "Database", title: "اتصال قاعدة البيانات", affectedService: "postgresql", run: checkDatabase },
   { checkId: "domains.canonical", category: "Domain Configuration", title: "النطاقات الرسمية", affectedService: "domains", run: checkCanonicalDomains },
@@ -140,7 +158,8 @@ export const CHECK_REGISTRY = Object.freeze([
   { checkId: "queues.backlog", category: "Queues", title: "سلامة طابور الرسائل", affectedService: "message-queue", run: checkQueueHealth },
   { checkId: "integrations.health", category: "Application Health", title: "صحة التكاملات", affectedService: "integrations", run: checkIntegrationHealth },
   { checkId: "honeypot.exposure", category: "Security", title: "عزل الفخ الأمني", affectedService: "admin-honeypot", run: checkHoneypot },
-  { checkId: "honeypot.ingestion", category: "Security", title: "استقبال أحداث الفخ", affectedService: "security-ingestion", run: checkIngestionProbe }
+  { checkId: "honeypot.ingestion", category: "Security", title: "استقبال أحداث الفخ", affectedService: "security-ingestion", run: checkIngestionProbe },
+  { checkId: "containment.boundary", category: "Security", title: "حد الاحتواء المركزي", affectedService: "request-boundary", run: checkContainmentBoundary }
 ]);
 
 export function nextTenHourRun(previous) {
@@ -225,6 +244,9 @@ export async function runSecurityInspector({ triggerType = "scheduled", adminId 
         WHERE schedule_key='deep-periodic-scan'`,
       [completedAt, nextRunAt, INSPECTOR_INTERVAL_HOURS]
     );
+    await processSecurityAlerts().catch((error) => {
+      console.error("inspector security alert dispatch failed", safeErrorMessage(error));
+    });
     return { ok: true, runId: run.id, status: "completed", durationMs: Date.now() - started, nextRunAt, counts, checks };
   } catch (error) {
     await query(

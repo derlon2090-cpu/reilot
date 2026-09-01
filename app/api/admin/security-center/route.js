@@ -1,5 +1,6 @@
 import { auditAdmin, requireAdminPermission } from "../../../../src/server/admin-auth.js";
 import { query } from "../../../../src/server/db.js";
+import { incidentContainmentContext, listSecurityBlocks, listSecurityNotifications } from "../../../../src/server/security-center.js";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,7 @@ export async function GET(request) {
   const auth = await requireAdminPermission(request, "inspector", "read");
   if (!auth.ok) return auth.response;
   const incidentId = new URL(request.url).searchParams.get("incident");
-  const [schedule, latestRun, incidentCounts, honeypotStats, countries, asns, paths, events, incidents, findings, alerts, mitigations, timeline] = await Promise.all([
+  const [schedule, latestRun, incidentCounts, honeypotStats, countries, asns, paths, events, incidents, findings, alerts, mitigations, timeline, notificationFeed, blocks, containment] = await Promise.all([
     query("SELECT interval_hours AS \"intervalHours\",last_run_at AS \"lastRunAt\",next_run_at AS \"nextRunAt\" FROM inspector_schedule WHERE schedule_key='deep-periodic-scan'"),
     query("SELECT id,status,started_at AS \"startedAt\",completed_at AS \"completedAt\",duration_ms AS \"durationMs\",summary,next_run_at AS \"nextRunAt\" FROM inspector_runs ORDER BY started_at DESC LIMIT 1"),
     query(`SELECT count(*) FILTER(WHERE status IN ('Open','Investigating','Mitigated'))::int AS open,
@@ -47,7 +48,10 @@ export async function GET(request) {
       ? query(`SELECT id,event_type AS "eventType",actor_type AS "actorType",detail,previous_hash AS "previousHash",
                        event_hash AS "eventHash",occurred_at AS "occurredAt" FROM incident_events
                  WHERE incident_id=$1 ORDER BY occurred_at,id`, [incidentId])
-      : Promise.resolve({ rows: [] })
+      : Promise.resolve({ rows: [] }),
+    listSecurityNotifications(auth.admin.adminId, 50),
+    listSecurityBlocks(100),
+    incidentId ? incidentContainmentContext(incidentId) : Promise.resolve(null)
   ]);
   const incidentSummary = incidentCounts.rows[0] || { open: 0, critical: 0, high: 0 };
   await auditAdmin(request, { admin: auth.admin, action: "inspector.read", resource: "security_center" });
@@ -56,6 +60,8 @@ export async function GET(request) {
     incidentCounts: incidentSummary, honeypot: { ...honeypotStats.rows[0], countries: countries.rows, asns: asns.rows, paths: paths.rows },
     events: events.rows, incidents: incidents.rows, findings: findings.rows, alerts: alerts.rows,
     mitigations: mitigations.rows, timeline: timeline.rows,
+    notifications: notificationFeed.notifications, securityUnreadCount: notificationFeed.unreadCount,
+    blocks, containment,
     permissions: {
       canRun: ["super_admin", "security_admin"].includes(auth.admin.adminRole),
       canManageIncidents: ["super_admin", "security_admin"].includes(auth.admin.adminRole),

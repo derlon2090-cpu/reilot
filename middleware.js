@@ -20,6 +20,7 @@ import {
 import { proxyAuthBackendRequest } from "./src/shared/auth-backend-proxy.js";
 import { verifyCloudflareAccessRequest } from "./src/shared/cloudflare-access.js";
 import { isAdminHoneypotHost, recordAdminHoneypotRequest } from "./src/shared/admin-honeypot.js";
+import { checkSecurityBlockAtBoundary, neutralSecurityBlockResponse } from "./src/shared/security-block-boundary.js";
 
 export async function middleware(request, event) {
   return middlewareRequest(request, {
@@ -42,6 +43,11 @@ export async function middlewareRequest(request, {
     return adminHoneypotResponse();
   }
 
+  const internalBlockCheck = path === "/api/security/block-check";
+  if (!internalBlockCheck) {
+    const block = await checkSecurityBlockAtBoundary(request);
+    if (block.blocked) return neutralSecurityBlockResponse(block.referenceId, path.startsWith("/api/") || path.startsWith("/backend/"));
+  }
   const hasCustomerSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const hasAdminSession = Boolean(request.cookies.get("renvix_admin_session")?.value);
   const origins = configuredOrigins();

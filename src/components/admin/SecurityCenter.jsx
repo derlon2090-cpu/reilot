@@ -5,7 +5,7 @@ import styles from "./AdminPortal.module.css";
 
 const TABS = [
   ["inspector", "الفاحص الدوري"], ["incidents", "الحوادث الأمنية"], ["honeypot", "الفخ الأمني"],
-  ["alerts", "التنبيهات"], ["audit", "سجل الإجراءات"]
+  ["notifications", "إشعارات الأمان"], ["alerts", "قنوات التنبيه"], ["blocks", "المحظورون"], ["audit", "سجل الإجراءات"]
 ];
 
 function date(value) {
@@ -43,6 +43,9 @@ export default function SecurityCenter() {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [duration, setDuration] = useState("60");
   const [reason, setReason] = useState("");
+  const [containmentOpen, setContainmentOpen] = useState(false);
+  const [scopes, setScopes] = useState([]);
+  const [unblock, setUnblock] = useState(null);
 
   const load = useCallback(async (incidentId = "") => {
     setError("");
@@ -57,7 +60,20 @@ export default function SecurityCenter() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const incidentId = new URLSearchParams(window.location.search).get("incident") || "";
+    load(incidentId).then(() => {
+      if (!incidentId) return;
+      setTab("incidents");
+    });
+  }, [load]);
+
+  useEffect(() => {
+    const incidentId = new URLSearchParams(window.location.search).get("incident");
+    if (!incidentId || !data?.incidents?.length || selectedIncident) return;
+    const incident = data.incidents.find((item) => item.id === incidentId);
+    if (incident) setSelectedIncident(incident);
+  }, [data, selectedIncident]);
 
   async function runScan() {
     setBusy(true); setError("");
@@ -81,6 +97,7 @@ export default function SecurityCenter() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.reason || "action_failed");
       setReason("");
+      setContainmentOpen(false);
       await load(selectedIncident.id);
       setSelectedIncident((current) => current ? { ...current, status: extra.status || "Mitigated" } : current);
     } catch {
@@ -92,6 +109,37 @@ export default function SecurityCenter() {
     setSelectedIncident(incident);
     setTab("incidents");
     await load(incident.id);
+  }
+
+  function openContainment() {
+    const available = data?.containment?.availableTargets || {};
+    const suggested = ["account", "session", "device", "ip"].filter((scope) => available[scope]);
+    setScopes(suggested);
+    setDuration("60");
+    setReason("");
+    setContainmentOpen(true);
+  }
+
+  function toggleScope(scope) {
+    setScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope]);
+  }
+
+  async function markNotification(item) {
+    await fetch("/api/admin/security-center/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ notificationId: item.id, read: true }) }).catch(() => null);
+    const incident = data?.incidents?.find((entry) => entry.id === item.incidentId);
+    if (incident) await selectIncident(incident);
+  }
+
+  async function unblockSource() {
+    if (!unblock || reason.trim().length < 5) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`/api/admin/security-center/blocks/${unblock.id}/actions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "unblock", reason }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.reason || "unblock_failed");
+      setUnblock(null); setReason(""); await load(selectedIncident?.id || "");
+    } catch { setError("تعذر فك الحظر. تحقق من السبب والصلاحية واتصال مزود الحافة."); }
+    finally { setBusy(false); }
   }
 
   const incidentCounts = data?.incidentCounts || {};
@@ -136,7 +184,7 @@ export default function SecurityCenter() {
         <div className={styles.securitySectionHead}><div><h3>{selectedIncident.incidentNumber}</h3><p>{selectedIncident.title}</p></div><Severity value={selectedIncident.severity} score={selectedIncident.riskScore} /></div>
         <dl><div><dt>الخدمة</dt><dd>{selectedIncident.affectedService || "—"}</dd></div><div><dt>أول ظهور</dt><dd>{date(selectedIncident.firstSeen)}</dd></div><div><dt>آخر ظهور</dt><dd>{date(selectedIncident.lastSeen)}</dd></div></dl>
         <h4>التسلسل الزمني الموقّع</h4><ol className={styles.securityTimeline}>{(data?.timeline || []).map((item) => <li key={item.id}><b>{item.eventType}</b><span>{date(item.occurredAt)}</span></li>)}</ol>
-        {data?.permissions?.canManageIncidents ? <div className={styles.securityActions}><input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="سبب الإجراء (مطلوب للعزل)" /><select value={duration} onChange={(event) => setDuration(event.target.value)}><option value="15">15 دقيقة</option><option value="60">ساعة</option><option value="1440">24 ساعة</option></select><button type="button" disabled={busy || reason.trim().length < 5} onClick={() => incidentAction("temporary_block", { minutes: Number(duration) })}>عزل مؤقت</button><button type="button" disabled={busy} onClick={() => incidentAction("set_status", { status: "Investigating" })}>بدء التحقيق</button><button type="button" disabled={busy} onClick={() => incidentAction("set_status", { status: "Resolved" })}>حل الحادث</button><button type="button" disabled={busy} onClick={() => incidentAction("set_status", { status: "False Positive" })}>إيجابي كاذب</button></div> : null}
+        {data?.permissions?.canManageIncidents ? <div className={styles.securityActions}><button type="button" disabled={busy} onClick={openContainment}>احتواء التهديد</button><button type="button" disabled={busy} onClick={() => incidentAction("set_status", { status: "Investigating" })}>بدء التحقيق</button><button type="button" disabled={busy} onClick={() => incidentAction("set_status", { status: "Resolved" })}>حل الحادث</button><button type="button" disabled={busy} onClick={() => incidentAction("set_status", { status: "False Positive" })}>إيجابي كاذب</button></div> : null}
       </> : <Empty>اختر حادثًا لعرض التفاصيل والتسلسل والإجراءات.</Empty>}</aside>
     </section> : null}
 
@@ -155,12 +203,31 @@ export default function SecurityCenter() {
       ]} /></section>
     </> : null}
 
+    {tab === "notifications" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>إشعارات الأمان</h3><p>{data?.securityUnreadCount || 0} غير مقروء. تُجمع الإشعارات المتكررة تحت الحادث نفسه، وتعود غير مقروءة عند التصعيد.</p></div></div><Table rows={data?.notifications} onRow={markNotification} columns={[
+      { key: "severity", label: "الخطورة", render: (value) => <Severity value={value} /> }, { key: "title", label: "التنبيه" }, { key: "reason", label: "السبب" },
+      { key: "incidentNumber", label: "الحادث" }, { key: "occurrenceCount", label: "التكرار" }, { key: "unread", label: "الحالة", render: (value) => value ? "جديد" : "مقروء" }, { key: "lastSeen", label: "آخر ظهور", render: date }
+    ]} /></section> : null}
+
     {tab === "alerts" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>التنبيهات</h3><p>البريد للحالات HIGH، وقناة ثانوية اختيارية للحالات CRITICAL مع منع التكرار.</p></div></div><Table rows={data?.alerts} columns={[
       { key: "severity", label: "المستوى", render: (value) => <Severity value={value} /> }, { key: "channel", label: "القناة" }, { key: "status", label: "الحالة" }, { key: "attempts", label: "المحاولات" }, { key: "createdAt", label: "الإنشاء", render: date }, { key: "sentAt", label: "الإرسال", render: date }
+    ]} /></section> : null}
+
+    {tab === "blocks" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>إدارة المحظورين</h3><p>الحساب والجلسة والجهاز الموثوق وIP أهداف مستقلة. لا يُعامل IP أو بصمة المتصفح كجهاز قطعي.</p></div></div><Table rows={data?.blocks} onRow={(block) => block.status === "active" && data?.permissions?.canManageIncidents ? setUnblock(block) : null} columns={[
+      { key: "referenceId", label: "المرجع" }, { key: "targetType", label: "النطاق" }, { key: "targetLabel", label: "الهدف" }, { key: "severity", label: "الخطورة", render: (value) => <Severity value={value} /> },
+      { key: "status", label: "الحالة" }, { key: "incidentNumber", label: "الحادث" }, { key: "expiresAt", label: "الانتهاء", render: (value) => value ? date(value) : "دائم" }, { key: "createdAt", label: "الإنشاء", render: date }
     ]} /></section> : null}
 
     {tab === "audit" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>سجل الإجراءات</h3><p>سجل إجراءات التخفيف الموثقة وتواريخ انتهائها. سلسلة الحوادث مرتبطة بالـhash وقاعدة البيانات تمنع تعديل سجل الأمان.</p></div></div><Table rows={data?.mitigations} columns={[
       { key: "incidentNumber", label: "الحادث" }, { key: "type", label: "الإجراء" }, { key: "status", label: "الحالة" }, { key: "reason", label: "السبب" }, { key: "startsAt", label: "البداية", render: date }, { key: "expiresAt", label: "الانتهاء", render: date }
     ]} /></section> : null}
+
+    {containmentOpen ? <div className={styles.securityModalBackdrop} role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setContainmentOpen(false)}><section className={styles.securityModal} role="dialog" aria-modal="true" aria-labelledby="containment-title"><div className={styles.securitySectionHead}><div><h3 id="containment-title">احتواء التهديد</h3><p>ينفذ فقط النطاقات التي أكدتها. إبطال الحساب أو الجهاز ينهي الجلسات والتحديات المفتوحة.</p></div><button type="button" onClick={() => setContainmentOpen(false)}>إغلاق</button></div>
+      <label>سبب الاحتواء<input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="مثال: محاولة استكشاف لوحة الإدارة" /></label>
+      <label>المدة<select value={duration} onChange={(event) => { setDuration(event.target.value); if (event.target.value === "permanent") setScopes((current) => current.filter((scope) => scope !== "ip")); }}><option value="60">ساعة</option><option value="1440">24 ساعة</option><option value="10080">7 أيام</option><option value="permanent">دائم (غير متاح لـ IP)</option></select></label>
+      <fieldset><legend>نطاق الاحتواء</legend>{[["account","الحساب"],["session","الجلسة"],["device","Device ID موقّع من الخادم"],["ip","IP مؤقتًا"]].map(([scope,label]) => { const available = Boolean(data?.containment?.availableTargets?.[scope]); const disabled = !available || (scope === "ip" && duration === "permanent"); return <label key={scope}><input type="checkbox" checked={scopes.includes(scope)} disabled={disabled} onChange={() => toggleScope(scope)} />{label}{!available ? " — غير متاح لهذا الحادث" : ""}</label>; })}</fieldset>
+      <div className={styles.securityModalActions}><button type="button" onClick={() => setContainmentOpen(false)}>إلغاء</button><button type="button" disabled={busy || reason.trim().length < 5 || scopes.length === 0} onClick={() => incidentAction("contain_threat", { duration, scopes })}>{busy ? "جارٍ الاحتواء..." : "تأكيد الاحتواء"}</button></div>
+    </section></div> : null}
+
+    {unblock ? <div className={styles.securityModalBackdrop}><section className={styles.securityModal} role="dialog" aria-modal="true"><div className={styles.securitySectionHead}><div><h3>فك الحظر</h3><p>{unblock.referenceId} · {unblock.targetType}</p></div></div><label>سبب فك الحظر<input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="سبب إداري واضح ومراجع" /></label><div className={styles.securityModalActions}><button type="button" onClick={() => { setUnblock(null); setReason(""); }}>إلغاء</button><button type="button" disabled={busy || reason.trim().length < 5} onClick={unblockSource}>تأكيد فك الحظر</button></div></section></div> : null}
   </div>;
 }

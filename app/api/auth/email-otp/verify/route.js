@@ -39,7 +39,8 @@ export async function POST(req) {
         eventType: "ADMIN_MFA_FAILED",
         sourceIp,
         requestedPath: "/admin/email-otp",
-        metadata: { reason: result.reason, attemptsRemaining: result.attemptsRemaining }
+        metadata: { reason: result.reason, attemptsRemaining: result.attemptsRemaining },
+        accountId: result.subjectUserId || null
       });
       return Response.json(
         { ok: false, reason: result.reason, attemptsRemaining: result.attemptsRemaining },

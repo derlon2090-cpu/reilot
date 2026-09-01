@@ -415,7 +415,7 @@ export async function verifyEmailOtp({ rawCookie, code, ipAddress, userAgent, ex
     );
     const row = locked.rows[0];
     const verified = await verifyLockedChallenge(client, row, parsed.id, "auth_email_otp_challenges", normalizedCode);
-    if (!verified.ok) return verified;
+    if (!verified.ok) return { ...verified, subjectUserId: row?.user_id || null };
     await client.query("UPDATE auth_email_otp_challenges SET consumed_at=now(),updated_at=now() WHERE id=$1", [parsed.id]);
     const adminLogin = parsed.kind === "admin_login";
     const browser = adminLogin

@@ -1,11 +1,14 @@
 import crypto from "node:crypto";
+import { isIP } from "node:net";
 import { query, transaction } from "./db.js";
 import { sendEmail } from "../lib/email/send-email.js";
 import { adminPageUrl } from "./app-url.js";
 import { safeErrorMessage, sha256 } from "./security.js";
+import { hashBrowserToken, isValidBrowserToken } from "./trusted-browser.js";
 
 export const SECURITY_SEVERITIES = Object.freeze(["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 export const SECURITY_RETENTION_DAYS = 90;
+const SECURITY_SEVERITY_RANK = Object.freeze({ INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 });
 
 const REDACTED = "[redacted]";
 const SENSITIVE_KEY = /(password|passwd|token|secret|cookie|authorization|otp|api[-_]?key|session)/i;
@@ -78,16 +81,17 @@ export function calculateThreatScore({
   else if (path.startsWith("/config") || path.startsWith("/wp-admin")) score += 16;
   else if (path !== "/") score += 5;
 
-  if (!["GET", "HEAD"].includes(String(method).toUpperCase())) score += 15;
+  const types = new Set(correlatedEventTypes.map((item) => String(item).toUpperCase()));
+  const authenticationSignal = types.has("ADMIN_LOGIN_FAILED") || types.has("ADMIN_MFA_FAILED");
+  if (!authenticationSignal && !["GET", "HEAD"].includes(String(method).toUpperCase())) score += 15;
   if (attempts >= 20) score += 35;
   else if (attempts >= 8) score += 25;
   else if (attempts >= 3) score += 10;
   if (distinctPaths >= 10) score += 20;
   else if (distinctPaths >= 4) score += 10;
-  const types = new Set(correlatedEventTypes.map((item) => String(item).toUpperCase()));
-  if (types.has("ADMIN_LOGIN_FAILED")) score += 20;
-  if (types.has("ADMIN_MFA_FAILED")) score += 30;
-  if (types.has("ADMIN_API_ABUSE")) score += 20;
+  if (types.has("ADMIN_LOGIN_FAILED")) score += 8;
+  if (types.has("ADMIN_MFA_FAILED")) score += 15;
+  if (types.has("ADMIN_API_ABUSE")) score += 15;
   if (types.has("RATE_LIMIT_EXCEEDED") || rateLimited) score += 15;
   if (Number.isFinite(Number(cloudflareThreatScore))) score += Math.round(clamp(cloudflareThreatScore, 0, 100) * 0.15);
   return clamp(score, 0, 100);
@@ -187,12 +191,12 @@ function normalizeHoneypotInput(input = {}) {
   };
 }
 
-export function incidentAlertDedupeKey(incident, recipient, now = new Date()) {
-  const cooldown = new Date(now).toISOString().slice(0, 13);
-  return `${incident.id}:email:${sha256(cleanText(recipient, 254))}:${incident.severity}:${cooldown}`;
+export function incidentAlertDedupeKey(incident, recipient) {
+  return `${incident.id}:email:${sha256(cleanText(recipient, 254))}:${incident.severity}`;
 }
 
 async function queueIncidentAlerts(client, incident) {
+  if (!["HIGH", "CRITICAL"].includes(incident.severity)) return;
   const recipients = await client.query(
     `SELECT DISTINCT u.email FROM admin_users au JOIN users u ON u.id=au.user_id
       WHERE au.status='active' AND au.role IN ('super_admin','security_admin') AND u.email IS NOT NULL`
@@ -211,9 +215,45 @@ async function queueIncidentAlerts(client, incident) {
     await client.query(
       `INSERT INTO security_alert_deliveries (incident_id,channel,recipient,severity,dedupe_key)
        VALUES ($1,'secondary_webhook','configured','CRITICAL',$2) ON CONFLICT (dedupe_key) DO NOTHING`,
-      [incident.id, `${incident.id}:secondary:${new Date().toISOString().slice(0, 13)}`]
+      [incident.id, `${incident.id}:secondary:CRITICAL`]
     );
   }
+}
+
+function incidentNotificationReason(incident) {
+  if (incident.incident_type === "ADMIN_HONEYPOT_ACCESS") return "محاولة استكشاف لوحة الإدارة";
+  if (["ADMIN_LOGIN_FAILED", "ADMIN_MFA_FAILED", "RATE_LIMIT_EXCEEDED"].includes(incident.incident_type)) return "نشاط مصادقة مريب";
+  return cleanText(incident.title || "نشاط مريب", 200);
+}
+
+async function syncIncidentNotifications(client, incident) {
+  if ((SECURITY_SEVERITY_RANK[incident.severity] || 0) < SECURITY_SEVERITY_RANK.MEDIUM) return null;
+  const groupingKey = `security-incident:${incident.id}`;
+  const existing = await client.query("SELECT id,severity FROM security_notifications WHERE grouping_key=$1 FOR UPDATE", [groupingKey]);
+  const previous = existing.rows[0] || null;
+  const escalated = previous && (SECURITY_SEVERITY_RANK[incident.severity] || 0) > (SECURITY_SEVERITY_RANK[previous.severity] || 0);
+  const reason = incidentNotificationReason(incident);
+  const notification = previous
+    ? await client.query(
+      `UPDATE security_notifications
+          SET title=$2,body=$3,reason=$4,
+              severity=CASE WHEN CASE $5 WHEN 'CRITICAL' THEN 4 WHEN 'HIGH' THEN 3 ELSE 2 END >
+                                  CASE severity WHEN 'CRITICAL' THEN 4 WHEN 'HIGH' THEN 3 ELSE 2 END
+                            THEN $5 ELSE severity END,
+              occurrence_count=occurrence_count+1,last_seen=now(),updated_at=now()
+        WHERE id=$1 RETURNING *`,
+      [previous.id, incident.severity === "CRITICAL" ? "إنذار أمني فوري" : "نشاط مريب تم اكتشافه",
+        `${reason} — الخطورة: ${incident.severity} — الحادث: ${incident.incident_number}`, reason, incident.severity]
+    )
+    : await client.query(
+      `INSERT INTO security_notifications (incident_id,grouping_key,title,body,reason,severity)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [incident.id, groupingKey, incident.severity === "CRITICAL" ? "إنذار أمني فوري" : "نشاط مريب تم اكتشافه",
+        `${reason} — الخطورة: ${incident.severity} — الحادث: ${incident.incident_number}`, reason, incident.severity]
+    );
+  if (escalated) await client.query("DELETE FROM security_notification_reads WHERE notification_id=$1", [previous.id]);
+  await queueIncidentAlerts(client, incident);
+  return notification.rows[0] || null;
 }
 
 export async function ingestHoneypotEvent(rawInput) {
@@ -221,7 +261,7 @@ export async function ingestHoneypotEvent(rawInput) {
   const input = normalizeHoneypotInput(rawInput);
   if (!input.sourceIp) throw Object.assign(new Error("trusted source IP is required"), { code: "INVALID_SOURCE" });
   const sourceKey = sourceKeyForIp(input.sourceIp);
-  return transaction(async (client) => {
+  const outcome = await transaction(async (client) => {
     // Serialize correlation for a source. A row lock cannot protect the
     // first event because there is no incident row to lock yet.
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`security-source:${sourceKey}`]);
@@ -265,7 +305,7 @@ export async function ingestHoneypotEvent(rawInput) {
       await appendIncidentEvent(client, incident.id, nextRisk > priorRisk ? "risk_score_changed" : "repeated_attempt", {
         previousRisk: priorRisk, riskScore: nextRisk, path: input.requestedPath, attempts
       }, { type: "worker" });
-    } else {
+    } else if (riskScore >= 25) {
       const inserted = await client.query(
         `INSERT INTO security_incidents
           (incident_type,category,title,description,severity,risk_score,source_key,affected_service,recommended_action)
@@ -302,7 +342,7 @@ export async function ingestHoneypotEvent(rawInput) {
        RETURNING id`,
       [incident?.id || null, severity, riskScore, sourceKey, JSON.stringify(safeEvidence), `honeypot:${sourceKey}`]
     );
-    if (incident) await queueIncidentAlerts(client, incident);
+    if (incident) await syncIncidentNotifications(client, incident);
     await appendLedger(client, {
       eventType: "ADMIN_HONEYPOT_ACCESS", aggregateType: "security_source_event", aggregateId: event.rows[0].event_id,
       payload: { findingId: finding.rows[0].id, incidentId: incident?.id || null, riskScore, severity, sourceKey }
@@ -317,14 +357,19 @@ export async function ingestHoneypotEvent(rawInput) {
       riskScore, severity, mitigation: mitigation.rows[0] || null
     };
   });
+  await dispatchIncidentAlertsImmediately(outcome);
+  return outcome;
 }
 
-export async function recordSecuritySignal({ eventType, sourceIp, requestedPath = "", method = "POST", metadata = {} }) {
+export async function recordSecuritySignal({
+  eventType, sourceIp, requestedPath = "", method = "POST", metadata = {},
+  accountId = null, sessionId = null, trustedDeviceId = null
+}) {
   try {
     if (!cleanText(sourceIp, 80)) return { ok: false, reason: "source_unavailable" };
     const sourceKey = sourceKeyForIp(sourceIp);
     const normalizedRequestedPath = normalizedPath(requestedPath || "/admin");
-    return await transaction(async (client) => {
+    const outcome = await transaction(async (client) => {
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`security-source:${sourceKey}`]);
       const recent = await client.query(
         `SELECT count(*)::int AS attempts,count(DISTINCT requested_path)::int AS "distinctPaths",
@@ -355,7 +400,7 @@ export async function recordSecuritySignal({ eventType, sourceIp, requestedPath 
           [incident.id, nextRisk, severityForRisk(nextRisk)]
         )).rows[0];
         await appendIncidentEvent(client, incident.id, "risk_score_changed", { eventType, previousRisk, riskScore: nextRisk });
-      } else if (riskScore >= 50) {
+      } else if (riskScore >= 25) {
         incident = (await client.query(
           `INSERT INTO security_incidents
             (incident_type,category,title,description,severity,risk_score,source_key,affected_service,recommended_action)
@@ -368,19 +413,31 @@ export async function recordSecuritySignal({ eventType, sourceIp, requestedPath 
       const eventId = crypto.randomUUID();
       await client.query(
         `INSERT INTO security_source_events
-          (event_id,event_type,source_key,source_ip,requested_path,method,risk_score,severity,incident_id,metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`,
+          (event_id,event_type,source_key,source_ip,requested_path,method,risk_score,severity,incident_id,metadata,user_id,session_id,trusted_device_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13)`,
         [eventId, eventType, sourceKey, cleanText(sourceIp, 80), normalizedRequestedPath,
-          cleanText(method, 12), riskScore, severity, incident?.id || null, JSON.stringify(redactSecurityValue(metadata))]
+          cleanText(method, 12), riskScore, severity, incident?.id || null, JSON.stringify(redactSecurityValue(metadata)),
+          accountId || null, sessionId || null, trustedDeviceId || null]
       );
-      if (incident) await queueIncidentAlerts(client, incident);
+      if (incident) await syncIncidentNotifications(client, incident);
       await appendLedger(client, { eventType, aggregateType: "security_source_event", aggregateId: eventId, payload: { sourceKey, riskScore, severity } });
       return { ok: true, incidentId: incident?.id || null, riskScore, severity };
     });
+    await dispatchIncidentAlertsImmediately(outcome);
+    return outcome;
   } catch (error) {
     console.error("security signal recording failed", safeErrorMessage(error));
     return { ok: false, reason: "recording_failed" };
   }
+}
+
+export function securityTargetHash(targetType, value) {
+  const type = String(targetType || "").toLowerCase();
+  if (!["account", "device", "ip", "session"].includes(type) || !String(value || "").trim()) return "";
+  const configuredPepper = String(process.env.SECURITY_BLOCK_PEPPER || "");
+  if (process.env.NODE_ENV === "production" && configuredPepper.length < 32) return "";
+  const pepper = configuredPepper || String(process.env.SECURITY_SOURCE_PEPPER || process.env.SESSION_SECRET || "renvix-security-block-dev");
+  return crypto.createHmac("sha256", pepper).update(`${type}:${String(value).trim()}`).digest("hex");
 }
 
 export async function activeTemporaryMitigation(sourceIp) {
@@ -395,6 +452,339 @@ export async function activeTemporaryMitigation(sourceIp) {
     [sourceKeyForIp(safeIp)]
   );
   return response.rows[0] || null;
+}
+
+export async function listSecurityNotifications(adminId, limit = 20) {
+  const safeLimit = clamp(limit, 1, 50);
+  const result = await query(
+    `SELECT n.id,n.incident_id AS "incidentId",n.title,n.body,n.reason,n.severity,
+            n.action_label AS "actionLabel",n.occurrence_count AS "occurrenceCount",
+            n.first_seen AS "firstSeen",n.last_seen AS "lastSeen",(r.read_at IS NULL) AS unread,
+            r.read_at AS "readAt",si.incident_number AS "incidentNumber",si.risk_score AS "riskScore",
+            si.status AS "incidentStatus"
+       FROM security_notifications n
+       JOIN security_incidents si ON si.id=n.incident_id
+       LEFT JOIN security_notification_reads r ON r.notification_id=n.id AND r.admin_user_id=$1
+      ORDER BY (r.read_at IS NULL) DESC,
+               CASE n.severity WHEN 'CRITICAL' THEN 3 WHEN 'HIGH' THEN 2 ELSE 1 END DESC,
+               n.last_seen DESC LIMIT $2`,
+    [adminId, safeLimit]
+  );
+  const unread = await query(
+    `SELECT count(*)::int AS count FROM security_notifications n
+      WHERE NOT EXISTS (SELECT 1 FROM security_notification_reads r WHERE r.notification_id=n.id AND r.admin_user_id=$1)`,
+    [adminId]
+  );
+  return { notifications: result.rows, unreadCount: Number(unread.rows[0]?.count || 0) };
+}
+
+export async function markSecurityNotificationRead({ notificationId, adminId, read = true }) {
+  if (read) {
+    const result = await query(
+      `INSERT INTO security_notification_reads (notification_id,admin_user_id)
+       SELECT id,$2 FROM security_notifications WHERE id=$1
+       ON CONFLICT (notification_id,admin_user_id) DO UPDATE SET read_at=now()
+       RETURNING notification_id AS id`,
+      [notificationId, adminId]
+    );
+    return result.rows[0] || null;
+  }
+  const result = await query(
+    "DELETE FROM security_notification_reads WHERE notification_id=$1 AND admin_user_id=$2 RETURNING notification_id AS id",
+    [notificationId, adminId]
+  );
+  return result.rows[0] || null;
+}
+
+export async function markAllSecurityNotificationsRead(adminId) {
+  const result = await query(
+    `INSERT INTO security_notification_reads (notification_id,admin_user_id)
+     SELECT id,$1 FROM security_notifications
+     ON CONFLICT (notification_id,admin_user_id) DO UPDATE SET read_at=now()`,
+    [adminId]
+  );
+  return { updated: result.rowCount };
+}
+
+export async function listSecurityBlocks(limit = 100) {
+  const result = await query(
+    `SELECT b.id,b.reference_id AS "referenceId",b.target_type AS "targetType",b.target_label AS "targetLabel",
+            b.reason,b.severity,b.created_at AS "createdAt",b.expires_at AS "expiresAt",b.revoked_at AS "revokedAt",
+            b.revoke_reason AS "revokeReason",b.edge_provider AS "edgeProvider",b.edge_rule_id AS "edgeRuleId",
+            CASE WHEN b.revoke_reason='expired' THEN 'expired'
+                 WHEN b.revoked_at IS NOT NULL THEN 'revoked'
+                 WHEN b.expires_at IS NOT NULL AND b.expires_at<=now() THEN 'expired' ELSE 'active' END AS status,
+            si.incident_number AS "incidentNumber",b.incident_id AS "incidentId"
+       FROM security_blocks b JOIN security_incidents si ON si.id=b.incident_id
+      ORDER BY b.created_at DESC LIMIT $1`,
+    [clamp(limit, 1, 250)]
+  );
+  return result.rows;
+}
+
+export async function incidentContainmentContext(incidentId) {
+  const result = await query(
+    `SELECT si.id,si.incident_number AS "incidentNumber",si.severity,si.risk_score AS "riskScore",
+            se.source_ip AS "sourceIp",COALESCE(identity_event.user_id,d.user_id,s.user_id) AS "accountId",
+            identity_event.session_id AS "sessionId",identity_event.trusted_device_id AS "deviceId"
+       FROM security_incidents si
+       LEFT JOIN LATERAL (
+         SELECT source_ip,user_id,session_id,trusted_device_id FROM security_source_events
+          WHERE incident_id=si.id ORDER BY last_seen DESC LIMIT 1
+       ) se ON true
+       LEFT JOIN LATERAL (
+         SELECT user_id,session_id,trusted_device_id FROM security_source_events
+          WHERE incident_id=si.id AND (user_id IS NOT NULL OR session_id IS NOT NULL OR trusted_device_id IS NOT NULL)
+          ORDER BY last_seen DESC LIMIT 1
+       ) identity_event ON true
+       LEFT JOIN auth_trusted_devices d ON d.id=identity_event.trusted_device_id
+       LEFT JOIN sessions s ON s.id=identity_event.session_id
+      WHERE si.id=$1 LIMIT 1`,
+    [incidentId]
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    availableTargets: {
+      account: Boolean(row.accountId), session: Boolean(row.sessionId),
+      device: Boolean(row.deviceId), ip: Boolean(row.sourceIp) && ["HIGH", "CRITICAL"].includes(row.severity)
+    }
+  };
+}
+
+export async function findActiveSecurityBlock(targetType, value, client = null) {
+  const targetHash = securityTargetHash(targetType, value);
+  if (!targetHash) return null;
+  const runner = client || { query };
+  const result = await runner.query(
+    `SELECT id,reference_id AS "referenceId",target_type AS "targetType",expires_at AS "expiresAt"
+       FROM security_blocks WHERE target_type=$1 AND target_hash=$2 AND revoked_at IS NULL
+        AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1`,
+    [targetType, targetHash]
+  );
+  return result.rows[0] || null;
+}
+
+export async function evaluateSecurityBlockRequest({ sourceIp = "", sessionHashes = [], deviceToken = "" } = {}) {
+  const targets = [];
+  if (sourceIp) targets.push(["ip", sourceIp]);
+  const safeSessionHashes = Array.isArray(sessionHashes)
+    ? sessionHashes.filter((value) => /^[a-f0-9]{64}$/i.test(String(value))).slice(0, 4)
+    : [];
+  if (safeSessionHashes.length) {
+    const sessions = await query(
+      "SELECT id,user_id AS \"userId\" FROM sessions WHERE token=ANY($1::text[]) AND expires_at>now()",
+      [safeSessionHashes]
+    );
+    for (const session of sessions.rows) {
+      targets.push(["session", session.id], ["account", session.userId]);
+    }
+  }
+  if (deviceToken && isValidBrowserToken(deviceToken)) {
+    try {
+      const digest = hashBrowserToken(deviceToken);
+      const device = await query(
+        `SELECT id,user_id AS "userId" FROM auth_trusted_devices
+          WHERE token_digest=$1 AND revoked_at IS NULL AND expires_at>now() LIMIT 1`,
+        [digest]
+      );
+      if (device.rows[0]) targets.push(["device", device.rows[0].id], ["account", device.rows[0].userId]);
+    } catch {
+      // IP and session enforcement remain available if trusted-browser config is unavailable.
+    }
+  }
+  const candidateHashes = [...new Set(targets.map(([type, value]) => securityTargetHash(type, value)).filter(Boolean))];
+  if (!candidateHashes.length) return null;
+  const result = await query(
+    `SELECT id,reference_id AS "referenceId",target_type AS "targetType",expires_at AS "expiresAt"
+       FROM security_blocks WHERE target_hash=ANY($1::text[]) AND revoked_at IS NULL
+        AND (expires_at IS NULL OR expires_at>now())
+      ORDER BY CASE severity WHEN 'CRITICAL' THEN 3 WHEN 'HIGH' THEN 2 ELSE 1 END DESC,created_at DESC LIMIT 1`,
+    [candidateHashes]
+  );
+  return result.rows[0] || null;
+}
+
+function containmentExpiry(duration) {
+  const value = String(duration || "");
+  if (value === "permanent") return null;
+  const minutes = Number(value);
+  if (![60, 1440, 10080].includes(minutes)) throw Object.assign(new Error("invalid containment duration"), { code: "INVALID_DURATION" });
+  return new Date(Date.now() + minutes * 60_000);
+}
+
+async function createCloudflareIpRule({ ip, referenceId, incidentNumber }) {
+  if (process.env.CLOUDFLARE_SECURITY_BLOCKS_ENABLED !== "true") return { configured: false };
+  const zoneId = String(process.env.CLOUDFLARE_ZONE_ID || "").trim();
+  const token = String(process.env.CLOUDFLARE_SECURITY_API_TOKEN || "").trim();
+  if (!zoneId || !token || !isIP(ip)) return { configured: false };
+  const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(zoneId)}/firewall/access_rules/rules`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ mode: "block", configuration: { target: isIP(ip) === 6 ? "ip6" : "ip", value: ip }, notes: `${referenceId} ${incidentNumber}` }),
+    signal: AbortSignal.timeout(5000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.success || !payload.result?.id) throw Object.assign(new Error("Cloudflare block creation failed"), { code: "EDGE_BLOCK_FAILED" });
+  return { configured: true, ruleId: String(payload.result.id) };
+}
+
+async function deleteCloudflareIpRule(ruleId) {
+  if (!ruleId) return { configured: false };
+  const zoneId = String(process.env.CLOUDFLARE_ZONE_ID || "").trim();
+  const token = String(process.env.CLOUDFLARE_SECURITY_API_TOKEN || "").trim();
+  if (!zoneId || !token) throw Object.assign(new Error("Cloudflare unblock configuration unavailable"), { code: "EDGE_UNBLOCK_FAILED" });
+  const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(zoneId)}/firewall/access_rules/rules/${encodeURIComponent(ruleId)}`, {
+    method: "DELETE", headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false) throw Object.assign(new Error("Cloudflare block deletion failed"), { code: "EDGE_UNBLOCK_FAILED" });
+  return { configured: true };
+}
+
+export async function containSecurityIncident({ incidentId, adminId, duration, scopes = [], reason }) {
+  if (process.env.NODE_ENV === "production" && String(process.env.SECURITY_BLOCK_PEPPER || "").length < 32) {
+    throw Object.assign(new Error("security block pepper is unavailable"), { code: "SECURITY_BLOCK_CONFIG_REQUIRED" });
+  }
+  const safeReason = cleanText(reason, 300);
+  if (safeReason.length < 5) throw Object.assign(new Error("containment reason is required"), { code: "REASON_REQUIRED" });
+  const selectedScopes = [...new Set((Array.isArray(scopes) ? scopes : []).map((value) => String(value).toLowerCase()))]
+    .filter((value) => ["account", "session", "device", "ip"].includes(value));
+  if (!selectedScopes.length) throw Object.assign(new Error("containment scope is required"), { code: "SCOPE_REQUIRED" });
+  const expiresAt = containmentExpiry(duration);
+  if (!expiresAt && selectedScopes.includes("ip")) throw Object.assign(new Error("permanent IP blocks are prohibited"), { code: "PERMANENT_IP_PROHIBITED" });
+
+  const outcome = await transaction(async (client) => {
+    const incidentResult = await client.query(
+      `SELECT si.*,se.source_ip,COALESCE(identity_event.user_id,d.user_id,s.user_id) AS account_id,
+              identity_event.session_id,identity_event.trusted_device_id
+         FROM security_incidents si
+         LEFT JOIN LATERAL (SELECT source_ip,user_id,session_id,trusted_device_id FROM security_source_events
+           WHERE incident_id=si.id ORDER BY last_seen DESC LIMIT 1) se ON true
+         LEFT JOIN LATERAL (SELECT user_id,session_id,trusted_device_id FROM security_source_events
+           WHERE incident_id=si.id AND (user_id IS NOT NULL OR session_id IS NOT NULL OR trusted_device_id IS NOT NULL)
+           ORDER BY last_seen DESC LIMIT 1) identity_event ON true
+         LEFT JOIN auth_trusted_devices d ON d.id=identity_event.trusted_device_id
+         LEFT JOIN sessions s ON s.id=identity_event.session_id
+        WHERE si.id=$1 FOR UPDATE OF si`,
+      [incidentId]
+    );
+    const incident = incidentResult.rows[0];
+    if (!incident) throw Object.assign(new Error("incident not found"), { code: "NOT_FOUND" });
+    const values = { account: incident.account_id, session: incident.session_id, device: incident.trusted_device_id, ip: incident.source_ip };
+    if (selectedScopes.includes("ip") && !["HIGH", "CRITICAL"].includes(incident.severity)) {
+      throw Object.assign(new Error("IP containment requires high risk"), { code: "IP_SCOPE_NOT_ALLOWED" });
+    }
+    const unavailable = selectedScopes.filter((scope) => !values[scope]);
+    if (unavailable.length) throw Object.assign(new Error("containment target unavailable"), { code: "TARGET_NOT_AVAILABLE", targets: unavailable });
+
+    const blocks = [];
+    for (const scope of selectedScopes) {
+      const targetValue = values[scope];
+      const targetHash = securityTargetHash(scope, targetValue);
+      const label = scope === "ip" ? cleanText(targetValue, 80) : `${scope}:${String(targetValue).slice(-8)}`;
+      const existing = await client.query(
+        `SELECT * FROM security_blocks WHERE target_type=$1 AND target_hash=$2 AND revoked_at IS NULL
+          AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+        [scope, targetHash]
+      );
+      const block = existing.rows[0]
+        ? await client.query(
+          `UPDATE security_blocks SET reason=$2,severity=$3,incident_id=$4,blocked_by=$5,
+                  expires_at=CASE WHEN expires_at IS NULL OR $6::timestamptz IS NULL THEN NULL ELSE GREATEST(expires_at,$6) END
+            WHERE id=$1 RETURNING *`,
+          [existing.rows[0].id, safeReason, incident.severity, incident.id, adminId, expiresAt]
+        )
+        : await client.query(
+          `INSERT INTO security_blocks (target_type,target_hash,target_label,reason,severity,blocked_by,expires_at,incident_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+          [scope, targetHash, label, safeReason, incident.severity, adminId, expiresAt, incident.id]
+        );
+      blocks.push(block.rows[0]);
+    }
+
+    let terminatedSessions = 0;
+    if (selectedScopes.includes("account")) {
+      const removed = await client.query("DELETE FROM sessions WHERE user_id=$1 RETURNING id", [incident.account_id]);
+      terminatedSessions += removed.rowCount;
+      await client.query(
+        "UPDATE auth_email_otp_challenges SET invalidated_at=now(),updated_at=now() WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL",
+        [incident.account_id]
+      );
+      await client.query(
+        "UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now() WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL",
+        [incident.account_id]
+      );
+      await client.query(
+        "UPDATE auth_trusted_devices SET revoked_at=now(),revoke_reason='security_containment',updated_at=now() WHERE user_id=$1 AND revoked_at IS NULL",
+        [incident.account_id]
+      );
+    }
+    if (selectedScopes.includes("device")) {
+      const device = await client.query(
+        `UPDATE auth_trusted_devices SET revoked_at=now(),revoke_reason='security_containment',updated_at=now()
+          WHERE id=$1 RETURNING user_id`,
+        [incident.trusted_device_id]
+      );
+      if (device.rows[0]?.user_id && !selectedScopes.includes("account")) {
+        const removed = await client.query("DELETE FROM sessions WHERE user_id=$1 RETURNING id", [device.rows[0].user_id]);
+        terminatedSessions += removed.rowCount;
+        await client.query(
+          "UPDATE auth_email_otp_challenges SET invalidated_at=now(),updated_at=now() WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL",
+          [device.rows[0].user_id]
+        );
+        await client.query(
+          "UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now() WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL",
+          [device.rows[0].user_id]
+        );
+      }
+    }
+    if (selectedScopes.includes("session") && !selectedScopes.includes("account")) {
+      const removed = await client.query("DELETE FROM sessions WHERE id=$1 RETURNING id", [incident.session_id]);
+      terminatedSessions += removed.rowCount;
+    }
+    await client.query("UPDATE security_incidents SET status='Mitigated',remediation_status='succeeded',updated_at=now() WHERE id=$1", [incident.id]);
+    await appendIncidentEvent(client, incident.id, "threat_contained", {
+      scopes: selectedScopes, duration: expiresAt ? String(duration) : "permanent",
+      references: blocks.map((block) => block.reference_id), terminatedSessions, reason: safeReason
+    }, { type: "admin", id: adminId });
+    return { incident, blocks, sourceIp: incident.source_ip, terminatedSessions };
+  });
+
+  const edge = [];
+  for (const block of outcome.blocks.filter((item) => item.target_type === "ip")) {
+    try {
+      const provisioned = await createCloudflareIpRule({ ip: outcome.sourceIp, referenceId: block.reference_id, incidentNumber: outcome.incident.incident_number });
+      if (provisioned.ruleId) {
+        await query("UPDATE security_blocks SET edge_provider='cloudflare',edge_rule_id=$2 WHERE id=$1", [block.id, provisioned.ruleId]);
+      }
+      edge.push({ referenceId: block.reference_id, ...provisioned });
+    } catch (error) {
+      edge.push({ referenceId: block.reference_id, configured: true, ok: false, reason: String(error?.code || "EDGE_BLOCK_FAILED") });
+    }
+  }
+  return { blocks: outcome.blocks, terminatedSessions: outcome.terminatedSessions, edge };
+}
+
+export async function revokeSecurityBlock({ blockId, adminId, reason }) {
+  const safeReason = cleanText(reason, 300);
+  if (safeReason.length < 5) throw Object.assign(new Error("unblock reason is required"), { code: "REASON_REQUIRED" });
+  const found = await query("SELECT * FROM security_blocks WHERE id=$1 AND revoked_at IS NULL", [blockId]);
+  const block = found.rows[0];
+  if (!block) throw Object.assign(new Error("block not found"), { code: "NOT_FOUND" });
+  if (block.edge_provider === "cloudflare" && block.edge_rule_id) await deleteCloudflareIpRule(block.edge_rule_id);
+  return transaction(async (client) => {
+    const revoked = await client.query(
+      `UPDATE security_blocks SET revoked_at=now(),revoked_by=$2,revoke_reason=$3 WHERE id=$1 AND revoked_at IS NULL RETURNING *`,
+      [blockId, adminId, safeReason]
+    );
+    if (!revoked.rows[0]) throw Object.assign(new Error("block not found"), { code: "NOT_FOUND" });
+    await appendIncidentEvent(client, block.incident_id, "security_block_revoked", {
+      referenceId: block.reference_id, targetType: block.target_type, reason: safeReason
+    }, { type: "admin", id: adminId });
+    return revoked.rows[0];
+  });
 }
 
 export function verifySignedIngestion({ rawBody, timestamp, signature, secret = process.env.HONEYPOT_INGESTION_SECRET }) {
@@ -421,7 +811,17 @@ function alertBodies(incident) {
   return { text, html, link };
 }
 
-export async function processSecurityAlerts({ limit = 20 } = {}) {
+async function dispatchIncidentAlertsImmediately(outcome) {
+  if (!outcome?.incidentId || !["HIGH", "CRITICAL"].includes(outcome.severity)) return;
+  try {
+    await processSecurityAlerts({ limit: 20, incidentId: outcome.incidentId });
+  } catch (error) {
+    // The durable alert queue remains available for the scheduled retry worker.
+    console.error("immediate security alert dispatch failed", safeErrorMessage(error));
+  }
+}
+
+export async function processSecurityAlerts({ limit = 20, incidentId = null } = {}) {
   const rows = await transaction(async (client) => {
     const selected = await client.query(
       `SELECT sad.*,si.incident_number,si.title,si.risk_score,si.affected_service,si.first_seen,
@@ -431,8 +831,9 @@ export async function processSecurityAlerts({ limit = 20 } = {}) {
          LEFT JOIN LATERAL (SELECT source_ip,country,region,city_approx,asn,browser,os,device_class,requested_path FROM security_source_events x
            WHERE x.incident_id=si.id ORDER BY x.last_seen DESC LIMIT 1) se ON true
         WHERE sad.status IN ('pending','failed') AND sad.available_at<=now() AND sad.attempts<3
+          AND ($2::uuid IS NULL OR sad.incident_id=$2)
         ORDER BY sad.created_at FOR UPDATE OF sad SKIP LOCKED LIMIT $1`,
-      [clamp(limit, 1, 50)]
+      [clamp(limit, 1, 50), incidentId || null]
     );
     if (selected.rowCount) await client.query(
       "UPDATE security_alert_deliveries SET status='processing',attempts=attempts+1 WHERE id=ANY($1::uuid[])",
@@ -535,16 +936,21 @@ export async function recordInspectorFinding({ runId, check }) {
   return transaction(async (client) => {
     const existingFinding = await client.query("SELECT * FROM security_findings WHERE dedupe_key=$1 FOR UPDATE", [dedupeKey]);
     let incidentId = existingFinding.rows[0]?.incident_id || null;
-    if (["HIGH", "CRITICAL"].includes(check.severity)) {
+    if (["MEDIUM", "HIGH", "CRITICAL"].includes(check.severity)) {
       if (incidentId) {
         const open = await client.query(
-          `UPDATE security_incidents SET severity=$2,risk_score=GREATEST(risk_score,$3),
+          `UPDATE security_incidents SET severity=CASE WHEN GREATEST(risk_score,$2)>=80 THEN 'CRITICAL'
+                                                       WHEN GREATEST(risk_score,$2)>=50 THEN 'HIGH' ELSE 'MEDIUM' END,
+                  risk_score=GREATEST(risk_score,$2),
                   occurrence_count=occurrence_count+1,last_seen=now(),updated_at=now()
             WHERE id=$1 AND status IN ('Open','Investigating','Mitigated') RETURNING *`,
-          [incidentId, check.severity, check.severity === "CRITICAL" ? 90 : 65]
+          [incidentId, check.severity === "CRITICAL" ? 90 : check.severity === "HIGH" ? 65 : 35]
         );
         if (!open.rows[0]) incidentId = null;
-        else await appendIncidentEvent(client, incidentId, "repeated_detection", { checkId: check.checkId, runId });
+        else {
+          await appendIncidentEvent(client, incidentId, "repeated_detection", { checkId: check.checkId, runId });
+          await syncIncidentNotifications(client, open.rows[0]);
+        }
       }
       if (!incidentId) {
         const incident = await client.query(
@@ -552,11 +958,11 @@ export async function recordInspectorFinding({ runId, check }) {
             (incident_type,category,title,description,severity,risk_score,affected_service,recommended_action)
            VALUES ('PERIODIC_INSPECTOR_FINDING',$1,$2,$3,$4,$5,$6,$7) RETURNING *`,
           [check.category, check.title, check.description, check.severity,
-            check.severity === "CRITICAL" ? 90 : 65, check.affectedService, check.recommendedAction]
+            check.severity === "CRITICAL" ? 90 : check.severity === "HIGH" ? 65 : 35, check.affectedService, check.recommendedAction]
         );
         incidentId = incident.rows[0].id;
         await appendIncidentEvent(client, incidentId, "first_detection", { checkId: check.checkId, runId, evidence });
-        await queueIncidentAlerts(client, incident.rows[0]);
+        await syncIncidentNotifications(client, incident.rows[0]);
       }
     }
     const finding = await client.query(
@@ -584,5 +990,22 @@ export async function expireSecurityData() {
     query("DELETE FROM security_source_events WHERE expires_at<now() AND incident_id IS NULL RETURNING id"),
     query("UPDATE security_mitigations SET status='expired' WHERE status='active' AND expires_at<=now() RETURNING id")
   ]);
-  return { expiredEvents: events.rowCount, expiredMitigations: mitigations.rowCount };
+  const edgeCandidates = await query(
+    `SELECT id,edge_rule_id FROM security_blocks WHERE revoked_at IS NULL AND expires_at<=now()
+      AND edge_provider='cloudflare' AND edge_rule_id IS NOT NULL LIMIT 100`
+  );
+  let expiredEdgeBlocks = 0;
+  for (const block of edgeCandidates.rows) {
+    try {
+      await deleteCloudflareIpRule(block.edge_rule_id);
+      const expired = await query(
+        "UPDATE security_blocks SET revoked_at=now(),revoke_reason='expired' WHERE id=$1 AND revoked_at IS NULL RETURNING id",
+        [block.id]
+      );
+      expiredEdgeBlocks += expired.rowCount;
+    } catch (error) {
+      console.error("security edge block expiry failed", safeErrorMessage(error));
+    }
+  }
+  return { expiredEvents: events.rowCount, expiredMitigations: mitigations.rowCount, expiredEdgeBlocks };
 }

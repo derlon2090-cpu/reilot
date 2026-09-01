@@ -38,7 +38,7 @@ export async function POST(req) {
       trustedDeviceToken: readTrustedBrowserCookie(req),
       locale: body.locale === "en" ? "en" : "ar"
     });
-    if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: result.status });
+    if (!result.ok) return Response.json({ ok: false, reason: result.reason, referenceId: result.referenceId || undefined }, { status: result.status });
     if (result.requiresMfa) {
       return Response.json(
         {

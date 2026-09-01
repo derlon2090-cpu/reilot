@@ -9,6 +9,7 @@ import {
 } from "./email-otp-v2.js";
 import { createMfaLoginChallenge } from "./login-mfa.js";
 import { resolveSecondFactor } from "./second-factor-router.js";
+import { findActiveSecurityBlock } from "./security-center.js";
 
 function isEmailOtpSchemaUnavailable(error) {
   return error?.code === "42703" || error?.code === "42P01";
@@ -110,6 +111,11 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     }
     return { ok: false, status: 401, reason: "invalid_credentials" };
   }
+
+  const accountBlock = await findActiveSecurityBlock("account", user.id);
+  if (accountBlock) return {
+    ok: false, status: 403, reason: "access_unavailable", referenceId: accountBlock.referenceId
+  };
 
   if (needsRehash(user.passwordHash)) {
     await query("UPDATE accounts SET password_hash=$1,updated_at=now() WHERE id=$2 AND password_hash=$3", [

@@ -765,6 +765,25 @@
 .iconButton { position: relative; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #E8F1F0; border-radius: 10px; color: #0B3F3B; background: #fff; cursor: pointer; }
 .iconButton svg { width: 20px; }
 .iconButton b { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; display: grid; place-items: center; border-radius: 99px; color: #fff; background: #0B3F3B; font-size: 10px; }
+.securityBellWrap { position:relative; display:block !important; }
+.securityBellMenu { position:absolute; top:50px; left:0; width:min(410px,calc(100vw - 28px)); overflow:hidden; border:1px solid #d8e7e4; border-radius:16px; background:#fff; box-shadow:0 22px 60px rgba(6,43,40,.2); z-index:30; }
+.securityBellMenu header,.securityBellMenu footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:#f6faf9; }
+.securityBellMenu header div { display:grid; gap:3px; }
+.securityBellMenu header span { font-size:11px; }
+.securityBellMenu header button,.securityBellMenu footer button { border:0; color:#0b5650; background:transparent; font-size:12px; font-weight:800; cursor:pointer; }
+.securityBellMenu footer { justify-content:center; }
+.securityBellMenu > div { max-height:390px; overflow:auto; }
+.securityBellItem { width:100%; display:grid; grid-template-columns:10px 1fr; gap:11px; align-items:start; padding:14px 16px; border:0; border-bottom:1px solid #edf3f2; text-align:right; color:#173e3a; background:#fff; cursor:pointer; }
+.securityBellItem:hover,.securityBellUnread { background:#f3f9f7; }
+.securityBellItem > span { display:grid; gap:4px; }
+.securityBellItem strong { font-size:13px; }
+.securityBellItem small,.securityBellItem em { color:#68827e; font-size:11px; font-style:normal; }
+.securityBellDot { width:9px; height:9px; margin-top:5px; border-radius:50%; background:#d49a1f; }
+.securityBellDot_high { background:#e15b27; }.securityBellDot_critical { background:#cf193d; box-shadow:0 0 0 4px #ffe3e8; }
+.securityBellEmpty { padding:28px 16px; margin:0; color:#68827e; text-align:center; }
+.securityAlertBanner { width:100%; margin:0 0 20px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; padding:14px 17px; border:1px solid #f2b898; border-radius:13px; color:#743318; background:#fff3eb; text-align:right; cursor:pointer; }
+.securityAlertBanner div { display:grid; gap:3px; }.securityAlertBanner small { color:#935135; }.securityAlertBanner > b { font-size:12px; }
+.securityAlertCritical { border-color:#f0a4b1; color:#8d1730; background:#fff0f3; }
 .statIcon svg { width: 23px; height: 23px; }
 .overviewGrid { margin-top: 22px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(230px, .9fr) minmax(230px, .9fr); gap: 16px; }
 .chartCard, .quickCard, .healthCard, .dataCard { padding: 22px; border: 1px solid #E8F1F0; border-radius: 14px; background: #fff; box-shadow: 0 6px 18px rgba(6, 43, 40,.04); }
@@ -2923,6 +2942,16 @@
 .securityActions input,.securityActions select { min-width:0; min-height:40px; border:1px solid #d6e7e4; border-radius:10px; padding:0 10px; background:#fff; }
 .securityActions button { min-height:40px; border:0; border-radius:10px; color:#fff; background:#0b5650; font-weight:700; cursor:pointer; }
 .securityActions button:disabled { opacity:.5; cursor:not-allowed; }
+.securityModalBackdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:20px; background:rgba(3,29,27,.62); backdrop-filter:blur(4px); }
+.securityModal { width:min(620px,100%); max-height:90vh; overflow:auto; display:grid; gap:17px; padding:24px; border:1px solid #cfe1de; border-radius:20px; color:#173e3a; background:#fff; box-shadow:0 28px 80px rgba(1,25,23,.3); }
+.securityModal > label { display:grid; gap:7px; font-weight:800; }
+.securityModal input:not([type="checkbox"]),.securityModal select { width:100%; min-height:44px; padding:0 12px; border:1px solid #d4e4e1; border-radius:10px; color:#173e3a; background:#fff; }
+.securityModal fieldset { display:grid; gap:10px; margin:0; padding:15px; border:1px solid #dce9e7; border-radius:12px; }
+.securityModal fieldset label { display:flex; align-items:center; gap:8px; color:#496965; }
+.securityModalActions { display:flex; justify-content:flex-end; gap:10px; }
+.securityModalActions button,.securityModal .securitySectionHead button { min-height:40px; padding:0 16px; border:1px solid #d7e5e2; border-radius:10px; color:#0b5650; background:#fff; font-weight:800; cursor:pointer; }
+.securityModalActions button:last-child { border-color:#0b5650; color:#fff; background:#0b5650; }
+.securityModalActions button:disabled { opacity:.5; cursor:not-allowed; }
 .securityTopLists { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
 .securityTopLists article { padding:20px; border:1px solid #e0eeeb; border-radius:18px; background:#fff; }
 .securityTopLists h3 { margin:0 0 13px; color:#173e3a; font-size:15px; }
