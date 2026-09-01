@@ -31,7 +31,7 @@ async function isInternalProbe(request, env, url) {
   return signature.length === expected.length && signature === expected;
 }
 
-function neutralResponse(status = 404) {
+function neutralResponse(status = 200) {
   return new Response(status === 204 ? null : "", { status, headers: NEUTRAL_HEADERS });
 }
 
@@ -66,7 +66,7 @@ const worker = {
   async fetch(request, env, context) {
     const url = new URL(request.url);
     if (await isInternalProbe(request, env, url)) return neutralResponse(204);
-    if (!env.SECURITY_INGESTION_URL || !env.HONEYPOT_INGESTION_SECRET) return neutralResponse(404);
+    if (!env.SECURITY_INGESTION_URL || !env.HONEYPOT_INGESTION_SECRET) return neutralResponse();
     const sourceIp = text(request.headers.get("cf-connecting-ip"), 80) || "unknown";
     let rateLimited = false;
     if (env.HONEYPOT_RATE_LIMITER) {
@@ -76,7 +76,7 @@ const worker = {
     context.waitUntil(sendEvent(request, env, rateLimited).catch(() => undefined));
     // Keep the observable response identical for every path and attempt. The
     // rate-limit signal is recorded server-side without becoming an oracle.
-    return neutralResponse(404);
+    return neutralResponse();
   }
 };
 
