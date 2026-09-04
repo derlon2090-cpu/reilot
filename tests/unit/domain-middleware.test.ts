@@ -10,6 +10,9 @@ const keys = [
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const allowAccess = vi.fn(async () => ({ ok: true as const, payload: { sub: "access-user" } }));
 const recordHoneypot = vi.fn(async () => ({ ok: true as const }));
+const proxyAuth = vi.fn(async () => Response.json({ ok: true, proxied: true }, {
+  headers: { "X-Test-Auth-Proxy": "render" }
+}));
 
 function request(url: string, session: "customer" | "admin" | "none" = "none", extraHeaders: Record<string, string> = {}) {
   const parsed = new URL(url);
@@ -30,6 +33,7 @@ function run(url: string, session: "customer" | "admin" | "none" = "none") {
 beforeEach(() => {
   allowAccess.mockClear();
   recordHoneypot.mockClear();
+  proxyAuth.mockClear();
   process.env.NODE_ENV = "production";
   process.env.NEXT_PUBLIC_SITE_URL = "https://renvix.app";
   process.env.NEXT_PUBLIC_AUTH_URL = "https://accounts.renvix.app";
@@ -200,6 +204,32 @@ describe("canonical domain middleware", () => {
     expect(login.headers.get("x-middleware-next")).toBe("1");
     expect(verification.headers.get("x-middleware-next")).toBe("1");
     expect(allowAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs the admin OTP bridge locally while customer auth APIs still use the Render proxy", async () => {
+    process.env.API_PUBLIC_URL = "https://api.renvix.app";
+    const dependencies = { verifyAccess: allowAccess, recordHoneypot, proxyAuth };
+
+    for (const path of [
+      "/api/auth/email-otp/status",
+      "/api/auth/email-otp/verify",
+      "/api/auth/email-otp/resend"
+    ]) {
+      const response = await middlewareRequest(request(`https://wa-admin.renvix.app${path}`), dependencies);
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.headers.get("location")).toBeNull();
+    }
+
+    expect(proxyAuth).not.toHaveBeenCalled();
+    expect(allowAccess).toHaveBeenCalledTimes(3);
+
+    const customerResponse = await middlewareRequest(
+      request("https://accounts.renvix.app/api/auth/login"),
+      dependencies
+    );
+    expect(customerResponse.headers.get("x-test-auth-proxy")).toBe("render");
+    expect(proxyAuth).toHaveBeenCalledOnce();
+    expect(proxyAuth).toHaveBeenCalledWith(expect.any(Request), "https://api.renvix.app");
   });
 
   it("redirects legacy admin verification paths to canonical paths only after Access", async () => {
