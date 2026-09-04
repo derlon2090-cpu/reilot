@@ -44,6 +44,7 @@ export async function middleware(request, event) {
 export async function middlewareRequest(request, {
   verifyAccess = verifyCloudflareAccessRequest,
   recordHoneypot = recordAdminHoneypotRequest,
+  proxyAuth = proxyAuthBackendRequest,
   waitUntil = null
 } = {}) {
   const path = request.nextUrl.pathname;
@@ -82,12 +83,13 @@ export async function middlewareRequest(request, {
   const authApi = path.startsWith("/api/auth/");
   const pageRequest = !path.startsWith("/api/") && !path.startsWith("/backend/");
   const apiHost = authApiOrigin ? new URL(authApiOrigin).hostname.toLowerCase() : "";
+  const localAdminAuthBridge = hostKind === "admin" && authApi && isAdminAuthBridgeApi(path);
   const adminSurface = hostKind === "admin" && (
     path === "/"
     || adminPage
     || adminApi
     || isAdminVerificationPagePath(path)
-    || (authApi && isAdminAuthBridgeApi(path))
+    || localAdminAuthBridge
   );
 
   if (splitHosts) {
@@ -149,9 +151,9 @@ export async function middlewareRequest(request, {
     }
   }
 
-  if (shouldProxyAuthApi(path, requestHost, authApiOrigin)) {
+  if (!localAdminAuthBridge && shouldProxyAuthApi(path, requestHost, authApiOrigin)) {
     const target = new URL(`${path}${request.nextUrl.search}`, authApiOrigin);
-    const response = await proxyAuthBackendRequest(request, target.origin);
+    const response = await proxyAuth(request, target.origin);
     response.headers.set("Referrer-Policy", "no-referrer");
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;
