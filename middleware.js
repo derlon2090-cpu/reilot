@@ -21,6 +21,11 @@ import { proxyAuthBackendRequest } from "./src/shared/auth-backend-proxy.js";
 
 export async function middleware(request) {
   const path = request.nextUrl.pathname;
+  if (path === "/storage") {
+    const target = request.nextUrl.clone();
+    target.pathname = "/dashboard/storage";
+    return secureRedirect(target);
+  }
   const hasCustomerSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const hasAdminSession = Boolean(request.cookies.get("renvix_admin_session")?.value);
   const origins = configuredOrigins();

@@ -851,6 +851,15 @@ state.accountSettings = null;
 state.accountStorageCleanupOpen = false;
 state.accountStorageCleanup = null;
 state.accountStorageCleanupBusy = false;
+state.storageCenter = null;
+state.storageCurrentFolderId = state.query.get("folder") || "";
+state.storageSearch = "";
+state.storageSort = storage.get("renvix.storage.sort", "newest");
+state.storageView = storage.get("renvix.storage.view", "grid");
+state.storageComposeType = "";
+state.storageDocument = null;
+state.storageEditingDocument = null;
+state.storageUploading = false;
 state.publicNewsletter = null;
 state.publicNewsletterRequestedId = "";
 state.readiness = null;
@@ -1040,6 +1049,7 @@ const dashboardRoutes = [
   ["/dashboard/reports", "التقارير", "reports"],
   ["/dashboard/billing", "الفوترة والباقات", "billing"],
   ["/dashboard/settings", "الإعدادات", "settings"],
+  ["/dashboard/storage", "مركز التخزين", "archive"],
   ["/dashboard/support", "مركز Renvix", "support"]
 ];
 
@@ -1631,6 +1641,15 @@ function syncRouteData(force = false) {
   }
   if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) queue("billing", "/api/billing", "billingOverview");
   if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) queue("settings", "/api/settings", "accountSettings");
+  if (state.route === "/dashboard/storage" && (force || state.storageCenter === null)) {
+    const params = new URLSearchParams();
+    const folderId = state.query.get("folder") || state.storageCurrentFolderId;
+    if (folderId) params.set("folder", folderId);
+    if (state.storageSearch.trim()) params.set("search", state.storageSearch.trim());
+    params.set("sort", state.storageSort || "newest");
+    state.storageCurrentFolderId = folderId || "";
+    queue("storageCenter", `/api/storage?${params}`, "storageCenter");
+  }
   if (state.route.startsWith("/dashboard/support")) {
     const ticketRouteId = state.route.match(/^\/dashboard\/support\/tickets\/([^/]+)$/)?.[1];
     const requestedTicket = ticketRouteId && ticketRouteId !== "recent" ? ticketRouteId : state.query.get("ticket") || state.supportSelectedId;
@@ -1972,6 +1991,10 @@ function dashboardIcon(name) {
     more: '<circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/>',
     pin: '<path d="m14 4 6 6-3 1-4 4-1 5-3-3-5 5-2-2 5-5-3-3 5-1 4-4Z"/>',
     archive: '<rect x="3" y="5" width="18" height="4" rx="1"/><path d="M5 9v11h14V9M9 13h6"/>',
+    folder: '<path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m4 17 5-5 4 4 2-2 5 5"/>',
+    gridView: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    listView: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
     "arrow-left": '<path d="m15 18-6-6 6-6"/><path d="M9 12h11"/>',
      warning: '<path d="M10.3 3.5 2.5 18a2 2 0 0 0 1.8 3h15.4a2 2 0 0 0 1.8-3L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
     passwordReset: '<path d="M20 11a8 8 0 1 0 1 4"/><path d="M20 4v7h-7"/><rect x="8" y="10" width="8" height="8" rx="2"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/>',
@@ -1990,6 +2013,7 @@ function dashboardIcon(name) {
 function ensurePasswordToggles() {
   for (const input of app.querySelectorAll('input[type="password"]')) {
     if (input.parentElement?.classList.contains("password-input-wrap")) continue;
+    if (input.parentElement?.querySelector('[data-action="toggle-password"]')) continue;
     const wrapper = document.createElement("span");
     wrapper.className = "password-input-wrap";
     input.parentNode.insertBefore(wrapper, input);
@@ -4213,12 +4237,12 @@ function notificationsPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "لوحة التحكم": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قوالب عامة": "General Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "القنوات والربط": "Channels & connections", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings" };
+  const englishLabels = { "لوحة التحكم": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قوالب عامة": "General Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "القنوات والربط": "Channels & connections", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings", "مركز التخزين": "Storage Center" };
   const routeGroups = [
     { label: "", paths: ["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"] },
     { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates", "/dashboard/campaigns", "/dashboard/contacts"] },
     { label: state.language === "ar" ? "القنوات والربط" : "Channels & integrations", paths: ["/dashboard/channels", "/dashboard/apps"] },
-    { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/settings"] }
+    { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/storage", "/dashboard/settings"] }
   ];
   const links = routeGroups.map((group) => {
     const items = dashboardRoutes.filter(([path]) => group.paths.includes(path)).map(([path, label, mark]) => {
@@ -4970,7 +4994,7 @@ function sallaAutomationTemplateEditorPage() {
   const selectedChannel = item.channel || "whatsapp";
   const statusField = item.templateKey === "review_request" ? "" : item.requiresStatusMapping ? `<label class="field"><span>حالة سلة التي تشغّل القالب</span><select class="select" name="mappedStatusId" required><option value="">اختيار الحالة</option>${statuses.map((statusItem) => `<option value="${escapeHtml(statusItem.id)}" data-slug="${escapeHtml(statusItem.slug || "")}" data-name="${escapeHtml(statusItem.name)}" ${statusItem.id === item.mappedStatusId ? "selected" : ""}>${escapeHtml(statusItem.name)}${statusItem.isCustom ? " — مخصصة" : ""}</option>`).join("")}</select><small>${statuses.length ? "تتم المطابقة بمعرّف الحالة وslug، وليس بالنص العربي." : "زامن حالات سلة أولًا قبل التفعيل."}</small></label>` : `<label class="field"><span>حدث التشغيل</span><input class="input" value="${escapeHtml(item.eventName || item.triggerType)}" disabled></label>`;
   const variables = `<div class="variables-row"><strong>المتغيرات المتاحة</strong>${item.variables.map((variable) => `<button type="button" class="chip" data-action="insert-salla-variable" data-variable="{{${escapeHtml(variable)}}}">{{${escapeHtml(variable)}}}</button>`).join("")}</div>`;
-  const metaPanel = `<section class="salla-channel-panel" data-channel-panel="whatsapp" ${selectedChannel === "whatsapp" ? "" : "hidden"}><label class="field"><span>قالب Meta المعتمد</span><select class="select" name="whatsappTemplateId"><option value="">اختر قالبًا معتمدًا</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === item.whatsappTemplateId ? "selected" : ""}>${escapeHtml(template.displayName || template.name)} — ${escapeHtml(template.language)}</option>`).join("")}</select><small>لا يُفعّل الإرسال الفعلي قبل اختيار قالب Meta معتمد.</small></label><label class="field"><span>محتوى رسالة واتساب</span><textarea class="textarea salla-template-message-editor" name="whatsappContent">${escapeHtml(item.whatsappContent || item.messageBody || "")}</textarea></label>${variables}<div class="salla-action-settings"><label class="setting-line"><span><strong>إضافة صورة كاملة مع رسالة واتساب</strong><small>تُرسل الصورة مع النص، وتظهر فورًا في المعاينة.</small></span><input type="checkbox" name="whatsappImageEnabled" ${settings.whatsappImageEnabled === true ? "checked" : ""}></label><div class="salla-whatsapp-image-editor" data-salla-whatsapp-image-editor ${settings.whatsappImageEnabled === true ? "" : "hidden"}><input type="file" accept="image/png,image/jpeg,image/webp" data-action="salla-whatsapp-image-file" hidden><button class="btn btn-secondary" type="button" data-action="choose-salla-whatsapp-image">${dashboardIcon("upload")} ${settings.whatsappImageUrl || storeProfile.logoUrl ? "استبدال صورة الرسالة" : "إضافة صورة الرسالة"}</button><small>PNG أو JPG أو WebP، بحد أقصى 2 ميجابايت. تُحفظ الصورة مع هذا القالب وتظهر في معاينته.</small></div><label class="setting-line"><span><strong>تفعيل زر الإجراء</strong><small>أظهر زرًا واضحًا داخل الرسالة، ويمكن إيقافه دون حذف النص المحفوظ.</small></span><input type="checkbox" name="buttonEnabled" ${settings.buttonEnabled !== false ? "checked" : ""}></label><label class="field"><span>نص زر الإجراء</span><input class="input" name="buttonLabel" maxlength="80" value="${escapeHtml(settings.buttonLabel || item.previewAction || "عرض التفاصيل")}" placeholder="مثال: عرض تفاصيل الطلب"></label></div></section>`;
+  const metaPanel = `<section class="salla-channel-panel" data-channel-panel="whatsapp" ${selectedChannel === "whatsapp" ? "" : "hidden"}><label class="field"><span>قالب Meta المعتمد</span><select class="select" name="whatsappTemplateId"><option value="">اختر قالبًا معتمدًا</option>${metaTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === item.whatsappTemplateId ? "selected" : ""}>${escapeHtml(template.displayName || template.name)} — ${escapeHtml(template.language)}</option>`).join("")}</select><small>لا يُفعّل الإرسال الفعلي قبل اختيار قالب Meta معتمد.</small></label><label class="field"><span>محتوى رسالة واتساب</span><textarea class="textarea salla-template-message-editor" name="whatsappContent">${escapeHtml(item.whatsappContent || item.messageBody || "")}</textarea></label>${variables}<div class="salla-action-settings"><label class="setting-line"><span><strong>إضافة صورة كاملة مع رسالة واتساب</strong><small>تُرسل الصورة مع النص، وتظهر فورًا في المعاينة.</small></span><input type="checkbox" name="whatsappImageEnabled" ${settings.whatsappImageEnabled === true ? "checked" : ""}></label><div class="salla-whatsapp-image-editor" data-salla-whatsapp-image-editor ${settings.whatsappImageEnabled === true ? "" : "hidden"}><input type="file" accept="image/png,image/jpeg,image/webp" data-action="salla-whatsapp-image-file" hidden><div class="salla-image-source-actions"><button class="btn btn-secondary" type="button" data-action="choose-salla-whatsapp-image">${dashboardIcon("upload")} رفع من الجهاز</button><button class="btn btn-secondary" type="button" data-action="choose-salla-whatsapp-storage-image">${dashboardIcon("archive")} المحفوظات</button></div><small>اختر صورة جديدة أو استخدم صورة محفوظة دون إنشاء نسخة أخرى. PNG أو JPG أو WebP.</small></div><label class="setting-line"><span><strong>تفعيل زر الإجراء</strong><small>أظهر زرًا واضحًا داخل الرسالة، ويمكن إيقافه دون حذف النص المحفوظ.</small></span><input type="checkbox" name="buttonEnabled" ${settings.buttonEnabled !== false ? "checked" : ""}></label><label class="field"><span>نص زر الإجراء</span><input class="input" name="buttonLabel" maxlength="80" value="${escapeHtml(settings.buttonLabel || item.previewAction || "عرض التفاصيل")}" placeholder="مثال: عرض تفاصيل الطلب"></label></div></section>`;
   const sallaEmailLinkVariable = item.variables.find((variable) => /(?:url|link)$/.test(variable));
   const sallaEmailSampleCode = `<section style="padding:28px;background-color:#f4f9f8;border-radius:20px;text-align:right" dir="rtl">\n  <h2 style="margin:0 0 14px;color:#062b28">تحديث جديد على طلبك</h2>\n  <p style="margin:0 0 18px;line-height:1.9">مرحبًا {{customer_name}}، لدينا تحديث يخص ${item.variables.includes("order_number") ? "طلبك رقم {{order_number}}" : "طلبك"}.</p>${sallaEmailLinkVariable ? `\n  <a href="{{${sallaEmailLinkVariable}}}" style="display:inline-block;padding:12px 22px;background-color:#0b3f3b;color:#ffffff;border-radius:10px;text-decoration:none">عرض التفاصيل</a>` : ""}\n</section>`;
   const sallaEmailLogoEditor = `<div class="salla-email-logo-editor" data-salla-email-image-section><div class="salla-email-logo-preview">${storeProfile.logoUrl ? `<img src="${escapeHtml(storeProfile.logoUrl)}" alt="شعار المتجر الحالي">` : dashboardIcon("apps")}</div><div><strong>صورة متجر موحدة للبريد</strong><p>تظهر صورة متجرك داخل المعاينة الموحدة وتُستخدم بأمان في رسائل بريد قوالب سلة.</p><input type="file" accept="image/png,image/jpeg,image/webp" data-action="salla-email-logo-file" hidden><button class="btn btn-secondary" type="button" data-action="choose-salla-email-logo">${dashboardIcon("upload")} ${storeProfile.logoUrl ? "استبدال الصورة" : "إضافة صورة المتجر"}</button><small>PNG أو JPG أو WebP حقيقي، بحد أقصى 2 ميجابايت.</small></div></div>`;
@@ -8552,7 +8576,233 @@ function readSallaRuleDrafts() {
   return Array.isArray(state.sallaRuleDrafts) ? state.sallaRuleDrafts.map((rule) => ({ ...rule })) : Array.isArray(saved) ? saved.map((rule) => ({ ...rule })) : [];
 }
 
+async function uploadStorageImages(fileList) {
+  const files = [...(fileList || [])];
+  if (!files.length || state.storageUploading) return;
+  state.storageUploading = true;
+  render();
+  let uploaded = 0;
+  try {
+    for (const file of files) {
+      let assetId = "";
+      try {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error(`${file.name}: صيغة الصورة غير مدعومة.`);
+        const payload = await fetchJson("/api/storage/assets/upload", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: file.name, mimeType: file.type, size: file.size, folderId: state.storageCurrentFolderId || undefined })
+        });
+        assetId = payload.asset.id;
+        const upload = await fetch(payload.upload.url, { method: payload.upload.method || "PUT", headers: payload.upload.headers || { "Content-Type": file.type }, body: file });
+        if (!upload.ok) throw new Error(`تعذر رفع ${file.name} إلى التخزين الخاص.`);
+        await fetchJson(`/api/storage/assets/${encodeURIComponent(assetId)}/complete`, { method: "POST" });
+        uploaded += 1;
+      } catch (error) {
+        if (assetId) await fetch(`/api/storage/assets/${encodeURIComponent(assetId)}`, { method: "DELETE", credentials: "include" }).catch(() => {});
+        toast(error.message || `تعذر رفع ${file.name}.`, "danger");
+      }
+    }
+  } finally {
+    state.storageUploading = false;
+    state.storageCenter = null;
+    await syncRouteData(true);
+    if (uploaded) toast(`تم رفع ${uploaded.toLocaleString("ar-SA")} صورة بنجاح.`);
+  }
+}
+
+async function openSallaStorageImagePicker() {
+  openModal("إضافة صورة", `<div class="storage-picker-loading"><i></i><i></i><i></i></div>`);
+  try {
+    const payload = await fetchJson("/api/storage/assets");
+    const assets = payload.assets || [];
+    openModal("إضافة صورة", `<div class="storage-image-picker"><nav><button data-action="salla-storage-picker-upload">${dashboardIcon("upload")} رفع من الجهاز</button><button class="active">${dashboardIcon("archive")} المحفوظات</button></nav>${assets.length ? `<div>${assets.map((asset) => `<button data-action="salla-storage-image-select" data-id="${escapeHtml(asset.id)}"><span>${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}">` : dashboardIcon("image")}</span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}</small></button>`).join("")}</div>` : `<section>${dashboardIcon("image")}<strong>لا توجد صور محفوظة بعد</strong><p>ارفع صورة إلى مجلد «الصور» ثم ستظهر هنا للاستخدام دون تكرار.</p><button class="btn btn-primary" data-action="salla-storage-picker-upload">رفع من الجهاز</button></section>`}</div>`);
+  } catch (error) {
+    openModal("إضافة صورة", `<div class="storage-empty-trash">${dashboardIcon("warning")}<strong>تعذر تحميل الصور المحفوظة</strong><p>${escapeHtml(error.message || "حاول مرة أخرى.")}</p></div>`);
+  }
+}
+
+async function autosaveStorageDocument(form) {
+  const documentId = form?.dataset.id;
+  if (!documentId || !["note", "custom"].includes(form.dataset.type)) return;
+  const title = String(form.elements.title?.value || "").trim();
+  if (!title) return;
+  const status = form.querySelector("[data-storage-autosave-status]");
+  if (status) status.textContent = "جارٍ الحفظ...";
+  try {
+    await fetchJson(`/api/storage/documents/${encodeURIComponent(documentId)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, folderId: form.elements.folderId?.value || null, body: form.querySelector("[data-storage-editor]")?.innerHTML || "" })
+    });
+    if (status?.isConnected) status.textContent = "تم الحفظ";
+  } catch {
+    if (status?.isConnected) status.textContent = "تعذر الحفظ التلقائي";
+  }
+}
+
 async function handleAction(target) {
+  const storageAction = target.dataset.action || "";
+  if (storageAction === "storage-reload") {
+    state.storageCenter = null;
+    render();
+    return syncRouteData(true);
+  }
+  if (storageAction === "storage-new-folder") {
+    return openModal("إنشاء مجلد جديد", `<form class="grid storage-folder-modal" data-submit="storage-folder"><label class="field"><span>اسم المجلد</span><input class="input" name="name" maxlength="120" required autofocus placeholder="مثال: حسابات العملاء"></label><label class="field"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" maxlength="500" placeholder="أضف وصفًا مختصرًا للمجلد"></textarea></label><button class="btn btn-primary" type="submit">${dashboardIcon("folder")} إنشاء المجلد</button></form>`);
+  }
+  if (storageAction === "storage-new-document") {
+    return openModal("ماذا تريد حفظه؟", `<div class="storage-type-picker">${[["account","بيانات حساب","بريد وكلمة مرور وأكواد وحقول إضافية","key"],["code","كود / مفتاح","API Key أو PIN أو Recovery Code","code"],["note","ملاحظة","محرر مرن للملاحظات والمعلومات","document"],["custom","أخرى","مستند فارغ تبدأه بالطريقة التي تناسبك","add"]].map(([type,label,body,icon]) => `<button data-action="storage-choose-document" data-type="${type}"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${body}</small></div>${dashboardIcon("chevron")}</button>`).join("")}</div>`);
+  }
+  if (storageAction === "storage-choose-document") {
+    state.storageComposeType = target.dataset.type || "custom";
+    closePortal();
+    return render();
+  }
+  if (storageAction === "storage-close-document") {
+    state.storageComposeType = "";
+    state.storageDocument = null;
+    state.storageEditingDocument = null;
+    return render();
+  }
+  if (storageAction === "storage-edit-document") {
+    if (!state.storageDocument?.id) return;
+    state.storageEditingDocument = state.storageDocument;
+    state.storageComposeType = state.storageDocument.type;
+    state.storageDocument = null;
+    return render();
+  }
+  if (storageAction === "storage-open-folder") {
+    state.storageCurrentFolderId = target.dataset.id || "";
+    state.storageCenter = null;
+    const url = new URL(location.href);
+    if (state.storageCurrentFolderId) url.searchParams.set("folder", state.storageCurrentFolderId);
+    else url.searchParams.delete("folder");
+    history.pushState({}, "", `${url.pathname}${url.search}`);
+    render();
+    return syncRouteData(true);
+  }
+  if (storageAction === "storage-view") {
+    state.storageView = target.dataset.view === "list" ? "list" : "grid";
+    storage.set("renvix.storage.view", state.storageView);
+    return render();
+  }
+  if (storageAction === "storage-upload-trigger") {
+    document.querySelector('[data-action="storage-image-input"]')?.click();
+    return;
+  }
+  if (storageAction === "storage-add-field") {
+    const wrap = document.querySelector("[data-storage-custom-fields]");
+    if (!wrap) return;
+    const index = wrap.children.length;
+    wrap.insertAdjacentHTML("beforeend", `<div class="storage-custom-field"><label><span>اسم الحقل</span><input class="input" name="fieldLabel${index}" maxlength="100" placeholder="مثال: رقم الهاتف"></label><label><span>القيمة</span><input class="input" name="fieldValue${index}" autocomplete="off" placeholder="اكتب القيمة"></label><button type="button" data-action="storage-remove-field" aria-label="حذف الحقل">${dashboardIcon("close")}</button></div>`);
+    return wrap.querySelector(`[name="fieldLabel${index}"]`)?.focus();
+  }
+  if (storageAction === "storage-remove-field") {
+    target.closest(".storage-custom-field")?.remove();
+    return;
+  }
+  if (storageAction === "storage-editor-command") {
+    document.querySelector("[data-storage-editor]")?.focus();
+    document.execCommand(target.dataset.command, false, target.dataset.value || null);
+    return;
+  }
+  if (storageAction === "storage-editor-link") {
+    const href = window.prompt("أدخل رابطًا يبدأ بـ https://");
+    if (href && /^https:\/\//i.test(href)) document.execCommand("createLink", false, href);
+    return;
+  }
+  if (storageAction === "storage-copy-field") {
+    const field = target.closest(".storage-secret-input")?.querySelector("input,textarea");
+    if (field?.value) await copyText(field.value, "تم النسخ");
+    return;
+  }
+  if (storageAction === "storage-copy-value") {
+    if (target.dataset.value) await copyText(target.dataset.value, "تم نسخ القيمة");
+    return;
+  }
+  if (storageAction === "storage-open-document") {
+    const id = target.dataset.id;
+    if (!id) return;
+    state.storageDocument = { loading: true };
+    render();
+    try {
+      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}`);
+      state.storageDocument = payload.document;
+    } catch (error) {
+      state.storageDocument = { error: error.message || "تعذر فتح المستند." };
+    }
+    return render();
+  }
+  if (storageAction === "storage-preview-image") {
+    const url = target.dataset.url;
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  if (storageAction === "storage-item-menu") {
+    const kind = target.dataset.kind;
+    const id = target.dataset.id;
+    const name = target.dataset.name || "العنصر";
+    const usedIn = Math.max(0, Number(target.dataset.usedIn || 0));
+    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+  }
+  if (storageAction === "storage-rename-prompt") {
+    return openModal("إعادة تسمية", `<form class="grid" data-submit="storage-rename" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>الاسم الجديد</span><input class="input" name="name" required maxlength="180" value="${escapeHtml(target.dataset.name || "")}"></label><button class="btn btn-primary">حفظ الاسم</button></form>`);
+  }
+  if (storageAction === "storage-move-prompt") {
+    return openModal("نقل العنصر", `<form class="grid" data-submit="storage-move" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>المجلد الجديد</span><select class="select" name="folderId">${storageFolderOptions(state.storageCenter?.storage || {}, "")}</select></label><button class="btn btn-primary">${dashboardIcon("folder")} نقل</button></form>`);
+  }
+  if (storageAction === "storage-open-trash") {
+    openModal("سلة المحذوفات", `<div class="storage-trash-loading"><i></i><i></i><i></i></div>`);
+    try {
+      const payload = await fetchJson("/api/storage/trash");
+      const items = payload.items || [];
+      openModal("سلة المحذوفات", items.length ? `<div class="storage-trash-list">${items.map((item) => `<article><span>${dashboardIcon(item.kind === "folder" ? "folder" : item.kind === "asset" ? "image" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · حُذف ${new Date(item.deletedAt).toLocaleDateString("ar-SA")}</small></div><button data-action="storage-trash-restore" data-kind="${item.kind}" data-id="${item.id}">استعادة</button><button class="danger" data-action="storage-trash-permanent" data-kind="${item.kind}" data-id="${item.id}">حذف نهائي</button></article>`).join("")}</div>` : `<div class="storage-empty-trash">${dashboardIcon("delete")}<strong>سلة المحذوفات فارغة</strong><p>العناصر المحذوفة ستظهر هنا ويمكن استعادتها قبل الحذف النهائي.</p></div>`);
+    } catch (error) { openModal("سلة المحذوفات", `<div class="storage-empty-trash">${dashboardIcon("warning")}<strong>تعذر تحميل السلة</strong><p>${escapeHtml(error.message)}</p></div>`); }
+    return;
+  }
+  if (storageAction === "storage-trash-restore") {
+    target.disabled = true;
+    try {
+      await fetchJson(`/api/storage/trash/${encodeURIComponent(target.dataset.id)}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: target.dataset.kind }) });
+      state.storageCenter = null; closePortal(); await syncRouteData(true); toast("تمت استعادة العنصر.");
+    } catch (error) { target.disabled = false; toast(error.message || "تعذر استعادة العنصر.", "danger"); }
+    return;
+  }
+  if (storageAction === "storage-trash-permanent") {
+    const kind = target.dataset.kind, id = target.dataset.id;
+    return openModal("حذف نهائي", `<div class="storage-delete-confirm"><span>${dashboardIcon("warning")}</span><p>سيُحذف العنصر نهائيًا وتُحرر مساحته. لا يمكن التراجع عن هذه العملية.</p><button class="btn btn-primary" data-action="storage-confirm-permanent" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">حذف نهائي</button></div>`);
+  }
+  if (storageAction === "storage-confirm-permanent") {
+    target.disabled = true;
+    try {
+      await fetchJson(`/api/storage/trash/${encodeURIComponent(target.dataset.id)}/permanent`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: target.dataset.kind }) });
+      state.storageCenter = null; closePortal(); await syncRouteData(true); toast("تم الحذف النهائي وتحرير المساحة.");
+    } catch (error) { target.disabled = false; toast(error.message || "تعذر الحذف النهائي.", "danger"); }
+    return;
+  }
+  if (storageAction === "storage-download-image") {
+    try {
+      const payload = await fetchJson(`/api/storage/assets/${encodeURIComponent(target.dataset.id)}/download?download=1`);
+      if (payload.download?.url) window.location.assign(payload.download.url);
+    } catch (error) { toast(error.message || "تعذر تحميل الصورة.", "danger"); }
+    return;
+  }
+  if (storageAction === "storage-delete-item") {
+    const usedIn = Math.max(0, Number(target.dataset.usedIn || 0));
+    return openModal("نقل إلى سلة المحذوفات", `<div class="storage-delete-confirm"><span>${dashboardIcon(usedIn ? "warning" : "delete")}</span><p>${usedIn ? `هذه الصورة مستخدمة في ${usedIn.toLocaleString("ar-SA")} قالب. حذفها قد يؤدي إلى اختفائها من القوالب.` : "سيبقى العنصر محسوبًا ضمن مساحة التخزين حتى حذفه نهائيًا من السلة."}</p><button class="btn btn-primary" data-action="storage-confirm-delete" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}" data-force="${usedIn ? "1" : "0"}">${usedIn ? "حذف على أي حال" : "نقل إلى السلة"}</button></div>`, `<button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
+  if (storageAction === "storage-confirm-delete") {
+    const kind = target.dataset.kind;
+    const id = target.dataset.id;
+    const endpoint = kind === "folder" ? `/api/storage/folders/${encodeURIComponent(id)}` : kind === "document" ? `/api/storage/documents/${encodeURIComponent(id)}` : `/api/storage/assets/${encodeURIComponent(id)}${target.dataset.force === "1" ? "?force=1" : ""}`;
+    target.disabled = true;
+    try {
+      await fetchJson(endpoint, { method: "DELETE" });
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم نقل العنصر إلى سلة المحذوفات.");
+    } catch (error) { target.disabled = false; toast(error.message || "تعذر حذف العنصر.", "danger"); }
+    return;
+  }
   if (target.dataset.action === "store-customer-sync-toggle") {
     await toggleStoreCustomerSync(target);
     return;
@@ -9557,6 +9807,35 @@ async function handleAction(target) {
     target.closest("[data-salla-whatsapp-image-editor]")?.querySelector('[data-action="salla-whatsapp-image-file"]')?.click();
     return;
   }
+  if (action === "choose-salla-whatsapp-storage-image") {
+    return openSallaStorageImagePicker();
+  }
+  if (action === "salla-storage-picker-upload") {
+    closePortal();
+    document.querySelector('#salla-template-editor-form [data-action="salla-whatsapp-image-file"]')?.click();
+    return;
+  }
+  if (action === "salla-storage-image-select") {
+    const templateKey = state.sallaAutomationTemplate?.item?.templateKey;
+    if (!templateKey || !target.dataset.id) return toast("تعذر تحديد الصورة أو القالب.", "danger");
+    target.disabled = true;
+    try {
+      const payload = await fetchJson(`/api/apps/salla/templates/${encodeURIComponent(templateKey)}/image/storage`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assetId: target.dataset.id })
+      });
+      if (state.sallaAutomationTemplate) {
+        state.sallaAutomationTemplate.item = { ...(state.sallaAutomationTemplate.item || {}), settings: { ...(state.sallaAutomationTemplate.item?.settings || {}), whatsappImageUrl: payload.imageUrl } };
+      }
+      closePortal();
+      const form = document.querySelector("#salla-template-editor-form");
+      refreshSallaTemplatePreview(form, { whatsappImageUrl: payload.imageUrl });
+      appToast.success("تم اختيار الصورة المحفوظة", { description: "ارتبط القالب بالصورة الأصلية دون إنشاء نسخة أو استهلاك مساحة إضافية.", id: "salla-storage-image-selected" });
+    } catch (error) {
+      target.disabled = false;
+      appToast.error("تعذر اختيار الصورة", { description: error.message || "حاول مرة أخرى.", id: "salla-storage-image-error" });
+    }
+    return;
+  }
   if (action === "test-salla-template") {
     const templateKey = target.dataset.key;
     const channel = state.sallaAutomationTemplate?.item?.channel;
@@ -9615,7 +9894,7 @@ async function handleAction(target) {
     return;
   }
   if (action === "toggle-password") {
-    const input = target.closest(".password-input-wrap")?.querySelector("input");
+    const input = target.closest(".password-input-wrap")?.querySelector("input") || target.closest(".storage-secret-input,.storage-vault-read label")?.querySelector('input[type="password"],input[type="text"]');
     if (input) {
       const visible = input.type === "password";
       input.type = visible ? "text" : "password";
@@ -11752,6 +12031,62 @@ async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "storage-folder") {
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ الإنشاء...");
+    try {
+      await fetchJson("/api/storage/folders", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: data.name, description: data.description, parentId: state.storageCurrentFolderId || undefined })
+      });
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم إنشاء المجلد بنجاح.");
+    } catch (error) { toast(error.message || "تعذر إنشاء المجلد.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-rename" || type === "storage-move") {
+    const button = form.querySelector('button[type="submit"]');
+    const isMove = type === "storage-move";
+    setSubmitBusy(button, true, isMove ? "جارٍ النقل..." : "جارٍ الحفظ...");
+    try {
+      const endpoint = `/api/storage/items/${encodeURIComponent(form.dataset.id)}/${isMove ? "move" : "rename"}`;
+      await fetchJson(endpoint, {
+        method: isMove ? "POST" : "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: form.dataset.kind, ...(isMove ? { folderId: data.folderId || null } : { name: data.name }) })
+      });
+      closePortal(); state.storageCenter = null; await syncRouteData(true); toast(isMove ? "تم نقل العنصر." : "تم تغيير الاسم.");
+    } catch (error) { toast(error.message || (isMove ? "تعذر نقل العنصر." : "تعذر تغيير الاسم."), "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document") {
+    const button = form.querySelector('button[type="submit"]');
+    const documentType = form.dataset.type || "custom";
+    const fields = [...form.querySelectorAll(".storage-custom-field")].map((row) => ({
+      label: row.querySelector('input[name^="fieldLabel"]')?.value || "",
+      value: row.querySelector('input[name^="fieldValue"]')?.value || ""
+    })).filter((field) => field.label.trim());
+    const payload = {
+      type: documentType, title: data.title, folderId: data.folderId || undefined,
+      email: data.email, password: data.password, code: data.code, description: data.description,
+      body: form.querySelector("[data-storage-editor]")?.innerHTML || "", fields
+    };
+    setSubmitBusy(button, true, "جارٍ الحفظ...");
+    try {
+      const documentId = form.dataset.id || "";
+      await fetchJson(documentId ? `/api/storage/documents/${encodeURIComponent(documentId)}` : "/api/storage/documents", { method: documentId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      state.storageComposeType = "";
+      state.storageEditingDocument = null;
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast(documentId ? "تم حفظ التغييرات بأمان." : "تم حفظ المستند بأمان.");
+    } catch (error) { toast(error.message || "تعذر حفظ المستند.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
   if (type === "ai-conversation-rename") {
     const title = String(data.title || "").trim();
     if (title.length < 2) return appToast.warning("اكتب اسمًا أوضح للمحادثة", { id: "ai-conversation-title-short" });
@@ -13791,6 +14126,121 @@ function dashboardSupportPage() {
   return dashboardShell(content);
 }
 
+function formatStorageBytes(value) {
+  const bytes = Math.max(0, Number(value || 0));
+  if (bytes < 1024) return `${bytes.toLocaleString("ar-SA")} بايت`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toLocaleString("ar-SA", { maximumFractionDigits: 1 })} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toLocaleString("ar-SA", { maximumFractionDigits: 1 })} MB`;
+  return `${(bytes / 1024 ** 3).toLocaleString("ar-SA", { maximumFractionDigits: 1 })} GB`;
+}
+
+function storageTypeLabel(type) {
+  return ({ account: "بيانات حساب", code: "كود / مفتاح", note: "ملاحظة", custom: "مستند" })[type] || "مستند";
+}
+
+function storageActivityLabel(item = {}) {
+  const labels = {
+    UPLOAD_IMAGE: "تم رفع صورة", CREATE_FOLDER: "تم إنشاء مجلد", CREATE_DOCUMENT: "تم إنشاء مستند",
+    UPDATE_DOCUMENT: "تم تعديل مستند", MOVE_ITEM: "تم نقل عنصر", DELETE_ITEM: "تم نقل عنصر إلى السلة",
+    RESTORE_ITEM: "تمت استعادة عنصر", RENAME_ITEM: "تم تغيير اسم عنصر"
+  };
+  return labels[item.action] || "تم تحديث عنصر";
+}
+
+function storageFolderOptions(data, selected = "") {
+  const rows = Array.isArray(data?.allFolders) ? data.allFolders : [];
+  const byParent = new Map();
+  rows.forEach((row) => {
+    const parent = row.parentId || "root";
+    if (!byParent.has(parent)) byParent.set(parent, []);
+    byParent.get(parent).push(row);
+  });
+  const output = [`<option value="" ${selected ? "" : "selected"}>مركز التخزين</option>`];
+  const walk = (parent, depth) => (byParent.get(parent) || []).forEach((row) => {
+    output.push(`<option value="${escapeHtml(row.id)}" ${row.id === selected ? "selected" : ""}>${"— ".repeat(depth)}${escapeHtml(row.name)}</option>`);
+    walk(row.id, depth + 1);
+  });
+  walk("root", 0);
+  return output.join("");
+}
+
+function storageBreadcrumbs(data) {
+  const trail = Array.isArray(data?.breadcrumbs) ? data.breadcrumbs : [];
+  return `<nav class="storage-breadcrumb" aria-label="مسار المجلد"><button data-action="storage-open-folder" data-id="">مركز التخزين</button>${trail.map((item) => `<span>/</span><button data-action="storage-open-folder" data-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>`).join("")}<button class="storage-breadcrumb-trash" data-action="storage-open-trash">${dashboardIcon("delete")} سلة المحذوفات</button></nav>`;
+}
+
+function storageDocumentComposer(data) {
+  const type = state.storageComposeType || "custom";
+  const editing = state.storageEditingDocument;
+  const title = editing ? `تعديل ${storageTypeLabel(type)}` : type === "account" ? "بيانات حساب جديدة" : type === "code" ? "كود / مفتاح جديد" : type === "note" ? "ملاحظة جديدة" : "مستند جديد";
+  const currentFolderId = editing?.folderId || data?.currentFolderId || "";
+  const existingFields = (editing?.fields || []).map((field, index) => `<div class="storage-custom-field"><label><span>اسم الحقل</span><input class="input" name="fieldLabel${index}" maxlength="100" value="${escapeHtml(field.label)}"></label><label><span>القيمة</span><input class="input" name="fieldValue${index}" autocomplete="off" value="${escapeHtml(field.value)}"></label><button type="button" data-action="storage-remove-field" aria-label="حذف الحقل">${dashboardIcon("close")}</button></div>`).join("");
+  const accountFields = type === "account" ? `<div class="storage-vault-grid">
+    <label><span>البريد الإلكتروني</span><input class="input" name="email" type="email" autocomplete="off" value="${escapeHtml(editing?.email || "")}" placeholder="name@example.com"></label>
+    <label><span>كلمة المرور</span><span class="storage-secret-input"><input class="input" name="password" type="password" autocomplete="new-password" value="${escapeHtml(editing?.password || "")}" placeholder="••••••••••••"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
+    <label class="storage-field-wide"><span>الكود <small>اختياري</small></span><span class="storage-secret-input"><input class="input" name="code" type="password" autocomplete="off" value="${escapeHtml(editing?.code || "")}" placeholder="OTP أو PIN أو Recovery Code"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
+    <section class="storage-custom-fields storage-field-wide"><header><div><h2>بيانات إضافية</h2><p>سمِّ كل حقل بالطريقة التي تناسبك.</p></div><button type="button" class="btn btn-secondary" data-action="storage-add-field">${dashboardIcon("add")} إضافة حقل</button></header><div data-storage-custom-fields>${existingFields}</div></section>
+  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<label class="storage-editor-label"><span>المحتوى</span><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link">${dashboardIcon("link")}</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-multiline="true" data-placeholder="ابدأ بكتابة ملاحظاتك هنا...">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></label>`;
+  return dashboardShell(`<section class="storage-center storage-compose-page">
+    ${storageBreadcrumbs(data)}
+    <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon("document")}</div><div><h1>${title}</h1><p>احفظ معلوماتك داخل مساحة عملك الخاصة بشكل منظم وآمن.</p></div></header>
+    <form class="storage-document-form" data-submit="storage-document" data-type="${type}" data-id="${escapeHtml(editing?.id || "")}">
+      <section class="card storage-save-location"><div><span>${dashboardIcon("folder")}</span><div><strong>يتم الحفظ داخل</strong><small>${currentFolderId ? "المجلد الحالي" : "مركز التخزين"}</small></div></div><label><span>تغيير المجلد</span><select class="select" name="folderId">${storageFolderOptions(data, currentFolderId)}</select></label></section>
+      <label class="storage-title-field"><span>${type === "account" ? "اسم الحساب" : type === "code" ? "اسم العنصر" : "اسم المستند"}</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(editing?.title || "")}" placeholder="${type === "account" ? "مثال: حساب Netflix - أحمد" : type === "code" ? "مثال: API Key - Project A" : "اكتب اسمًا واضحًا للمستند"}"></label>
+      ${accountFields}
+      <footer class="storage-form-actions"><button type="submit" class="btn btn-primary">${dashboardIcon("save")} ${editing ? "حفظ التغييرات" : "حفظ"}</button><button type="button" class="btn btn-secondary" data-action="storage-close-document">إلغاء</button></footer>
+    </form>
+  </section>`);
+}
+
+function storageDocumentView(data) {
+  const item = state.storageDocument;
+  if (item?.loading) return dashboardShell(`<div class="storage-document-loading"><i></i><i></i><i></i></div>`);
+  if (item?.error) return dashboardShell(`<section class="storage-center">${emptyState("تعذر فتح المستند", item.error, "العودة", "storage-close-document")}</section>`);
+  const isSecret = ["account", "code"].includes(item?.type);
+  return dashboardShell(`<section class="storage-center storage-compose-page">
+    ${storageBreadcrumbs(data)}
+    <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon(isSecret ? "key" : "document")}</div><div><span>${storageTypeLabel(item.type)}</span><h1>${escapeHtml(item.title)}</h1><p>آخر تعديل ${new Date(item.updatedAt || item.createdAt).toLocaleString("ar-SA")}</p></div><div class="storage-view-actions"><button class="btn btn-primary" data-action="storage-edit-document">${dashboardIcon("edit")} تعديل</button><button class="btn btn-secondary" data-action="storage-close-document">العودة</button></div></header>
+    <article class="card storage-document-view">${isSecret ? `<div class="storage-vault-read"><label><span>البريد الإلكتروني</span><span><input class="input" readonly value="${escapeHtml(item.email || "")}" dir="ltr"><button data-action="storage-copy-value" data-value="${escapeHtml(item.email || "")}">${dashboardIcon("copy")}</button></span></label><label><span>كلمة المرور</span><span><input class="input" type="password" readonly value="${escapeHtml(item.password || "")}" dir="ltr"><button data-action="toggle-password">${dashboardIcon("eye")}</button><button data-action="storage-copy-value" data-value="${escapeHtml(item.password || "")}">${dashboardIcon("copy")}</button></span></label><label><span>الكود / المفتاح</span><span><input class="input" type="password" readonly value="${escapeHtml(item.code || "")}" dir="ltr"><button data-action="toggle-password">${dashboardIcon("eye")}</button><button data-action="storage-copy-value" data-value="${escapeHtml(item.code || "")}">${dashboardIcon("copy")}</button></span></label>${(item.fields || []).map((field) => `<label><span>${escapeHtml(field.label)}</span><span><input class="input" readonly value="${escapeHtml(field.value)}"><button data-action="storage-copy-value" data-value="${escapeHtml(field.value)}">${dashboardIcon("copy")}</button></span></label>`).join("")}</div>` : `<div class="storage-rich-content">${item.content?.body || "<p>لا يوجد محتوى.</p>"}</div>`}</article>
+  </section>`);
+}
+
+function storageCenterPage() {
+  const payload = state.storageCenter;
+  const data = payload?.storage;
+  if (state.storageDocument) return storageDocumentView(data || {});
+  if (state.storageComposeType) return storageDocumentComposer(data || {});
+  if (payload === null) return dashboardShell(`<section class="storage-center"><div class="storage-skeleton"><i></i><i></i><i></i><i></i><b></b><b></b></div></section>`);
+  if (payload?.error || !data) return dashboardShell(`<section class="storage-center">${emptyState("تعذر تحميل مركز التخزين", payload?.error || "حاول مرة أخرى.", "إعادة المحاولة", "storage-reload")}</section>`);
+  const usage = data.usage || {};
+  const folders = Array.isArray(data.folders) ? data.folders : [];
+  const documents = Array.isArray(data.documents) ? data.documents : [];
+  const assets = Array.isArray(data.assets) ? data.assets : [];
+  const count = data.counts || {};
+  const isImages = data.currentFolderId === data.imagesFolderId;
+  const currentFolder = (data.allFolders || []).find((item) => item.id === data.currentFolderId);
+  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}"><span>${dashboardIcon("folder")}</span><div><h3>${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
+  const documentsMarkup = documents.map((doc) => `<article class="storage-file-card" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
+  const assetsMarkup = assets.map((asset) => `<article class="storage-image-card"><button class="storage-image-preview" data-action="storage-preview-image" data-url="${escapeHtml(asset.previewUrl || "")}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>`).join("");
+  const empty = !folders.length && !documents.length && !assets.length;
+  return dashboardShell(`<section class="storage-center">
+    ${storageBreadcrumbs(data)}
+    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? "نظّم محتويات هذا المجلد وابحث فيها بسهولة." : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary" data-action="storage-new-folder">${dashboardIcon("folder")} ملف جديد</button><button class="btn btn-secondary" data-action="storage-new-document">${dashboardIcon("document")} مستند جديد</button><button class="btn btn-secondary" data-action="storage-upload-trigger">${dashboardIcon("upload")} رفع صور</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"></div></header>
+    <section class="storage-stats">
+      <article><span>${dashboardIcon("folder")}</span><div><small>إجمالي المجلدات</small><strong>${Number(count.folders || 0).toLocaleString("ar-SA")}</strong><em>مجلدات منظمة</em></div></article>
+      <article><span>${dashboardIcon("document")}</span><div><small>إجمالي المستندات</small><strong>${Number(count.documents || 0).toLocaleString("ar-SA")}</strong><em>مستند محفوظ</em></div></article>
+      <article><span>${dashboardIcon("image")}</span><div><small>الصور المحفوظة</small><strong>${Number(count.images || 0).toLocaleString("ar-SA")}</strong><em>صورة محفوظة</em></div></article>
+      <article><span>${dashboardIcon("clock")}</span><div><small>العناصر الحديثة</small><strong>${Number(count.recent || 0).toLocaleString("ar-SA")}</strong><em>خلال آخر 7 أيام</em></div></article>
+    </section>
+    <section class="storage-usage-card"><div class="storage-usage-copy"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين المستخدمة</small><strong>${formatStorageBytes(usage.usedBytes)} <em>من ${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</em></strong></div><b>${Number(usage.percent || 0).toLocaleString("ar-SA")}%</b></div><div class="storage-usage-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(usage.progressPercent || 0)}"><i style="width:${Number(usage.progressPercent || 0)}%"></i></div><div class="storage-breakdown-inline"><span>الصور <b>${formatStorageBytes(data.breakdown?.images)}</b></span><span>المستندات <b>${formatStorageBytes(data.breakdown?.documents)}</b></span><span>بيانات المنصة <b>${formatStorageBytes(data.breakdown?.other)}</b></span></div></section>
+    <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في هذا الموقع..."></label><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الحجم</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
+      ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : "أنشئ مجلدًا أو مستندًا جديدًا، أو ارفع صورك لاستخدامها لاحقًا داخل Renvix."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : "storage-new-folder"}">${isImages ? "رفع صور" : "إنشاء مجلد"}</button></div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
+    </section>
+    ${isImages ? `<button class="storage-dropzone" data-action="storage-upload-trigger">${dashboardIcon("cloud")}<strong>${state.storageUploading ? "جارٍ رفع الصور والتحقق منها..." : "ارفع صورك هنا"}</strong><span>اسحب الصور وأفلتها هنا أو اضغط لاختيار الملفات من جهازك</span><small>JPG, PNG, WEBP — حتى ${formatStorageBytes(data.limits?.imageMaxBytes || 10 * 1024 * 1024)} للصورة الواحدة</small></button>` : ""}
+    <section class="card storage-activity"><header><h2>النشاط الحديث</h2><button data-link="/dashboard/reports">عرض الكل</button></header><div>${(data.activity || []).length ? data.activity.slice(0, 5).map((item) => `<article><span>${dashboardIcon(item.action === "UPLOAD_IMAGE" ? "image" : item.action === "CREATE_FOLDER" ? "folder" : item.action === "DELETE_ITEM" ? "delete" : "document")}</span><div><strong>${storageActivityLabel(item)}</strong><small>${escapeHtml(item.metadata?.name || item.metadata?.title || storageTypeLabel(item.metadata?.type))}</small><time>${new Date(item.createdAt).toLocaleString("ar-SA", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</time></div></article>`).join("") : `<p>ستظهر هنا عمليات الرفع والإنشاء والتعديل.</p>`}</div></section>
+  </section>`);
+}
+
 function render() {
   disposeMarketingMotion();
   applyPreferences();
@@ -13833,6 +14283,7 @@ function render() {
       "/dashboard/reports": reportsPage,
       "/dashboard/billing": billingWorkspacePage,
       "/dashboard/settings": settingsReferencePage
+      ,"/dashboard/storage": storageCenterPage
       ,"/dashboard/support": dashboardSupportPage
     };
     const dashboardPage = state.route === "/dashboard/integrations/salla/products"
@@ -14273,6 +14724,28 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.dataset.action === "storage-search") {
+    state.storageSearch = target.value;
+    clearTimeout(state.storageSearchTimer);
+    state.storageSearchTimer = setTimeout(() => {
+      state.storageCenter = null;
+      syncRouteData(true);
+    }, 320);
+    return;
+  }
+  if (target.matches?.("[data-storage-editor]")) {
+    const words = String(target.innerText || "").trim().split(/\s+/).filter(Boolean).length;
+    const output = target.closest(".storage-editor")?.querySelector("[data-storage-word-count]");
+    if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
+    const form = target.closest('form[data-submit="storage-document"]');
+    if (form?.dataset.id) {
+      const status = form.querySelector("[data-storage-autosave-status]");
+      if (status) status.textContent = "تغييرات غير محفوظة";
+      clearTimeout(state.storageAutosaveTimer);
+      state.storageAutosaveTimer = setTimeout(() => void autosaveStorageDocument(form), 1400);
+    }
+    return;
+  }
   if (target.dataset.action === "support-ticket-search") {
     state.supportSearch = target.value;
     render();
@@ -14514,6 +14987,25 @@ document.addEventListener("focusin", (event) => {
   if (globalSearch) refreshDashboardQuickSearch(globalSearch);
 });
 
+document.addEventListener("dragover", (event) => {
+  const dropzone = event.target?.closest?.(".storage-dropzone");
+  if (!dropzone) return;
+  event.preventDefault();
+  dropzone.classList.add("is-dragging");
+});
+
+document.addEventListener("dragleave", (event) => {
+  event.target?.closest?.(".storage-dropzone")?.classList.remove("is-dragging");
+});
+
+document.addEventListener("drop", (event) => {
+  const dropzone = event.target?.closest?.(".storage-dropzone");
+  if (!dropzone) return;
+  event.preventDefault();
+  dropzone.classList.remove("is-dragging");
+  void uploadStorageImages(event.dataTransfer?.files);
+});
+
 document.addEventListener("scroll", (event) => {
   const list = event.target?.matches?.("[data-ai-message-list]") ? event.target : null;
   if (!list) return;
@@ -14533,6 +15025,18 @@ document.addEventListener("wheel", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.dataset.action === "storage-image-input") {
+    void uploadStorageImages(target.files);
+    target.value = "";
+    return;
+  }
+  if (target.dataset.action === "storage-sort") {
+    state.storageSort = target.value || "newest";
+    storage.set("renvix.storage.sort", state.storageSort);
+    state.storageCenter = null;
+    syncRouteData(true);
+    return;
+  }
   if (target.matches?.('form[data-submit="ai-message"] input[name="images"]')) {
     addAIAttachments(target.files, target.form, { kind: "image" });
     return;

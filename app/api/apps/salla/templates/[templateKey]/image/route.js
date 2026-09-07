@@ -83,6 +83,7 @@ export async function POST(request, { params }) {
            image_url=EXCLUDED.image_url,
            image_data=EXCLUDED.image_data,
            image_content_type=EXCLUDED.image_content_type,
+           storage_asset_id=NULL,
            updated_at=now()`,
         [imageId, auth.session.tenantId, templateKey, imageUrl, useBlobStorage ? null : bytes, useBlobStorage ? null : file.type]
       );

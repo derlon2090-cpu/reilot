@@ -20,6 +20,10 @@ const TABLE_GROUPS = {
   ai_tool_executions: "محادثات ذكاء Renvix",
   ai_usage_daily: "محادثات ذكاء Renvix",
   ai_user_preferences: "محادثات ذكاء Renvix",
+  storage_folders: "مركز التخزين",
+  storage_documents: "مركز التخزين",
+  storage_assets: "مركز التخزين",
+  storage_activity: "مركز التخزين",
   whatsapp_channels: "الأجهزة",
   commerce_integrations: "التكاملات",
   commerce_order_mappings: "التكاملات",
@@ -139,7 +143,7 @@ export async function getTenantStorage(tenantId, runner = { query }) {
   for (const row of tables.rows) {
     const table = safeTableName(row.tableName);
     if (!table) continue;
-    const recordSize = table === "ai_attachments"
+    const recordSize = table === "ai_attachments" || ["storage_assets", "storage_documents"].includes(table)
       ? "pg_column_size(record) + record.size_bytes"
       : "pg_column_size(record)";
     const result = await runner.query(
