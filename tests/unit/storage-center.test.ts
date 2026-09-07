@@ -1,0 +1,36 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { decryptStorageValue, encryptStorageValue, sanitizeStorageHtml, storagePayloadSize } from "../../src/server/storage-center.js";
+
+const previousKey = process.env.STORAGE_ENCRYPTION_KEY;
+
+afterEach(() => {
+  if (previousKey === undefined) delete process.env.STORAGE_ENCRYPTION_KEY;
+  else process.env.STORAGE_ENCRYPTION_KEY = previousKey;
+});
+
+describe("storage center security helpers", () => {
+  it("round-trips vault values through authenticated encryption", () => {
+    process.env.STORAGE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+    const envelope = encryptStorageValue("سري-123");
+    expect(envelope).toMatchObject({ v: 1, alg: "A256GCM" });
+    expect(JSON.stringify(envelope)).not.toContain("سري-123");
+    expect(decryptStorageValue(envelope)).toBe("سري-123");
+  });
+
+  it("rejects tampered encrypted values", () => {
+    process.env.STORAGE_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString("base64");
+    const envelope = encryptStorageValue("vault-value");
+    const tampered = `${envelope.data[0] === "A" ? "B" : "A"}${envelope.data.slice(1)}`;
+    expect(() => decryptStorageValue({ ...envelope, data: tampered })).toThrow("تعذر فك تشفير");
+  });
+
+  it("counts UTF-8 bytes instead of JavaScript characters", () => {
+    expect(storagePayloadSize({ value: "مرحبا" })).toBe(Buffer.byteLength(JSON.stringify({ value: "مرحبا" }), "utf8"));
+  });
+
+  it("removes executable rich-text content", () => {
+    const clean = sanitizeStorageHtml('<p onclick="steal()">آمن</p><script>alert(1)</script><a href="javascript:alert(2)">رابط</a>');
+    expect(clean).not.toMatch(/script|onclick|javascript/i);
+    expect(clean).toContain("آمن");
+  });
+});

@@ -67,6 +67,11 @@ export async function middlewareRequest(request, {
   // have passed, static files must stay on the requested deployment origin.
   if (isStaticAssetPath(path)) return staticAssetNext(request);
 
+  if (path === "/storage") {
+    const target = request.nextUrl.clone();
+    target.pathname = "/dashboard/storage";
+    return secureRedirect(target);
+  }
   const hasCustomerSession = Boolean(request.cookies.get("renewpilot_session")?.value);
   const hasAdminSession = Boolean(request.cookies.get("renvix_admin_session")?.value);
   const origins = configuredOrigins();
