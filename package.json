@@ -2,9 +2,10 @@
   "scripts": {
     "prebuild": "node build.mjs",
     "build": "next build",
+    "build:migration-runner": "esbuild scripts/migrate.mjs --bundle --platform=node --format=cjs --outfile=.next/migrate.bundle.cjs",
     "predev": "node build.mjs",
     "dev": "next dev",
-    "start": "next start",
+    "start": "node scripts/migrate.mjs && next start",
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:production": "node scripts/migrate-production.mjs",
     "db:verify-auth-schema": "node scripts/verify-auth-schema.mjs",
@@ -64,6 +65,7 @@
     "@typescript-eslint/parser": "8.55.0",
     "eslint": "9.32.0",
     "eslint-config-next": "15.5.21",
+    "esbuild": "0.25.12",
     "typescript": "5.9.3",
     "vitest": "^3.2.4"
   },

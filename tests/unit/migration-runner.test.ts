@@ -49,14 +49,27 @@ class MigrationClient {
 }
 
 describe("production migration safety", () => {
-  it("keeps database mutation out of frontend builds and web container startup", () => {
+  it("replaces the legacy images-only folder constraint before creating the files system folder", () => {
+    const migration = readFileSync(resolve("drizzle/0094_storage_center_insights.sql"), "utf8");
+    const dropConstraint = migration.indexOf("DROP CONSTRAINT IF EXISTS storage_folders_system_type_check");
+    const allowFiles = migration.indexOf("system_type IN ('images','files')");
+    const createFilesFolder = migration.indexOf("'الملفات','files',true");
+    expect(dropConstraint).toBeGreaterThanOrEqual(0);
+    expect(allowFiles).toBeGreaterThan(dropConstraint);
+    expect(createFilesFolder).toBeGreaterThan(allowFiles);
+  });
+
+  it("keeps database mutation out of frontend builds and gates every production server startup on migrations", () => {
     const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8"));
     const vercel = JSON.parse(readFileSync(resolve("vercel.json"), "utf8"));
     const docker = readFileSync(resolve("Dockerfile"), "utf8");
     expect(pkg.scripts.prebuild).toBe("node build.mjs");
+    expect(pkg.scripts["build:migration-runner"]).toContain("--bundle --platform=node --format=cjs");
     expect(pkg.scripts["db:migrate:production"]).toBe("node scripts/migrate-production.mjs");
+    expect(pkg.scripts.start).toBe("node scripts/migrate.mjs && next start");
     expect(vercel.buildCommand).toBe("npm run build");
-    expect(docker).not.toContain("migrate.mjs &&");
+    expect(docker).toContain("RUN npm run build:migration-runner");
+    expect(docker).toContain('CMD ["sh", "-c", "node scripts/migrate.bundle.cjs && exec node server.js"]');
   });
 
   it("serializes concurrent deploys so the second runner observes the committed ledger", async () => {
