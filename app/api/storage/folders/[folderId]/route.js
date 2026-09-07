@@ -1,6 +1,6 @@
 import { requireSession } from "../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../src/server/campaign-contacts.js";
-import { deleteStorageItem, renameStorageItem } from "../../../../../src/server/storage-center.js";
+import { deleteStorageItem, renameStorageItem, toggleStorageFolderPin } from "../../../../../src/server/storage-center.js";
 
 export async function PATCH(request, { params }) {
   const auth = await requireSession(request);
@@ -9,6 +9,7 @@ export async function PATCH(request, { params }) {
   try {
     const { folderId } = await params;
     const body = await request.json().catch(() => ({}));
+    if (typeof body.pinned === "boolean") return Response.json({ ok: true, item: await toggleStorageFolderPin(auth.session, folderId, body.pinned) });
     return Response.json({ ok: true, item: await renameStorageItem(auth.session, "folder", folderId, body.name) });
   } catch (error) {
     return Response.json({ ok: false, code: error?.code || "UPDATE_FOLDER_FAILED", message: error?.message || "تعذر تحديث المجلد." }, { status: Number(error?.status || 500) });

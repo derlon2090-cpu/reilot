@@ -83,6 +83,13 @@ try {
   createdIds.push(document.payload.document.id);
   createdDocumentIds.push(document.payload.document.id);
 
+  const pinned = await api(`/api/storage/folders/${parent.payload.folder.id}`, { method: "PATCH", body: JSON.stringify({ pinned: true }) });
+  assert(pinned.status === 200 && pinned.payload.item?.isPinned === true, "The important folder could not be pinned.");
+  const largestFolders = await api("/api/storage?type=folder&sort=size");
+  const measuredParent = largestFolders.payload.storage?.folders?.find((item) => item.id === parent.payload.folder.id);
+  assert(largestFolders.status === 200 && measuredParent?.isPinned === true, "Pinned folders were not returned by the filtered storage view.");
+  assert(Number(measuredParent?.sizeBytes || 0) > 0, "Recursive folder size did not include its nested document.");
+
   const opened = await api(`/api/storage/documents/${document.payload.document.id}`);
   assert(opened.status === 200, "The encrypted account document could not be opened.");
   assert(opened.payload.document.password === `secret-${suffix}`, "The account password did not decrypt correctly.");
@@ -102,6 +109,10 @@ try {
   await fs.mkdir(artifactDirectory, { recursive: true });
   await page.goto(`${baseURL}/dashboard/storage`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: folderName, exact: true }).waitFor();
+  await page.locator('[data-action="storage-usage-details"]').first().click();
+  await page.getByRole("heading", { name: "تفاصيل مساحة التخزين", exact: true }).waitFor();
+  await page.locator("#portal").getByText("سلة المحذوفات", { exact: true }).waitFor();
+  await page.locator('[data-action="close-modal"]').last().click();
   await page.screenshot({ path: path.join(artifactDirectory, "storage-center-overview.png"), fullPage: true });
   await page.goto(`${baseURL}/dashboard/storage?folder=${encodeURIComponent(child.payload.folder.id)}`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: documentTitle, exact: true }).waitFor();

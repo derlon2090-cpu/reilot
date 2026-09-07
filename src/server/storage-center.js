@@ -12,14 +12,26 @@ import {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DOCUMENT_TYPES = new Set(["note", "account", "code", "custom"]);
-const IMAGE_RULES = Object.freeze({
+const ASSET_RULES = Object.freeze({
   "image/jpeg": { extension: "jpg", valid: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
   "image/png": { extension: "png", valid: (b) => b[0] === 0x89 && b.subarray(1, 4).toString("ascii") === "PNG" },
-  "image/webp": { extension: "webp", valid: (b) => b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP" }
+  "image/webp": { extension: "webp", valid: (b) => b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP" },
+  "application/pdf": { extension: "pdf", valid: (b) => b.subarray(0, 5).toString("ascii") === "%PDF-" },
+  "text/plain": { extension: "txt", valid: () => true },
+  "text/csv": { extension: "csv", valid: () => true },
+  "application/msword": { extension: "doc", valid: (b) => b[0] === 0xd0 && b[1] === 0xcf },
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": { extension: "docx", valid: (b) => b[0] === 0x50 && b[1] === 0x4b },
+  "application/vnd.ms-excel": { extension: "xls", valid: (b) => b[0] === 0xd0 && b[1] === 0xcf },
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { extension: "xlsx", valid: (b) => b[0] === 0x50 && b[1] === 0x4b },
+  "application/zip": { extension: "zip", valid: (b) => b[0] === 0x50 && b[1] === 0x4b }
 });
 
 function storageImageMaxBytes() {
   return Math.max(1, Number(process.env.STORAGE_IMAGE_MAX_BYTES || 10 * 1024 * 1024));
+}
+
+function storageFileMaxBytes() {
+  return Math.max(storageImageMaxBytes(), Number(process.env.STORAGE_FILE_MAX_BYTES || 50 * 1024 * 1024));
 }
 
 function storageError(code, message, status = 400) {
@@ -113,6 +125,27 @@ async function ensureImagesFolder(session, runner = { query }) {
   return existing.rows[0].id;
 }
 
+async function ensureFilesFolder(session, runner = { query }) {
+  const inserted = await runner.query(
+    `INSERT INTO storage_folders(tenant_id,name,system_type,is_system,created_by)
+     VALUES($1,'الملفات','files',true,$2) ON CONFLICT DO NOTHING RETURNING id`,
+    [session.tenantId, session.userId]
+  );
+  if (inserted.rows[0]) return inserted.rows[0].id;
+  const existing = await runner.query(
+    `SELECT id FROM storage_folders WHERE tenant_id=$1 AND system_type='files' AND is_system=true AND deleted_at IS NULL LIMIT 1`,
+    [session.tenantId]
+  );
+  if (existing.rows[0]) return existing.rows[0].id;
+  const adopted = await runner.query(
+    `UPDATE storage_folders SET is_system=true,system_type='files',deleted_at=NULL,updated_at=now()
+      WHERE id=(SELECT id FROM storage_folders WHERE tenant_id=$1 AND parent_id IS NULL AND lower(name)=lower('الملفات') ORDER BY deleted_at NULLS FIRST,created_at LIMIT 1)
+      RETURNING id`, [session.tenantId]
+  );
+  if (!adopted.rows[0]) throw storageError("FILES_FOLDER_UNAVAILABLE", "تعذر تهيئة مجلد الملفات النظامي.", 500);
+  return adopted.rows[0].id;
+}
+
 async function requireFolder(session, folderId, runner = { query }) {
   if (!folderId) return null;
   if (!UUID.test(String(folderId))) throw storageError("FOLDER_NOT_FOUND", "المجلد غير موجود.", 404);
@@ -140,15 +173,15 @@ async function breadcrumbs(session, folderId, runner = { query }) {
 }
 
 function sortSql(sort) {
-  return ({ oldest: "created_at ASC", name: "lower(name) ASC", size: "size_bytes DESC", modified: "updated_at DESC" })[sort] || "created_at DESC";
+  return ({ oldest: "storage_assets.created_at ASC", name: "lower(storage_assets.name) ASC", size: "storage_assets.size_bytes DESC", modified: "storage_assets.updated_at DESC" })[sort] || "storage_assets.created_at DESC";
 }
 
 function folderSortSql(sort) {
-  return ({ oldest: "f.created_at ASC", name: "lower(f.name) ASC", size: '"itemCount" DESC', modified: "f.updated_at DESC" })[sort] || "f.created_at DESC";
+  return ({ oldest: "f.created_at ASC", name: "lower(f.name) ASC", size: '"sizeBytes" DESC', modified: "f.updated_at DESC" })[sort] || "f.is_pinned DESC,f.created_at DESC";
 }
 
 function documentSortSql(sort) {
-  return ({ oldest: "created_at ASC", name: "lower(title) ASC", size: "size_bytes DESC", modified: "updated_at DESC" })[sort] || "created_at DESC";
+  return ({ oldest: "storage_documents.created_at ASC", name: "lower(storage_documents.title) ASC", size: "storage_documents.size_bytes DESC", modified: "storage_documents.updated_at DESC" })[sort] || "storage_documents.created_at DESC";
 }
 
 async function signedAsset(row) {
@@ -171,7 +204,7 @@ export async function getStorageImageLibrary(session, input = {}) {
             asset.size_bytes AS "sizeBytes",asset.storage_key AS "storageKey",asset.status,asset.created_at AS "createdAt",
             (SELECT count(*)::int FROM tenant_salla_template_images reference WHERE reference.tenant_id=asset.tenant_id AND reference.storage_asset_id=asset.id) AS "usedInCount"
        FROM storage_assets asset WHERE asset.tenant_id=$1 AND asset.folder_id IN (SELECT id FROM image_folders)
-        AND asset.status='ready' AND asset.deleted_at IS NULL AND ($3='' OR lower(asset.name) LIKE '%'||$3||'%')
+        AND asset.status='ready' AND asset.mime_type LIKE 'image/%' AND asset.deleted_at IS NULL AND ($3='' OR lower(asset.name) LIKE '%'||$3||'%')
       ORDER BY asset.updated_at DESC LIMIT 200`,
     [session.tenantId, imagesFolderId, search]
   );
@@ -181,51 +214,81 @@ export async function getStorageImageLibrary(session, input = {}) {
 export async function getStorageCenter(session, input = {}) {
   const folderId = input.folderId || null;
   const queryText = cleanText(input.search, 100).toLowerCase();
+  const typeFilter = ["folder", "document", "image", "file", "note", "account", "code"].includes(input.type) ? input.type : "all";
+  const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(String(input.dateFrom || "")) ? input.dateFrom : null;
   if (folderId) await requireFolder(session, folderId);
   const imagesFolderId = await ensureImagesFolder(session);
+  const filesFolderId = await ensureFilesFolder(session);
   const [folderRows, allFolderRows, documentRows, assetRows, counts, recent, usage, trail] = await Promise.all([
     query(
-      `SELECT f.id,f.parent_id AS "parentId",f.name,f.description,f.is_system AS "isSystem",f.system_type AS "systemType",f.updated_at AS "updatedAt",
+      `WITH RECURSIVE folder_tree AS (
+         SELECT id AS root_id,id FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NULL
+         UNION ALL
+         SELECT tree.root_id,child.id FROM folder_tree tree JOIN storage_folders child ON child.parent_id=tree.id
+          WHERE child.tenant_id=$1 AND child.deleted_at IS NULL
+       ), folder_sizes AS (
+         SELECT tree.root_id,COALESCE(sum(document.size_bytes),0)::bigint AS document_bytes
+           FROM folder_tree tree LEFT JOIN storage_documents document ON document.folder_id=tree.id AND document.tenant_id=$1
+          GROUP BY tree.root_id
+       ), asset_sizes AS (
+         SELECT tree.root_id,COALESCE(sum(asset.size_bytes),0)::bigint AS asset_bytes
+           FROM folder_tree tree LEFT JOIN storage_assets asset ON asset.folder_id=tree.id AND asset.tenant_id=$1 AND asset.status='ready'
+          GROUP BY tree.root_id
+       )
+       SELECT f.id,f.parent_id AS "parentId",f.name,f.description,f.is_system AS "isSystem",f.system_type AS "systemType",f.is_pinned AS "isPinned",f.updated_at AS "updatedAt",
+              COALESCE(folder_sizes.document_bytes,0)+COALESCE(asset_sizes.asset_bytes,0) AS "sizeBytes",
               (SELECT count(*)::int FROM storage_folders c WHERE c.parent_id=f.id AND c.tenant_id=f.tenant_id AND c.deleted_at IS NULL)
               +(SELECT count(*)::int FROM storage_documents d WHERE d.folder_id=f.id AND d.tenant_id=f.tenant_id AND d.deleted_at IS NULL)
               +(SELECT count(*)::int FROM storage_assets a WHERE a.folder_id=f.id AND a.tenant_id=f.tenant_id AND a.deleted_at IS NULL AND a.status='ready') AS "itemCount"
-         FROM storage_folders f
+         FROM storage_folders f LEFT JOIN folder_sizes ON folder_sizes.root_id=f.id LEFT JOIN asset_sizes ON asset_sizes.root_id=f.id
         WHERE f.tenant_id=$1 AND f.deleted_at IS NULL AND ($3<>'' OR f.parent_id IS NOT DISTINCT FROM $2::uuid)
-          AND ($3='' OR lower(f.name) LIKE '%'||$3||'%') ORDER BY f.is_system DESC,${folderSortSql(input.sort)}`,
-      [session.tenantId, folderId, queryText]
+          AND ($3='' OR lower(f.name) LIKE '%'||$3||'%') AND $4 IN ('all','folder') AND ($5::date IS NULL OR f.created_at >= $5::date)
+        ORDER BY f.is_system DESC,${folderSortSql(input.sort)}`,
+      [session.tenantId, folderId, queryText, typeFilter, dateFrom]
     ),
     query(
-      `SELECT id,parent_id AS "parentId",name,is_system AS "isSystem",system_type AS "systemType"
+      `SELECT id,parent_id AS "parentId",name,is_system AS "isSystem",system_type AS "systemType",is_pinned AS "isPinned"
          FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NULL ORDER BY is_system DESC,lower(name)`,
       [session.tenantId]
     ),
     query(
-      `SELECT id,folder_id AS "folderId",title AS name,type,size_bytes AS "sizeBytes",is_favorite AS "isFavorite",created_at AS "createdAt",updated_at AS "updatedAt"
-         FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NULL
-          AND ($3<>'' OR (($2::uuid IS NULL AND folder_id IS NULL) OR folder_id=$2))
-          AND ($3='' OR lower(title) LIKE '%'||$3||'%' OR EXISTS(
+      `SELECT storage_documents.id,folder_id AS "folderId",title AS name,type,size_bytes AS "sizeBytes",is_favorite AS "isFavorite",storage_documents.created_at AS "createdAt",storage_documents.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",
+              COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location
+         FROM storage_documents LEFT JOIN users owner ON owner.id=storage_documents.created_by LEFT JOIN storage_folders folder ON folder.id=storage_documents.folder_id
+         WHERE storage_documents.tenant_id=$1 AND storage_documents.deleted_at IS NULL
+          AND ($3<>'' OR (($2::uuid IS NULL AND storage_documents.folder_id IS NULL) OR storage_documents.folder_id=$2))
+          AND ($3='' OR lower(storage_documents.title) LIKE '%'||$3||'%' OR EXISTS(
             SELECT 1 FROM storage_document_fields field WHERE field.document_id=storage_documents.id AND lower(field.label) LIKE '%'||$3||'%'
           ) OR EXISTS(
             SELECT 1 FROM storage_account_entries account WHERE account.document_id=storage_documents.id AND lower(account.account_name) LIKE '%'||$3||'%'
-          )) ORDER BY ${documentSortSql(input.sort)} LIMIT 100`,
-      [session.tenantId, folderId, queryText]
+          )) AND ($4 IN ('all','document') OR storage_documents.type=$4) AND ($5::date IS NULL OR storage_documents.created_at >= $5::date)
+        ORDER BY ${documentSortSql(input.sort)} LIMIT 100`,
+      [session.tenantId, folderId, queryText, typeFilter, dateFrom]
     ),
     query(
-      `SELECT id,folder_id AS "folderId",name,original_name AS "originalName",mime_type AS "mimeType",extension,size_bytes AS "sizeBytes",storage_key AS "storageKey",width,height,status,created_at AS "createdAt",updated_at AS "updatedAt",
+      `SELECT storage_assets.id,folder_id AS "folderId",storage_assets.name,original_name AS "originalName",mime_type AS "mimeType",extension,size_bytes AS "sizeBytes",storage_key AS "storageKey",width,height,status,storage_assets.created_at AS "createdAt",storage_assets.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",
+              COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location,
               (SELECT count(*)::int FROM tenant_salla_template_images reference WHERE reference.tenant_id=storage_assets.tenant_id AND reference.storage_asset_id=storage_assets.id) AS "usedInCount"
-         FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status='ready'
-          AND ($3<>'' OR (($2::uuid IS NULL AND folder_id IS NULL) OR folder_id=$2))
-          AND ($3='' OR lower(name) LIKE '%'||$3||'%') ORDER BY ${sortSql(input.sort)} LIMIT 100`,
-      [session.tenantId, folderId, queryText]
+         FROM storage_assets LEFT JOIN users owner ON owner.id=storage_assets.created_by LEFT JOIN storage_folders folder ON folder.id=storage_assets.folder_id
+         WHERE storage_assets.tenant_id=$1 AND storage_assets.deleted_at IS NULL AND storage_assets.status='ready'
+          AND ($3<>'' OR (($2::uuid IS NULL AND storage_assets.folder_id IS NULL) OR storage_assets.folder_id=$2))
+          AND ($3='' OR lower(storage_assets.name) LIKE '%'||$3||'%')
+          AND ($4='all' OR ($4='image' AND storage_assets.mime_type LIKE 'image/%') OR ($4='file' AND storage_assets.mime_type NOT LIKE 'image/%'))
+          AND ($5::date IS NULL OR storage_assets.created_at >= $5::date)
+        ORDER BY ${sortSql(input.sort)} LIMIT 100`,
+      [session.tenantId, folderId, queryText, typeFilter, dateFrom]
     ),
     query(
       `SELECT
         (SELECT count(*)::int FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NULL) AS folders,
         (SELECT count(*)::int FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NULL) AS documents,
-        (SELECT count(*)::int FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status='ready') AS images,
+        (SELECT count(*)::int FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status='ready' AND mime_type LIKE 'image/%') AS images,
         (SELECT count(*)::int FROM storage_activity WHERE tenant_id=$1 AND created_at>now()-interval '7 days') AS recent,
-        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status IN ('uploading','ready')) AS "imageBytes",
-        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NULL) AS "documentBytes"`,
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status IN ('uploading','ready') AND mime_type LIKE 'image/%') AS "imageBytes",
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status IN ('uploading','ready') AND mime_type NOT LIKE 'image/%') AS "fileBytes",
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NULL) AS "documentBytes",
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL) +
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NOT NULL) AS "trashBytes"`,
       [session.tenantId]
     ),
     query(
@@ -237,6 +300,9 @@ export async function getStorageCenter(session, input = {}) {
     breadcrumbs(session, folderId)
   ]);
   const assets = await Promise.all(assetRows.rows.map((row) => signedAsset(row).catch(() => row)));
+  const recentlyOpened = [...documentRows.rows, ...assets]
+    .filter((item) => item.lastOpenedAt)
+    .sort((a, b) => new Date(b.lastOpenedAt) - new Date(a.lastOpenedAt)).slice(0, 6);
   return {
     folders: folderRows.rows,
     allFolders: allFolderRows.rows,
@@ -247,13 +313,17 @@ export async function getStorageCenter(session, input = {}) {
     usage,
     breakdown: {
       images: Number(counts.rows[0]?.imageBytes || 0),
+      files: Number(counts.rows[0]?.fileBytes || 0),
       documents: Number(counts.rows[0]?.documentBytes || 0),
-      other: Math.max(0, Number(usage.usedBytes || 0) - Number(counts.rows[0]?.imageBytes || 0) - Number(counts.rows[0]?.documentBytes || 0))
+      trash: Number(counts.rows[0]?.trashBytes || 0),
+      other: Math.max(0, Number(usage.usedBytes || 0) - Number(counts.rows[0]?.imageBytes || 0) - Number(counts.rows[0]?.fileBytes || 0) - Number(counts.rows[0]?.documentBytes || 0))
     },
+    recentlyOpened,
     breadcrumbs: trail,
     currentFolderId: folderId,
     imagesFolderId,
-    limits: { imageMaxBytes: storageImageMaxBytes() }
+    filesFolderId,
+    limits: { imageMaxBytes: storageImageMaxBytes(), fileMaxBytes: storageFileMaxBytes() }
   };
 }
 
@@ -337,20 +407,23 @@ export async function getStorageDocument(session, documentId) {
   if (!UUID.test(String(documentId || ""))) throw storageError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   const result = await query(
     `SELECT d.id,d.folder_id AS "folderId",d.title,d.type,d.content,d.size_bytes AS "sizeBytes",d.created_at AS "createdAt",d.updated_at AS "updatedAt",
+            COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location,
             a.email_encrypted AS "emailEncrypted",a.password_encrypted AS "passwordEncrypted",a.code_encrypted AS "codeEncrypted"
        FROM storage_documents d LEFT JOIN storage_account_entries a ON a.document_id=d.id
+       LEFT JOIN users owner ON owner.id=d.created_by LEFT JOIN storage_folders folder ON folder.id=d.folder_id
       WHERE d.id=$1 AND d.tenant_id=$2 AND d.deleted_at IS NULL LIMIT 1`,
     [documentId, session.tenantId]
   );
   const row = result.rows[0];
   if (!row) throw storageError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
+  await query("UPDATE storage_documents SET last_opened_at=now() WHERE id=$1 AND tenant_id=$2", [documentId, session.tenantId]);
   const fields = await query(
     `SELECT f.id,f.label,f.value_encrypted AS "valueEncrypted",f.position FROM storage_document_fields f
       JOIN storage_documents d ON d.id=f.document_id WHERE f.document_id=$1 AND d.tenant_id=$2 ORDER BY f.position`,
     [documentId, session.tenantId]
   );
   return {
-    id: row.id, folderId: row.folderId, title: row.title, type: row.type, content: row.content, sizeBytes: Number(row.sizeBytes || 0), createdAt: row.createdAt, updatedAt: row.updatedAt,
+    id: row.id, folderId: row.folderId, title: row.title, type: row.type, content: row.content, sizeBytes: Number(row.sizeBytes || 0), createdAt: row.createdAt, updatedAt: row.updatedAt, owner: row.owner, location: row.location,
     email: decryptStorageValue(row.emailEncrypted), password: decryptStorageValue(row.passwordEncrypted), code: decryptStorageValue(row.codeEncrypted),
     fields: fields.rows.map((field) => ({ id: field.id, label: field.label, value: decryptStorageValue(field.valueEncrypted), position: field.position }))
   };
@@ -428,26 +501,37 @@ export async function createStorageAssetUpload(session, input = {}) {
     await Promise.allSettled(expired.rows.map((row) => deletePrivateObject(row.storageKey)));
   }
   const mimeType = String(input.mimeType || "").toLowerCase();
-  const rule = IMAGE_RULES[mimeType];
-  if (!rule) throw storageError("ASSET_TYPE_NOT_ALLOWED", "الصيغة المدعومة هي JPG أو PNG أو WEBP فقط.");
+  const rule = ASSET_RULES[mimeType];
+  if (!rule) throw storageError("ASSET_TYPE_NOT_ALLOWED", "نوع الملف غير مدعوم.");
   const size = Math.floor(Number(input.size || 0));
-  const maxBytes = storageImageMaxBytes();
-  if (!size || size > maxBytes) throw storageError("ASSET_TOO_LARGE", `يجب ألا يتجاوز حجم الصورة ${Math.round(maxBytes / 1024 / 1024)} ميجابايت.`);
-  const name = cleanText(input.name, 180) || `image.${rule.extension}`;
+  const isImage = mimeType.startsWith("image/");
+  const maxBytes = isImage ? storageImageMaxBytes() : storageFileMaxBytes();
+  if (!size || size > maxBytes) throw storageError("ASSET_TOO_LARGE", `يجب ألا يتجاوز الحجم ${Math.round(maxBytes / 1024 / 1024)} ميجابايت.`);
+  const name = cleanText(input.name, 180) || `file.${rule.extension}`;
+  const contentHash = String(input.contentHash || "").trim().toLowerCase();
+  if (contentHash && !/^[0-9a-f]{64}$/.test(contentHash)) throw storageError("INVALID_CONTENT_HASH", "بصمة الملف غير صالحة.");
+  if (contentHash) {
+    const duplicate = await query(
+      `SELECT id,folder_id AS "folderId",name,original_name AS "originalName",mime_type AS "mimeType",size_bytes AS "sizeBytes",storage_key AS "storageKey",status,created_at AS "createdAt"
+         FROM storage_assets WHERE tenant_id=$1 AND content_hash=$2 AND size_bytes=$3 AND mime_type=$4 AND status='ready' AND deleted_at IS NULL LIMIT 1`,
+      [session.tenantId, contentHash, size, mimeType]
+    );
+    if (duplicate.rows[0]) return { duplicate: true, existing: await signedAsset(duplicate.rows[0]) };
+  }
   const id = crypto.randomUUID();
-  const folderId = input.folderId || await ensureImagesFolder(session);
+  const folderId = input.folderId || (isImage ? await ensureImagesFolder(session) : await ensureFilesFolder(session));
   await requireFolder(session, folderId);
   const environment = process.env.NODE_ENV === "production" ? "production" : "staging";
-  const objectKey = `${environment}/storage/${session.tenantId}/images/${id}.${rule.extension}`;
+  const objectKey = `${environment}/storage/${session.tenantId}/${isImage ? "images" : "files"}/${id}.${rule.extension}`;
   const row = await transaction(async (client) => {
     await client.query("SELECT id FROM tenants WHERE id=$1 FOR UPDATE", [session.tenantId]);
     const usage = await getTenantStorageLimitState(session.tenantId, client);
     if (!usage.isUnlimited && size > Number(usage.remainingBytes || 0)) throw storageError("STORAGE_QUOTA_EXCEEDED", "مساحة التخزين غير كافية.", 403);
     const result = await client.query(
-      `INSERT INTO storage_assets(id,tenant_id,folder_id,name,original_name,mime_type,extension,size_bytes,storage_key,status,upload_expires_at,created_by)
-       VALUES($1,$2,$3,$4,$4,$5,$6,$7,$8,'uploading',now()+interval '30 minutes',$9)
+      `INSERT INTO storage_assets(id,tenant_id,folder_id,name,original_name,mime_type,extension,size_bytes,storage_key,status,upload_expires_at,created_by,content_hash)
+       VALUES($1,$2,$3,$4,$4,$5,$6,$7,$8,'uploading',now()+interval '30 minutes',$9,$10)
        RETURNING id,name,mime_type AS "mimeType",size_bytes AS "sizeBytes",status`,
-      [id, session.tenantId, folderId, name, mimeType, rule.extension, size, objectKey, session.userId]
+      [id, session.tenantId, folderId, name, mimeType, rule.extension, size, objectKey, session.userId, contentHash || null]
     );
     return result.rows[0];
   });
@@ -481,7 +565,7 @@ export async function completeStorageAssetUpload(session, assetId) {
     if (inspected.size !== Number(row.sizeBytes)) throw storageError("UPLOAD_SIZE_MISMATCH", "حجم الصورة المرفوعة لا يطابق الحجم المتوقع.", 409);
     if (inspected.contentType !== row.mimeType) throw storageError("UPLOAD_MIME_MISMATCH", "نوع الصورة المرفوعة لا يطابق النوع المتوقع.", 409);
     const prefix = await readPrivateObjectPrefix(row.storageKey, 32);
-    if (!IMAGE_RULES[row.mimeType]?.valid(prefix)) throw storageError("UPLOAD_MIME_MISMATCH", "محتوى الصورة لا يطابق صيغتها.", 409);
+    if (!ASSET_RULES[row.mimeType]?.valid(prefix)) throw storageError("UPLOAD_MIME_MISMATCH", "محتوى الملف لا يطابق صيغته.", 409);
     const updated = await query(
       `UPDATE storage_assets SET status='ready',upload_expires_at=NULL,object_etag=$3,updated_at=now() WHERE id=$1 AND tenant_id=$2 AND status='uploading'
        RETURNING id,name,original_name AS "originalName",mime_type AS "mimeType",size_bytes AS "sizeBytes",storage_key AS "storageKey",status,created_at AS "createdAt"`,
@@ -490,7 +574,7 @@ export async function completeStorageAssetUpload(session, assetId) {
     await query(
       `INSERT INTO storage_activity(tenant_id,user_id,action,resource_type,resource_id,metadata)
        VALUES($1,$2,'UPLOAD_IMAGE','asset',$3,$4::jsonb)`,
-      [session.tenantId, session.userId, assetId, JSON.stringify({ name: row.name, size: inspected.size })]
+      [session.tenantId, session.userId, assetId, JSON.stringify({ name: row.name, size: inspected.size, mimeType: row.mimeType })]
     );
     return signedAsset(updated.rows[0] || row);
   } catch (error) {
@@ -511,6 +595,7 @@ export async function getStorageAssetDownload(session, assetId, { download = fal
   );
   const row = result.rows[0];
   if (!row) throw storageError("ASSET_NOT_FOUND", "الصورة غير موجودة.", 404);
+  await query("UPDATE storage_assets SET last_opened_at=now() WHERE id=$1 AND tenant_id=$2", [assetId, session.tenantId]);
   return createPrivateDownload(row.storageKey, { filename: row.originalName, disposition: download ? "attachment" : "inline" });
 }
 
@@ -608,11 +693,55 @@ export async function moveStorageItem(session, kind, id, folderIdValue) {
 
 export async function getStorageTrash(session) {
   const [folders, documents, assets] = await Promise.all([
-    query("SELECT id,name,'folder' AS kind,0::bigint AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 100", [session.tenantId]),
-    query("SELECT id,title AS name,'document' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 100", [session.tenantId]),
-    query("SELECT id,name,'asset' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 100", [session.tenantId])
+    query(`SELECT folder.id,folder.name,'folder' AS kind,
+      (WITH RECURSIVE tree AS (SELECT folder.id UNION ALL SELECT child.id FROM storage_folders child JOIN tree ON child.parent_id=tree.id WHERE child.tenant_id=$1)
+       SELECT COALESCE((SELECT sum(size_bytes) FROM storage_documents WHERE tenant_id=$1 AND folder_id IN (SELECT id FROM tree)),0)+COALESCE((SELECT sum(size_bytes) FROM storage_assets WHERE tenant_id=$1 AND folder_id IN (SELECT id FROM tree)),0))::bigint AS "sizeBytes",
+      folder.deleted_at AS "deletedAt" FROM storage_folders folder
+      LEFT JOIN storage_folders parent ON parent.id=folder.parent_id
+      WHERE folder.tenant_id=$1 AND folder.deleted_at IS NOT NULL AND (parent.id IS NULL OR parent.deleted_at IS NULL)
+      ORDER BY folder.deleted_at DESC LIMIT 100`, [session.tenantId]),
+    query("SELECT id,title AS name,'document' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NOT NULL AND (folder_id IS NULL OR NOT EXISTS(SELECT 1 FROM storage_folders folder WHERE folder.id=storage_documents.folder_id AND folder.deleted_at IS NOT NULL)) ORDER BY deleted_at DESC LIMIT 100", [session.tenantId]),
+    query("SELECT id,name,'asset' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM storage_folders folder WHERE folder.id=storage_assets.folder_id AND folder.deleted_at IS NOT NULL) ORDER BY deleted_at DESC LIMIT 100", [session.tenantId])
   ]);
   return [...folders.rows, ...documents.rows, ...assets.rows].sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt)).slice(0, 150);
+}
+
+export async function toggleStorageFolderPin(session, folderId, pinned) {
+  if (!UUID.test(String(folderId || ""))) throw storageError("FOLDER_NOT_FOUND", "المجلد غير موجود.", 404);
+  const result = await query(
+    `UPDATE storage_folders SET is_pinned=$3,updated_at=now()
+      WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL
+      RETURNING id,is_pinned AS "isPinned"`,
+    [folderId, session.tenantId, Boolean(pinned)]
+  );
+  if (!result.rows[0]) throw storageError("FOLDER_NOT_FOUND", "المجلد غير موجود.", 404);
+  return result.rows[0];
+}
+
+export async function emptyStorageTrash(session) {
+  const assets = await query(
+    `SELECT storage_key AS "storageKey",size_bytes AS "sizeBytes" FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL`,
+    [session.tenantId]
+  );
+  if (assets.rows.length) await deletePrivateObjectsAndVerify(assets.rows.map((row) => row.storageKey));
+  return transaction(async (client) => {
+    const totals = await client.query(
+      `SELECT
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL)+
+        (SELECT COALESCE(sum(size_bytes),0)::bigint FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NOT NULL) AS bytes`,
+      [session.tenantId]
+    );
+    await client.query("DELETE FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL", [session.tenantId]);
+    await client.query("DELETE FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NOT NULL", [session.tenantId]);
+    const folders = await client.query(
+      `WITH RECURSIVE tree AS (
+         SELECT id,0 AS depth FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NOT NULL
+         UNION ALL SELECT child.id,parent.depth+1 FROM storage_folders child JOIN tree parent ON child.parent_id=parent.id WHERE child.tenant_id=$1
+       ) SELECT DISTINCT id,max(depth) AS depth FROM tree GROUP BY id ORDER BY depth DESC`, [session.tenantId]
+    );
+    for (const folder of folders.rows) await client.query("DELETE FROM storage_folders WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NOT NULL", [folder.id, session.tenantId]);
+    return { emptied: true, freedBytes: Number(totals.rows[0]?.bytes || 0) };
+  });
 }
 
 export async function restoreStorageItem(session, kind, id) {

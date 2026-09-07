@@ -856,11 +856,15 @@ state.storageCenter = null;
 state.storageCurrentFolderId = state.query.get("folder") || "";
 state.storageSearch = "";
 state.storageSort = storage.get("renvix.storage.sort", "newest");
+state.storageTypeFilter = "all";
+state.storageDateFrom = "";
 state.storageView = storage.get("renvix.storage.view", "grid");
 state.storageComposeType = "";
 state.storageDocument = null;
 state.storageEditingDocument = null;
 state.storageUploading = false;
+state.storageUploads = [];
+state.storageUploadRequests = new Map();
 state.publicNewsletter = null;
 state.publicNewsletterRequestedId = "";
 state.readiness = null;
@@ -1651,6 +1655,8 @@ function syncRouteData(force = false) {
     if (folderId) params.set("folder", folderId);
     if (state.storageSearch.trim()) params.set("search", state.storageSearch.trim());
     params.set("sort", state.storageSort || "newest");
+    if (state.storageTypeFilter !== "all") params.set("type", state.storageTypeFilter);
+    if (state.storageDateFrom) params.set("dateFrom", state.storageDateFrom);
     state.storageCurrentFolderId = folderId || "";
     queue("storageCenter", `/api/storage?${params}`, "storageCenter");
   }
@@ -8746,32 +8752,58 @@ async function uploadStorageImages(fileList) {
   const files = [...(fileList || [])];
   if (!files.length || state.storageUploading) return;
   state.storageUploading = true;
+  state.storageUploads = files.map((file) => ({ id: crypto.randomUUID(), name: file.name, progress: 0, status: "queued", file }));
   render();
   let uploaded = 0;
+  let reused = 0;
   try {
-    for (const file of files) {
+    for (const task of state.storageUploads) {
+      const file = task.file;
       let assetId = "";
       try {
-        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error(`${file.name}: صيغة الصورة غير مدعومة.`);
+        task.status = "hashing"; render();
+        const contentHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer()))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+        if (task.status === "cancelled") throw Object.assign(new Error(`أُلغي رفع ${file.name}.`), { cancelled: true });
         const payload = await fetchJson("/api/storage/assets/upload", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: file.name, mimeType: file.type, size: file.size, folderId: state.storageCurrentFolderId || undefined })
+          body: JSON.stringify({ name: file.name, mimeType: file.type || "application/octet-stream", size: file.size, contentHash, folderId: state.storageCurrentFolderId || undefined })
         });
+        if (payload.duplicate && payload.existing) {
+          task.status = "duplicate"; task.progress = 100; task.existing = payload.existing;
+          reused += 1; render();
+          continue;
+        }
         assetId = payload.asset.id;
-        const upload = await fetch(payload.upload.url, { method: payload.upload.method || "PUT", headers: payload.upload.headers || { "Content-Type": file.type }, body: file });
-        if (!upload.ok) throw new Error(`تعذر رفع ${file.name} إلى التخزين الخاص.`);
+        task.status = "uploading";
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          state.storageUploadRequests.set(task.id, xhr);
+          xhr.open(payload.upload.method || "PUT", payload.upload.url, true);
+          Object.entries(payload.upload.headers || { "Content-Type": file.type }).forEach(([key, value]) => xhr.setRequestHeader(key, value));
+          xhr.upload.onprogress = (event) => { if (event.lengthComputable) { task.progress = Math.round((event.loaded / event.total) * 100); const bar = document.querySelector(`[data-storage-upload-id="${task.id}"] i`); if (bar) bar.style.width = `${task.progress}%`; const label = document.querySelector(`[data-storage-upload-id="${task.id}"] b`); if (label) label.textContent = `${task.progress}%`; } };
+          xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`تعذر رفع ${file.name} إلى التخزين الخاص.`));
+          xhr.onerror = () => reject(new Error(`انقطع الاتصال أثناء رفع ${file.name}.`));
+          xhr.onabort = () => reject(Object.assign(new Error(`أُلغي رفع ${file.name}.`), { cancelled: true }));
+          xhr.send(file);
+        });
+        state.storageUploadRequests.delete(task.id);
         await fetchJson(`/api/storage/assets/${encodeURIComponent(assetId)}/complete`, { method: "POST" });
+        task.status = "done"; task.progress = 100;
         uploaded += 1;
       } catch (error) {
+        state.storageUploadRequests.delete(task.id);
+        task.status = error.cancelled ? "cancelled" : "failed"; task.error = error.message;
         if (assetId) await fetch(`/api/storage/assets/${encodeURIComponent(assetId)}`, { method: "DELETE", credentials: "include" }).catch(() => {});
-        toast(error.message || `تعذر رفع ${file.name}.`, "danger");
+        if (!error.cancelled) toast(error.message || `تعذر رفع ${file.name}.`, "danger");
       }
+      render();
     }
   } finally {
     state.storageUploading = false;
     state.storageCenter = null;
     await syncRouteData(true);
-    if (uploaded) toast(`تم رفع ${uploaded.toLocaleString("ar-SA")} صورة بنجاح.`);
+    if (uploaded) toast(`تم رفع ${uploaded.toLocaleString("ar-SA")} ملف بنجاح.`);
+    if (reused) toast(`${reused.toLocaleString("ar-SA")} ملف موجود بالفعل — استُخدمت النسخة المحفوظة دون استهلاك مساحة إضافية.`);
   }
 }
 
@@ -8850,9 +8882,37 @@ async function handleAction(target) {
     storage.set("renvix.storage.view", state.storageView);
     return render();
   }
+  if (storageAction === "storage-create-menu") {
+    return openModal("إنشاء أو رفع", `<div class="storage-type-picker">${[["storage-new-folder","مجلد","folder"],["storage-create-note","ملاحظة","document"],["storage-create-account","بيانات حساب","key"],["storage-upload-files-trigger","رفع ملف","upload"],["storage-upload-trigger","رفع صورة","image"]].map(([action,label,icon]) => `<button data-action="${action}"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>إضافة إلى مركز التخزين</small></div>${dashboardIcon("chevron")}</button>`).join("")}</div>`);
+  }
+  if (storageAction === "storage-create-note" || storageAction === "storage-create-account") {
+    state.storageComposeType = storageAction === "storage-create-note" ? "note" : "account";
+    closePortal(); return render();
+  }
   if (storageAction === "storage-upload-trigger") {
+    closePortal();
     document.querySelector('[data-action="storage-image-input"]')?.click();
     return;
+  }
+  if (storageAction === "storage-upload-files-trigger") {
+    closePortal();
+    document.querySelector('[data-action="storage-file-input"]')?.click();
+    return;
+  }
+  if (storageAction === "storage-upload-cancel") {
+    const task = state.storageUploads.find((item) => item.id === target.dataset.id);
+    if (task) task.status = "cancelled";
+    state.storageUploadRequests.get(target.dataset.id)?.abort();
+    render();
+    return;
+  }
+  if (storageAction === "storage-upload-dismiss") {
+    state.storageUploads = []; return render();
+  }
+  if (storageAction === "storage-usage-details") {
+    const data = state.storageCenter?.storage || {}, usage = data.usage || {}, breakdown = data.breakdown || {};
+    const available = usage.isUnlimited ? "غير محدودة" : formatStorageBytes(Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0)));
+    return openDrawer("تفاصيل مساحة التخزين", `<div class="storage-space-drawer"><div class="storage-space-drawer-total"><span>${dashboardIcon("archive")}</span><div><small>المستخدم</small><strong>${formatStorageBytes(usage.usedBytes)} من ${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</strong></div><b>${Number(usage.percent || 0).toLocaleString("ar-SA")}%</b></div><div class="storage-usage-track"><i style="width:${Number(usage.progressPercent || 0)}%"></i></div><dl><div><dt>الصور</dt><dd>${formatStorageBytes(breakdown.images)}</dd></div><div><dt>الملفات</dt><dd>${formatStorageBytes(breakdown.files)}</dd></div><div><dt>المستندات والملاحظات</dt><dd>${formatStorageBytes(breakdown.documents)}</dd></div><div><dt>سلة المحذوفات</dt><dd>${formatStorageBytes(breakdown.trash)}</dd></div><div><dt>المساحة المتاحة</dt><dd>${available}</dd></div></dl><button class="btn btn-primary" data-link="/dashboard/settings">إدارة المساحة</button></div>`);
   }
   if (storageAction === "storage-add-field") {
     const wrap = document.querySelector("[data-storage-custom-fields]");
@@ -8898,8 +8958,10 @@ async function handleAction(target) {
     return render();
   }
   if (storageAction === "storage-preview-image") {
-    const url = target.dataset.url;
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    const asset = (state.storageCenter?.storage?.assets || []).find((item) => item.id === target.dataset.id);
+    if (!asset) return;
+    const preview = asset.mimeType?.startsWith("image/") ? `<img class="storage-quick-preview-media" src="${escapeHtml(asset.previewUrl || "")}" alt="${escapeHtml(asset.name)}">` : asset.mimeType === "application/pdf" ? `<iframe class="storage-quick-preview-pdf" src="${escapeHtml(asset.previewUrl || "")}" title="${escapeHtml(asset.name)}"></iframe>` : `<div class="storage-quick-preview-generic">${dashboardIcon("document")}<p>تتوفر المعاينة السريعة للصور وPDF، ويمكن تنزيل هذا الملف لفتحه.</p></div>`;
+    return openDrawer("معاينة سريعة", `${preview}<div class="storage-item-facts"><h3>${escapeHtml(asset.name)}</h3><dl><div><dt>الحجم</dt><dd>${formatStorageBytes(asset.sizeBytes)}</dd></div><div><dt>تاريخ الرفع</dt><dd>${new Date(asset.createdAt).toLocaleString("ar-SA")}</dd></div><div><dt>صاحب الملف</dt><dd>${escapeHtml(asset.owner || "مستخدم Renvix")}</dd></div><div><dt>المكان</dt><dd>${escapeHtml(asset.location || "مركز التخزين")}</dd></div><div><dt>مستخدم في</dt><dd>${Number(asset.usedInCount || 0).toLocaleString("ar-SA")} قالب</dd></div></dl><button class="btn btn-secondary" data-action="storage-download-image" data-id="${escapeHtml(asset.id)}">${dashboardIcon("download")} تنزيل</button></div>`);
     return;
   }
   if (storageAction === "storage-item-menu") {
@@ -8907,7 +8969,14 @@ async function handleAction(target) {
     const id = target.dataset.id;
     const name = target.dataset.name || "العنصر";
     const usedIn = Math.max(0, Number(target.dataset.usedIn || 0));
-    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+    const pinAction = kind === "folder" ? `<button data-action="storage-toggle-pin" data-id="${escapeHtml(id)}" data-pinned="${target.dataset.pinned === "1" ? "0" : "1"}">${dashboardIcon("star")} ${target.dataset.pinned === "1" ? "إلغاء التثبيت" : "تثبيت أعلى القائمة"}</button>` : "";
+    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${pinAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+  }
+  if (storageAction === "storage-toggle-pin") {
+    target.disabled = true;
+    try { await fetchJson(`/api/storage/folders/${encodeURIComponent(target.dataset.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pinned: target.dataset.pinned === "1" }) }); closePortal(); state.storageCenter = null; await syncRouteData(true); toast(target.dataset.pinned === "1" ? "تم تثبيت المجلد." : "تم إلغاء تثبيت المجلد."); }
+    catch (error) { target.disabled = false; toast(error.message || "تعذر تحديث التثبيت.", "danger"); }
+    return;
   }
   if (storageAction === "storage-rename-prompt") {
     return openModal("إعادة تسمية", `<form class="grid" data-submit="storage-rename" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>الاسم الجديد</span><input class="input" name="name" required maxlength="180" value="${escapeHtml(target.dataset.name || "")}"></label><button class="btn btn-primary">حفظ الاسم</button></form>`);
@@ -8920,7 +8989,8 @@ async function handleAction(target) {
     try {
       const payload = await fetchJson("/api/storage/trash");
       const items = payload.items || [];
-      openModal("سلة المحذوفات", items.length ? `<div class="storage-trash-list">${items.map((item) => `<article><span>${dashboardIcon(item.kind === "folder" ? "folder" : item.kind === "asset" ? "image" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · حُذف ${new Date(item.deletedAt).toLocaleDateString("ar-SA")}</small></div><button data-action="storage-trash-restore" data-kind="${item.kind}" data-id="${item.id}">استعادة</button><button class="danger" data-action="storage-trash-permanent" data-kind="${item.kind}" data-id="${item.id}">حذف نهائي</button></article>`).join("")}</div>` : `<div class="storage-empty-trash">${dashboardIcon("delete")}<strong>سلة المحذوفات فارغة</strong><p>العناصر المحذوفة ستظهر هنا ويمكن استعادتها قبل الحذف النهائي.</p></div>`);
+      const trashBytes = items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0);
+      openModal("سلة المحذوفات", items.length ? `<div class="storage-trash-summary"><span>المحذوفات تشغل <b>${formatStorageBytes(trashBytes)}</b></span><button class="btn btn-danger" data-action="storage-trash-empty">إفراغ السلة</button></div><div class="storage-trash-list">${items.map((item) => `<article><span>${dashboardIcon(item.kind === "folder" ? "folder" : item.kind === "asset" ? "image" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · حُذف ${new Date(item.deletedAt).toLocaleDateString("ar-SA")}</small></div><button data-action="storage-trash-restore" data-kind="${item.kind}" data-id="${item.id}">استعادة</button><button class="danger" data-action="storage-trash-permanent" data-kind="${item.kind}" data-id="${item.id}">حذف نهائي</button></article>`).join("")}</div>` : `<div class="storage-empty-trash">${dashboardIcon("delete")}<strong>سلة المحذوفات فارغة</strong><p>العناصر المحذوفة ستظهر هنا ويمكن استعادتها قبل الحذف النهائي.</p></div>`);
     } catch (error) { openModal("سلة المحذوفات", `<div class="storage-empty-trash">${dashboardIcon("warning")}<strong>تعذر تحميل السلة</strong><p>${escapeHtml(error.message)}</p></div>`); }
     return;
   }
@@ -12333,6 +12403,13 @@ async function handleSubmit(form, event) {
     await requestCampaignStudioAICode(campaignForm);
     return;
   }
+  if (storageAction === "storage-trash-empty") {
+    if (!window.confirm("سيتم حذف جميع عناصر السلة نهائيًا ولا يمكن التراجع. هل تريد المتابعة؟")) return;
+    target.disabled = true;
+    try { const payload = await fetchJson("/api/storage/trash", { method: "DELETE" }); closePortal(); state.storageCenter = null; await syncRouteData(true); toast(`تم إفراغ السلة وتحرير ${formatStorageBytes(payload.result?.freedBytes || 0)}.`); }
+    catch (error) { target.disabled = false; toast(error.message || "تعذر إفراغ السلة.", "danger"); }
+    return;
+  }
   if (type === "storage-folder") {
     const button = form.querySelector('button[type="submit"]');
     setSubmitBusy(button, true, "جارٍ الإنشاء...");
@@ -14514,6 +14591,7 @@ function storageDocumentView(data) {
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon(isSecret ? "key" : "document")}</div><div><span>${storageTypeLabel(item.type)}</span><h1>${escapeHtml(item.title)}</h1><p>آخر تعديل ${new Date(item.updatedAt || item.createdAt).toLocaleString("ar-SA")}</p></div><div class="storage-view-actions"><button class="btn btn-primary" data-action="storage-edit-document">${dashboardIcon("edit")} تعديل</button><button class="btn btn-secondary" data-action="storage-close-document">العودة</button></div></header>
     <article class="card storage-document-view">${isSecret ? `<div class="storage-vault-read"><label><span>البريد الإلكتروني</span><span><input class="input" readonly value="${escapeHtml(item.email || "")}" dir="ltr"><button data-action="storage-copy-value" data-value="${escapeHtml(item.email || "")}">${dashboardIcon("copy")}</button></span></label><label><span>كلمة المرور</span><span><input class="input" type="password" readonly value="${escapeHtml(item.password || "")}" dir="ltr"><button data-action="toggle-password">${dashboardIcon("eye")}</button><button data-action="storage-copy-value" data-value="${escapeHtml(item.password || "")}">${dashboardIcon("copy")}</button></span></label><label><span>الكود / المفتاح</span><span><input class="input" type="password" readonly value="${escapeHtml(item.code || "")}" dir="ltr"><button data-action="toggle-password">${dashboardIcon("eye")}</button><button data-action="storage-copy-value" data-value="${escapeHtml(item.code || "")}">${dashboardIcon("copy")}</button></span></label>${(item.fields || []).map((field) => `<label><span>${escapeHtml(field.label)}</span><span><input class="input" readonly value="${escapeHtml(field.value)}"><button data-action="storage-copy-value" data-value="${escapeHtml(field.value)}">${dashboardIcon("copy")}</button></span></label>`).join("")}</div>` : `<div class="storage-rich-content">${item.content?.body || "<p>لا يوجد محتوى.</p>"}</div>`}</article>
+    <aside class="card storage-document-facts storage-item-facts"><h3>تفاصيل العنصر</h3><dl><div><dt>الحجم</dt><dd>${formatStorageBytes(item.sizeBytes)}</dd></div><div><dt>تاريخ الإنشاء</dt><dd>${new Date(item.createdAt).toLocaleString("ar-SA")}</dd></div><div><dt>صاحب المستند</dt><dd>${escapeHtml(item.owner || "مستخدم Renvix")}</dd></div><div><dt>المكان</dt><dd>${escapeHtml(item.location || "مركز التخزين")}</dd></div></dl></aside>
   </section>`);
 }
 
@@ -14530,25 +14608,33 @@ function storageCenterPage() {
   const assets = Array.isArray(data.assets) ? data.assets : [];
   const count = data.counts || {};
   const isImages = data.currentFolderId === data.imagesFolderId;
+  const isFiles = data.currentFolderId === data.filesFolderId;
   const currentFolder = (data.allFolders || []).find((item) => item.id === data.currentFolderId);
-  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}"><span>${dashboardIcon("folder")}</span><div><h3>${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
+  const usagePercent = Math.min(100, Math.max(0, Number(usage.percent || usage.progressPercent || 0)));
+  const availableBytes = usage.isUnlimited ? null : Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0));
+  const capacityWarning = usagePercent >= 95 ? `<aside class="storage-capacity-alert critical">${dashboardIcon("warning")}<div><strong>مساحتك أوشكت على الامتلاء</strong><span>تبقّى ${formatStorageBytes(availableBytes)} فقط. رقِّ الباقة لتجنب توقف الرفع.</span></div><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button></aside>` : usagePercent >= 80 ? `<aside class="storage-capacity-alert">${dashboardIcon("warning")}<div><strong>مساحتك قاربت على الامتلاء</strong><span>راجع الملفات الكبيرة أو أفرغ سلة المحذوفات.</span></div><button data-action="storage-usage-details">إدارة المساحة</button></aside>` : "";
+  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}"><span>${dashboardIcon("folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => `<article class="storage-file-card" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
-  const assetsMarkup = assets.map((asset) => `<article class="storage-image-card"><button class="storage-image-preview" data-action="storage-preview-image" data-url="${escapeHtml(asset.previewUrl || "")}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>`).join("");
+  const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
+  const uploadPanel = state.storageUploads.length ? `<section class="card storage-upload-panel"><header><div><h2>رفع الملفات</h2><small>${state.storageUploads.filter((item) => item.status === "done" || item.status === "duplicate").length.toLocaleString("ar-SA")} من ${state.storageUploads.length.toLocaleString("ar-SA")} ملفات</small></div>${state.storageUploading ? "" : `<button data-action="storage-upload-dismiss">إغلاق</button>`}</header><div>${state.storageUploads.map((task) => `<article data-storage-upload-id="${task.id}" class="is-${task.status}"><span>${dashboardIcon(task.file?.type?.startsWith("image/") ? "image" : "document")}</span><div><strong>${escapeHtml(task.name)}</strong><small>${task.status === "duplicate" ? "هذا الملف موجود بالفعل — استُخدمت النسخة الحالية" : task.status === "failed" ? escapeHtml(task.error || "فشل الرفع") : task.status === "cancelled" ? "أُلغي الرفع" : task.status === "hashing" ? "جارٍ اكتشاف الملفات المكررة..." : task.status === "done" ? "اكتمل الرفع" : "جارٍ الرفع"}</small><em><i style="width:${task.progress}%"></i></em></div><b>${task.progress}%</b>${["uploading","hashing","queued"].includes(task.status) ? `<button data-action="storage-upload-cancel" data-id="${task.id}" aria-label="إلغاء">×</button>` : ""}</article>`).join("")}</div></section>` : "";
   const empty = !folders.length && !documents.length && !assets.length;
   return dashboardShell(`<section class="storage-center">
     ${storageBreadcrumbs(data)}
-    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? "نظّم محتويات هذا المجلد وابحث فيها بسهولة." : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary" data-action="storage-new-folder">${dashboardIcon("folder")} ملف جديد</button><button class="btn btn-secondary" data-action="storage-new-document">${dashboardIcon("document")} مستند جديد</button><button class="btn btn-secondary" data-action="storage-upload-trigger">${dashboardIcon("upload")} رفع صور</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"></div></header>
+    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? "نظّم محتويات هذا المجلد وابحث فيها بسهولة." : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} إنشاء أو رفع</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
+    ${capacityWarning}
     <section class="storage-stats">
       <article><span>${dashboardIcon("folder")}</span><div><small>إجمالي المجلدات</small><strong>${Number(count.folders || 0).toLocaleString("ar-SA")}</strong><em>مجلدات منظمة</em></div></article>
       <article><span>${dashboardIcon("document")}</span><div><small>إجمالي المستندات</small><strong>${Number(count.documents || 0).toLocaleString("ar-SA")}</strong><em>مستند محفوظ</em></div></article>
       <article><span>${dashboardIcon("image")}</span><div><small>الصور المحفوظة</small><strong>${Number(count.images || 0).toLocaleString("ar-SA")}</strong><em>صورة محفوظة</em></div></article>
       <article><span>${dashboardIcon("clock")}</span><div><small>العناصر الحديثة</small><strong>${Number(count.recent || 0).toLocaleString("ar-SA")}</strong><em>خلال آخر 7 أيام</em></div></article>
+      <article class="storage-space-stat" data-action="storage-usage-details" role="button" tabindex="0"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين</small><strong><b dir="ltr">${formatStorageBytes(usage.usedBytes)}</b> <i>من <span dir="ltr">${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</span></i></strong><div class="storage-stat-progress"><b style="width:${Number(usage.progressPercent || 0)}%"></b></div><em>${usagePercent.toLocaleString("ar-SA")}% مستخدم · ${availableBytes === null ? "مساحة غير محدودة" : `<span dir="ltr">${formatStorageBytes(availableBytes)}</span> متاحة`}</em></div><button>إدارة المساحة</button></article>
     </section>
-    <section class="storage-usage-card"><div class="storage-usage-copy"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين المستخدمة</small><strong>${formatStorageBytes(usage.usedBytes)} <em>من ${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</em></strong></div><b>${Number(usage.percent || 0).toLocaleString("ar-SA")}%</b></div><div class="storage-usage-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(usage.progressPercent || 0)}"><i style="width:${Number(usage.progressPercent || 0)}%"></i></div><div class="storage-breakdown-inline"><span>الصور <b>${formatStorageBytes(data.breakdown?.images)}</b></span><span>المستندات <b>${formatStorageBytes(data.breakdown?.documents)}</b></span><span>بيانات المنصة <b>${formatStorageBytes(data.breakdown?.other)}</b></span></div></section>
-    <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في هذا الموقع..."></label><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الحجم</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
+    ${uploadPanel}
+    <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في الملفات والمجلدات والمستندات والحسابات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
       ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : "أنشئ مجلدًا أو مستندًا جديدًا، أو ارفع صورك لاستخدامها لاحقًا داخل Renvix."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : "storage-new-folder"}">${isImages ? "رفع صور" : "إنشاء مجلد"}</button></div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
     </section>
-    ${isImages ? `<button class="storage-dropzone" data-action="storage-upload-trigger">${dashboardIcon("cloud")}<strong>${state.storageUploading ? "جارٍ رفع الصور والتحقق منها..." : "ارفع صورك هنا"}</strong><span>اسحب الصور وأفلتها هنا أو اضغط لاختيار الملفات من جهازك</span><small>JPG, PNG, WEBP — حتى ${formatStorageBytes(data.limits?.imageMaxBytes || 10 * 1024 * 1024)} للصورة الواحدة</small></button>` : ""}
+    ${isImages || isFiles ? `<button class="storage-dropzone" data-action="${isImages ? "storage-upload-trigger" : "storage-upload-files-trigger"}">${dashboardIcon("cloud")}<strong>${state.storageUploading ? "جارٍ الرفع والتحقق..." : isImages ? "ارفع صورك هنا" : "ارفع ملفاتك هنا"}</strong><span>اسحب الملفات وأفلتها هنا أو اضغط للاختيار من جهازك</span><small>${isImages ? `JPG, PNG, WEBP — حتى ${formatStorageBytes(data.limits?.imageMaxBytes || 10 * 1024 * 1024)}` : `PDF, DOCX, XLSX, TXT, CSV, ZIP — حتى ${formatStorageBytes(data.limits?.fileMaxBytes || 50 * 1024 * 1024)}`}</small></button>` : ""}
+    ${(data.recentlyOpened || []).length ? `<section class="card storage-recent-files"><header><h2>فتحتها مؤخرًا</h2><small>وصول سريع إلى آخر العناصر التي استخدمتها</small></header><div>${data.recentlyOpened.map((item) => `<button data-action="${item.mimeType ? "storage-preview-image" : "storage-open-document"}" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.mimeType?.startsWith("image/") ? "image" : item.type === "account" ? "key" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · ${escapeHtml(item.location || "مركز التخزين")}</small></div></button>`).join("")}</div></section>` : ""}
     <section class="card storage-activity"><header><h2>النشاط الحديث</h2><button data-link="/dashboard/reports">عرض الكل</button></header><div>${(data.activity || []).length ? data.activity.slice(0, 5).map((item) => `<article><span>${dashboardIcon(item.action === "UPLOAD_IMAGE" ? "image" : item.action === "CREATE_FOLDER" ? "folder" : item.action === "DELETE_ITEM" ? "delete" : "document")}</span><div><strong>${storageActivityLabel(item)}</strong><small>${escapeHtml(item.metadata?.name || item.metadata?.title || storageTypeLabel(item.metadata?.type))}</small><time>${new Date(item.createdAt).toLocaleString("ar-SA", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</time></div></article>`).join("") : `<p>ستظهر هنا عمليات الرفع والإنشاء والتعديل.</p>`}</div></section>
   </section>`);
 }
@@ -15389,7 +15475,7 @@ document.addEventListener("wheel", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
-  if (target.dataset.action === "storage-image-input") {
+  if (target.dataset.action === "storage-image-input" || target.dataset.action === "storage-file-input") {
     void uploadStorageImages(target.files);
     target.value = "";
     return;
@@ -15400,6 +15486,12 @@ document.addEventListener("change", (event) => {
     state.storageCenter = null;
     syncRouteData(true);
     return;
+  }
+  if (target.dataset.action === "storage-type-filter") {
+    state.storageTypeFilter = target.value || "all"; state.storageCenter = null; syncRouteData(true); return;
+  }
+  if (target.dataset.action === "storage-date-filter") {
+    state.storageDateFrom = target.value || ""; state.storageCenter = null; syncRouteData(true); return;
   }
   if (target.matches?.('form[data-submit="ai-message"] input[name="images"]')) {
     addAIAttachments(target.files, target.form, { kind: "image" });
