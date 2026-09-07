@@ -15,6 +15,9 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  outputFileTracingIncludes: {
+    "/api/storage": ["./drizzle/0094_storage_center_insights.sql"]
+  },
   async headers() {
     const developmentScriptPolicy = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
     const securityHeaders = [

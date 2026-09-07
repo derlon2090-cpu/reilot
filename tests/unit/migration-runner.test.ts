@@ -72,6 +72,15 @@ describe("production migration safety", () => {
     expect(docker).toContain('CMD ["sh", "-c", "node scripts/migrate.bundle.cjs && exec node server.js"]');
   });
 
+  it("ships and runs the storage migration gate before authenticating the overview request", () => {
+    const route = readFileSync(resolve("app/api/storage/route.js"), "utf8");
+    const config = readFileSync(resolve("next.config.mjs"), "utf8");
+    expect(config).toContain('"/api/storage": ["./drizzle/0094_storage_center_insights.sql"]');
+    expect(route.indexOf("await ensureStorageCenterSchema()"))
+      .toBeLessThan(route.indexOf("await requireSession(request)"));
+    expect(route).toContain('code: "STORAGE_SCHEMA_UNAVAILABLE"');
+  });
+
   it("serializes concurrent deploys so the second runner observes the committed ledger", async () => {
     const shared = new SharedDatabase();
     const first = new MigrationClient("first", shared);
