@@ -97,11 +97,15 @@ try {
   assert(textDocumentResponse.status() === 201 && textDocumentPayload.document?.folderId === parent.payload.folder.id, "The text document was not saved inside the open folder.");
   createdIds.push(textDocumentPayload.document.id);
   createdDocumentIds.push(textDocumentPayload.document.id);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator(".storage-page-heading h1", { hasText: folderName }).waitFor();
   const textDocumentCard = page.locator(".storage-document-card", { hasText: textDocumentTitle });
   await textDocumentCard.getByRole("button", { name: "عرض المحتوى", exact: true }).click();
   await page.getByRole("heading", { name: textDocumentTitle, exact: true }).waitFor();
+  assert(new URL(page.url()).searchParams.get("document") === textDocumentPayload.document.id, "Opening the document did not create a stable document URL.");
   await page.getByText(textDocumentBody, { exact: true }).waitFor();
   await page.locator('[data-action="storage-close-document"]').click();
+  assert(!new URL(page.url()).searchParams.has("document"), "Closing the document left the document URL active.");
   const child = await api("/api/storage/folders", { method: "POST", body: JSON.stringify({ name: `مجلد داخلي ${suffix}`, parentId: parent.payload.folder.id }) });
   assert(child.status === 409 && child.payload.code === "NESTED_FOLDER_NOT_ALLOWED", "The API still allows a folder to be created inside another folder.");
 

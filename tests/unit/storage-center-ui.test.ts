@@ -32,6 +32,10 @@ describe("storage center form wiring", () => {
     expect(source).toContain("عنوان المستند");
     expect(source).toContain("محتوى المستند");
     expect(source).toContain("عرض المحتوى");
+    expect(source).toContain("async function openStorageDocument");
+    expect(source).toContain('url.searchParams.set("document", documentId)');
+    expect(source).toContain('action.dataset.action === "storage-open-document"');
+    expect(source).toContain("event.preventDefault()");
     expect(submitHandler).toContain("folderId: data.folderId || undefined");
   });
 

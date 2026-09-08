@@ -861,6 +861,7 @@ state.storageDateFrom = "";
 state.storageView = storage.get("renvix.storage.view", "grid");
 state.storageComposeType = "";
 state.storageDocument = null;
+state.storageDocumentLoadingId = "";
 state.storageEditingDocument = null;
 state.storageUploading = false;
 state.storageUploads = [];
@@ -1659,6 +1660,12 @@ function syncRouteData(force = false) {
     if (state.storageDateFrom) params.set("dateFrom", state.storageDateFrom);
     state.storageCurrentFolderId = folderId || "";
     queue("storageCenter", `/api/storage?${params}`, "storageCenter");
+  }
+  if (state.route === "/dashboard/storage") {
+    const requestedDocumentId = state.query.get("document") || "";
+    if (requestedDocumentId && requestedDocumentId !== state.storageDocument?.id && requestedDocumentId !== state.storageDocumentLoadingId) {
+      void openStorageDocument(requestedDocumentId, { updateHistory: false });
+    }
   }
   if (state.route.startsWith("/dashboard/support")) {
     const ticketRouteId = state.route.match(/^\/dashboard\/support\/tickets\/([^/]+)$/)?.[1];
@@ -8882,6 +8889,34 @@ async function autosaveStorageDocument(form) {
   }
 }
 
+function updateStorageDocumentUrl(documentId = "", { replace = false } = {}) {
+  const url = new URL(location.href);
+  if (documentId) url.searchParams.set("document", documentId);
+  else url.searchParams.delete("document");
+  history[replace ? "replaceState" : "pushState"]({}, "", `${url.pathname}${url.search}`);
+  state.query = new URLSearchParams(url.search);
+}
+
+async function openStorageDocument(documentId, { updateHistory = true } = {}) {
+  const id = String(documentId || "").trim();
+  if (!id || state.storageDocumentLoadingId === id) return;
+  if (updateHistory) updateStorageDocumentUrl(id);
+  state.storageDocumentLoadingId = id;
+  state.storageDocument = { id, loading: true };
+  render();
+  try {
+    const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}`);
+    if (state.storageDocumentLoadingId !== id) return;
+    state.storageDocument = payload.document;
+  } catch (error) {
+    if (state.storageDocumentLoadingId !== id) return;
+    state.storageDocument = { id, error: error.message || "تعذر فتح المستند." };
+  } finally {
+    if (state.storageDocumentLoadingId === id) state.storageDocumentLoadingId = "";
+  }
+  render();
+}
+
 async function handleAction(target) {
   const storageAction = target.dataset.action || "";
   if (storageAction === "storage-reload") {
@@ -8901,9 +8936,11 @@ async function handleAction(target) {
     return render();
   }
   if (storageAction === "storage-close-document") {
+    state.storageDocumentLoadingId = "";
     state.storageComposeType = "";
     state.storageDocument = null;
     state.storageEditingDocument = null;
+    if (state.query.get("document")) updateStorageDocumentUrl("");
     return render();
   }
   if (storageAction === "storage-edit-document") {
@@ -8911,6 +8948,8 @@ async function handleAction(target) {
     state.storageEditingDocument = state.storageDocument;
     state.storageComposeType = state.storageDocument.type;
     state.storageDocument = null;
+    state.storageDocumentLoadingId = "";
+    if (state.query.get("document")) updateStorageDocumentUrl("");
     return render();
   }
   if (storageAction === "storage-open-folder") {
@@ -9053,15 +9092,7 @@ async function handleAction(target) {
   if (storageAction === "storage-open-document") {
     const id = target.dataset.id;
     if (!id) return;
-    state.storageDocument = { loading: true };
-    render();
-    try {
-      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}`);
-      state.storageDocument = payload.document;
-    } catch (error) {
-      state.storageDocument = { error: error.message || "تعذر فتح المستند." };
-    }
-    return render();
+    return openStorageDocument(id);
   }
   if (storageAction === "storage-preview-image") {
     const asset = (state.storageCenter?.storage?.assets || []).find((item) => item.id === target.dataset.id);
@@ -15175,7 +15206,11 @@ document.addEventListener("click", (event) => {
   }
   if (action) {
     if ((action.classList.contains("modal-overlay") || action.classList.contains("drawer-overlay")) && event.target !== action) return;
-    handleAction(action);
+    if (action.dataset.action === "storage-open-document") {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    void handleAction(action);
   }
 });
 
@@ -15982,6 +16017,13 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("popstate", () => {
+  const requestedDocumentId = new URLSearchParams(location.search).get("document") || "";
+  if (!requestedDocumentId) {
+    state.storageDocumentLoadingId = "";
+    state.storageDocument = null;
+    state.storageEditingDocument = null;
+    state.storageComposeType = "";
+  }
   render();
   requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
 });
