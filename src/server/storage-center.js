@@ -12,6 +12,7 @@ import {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DOCUMENT_TYPES = new Set(["note", "account", "code", "custom"]);
+export const STORAGE_TRASH_RETENTION_DAYS = 15;
 const ASSET_RULES = Object.freeze({
   "image/jpeg": { extension: "jpg", valid: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
   "image/png": { extension: "png", valid: (b) => b[0] === 0x89 && b.subarray(1, 4).toString("ascii") === "PNG" },
@@ -487,7 +488,17 @@ export async function getStorageDocument(session, documentId) {
   );
   const row = result.rows[0];
   if (!row) throw storageError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
-  await query("UPDATE storage_documents SET last_opened_at=now() WHERE id=$1 AND tenant_id=$2", [documentId, session.tenantId]);
+  // Recently-opened metadata must never hold the document view behind a row
+  // lock (for example while an autosave is finishing). SKIP LOCKED keeps this
+  // best-effort update non-blocking while the actual document read stays fast.
+  await query(
+    `UPDATE storage_documents SET last_opened_at=now()
+      WHERE id IN (
+        SELECT id FROM storage_documents WHERE id=$1 AND tenant_id=$2
+        FOR UPDATE SKIP LOCKED
+      )`,
+    [documentId, session.tenantId]
+  );
   const fields = await query(
     `SELECT f.id,f.label,f.value_encrypted AS "valueEncrypted",f.position FROM storage_document_fields f
       JOIN storage_documents d ON d.id=f.document_id WHERE f.document_id=$1 AND d.tenant_id=$2 ORDER BY f.position`,
@@ -682,6 +693,7 @@ export async function deleteStorageItem(session, kind, id, { force = false } = {
   const tables = { folder: "storage_folders", document: "storage_documents", asset: "storage_assets" };
   const table = tables[kind];
   if (!table || !UUID.test(String(id || ""))) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود.", 404);
+  const deletedAt = new Date();
   const result = await transaction(async (client) => {
     const extra = kind === "folder" ? `,is_system AS "isSystem"` : kind === "asset" ? `,status,storage_key AS "storageKey"` : "";
     const found = await client.query(`SELECT id${extra} FROM ${table} WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL FOR UPDATE`, [id, session.tenantId]);
@@ -705,19 +717,27 @@ export async function deleteStorageItem(session, kind, id, { force = false } = {
          ) SELECT id FROM folder_tree`, [id, session.tenantId]
       );
       const ids = tree.rows.map((row) => row.id);
-      await client.query("UPDATE storage_documents SET deleted_at=now(),updated_at=now() WHERE tenant_id=$1 AND folder_id=ANY($2::uuid[]) AND deleted_at IS NULL", [session.tenantId, ids]);
-      await client.query("UPDATE storage_assets SET deleted_at=now(),updated_at=now() WHERE tenant_id=$1 AND folder_id=ANY($2::uuid[]) AND deleted_at IS NULL", [session.tenantId, ids]);
-      await client.query("UPDATE storage_folders SET deleted_at=now(),updated_at=now() WHERE tenant_id=$1 AND id=ANY($2::uuid[])", [session.tenantId, ids]);
+      await client.query("UPDATE storage_documents SET deleted_at=$3,updated_at=now() WHERE tenant_id=$1 AND folder_id=ANY($2::uuid[]) AND deleted_at IS NULL", [session.tenantId, ids, deletedAt]);
+      await client.query("UPDATE storage_assets SET deleted_at=$3,updated_at=now() WHERE tenant_id=$1 AND folder_id=ANY($2::uuid[]) AND deleted_at IS NULL", [session.tenantId, ids, deletedAt]);
+      await client.query("UPDATE storage_folders SET deleted_at=$3,updated_at=now() WHERE tenant_id=$1 AND id=ANY($2::uuid[])", [session.tenantId, ids, deletedAt]);
     } else if (kind === "asset" && found.rows[0].status === "uploading") {
       await client.query("DELETE FROM storage_assets WHERE id=$1 AND tenant_id=$2", [id, session.tenantId]);
     } else {
-      await client.query(`UPDATE ${table} SET deleted_at=now(),updated_at=now() WHERE id=$1 AND tenant_id=$2`, [id, session.tenantId]);
+      await client.query(`UPDATE ${table} SET deleted_at=$3,updated_at=now() WHERE id=$1 AND tenant_id=$2`, [id, session.tenantId, deletedAt]);
     }
     await client.query(
       `INSERT INTO storage_activity(tenant_id,user_id,action,resource_type,resource_id) VALUES($1,$2,'DELETE_ITEM',$3,$4)`,
       [session.tenantId, session.userId, kind, id]
     );
-    return { id, kind, deleted: true, objectKey: kind === "asset" && found.rows[0].status === "uploading" ? found.rows[0].storageKey : "" };
+    return {
+      id,
+      kind,
+      deleted: true,
+      deletedAt: deletedAt.toISOString(),
+      purgeAt: new Date(deletedAt.getTime() + STORAGE_TRASH_RETENTION_DAYS * 86400000).toISOString(),
+      retentionDays: STORAGE_TRASH_RETENTION_DAYS,
+      objectKey: kind === "asset" && found.rows[0].status === "uploading" ? found.rows[0].storageKey : ""
+    };
   });
   if (result.objectKey) await deletePrivateObject(result.objectKey).catch(() => {});
   delete result.objectKey;
@@ -783,12 +803,69 @@ export async function getStorageTrash(session) {
        SELECT COALESCE((SELECT sum(size_bytes) FROM storage_documents WHERE tenant_id=$1 AND folder_id IN (SELECT id FROM tree)),0)+COALESCE((SELECT sum(size_bytes) FROM storage_assets WHERE tenant_id=$1 AND folder_id IN (SELECT id FROM tree)),0))::bigint AS "sizeBytes",
       folder.deleted_at AS "deletedAt" FROM storage_folders folder
       LEFT JOIN storage_folders parent ON parent.id=folder.parent_id
-      WHERE folder.tenant_id=$1 AND folder.deleted_at IS NOT NULL AND (parent.id IS NULL OR parent.deleted_at IS NULL)
+      WHERE folder.tenant_id=$1 AND folder.deleted_at>now()-interval '15 days' AND (parent.id IS NULL OR parent.deleted_at IS NULL)
       ORDER BY folder.deleted_at DESC LIMIT 100`, [session.tenantId]),
-    query("SELECT id,title AS name,'document' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NOT NULL AND (folder_id IS NULL OR NOT EXISTS(SELECT 1 FROM storage_folders folder WHERE folder.id=storage_documents.folder_id AND folder.deleted_at IS NOT NULL)) ORDER BY deleted_at DESC LIMIT 100", [session.tenantId]),
-    query("SELECT id,name,'asset' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM storage_folders folder WHERE folder.id=storage_assets.folder_id AND folder.deleted_at IS NOT NULL) ORDER BY deleted_at DESC LIMIT 100", [session.tenantId])
+    query("SELECT id,title AS name,'document' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_documents WHERE tenant_id=$1 AND deleted_at>now()-interval '15 days' AND (folder_id IS NULL OR NOT EXISTS(SELECT 1 FROM storage_folders folder WHERE folder.id=storage_documents.folder_id AND folder.deleted_at IS NOT NULL)) ORDER BY deleted_at DESC LIMIT 100", [session.tenantId]),
+    query("SELECT id,name,'asset' AS kind,size_bytes AS \"sizeBytes\",deleted_at AS \"deletedAt\" FROM storage_assets WHERE tenant_id=$1 AND deleted_at>now()-interval '15 days' AND NOT EXISTS(SELECT 1 FROM storage_folders folder WHERE folder.id=storage_assets.folder_id AND folder.deleted_at IS NOT NULL) ORDER BY deleted_at DESC LIMIT 100", [session.tenantId])
   ]);
-  return [...folders.rows, ...documents.rows, ...assets.rows].sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt)).slice(0, 150);
+  return [...folders.rows, ...documents.rows, ...assets.rows]
+    .sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt))
+    .slice(0, 150)
+    .map((item) => ({
+      ...item,
+      expiresAt: new Date(new Date(item.deletedAt).getTime() + STORAGE_TRASH_RETENTION_DAYS * 86400000).toISOString(),
+      retentionDays: STORAGE_TRASH_RETENTION_DAYS
+    }));
+}
+
+export async function purgeExpiredStorageTrash(tenantId = "") {
+  const scoped = Boolean(tenantId);
+  const values = scoped ? [tenantId] : [];
+  const tenantFilter = scoped ? " AND tenant_id=$1" : "";
+  const expiredAssets = await query(
+    `SELECT storage_key AS "storageKey" FROM storage_assets
+      WHERE deleted_at IS NOT NULL AND deleted_at<=now()-interval '15 days'${tenantFilter}`,
+    values
+  );
+  if (expiredAssets.rows.length) {
+    await deletePrivateObjectsAndVerify(expiredAssets.rows.map((row) => row.storageKey));
+  }
+  return transaction(async (client) => {
+    const assets = await client.query(
+      `DELETE FROM storage_assets WHERE deleted_at IS NOT NULL AND deleted_at<=now()-interval '15 days'${tenantFilter}
+       RETURNING size_bytes AS "sizeBytes"`,
+      values
+    );
+    const documents = await client.query(
+      `DELETE FROM storage_documents WHERE deleted_at IS NOT NULL AND deleted_at<=now()-interval '15 days'${tenantFilter}
+       RETURNING size_bytes AS "sizeBytes"`,
+      values
+    );
+    const folders = await client.query(
+      `WITH RECURSIVE expired_tree AS (
+         SELECT id,0 AS depth FROM storage_folders
+          WHERE deleted_at IS NOT NULL AND deleted_at<=now()-interval '15 days'${tenantFilter}
+         UNION ALL
+         SELECT child.id,parent.depth+1 FROM storage_folders child
+          JOIN expired_tree parent ON child.parent_id=parent.id
+          WHERE child.deleted_at IS NOT NULL AND child.deleted_at<=now()-interval '15 days'
+       ) SELECT id,max(depth) AS depth FROM expired_tree GROUP BY id ORDER BY depth DESC`,
+      values
+    );
+    let deletedFolders = 0;
+    for (const folder of folders.rows) {
+      const removed = await client.query(
+        `DELETE FROM storage_folders f WHERE f.id=$1
+          AND NOT EXISTS(SELECT 1 FROM storage_folders child WHERE child.parent_id=f.id)
+          AND NOT EXISTS(SELECT 1 FROM storage_documents document WHERE document.folder_id=f.id)
+          AND NOT EXISTS(SELECT 1 FROM storage_assets asset WHERE asset.folder_id=f.id)`,
+        [folder.id]
+      );
+      deletedFolders += removed.rowCount;
+    }
+    const freedBytes = [...assets.rows, ...documents.rows].reduce((sum, row) => sum + Number(row.sizeBytes || 0), 0);
+    return { assets: assets.rowCount, documents: documents.rowCount, folders: deletedFolders, freedBytes };
+  });
 }
 
 export async function toggleStorageFolderPin(session, folderId, pinned) {
@@ -834,7 +911,7 @@ export async function restoreStorageItem(session, kind, id) {
   const table = tables[kind];
   if (!table || !UUID.test(String(id || ""))) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود.", 404);
   return transaction(async (client) => {
-    const current = await client.query(`SELECT id FROM ${table} WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NOT NULL FOR UPDATE`, [id, session.tenantId]);
+    const current = await client.query(`SELECT id FROM ${table} WHERE id=$1 AND tenant_id=$2 AND deleted_at>now()-interval '15 days' FOR UPDATE`, [id, session.tenantId]);
     if (!current.rows[0]) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود في السلة.", 404);
     if (kind === "folder") {
       const tree = await client.query("WITH RECURSIVE folder_tree AS (SELECT id FROM storage_folders WHERE id=$1 AND tenant_id=$2 UNION ALL SELECT f.id FROM storage_folders f JOIN folder_tree p ON f.parent_id=p.id WHERE f.tenant_id=$2) SELECT id FROM folder_tree", [id, session.tenantId]);

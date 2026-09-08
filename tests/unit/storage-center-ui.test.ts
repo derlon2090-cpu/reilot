@@ -36,7 +36,17 @@ describe("storage center form wiring", () => {
     expect(source).toContain('url.searchParams.set("document", documentId)');
     expect(source).toContain('action.dataset.action === "storage-open-document"');
     expect(source).toContain("event.preventDefault()");
+    expect(source).toContain("timeoutMs: 10_000");
+    expect(source).toContain('storageAction === "storage-retry-document"');
+    expect(source).toContain("removeStorageItemFromCurrentView(kind, id)");
     expect(submitHandler).toContain("folderId: data.folderId || undefined");
+  });
+
+  it("moves documents to a visible 15-day trash flow", () => {
+    expect(actionHandler).toContain("يمكن استعادته خلال 15 يومًا");
+    expect(actionHandler).toContain("refreshStorageCenterAfterMutation()");
+    expect(source).toContain("تُحذف تلقائيًا بعد 15 يومًا");
+    expect(source).toContain("الحذف النهائي خلال");
   });
 
   it("limits a custom folder to text documents and provides color plus AI formatting tools", () => {

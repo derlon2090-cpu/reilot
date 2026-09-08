@@ -19,6 +19,7 @@ import { runPlatformNotificationWorker } from "./platform-notifications.js";
 import { sendMetaImageMessage, sendMetaTextMessage } from "./meta-interactive-service.js";
 import { cleanupAbandonedAttachmentUploads } from "./attachments/service.js";
 import { reconcileDeletingAttachments, runAttachmentCleanupWorker } from "./attachments/cleanup-jobs.js";
+import { purgeExpiredStorageTrash } from "./storage-center.js";
 import { reconcileAIProviderUsage } from "./ai/provider-accounting.js";
 import { runSecurityInspector } from "./security-inspector.js";
 import { expireSecurityData, processSecurityAlerts } from "./security-center.js";
@@ -484,10 +485,11 @@ export async function runCleanup() {
   const attachments = await cleanupAbandonedAttachmentUploads();
   const attachmentCleanupJobs = await runAttachmentCleanupWorker();
   const deletingAttachments = await reconcileDeletingAttachments();
+  const expiredStorageTrash = await purgeExpiredStorageTrash();
   const aiProviderUsage = await reconcileAIProviderUsage();
   await query("UPDATE whatsapp_channels SET qr_code_cache = NULL WHERE status NOT IN ('pending_qr', 'connecting') AND qr_code_cache IS NOT NULL");
   return { expiredSessions: sessions.rowCount, expiredResetCodes: resets.rowCount, oldQueueItems: queue.rowCount,
-    attachments, attachmentCleanupJobs, deletingAttachments, aiProviderUsage };
+    attachments, attachmentCleanupJobs, deletingAttachments, expiredStorageTrash, aiProviderUsage };
 }
 
 export async function runAdminMessaging() {

@@ -45,4 +45,13 @@ describe("storage center security helpers", () => {
     expect(source).toContain("asset.created_at<now()-interval '180 days'");
     expect(source).toContain("HAVING count(*)>1");
   });
+
+  it("retains deleted storage items for 15 days before permanent cleanup", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "src/server/storage-center.js"), "utf8");
+    const cron = fs.readFileSync(path.join(process.cwd(), "src/server/cron-runner.js"), "utf8");
+    expect(source).toContain("STORAGE_TRASH_RETENTION_DAYS = 15");
+    expect(source).toContain("purgeExpiredStorageTrash");
+    expect(source).toContain("deleted_at<=now()-interval '15 days'");
+    expect(cron).toContain("await purgeExpiredStorageTrash()");
+  });
 });

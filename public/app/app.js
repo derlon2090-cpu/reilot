@@ -862,6 +862,8 @@ state.storageView = storage.get("renvix.storage.view", "grid");
 state.storageComposeType = "";
 state.storageDocument = null;
 state.storageDocumentLoadingId = "";
+state.storageDocumentRequestController = null;
+state.storageCenterRevision = 0;
 state.storageEditingDocument = null;
 state.storageUploading = false;
 state.storageUploads = [];
@@ -1404,9 +1406,11 @@ function scheduleAIRemoteRetry(key, url, target, options, error) {
 
 async function loadRemotePage(key, url, target, options, { renderOnComplete = true } = {}) {
   if (state.remoteLoading[key]) return null;
+  const storageRevisionAtStart = target === "storageCenter" ? state.storageCenterRevision : 0;
   state.remoteLoading[key] = true;
   try {
     const payload = target === "publicPlans" ? await fetchPublicPlans(options) : await fetchJson(url, options);
+    if (target === "storageCenter" && storageRevisionAtStart !== state.storageCenterRevision) return state.storageCenter;
     if (target === "dbSubscriptions") {
       state.dbSubscriptions = payload.items || [];
       state.subscriptionMeta = payload;
@@ -8897,22 +8901,71 @@ function updateStorageDocumentUrl(documentId = "", { replace = false } = {}) {
   state.query = new URLSearchParams(url.search);
 }
 
+function storageCenterRequestPath() {
+  const params = new URLSearchParams();
+  const folderId = state.query.get("folder") || state.storageCurrentFolderId;
+  if (folderId) params.set("folder", folderId);
+  if (state.storageSearch.trim()) params.set("search", state.storageSearch.trim());
+  params.set("sort", state.storageSort || "newest");
+  if (state.storageTypeFilter !== "all") params.set("type", state.storageTypeFilter);
+  if (state.storageDateFrom) params.set("dateFrom", state.storageDateFrom);
+  return `/api/storage?${params}`;
+}
+
+async function refreshStorageCenterAfterMutation() {
+  const revision = ++state.storageCenterRevision;
+  try {
+    const payload = await fetchJson(storageCenterRequestPath(), {
+      timeoutMs: 10_000,
+      timeoutMessage: "تم تنفيذ العملية، لكن تأخر تحديث قائمة مركز التخزين. حدّث الصفحة لإظهار أحدث البيانات."
+    });
+    if (revision !== state.storageCenterRevision) return false;
+    state.storageCenter = payload;
+    render();
+    return true;
+  } catch (error) {
+    if (revision === state.storageCenterRevision) toast(error.message || "تعذر تحديث قائمة مركز التخزين.", "warning");
+    return false;
+  }
+}
+
+function removeStorageItemFromCurrentView(kind, id) {
+  const data = state.storageCenter?.storage;
+  if (!data) return;
+  const collection = kind === "folder" ? "folders" : kind === "document" ? "documents" : "assets";
+  if (Array.isArray(data[collection])) data[collection] = data[collection].filter((item) => item.id !== id);
+  if (Array.isArray(data.recentlyOpened)) data.recentlyOpened = data.recentlyOpened.filter((item) => item.id !== id);
+  const countKey = kind === "folder" ? "folders" : kind === "document" ? "documents" : null;
+  if (countKey && data.counts) data.counts[countKey] = Math.max(0, Number(data.counts[countKey] || 0) - 1);
+}
+
 async function openStorageDocument(documentId, { updateHistory = true } = {}) {
   const id = String(documentId || "").trim();
   if (!id || state.storageDocumentLoadingId === id) return;
   if (updateHistory) updateStorageDocumentUrl(id);
+  state.storageDocumentRequestController?.abort();
+  const controller = new AbortController();
+  state.storageDocumentRequestController = controller;
   state.storageDocumentLoadingId = id;
   state.storageDocument = { id, loading: true };
   render();
   try {
-    const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}`);
-    if (state.storageDocumentLoadingId !== id) return;
+    const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}`, {
+      signal: controller.signal,
+      timeoutMs: 10_000,
+      timeoutMessage: "استغرق فتح المستند وقتًا أطول من المتوقع. أعد المحاولة."
+    });
+    if (state.storageDocumentRequestController !== controller) return;
+    if (!payload.document?.id) throw new Error("أعاد الخادم مستندًا غير مكتمل. أعد المحاولة.");
     state.storageDocument = payload.document;
   } catch (error) {
-    if (state.storageDocumentLoadingId !== id) return;
+    if (state.storageDocumentRequestController !== controller) return;
     state.storageDocument = { id, error: error.message || "تعذر فتح المستند." };
   } finally {
-    if (state.storageDocumentLoadingId === id) state.storageDocumentLoadingId = "";
+    if (state.storageDocumentRequestController === controller) {
+      state.storageDocumentRequestController = null;
+      state.storageDocumentLoadingId = "";
+    }
   }
   render();
 }
@@ -8936,6 +8989,8 @@ async function handleAction(target) {
     return render();
   }
   if (storageAction === "storage-close-document") {
+    state.storageDocumentRequestController?.abort();
+    state.storageDocumentRequestController = null;
     state.storageDocumentLoadingId = "";
     state.storageComposeType = "";
     state.storageDocument = null;
@@ -8948,6 +9003,8 @@ async function handleAction(target) {
     state.storageEditingDocument = state.storageDocument;
     state.storageComposeType = state.storageDocument.type;
     state.storageDocument = null;
+    state.storageDocumentRequestController?.abort();
+    state.storageDocumentRequestController = null;
     state.storageDocumentLoadingId = "";
     if (state.query.get("document")) updateStorageDocumentUrl("");
     return render();
@@ -9094,6 +9151,11 @@ async function handleAction(target) {
     if (!id) return;
     return openStorageDocument(id);
   }
+  if (storageAction === "storage-retry-document") {
+    const id = target.dataset.id || state.query.get("document") || state.storageDocument?.id;
+    if (!id) return;
+    return openStorageDocument(id, { updateHistory: false });
+  }
   if (storageAction === "storage-preview-image") {
     const asset = (state.storageCenter?.storage?.assets || []).find((item) => item.id === target.dataset.id);
     if (!asset) return;
@@ -9127,7 +9189,7 @@ async function handleAction(target) {
       const payload = await fetchJson("/api/storage/trash");
       const items = payload.items || [];
       const trashBytes = items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0);
-      openModal("سلة المحذوفات", items.length ? `<div class="storage-trash-summary"><span>المحذوفات تشغل <b>${formatStorageBytes(trashBytes)}</b></span><button class="btn btn-danger" data-action="storage-trash-empty">إفراغ السلة</button></div><div class="storage-trash-list">${items.map((item) => `<article><span>${dashboardIcon(item.kind === "folder" ? "folder" : item.kind === "asset" ? "image" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · حُذف ${new Date(item.deletedAt).toLocaleDateString("ar-SA")}</small></div><button data-action="storage-trash-restore" data-kind="${item.kind}" data-id="${item.id}">استعادة</button><button class="danger" data-action="storage-trash-permanent" data-kind="${item.kind}" data-id="${item.id}">حذف نهائي</button></article>`).join("")}</div>` : `<div class="storage-empty-trash">${dashboardIcon("delete")}<strong>سلة المحذوفات فارغة</strong><p>العناصر المحذوفة ستظهر هنا ويمكن استعادتها قبل الحذف النهائي.</p></div>`);
+      openModal("سلة المحذوفات", items.length ? `<div class="storage-trash-summary"><span>المحذوفات تشغل <b>${formatStorageBytes(trashBytes)}</b> · تُحذف تلقائيًا بعد 15 يومًا</span><button class="btn btn-danger" data-action="storage-trash-empty">إفراغ السلة</button></div><div class="storage-trash-list">${items.map((item) => { const remainingDays = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 86400000)); return `<article><span>${dashboardIcon(item.kind === "folder" ? "folder" : item.kind === "asset" ? "image" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · حُذف ${new Date(item.deletedAt).toLocaleDateString("ar-SA")} · ${remainingDays ? `الحذف النهائي خلال ${remainingDays.toLocaleString("ar-SA")} يوم` : "سيُحذف نهائيًا قريبًا"}</small></div><button data-action="storage-trash-restore" data-kind="${item.kind}" data-id="${item.id}">استعادة</button><button class="danger" data-action="storage-trash-permanent" data-kind="${item.kind}" data-id="${item.id}">حذف نهائي</button></article>`; }).join("")}</div>` : `<div class="storage-empty-trash">${dashboardIcon("delete")}<strong>سلة المحذوفات فارغة</strong><p>يمكن استعادة العناصر المحذوفة خلال 15 يومًا قبل حذفها نهائيًا بشكل تلقائي.</p></div>`);
     } catch (error) { openModal("سلة المحذوفات", `<div class="storage-empty-trash">${dashboardIcon("warning")}<strong>تعذر تحميل السلة</strong><p>${escapeHtml(error.message)}</p></div>`); }
     return;
   }
@@ -9150,7 +9212,7 @@ async function handleAction(target) {
     target.disabled = true;
     try {
       await fetchJson(`/api/storage/trash/${encodeURIComponent(target.dataset.id)}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: target.dataset.kind }) });
-      state.storageCenter = null; closePortal(); await syncRouteData(true); toast("تمت استعادة العنصر.");
+      closePortal(); await refreshStorageCenterAfterMutation(); toast("تمت استعادة العنصر.");
     } catch (error) { target.disabled = false; toast(error.message || "تعذر استعادة العنصر.", "danger"); }
     return;
   }
@@ -9175,7 +9237,7 @@ async function handleAction(target) {
   }
   if (storageAction === "storage-delete-item") {
     const usedIn = Math.max(0, Number(target.dataset.usedIn || 0));
-    return openModal("نقل إلى سلة المحذوفات", `<div class="storage-delete-confirm"><span>${dashboardIcon(usedIn ? "warning" : "delete")}</span><p>${usedIn ? `هذه الصورة مستخدمة في ${usedIn.toLocaleString("ar-SA")} قالب. حذفها قد يؤدي إلى اختفائها من القوالب.` : "سيبقى العنصر محسوبًا ضمن مساحة التخزين حتى حذفه نهائيًا من السلة."}</p><button class="btn btn-primary" data-action="storage-confirm-delete" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}" data-force="${usedIn ? "1" : "0"}">${usedIn ? "حذف على أي حال" : "نقل إلى السلة"}</button></div>`, `<button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+    return openModal("نقل إلى سلة المحذوفات", `<div class="storage-delete-confirm"><span>${dashboardIcon(usedIn ? "warning" : "delete")}</span><p>${usedIn ? `هذه الصورة مستخدمة في ${usedIn.toLocaleString("ar-SA")} قالب. حذفها قد يؤدي إلى اختفائها من القوالب.` : "سيُنقل العنصر إلى سلة المحذوفات ويمكن استعادته خلال 15 يومًا، ثم يُحذف نهائيًا بشكل تلقائي."}</p><button class="btn btn-primary" data-action="storage-confirm-delete" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}" data-force="${usedIn ? "1" : "0"}">${usedIn ? "حذف على أي حال" : "نقل إلى السلة"}</button></div>`, `<button class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
   }
   if (storageAction === "storage-confirm-delete") {
     const kind = target.dataset.kind;
@@ -9183,11 +9245,12 @@ async function handleAction(target) {
     const endpoint = kind === "folder" ? `/api/storage/folders/${encodeURIComponent(id)}` : kind === "document" ? `/api/storage/documents/${encodeURIComponent(id)}` : `/api/storage/assets/${encodeURIComponent(id)}${target.dataset.force === "1" ? "?force=1" : ""}`;
     target.disabled = true;
     try {
-      await fetchJson(endpoint, { method: "DELETE" });
+      const payload = await fetchJson(endpoint, { method: "DELETE", timeoutMs: 10_000 });
+      removeStorageItemFromCurrentView(kind, id);
       closePortal();
-      state.storageCenter = null;
-      await syncRouteData(true);
-      toast("تم نقل العنصر إلى سلة المحذوفات.");
+      render();
+      toast(`تم نقل العنصر إلى سلة المحذوفات لمدة ${Number(payload.item?.retentionDays || 15).toLocaleString("ar-SA")} يومًا.`);
+      await refreshStorageCenterAfterMutation();
     } catch (error) { target.disabled = false; toast(error.message || "تعذر حذف العنصر.", "danger"); }
     return;
   }
@@ -14731,7 +14794,7 @@ function storageDocumentComposer(data) {
 function storageDocumentView(data) {
   const item = state.storageDocument;
   if (item?.loading) return dashboardShell(`<div class="storage-document-loading"><i></i><i></i><i></i></div>`);
-  if (item?.error) return dashboardShell(`<section class="storage-center">${emptyState("تعذر فتح المستند", item.error, "العودة", "storage-close-document")}</section>`);
+  if (item?.error) return dashboardShell(`<section class="storage-center"><div class="empty-state"><span>${dashboardIcon("warning")}</span><h2>تعذر فتح المستند</h2><p>${escapeHtml(item.error)}</p><div class="storage-document-error-actions"><button class="btn btn-primary" data-action="storage-retry-document" data-id="${escapeHtml(item.id)}">إعادة المحاولة</button><button class="btn btn-secondary" data-action="storage-close-document">العودة إلى المجلد</button></div></div></section>`);
   const isSecret = ["account", "code"].includes(item?.type);
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
@@ -16019,6 +16082,8 @@ document.addEventListener("change", (event) => {
 window.addEventListener("popstate", () => {
   const requestedDocumentId = new URLSearchParams(location.search).get("document") || "";
   if (!requestedDocumentId) {
+    state.storageDocumentRequestController?.abort();
+    state.storageDocumentRequestController = null;
     state.storageDocumentLoadingId = "";
     state.storageDocument = null;
     state.storageEditingDocument = null;
