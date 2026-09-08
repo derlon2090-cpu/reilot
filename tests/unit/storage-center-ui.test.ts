@@ -83,6 +83,17 @@ describe("storage center form wiring", () => {
     expect(styles).toContain(".storage-timer-form");
   });
 
+  it("lets timers over 24 hours use days or total-hours display consistently", () => {
+    expect(source).toContain("طريقة عرض المدة");
+    expect(source).toContain("أيام وساعات");
+    expect(source).toContain("إجمالي الساعات");
+    expect(source).toContain("function storageTimerDurationText");
+    expect(source).toContain('data-display-mode="${timer.displayMode}"');
+    expect(source).toContain("timerDisplayMode: form.dataset.timerDisplayMode === \"hours\" ? \"hours\" : \"days\"");
+    expect(styles).toContain(".storage-timer-display");
+    expect(styles).toContain(".storage-timer-preview");
+  });
+
   it("keeps the current editor draft through rerenders and animates its focus state", () => {
     expect(source).toContain("state.storageDocumentDraft = null");
     expect(source).toContain("function syncStorageDocumentDraft");

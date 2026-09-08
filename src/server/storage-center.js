@@ -53,6 +53,10 @@ export function normalizeStorageTimerEndsAt(value) {
   return parsed.toISOString();
 }
 
+export function normalizeStorageTimerDisplayMode(value) {
+  return value === "hours" ? "hours" : "days";
+}
+
 function encryptionKey() {
   const value = String(process.env.STORAGE_ENCRYPTION_KEY || "").trim();
   let key;
@@ -263,7 +267,7 @@ export async function getStorageCenter(session, input = {}) {
       [session.tenantId]
     ),
     query(
-      `SELECT storage_documents.id,folder_id AS "folderId",title AS name,type,size_bytes AS "sizeBytes",is_favorite AS "isFavorite",storage_documents.created_at AS "createdAt",storage_documents.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",storage_documents.content->>'timerEndsAt' AS "timerEndsAt",
+      `SELECT storage_documents.id,folder_id AS "folderId",title AS name,type,size_bytes AS "sizeBytes",is_favorite AS "isFavorite",storage_documents.created_at AS "createdAt",storage_documents.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",storage_documents.content->>'timerEndsAt' AS "timerEndsAt",storage_documents.content->>'timerDisplayMode' AS "timerDisplayMode",
               COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location
          FROM storage_documents LEFT JOIN users owner ON owner.id=storage_documents.created_by LEFT JOIN storage_folders folder ON folder.id=storage_documents.folder_id
          WHERE storage_documents.tenant_id=$1 AND storage_documents.deleted_at IS NULL
@@ -436,7 +440,13 @@ function documentPayload(input, type, title) {
     fields: (Array.isArray(input.fields) ? input.fields : []).slice(0, 50).map((field) => ({ label: cleanText(field.label, 100), value: String(field.value || "") })).filter((field) => field.label)
   };
   if (type === "code") return { title, type, code: String(input.code || ""), description: cleanText(input.description, 2000) };
-  return { title, type, body: sanitizeStorageHtml(input.body), timerEndsAt: normalizeStorageTimerEndsAt(input.timerEndsAt) };
+  return {
+    title,
+    type,
+    body: sanitizeStorageHtml(input.body),
+    timerEndsAt: normalizeStorageTimerEndsAt(input.timerEndsAt),
+    timerDisplayMode: normalizeStorageTimerDisplayMode(input.timerDisplayMode)
+  };
 }
 
 export async function createStorageDocument(session, input = {}) {
@@ -456,7 +466,7 @@ export async function createStorageDocument(session, input = {}) {
     await client.query("SELECT id FROM tenants WHERE id=$1 FOR UPDATE", [session.tenantId]);
     const usage = await getTenantStorageLimitState(session.tenantId, client);
     if (!usage.isUnlimited && sizeBytes > Number(usage.remainingBytes || 0)) throw storageError("STORAGE_QUOTA_EXCEEDED", "مساحة التخزين غير كافية.", 403);
-    const content = type === "note" || type === "custom" ? { body: payload.body, timerEndsAt: payload.timerEndsAt } : type === "code" ? { description: payload.description } : {};
+    const content = type === "note" || type === "custom" ? { body: payload.body, timerEndsAt: payload.timerEndsAt, timerDisplayMode: payload.timerDisplayMode } : type === "code" ? { description: payload.description } : {};
     const result = await client.query(
       `INSERT INTO storage_documents(tenant_id,folder_id,title,type,content,size_bytes,created_by)
        VALUES($1,$2,$3,$4,$5::jsonb,$6,$7) RETURNING id,folder_id AS "folderId",title,type,size_bytes AS "sizeBytes",created_at AS "createdAt"`,
@@ -559,13 +569,14 @@ export async function updateStorageDocument(session, documentId, input = {}) {
       fields: input.fields === undefined ? previousFields : input.fields,
       body: input.body === undefined ? row.content?.body : input.body,
       description: input.description === undefined ? row.content?.description : input.description,
-      timerEndsAt: input.timerEndsAt === undefined ? row.content?.timerEndsAt : input.timerEndsAt
+      timerEndsAt: input.timerEndsAt === undefined ? row.content?.timerEndsAt : input.timerEndsAt,
+      timerDisplayMode: input.timerDisplayMode === undefined ? row.content?.timerDisplayMode : input.timerDisplayMode
     }, row.type, title);
     const sizeBytes = storagePayloadSize(merged);
     const delta = sizeBytes - Number(row.sizeBytes || 0);
     const usage = await getTenantStorageLimitState(session.tenantId, client);
     if (!usage.isUnlimited && delta > Number(usage.remainingBytes || 0)) throw storageError("STORAGE_QUOTA_EXCEEDED", "مساحة التخزين غير كافية.", 403);
-    const content = row.type === "note" || row.type === "custom" ? { body: merged.body, timerEndsAt: merged.timerEndsAt } : row.type === "code" ? { description: merged.description } : {};
+    const content = row.type === "note" || row.type === "custom" ? { body: merged.body, timerEndsAt: merged.timerEndsAt, timerDisplayMode: merged.timerDisplayMode } : row.type === "code" ? { description: merged.description } : {};
     await client.query(
       `UPDATE storage_documents SET folder_id=$3,title=$4,content=$5::jsonb,size_bytes=$6,updated_at=now()
         WHERE id=$1 AND tenant_id=$2`, [documentId, session.tenantId, folderId, title, JSON.stringify(content), sizeBytes]

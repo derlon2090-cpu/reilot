@@ -8900,7 +8900,8 @@ function syncStorageDocumentDraft(form = document.querySelector('form[data-submi
     title: String(form.elements.title?.value || ""),
     folderId: String(form.elements.folderId?.value || ""),
     body: editor.innerHTML,
-    timerEndsAt: form.dataset.timerEndsAt || ""
+    timerEndsAt: form.dataset.timerEndsAt || "",
+    timerDisplayMode: form.dataset.timerDisplayMode === "hours" ? "hours" : "days"
   };
 }
 
@@ -8912,6 +8913,7 @@ function restoreStorageDocumentDraft() {
   if (form.elements.title) form.elements.title.value = draft.title;
   if (form.elements.folderId) form.elements.folderId.value = draft.folderId;
   form.dataset.timerEndsAt = draft.timerEndsAt;
+  form.dataset.timerDisplayMode = draft.timerDisplayMode === "hours" ? "hours" : "days";
   editor.innerHTML = draft.body;
   const words = String(editor.innerText || "").trim().split(/\s+/).filter(Boolean).length;
   const output = form.querySelector("[data-storage-word-count]");
@@ -8928,7 +8930,7 @@ async function autosaveStorageDocument(form) {
   try {
     await fetchJson(`/api/storage/documents/${encodeURIComponent(documentId)}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, folderId: form.elements.folderId?.value || null, body: form.querySelector("[data-storage-editor]")?.innerHTML || "", timerEndsAt: form.dataset.timerEndsAt || null })
+      body: JSON.stringify({ title, folderId: form.elements.folderId?.value || null, body: form.querySelector("[data-storage-editor]")?.innerHTML || "", timerEndsAt: form.dataset.timerEndsAt || null, timerDisplayMode: form.dataset.timerDisplayMode === "hours" ? "hours" : "days" })
     });
     if (status?.isConnected) status.textContent = "تم الحفظ";
     return true;
@@ -9151,7 +9153,9 @@ async function handleAction(target) {
     const hours = Math.floor(currentSeconds / 3600);
     const minutes = Math.floor((currentSeconds % 3600) / 60);
     const seconds = currentSeconds % 60;
-    return openModal("مؤقت المستند", `<form class="storage-timer-form" data-submit="storage-document-timer"><header><span>${dashboardIcon("clock")}</span><div><strong>حدد مدة العد التنازلي</strong><small>سيظهر المؤقت على بطاقة المستند ويستمر بعد تحديث الصفحة.</small></div></header><div class="storage-timer-fields"><label><span>ساعة</span><input class="input" type="number" name="hours" min="0" max="8784" value="${hours}" inputmode="numeric"></label><b>:</b><label><span>دقيقة</span><input class="input" type="number" name="minutes" min="0" max="59" value="${minutes}" inputmode="numeric"></label><b>:</b><label><span>ثانية</span><input class="input" type="number" name="seconds" min="0" max="59" value="${seconds}" inputmode="numeric"></label></div><section class="storage-timer-presets"><span>مدد سريعة</span><div><button type="button" data-action="storage-timer-preset" data-seconds="300">5 دقائق</button><button type="button" data-action="storage-timer-preset" data-seconds="900">15 دقيقة</button><button type="button" data-action="storage-timer-preset" data-seconds="1800">30 دقيقة</button><button type="button" data-action="storage-timer-preset" data-seconds="3600">ساعة</button></div></section><footer>${form.dataset.timerEndsAt ? `<button type="button" class="btn storage-timer-remove" data-action="storage-timer-remove">إلغاء المؤقت</button>` : ""}<button type="button" class="btn btn-secondary" data-action="close-modal">رجوع</button><button type="submit" class="btn btn-primary">${dashboardIcon("clock")} بدء المؤقت</button></footer></form>`);
+    const displayMode = normalizeStorageTimerDisplayMode(form.dataset.timerDisplayMode);
+    const showLongDurationOptions = currentSeconds > 86400;
+    return openModal("مؤقت المستند", `<form class="storage-timer-form" data-submit="storage-document-timer"><header><span>${dashboardIcon("clock")}</span><div><strong>حدد مدة العد التنازلي</strong><small>سيظهر المؤقت على بطاقة المستند ويستمر بعد تحديث الصفحة.</small></div></header><div class="storage-timer-fields"><label><span>ساعة</span><input class="input" type="number" name="hours" min="0" max="8784" value="${hours}" inputmode="numeric"></label><b>:</b><label><span>دقيقة</span><input class="input" type="number" name="minutes" min="0" max="59" value="${minutes}" inputmode="numeric"></label><b>:</b><label><span>ثانية</span><input class="input" type="number" name="seconds" min="0" max="59" value="${seconds}" inputmode="numeric"></label></div><section class="storage-timer-display" data-storage-timer-display-options ${showLongDurationOptions ? "" : "hidden"}><header><strong>طريقة عرض المدة</strong><small>اختر الشكل الأنسب عندما تتجاوز المدة 24 ساعة.</small></header><div><label><input type="radio" name="displayMode" value="days" ${displayMode === "days" ? "checked" : ""}><span><b>أيام وساعات</b><small>مثال: 3 أيام · 05:20:10</small></span></label><label><input type="radio" name="displayMode" value="hours" ${displayMode === "hours" ? "checked" : ""}><span><b>إجمالي الساعات</b><small>مثال: 77:20:10</small></span></label></div></section><output class="storage-timer-preview" data-storage-timer-preview><span>المعاينة</span><strong dir="ltr">${storageTimerDurationText(currentSeconds * 1000, displayMode)}</strong></output><section class="storage-timer-presets"><span>مدد سريعة</span><div><button type="button" data-action="storage-timer-preset" data-seconds="300">5 دقائق</button><button type="button" data-action="storage-timer-preset" data-seconds="900">15 دقيقة</button><button type="button" data-action="storage-timer-preset" data-seconds="1800">30 دقيقة</button><button type="button" data-action="storage-timer-preset" data-seconds="3600">ساعة</button></div></section><footer>${form.dataset.timerEndsAt ? `<button type="button" class="btn storage-timer-remove" data-action="storage-timer-remove">إلغاء المؤقت</button>` : ""}<button type="button" class="btn btn-secondary" data-action="close-modal">رجوع</button><button type="submit" class="btn btn-primary">${dashboardIcon("clock")} بدء المؤقت</button></footer></form>`);
   }
   if (storageAction === "storage-timer-preset") {
     const timerForm = target.closest('form[data-submit="storage-document-timer"]');
@@ -9161,11 +9165,13 @@ async function handleAction(target) {
     timerForm.elements.minutes.value = String(Math.floor((totalSeconds % 3600) / 60));
     timerForm.elements.seconds.value = String(totalSeconds % 60);
     timerForm.querySelectorAll("[data-action='storage-timer-preset']").forEach((button) => button.classList.toggle("active", button === target));
+    updateStorageTimerDialogPreview(timerForm);
     return;
   }
   if (storageAction === "storage-timer-remove") {
     try {
-      await updateStorageEditorTimer("");
+      const editorForm = document.querySelector('form[data-submit="storage-document"]');
+      await updateStorageEditorTimer("", editorForm?.dataset.timerDisplayMode);
       closePortal();
       toast("تم إلغاء مؤقت المستند.");
     } catch (error) {
@@ -12696,10 +12702,11 @@ async function handleSubmit(form, event) {
     const valuesAreValid = [hours, minutes, seconds].every((value) => Number.isInteger(value) && value >= 0)
       && hours <= 8784 && minutes <= 59 && seconds <= 59;
     const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+    const displayMode = normalizeStorageTimerDisplayMode(data.displayMode);
     if (!valuesAreValid || totalSeconds < 1) return toast("حدد مدة صحيحة لا تقل عن ثانية واحدة.", "warning");
     if (totalSeconds > 366 * 24 * 60 * 60) return toast("يمكن ضبط المؤقت لمدة لا تتجاوز سنة واحدة.", "warning");
     try {
-      await updateStorageEditorTimer(new Date(Date.now() + totalSeconds * 1000).toISOString());
+      await updateStorageEditorTimer(new Date(Date.now() + totalSeconds * 1000).toISOString(), displayMode);
       closePortal();
       toast("تم بدء مؤقت المستند وسيظهر على بطاقته بعد الحفظ.");
     } catch (error) {
@@ -12764,7 +12771,7 @@ async function handleSubmit(form, event) {
     const payload = {
       type: documentType, title: data.title, folderId: data.folderId || undefined,
       email: data.email, password: data.password, code: data.code, description: data.description,
-      body: form.querySelector("[data-storage-editor]")?.innerHTML || "", timerEndsAt: form.dataset.timerEndsAt || null, fields
+      body: form.querySelector("[data-storage-editor]")?.innerHTML || "", timerEndsAt: form.dataset.timerEndsAt || null, timerDisplayMode: form.dataset.timerDisplayMode === "hours" ? "hours" : "days", fields
     };
     setSubmitBusy(button, true, "جارٍ الحفظ...");
     try {
@@ -14872,33 +14879,67 @@ function storageBreadcrumbs(data) {
   return `<nav class="storage-breadcrumb" aria-label="مسار المجلد"><button data-action="storage-open-folder" data-id="">مركز التخزين</button>${trail.map((item) => `<span>/</span><button data-action="storage-open-folder" data-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>`).join("")}<button class="storage-breadcrumb-trash" data-action="storage-open-trash">${dashboardIcon("delete")} سلة المحذوفات</button></nav>`;
 }
 
-function storageCountdownParts(timerEndsAt, now = Date.now()) {
+function normalizeStorageTimerDisplayMode(value) {
+  return value === "hours" ? "hours" : "days";
+}
+
+function storageTimerDayLabel(days) {
+  if (days === 1) return "يوم واحد";
+  if (days === 2) return "يومان";
+  if (days >= 3 && days <= 10) return `${days.toLocaleString("ar-SA")} أيام`;
+  return `${days.toLocaleString("ar-SA")} يومًا`;
+}
+
+function storageTimerDurationText(remainingMs, displayMode = "days") {
+  const remaining = Math.max(0, Number(remainingMs || 0));
+  const mode = normalizeStorageTimerDisplayMode(displayMode);
+  const days = Math.floor(remaining / 86400000);
+  const totalHours = Math.floor(remaining / 3600000);
+  const splitHours = Math.floor((remaining % 86400000) / 3600000);
+  const minutes = Math.floor((remaining % 3600000) / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  const hours = mode === "hours" ? totalHours : splitHours;
+  const clock = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return mode === "days" && days ? `${storageTimerDayLabel(days)} · ${clock}` : clock;
+}
+
+function updateStorageTimerDialogPreview(form) {
+  if (!form) return;
+  const hours = Math.max(0, Number(form.elements.hours?.value || 0));
+  const minutes = Math.max(0, Number(form.elements.minutes?.value || 0));
+  const seconds = Math.max(0, Number(form.elements.seconds?.value || 0));
+  const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+  const displayOptions = form.querySelector("[data-storage-timer-display-options]");
+  if (displayOptions) displayOptions.hidden = totalSeconds <= 86400;
+  const selectedMode = normalizeStorageTimerDisplayMode(form.elements.displayMode?.value);
+  const preview = form.querySelector("[data-storage-timer-preview] strong");
+  if (preview) preview.textContent = totalSeconds > 0 ? storageTimerDurationText(totalSeconds * 1000, selectedMode) : "00:00:00";
+}
+
+function storageCountdownParts(timerEndsAt, displayMode = "days", now = Date.now()) {
   const expiresAt = new Date(timerEndsAt || "").getTime();
   if (!Number.isFinite(expiresAt)) return null;
   const remaining = Math.max(0, expiresAt - now);
-  const days = Math.floor(remaining / 86400000);
-  const hours = Math.floor((remaining % 86400000) / 3600000);
-  const minutes = Math.floor((remaining % 3600000) / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
   return {
     expired: remaining <= 0,
     remaining,
+    displayMode: normalizeStorageTimerDisplayMode(displayMode),
     text: remaining <= 0
       ? "انتهى التوقيت"
-      : `${days ? `${days.toLocaleString("ar-SA")} يوم · ` : ""}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+      : storageTimerDurationText(remaining, displayMode)
   };
 }
 
-function storageDocumentTimerMarkup(timerEndsAt, surface = "card") {
-  const timer = storageCountdownParts(timerEndsAt);
+function storageDocumentTimerMarkup(timerEndsAt, displayMode = "days", surface = "card") {
+  const timer = storageCountdownParts(timerEndsAt, displayMode);
   if (!timer) return "";
-  return `<div class="storage-document-timer${timer.expired ? " is-expired" : ""}" data-storage-timer-surface="${surface}">${dashboardIcon(timer.expired ? "warning" : "clock")}<span>${timer.expired ? "انتهى التوقيت" : "الوقت المتبقي"}</span><strong data-storage-countdown data-expires-at="${escapeHtml(timerEndsAt)}" aria-live="polite">${timer.text}</strong></div>`;
+  return `<div class="storage-document-timer${timer.expired ? " is-expired" : ""}" data-storage-timer-surface="${surface}">${dashboardIcon(timer.expired ? "warning" : "clock")}<span>${timer.expired ? "انتهى التوقيت" : "الوقت المتبقي"}</span><strong data-storage-countdown data-expires-at="${escapeHtml(timerEndsAt)}" data-display-mode="${timer.displayMode}" aria-live="polite">${timer.text}</strong></div>`;
 }
 
-function storageEditorTimerButtonMarkup(timerEndsAt) {
-  const timer = storageCountdownParts(timerEndsAt);
+function storageEditorTimerButtonMarkup(timerEndsAt, displayMode = "days") {
+  const timer = storageCountdownParts(timerEndsAt, displayMode);
   const label = timer ? timer.text : "إضافة مؤقت";
-  return `<button type="button" class="storage-editor-timer${timer ? " is-active" : ""}${timer?.expired ? " is-expired" : ""}" data-action="storage-editor-timer" title="ضبط مؤقت للمستند">${dashboardIcon(timer?.expired ? "warning" : "clock")}<span data-storage-timer-label${timer ? ` data-storage-countdown data-expires-at="${escapeHtml(timerEndsAt)}"` : ""}>${label}</span></button>`;
+  return `<button type="button" class="storage-editor-timer${timer ? " is-active" : ""}${timer?.expired ? " is-expired" : ""}" data-action="storage-editor-timer" title="ضبط مؤقت للمستند">${dashboardIcon(timer?.expired ? "warning" : "clock")}<span data-storage-timer-label${timer ? ` data-storage-countdown data-expires-at="${escapeHtml(timerEndsAt)}" data-display-mode="${timer.displayMode}"` : ""}>${label}</span></button>`;
 }
 
 let storageDocumentCountdownTimer = null;
@@ -14912,17 +14953,18 @@ function bindStorageDocumentCountdowns() {
   const editorForm = document.querySelector('form[data-submit="storage-document"]');
   const colorTools = editorForm?.querySelector(".storage-editor-colors");
   if (colorTools && !editorForm.querySelector('[data-action="storage-editor-timer"]')) {
-    colorTools.insertAdjacentHTML("afterend", storageEditorTimerButtonMarkup(editorForm.dataset.timerEndsAt || ""));
+    colorTools.insertAdjacentHTML("afterend", storageEditorTimerButtonMarkup(editorForm.dataset.timerEndsAt || "", editorForm.dataset.timerDisplayMode));
   }
   const viewedTimerEndsAt = state.storageDocument?.content?.timerEndsAt;
+  const viewedTimerDisplayMode = state.storageDocument?.content?.timerDisplayMode;
   const documentHeading = document.querySelector(".storage-compose-page>.storage-page-heading");
   if (viewedTimerEndsAt && documentHeading && !documentHeading.querySelector('[data-storage-timer-surface="view"]')) {
-    documentHeading.insertAdjacentHTML("beforeend", storageDocumentTimerMarkup(viewedTimerEndsAt, "view"));
+    documentHeading.insertAdjacentHTML("beforeend", storageDocumentTimerMarkup(viewedTimerEndsAt, viewedTimerDisplayMode, "view"));
   }
   const update = () => {
     let hasActiveTimer = false;
     document.querySelectorAll("[data-storage-countdown]").forEach((node) => {
-      const timer = storageCountdownParts(node.dataset.expiresAt);
+      const timer = storageCountdownParts(node.dataset.expiresAt, node.dataset.displayMode);
       if (!timer) return;
       node.textContent = timer.text;
       if (!timer.expired) hasActiveTimer = true;
@@ -14941,34 +14983,42 @@ function bindStorageDocumentCountdowns() {
   }
 }
 
-async function updateStorageEditorTimer(timerEndsAt = "") {
+async function updateStorageEditorTimer(timerEndsAt = "", displayMode = "days") {
   const form = document.querySelector('form[data-submit="storage-document"]');
   if (!form) return;
   const previousTimerEndsAt = form.dataset.timerEndsAt || "";
+  const previousDisplayMode = normalizeStorageTimerDisplayMode(form.dataset.timerDisplayMode);
+  const nextDisplayMode = normalizeStorageTimerDisplayMode(displayMode);
   form.dataset.timerEndsAt = timerEndsAt;
+  form.dataset.timerDisplayMode = nextDisplayMode;
   const currentButton = form.querySelector('[data-action="storage-editor-timer"]');
-  if (currentButton) currentButton.outerHTML = storageEditorTimerButtonMarkup(timerEndsAt);
+  if (currentButton) currentButton.outerHTML = storageEditorTimerButtonMarkup(timerEndsAt, nextDisplayMode);
   syncStorageDocumentDraft(form);
   bindStorageDocumentCountdowns();
   if (form.dataset.id && !(await autosaveStorageDocument(form))) {
     form.dataset.timerEndsAt = previousTimerEndsAt;
+    form.dataset.timerDisplayMode = previousDisplayMode;
     const timerButton = form.querySelector('[data-action="storage-editor-timer"]');
-    if (timerButton) timerButton.outerHTML = storageEditorTimerButtonMarkup(previousTimerEndsAt);
+    if (timerButton) timerButton.outerHTML = storageEditorTimerButtonMarkup(previousTimerEndsAt, previousDisplayMode);
     syncStorageDocumentDraft(form);
     bindStorageDocumentCountdowns();
     throw new Error("تعذر حفظ مؤقت المستند. حاول مرة أخرى.");
   }
   if (state.storageEditingDocument) {
-    state.storageEditingDocument.content = { ...(state.storageEditingDocument.content || {}), timerEndsAt: timerEndsAt || null };
+    state.storageEditingDocument.content = { ...(state.storageEditingDocument.content || {}), timerEndsAt: timerEndsAt || null, timerDisplayMode: nextDisplayMode };
   }
   const listedDocument = state.storageCenter?.storage?.documents?.find((item) => item.id === form.dataset.id);
-  if (listedDocument) listedDocument.timerEndsAt = timerEndsAt || null;
+  if (listedDocument) {
+    listedDocument.timerEndsAt = timerEndsAt || null;
+    listedDocument.timerDisplayMode = nextDisplayMode;
+  }
 }
 
 function storageDocumentComposer(data) {
   const type = state.storageComposeType || "custom";
   const editing = state.storageEditingDocument;
   const timerEndsAt = ["note", "custom"].includes(type) ? String(editing?.content?.timerEndsAt || "") : "";
+  const timerDisplayMode = normalizeStorageTimerDisplayMode(editing?.content?.timerDisplayMode);
   const title = editing ? `تعديل ${storageTypeLabel(type)}` : type === "account" ? "بيانات حساب جديدة" : type === "code" ? "كود / مفتاح جديد" : type === "note" ? "ملاحظة جديدة" : "مستند جديد";
   const currentFolderId = editing?.folderId || data?.currentFolderId || "";
   const existingFields = (editing?.fields || []).map((field, index) => `<div class="storage-custom-field"><label><span>اسم الحقل</span><input class="input" name="fieldLabel${index}" maxlength="100" value="${escapeHtml(field.label)}"></label><label><span>القيمة</span><input class="input" name="fieldValue${index}" autocomplete="off" value="${escapeHtml(field.value)}"></label><button type="button" data-action="storage-remove-field" aria-label="حذف الحقل">${dashboardIcon("close")}</button></div>`).join("");
@@ -14981,7 +15031,7 @@ function storageDocumentComposer(data) {
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon("document")}</div><div><h1>${title}</h1><p>احفظ معلوماتك داخل مساحة عملك الخاصة بشكل منظم وآمن.</p></div></header>
-    <form class="storage-document-form" data-submit="storage-document" data-type="${type}" data-id="${escapeHtml(editing?.id || "")}" data-timer-ends-at="${escapeHtml(timerEndsAt)}">
+    <form class="storage-document-form" data-submit="storage-document" data-type="${type}" data-id="${escapeHtml(editing?.id || "")}" data-timer-ends-at="${escapeHtml(timerEndsAt)}" data-timer-display-mode="${timerDisplayMode}">
       <section class="card storage-save-location"><div><span>${dashboardIcon("folder")}</span><div><strong>يتم الحفظ داخل</strong><small>${currentFolderId ? "المجلد الحالي" : "مركز التخزين"}</small></div></div><label><span>تغيير المجلد</span><select class="select" name="folderId">${storageFolderOptions(data, currentFolderId)}</select></label></section>
       <label class="storage-title-field"><span>${type === "account" ? "اسم الحساب" : type === "code" ? "اسم العنصر" : type === "note" ? "عنوان الملاحظة" : "عنوان المستند"}</span><small>${type === "note" ? "عنوان مختصر يوضح موضوع النوتة." : type === "custom" ? "اكتب عنوانًا واضحًا لتجد المستند بسهولة داخل المجلد." : ""}</small><input class="input" name="title" maxlength="180" required value="${escapeHtml(editing?.title || "")}" placeholder="${type === "account" ? "مثال: حساب Netflix - أحمد" : type === "code" ? "مثال: API Key - Project A" : type === "note" ? "مثال: ملاحظات الاجتماع" : "مثال: تفاصيل المشروع"}"></label>
       ${accountFields}
@@ -15023,8 +15073,8 @@ function storageCenterPage() {
   const capacityWarning = usagePercent >= 95 ? `<aside class="storage-capacity-alert critical">${dashboardIcon("warning")}<div><strong>مساحتك أوشكت على الامتلاء</strong><span>تبقّى ${formatStorageBytes(availableBytes)} فقط. رقِّ الباقة لتجنب توقف الرفع.</span></div><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button></aside>` : usagePercent >= 80 ? `<aside class="storage-capacity-alert">${dashboardIcon("warning")}<div><strong>مساحتك قاربت على الامتلاء</strong><span>راجع الملفات الكبيرة أو أفرغ سلة المحذوفات.</span></div><button data-action="storage-usage-details">إدارة المساحة</button></aside>` : "";
   const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}"><span>${dashboardIcon("folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => {
-    const timer = storageCountdownParts(doc.timerEndsAt);
-    return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
+    const timer = storageCountdownParts(doc.timerEndsAt, doc.timerDisplayMode);
+    return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
   }).join("");
   const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
   const uploadPanel = state.storageUploads.length ? `<section class="card storage-upload-panel"><header><div><h2>رفع الملفات</h2><small>${state.storageUploads.filter((item) => item.status === "done" || item.status === "duplicate").length.toLocaleString("ar-SA")} من ${state.storageUploads.length.toLocaleString("ar-SA")} ملفات</small></div>${state.storageUploading ? "" : `<button data-action="storage-upload-dismiss">إغلاق</button>`}</header><div>${state.storageUploads.map((task) => `<article data-storage-upload-id="${task.id}" class="is-${task.status}"><span>${dashboardIcon(task.file?.type?.startsWith("image/") ? "image" : "document")}</span><div><strong>${escapeHtml(task.name)}</strong><small>${task.status === "duplicate" ? "هذا الملف موجود بالفعل — استُخدمت النسخة الحالية" : task.status === "failed" ? escapeHtml(task.error || "فشل الرفع") : task.status === "cancelled" ? "أُلغي الرفع" : task.status === "hashing" ? "جارٍ اكتشاف الملفات المكررة..." : task.status === "done" ? "اكتمل الرفع" : "جارٍ الرفع"}</small><em><i style="width:${task.progress}%"></i></em></div><b>${task.progress}%</b>${["uploading","hashing","queued"].includes(task.status) ? `<button data-action="storage-upload-cancel" data-id="${task.id}" aria-label="إلغاء">×</button>` : ""}</article>`).join("")}</div></section>` : "";
@@ -15553,6 +15603,8 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  const storageTimerForm = target.closest?.('form[data-submit="storage-document-timer"]');
+  if (storageTimerForm) updateStorageTimerDialogPreview(storageTimerForm);
   const storageDraftForm = target.closest?.('form[data-submit="storage-document"]');
   if (storageDraftForm) syncStorageDocumentDraft(storageDraftForm);
   if (target.name === "emailHtmlContent") {
@@ -15896,6 +15948,8 @@ document.addEventListener("wheel", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  const storageTimerForm = target.closest?.('form[data-submit="storage-document-timer"]');
+  if (storageTimerForm) updateStorageTimerDialogPreview(storageTimerForm);
   if (target.dataset.action === "storage-image-input" || target.dataset.action === "storage-file-input") {
     void uploadStorageImages(target.files);
     target.value = "";

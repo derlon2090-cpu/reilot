@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { decryptStorageValue, encryptStorageValue, normalizeStorageTimerEndsAt, sanitizeStorageHtml, storagePayloadSize } from "../../src/server/storage-center.js";
+import { decryptStorageValue, encryptStorageValue, normalizeStorageTimerDisplayMode, normalizeStorageTimerEndsAt, sanitizeStorageHtml, storagePayloadSize } from "../../src/server/storage-center.js";
 
 const previousKey = process.env.STORAGE_ENCRYPTION_KEY;
 
@@ -39,6 +39,15 @@ describe("storage center security helpers", () => {
     const source = fs.readFileSync(path.join(process.cwd(), "src/server/storage-center.js"), "utf8");
     expect(source).toContain("storage_documents.content->>'timerEndsAt'");
     expect(source).toContain("timerEndsAt: input.timerEndsAt === undefined ? row.content?.timerEndsAt : input.timerEndsAt");
+  });
+
+  it("normalizes and persists the selected long-duration timer display", () => {
+    expect(normalizeStorageTimerDisplayMode("hours")).toBe("hours");
+    expect(normalizeStorageTimerDisplayMode("days")).toBe("days");
+    expect(normalizeStorageTimerDisplayMode("unexpected")).toBe("days");
+    const source = fs.readFileSync(path.join(process.cwd(), "src/server/storage-center.js"), "utf8");
+    expect(source).toContain("storage_documents.content->>'timerDisplayMode'");
+    expect(source).toContain("timerDisplayMode: input.timerDisplayMode === undefined ? row.content?.timerDisplayMode : input.timerDisplayMode");
   });
 
   it("removes executable rich-text content", () => {
