@@ -398,7 +398,7 @@ export async function createStorageFolder(session, input = {}) {
   const name = cleanText(input.name, 120);
   if (!name) throw storageError("INVALID_FOLDER_NAME", "أدخل اسم المجلد.");
   const parentId = input.parentId || null;
-  if (parentId) await requireFolder(session, parentId);
+  if (parentId) throw storageError("NESTED_FOLDER_NOT_ALLOWED", "لا يمكن إنشاء مجلد داخل مجلد؛ أضف مستندًا داخل المجلد الحالي.", 409);
   try {
     return await transaction(async (client) => {
       const result = await client.query(
@@ -434,7 +434,11 @@ export async function createStorageDocument(session, input = {}) {
   if (!title) throw storageError("INVALID_DOCUMENT_TITLE", "أدخل اسم المستند.");
   if (!DOCUMENT_TYPES.has(type)) throw storageError("INVALID_DOCUMENT_TYPE", "نوع المستند غير صالح.");
   const folderId = input.folderId || null;
-  if (folderId) await requireFolder(session, folderId);
+  if (folderId) {
+    const folder = await requireFolder(session, folderId);
+    if (folder.isSystem) throw storageError("SYSTEM_FOLDER_DOCUMENT_NOT_ALLOWED", "هذا المجلد النظامي مخصص للملفات المرفوعة فقط.", 409);
+    if (type !== "custom") throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن حفظ المستندات النصية فقط داخل المجلدات.", 409);
+  }
   const payload = documentPayload(input, type, title);
   const sizeBytes = storagePayloadSize(payload);
   return transaction(async (client) => {
@@ -509,7 +513,11 @@ export async function updateStorageDocument(session, documentId, input = {}) {
     const title = cleanText(input.title ?? row.title, 180);
     if (!title) throw storageError("INVALID_DOCUMENT_TITLE", "أدخل اسم المستند.");
     const folderId = input.folderId === undefined ? row.folderId : input.folderId || null;
-    if (folderId) await requireFolder(session, folderId, client);
+    if (folderId && folderId !== row.folderId) {
+      const folder = await requireFolder(session, folderId, client);
+      if (folder.isSystem) throw storageError("SYSTEM_FOLDER_DOCUMENT_NOT_ALLOWED", "هذا المجلد النظامي مخصص للملفات المرفوعة فقط.", 409);
+      if (row.type !== "custom") throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن حفظ المستندات النصية فقط داخل المجلدات.", 409);
+    }
     let previousSecrets = {};
     let previousFields = [];
     if (["account", "code"].includes(row.type)) {
@@ -587,7 +595,11 @@ export async function createStorageAssetUpload(session, input = {}) {
   }
   const id = crypto.randomUUID();
   const folderId = input.folderId || (isImage ? await ensureImagesFolder(session) : await ensureFilesFolder(session));
-  await requireFolder(session, folderId);
+  const targetFolder = await requireFolder(session, folderId);
+  const expectedSystemType = isImage ? "images" : "files";
+  if (!targetFolder.isSystem || targetFolder.systemType !== expectedSystemType) {
+    throw storageError("ASSET_SYSTEM_FOLDER_REQUIRED", "الملفات المرفوعة تُحفظ في مجلدها النظامي، أما المجلدات المخصصة فتحتوي مستندات نصية فقط.", 409);
+  }
   const environment = process.env.NODE_ENV === "production" ? "production" : "staging";
   const objectKey = `${environment}/storage/${session.tenantId}/${isImage ? "images" : "files"}/${id}.${rule.extension}`;
   const row = await transaction(async (client) => {
@@ -740,16 +752,22 @@ export async function moveStorageItem(session, kind, id, folderIdValue) {
   const folderId = folderIdValue || null;
   if (!table || !UUID.test(String(id || ""))) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود.", 404);
   return transaction(async (client) => {
-    if (folderId) await requireFolder(session, folderId, client);
-    const current = await client.query(`SELECT id${kind === "folder" ? ',is_system AS "isSystem"' : ""} FROM ${table} WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL FOR UPDATE`, [id, session.tenantId]);
+    const destination = folderId ? await requireFolder(session, folderId, client) : null;
+    const extraColumns = kind === "folder" ? ',is_system AS "isSystem"' : kind === "document" ? ",type" : ',mime_type AS "mimeType"';
+    const current = await client.query(`SELECT id${extraColumns} FROM ${table} WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL FOR UPDATE`, [id, session.tenantId]);
     if (!current.rows[0]) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود.", 404);
     if (current.rows[0].isSystem) throw storageError("SYSTEM_FOLDER_IMMUTABLE", "لا يمكن نقل مجلد الصور النظامي.", 409);
     if (kind === "folder" && folderId) {
-      const cycle = await client.query(
-        `WITH RECURSIVE descendants AS (SELECT id FROM storage_folders WHERE id=$1 AND tenant_id=$2 UNION ALL SELECT f.id FROM storage_folders f JOIN descendants d ON f.parent_id=d.id WHERE f.tenant_id=$2)
-         SELECT 1 FROM descendants WHERE id=$3 LIMIT 1`, [id, session.tenantId, folderId]
-      );
-      if (cycle.rows[0]) throw storageError("FOLDER_CYCLE", "لا يمكن نقل المجلد داخل نفسه أو أحد فروعه.", 409);
+      throw storageError("NESTED_FOLDER_NOT_ALLOWED", "لا يمكن وضع مجلد داخل مجلد؛ المجلدات مخصصة لاحتواء المستندات النصية.", 409);
+    }
+    if (kind === "document" && destination && (destination.isSystem || current.rows[0].type !== "custom")) {
+      throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن وضع المستندات النصية فقط داخل المجلدات المخصصة.", 409);
+    }
+    if (kind === "asset" && destination) {
+      const expectedSystemType = String(current.rows[0].mimeType || "").startsWith("image/") ? "images" : "files";
+      if (!destination.isSystem || destination.systemType !== expectedSystemType) {
+        throw storageError("ASSET_SYSTEM_FOLDER_REQUIRED", "انقل الملف المرفوع إلى مجلد النظام المخصص له.", 409);
+      }
     }
     const column = kind === "folder" ? "parent_id" : "folder_id";
     await client.query(`UPDATE ${table} SET ${column}=$3,updated_at=now() WHERE id=$1 AND tenant_id=$2`, [id, session.tenantId, folderId]);

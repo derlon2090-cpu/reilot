@@ -8930,14 +8930,20 @@ async function handleAction(target) {
   }
   if (storageAction === "storage-create-menu") {
     const currentFolder = (state.storageCenter?.storage?.allFolders || []).find((item) => item.id === state.storageCenter?.storage?.currentFolderId);
-    const options = [
-      ...(currentFolder ? [] : [["storage-new-folder", "مجلد جديد", "نظّم داخله مستنداتك وصورك وحساباتك", "folder"]]),
-      ["storage-create-document", "مستند نصي", "عنوان ومحتوى منسق يُحفظ داخل المجلد", "document"],
-      ["storage-create-note", "ملاحظة", "عنوان ونوتة سريعة قابلة للتعديل", "edit"],
-      ["storage-create-account", "بيانات حساب", "بريد وكلمة مرور وحقول إضافية", "key"],
-      ["storage-upload-files-trigger", "رفع ملف", "PDF أو مستند أو ملف مضغوط", "upload"],
-      ["storage-upload-trigger", "رفع صورة", "صورة محفوظة وقابلة لإعادة الاستخدام", "image"]
-    ];
+    const options = currentFolder
+      ? currentFolder.systemType === "images"
+        ? [["storage-upload-trigger", "رفع صورة", "صورة محفوظة وقابلة لإعادة الاستخدام", "image"]]
+        : currentFolder.systemType === "files"
+          ? [["storage-upload-files-trigger", "رفع ملف", "PDF أو مستند أو ملف مضغوط", "upload"]]
+          : [["storage-create-document", "مستند نصي", "عنوان ومحتوى منسق يُحفظ داخل هذا المجلد", "document"]]
+      : [
+          ["storage-new-folder", "مجلد جديد", "أنشئ مجلدًا مخصصًا للمستندات", "folder"],
+          ["storage-create-document", "مستند نصي", "عنوان ومحتوى منسق", "document"],
+          ["storage-create-note", "ملاحظة", "عنوان ونوتة سريعة قابلة للتعديل", "edit"],
+          ["storage-create-account", "بيانات حساب", "بريد وكلمة مرور وحقول إضافية", "key"],
+          ["storage-upload-files-trigger", "رفع ملف", "PDF أو مستند أو ملف مضغوط", "upload"],
+          ["storage-upload-trigger", "رفع صورة", "صورة محفوظة وقابلة لإعادة الاستخدام", "image"]
+        ];
     return openModal(currentFolder ? `إضافة داخل ${escapeHtml(currentFolder.name)}` : "إنشاء أو رفع", `<div class="storage-type-picker">${options.map(([action,label,description,icon]) => `<button data-action="${action}"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${description}</small></div>${dashboardIcon("chevron")}</button>`).join("")}</div>`);
   }
   if (["storage-create-document", "storage-create-note", "storage-create-account"].includes(storageAction)) {
@@ -8993,6 +8999,41 @@ async function handleAction(target) {
   if (storageAction === "storage-editor-command") {
     document.querySelector("[data-storage-editor]")?.focus();
     document.execCommand(target.dataset.command, false, target.dataset.value || null);
+    return;
+  }
+  if (storageAction === "storage-editor-color") {
+    const editor = document.querySelector("[data-storage-editor]");
+    editor?.focus();
+    document.execCommand("foreColor", false, target.dataset.value || "#173d39");
+    editor?.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatForeColor" }));
+    return;
+  }
+  if (storageAction === "storage-editor-ai-format") {
+    const editor = document.querySelector("[data-storage-editor]");
+    const content = String(editor?.innerText || "").trim();
+    if (!editor || content.length < 3) return toast("اكتب محتوى المستند أولًا ثم اطلب ترتيبه.", "warning");
+    const originalMarkup = target.innerHTML;
+    target.disabled = true;
+    target.setAttribute("aria-busy", "true");
+    target.innerHTML = `<span class="button-spinner" aria-hidden="true"></span><span>جارٍ ترتيب النص...</span>`;
+    try {
+      const payload = await fetchJson("/api/ai/storage-document/format", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Idempotency-Key": `storage-document-${crypto.randomUUID()}` },
+        body: JSON.stringify({ content })
+      });
+      editor.innerHTML = payload.html;
+      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
+      toast("تم ترتيب النص وفصل البيانات باحترافية.");
+    } catch (error) {
+      toast(error.message || "تعذر ترتيب النص حاليًا.", "danger");
+    } finally {
+      if (target.isConnected) {
+        target.disabled = false;
+        target.removeAttribute("aria-busy");
+        target.innerHTML = originalMarkup;
+      }
+    }
     return;
   }
   if (storageAction === "storage-editor-link") {
@@ -14643,7 +14684,7 @@ function storageDocumentComposer(data) {
     <label><span>كلمة المرور</span><span class="storage-secret-input"><input class="input" name="password" type="password" autocomplete="new-password" value="${escapeHtml(editing?.password || "")}" placeholder="••••••••••••"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <label class="storage-field-wide"><span>الكود <small>اختياري</small></span><span class="storage-secret-input"><input class="input" name="code" type="password" autocomplete="off" value="${escapeHtml(editing?.code || "")}" placeholder="OTP أو PIN أو Recovery Code"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <section class="storage-custom-fields storage-field-wide"><header><div><h2>بيانات إضافية</h2><p>سمِّ كل حقل بالطريقة التي تناسبك.</p></div><button type="button" class="btn btn-secondary" data-action="storage-add-field">${dashboardIcon("add")} إضافة حقل</button></header><div data-storage-custom-fields>${existingFields}</div></section>
-  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<label class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link">${dashboardIcon("link")}</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></label>`;
+  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<label class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></label>`;
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon("document")}</div><div><h1>${title}</h1><p>احفظ معلوماتك داخل مساحة عملك الخاصة بشكل منظم وآمن.</p></div></header>
@@ -14694,7 +14735,7 @@ function storageCenterPage() {
   const empty = !folders.length && !documents.length && !assets.length;
   return dashboardShell(`<section class="storage-center">
     ${storageBreadcrumbs(data)}
-    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? "نظّم محتويات هذا المجلد وابحث فيها بسهولة." : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} إنشاء أو رفع</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
+    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? (isImages ? "صورك المحفوظة جاهزة لإعادة الاستخدام." : isFiles ? "ملفاتك المرفوعة محفوظة في مكان واحد." : "هذا المجلد مخصص للمستندات النصية المرتبة فقط.") : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} ${currentFolder ? (isImages ? "رفع صورة" : isFiles ? "رفع ملف" : "مستند جديد") : "إنشاء أو رفع"}</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
     ${capacityWarning}
     <section class="storage-stats">
       <article><span>${dashboardIcon("folder")}</span><div><small>إجمالي المجلدات</small><strong>${Number(count.folders || 0).toLocaleString("ar-SA")}</strong><em>مجلدات منظمة</em></div></article>

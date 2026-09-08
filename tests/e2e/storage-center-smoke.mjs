@@ -13,13 +13,13 @@ const token = crypto.randomBytes(32).toString("base64url");
 const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 const suffix = `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
 const folderName = `فحص مركز التخزين ${suffix}`;
-const childName = `مجلد داخلي ${suffix}`;
 const documentTitle = `حساب اختبار ${suffix}`;
 const textDocumentTitle = `مستند داخل المجلد ${suffix}`;
 const textDocumentBody = `هذا محتوى المستند التجريبي ${suffix}`;
 const createdIds = [];
 const createdFolderIds = [];
 const createdDocumentIds = [];
+const artifactDirectory = path.resolve("test-results-storage-center");
 let sessionId = "";
 let browser;
 
@@ -46,6 +46,7 @@ try {
   const context = await browser.newContext({ locale: "ar-SA", viewport: { width: 1440, height: 1050 } });
   await context.addCookies([{ name: "renewpilot_session", value: token, url: baseURL, httpOnly: true, sameSite: "Lax" }]);
   const page = await context.newPage();
+  await fs.mkdir(artifactDirectory, { recursive: true });
   await page.goto(`${baseURL}/dashboard/storage`, { waitUntil: "domcontentloaded" });
   await page.locator(".storage-center h1", { hasText: "مركز التخزين" }).waitFor();
   await page.locator('[data-link="/dashboard/storage"]').waitFor();
@@ -76,10 +77,19 @@ try {
   await page.locator(".storage-page-heading h1", { hasText: folderName }).waitFor();
   await page.locator('[data-action="storage-create-menu"]').click();
   assert(await page.locator('#portal [data-action="storage-new-folder"]').count() === 0, "Nested folder creation is still offered inside a content folder.");
+  assert(await page.locator("#portal .storage-type-picker > button").count() === 1, "A content folder still offers actions other than creating a text document.");
+  assert(await page.locator('#portal [data-action="storage-upload-trigger"], #portal [data-action="storage-upload-files-trigger"], #portal [data-action="storage-create-account"], #portal [data-action="storage-create-note"]').count() === 0, "A content folder still allows non-document content.");
   await page.locator('#portal [data-action="storage-create-document"]').click();
   const textDocumentForm = page.locator('form[data-submit="storage-document"]');
+  assert(await textDocumentForm.locator('[data-action="storage-editor-color"]').count() === 6, "The document editor color palette is missing.");
+  await textDocumentForm.getByRole("button", { name: "ترتيب النص بالذكاء الاصطناعي", exact: true }).waitFor();
   await textDocumentForm.locator('[name="title"]').fill(textDocumentTitle);
   await textDocumentForm.locator('[data-storage-editor]').fill(textDocumentBody);
+  await page.setViewportSize({ width: 768, height: 1024 });
+  const aiButtonBox = await textDocumentForm.getByRole("button", { name: "ترتيب النص بالذكاء الاصطناعي", exact: true }).boundingBox();
+  assert(aiButtonBox?.width > 500, "The AI formatting action is not clear and full-width on iPad portrait.");
+  await page.screenshot({ path: path.join(artifactDirectory, "storage-document-editor-ipad.png"), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1050 });
   const textDocumentResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/storage/documents") && response.request().method() === "POST");
   await textDocumentForm.getByRole("button", { name: "حفظ", exact: true }).click();
   const textDocumentResponse = await textDocumentResponsePromise;
@@ -92,17 +102,14 @@ try {
   await page.getByRole("heading", { name: textDocumentTitle, exact: true }).waitFor();
   await page.getByText(textDocumentBody, { exact: true }).waitFor();
   await page.locator('[data-action="storage-close-document"]').click();
-  const child = await api("/api/storage/folders", { method: "POST", body: JSON.stringify({ name: childName, parentId: parent.payload.folder.id }) });
-  assert(child.status === 201 && child.payload.folder?.id, `Nested folder creation failed (${child.status}).`);
-  createdIds.push(child.payload.folder.id);
-  createdFolderIds.push(child.payload.folder.id);
+  const child = await api("/api/storage/folders", { method: "POST", body: JSON.stringify({ name: `مجلد داخلي ${suffix}`, parentId: parent.payload.folder.id }) });
+  assert(child.status === 409 && child.payload.code === "NESTED_FOLDER_NOT_ALLOWED", "The API still allows a folder to be created inside another folder.");
 
   const document = await api("/api/storage/documents", {
     method: "POST",
     body: JSON.stringify({
       type: "account",
       title: documentTitle,
-      folderId: child.payload.folder.id,
       accountName: documentTitle,
       email: "storage-smoke@example.test",
       password: `secret-${suffix}`,
@@ -136,8 +143,6 @@ try {
   );
   assert(encrypted.rows[0]?.value && !encrypted.rows[0].value.includes(`secret-${suffix}`), "Sensitive account data was stored in plaintext.");
 
-  const artifactDirectory = path.resolve("test-results-storage-center");
-  await fs.mkdir(artifactDirectory, { recursive: true });
   await page.goto(`${baseURL}/dashboard/storage`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: folderName, exact: true }).waitFor();
   await page.locator('[data-action="storage-usage-details"]').first().click();
@@ -164,16 +169,38 @@ try {
   await page.goto(`${baseURL}/dashboard/storage`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: folderName, exact: true }).waitFor();
   await page.screenshot({ path: path.join(artifactDirectory, "storage-center-overview.png"), fullPage: true });
-  await page.goto(`${baseURL}/dashboard/storage?folder=${encodeURIComponent(child.payload.folder.id)}`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("heading", { name: documentTitle, exact: true }).waitFor();
+  for (const viewport of [{ width: 1024, height: 768, name: "landscape" }, { width: 768, height: 1024, name: "portrait" }]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto(`${baseURL}/dashboard/storage`, { waitUntil: "domcontentloaded" });
+    await page.locator(".storage-stats article").first().waitFor();
+    const tabletLayout = await page.evaluate(() => {
+      const stats = [...document.querySelectorAll(".storage-stats article")].map((card) => card.getBoundingClientRect());
+      const items = document.querySelector(".storage-items.grid");
+      return {
+        count: stats.length,
+        topSpread: Math.max(...stats.map((box) => box.top)) - Math.min(...stats.map((box) => box.top)),
+        widths: stats.map((box) => box.width),
+        itemColumns: items ? getComputedStyle(items).gridTemplateColumns.split(" ").filter(Boolean).length : 0
+      };
+    });
+    assert(tabletLayout.count === 5, `The ${viewport.name} storage summary did not render all five cards.`);
+    assert(tabletLayout.topSpread <= 2, `The ${viewport.name} storage summary wrapped onto more than one row.`);
+    assert(tabletLayout.widths.slice(0, 4).every((width) => width >= 150), `The ${viewport.name} summary cards became too narrow.`);
+    assert(tabletLayout.widths[4] >= 265, `The ${viewport.name} storage-capacity card is not wide enough.`);
+    assert(tabletLayout.itemColumns === 3, `The ${viewport.name} content cards are not balanced across three columns.`);
+    await page.screenshot({ path: path.join(artifactDirectory, `storage-center-ipad-${viewport.name}.png`), fullPage: true });
+  }
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.goto(`${baseURL}/dashboard/storage?folder=${encodeURIComponent(parent.payload.folder.id)}`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: textDocumentTitle, exact: true }).waitFor();
   await page.screenshot({ path: path.join(artifactDirectory, "storage-center.png"), fullPage: true });
 
   const trashed = await api(`/api/storage/folders/${parent.payload.folder.id}`, { method: "DELETE" });
   assert(trashed.status === 200, "Nested folder tree could not be moved to trash.");
   const restored = await api(`/api/storage/trash/${parent.payload.folder.id}/restore`, { method: "POST", body: JSON.stringify({ kind: "folder" }) });
   assert(restored.status === 200, "Nested folder tree could not be restored.");
-  const reopened = await api(`/api/storage/documents/${document.payload.document.id}`);
-  assert(reopened.status === 200, "Restoring the parent did not restore its nested document.");
+  const reopened = await api(`/api/storage/documents/${textDocumentPayload.document.id}`);
+  assert(reopened.status === 200, "Restoring the folder did not restore its text document.");
   await api(`/api/storage/folders/${parent.payload.folder.id}`, { method: "DELETE" });
   const removed = await api(`/api/storage/trash/${parent.payload.folder.id}/permanent`, { method: "DELETE", body: JSON.stringify({ kind: "folder" }) });
   assert(removed.status === 200, `Deep permanent deletion failed (${removed.status}).`);
@@ -182,7 +209,7 @@ try {
     `SELECT
        (SELECT count(*)::int FROM storage_folders WHERE id=ANY($1::uuid[])) AS folders,
        (SELECT count(*)::int FROM storage_documents WHERE id=$2) AS documents`,
-    [[parent.payload.folder.id, child.payload.folder.id], document.payload.document.id]
+    [[parent.payload.folder.id], textDocumentPayload.document.id]
   );
   assert(absent.rows[0].folders === 0 && absent.rows[0].documents === 0, "Permanent deletion left nested database rows behind.");
   console.log(JSON.stringify({ ok: true, screenshots: [path.join(artifactDirectory, "storage-center-overview.png"), path.join(artifactDirectory, "storage-center.png")] }));

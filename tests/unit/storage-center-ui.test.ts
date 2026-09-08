@@ -35,6 +35,16 @@ describe("storage center form wiring", () => {
     expect(submitHandler).toContain("folderId: data.folderId || undefined");
   });
 
+  it("limits a custom folder to text documents and provides color plus AI formatting tools", () => {
+    expect(actionHandler).toContain('currentFolder.systemType === "images"');
+    expect(actionHandler).toContain('[["storage-create-document", "مستند نصي"');
+    expect(actionHandler).toContain('storageAction === "storage-editor-color"');
+    expect(actionHandler).toContain('storageAction === "storage-editor-ai-format"');
+    expect(actionHandler).toContain('fetchJson("/api/ai/storage-document/format"');
+    expect(source).toContain("ترتيب النص بالذكاء الاصطناعي");
+    expect(source).toContain("ألوان النص");
+  });
+
   it("loads a complete account usage breakdown only when space management opens", () => {
     expect(actionHandler).toContain('fetchJson("/api/storage/management")');
     expect(source).toContain("كل ما يستهلك المساحة");
