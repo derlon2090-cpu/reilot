@@ -71,6 +71,18 @@ describe("storage center form wiring", () => {
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
   });
 
+  it("persists a per-document countdown and marks expired document cards in red", () => {
+    expect(source).toContain('storageAction === "storage-editor-timer"');
+    expect(source).toContain('type === "storage-document-timer"');
+    expect(source).toContain("timerEndsAt: form.dataset.timerEndsAt || null");
+    expect(source).toContain('data-storage-countdown data-expires-at=');
+    expect(source).toContain("انتهى التوقيت");
+    expect(source).toContain("window.setInterval(update, 1000)");
+    expect(styles).toContain(".storage-document-card.is-timer-expired");
+    expect(styles).toContain(".storage-editor-toolbar .storage-editor-timer");
+    expect(styles).toContain(".storage-timer-form");
+  });
+
   it("loads a complete account usage breakdown only when space management opens", () => {
     expect(actionHandler).toContain('fetchJson("/api/storage/management")');
     expect(source).toContain("كل ما يستهلك المساحة");

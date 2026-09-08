@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { decryptStorageValue, encryptStorageValue, sanitizeStorageHtml, storagePayloadSize } from "../../src/server/storage-center.js";
+import { decryptStorageValue, encryptStorageValue, normalizeStorageTimerEndsAt, sanitizeStorageHtml, storagePayloadSize } from "../../src/server/storage-center.js";
 
 const previousKey = process.env.STORAGE_ENCRYPTION_KEY;
 
@@ -28,6 +28,17 @@ describe("storage center security helpers", () => {
 
   it("counts UTF-8 bytes instead of JavaScript characters", () => {
     expect(storagePayloadSize({ value: "مرحبا" })).toBe(Buffer.byteLength(JSON.stringify({ value: "مرحبا" }), "utf8"));
+  });
+
+  it("normalizes persistent document timers and rejects invalid or excessive durations", () => {
+    const valid = new Date(Date.now() + 60_000).toISOString();
+    expect(normalizeStorageTimerEndsAt(valid)).toBe(valid);
+    expect(normalizeStorageTimerEndsAt("")).toBeNull();
+    expect(() => normalizeStorageTimerEndsAt("not-a-date")).toThrow("مدة مؤقت المستند غير صالحة");
+    expect(() => normalizeStorageTimerEndsAt(new Date(Date.now() + 367 * 86400000).toISOString())).toThrow("لا تتجاوز سنة واحدة");
+    const source = fs.readFileSync(path.join(process.cwd(), "src/server/storage-center.js"), "utf8");
+    expect(source).toContain("storage_documents.content->>'timerEndsAt'");
+    expect(source).toContain("timerEndsAt: input.timerEndsAt === undefined ? row.content?.timerEndsAt : input.timerEndsAt");
   });
 
   it("removes executable rich-text content", () => {
