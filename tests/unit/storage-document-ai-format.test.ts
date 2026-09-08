@@ -42,19 +42,60 @@ describe("storage document AI formatting", () => {
   });
 
   it("uses the safe formatter when the server AI provider is not configured", async () => {
-    const createRun = vi.fn();
+    const createRun = vi.fn(async () => ({ id: "run-fallback-1" }));
+    const reserve = vi.fn(async () => ({ id: "reservation-fallback-1" }));
+    const settle = vi.fn(async (_session, _reservationId, input) => ({
+      actualTokens: Number(input.usage.prompt_tokens) + Number(input.usage.completion_tokens)
+    }));
     const result = await formatStorageDocumentWithAI(session, {
       content: "حساب نتفلكس\nالبريد: test@example.com\nالرمز: 123456"
     }, {
       idempotencyKey: "storage-document-fallback-123456",
       dependencies: {
         createProvider: () => ({ available: false }),
-        createRun
+        createRun,
+        finishRun: vi.fn(async () => null),
+        reserve,
+        release: vi.fn(async () => null),
+        settle,
+        getUsage: vi.fn(async () => ({ remainingTokens: 9_740, nextRefillAt: "2026-10-01T00:00:00.000Z" }))
       }
     });
-    expect(result).toMatchObject({ ok: true, fallback: true, quota: null });
+    expect(result).toMatchObject({ ok: true, fallback: true, quota: { charged: expect.any(Number), remaining: 9_740 } });
+    expect(result.quota.charged).toBeGreaterThan(0);
     expect(result.html).toContain("test@example.com");
-    expect(createRun).not.toHaveBeenCalled();
+    expect(createRun).toHaveBeenCalledWith(session, { taskType: "storage_document_format" });
+    expect(reserve).toHaveBeenCalledWith(session, expect.objectContaining({ requestedTokens: expect.any(Number) }));
+    expect(settle).toHaveBeenCalledWith(session, "reservation-fallback-1", expect.objectContaining({
+      model: "renvix-safe-formatter-v1",
+      routingMode: "flash",
+      taskType: "storage_document_format"
+    }));
+  });
+
+  it("does not return improved text when the shared chat balance cannot be reserved", async () => {
+    const settle = vi.fn();
+    const finishRun = vi.fn(async () => null);
+    const quotaError = Object.assign(new Error("balance exhausted"), {
+      code: "AI_PLAN_TOKEN_LIMIT_REACHED",
+      status: 429,
+      usage: { remainingTokens: 0 }
+    });
+    await expect(formatStorageDocumentWithAI(session, {
+      content: "حساب نتفلكس\nالبريد: test@example.com\nالرمز: 123456"
+    }, {
+      idempotencyKey: "storage-document-no-balance-123456",
+      dependencies: {
+        createProvider: () => ({ available: false }),
+        createRun: vi.fn(async () => ({ id: "run-no-balance" })),
+        finishRun,
+        reserve: vi.fn(async () => { throw quotaError; }),
+        release: vi.fn(async () => null),
+        settle
+      }
+    })).rejects.toMatchObject({ code: "AI_QUOTA_EXHAUSTED", status: 429 });
+    expect(settle).not.toHaveBeenCalled();
+    expect(finishRun).toHaveBeenCalledWith(session, "run-no-balance", { status: "failed" });
   });
 
   it("formats through the server-only provider and settles actual token usage", async () => {

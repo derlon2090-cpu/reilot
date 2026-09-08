@@ -9137,7 +9137,10 @@ async function handleAction(target) {
       });
       editor.innerHTML = payload.html;
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
-      toast(payload.fallback ? "تم ترتيب النص بنمط ذكي وآمن." : "تم ترتيب النص وفصل البيانات باحترافية.");
+      syncAIQuota(payload);
+      const charged = Number(payload?.quota?.charged || 0);
+      const chargeText = charged > 0 ? ` وتم خصم ${formatAITokens(charged)} توكن من رصيد الشات` : "";
+      toast(`${payload.fallback ? "تم ترتيب النص بنمط ذكي وآمن" : "تم ترتيب النص وفصل البيانات باحترافية"}${chargeText}.`);
     } catch (error) {
       toast(error.message || "تعذر ترتيب النص حاليًا.", "danger");
     } finally {

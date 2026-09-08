@@ -86,8 +86,7 @@ function safeFallbackResult(content, reason = "AI_PROVIDER_UNAVAILABLE") {
     ok: true,
     ...validateAIStorageDocumentResult({ html: buildSafeStorageDocumentHtml(content) }, content),
     fallback: true,
-    fallbackReason: String(reason || "AI_PROVIDER_UNAVAILABLE").slice(0, 100),
-    quota: null
+    fallbackReason: String(reason || "AI_PROVIDER_UNAVAILABLE").slice(0, 100)
   };
 }
 
@@ -152,6 +151,56 @@ const defaultDependencies = Object.freeze({
   getUsage: getAIUsageSummary
 });
 
+function quotaLimitError(error) {
+  if (error?.code !== "AI_PLAN_TOKEN_LIMIT_REACHED") return error;
+  return serviceError("AI_QUOTA_EXHAUSTED", "رصيد الذكاء غير كافٍ لترتيب هذا المستند.", 429, { usage: error.usage || null });
+}
+
+async function chargedSafeFallback(session, input = {}) {
+  const { deps, content, messages, idempotencyKey, reason } = input;
+  const result = safeFallbackResult(content, reason);
+  const usage = {
+    prompt_tokens: estimateAITokens(messages),
+    completion_tokens: estimateAITokens(result.html)
+  };
+  const actualTokens = usage.prompt_tokens + usage.completion_tokens;
+  const requestedTokens = Math.max(128, actualTokens);
+  const startedAt = Number(input.startedAt || Date.now());
+  let aiRun = input.aiRun;
+  let reservation = input.reservation;
+  let settled = false;
+  try {
+    if (!aiRun) aiRun = await deps.createRun(session, { taskType: TASK_TYPE });
+    if (!reservation) reservation = await deps.reserve(session, { requestedTokens, minimumTokens: requestedTokens });
+    const charge = await deps.settle(session, reservation.id, {
+      providerRequestId: `renvix-safe:${aiRun.id}`,
+      idempotencyKey: `storage-document:${session.tenantId}:${session.userId}:${idempotencyKey}`,
+      model: "renvix-safe-formatter-v1",
+      routingMode: "flash",
+      usage,
+      taskType: TASK_TYPE,
+      aiRunId: aiRun.id,
+      processingLatencyMs: Math.max(0, Date.now() - startedAt)
+    });
+    settled = true;
+    const quota = await deps.getUsage(session).catch(() => null);
+    return {
+      ...result,
+      quota: {
+        charged: Number(charge.actualTokens || actualTokens),
+        remaining: quota?.remainingTokens === null || quota?.remainingTokens === undefined
+          ? null
+          : Number(quota.remainingTokens),
+        nextRefillAt: quota?.nextRefillAt || null
+      }
+    };
+  } catch (error) {
+    if (reservation && !settled) await deps.release(session, reservation.id).catch(() => null);
+    if (aiRun && !settled) await deps.finishRun(session, aiRun.id, { status: "failed" }).catch(() => null);
+    throw quotaLimitError(error);
+  }
+}
+
 export async function formatStorageDocumentWithAI(session, rawInput, options = {}) {
   const parsed = inputSchema.safeParse(rawInput);
   if (!parsed.success) throw serviceError("AI_STORAGE_INVALID_REQUEST", "اكتب محتوى المستند قبل طلب ترتيبه.", 400);
@@ -160,7 +209,15 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
   const deps = { ...defaultDependencies, ...(options.dependencies || {}) };
   const messages = buildStorageDocumentFormatMessages(parsed.data.content);
   const provider = deps.createProvider();
-  if (!provider.available) return safeFallbackResult(parsed.data.content, "AI_PROVIDER_DISABLED");
+  if (!provider.available) {
+    return chargedSafeFallback(session, {
+      deps,
+      content: parsed.data.content,
+      messages,
+      idempotencyKey,
+      reason: "AI_PROVIDER_DISABLED"
+    });
+  }
   const maxTokens = Math.max(600, Math.min(4_000, Math.ceil(parsed.data.content.length / 2) + 500));
   const requestedTokens = estimateAITokens(messages) + maxTokens;
   let aiRun;
@@ -197,16 +254,28 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
       processingLatencyMs: Date.now() - startedAt
     });
     settled = true;
-    const quota = await deps.getUsage(session);
-    return { ok: true, ...result, quota: { charged: Number(charge.actualTokens || actualTokens), remaining: Number(quota?.remainingTokens || 0), nextRefillAt: quota?.nextRefillAt || null } };
+    const quota = await deps.getUsage(session).catch(() => null);
+    return { ok: true, ...result, quota: {
+      charged: Number(charge.actualTokens || actualTokens),
+      remaining: quota?.remainingTokens === null || quota?.remainingTokens === undefined ? null : Number(quota.remainingTokens),
+      nextRefillAt: quota?.nextRefillAt || null
+    } };
   } catch (error) {
+    const status = Number(error?.status || 500);
+    const canUseFallback = !settled && (status >= 500 || String(error?.code || "").startsWith("AI_PROVIDER_"));
+    if (canUseFallback) {
+      return chargedSafeFallback(session, {
+        deps,
+        content: parsed.data.content,
+        messages,
+        idempotencyKey,
+        reason: error?.code || "AI_PROVIDER_FAILED",
+        aiRun,
+        reservation
+      });
+    }
     if (reservation && !settled) await deps.release(session, reservation.id).catch(() => null);
     if (aiRun && !settled) await deps.finishRun(session, aiRun.id, { status: "failed" }).catch(() => null);
-    if (error?.code === "AI_PLAN_TOKEN_LIMIT_REACHED") throw serviceError("AI_QUOTA_EXHAUSTED", "رصيد الذكاء غير كافٍ لترتيب هذا المستند.", 429, { usage: error.usage || null });
-    const status = Number(error?.status || 500);
-    if (status >= 500 || String(error?.code || "").startsWith("AI_PROVIDER_")) {
-      return safeFallbackResult(parsed.data.content, error?.code || "AI_PROVIDER_FAILED");
-    }
-    throw error;
+    throw quotaLimitError(error);
   }
 }

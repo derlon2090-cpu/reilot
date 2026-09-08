@@ -66,6 +66,8 @@ describe("storage center form wiring", () => {
     expect(source).toContain("ترتيب النص بالذكاء الاصطناعي");
     expect(source).toContain("ألوان النص");
     expect(actionHandler).toContain("payload.fallback");
+    expect(actionHandler).toContain("syncAIQuota(payload)");
+    expect(actionHandler).toContain("توكن من رصيد الشات");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
   });
 
