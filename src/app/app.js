@@ -8994,6 +8994,21 @@ async function handleAction(target) {
     } catch (error) { openModal("سلة المحذوفات", `<div class="storage-empty-trash">${dashboardIcon("warning")}<strong>تعذر تحميل السلة</strong><p>${escapeHtml(error.message)}</p></div>`); }
     return;
   }
+  if (storageAction === "storage-trash-empty") {
+    if (!window.confirm("سيتم حذف جميع عناصر السلة نهائيًا ولا يمكن التراجع. هل تريد المتابعة؟")) return;
+    target.disabled = true;
+    try {
+      const payload = await fetchJson("/api/storage/trash", { method: "DELETE" });
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast(`تم إفراغ السلة وتحرير ${formatStorageBytes(payload.result?.freedBytes || 0)}.`);
+    } catch (error) {
+      target.disabled = false;
+      toast(error.message || "تعذر إفراغ السلة.", "danger");
+    }
+    return;
+  }
   if (storageAction === "storage-trash-restore") {
     target.disabled = true;
     try {
@@ -12403,13 +12418,6 @@ async function handleSubmit(form, event) {
     await requestCampaignStudioAICode(campaignForm);
     return;
   }
-  if (storageAction === "storage-trash-empty") {
-    if (!window.confirm("سيتم حذف جميع عناصر السلة نهائيًا ولا يمكن التراجع. هل تريد المتابعة؟")) return;
-    target.disabled = true;
-    try { const payload = await fetchJson("/api/storage/trash", { method: "DELETE" }); closePortal(); state.storageCenter = null; await syncRouteData(true); toast(`تم إفراغ السلة وتحرير ${formatStorageBytes(payload.result?.freedBytes || 0)}.`); }
-    catch (error) { target.disabled = false; toast(error.message || "تعذر إفراغ السلة.", "danger"); }
-    return;
-  }
   if (type === "storage-folder") {
     const button = form.querySelector('button[type="submit"]');
     setSubmitBusy(button, true, "جارٍ الإنشاء...");
@@ -12423,7 +12431,7 @@ async function handleSubmit(form, event) {
       await syncRouteData(true);
       toast("تم إنشاء المجلد بنجاح.");
     } catch (error) { toast(error.message || "تعذر إنشاء المجلد.", "danger"); }
-    finally { setSubmitBusy(button, false); }
+    finally { setSubmitBusy(button, false, "إنشاء المجلد"); }
     return;
   }
   if (type === "storage-rename" || type === "storage-move") {

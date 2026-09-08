@@ -57,8 +57,17 @@ try {
     return { status: response.status, payload };
   }, { url, options });
 
-  const parent = await api("/api/storage/folders", { method: "POST", body: JSON.stringify({ name: folderName, description: "عنصر مؤقت لاختبار مركز التخزين" }) });
-  assert(parent.status === 201 && parent.payload.folder?.id, `Parent folder creation failed (${parent.status}).`);
+  await page.locator('[data-action="storage-create-menu"]').click();
+  await page.locator('#portal [data-action="storage-new-folder"]').click();
+  const folderForm = page.locator('#portal form[data-submit="storage-folder"]');
+  await folderForm.locator('[name="name"]').fill(folderName);
+  await folderForm.locator('[name="description"]').fill("عنصر مؤقت لاختبار مركز التخزين");
+  const folderResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/storage/folders") && response.request().method() === "POST");
+  await folderForm.getByRole("button", { name: "إنشاء المجلد", exact: true }).click();
+  const folderResponse = await folderResponsePromise;
+  const parent = { status: folderResponse.status(), payload: await folderResponse.json() };
+  assert(parent.status === 201 && parent.payload.folder?.id, `Folder creation through the UI failed (${parent.status}).`);
+  await page.getByRole("heading", { name: folderName, exact: true }).waitFor();
   createdIds.push(parent.payload.folder.id);
   createdFolderIds.push(parent.payload.folder.id);
   const child = await api("/api/storage/folders", { method: "POST", body: JSON.stringify({ name: childName, parentId: parent.payload.folder.id }) });
