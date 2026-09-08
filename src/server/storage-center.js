@@ -362,7 +362,7 @@ export async function getStorageCenter(session, input = {}) {
       files: Number(counts.rows[0]?.fileBytes || 0),
       documents: Number(counts.rows[0]?.documentBytes || 0),
       trash: Number(counts.rows[0]?.trashBytes || 0),
-      other: Math.max(0, Number(usage.usedBytes || 0) - Number(counts.rows[0]?.imageBytes || 0) - Number(counts.rows[0]?.fileBytes || 0) - Number(counts.rows[0]?.documentBytes || 0))
+      other: Math.max(0, Number(usage.usedBytes || 0) - Number(counts.rows[0]?.imageBytes || 0) - Number(counts.rows[0]?.fileBytes || 0) - Number(counts.rows[0]?.documentBytes || 0) - Number(counts.rows[0]?.trashBytes || 0))
     },
     recentlyOpened,
     management: {
