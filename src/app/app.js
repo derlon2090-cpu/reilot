@@ -1301,6 +1301,14 @@ function applyPreferences() {
   document.documentElement.dir = state.language === "ar" ? "rtl" : "ltr";
 }
 
+function resolveRenvixApiUrl(url) {
+  if (typeof url !== "string") return url;
+  if (url === "/api/storage") return "/storage-api";
+  if (url.startsWith("/api/storage/")) return `/storage-api/${url.slice("/api/storage/".length)}`;
+  if (url === "/api/ai/storage-document/format") return "/storage-api/ai-format";
+  return url;
+}
+
 async function fetchJson(url, options = {}) {
   const { timeoutMessage, timeoutMs = 0, ...fetchOptions } = options;
   const requestTimeoutMs = Math.max(0, Number(timeoutMs || 0));
@@ -1327,7 +1335,7 @@ async function fetchJson(url, options = {}) {
   let response;
   let rawPayload = "";
   try {
-    response = await fetch(url, { credentials: "include", ...fetchOptions });
+    response = await fetch(resolveRenvixApiUrl(url), { credentials: "include", ...fetchOptions });
     rawPayload = await response.text();
   } catch (error) {
     if (didTimeout || ["AbortError", "TimeoutError"].includes(error?.name)) {
@@ -1340,6 +1348,7 @@ async function fetchJson(url, options = {}) {
     clearTimeout(timeoutId);
     detachExternalAbort?.();
   }
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
   let payload = {};
   if (rawPayload) {
     try {
@@ -1347,6 +1356,12 @@ async function fetchJson(url, options = {}) {
     } catch {
       payload = { message: response.ok ? "تعذر قراءة استجابة الخادم." : "تعذر إكمال الطلب من الخادم." };
     }
+  }
+  if (response.ok && rawPayload && !contentType.includes("application/json")) {
+    const error = new Error("خدمة مركز التخزين أعادت استجابة غير صالحة. أعد تحميل الصفحة ثم حاول مرة أخرى.");
+    error.status = 502;
+    error.code = "INVALID_API_RESPONSE";
+    throw error;
   }
   if (!response.ok) {
     if (payload.reason === "storage_limit_reached" || payload.error?.code === "storage_limit_reached") {
@@ -8850,7 +8865,7 @@ async function uploadStorageImages(fileList) {
       } catch (error) {
         state.storageUploadRequests.delete(task.id);
         task.status = error.cancelled ? "cancelled" : "failed"; task.error = error.message;
-        if (assetId) await fetch(`/api/storage/assets/${encodeURIComponent(assetId)}`, { method: "DELETE", credentials: "include" }).catch(() => {});
+        if (assetId) await fetch(resolveRenvixApiUrl(`/api/storage/assets/${encodeURIComponent(assetId)}`), { method: "DELETE", credentials: "include" }).catch(() => {});
         if (!error.cancelled) toast(error.message || `تعذر رفع ${file.name}.`, "danger");
       }
       render();

@@ -14,6 +14,13 @@ const submitHandler = source.slice(
 const managementRoute = readFileSync(resolve("app/api/storage/management/route.js"), "utf8");
 
 describe("storage center form wiring", () => {
+  it("routes storage traffic around the external API rewrite and rejects HTML masquerading as success", () => {
+    expect(source).toContain('if (url === "/api/storage") return "/storage-api"');
+    expect(source).toContain('url.startsWith("/api/storage/")');
+    expect(source).toContain('return "/storage-api/ai-format"');
+    expect(source).toContain('error.code = "INVALID_API_RESPONSE"');
+  });
+
   it("keeps button-only trash actions out of the form submit handler", () => {
     expect(actionHandler).toContain('storageAction === "storage-trash-empty"');
     expect(submitHandler).not.toContain("storageAction");

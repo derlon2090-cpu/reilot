@@ -65,7 +65,7 @@ try {
   const folderForm = page.locator('#portal form[data-submit="storage-folder"]');
   await folderForm.locator('[name="name"]').fill(folderName);
   await folderForm.locator('[name="description"]').fill("عنصر مؤقت لاختبار مركز التخزين");
-  const folderResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/storage/folders") && response.request().method() === "POST");
+  const folderResponsePromise = page.waitForResponse((response) => response.url().endsWith("/storage-api/folders") && response.request().method() === "POST");
   await folderForm.getByRole("button", { name: "إنشاء المجلد", exact: true }).click();
   const folderResponse = await folderResponsePromise;
   const parent = { status: folderResponse.status(), payload: await folderResponse.json() };
@@ -90,7 +90,7 @@ try {
   assert(aiButtonBox?.width > 500, "The AI formatting action is not clear and full-width on iPad portrait.");
   await page.screenshot({ path: path.join(artifactDirectory, "storage-document-editor-ipad.png"), fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1050 });
-  const textDocumentResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/storage/documents") && response.request().method() === "POST");
+  const textDocumentResponsePromise = page.waitForResponse((response) => response.url().endsWith("/storage-api/documents") && response.request().method() === "POST");
   await textDocumentForm.getByRole("button", { name: "حفظ", exact: true }).click();
   const textDocumentResponse = await textDocumentResponsePromise;
   const textDocumentPayload = await textDocumentResponse.json();
@@ -108,7 +108,7 @@ try {
   assert(!new URL(page.url()).searchParams.has("document"), "Closing the document left the document URL active.");
   await textDocumentCard.locator('[data-action="storage-item-menu"]').click();
   await page.locator('#portal [data-action="storage-delete-item"][data-kind="document"]').click();
-  const documentDeleteResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/api/storage/documents/${textDocumentPayload.document.id}`) && response.request().method() === "DELETE");
+  const documentDeleteResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/storage-api/documents/${textDocumentPayload.document.id}`) && response.request().method() === "DELETE");
   await page.locator('#portal [data-action="storage-confirm-delete"][data-kind="document"]').click();
   const documentDeleteResponse = await documentDeleteResponsePromise;
   const documentDeletePayload = await documentDeleteResponse.json();
@@ -125,7 +125,7 @@ try {
   const retainedDocument = trashPayload.payload.items?.find((item) => item.id === textDocumentPayload.document.id);
   const retentionMs = new Date(retainedDocument?.expiresAt || 0).getTime() - new Date(retainedDocument?.deletedAt || 0).getTime();
   assert(trashPayload.status === 200 && retentionMs === 15 * 86400000, "Trash API did not expose an exact 15-day document retention window.");
-  const documentRestoreResponsePromise = page.waitForResponse((response) => response.url().includes(`/api/storage/trash/${textDocumentPayload.document.id}/restore`) && response.request().method() === "POST");
+  const documentRestoreResponsePromise = page.waitForResponse((response) => response.url().includes(`/storage-api/trash/${textDocumentPayload.document.id}/restore`) && response.request().method() === "POST");
   await trashedDocument.getByRole("button", { name: "استعادة", exact: true }).click();
   assert((await documentRestoreResponsePromise).status() === 200, "Document restoration failed.");
   await textDocumentCard.waitFor({ state: "visible" });
