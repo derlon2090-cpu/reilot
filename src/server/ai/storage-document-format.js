@@ -34,6 +34,63 @@ function visibleText(value) {
     .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function escapeDocumentText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeDocumentLineMarkup(line, firstLine = false) {
+  const text = String(line || "").trim();
+  if (!text) return "";
+  const field = text.match(/^([^:：]{1,60})([:：])\s*(.+)$/u);
+  if (field) {
+    return `<p><strong>${escapeDocumentText(`${field[1].trim()}${field[2]}`)}</strong> ${escapeDocumentText(field[3].trim())}</p>`;
+  }
+  if (firstLine && text.length <= 100) return `<h3>${escapeDocumentText(text)}</h3>`;
+  return `<p>${escapeDocumentText(text)}</p>`;
+}
+
+export function buildSafeStorageDocumentHtml(content) {
+  const normalized = String(content || "").replace(/\r\n?/g, "\n").trim();
+  if (!normalized) return "";
+  const blocks = normalized.split(/\n\s*\n+/u).map((block) => block.trim()).filter(Boolean);
+  return blocks.map((block) => {
+    const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    const markup = [];
+    let listItems = [];
+    const flushList = () => {
+      if (!listItems.length) return;
+      markup.push(`<ul>${listItems.map((item) => `<li>${escapeDocumentText(item)}</li>`).join("")}</ul>`);
+      listItems = [];
+    };
+    lines.forEach((line, index) => {
+      const bullet = line.match(/^(?:[-*•]|\d+[.)])\s+(.+)$/u);
+      if (bullet) {
+        listItems.push(bullet[1].trim());
+        return;
+      }
+      flushList();
+      markup.push(safeDocumentLineMarkup(line, index === 0));
+    });
+    flushList();
+    return markup.join("");
+  }).join("<hr>");
+}
+
+function safeFallbackResult(content, reason = "AI_PROVIDER_UNAVAILABLE") {
+  return {
+    ok: true,
+    ...validateAIStorageDocumentResult({ html: buildSafeStorageDocumentHtml(content) }, content),
+    fallback: true,
+    fallbackReason: String(reason || "AI_PROVIDER_UNAVAILABLE").slice(0, 100),
+    quota: null
+  };
+}
+
 export function sanitizeAIStorageDocumentHtml(value) {
   const withoutUnsafeBlocks = String(value || "")
     .replace(/<!--[^]*?-->/g, "")
@@ -103,7 +160,7 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
   const deps = { ...defaultDependencies, ...(options.dependencies || {}) };
   const messages = buildStorageDocumentFormatMessages(parsed.data.content);
   const provider = deps.createProvider();
-  if (!provider.available) throw serviceError("AI_PROVIDER_DISABLED", "ذكاء Renvix غير متاح حاليًا.", 503);
+  if (!provider.available) return safeFallbackResult(parsed.data.content, "AI_PROVIDER_DISABLED");
   const maxTokens = Math.max(600, Math.min(4_000, Math.ceil(parsed.data.content.length / 2) + 500));
   const requestedTokens = estimateAITokens(messages) + maxTokens;
   let aiRun;
@@ -146,6 +203,10 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
     if (reservation && !settled) await deps.release(session, reservation.id).catch(() => null);
     if (aiRun && !settled) await deps.finishRun(session, aiRun.id, { status: "failed" }).catch(() => null);
     if (error?.code === "AI_PLAN_TOKEN_LIMIT_REACHED") throw serviceError("AI_QUOTA_EXHAUSTED", "رصيد الذكاء غير كافٍ لترتيب هذا المستند.", 429, { usage: error.usage || null });
+    const status = Number(error?.status || 500);
+    if (status >= 500 || String(error?.code || "").startsWith("AI_PROVIDER_")) {
+      return safeFallbackResult(parsed.data.content, error?.code || "AI_PROVIDER_FAILED");
+    }
     throw error;
   }
 }

@@ -12,6 +12,7 @@ const submitHandler = source.slice(
   source.indexOf('document.addEventListener("submit"')
 );
 const managementRoute = readFileSync(resolve("app/api/storage/management/route.js"), "utf8");
+const styles = readFileSync(resolve("src/styles/globals.css"), "utf8");
 
 describe("storage center form wiring", () => {
   it("routes storage traffic around the external API rewrite and rejects HTML masquerading as success", () => {
@@ -64,6 +65,8 @@ describe("storage center form wiring", () => {
     expect(actionHandler).toContain('fetchJson("/api/ai/storage-document/format"');
     expect(source).toContain("ترتيب النص بالذكاء الاصطناعي");
     expect(source).toContain("ألوان النص");
+    expect(actionHandler).toContain("payload.fallback");
+    expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
   });
 
   it("loads a complete account usage breakdown only when space management opens", () => {

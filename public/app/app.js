@@ -9131,11 +9131,13 @@ async function handleAction(target) {
       const payload = await fetchJson("/api/ai/storage-document/format", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Idempotency-Key": `storage-document-${crypto.randomUUID()}` },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content }),
+        timeoutMs: 45_000,
+        timeoutMessage: "استغرق ترتيب النص وقتًا أطول من المتوقع. حاول مرة أخرى."
       });
       editor.innerHTML = payload.html;
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
-      toast("تم ترتيب النص وفصل البيانات باحترافية.");
+      toast(payload.fallback ? "تم ترتيب النص بنمط ذكي وآمن." : "تم ترتيب النص وفصل البيانات باحترافية.");
     } catch (error) {
       toast(error.message || "تعذر ترتيب النص حاليًا.", "danger");
     } finally {

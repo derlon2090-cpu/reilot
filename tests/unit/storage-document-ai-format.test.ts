@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildStorageDocumentFormatMessages,
+  buildSafeStorageDocumentHtml,
   formatStorageDocumentWithAI,
   sanitizeAIStorageDocumentHtml,
   validateAIStorageDocumentResult
@@ -30,6 +31,30 @@ describe("storage document AI formatting", () => {
       );
     } catch (caught) { error = caught; }
     expect(error).toMatchObject({ code: "AI_STORAGE_SENSITIVE_VALUE_LOST", status: 422 });
+  });
+
+  it("builds a safe professional fallback that preserves fields and separates accounts", () => {
+    const html = buildSafeStorageDocumentHtml("حساب نتفلكس\nالبريد: user@example.com\nالرمز: 123456\n\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: pass-9876");
+    expect(html).toContain("<h3>حساب نتفلكس</h3>");
+    expect(html).toContain("<strong>البريد:</strong> user@example.com");
+    expect(html).toContain("<hr>");
+    expect(html).toContain("pass-9876");
+  });
+
+  it("uses the safe formatter when the server AI provider is not configured", async () => {
+    const createRun = vi.fn();
+    const result = await formatStorageDocumentWithAI(session, {
+      content: "حساب نتفلكس\nالبريد: test@example.com\nالرمز: 123456"
+    }, {
+      idempotencyKey: "storage-document-fallback-123456",
+      dependencies: {
+        createProvider: () => ({ available: false }),
+        createRun
+      }
+    });
+    expect(result).toMatchObject({ ok: true, fallback: true, quota: null });
+    expect(result.html).toContain("test@example.com");
+    expect(createRun).not.toHaveBeenCalled();
   });
 
   it("formats through the server-only provider and settles actual token usage", async () => {
