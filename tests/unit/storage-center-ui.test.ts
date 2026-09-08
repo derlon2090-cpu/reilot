@@ -83,6 +83,17 @@ describe("storage center form wiring", () => {
     expect(styles).toContain(".storage-timer-form");
   });
 
+  it("keeps the current editor draft through rerenders and animates its focus state", () => {
+    expect(source).toContain("state.storageDocumentDraft = null");
+    expect(source).toContain("function syncStorageDocumentDraft");
+    expect(source).toContain("body: editor.innerHTML");
+    expect(source).toContain("function restoreStorageDocumentDraft");
+    expect(source).toContain("editor.innerHTML = draft.body");
+    expect(source).toContain('if (state.route === "/dashboard/storage") restoreStorageDocumentDraft()');
+    expect(styles).toContain(".storage-editor:focus-within");
+    expect(styles).toContain("@keyframes storage-editor-focus-line");
+  });
+
   it("loads a complete account usage breakdown only when space management opens", () => {
     expect(actionHandler).toContain('fetchJson("/api/storage/management")');
     expect(source).toContain("كل ما يستهلك المساحة");

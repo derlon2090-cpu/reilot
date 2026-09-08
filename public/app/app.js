@@ -865,6 +865,7 @@ state.storageDocumentLoadingId = "";
 state.storageDocumentRequestController = null;
 state.storageCenterRevision = 0;
 state.storageEditingDocument = null;
+state.storageDocumentDraft = null;
 state.storageUploading = false;
 state.storageUploads = [];
 state.storageUploadRequests = new Map();
@@ -8890,6 +8891,33 @@ async function openSallaStorageImagePicker() {
   }
 }
 
+function syncStorageDocumentDraft(form = document.querySelector('form[data-submit="storage-document"]')) {
+  const editor = form?.querySelector("[data-storage-editor]");
+  if (!form || !editor || !["note", "custom"].includes(form.dataset.type)) return;
+  state.storageDocumentDraft = {
+    id: form.dataset.id || "",
+    type: form.dataset.type,
+    title: String(form.elements.title?.value || ""),
+    folderId: String(form.elements.folderId?.value || ""),
+    body: editor.innerHTML,
+    timerEndsAt: form.dataset.timerEndsAt || ""
+  };
+}
+
+function restoreStorageDocumentDraft() {
+  const draft = state.storageDocumentDraft;
+  const form = document.querySelector('form[data-submit="storage-document"]');
+  const editor = form?.querySelector("[data-storage-editor]");
+  if (!draft || !form || !editor || draft.type !== form.dataset.type || draft.id !== (form.dataset.id || "")) return;
+  if (form.elements.title) form.elements.title.value = draft.title;
+  if (form.elements.folderId) form.elements.folderId.value = draft.folderId;
+  form.dataset.timerEndsAt = draft.timerEndsAt;
+  editor.innerHTML = draft.body;
+  const words = String(editor.innerText || "").trim().split(/\s+/).filter(Boolean).length;
+  const output = form.querySelector("[data-storage-word-count]");
+  if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
+}
+
 async function autosaveStorageDocument(form) {
   const documentId = form?.dataset.id;
   if (!documentId || !["note", "custom"].includes(form.dataset.type)) return false;
@@ -9001,6 +9029,7 @@ async function handleAction(target) {
     return openModal("ماذا تريد حفظه؟", `<div class="storage-type-picker">${[["account","بيانات حساب","بريد وكلمة مرور وأكواد وحقول إضافية","key"],["code","كود / مفتاح","API Key أو PIN أو Recovery Code","code"],["note","ملاحظة","محرر مرن للملاحظات والمعلومات","document"],["custom","أخرى","مستند فارغ تبدأه بالطريقة التي تناسبك","add"]].map(([type,label,body,icon]) => `<button data-action="storage-choose-document" data-type="${type}"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${body}</small></div>${dashboardIcon("chevron")}</button>`).join("")}</div>`);
   }
   if (storageAction === "storage-choose-document") {
+    state.storageDocumentDraft = null;
     state.storageComposeType = target.dataset.type || "custom";
     closePortal();
     return render();
@@ -9012,11 +9041,13 @@ async function handleAction(target) {
     state.storageComposeType = "";
     state.storageDocument = null;
     state.storageEditingDocument = null;
+    state.storageDocumentDraft = null;
     if (state.query.get("document")) updateStorageDocumentUrl("");
     return render();
   }
   if (storageAction === "storage-edit-document") {
     if (!state.storageDocument?.id) return;
+    state.storageDocumentDraft = null;
     state.storageEditingDocument = state.storageDocument;
     state.storageComposeType = state.storageDocument.type;
     state.storageDocument = null;
@@ -9060,6 +9091,7 @@ async function handleAction(target) {
     return openModal(currentFolder ? `إضافة داخل ${escapeHtml(currentFolder.name)}` : "إنشاء أو رفع", `<div class="storage-type-picker">${options.map(([action,label,description,icon]) => `<button data-action="${action}"><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${description}</small></div>${dashboardIcon("chevron")}</button>`).join("")}</div>`);
   }
   if (["storage-create-document", "storage-create-note", "storage-create-account"].includes(storageAction)) {
+    state.storageDocumentDraft = null;
     state.storageComposeType = storageAction === "storage-create-document" ? "custom" : storageAction === "storage-create-note" ? "note" : "account";
     closePortal(); return render();
   }
@@ -12740,6 +12772,7 @@ async function handleSubmit(form, event) {
       await fetchJson(documentId ? `/api/storage/documents/${encodeURIComponent(documentId)}` : "/api/storage/documents", { method: documentId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       state.storageComposeType = "";
       state.storageEditingDocument = null;
+      state.storageDocumentDraft = null;
       state.storageCenter = null;
       await syncRouteData(true);
       toast(documentId ? "تم حفظ التغييرات بأمان." : "تم حفظ المستند بأمان.");
@@ -14915,11 +14948,13 @@ async function updateStorageEditorTimer(timerEndsAt = "") {
   form.dataset.timerEndsAt = timerEndsAt;
   const currentButton = form.querySelector('[data-action="storage-editor-timer"]');
   if (currentButton) currentButton.outerHTML = storageEditorTimerButtonMarkup(timerEndsAt);
+  syncStorageDocumentDraft(form);
   bindStorageDocumentCountdowns();
   if (form.dataset.id && !(await autosaveStorageDocument(form))) {
     form.dataset.timerEndsAt = previousTimerEndsAt;
     const timerButton = form.querySelector('[data-action="storage-editor-timer"]');
     if (timerButton) timerButton.outerHTML = storageEditorTimerButtonMarkup(previousTimerEndsAt);
+    syncStorageDocumentDraft(form);
     bindStorageDocumentCountdowns();
     throw new Error("تعذر حفظ مؤقت المستند. حاول مرة أخرى.");
   }
@@ -15030,6 +15065,7 @@ function render() {
   }
   if (state.route !== "/dashboard/support/ai" && state.aiRecorder?.state === "recording") cancelAIRecording(document.querySelector('form[data-submit="ai-message"]'));
   state.query = new URLSearchParams(location.search);
+  if (state.route === "/dashboard/storage" && state.storageComposeType) syncStorageDocumentDraft();
   if (!state.route.startsWith("/dashboard/support")) closeSupportLiveConnection();
   if (state.route.startsWith("/dashboard")) {
     const pages = {
@@ -15074,6 +15110,7 @@ function render() {
           ? dashboardSupportPage
           : pages[state.route] || dashboardHome;
     app.innerHTML = dashboardPage();
+    if (state.route === "/dashboard/storage") restoreStorageDocumentDraft();
     localizeElement(app);
     ensurePasswordToggles();
     bindQrImageState();
@@ -15516,6 +15553,8 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  const storageDraftForm = target.closest?.('form[data-submit="storage-document"]');
+  if (storageDraftForm) syncStorageDocumentDraft(storageDraftForm);
   if (target.name === "emailHtmlContent") {
     clearTimeout(state.emailCodePreviewTimer);
     const form = target.closest("form");
@@ -16257,6 +16296,7 @@ window.addEventListener("popstate", () => {
     state.storageDocument = null;
     state.storageEditingDocument = null;
     state.storageComposeType = "";
+    state.storageDocumentDraft = null;
   }
   render();
   requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
