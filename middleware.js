@@ -86,7 +86,12 @@ export async function middlewareRequest(request, {
   const canonicalAuth = canonicalAuthPath(path);
   const authPage = isAuthPath(canonicalAuth) || path.startsWith("/auth/");
   const authApi = path.startsWith("/api/auth/");
-  const pageRequest = !path.startsWith("/api/") && !path.startsWith("/backend/");
+  // Storage API aliases deliberately live outside `/api` so Vercel's legacy
+  // blanket `/api/:path*` rewrite cannot send them to the retired backend.
+  // Treat them as API requests here as well; otherwise the app-host canonical
+  // page rule redirects them to the public site and browser fetches fail CORS.
+  const storageApi = path === "/storage-api" || path.startsWith("/storage-api/");
+  const pageRequest = !path.startsWith("/api/") && !path.startsWith("/backend/") && !storageApi;
   const apiHost = authApiOrigin ? new URL(authApiOrigin).hostname.toLowerCase() : "";
   const localAdminAuthBridge = hostKind === "admin" && authApi && isAdminAuthBridgeApi(path);
   const adminSurface = hostKind === "admin" && (
@@ -120,6 +125,9 @@ export async function middlewareRequest(request, {
       && !(hostKind === "app" && isDashboardAuthApi(path))
       && !(hostKind === "admin" && isAdminAuthBridgeApi(path))
       && hostKind !== "unknown") {
+      return wrongHostApiResponse();
+    }
+    if (storageApi && hostKind !== "app" && hostKind !== "unknown") {
       return wrongHostApiResponse();
     }
     if (hostKind === "admin" && path.startsWith("/api/") && !adminApi && !(authApi && isAdminAuthBridgeApi(path))) {

@@ -84,6 +84,28 @@ describe("canonical domain middleware", () => {
     expect(authResponse.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it("keeps storage API aliases on the dashboard host without a cross-origin redirect", async () => {
+    for (const path of [
+      "/storage-api",
+      "/storage-api/trash",
+      "/storage-api/text-documents/document-id",
+      "/storage-api/ai-format"
+    ]) {
+      const response = await run(`https://dash.renvix.app${path}`, "customer");
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.headers.get("location")).toBeNull();
+    }
+  });
+
+  it("does not expose storage API aliases from another canonical host", async () => {
+    for (const host of ["renvix.app", "accounts.renvix.app", "wa-admin.renvix.app"]) {
+      const response = await run(`https://${host}/storage-api/trash`, "customer");
+      expect(response.status).toBe(404);
+      expect(response.headers.get("location")).toBeNull();
+      await expect(response.json()).resolves.toMatchObject({ reason: "misdirected_host" });
+    }
+  });
+
   it("sends customer pages to dash and unauthenticated customers to accounts", async () => {
     const wrongHost = await run("https://renvix.app/dashboard/customers", "customer");
     expect(wrongHost.status).toBe(307);
