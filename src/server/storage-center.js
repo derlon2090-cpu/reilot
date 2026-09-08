@@ -219,7 +219,7 @@ export async function getStorageCenter(session, input = {}) {
   if (folderId) await requireFolder(session, folderId);
   const imagesFolderId = await ensureImagesFolder(session);
   const filesFolderId = await ensureFilesFolder(session);
-  const [folderRows, allFolderRows, documentRows, assetRows, counts, recent, usage, trail] = await Promise.all([
+  const [folderRows, allFolderRows, documentRows, assetRows, counts, recent, usage, trail, largestItems, oldItems, unusedImages, duplicateFiles] = await Promise.all([
     query(
       `WITH RECURSIVE folder_tree AS (
          SELECT id AS root_id,id FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NULL
@@ -297,7 +297,53 @@ export async function getStorageCenter(session, input = {}) {
       [session.tenantId]
     ),
     getTenantStorageLimitState(session.tenantId),
-    breadcrumbs(session, folderId)
+    breadcrumbs(session, folderId),
+    query(
+      `SELECT item.*,count(*) OVER()::int AS "totalCount",COALESCE(sum("sizeBytes") OVER(),0)::bigint AS "totalBytes" FROM (
+         SELECT asset.id,asset.name,'asset' AS kind,asset.mime_type AS "mimeType",NULL::text AS type,
+                asset.size_bytes AS "sizeBytes",asset.created_at AS "createdAt"
+           FROM storage_assets asset
+          WHERE asset.tenant_id=$1 AND asset.deleted_at IS NULL AND asset.status='ready'
+         UNION ALL
+         SELECT document.id,document.title AS name,'document' AS kind,NULL::text AS "mimeType",document.type,
+                document.size_bytes AS "sizeBytes",document.created_at AS "createdAt"
+           FROM storage_documents document
+          WHERE document.tenant_id=$1 AND document.deleted_at IS NULL
+       ) item ORDER BY "sizeBytes" DESC,"createdAt" DESC LIMIT 6`,
+      [session.tenantId]
+    ),
+    query(
+      `SELECT item.*,count(*) OVER()::int AS "totalCount",COALESCE(sum("sizeBytes") OVER(),0)::bigint AS "totalBytes" FROM (
+         SELECT asset.id,asset.name,'asset' AS kind,asset.mime_type AS "mimeType",NULL::text AS type,
+                asset.size_bytes AS "sizeBytes",asset.created_at AS "createdAt"
+           FROM storage_assets asset
+          WHERE asset.tenant_id=$1 AND asset.deleted_at IS NULL AND asset.status='ready' AND asset.created_at<now()-interval '180 days'
+         UNION ALL
+         SELECT document.id,document.title AS name,'document' AS kind,NULL::text AS "mimeType",document.type,
+                document.size_bytes AS "sizeBytes",document.created_at AS "createdAt"
+           FROM storage_documents document
+          WHERE document.tenant_id=$1 AND document.deleted_at IS NULL AND document.created_at<now()-interval '180 days'
+       ) item ORDER BY "createdAt" ASC LIMIT 6`,
+      [session.tenantId]
+    ),
+    query(
+      `SELECT asset.id,asset.name,'asset' AS kind,asset.mime_type AS "mimeType",asset.size_bytes AS "sizeBytes",asset.created_at AS "createdAt",
+              count(*) OVER()::int AS "totalCount",COALESCE(sum(asset.size_bytes) OVER(),0)::bigint AS "totalBytes"
+         FROM storage_assets asset
+        WHERE asset.tenant_id=$1 AND asset.deleted_at IS NULL AND asset.status='ready' AND asset.mime_type LIKE 'image/%'
+          AND NOT EXISTS(SELECT 1 FROM tenant_salla_template_images reference WHERE reference.tenant_id=$1 AND reference.storage_asset_id=asset.id)
+        ORDER BY asset.size_bytes DESC,asset.created_at ASC LIMIT 6`,
+      [session.tenantId]
+    ),
+    query(
+      `SELECT content_hash AS "contentHash",size_bytes AS "sizeBytes",count(*)::int AS count,
+              (count(*)-1)*size_bytes AS "reclaimableBytes",array_agg(name ORDER BY created_at) AS names
+         FROM storage_assets
+        WHERE tenant_id=$1 AND deleted_at IS NULL AND status='ready' AND content_hash IS NOT NULL
+        GROUP BY content_hash,size_bytes HAVING count(*)>1
+        ORDER BY "reclaimableBytes" DESC LIMIT 6`,
+      [session.tenantId]
+    )
   ]);
   const assets = await Promise.all(assetRows.rows.map((row) => signedAsset(row).catch(() => row)));
   const recentlyOpened = [...documentRows.rows, ...assets]
@@ -319,6 +365,27 @@ export async function getStorageCenter(session, input = {}) {
       other: Math.max(0, Number(usage.usedBytes || 0) - Number(counts.rows[0]?.imageBytes || 0) - Number(counts.rows[0]?.fileBytes || 0) - Number(counts.rows[0]?.documentBytes || 0))
     },
     recentlyOpened,
+    management: {
+      largest: largestItems.rows,
+      old: {
+        items: oldItems.rows,
+        count: Number(oldItems.rows[0]?.totalCount || 0),
+        bytes: Number(oldItems.rows[0]?.totalBytes || 0)
+      },
+      unusedImages: {
+        items: unusedImages.rows,
+        count: Number(unusedImages.rows[0]?.totalCount || 0),
+        bytes: Number(unusedImages.rows[0]?.totalBytes || 0)
+      },
+      duplicates: {
+        groups: duplicateFiles.rows,
+        count: duplicateFiles.rows.reduce((sum, item) => sum + Math.max(0, Number(item.count || 0) - 1), 0),
+        bytes: duplicateFiles.rows.reduce((sum, item) => sum + Number(item.reclaimableBytes || 0), 0)
+      },
+      trash: {
+        bytes: Number(counts.rows[0]?.trashBytes || 0)
+      }
+    },
     breadcrumbs: trail,
     currentFolderId: folderId,
     imagesFolderId,

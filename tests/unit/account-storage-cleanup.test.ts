@@ -10,6 +10,7 @@ import {
 const root = process.cwd();
 const appSource = fs.readFileSync(path.join(root, "src/app/app.js"), "utf8");
 const routeSource = fs.readFileSync(path.join(root, "app/api/settings/storage/cleanup/route.js"), "utf8");
+const storageRouteSource = fs.readFileSync(path.join(root, "app/api/storage/cleanup/route.js"), "utf8");
 
 describe("account storage cleanup", () => {
   it("selects the oldest cleanup rows until the requested space is reached", () => {
@@ -72,11 +73,21 @@ describe("account storage cleanup", () => {
     expect(orderCategory?.sources.find((source) => source.table === "order_info_links")?.where).not.toContain("active");
   });
 
-  it("shows the cleanup control in user settings with explicit warning and confirmation", () => {
-    expect(appSource).toContain('data-action="open-account-storage-cleanup"');
+  it("owns cleanup in Storage Center while settings only links to storage management", () => {
+    const settingsSource = appSource.slice(appSource.indexOf("function settingsReferencePage"), appSource.indexOf("function storageCleanupTargetOptions"));
+    const storageCenterSource = appSource.slice(appSource.indexOf("function storageCenterPage"), appSource.indexOf("function render()"));
+    expect(settingsSource).not.toContain('data-action="open-account-storage-cleanup"');
+    expect(settingsSource).toContain('data-link="/dashboard/storage"');
+    expect(settingsSource).toContain("حد التخزين في الباقة");
+    expect(storageCenterSource).toContain("accountStorageCleanupDialog()");
+    expect(appSource).toContain("حذف الملفات الكبيرة");
+    expect(appSource).toContain("مراجعة الملفات القديمة");
+    expect(appSource).toContain("الصور غير المستخدمة");
+    expect(appSource).toContain("الملفات المكررة");
     expect(appSource).toContain("المساحة التي تريد إخلاءها");
     expect(appSource).toContain("قد يتم حذف بعض بياناتك المهمة");
-    expect(appSource).toContain("مساحة محادثاتك");
+    expect(appSource).toContain('fetchJson("/api/storage/cleanup")');
+    expect(storageRouteSource).toContain("settings/storage/cleanup/route.js");
     expect(routeSource).toContain('const CHAT_CATEGORY = "ai_user_chats"');
     expect(routeSource).toContain("cleanupAIChatStorage");
     expect(appSource).toContain('confirmation: "DELETE_OLD_ACCOUNT_DATA"');

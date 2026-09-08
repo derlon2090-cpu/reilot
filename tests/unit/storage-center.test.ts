@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { decryptStorageValue, encryptStorageValue, sanitizeStorageHtml, storagePayloadSize } from "../../src/server/storage-center.js";
 
 const previousKey = process.env.STORAGE_ENCRYPTION_KEY;
@@ -32,5 +34,15 @@ describe("storage center security helpers", () => {
     const clean = sanitizeStorageHtml('<p onclick="steal()">آمن</p><script>alert(1)</script><a href="javascript:alert(2)">رابط</a>');
     expect(clean).not.toMatch(/script|onclick|javascript/i);
     expect(clean).toContain("آمن");
+  });
+
+  it("builds storage management insights without deleting active files", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "src/server/storage-center.js"), "utf8");
+    expect(source).toContain("management: {");
+    expect(source).toContain("largest: largestItems.rows");
+    expect(source).toContain("unusedImages");
+    expect(source).toContain("duplicateFiles");
+    expect(source).toContain("asset.created_at<now()-interval '180 days'");
+    expect(source).toContain("HAVING count(*)>1");
   });
 });

@@ -7957,14 +7957,6 @@ function settingsReferencePage() {
   if (state.accountSettings?.error) return dashboardShell(`<section class="suite-page settings-reference-page">${pageTitle("الإعدادات")}${emptyState("تعذر تحميل إعدادات الحساب", escapeHtml(state.accountSettings.error), "إعادة المحاولة", "reload-settings")}</section>`);
   const remote = state.accountSettings.settings || {};
   const storage = state.accountSettings.storage || { usedMb:0, limitMb:100, percent:0, breakdown:[] };
-  const chatStorage = state.accountSettings.chatStorage || { totalBytes: 0, cleanableBytes: 0, conversationCount: 0, cleanableConversations: 0 };
-  const tenantAIStorage = (storage.breakdown || []).find((item) => item.label === "محادثات ذكاء Renvix");
-  const otherAIBytes = Math.max(0, Number(tenantAIStorage?.bytes || 0) - Number(chatStorage.totalBytes || 0));
-  const storageBreakdown = [
-    ...(storage.breakdown || []).filter((item) => item.label !== "محادثات ذكاء Renvix"),
-    ...(otherAIBytes > 0 ? [{ label: "بيانات ذكاء Renvix الأخرى", bytes: otherAIBytes, mb: otherAIBytes / (1024 * 1024) }] : [])
-  ].sort((first, second) => Number(second.bytes || 0) - Number(first.bytes || 0));
-  const canManageStorage = ["owner", "admin"].includes(String(remote.role || "").toLowerCase());
   const avatarUrl = remote.avatarUrl || remote.image;
   const fullName = remote.fullName || remote.name || "";
   const avatar = avatarUrl ? `<img class="settings-ref-avatar" src="${escapeHtml(avatarUrl)}" alt="صورة الحساب">` : `<span class="settings-ref-avatar fallback">${escapeHtml(fullName.trim().charAt(0) || "م")}</span>`;
@@ -7979,9 +7971,9 @@ function settingsReferencePage() {
       <article class="suite-card settings-ref-card account"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><h2>إعدادات الحساب</h2><p>معلوماتك الشخصية وبيانات التواصل.</p></div></div><div class="settings-ref-account"><div class="settings-ref-avatar-wrap">${avatar}<input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">${dashboardIcon("upload")} تغيير الصورة</button><small>PNG, JPG حتى 2MB</small></div><form data-submit="profile-settings" class="settings-ref-profile" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><div class="settings-ref-two"><label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(String(fullName).split(" ")[0] || fullName)}" readonly></label><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label></div><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly dir="ltr"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" value="${escapeHtml(remote.phone || "")}" dir="ltr"></label><input type="hidden" name="storeName" value="${escapeHtml(remote.storeName || "")}"><button class="btn btn-primary profile-save-button">حفظ التعديلات</button></form></div></article>
       <article class="suite-card settings-ref-card security"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>أمان الحساب</h2><p>تغيير كلمة المرور والتحقق الثنائي.</p></div></div><div class="settings-ref-mfa"><div><strong>تفعيل التحقق الثنائي</strong><p>عزز أمان حسابك بطبقة حماية إضافية عند تسجيل الدخول.</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><form data-submit="password" class="settings-ref-password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article>
       <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>رابط اشتراك مخصص لحسابك؛ كل مشترك جديد يُضاف تلقائيًا إلى عملائك.</p></div><span class="newsletter-live-badge"><i></i> مفعّلة</span></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr" aria-label="رابط النشرة المخصص"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}" ${newsletterUrl ? "" : "disabled"}>${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-link-note">${dashboardIcon("security")} الرابط مرتبط بحسابك، ويُمنع تكرار البريد نفسه تلقائيًا.</div><div class="store-customer-sync"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><strong>حفظ عملاء المتجر تلقائيًا</strong><p>عند تسجيل العميل دخوله إلى متجر سلة، تُنشأ بياناته أو تُحدّث في قسم العملاء دون تكرار.</p><small>${remote.storeCustomerSyncAvailable ? (remote.storeCustomerSyncEnabled ? "المزامنة مفعّلة وتستقبل تسجيلات الدخول الجديدة." : "المزامنة متوقفة؛ لن تُحفظ تسجيلات الدخول الجديدة.") : "اربط متجر سلة أولًا لتتمكن من تشغيل هذه الميزة."}</small></div><label class="switch-control" title="${remote.storeCustomerSyncAvailable ? "تشغيل أو إيقاف حفظ عملاء المتجر" : "اربط متجر سلة أولًا"}"><input type="checkbox" data-action="store-customer-sync-toggle" ${remote.storeCustomerSyncEnabled ? "checked" : ""} ${remote.storeCustomerSyncAvailable ? "" : "disabled"} aria-label="حفظ عملاء المتجر تلقائيًا"><span></span></label>${remote.storeCustomerSyncAvailable ? "" : `<button class="btn btn-secondary" data-link="/dashboard/apps">ربط سلة</button>`}</div></article>
-      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>المساحة والتخزين</h2><p>استهلاك مساحة حسابك الحالية محسوب من بياناتك الفعلية.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-chat-storage"><span>${dashboardIcon("sparkles")}</span><div><strong>مساحة محادثاتك</strong><small>${Number(chatStorage.conversationCount || 0).toLocaleString("ar-SA")} محادثة · قابل للإخلاء ${storageAmountLabel(0, chatStorage.cleanableBytes)}</small></div><b>${storageAmountLabel(0, chatStorage.totalBytes)}</b></div><div class="settings-storage-list">${storageBreakdown.slice(0,4).map((item,index)=>`<div><i class="color-${index}"></i><span>${escapeHtml(item.label)}</span><strong>${storageAmountLabel(item.mb, item.bytes)}</strong></div>`).join("") || `<p class="muted">لا توجد بيانات أخرى مخزنة حتى الآن.</p>`}</div><div class="settings-storage-actions"><button class="btn btn-primary" data-action="open-account-storage-cleanup">${dashboardIcon("delete")} إخلاء المساحة</button><button class="btn btn-secondary" data-link="/dashboard/billing">${dashboardIcon("upload")} ترقية المساحة</button></div>${canManageStorage ? "" : `<small class="settings-storage-permission">يمكنك إخلاء محادثاتك. تنظيف سجلات الحساب الأخرى متاح للمالك أو المسؤول فقط.</small>`}</article>
+      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>حد التخزين في الباقة</h2><p>ملخص حد باقتك فقط؛ إدارة الملفات وإخلاء المساحة تتم من مركز التخزين.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-actions single"><button class="btn btn-primary" data-link="/dashboard/storage">${dashboardIcon("archive")} إدارة التخزين</button></div></article>
     </div>
-  </section>${accountStorageCleanupDialog()}`);
+  </section>`);
 }
 
 function storageCleanupTargetOptions(cleanableBytes) {
@@ -8027,7 +8019,54 @@ function accountStorageCleanupDialog() {
         <fieldset class="account-storage-categories"><legend>العناصر الأكثر استهلاكًا للمساحة</legend>${categoriesMarkup || `<p>لا توجد بيانات مخزنة حتى الآن.</p>`}${categoriesToggle}</fieldset>
         <label class="account-storage-target"><span>المساحة التي تريد إخلاءها من العناصر المحددة</span><select class="select" data-account-storage-target ${initiallySelectedBytes ? "" : "disabled"}>${targetOptions}</select></label>
         <label class="account-storage-warning"><input type="checkbox" data-account-storage-confirm ${cleanableBytes ? "" : "disabled"}><span><b>تنبيه: قد يتم حذف بعض بياناتك المهمة</b><small>سيُحذف فقط المحتوى القابل للإخلاء الذي اخترته، ولا يمكن التراجع عن العملية بعد تنفيذها.</small></span></label>`;
-  return `<div class="account-storage-cleanup-backdrop"><button type="button" class="account-storage-cleanup-scrim" data-action="close-account-storage-cleanup" aria-label="إغلاق"></button><section class="account-storage-cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="account-storage-cleanup-title"><header><div><span>${dashboardIcon("billing")}</span><div><h2 id="account-storage-cleanup-title">إخلاء مساحة الحساب</h2><p>راجع كل ما يستهلك المساحة، ثم اختر الجزء القابل للإخلاء.</p></div></div><button type="button" data-action="close-account-storage-cleanup" aria-label="إغلاق">${dashboardIcon("close")}</button></header><div class="account-storage-cleanup-body">${content}</div><footer><button type="button" class="btn btn-secondary" data-action="close-account-storage-cleanup">إلغاء</button><button type="button" class="btn btn-primary" data-action="confirm-account-storage-cleanup" ${initiallySelectedBytes && !state.accountStorageCleanupBusy ? "" : "disabled"}>${state.accountStorageCleanupBusy ? "جارٍ إخلاء المساحة…" : "إخلاء المساحة الآن"}</button></footer></section></div>`;
+  return `<div class="account-storage-cleanup-backdrop"><button type="button" class="account-storage-cleanup-scrim" data-action="close-account-storage-cleanup" aria-label="إغلاق"></button><section class="account-storage-cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="account-storage-cleanup-title"><header><div><span>${dashboardIcon("billing")}</span><div><h2 id="account-storage-cleanup-title">تنظيف السجلات والمحادثات القديمة</h2><p>راجع البيانات الآمنة القابلة للإخلاء وحدد المساحة قبل التأكيد.</p></div></div><button type="button" data-action="close-account-storage-cleanup" aria-label="إغلاق">${dashboardIcon("close")}</button></header><div class="account-storage-cleanup-body">${content}</div><footer><button type="button" class="btn btn-secondary" data-action="close-account-storage-cleanup">إلغاء</button><button type="button" class="btn btn-primary" data-action="confirm-account-storage-cleanup" ${initiallySelectedBytes && !state.accountStorageCleanupBusy ? "" : "disabled"}>${state.accountStorageCleanupBusy ? "جارٍ إخلاء المساحة…" : "إخلاء المساحة الآن"}</button></footer></section></div>`;
+}
+
+function storageManagementItem(item) {
+  const action = item.kind === "document" ? "storage-open-document" : "storage-preview-image";
+  const icon = item.mimeType?.startsWith("image/") ? "image" : item.type === "account" ? "key" : "document";
+  return `<button class="storage-management-item" data-action="${action}" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(icon)}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · ${new Date(item.createdAt).toLocaleDateString("ar-SA")}</small></div>${dashboardIcon("arrow-left")}</button>`;
+}
+
+function storageManagementDrawer(data) {
+  const usage = data.usage || {};
+  const breakdown = data.breakdown || {};
+  const management = data.management || {};
+  const available = usage.isUnlimited ? "غير محدودة" : formatStorageBytes(Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0)));
+  const largestBytes = (management.largest || []).reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0);
+  const cards = [
+    ["أكبر الملفات", `${Number(management.largest?.length || 0).toLocaleString("ar-SA")} عناصر في أعلى القائمة`, largestBytes, "archive"],
+    ["الملفات القديمة", `${Number(management.old?.count || 0).toLocaleString("ar-SA")} عنصر أقدم من 180 يومًا`, management.old?.bytes, "clock"],
+    ["سلة المحذوفات", "تظل محسوبة حتى الحذف النهائي", management.trash?.bytes, "delete", "storage-open-trash"],
+    ["الصور غير المستخدمة", `${Number(management.unusedImages?.count || 0).toLocaleString("ar-SA")} صورة غير مرتبطة بقالب`, management.unusedImages?.bytes, "image"],
+    ["الملفات المكررة", `${Number(management.duplicates?.count || 0).toLocaleString("ar-SA")} نسخة زائدة مكتشفة`, management.duplicates?.bytes, "copy"]
+  ];
+  return `<div class="storage-space-drawer storage-management-drawer">
+    <div class="storage-space-drawer-total"><span>${dashboardIcon("archive")}</span><div><small>المساحة المستخدمة</small><strong>${formatStorageBytes(usage.usedBytes)} من ${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</strong><em>${available} متاحة</em></div><b>${Number(usage.percent || 0).toLocaleString("ar-SA")}%</b></div>
+    <div class="storage-usage-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(usage.progressPercent || 0)}"><i style="width:${Number(usage.progressPercent || 0)}%"></i></div>
+    <section class="storage-management-breakdown"><h3>توزيع المساحة</h3><dl><div><dt>الصور</dt><dd>${formatStorageBytes(breakdown.images)}</dd></div><div><dt>الملفات</dt><dd>${formatStorageBytes(breakdown.files)}</dd></div><div><dt>المستندات والملاحظات</dt><dd>${formatStorageBytes(breakdown.documents)}</dd></div><div><dt>سلة المحذوفات</dt><dd>${formatStorageBytes(breakdown.trash)}</dd></div></dl></section>
+    <section class="storage-management-opportunities"><div><h3>فرص توفير المساحة</h3><small>التقديرات قد تتداخل؛ لن يُحذف شيء قبل المراجعة والتأكيد.</small></div>${cards.map(([label, description, bytes, icon, action]) => `<button ${action ? `data-action="${action}"` : `data-action="storage-cleanup-review"`}><span>${dashboardIcon(icon)}</span><div><strong>${label}</strong><small>${description}</small></div><b>${formatStorageBytes(bytes || 0)}</b>${dashboardIcon("arrow-left")}</button>`).join("")}</section>
+    <button class="btn btn-primary storage-management-cleanup" data-action="storage-cleanup-review">${dashboardIcon("delete")} إخلاء مساحة</button>
+  </div>`;
+}
+
+function storageCleanupReview(data) {
+  const management = data.management || {};
+  const groups = [
+    ["حذف الملفات الكبيرة", "راجع العناصر الأعلى استهلاكًا واختر منها يدويًا.", management.largest || [], "archive"],
+    ["مراجعة الملفات القديمة", "عناصر لم تُحدّث منذ أكثر من 180 يومًا.", management.old?.items || [], "clock"],
+    ["الصور غير المستخدمة", "صور غير مرتبطة بأي قالب حاليًا.", management.unusedImages?.items || [], "image"]
+  ];
+  const duplicates = management.duplicates || {};
+  return `<div class="storage-cleanup-review">
+    <div class="storage-cleanup-review-note">${dashboardIcon("security")}<div><strong>المراجعة أولًا، ثم القرار</strong><span>هذه الشاشة لا تحذف تلقائيًا. ستعرف المساحة المتوقعة وتراجع العناصر قبل أي إجراء نهائي.</span></div></div>
+    <div class="storage-cleanup-review-grid">
+      <button data-action="storage-open-trash"><span>${dashboardIcon("delete")}</span><div><strong>إفراغ سلة المحذوفات</strong><small>الحذف النهائي يحرر المساحة فورًا بعد تأكيد مستقل.</small></div><b>${formatStorageBytes(management.trash?.bytes || 0)}</b></button>
+      <article><span>${dashboardIcon("copy")}</span><div><strong>الملفات المكررة</strong><small>${Number(duplicates.count || 0).toLocaleString("ar-SA")} نسخة زائدة · راجعها قبل الحذف.</small></div><b>${formatStorageBytes(duplicates.bytes || 0)}</b></article>
+    </div>
+    ${groups.map(([title, description, items, icon]) => `<section class="storage-cleanup-group"><header><span>${dashboardIcon(icon)}</span><div><h3>${title}</h3><p>${description}</p></div><b>${formatStorageBytes(items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0))}</b></header><div>${items.length ? items.slice(0, 4).map(storageManagementItem).join("") : `<p class="storage-cleanup-none">لا توجد عناصر مقترحة في هذه الفئة.</p>`}</div></section>`).join("")}
+    <section class="storage-safe-cleanup"><div><strong>السجلات والمحادثات القديمة</strong><small>استمر إلى أداة التنظيف الآمن التي نُقلت من الإعدادات، وستعرض المساحة قبل التأكيد.</small></div><button class="btn btn-secondary" data-action="open-account-storage-cleanup">مراجعة وتنظيف</button></section>
+  </div>`;
 }
 
 function storageAmountLabel(mbValue, bytesValue = null) {
@@ -8910,9 +8949,12 @@ async function handleAction(target) {
     state.storageUploads = []; return render();
   }
   if (storageAction === "storage-usage-details") {
-    const data = state.storageCenter?.storage || {}, usage = data.usage || {}, breakdown = data.breakdown || {};
-    const available = usage.isUnlimited ? "غير محدودة" : formatStorageBytes(Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0)));
-    return openDrawer("تفاصيل مساحة التخزين", `<div class="storage-space-drawer"><div class="storage-space-drawer-total"><span>${dashboardIcon("archive")}</span><div><small>المستخدم</small><strong>${formatStorageBytes(usage.usedBytes)} من ${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</strong></div><b>${Number(usage.percent || 0).toLocaleString("ar-SA")}%</b></div><div class="storage-usage-track"><i style="width:${Number(usage.progressPercent || 0)}%"></i></div><dl><div><dt>الصور</dt><dd>${formatStorageBytes(breakdown.images)}</dd></div><div><dt>الملفات</dt><dd>${formatStorageBytes(breakdown.files)}</dd></div><div><dt>المستندات والملاحظات</dt><dd>${formatStorageBytes(breakdown.documents)}</dd></div><div><dt>سلة المحذوفات</dt><dd>${formatStorageBytes(breakdown.trash)}</dd></div><div><dt>المساحة المتاحة</dt><dd>${available}</dd></div></dl><button class="btn btn-primary" data-link="/dashboard/settings">إدارة المساحة</button></div>`);
+    const data = state.storageCenter?.storage || {};
+    return openDrawer("إدارة مساحة التخزين", storageManagementDrawer(data));
+  }
+  if (storageAction === "storage-cleanup-review") {
+    const data = state.storageCenter?.storage || {};
+    return openModal("إخلاء مساحة", storageCleanupReview(data), `<button class="btn btn-secondary" data-action="close-modal">إغلاق</button>`);
   }
   if (storageAction === "storage-add-field") {
     const wrap = document.querySelector("[data-storage-custom-fields]");
@@ -9528,11 +9570,12 @@ async function handleAction(target) {
     return render();
   }
   if (action === "open-account-storage-cleanup") {
+    closePortal();
     state.accountStorageCleanupOpen = true;
     state.accountStorageCleanup = null;
     render();
     try {
-      const payload = await fetchJson("/api/settings/storage/cleanup");
+      const payload = await fetchJson("/api/storage/cleanup");
       state.accountStorageCleanup = payload.preview || { cleanableBytes: 0, cleanableRows: 0, categories: [] };
     } catch (error) {
       state.accountStorageCleanup = { error: error.message, cleanableBytes: 0, cleanableRows: 0, categories: [] };
@@ -9566,7 +9609,7 @@ async function handleAction(target) {
     state.accountStorageCleanupBusy = true;
     render();
     try {
-      const payload = await fetchJson("/api/settings/storage/cleanup", {
+      const payload = await fetchJson("/api/storage/cleanup", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetBytes, categories, confirmation: "DELETE_OLD_ACCOUNT_DATA" })
@@ -14635,7 +14678,7 @@ function storageCenterPage() {
       <article><span>${dashboardIcon("document")}</span><div><small>إجمالي المستندات</small><strong>${Number(count.documents || 0).toLocaleString("ar-SA")}</strong><em>مستند محفوظ</em></div></article>
       <article><span>${dashboardIcon("image")}</span><div><small>الصور المحفوظة</small><strong>${Number(count.images || 0).toLocaleString("ar-SA")}</strong><em>صورة محفوظة</em></div></article>
       <article><span>${dashboardIcon("clock")}</span><div><small>العناصر الحديثة</small><strong>${Number(count.recent || 0).toLocaleString("ar-SA")}</strong><em>خلال آخر 7 أيام</em></div></article>
-      <article class="storage-space-stat" data-action="storage-usage-details" role="button" tabindex="0"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين</small><strong><b dir="ltr">${formatStorageBytes(usage.usedBytes)}</b> <i>من <span dir="ltr">${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</span></i></strong><div class="storage-stat-progress"><b style="width:${Number(usage.progressPercent || 0)}%"></b></div><em>${usagePercent.toLocaleString("ar-SA")}% مستخدم · ${availableBytes === null ? "مساحة غير محدودة" : `<span dir="ltr">${formatStorageBytes(availableBytes)}</span> متاحة`}</em></div><button>إدارة المساحة</button></article>
+      <article class="storage-space-stat" data-action="storage-usage-details" role="button" tabindex="0"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين</small><strong><b dir="ltr">${formatStorageBytes(usage.usedBytes)}</b> <i>من <span dir="ltr">${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</span></i></strong><div class="storage-stat-progress"><b style="width:${Number(usage.progressPercent || 0)}%"></b></div><em>${usagePercent.toLocaleString("ar-SA")}% مستخدم · ${availableBytes === null ? "مساحة غير محدودة" : `<span dir="ltr">${formatStorageBytes(availableBytes)}</span> متاحة`}</em></div><button data-action="${usagePercent >= 80 ? "storage-cleanup-review" : "storage-usage-details"}">${usagePercent >= 80 ? "إخلاء مساحة" : "إدارة المساحة"}</button></article>
     </section>
     ${uploadPanel}
     <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في الملفات والمجلدات والمستندات والحسابات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
@@ -14644,7 +14687,7 @@ function storageCenterPage() {
     ${isImages || isFiles ? `<button class="storage-dropzone" data-action="${isImages ? "storage-upload-trigger" : "storage-upload-files-trigger"}">${dashboardIcon("cloud")}<strong>${state.storageUploading ? "جارٍ الرفع والتحقق..." : isImages ? "ارفع صورك هنا" : "ارفع ملفاتك هنا"}</strong><span>اسحب الملفات وأفلتها هنا أو اضغط للاختيار من جهازك</span><small>${isImages ? `JPG, PNG, WEBP — حتى ${formatStorageBytes(data.limits?.imageMaxBytes || 10 * 1024 * 1024)}` : `PDF, DOCX, XLSX, TXT, CSV, ZIP — حتى ${formatStorageBytes(data.limits?.fileMaxBytes || 50 * 1024 * 1024)}`}</small></button>` : ""}
     ${(data.recentlyOpened || []).length ? `<section class="card storage-recent-files"><header><h2>فتحتها مؤخرًا</h2><small>وصول سريع إلى آخر العناصر التي استخدمتها</small></header><div>${data.recentlyOpened.map((item) => `<button data-action="${item.mimeType ? "storage-preview-image" : "storage-open-document"}" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.mimeType?.startsWith("image/") ? "image" : item.type === "account" ? "key" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · ${escapeHtml(item.location || "مركز التخزين")}</small></div></button>`).join("")}</div></section>` : ""}
     <section class="card storage-activity"><header><h2>النشاط الحديث</h2><button data-link="/dashboard/reports">عرض الكل</button></header><div>${(data.activity || []).length ? data.activity.slice(0, 5).map((item) => `<article><span>${dashboardIcon(item.action === "UPLOAD_IMAGE" ? "image" : item.action === "CREATE_FOLDER" ? "folder" : item.action === "DELETE_ITEM" ? "delete" : "document")}</span><div><strong>${storageActivityLabel(item)}</strong><small>${escapeHtml(item.metadata?.name || item.metadata?.title || storageTypeLabel(item.metadata?.type))}</small><time>${new Date(item.createdAt).toLocaleString("ar-SA", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</time></div></article>`).join("") : `<p>ستظهر هنا عمليات الرفع والإنشاء والتعديل.</p>`}</div></section>
-  </section>`);
+  </section>${accountStorageCleanupDialog()}`);
 }
 
 function render() {
