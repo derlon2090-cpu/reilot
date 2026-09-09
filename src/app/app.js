@@ -8968,11 +8968,77 @@ function normalizeStorageBoldMarkup(editor = document.querySelector("[data-stora
   });
 }
 
+function storageEditorRangeSegments(range, editor) {
+  if (!range || !editor || range.collapsed) return [];
+  const segments = [];
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    try {
+      if (range.intersectsNode(node)) {
+        const start = node === range.startContainer ? range.startOffset : 0;
+        const end = node === range.endContainer ? range.endOffset : node.data.length;
+        if (end > start) segments.push({ node, start, end });
+      }
+    } catch {}
+    node = walker.nextNode();
+  }
+  return segments;
+}
+
+function storageEditorTextNodeIsBold(node, editor) {
+  let element = node?.parentElement;
+  while (element && element !== editor) {
+    if (element.matches("strong,b,[data-storage-bold='true']")) return true;
+    const weight = String(element.style?.fontWeight || "").toLowerCase();
+    if (weight === "bold" || Number(weight) >= 600) return true;
+    element = element.parentElement;
+  }
+  return false;
+}
+
+function applyStorageEditorBold(editor) {
+  const selection = window.getSelection?.();
+  if (!selection?.rangeCount) return false;
+  const range = selection.getRangeAt(0);
+  if (range.collapsed) return document.execCommand("bold", false, null);
+  const segments = storageEditorRangeSegments(range, editor);
+  if (!segments.length) return false;
+
+  const meaningfulSegments = segments.filter(({ node, start, end }) => node.data.slice(start, end).trim());
+  const selectionIsAlreadyBold = meaningfulSegments.length > 0
+    && meaningfulSegments.every(({ node }) => storageEditorTextNodeIsBold(node, editor));
+  if (selectionIsAlreadyBold) return document.execCommand("bold", false, null);
+
+  const selectedNodes = [];
+  [...segments].reverse().forEach(({ node, start, end }) => {
+    if (end < node.data.length) node.splitText(end);
+    const selectedNode = start > 0 ? node.splitText(start) : node;
+    if (!storageEditorTextNodeIsBold(selectedNode, editor)) {
+      const strong = document.createElement("strong");
+      strong.setAttribute("data-storage-bold", "true");
+      selectedNode.replaceWith(strong);
+      strong.append(selectedNode);
+    }
+    selectedNodes.unshift(selectedNode);
+  });
+
+  const nextRange = document.createRange();
+  nextRange.setStart(selectedNodes[0], 0);
+  const lastNode = selectedNodes[selectedNodes.length - 1];
+  nextRange.setEnd(lastNode, lastNode.data.length);
+  selection.removeAllRanges();
+  selection.addRange(nextRange);
+  return true;
+}
+
 function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection") {
   const editor = document.querySelector("[data-storage-editor]");
   if (!editor) return false;
   restoreStorageEditorSelection(editor);
-  const applied = document.execCommand(command, false, value);
+  const applied = command === "bold"
+    ? applyStorageEditorBold(editor)
+    : document.execCommand(command, false, value);
   normalizeStorageBoldMarkup(editor);
   captureStorageEditorSelection(editor);
   editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType }));

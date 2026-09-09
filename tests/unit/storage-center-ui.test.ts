@@ -110,6 +110,11 @@ describe("storage center form wiring", () => {
     expect(source).toContain("function restoreStorageEditorSelection");
     expect(source).toContain("function applyStorageEditorCommand");
     expect(source).toContain("function normalizeStorageBoldMarkup");
+    expect(source).toContain("function applyStorageEditorBold");
+    expect(source).toContain("function storageEditorRangeSegments");
+    expect(source).toContain('command === "bold"');
+    expect(source).toContain('document.createElement("strong")');
+    expect(source).toContain("selectedNode.replaceWith(strong)");
     expect(source).toContain('setAttribute("data-storage-bold", "true")');
     expect(source).toContain('inputTypes = { bold: "formatBold"');
     expect(source).toContain('new InputEvent("input", { bubbles: true, inputType })');
