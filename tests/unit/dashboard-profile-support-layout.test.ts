@@ -57,7 +57,7 @@ describe("dashboard profile and support layout", () => {
   it("matches Storage Center's persistent iPad navigation and keeps card-based mobile ticket rows", () => {
     expect(styles).toContain("Renvix Center + Intelligence responsive hardening");
     expect(styles).toContain("@media (max-width: 1366px)");
-    expect(styles).toContain("Support Center intentionally inherits the same persistent sidebar as Storage Center.");
+    expect(styles).toContain("inherit the same persistent dashboard sidebar as Storage Center.");
     expect(styles).not.toContain(".dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle");
     expect(styles).not.toContain(".dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop");
     expect(styles).toContain("grid-template-columns: 284px minmax(0, 1fr)");

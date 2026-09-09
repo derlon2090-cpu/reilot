@@ -35,6 +35,10 @@ describe("Renvix Intelligence chat UI", () => {
     expect(css).toContain('grid-template-rows:72px minmax(0,1fr)');
     expect(css).not.toContain('.dashboard-shell:has(.rvx-ai-page)>.sidebar,.dashboard-shell:has(.rvx-ai-page)>.sidebar-backdrop{display:none}');
     expect(css).not.toContain('.dashboard-shell:has(.rvx-ai-page){grid-template-columns:minmax(0,1fr)}');
+    expect(css).toContain("inherit the same persistent dashboard sidebar as Storage Center.");
+    expect(css).not.toContain(".dashboard-shell:has(.rvx-ai-page) .mobile-side-toggle");
+    expect(css).not.toContain(".dashboard-shell:has(.rvx-ai-page) > .sidebar-backdrop");
+    expect(css).toContain("grid-template-columns: 284px minmax(0, 1fr)");
   });
 
   it("keeps the mobile chat below its wrapping toolbar and closes the history drawer accessibly", async () => {

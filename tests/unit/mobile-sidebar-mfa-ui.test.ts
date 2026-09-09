@@ -38,7 +38,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps Renvix Center on the same persistent iPad sidebar layout as Storage Center", () => {
-    expect(stylesSource).toContain("Support Center intentionally inherits the same persistent sidebar as Storage Center.");
+    expect(stylesSource).toContain("inherit the same persistent dashboard sidebar as Storage Center.");
     expect(stylesSource).toContain("@media (max-width: 1366px)");
     expect(stylesSource).not.toContain(".dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop");
     expect(stylesSource).not.toContain(".dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle");
