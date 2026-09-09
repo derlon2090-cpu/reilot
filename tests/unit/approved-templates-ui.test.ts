@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 const app = readFileSync("src/app/app.js", "utf8");
 const css = readFileSync("src/styles/globals.css", "utf8");
+const referenceCss = readFileSync("src/styles/approved-templates-reference.css", "utf8");
+const publicReferenceCss = readFileSync("public/app/styles/approved-templates-reference.css", "utf8");
 const listRoute = readFileSync("app/api/whatsapp/templates/route.js", "utf8");
 const itemRoute = readFileSync("app/api/whatsapp/templates/[id]/route.js", "utf8");
 const syncRoute = readFileSync("app/api/whatsapp/templates/sync/route.js", "utf8");
@@ -38,6 +40,29 @@ describe("approved Meta templates center", () => {
     ]) expect(css).toContain(selector);
     expect(css).toContain("@media(max-width:820px)");
     expect(css).toContain("@media(max-width:520px)");
+  });
+
+  it("matches the reference control order and uses the neutral Renvix icon language", () => {
+    const page = app.slice(app.indexOf("function approvedTemplatesPage()"), app.indexOf("function metaApprovedTemplatesSection()"));
+    const search = page.indexOf('data-action="meta-template-search"');
+    const status = page.indexOf('data-action="meta-template-status-filter"');
+    const category = page.indexOf('data-action="meta-template-category-filter"');
+    const language = page.indexOf('data-action="meta-template-language-filter"');
+    const sync = page.indexOf('class="btn btn-secondary approved-template-sync-action"');
+    const create = page.indexOf('class="btn btn-primary approved-template-create-action"');
+    expect(search).toBeGreaterThan(-1);
+    expect(search).toBeLessThan(status);
+    expect(status).toBeLessThan(category);
+    expect(category).toBeLessThan(language);
+    expect(language).toBeLessThan(sync);
+    expect(sync).toBeLessThan(create);
+    expect(page).toContain('dashboardIcon("document")');
+    expect(page).toContain('dashboardIcon("infinity")');
+    expect(page).toContain("metaTemplateNumber(counts.total)");
+    expect(referenceCss).toContain("neutral Renvix icon language");
+    expect(referenceCss).toContain("color: #075e56 !important");
+    expect(referenceCss).toContain("direction: rtl");
+    expect(publicReferenceCss).toBe(referenceCss);
   });
 
   it("enforces mutation permissions on the server as well as the interface", () => {

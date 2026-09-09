@@ -1,0 +1,186 @@
+/* Approved templates reference layout and the neutral Renvix icon language. */
+.approved-templates-page {
+  gap: 18px;
+}
+
+.approved-templates-heading {
+  justify-content: flex-start;
+}
+
+.approved-templates-heading > .approved-templates-title {
+  width: auto;
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.approved-templates-title > span,
+.approved-template-stats article > span,
+.meta-mark {
+  color: #075e56 !important;
+  border: 1px solid #dce9e7 !important;
+  background: #f1f7f6 !important;
+}
+
+.approved-templates-title > span,
+.approved-template-stats article > span {
+  border-radius: 12px;
+}
+
+.approved-template-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  direction: rtl;
+}
+
+.approved-template-toolbar > label {
+  min-width: 240px;
+  flex: 1 1 320px;
+}
+
+.approved-template-toolbar > select {
+  width: clamp(124px, 10vw, 148px);
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.approved-template-toolbar > .approved-template-account-filter:not([hidden]) {
+  width: clamp(142px, 12vw, 172px);
+}
+
+.approved-template-toolbar > .btn {
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
+.approved-template-toolbar > .approved-template-sync-action {
+  min-width: 166px;
+}
+
+.approved-template-toolbar > .approved-template-create-action {
+  min-width: 172px;
+}
+
+.approved-template-toolbar .line-icon,
+.meta-button-mark .line-icon,
+.meta-inline-mark .line-icon,
+.meta-mark .line-icon {
+  width: 19px;
+  height: 19px;
+  color: currentColor;
+}
+
+.meta-button-mark,
+.meta-inline-mark {
+  display: inline-grid;
+  place-items: center;
+  color: #075e56;
+  font-size: 0;
+}
+
+.meta-mark {
+  border-radius: 10px;
+  font-size: 0;
+}
+
+.approved-template-stats {
+  direction: rtl;
+}
+
+.approved-template-stats article {
+  min-height: 118px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 18px 20px;
+}
+
+.approved-template-stats article > span {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+}
+
+.approved-template-stats article > span .line-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.approved-template-stats strong,
+.approved-template-donut b,
+.approved-template-donut-card li b {
+  font-family: Poppins, "IBM Plex Sans Arabic", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.approved-template-stats small {
+  color: #586f8e;
+  font-size: 11px;
+}
+
+.approved-template-stats strong {
+  margin-block: 3px;
+  font-size: 25px;
+  line-height: 1.1;
+}
+
+.approved-template-stats em {
+  font-size: 10px;
+}
+
+.approved-template-browser > header h2 .meta-inline-mark {
+  flex: 0 0 auto;
+}
+
+.approved-template-channel .line-icon,
+.approved-template-insights header .line-icon {
+  color: #075e56;
+}
+
+@media (max-width: 1280px) {
+  .approved-template-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .approved-template-toolbar > label {
+    flex-basis: calc(100% - 360px);
+  }
+
+  .approved-template-toolbar > .approved-template-sync-action,
+  .approved-template-toolbar > .approved-template-create-action {
+    flex: 1 1 180px;
+  }
+}
+
+@media (max-width: 820px) {
+  .approved-templates-heading > .approved-templates-title {
+    width: 100%;
+  }
+
+  .approved-template-toolbar > label {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .approved-template-toolbar > select {
+    width: auto;
+    flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 520px) {
+  .approved-template-toolbar > select,
+  .approved-template-toolbar > .btn {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
+
+:root[data-theme="dark"] .approved-templates-title > span,
+:root[data-theme="dark"] .approved-template-stats article > span,
+:root[data-theme="dark"] .meta-mark {
+  color: #d8ebe7 !important;
+  border-color: #31534d !important;
+  background: #173d38 !important;
+}

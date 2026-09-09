@@ -12,6 +12,7 @@ await cp(path.join(root, "src", "app", "auth-turnstile.js"), path.join(publicApp
 await cp(path.join(root, "src", "app", "auth-google.js"), path.join(publicApp, "auth-google.js"));
 await mkdir(path.join(publicApp, "styles"), { recursive: true });
 await cp(path.join(root, "src", "styles", "globals.css"), path.join(publicApp, "styles", "globals.css"));
+await cp(path.join(root, "src", "styles", "approved-templates-reference.css"), path.join(publicApp, "styles", "approved-templates-reference.css"));
 await cp(path.join(root, "src", "styles", "tokens.css"), path.join(publicApp, "styles", "tokens.css"));
 await cp(path.join(root, "src", "styles", "dark-system.css"), path.join(publicApp, "styles", "dark-system.css"));
 await mkdir(path.join(publicApp, "locales"), { recursive: true });
