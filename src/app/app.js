@@ -883,6 +883,13 @@ state.trustedBrowsers = null;
 state.notificationTemplate = null;
 state.catalogTemplates = null;
 state.metaTemplates = null;
+state.metaTemplateSearch = "";
+state.metaTemplateStatusFilter = "all";
+state.metaTemplateCategoryFilter = "all";
+state.metaTemplateLanguageFilter = "all";
+state.metaTemplateIntegrationFilter = "all";
+state.metaTemplateSort = "updated";
+state.metaTemplateView = storage.get("renvix.meta-templates.view", "list");
 state.billingOverview = null;
 state.publicPlans = readCachedPublicPlans();
 state.publicPlansRefreshRequired = Boolean(state.publicPlans);
@@ -1052,6 +1059,7 @@ const dashboardRoutes = [
   ["/dashboard/customers", "العملاء", "customers"],
   ["/dashboard/order-links", "إرسال معلومات الطلب", "orderLink"],
   ["/dashboard/templates", "قوالب عامة", "template"],
+  ["/dashboard/approved-templates", "القوالب المعتمدة", "template"],
   ["/dashboard/campaigns", "الحملات", "campaigns"],
   ["/dashboard/contacts", "جهات الاتصال", "contacts"],
   ["/dashboard/channels", "القنوات والربط", "devices"],
@@ -1126,6 +1134,15 @@ const dashboardQuickSearchItems = [
     descriptionAr: "قوالب الرسائل والبريد وواتساب",
     descriptionEn: "Message, email and WhatsApp templates",
     keywords: ["قالب", "قوالب", "رسالة", "رسائل", "واتساب", "بريد", "template", "templates", "message", "email", "whatsapp"]
+  },
+  {
+    route: "/dashboard/approved-templates",
+    icon: "template",
+    ar: "القوالب المعتمدة",
+    en: "Approved templates",
+    descriptionAr: "قوالب واتساب الحقيقية وحالات اعتماد Meta والمزامنة",
+    descriptionEn: "Real WhatsApp templates, Meta approval status and synchronization",
+    keywords: ["القوالب المعتمدة", "اعتماد ميتا", "مزامنة ميتا", "قوالب واتساب", "approved templates", "meta templates", "whatsapp templates"]
   },
   {
     route: "/dashboard/campaigns",
@@ -1657,7 +1674,7 @@ function syncRouteData(force = false) {
   if ((state.route.startsWith("/dashboard/templates") || state.route.startsWith("/dashboard/apps/salla/templates/")) && (force || state.aiUsage === null)) queue("emailTemplateAIUsage", "/backend/ai/usage", "aiUsage");
   if (state.route === "/dashboard/templates" && (force || state.orderLinkProfile === null)) queue("templateStoreProfile", "/api/order-link/profile", "orderLinkProfile");
   if (state.route === "/dashboard/templates" && (force || state.catalogTemplates === null)) void loadRemotePage("catalogTemplates", "/api/templates/catalog", "catalogTemplates");
-  if (state.route === "/dashboard/templates" && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
+  if (["/dashboard/templates", "/dashboard/approved-templates"].includes(state.route) && (force || state.metaTemplates === null)) void loadRemotePage("metaTemplates", "/api/whatsapp/templates", "metaTemplates");
   if ((["/dashboard", "/dashboard/reports"].includes(state.route) || state.route.startsWith("/dashboard/campaigns")) && (force || state.campaignsOverview === null)) queue("campaignsOverview", `/api/campaigns?limit=${state.route === "/dashboard" ? 5 : 20}`, "campaignsOverview");
   if ((["/dashboard", "/dashboard/reports"].includes(state.route) || state.route.startsWith("/dashboard/channels")) && (force || state.channelsOverview === null)) queue("channelsOverview", "/api/channels", "channelsOverview");
   if (state.route === "/dashboard/contacts" && (force || state.contactsOverview === null)) queue("contactsOverview", "/api/contacts", "contactsOverview");
@@ -4274,10 +4291,10 @@ function notificationsPage() {
 }
 
 function dashboardShell(content) {
-  const englishLabels = { "لوحة التحكم": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قوالب عامة": "General Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "القنوات والربط": "Channels & connections", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings", "مركز التخزين": "Storage Center" };
+  const englishLabels = { "لوحة التحكم": "Dashboard", "الاشتراكات": "Subscriptions", "العملاء": "Customers", "قوالب عامة": "General Templates", "القوالب المعتمدة": "Approved Templates", "الحملات": "Campaigns", "جهات الاتصال": "Contacts", "القنوات والربط": "Channels & connections", "إرسال معلومات الطلب": "Order Information", "تطبيقاتنا": "Our Apps", "الحماية والأمان": "Security & Safety", "التقارير": "Reports", "الفوترة والباقات": "Billing & Plans", "الإعدادات": "Settings", "مركز التخزين": "Storage Center" };
   const routeGroups = [
     { label: "", paths: ["/dashboard", "/dashboard/subscriptions", "/dashboard/customers"] },
-    { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates", "/dashboard/campaigns", "/dashboard/contacts"] },
+    { label: state.language === "ar" ? "الرسائل والطلبات" : "Messages & orders", paths: ["/dashboard/order-links", "/dashboard/templates", "/dashboard/approved-templates", "/dashboard/campaigns", "/dashboard/contacts"] },
     { label: state.language === "ar" ? "القنوات والربط" : "Channels & integrations", paths: ["/dashboard/channels", "/dashboard/apps"] },
     { label: state.language === "ar" ? "الرقابة والإدارة" : "Control & management", paths: ["/dashboard/security", "/dashboard/reports", "/dashboard/billing", "/dashboard/storage", "/dashboard/settings"] }
   ];
@@ -6606,7 +6623,7 @@ function whatsappChannelPage() {
     <div class="channel-detail-heading channel-detail-heading-clean"><div><h1><span class="ref-heading-icon">${dashboardIcon("whatsapp")}</span> واتساب الرسمية</h1><p>إدارة قناة واتساب الرسمية المتصلة بحساب Meta الخاص بك.</p></div><button class="channel-overview-link" data-link="/dashboard/channels">${dashboardIcon("home")}<span>القنوات والربط</span></button></div>
     <article class="suite-card channel-connected-hero ref-whatsapp-hero"><div class="channel-connected-copy"><span class="channel-large-icon">${dashboardIcon("whatsapp")}</span><div><h2>Meta WhatsApp</h2><em class="${connected ? "connected" : "disconnected"}">${connected ? "متصلة" : "غير متصلة"}</em><p>${connected ? "قناتك جاهزة للإرسال واستقبال الرسائل." : "اربط حساب Meta Business لبدء استخدام القناة."}</p><div class="inline-actions">${connected ? `<button class="btn btn-primary" data-action="device-details" data-id="${escapeHtml(item.id || "")}">${dashboardIcon("settings")} إدارة القناة</button><button class="btn btn-secondary" data-action="device-sync-all">${dashboardIcon("success")} مفعلة</button>` : `<button class="btn btn-primary" data-action="connect-meta-whatsapp">ربط القناة</button>`}</div></div></div><div class="channel-verified"><span>${dashboardIcon("success")}</span><div><h3>${connected ? "القناة متصلة وموثقة" : "القناة تحتاج إلى الربط"}</h3><p>${connected ? "قناة واتساب الرسمية متصلة وتم التحقق منها من Meta." : "أكمل خطوات الربط والتحقق من Meta."}</p><small>${connected ? "تم التحقق من Meta" : "بانتظار التحقق"}</small></div></div></article>
     <div class="channel-kpi-grid">${suiteMetricCard({ title:"إجمالي الرسائل", value:suiteNumber(metrics.whatsappMessages), caption:"آخر 30 يوم", icon:"send" })}${suiteMetricCard({ title:"تم التسليم", value:suiteNumber(metrics.delivered), caption:suiteRate(metrics.deliveryRate, Number(metrics.sent || 0)>0), icon:"security" })}${suiteMetricCard({ title:"الردود المستلمة", value:suiteNumber(metrics.replies), caption:"رد فعلي", icon:"message" })}${suiteMetricCard({ title:"القوالب المعتمدة", value:suiteNumber(metrics.approvedTemplates), caption:"قالب نشط", icon:"template" })}${suiteMetricCard({ title:"الحملات", value:suiteNumber(metrics.whatsappCampaigns), caption:"حملة", icon:"campaigns" })}</div>
-    <div class="channel-detail-grid"><article class="suite-card channel-info-card"><div class="suite-card-head"><div><h2>تفاصيل القناة</h2><p>بيانات الاتصال الفعلية</p></div></div><dl><div><dt>رقم الأعمال</dt><dd dir="ltr">${escapeHtml(item.phoneNumber || "—")}</dd></div><div><dt>اسم الحساب</dt><dd>${escapeHtml(item.name || item.accountName || "—")}</dd></div><div><dt>حالة القناة</dt><dd>${connected ? "متصلة" : "غير متصلة"}</dd></div><div><dt>آخر مزامنة</dt><dd>${item.lastHealthCheckAt ? escapeHtml(deviceRelativeTime(item.lastHealthCheckAt)) : "لم تتم بعد"}</dd></div></dl><button class="btn btn-secondary" data-action="device-details" data-id="${escapeHtml(item.id || "")}">${dashboardIcon("settings")} عرض إعدادات القناة</button></article><article class="suite-card channel-quick-card"><div class="suite-card-head"><div><h2>إجراءات سريعة</h2><p>الوصول المباشر لأهم المهام</p></div></div><button data-action="campaign-create-whatsapp">${dashboardIcon("send")}<span><strong>إنشاء حملة جديدة</strong><small>إرسال رسائل لحملة محددة</small></span></button><button data-link="/dashboard/templates">${dashboardIcon("template")}<span><strong>القوالب المعتمدة</strong><small>عرض وإدارة القوالب</small></span></button><button data-link="/dashboard/reports?channel=whatsapp">${dashboardIcon("reports")}<span><strong>إحصائيات القناة</strong><small>تحليل أداء واتساب</small></span></button></article><article class="suite-card channel-activity-card"><div class="suite-card-head"><div><h2>أحدث نشاط في واتساب</h2><p>آخر الأحداث المسجلة</p></div></div>${activity.length ? `<div class="suite-message-list">${activity.map((row)=>`<button data-action="channel-activity-details" data-id="${escapeHtml(row.id)}"><span>${dashboardIcon("whatsapp")}</span><span><strong>${escapeHtml(row.title || "رسالة واتساب")}</strong><small>${row.createdAt ? escapeHtml(deviceRelativeTime(row.createdAt)) : ""}</small></span>${status(row.status)}</button>`).join("")}</div>` : `<div class="suite-mini-empty"><strong>لا يوجد نشاط مسجل بعد</strong></div>`}</article></div>
+    <div class="channel-detail-grid"><article class="suite-card channel-info-card"><div class="suite-card-head"><div><h2>تفاصيل القناة</h2><p>بيانات الاتصال الفعلية</p></div></div><dl><div><dt>رقم الأعمال</dt><dd dir="ltr">${escapeHtml(item.phoneNumber || "—")}</dd></div><div><dt>اسم الحساب</dt><dd>${escapeHtml(item.name || item.accountName || "—")}</dd></div><div><dt>حالة القناة</dt><dd>${connected ? "متصلة" : "غير متصلة"}</dd></div><div><dt>آخر مزامنة</dt><dd>${item.lastHealthCheckAt ? escapeHtml(deviceRelativeTime(item.lastHealthCheckAt)) : "لم تتم بعد"}</dd></div></dl><button class="btn btn-secondary" data-action="device-details" data-id="${escapeHtml(item.id || "")}">${dashboardIcon("settings")} عرض إعدادات القناة</button></article><article class="suite-card channel-quick-card"><div class="suite-card-head"><div><h2>إجراءات سريعة</h2><p>الوصول المباشر لأهم المهام</p></div></div><button data-action="campaign-create-whatsapp">${dashboardIcon("send")}<span><strong>إنشاء حملة جديدة</strong><small>إرسال رسائل لحملة محددة</small></span></button><button data-link="/dashboard/approved-templates">${dashboardIcon("template")}<span><strong>القوالب المعتمدة</strong><small>عرض وإدارة القوالب</small></span></button><button data-link="/dashboard/reports?channel=whatsapp">${dashboardIcon("reports")}<span><strong>إحصائيات القناة</strong><small>تحليل أداء واتساب</small></span></button></article><article class="suite-card channel-activity-card"><div class="suite-card-head"><div><h2>أحدث نشاط في واتساب</h2><p>آخر الأحداث المسجلة</p></div></div>${activity.length ? `<div class="suite-message-list">${activity.map((row)=>`<button data-action="channel-activity-details" data-id="${escapeHtml(row.id)}"><span>${dashboardIcon("whatsapp")}</span><span><strong>${escapeHtml(row.title || "رسالة واتساب")}</strong><small>${row.createdAt ? escapeHtml(deviceRelativeTime(row.createdAt)) : ""}</small></span>${status(row.status)}</button>`).join("")}</div>` : `<div class="suite-mini-empty"><strong>لا يوجد نشاط مسجل بعد</strong></div>`}</article></div>
   </section>`);
 }
 
@@ -7034,20 +7051,126 @@ function metaTemplateStatusLabel(value) {
     pending: "قيد المراجعة",
     approved: "معتمد",
     rejected: "مرفوض",
+    flagged: "يتطلب مراجعة",
+    in_appeal: "قيد الاستئناف",
     paused: "موقوف",
     disabled: "معطل",
     pending_deletion: "قيد الحذف",
     deleted: "محذوف",
     unknown: "حالة غير معروفة",
-    error: "خطأ في الإرسال"
+    error: "خطأ في الإرسال",
+    sync_error: "تعذرت المزامنة"
   }[String(value || "")] || "غير معروف";
 }
 
 function metaTemplateStatusTone(value) {
   if (value === "approved") return "active";
-  if (["rejected", "error", "disabled", "deleted"].includes(value)) return "expired";
-  if (["pending", "submitting", "paused", "pending_deletion"].includes(value)) return "pending";
+  if (["rejected", "error", "sync_error", "disabled", "deleted"].includes(value)) return "expired";
+  if (["pending", "submitting", "flagged", "in_appeal", "paused", "pending_deletion"].includes(value)) return "pending";
   return "neutral";
+}
+
+function metaTemplateCategoryLabel(value) {
+  return value === "MARKETING" ? "تسويقي" : value === "AUTHENTICATION" ? "مصادقة" : "خدمي";
+}
+
+function metaTemplateLanguageLabel(value) {
+  if (value === "ar") return "العربية";
+  if (value === "en_US") return "English (US)";
+  return String(value || "—");
+}
+
+function metaTemplateBody(item) {
+  return (Array.isArray(item?.components) ? item.components : []).find((component) => component.type === "BODY")?.text || "";
+}
+
+function metaTemplateUpdatedTime(item) {
+  const value = item?.lastSyncedAt || item?.updatedAt || item?.createdAt;
+  return value ? new Date(value).toLocaleString("ar-SA", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "لم تتم المزامنة";
+}
+
+function approvedTemplateActions(item, permissions = {}) {
+  const approved = item.status === "approved" && item.metaStatus === "APPROVED";
+  const canSubmit = permissions.canSubmit !== false && ["draft", "rejected", "error", "sync_error"].includes(item.status);
+  return `<div class="approved-template-actions">
+    <button type="button" class="btn btn-secondary" data-action="meta-template-preview" data-id="${escapeHtml(item.id)}">${dashboardIcon("eye")} معاينة</button>
+    ${approved ? `<button type="button" class="btn btn-primary" data-action="meta-template-use" data-id="${escapeHtml(item.id)}">${dashboardIcon("send")} استخدام</button>` : ""}
+    ${canSubmit ? `<button type="button" class="btn btn-primary" data-action="meta-template-submit" data-id="${escapeHtml(item.id)}">${dashboardIcon("send")} إرسال إلى Meta</button>` : ""}
+    <button type="button" class="approved-template-more" data-link="/dashboard/approved-templates?metaTemplateId=${encodeURIComponent(item.id)}" aria-label="تفاصيل القالب">${dashboardIcon("more")}</button>
+  </div>`;
+}
+
+function approvedTemplatesPage() {
+  const metaTemplateId = state.query.get("metaTemplateId") || "";
+  if (metaTemplateId) {
+    const template = (Array.isArray(state.metaTemplates?.items) ? state.metaTemplates.items : []).find((item) => item.id === metaTemplateId);
+    return metaTemplateEditorPage(template, "/dashboard/approved-templates");
+  }
+  const payload = state.metaTemplates;
+  if (payload?.error) return dashboardShell(`<section class="approved-templates-page">${emptyState("تعذر تحميل القوالب المعتمدة", payload.error, "إعادة المحاولة", "meta-template-reload")}</section>`);
+  const loading = payload === null;
+  const allItems = Array.isArray(payload?.items) ? payload.items : [];
+  const integrations = Array.isArray(payload?.integrations) ? payload.integrations : [];
+  const permissions = payload?.permissions || {};
+  const query = state.metaTemplateSearch.trim().toLowerCase();
+  const items = allItems.filter((item) => {
+    if (state.metaTemplateStatusFilter !== "all" && item.status !== state.metaTemplateStatusFilter) return false;
+    if (state.metaTemplateCategoryFilter !== "all" && item.category !== state.metaTemplateCategoryFilter) return false;
+    if (state.metaTemplateLanguageFilter !== "all" && item.language !== state.metaTemplateLanguageFilter) return false;
+    if (state.metaTemplateIntegrationFilter !== "all" && item.integrationId !== state.metaTemplateIntegrationFilter) return false;
+    return !query || `${item.name || ""} ${item.displayName || ""} ${metaTemplateBody(item)} ${item.channelName || ""}`.toLowerCase().includes(query);
+  }).sort((left, right) => {
+    if (state.metaTemplateSort === "name") return String(left.displayName || left.name).localeCompare(String(right.displayName || right.name), "ar");
+    if (state.metaTemplateSort === "status") return String(left.status).localeCompare(String(right.status), "ar");
+    return new Date(right.lastSyncedAt || right.updatedAt || 0) - new Date(left.lastSyncedAt || left.updatedAt || 0);
+  });
+  const counts = {
+    total: allItems.length,
+    approved: allItems.filter((item) => item.status === "approved" && item.metaStatus === "APPROVED").length,
+    pending: allItems.filter((item) => ["pending", "submitting", "in_appeal"].includes(item.status)).length,
+    rejected: allItems.filter((item) => item.status === "rejected").length
+  };
+  const percent = (count) => counts.total ? Math.round((count / counts.total) * 100) : 0;
+  const connected = integrations.some((item) => item.status === "connected" && item.wabaId);
+  const lastSyncValue = allItems.map((item) => item.lastSyncedAt).filter(Boolean).sort().at(-1);
+  const lastSync = lastSyncValue ? new Date(lastSyncValue).toLocaleString("ar-SA") : "لم تتم المزامنة بعد";
+  const languages = [...new Set(allItems.map((item) => item.language).filter(Boolean))];
+  const statusOptions = [["all", "كل الحالات"], ["approved", "معتمد"], ["pending", "قيد المراجعة"], ["rejected", "مرفوض"], ["draft", "مسودة"], ["flagged", "يتطلب مراجعة"], ["in_appeal", "قيد الاستئناف"], ["disabled", "غير متاح"]];
+  const listMarkup = items.map((item) => {
+    const approved = item.status === "approved" && item.metaStatus === "APPROVED";
+    const body = metaTemplateBody(item);
+    return `<article class="approved-template-row">
+      <div class="approved-template-name"><span class="meta-mark">∞</span><div><strong>${escapeHtml(item.displayName || item.name)}</strong><small dir="ltr">${escapeHtml(item.name)}</small>${approved ? `<em>∞ معتمد من Meta</em>` : ""}${item.rejectionReason ? `<p>${dashboardIcon("warning")} ${escapeHtml(item.rejectionReason)}</p>` : ""}</div></div>
+      <p class="approved-template-preview">${escapeHtml(body || "لا يوجد نص رئيسي محفوظ.")}</p>
+      <span class="approved-template-category is-${String(item.category || "utility").toLowerCase()}">${metaTemplateCategoryLabel(item.category)}</span>
+      <span class="approved-template-language">${escapeHtml(metaTemplateLanguageLabel(item.language))}</span>
+      <span class="approved-template-channel">${dashboardIcon("whatsapp")} WhatsApp</span>
+      <time>${escapeHtml(metaTemplateUpdatedTime(item))}</time>
+      <span class="status ${metaTemplateStatusTone(item.status)}">${metaTemplateStatusLabel(item.status)}</span>
+      ${approvedTemplateActions(item, permissions)}
+    </article>`;
+  }).join("");
+  const gridMarkup = items.map((item) => {
+    const approved = item.status === "approved" && item.metaStatus === "APPROVED";
+    return `<article class="approved-template-card">
+      <header><span class="meta-mark">∞</span><span class="status ${metaTemplateStatusTone(item.status)}">${metaTemplateStatusLabel(item.status)}</span></header>
+      <h2>${escapeHtml(item.displayName || item.name)}</h2><small dir="ltr">${escapeHtml(item.name)}</small>
+      <p>${escapeHtml(metaTemplateBody(item) || "لا يوجد نص رئيسي محفوظ.")}</p>
+      <div><span>${metaTemplateCategoryLabel(item.category)}</span><span>${escapeHtml(metaTemplateLanguageLabel(item.language))}</span><span>${dashboardIcon("whatsapp")} WhatsApp</span></div>
+      ${approved ? `<em>∞ معتمد من Meta</em>` : item.rejectionReason ? `<em class="is-rejected">${escapeHtml(item.rejectionReason)}</em>` : ""}
+      <footer><time>${escapeHtml(metaTemplateUpdatedTime(item))}</time>${approvedTemplateActions(item, permissions)}</footer>
+    </article>`;
+  }).join("");
+  const recent = [...allItems].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)).slice(0, 4);
+  return dashboardShell(`<section class="approved-templates-page">
+    <header class="approved-templates-heading"><div class="approved-templates-title"><span>${dashboardIcon("template")}</span><div><h1>القوالب المعتمدة</h1><p>استعرض قوالب واتساب الحقيقية من Meta، وتابع الاعتماد واستخدم القوالب الموافق عليها في حملاتك.</p></div></div><div><button class="btn btn-secondary" data-action="meta-template-sync" ${connected && permissions.canSync !== false ? "" : "disabled"}><span class="meta-button-mark">∞</span> مزامنة مع Meta</button><button class="btn btn-primary" data-action="meta-template-create" ${permissions.canCreate === false ? "disabled" : ""}>${dashboardIcon("add")} إنشاء قالب جديد</button></div></header>
+    <div class="approved-template-toolbar"><label>${dashboardIcon("search")}<input data-action="meta-template-search" placeholder="ابحث عن قالب..." value="${escapeHtml(state.metaTemplateSearch)}"></label><select data-action="meta-template-status-filter">${statusOptions.map(([value, label]) => `<option value="${value}" ${state.metaTemplateStatusFilter === value ? "selected" : ""}>${label}</option>`).join("")}</select><select data-action="meta-template-category-filter"><option value="all">كل التصنيفات</option><option value="UTILITY" ${state.metaTemplateCategoryFilter === "UTILITY" ? "selected" : ""}>خدمي</option><option value="MARKETING" ${state.metaTemplateCategoryFilter === "MARKETING" ? "selected" : ""}>تسويقي</option><option value="AUTHENTICATION" ${state.metaTemplateCategoryFilter === "AUTHENTICATION" ? "selected" : ""}>مصادقة</option></select><select data-action="meta-template-language-filter"><option value="all">كل اللغات</option>${languages.map((language) => `<option value="${escapeHtml(language)}" ${state.metaTemplateLanguageFilter === language ? "selected" : ""}>${escapeHtml(metaTemplateLanguageLabel(language))}</option>`).join("")}</select><select data-action="meta-template-integration-filter"><option value="all">كل حسابات واتساب</option>${integrations.map((item) => `<option value="${escapeHtml(item.id)}" ${state.metaTemplateIntegrationFilter === item.id ? "selected" : ""}>${escapeHtml(item.channelName || item.phoneNumber || "حساب Meta")}</option>`).join("")}</select></div>
+    <section class="approved-template-stats"><article class="is-total"><span>${dashboardIcon("template")}</span><div><small>إجمالي القوالب</small><strong>${counts.total.toLocaleString("ar-SA")}</strong><em>قالب حقيقي</em></div></article><article class="is-approved"><span>${dashboardIcon("success")}</span><div><small>المعتمدة</small><strong>${counts.approved.toLocaleString("ar-SA")}</strong><em>${percent(counts.approved).toLocaleString("ar-SA")}% من الإجمالي</em></div></article><article class="is-pending"><span>${dashboardIcon("clock")}</span><div><small>قيد المراجعة</small><strong>${counts.pending.toLocaleString("ar-SA")}</strong><em>${percent(counts.pending).toLocaleString("ar-SA")}% من الإجمالي</em></div></article><article class="is-rejected"><span>${dashboardIcon("close")}</span><div><small>مرفوضة</small><strong>${counts.rejected.toLocaleString("ar-SA")}</strong><em>${percent(counts.rejected).toLocaleString("ar-SA")}% من الإجمالي</em></div></article></section>
+    <section class="card approved-template-browser"><header><div><h2><span class="meta-inline-mark">∞</span> القوالب المعتمدة من Meta</h2><small>لا تظهر عبارة «معتمد من Meta» إلا عندما تعيد Meta الحالة APPROVED فعليًا.</small></div><div><select data-action="meta-template-sort"><option value="updated" ${state.metaTemplateSort === "updated" ? "selected" : ""}>الأحدث</option><option value="name" ${state.metaTemplateSort === "name" ? "selected" : ""}>الاسم</option><option value="status" ${state.metaTemplateSort === "status" ? "selected" : ""}>الحالة</option></select><button data-action="meta-template-view" data-view="grid" class="${state.metaTemplateView === "grid" ? "active" : ""}" aria-label="عرض شبكي">${dashboardIcon("gridView")}</button><button data-action="meta-template-view" data-view="list" class="${state.metaTemplateView === "list" ? "active" : ""}" aria-label="عرض قائمة">${dashboardIcon("listView")}</button></div></header>
+      ${loading ? `<div class="approved-template-loading"><i></i><i></i><i></i><i></i></div>` : items.length ? (state.metaTemplateView === "grid" ? `<div class="approved-template-grid">${gridMarkup}</div>` : `<div class="approved-template-table"><div class="approved-template-table-head"><span>القالب</span><span>المعاينة</span><span>التصنيف</span><span>اللغة</span><span>القناة</span><span>آخر تحديث</span><span>الحالة</span><span>الإجراءات</span></div>${listMarkup}</div>`) : `<div class="template-catalog-empty">${dashboardIcon("template")}<strong>${allItems.length ? "لا توجد نتائج مطابقة" : "لا توجد قوالب Meta بعد"}</strong><p>${allItems.length ? "غيّر البحث أو أحد الفلاتر لعرض القوالب." : connected ? "أنشئ مسودة أو زامن حساب Meta لجلب القوالب الموجودة." : "اربط حساب واتساب الرسمي أولًا لتفعيل الإنشاء والمزامنة."}</p></div>`}
+    </section>
+    <section class="approved-template-insights"><article class="card"><header><h3>${dashboardIcon("clock")} آخر النشاطات</h3></header>${recent.length ? recent.map((item) => `<button data-action="meta-template-preview" data-id="${escapeHtml(item.id)}"><span class="status ${metaTemplateStatusTone(item.status)}"></span><div><strong>${escapeHtml(item.displayName || item.name)}</strong><small>${metaTemplateStatusLabel(item.status)} · ${escapeHtml(metaTemplateUpdatedTime(item))}</small></div></button>`).join("") : `<p>لا توجد نشاطات قوالب حتى الآن.</p>`}</article><article class="card approved-template-donut-card"><header><h3>${dashboardIcon("template")} حالة الاعتماد</h3></header><div><span class="approved-template-donut" style="--approved:${percent(counts.approved)};--pending:${percent(counts.approved) + percent(counts.pending)}"><b>${counts.total.toLocaleString("ar-SA")}</b><small>قالب</small></span><ul><li><i class="approved"></i>معتمدة <b>${counts.approved.toLocaleString("ar-SA")}</b></li><li><i class="pending"></i>قيد المراجعة <b>${counts.pending.toLocaleString("ar-SA")}</b></li><li><i class="rejected"></i>مرفوضة <b>${counts.rejected.toLocaleString("ar-SA")}</b></li></ul></div></article><article class="card approved-template-sync-card"><header><h3>${dashboardIcon("refresh")} آخر مزامنة مع Meta</h3></header><div class="meta-sync-state"><span class="meta-mark">∞</span><div><strong>${lastSyncValue ? "تمت المزامنة بنجاح" : "بانتظار أول مزامنة"}</strong><small>${escapeHtml(lastSync)}</small><em>${connected ? `${integrations.filter((item) => item.status === "connected").length.toLocaleString("ar-SA")} حساب متصل` : "لا يوجد حساب Meta متصل"}</em></div></div><button data-action="meta-template-sync" ${connected && permissions.canSync !== false ? "" : "disabled"}>${dashboardIcon("refresh")} مزامنة الآن</button></article></section>
+  </section>`);
 }
 
 function metaApprovedTemplatesSection() {
@@ -7086,7 +7209,7 @@ function generalTemplateCard(item) {
   const description = isMeta
     ? "قالب رسمي معتمد من واتساب للإرسال عبر المنصة وفق سياسات Meta."
     : item.description;
-  const approvedBadge = isMeta && item.status === "approved"
+  const approvedBadge = isMeta && item.status === "approved" && item.metaStatus === "APPROVED"
     ? `<span class="channel-pill approved">${dashboardIcon("security")} معتمد</span>`
     : "";
   const metaStatus = isMeta ? `<span class="status ${metaTemplateStatusTone(item.status)}">${metaTemplateStatusLabel(item.status)}</span>` : status(item.isActive ? "active" : "paused");
@@ -7113,15 +7236,16 @@ function generalTemplateCard(item) {
   </article>`;
 }
 
-function metaTemplateEditorPage(template) {
-  const backButton = `<button class="btn btn-secondary" data-link="/dashboard/templates">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
+function metaTemplateEditorPage(template, backPath = "/dashboard/templates") {
+  const backButton = `<button class="btn btn-secondary" data-link="${backPath}">${dashboardIcon("arrow-left")} العودة إلى القوالب</button>`;
   if (!template) return dashboardShell(`${pageTitle("قالب واتساب المعتمد", backButton)}<div class="template-catalog-empty">${dashboardIcon("whatsapp")}<strong>القالب غير متاح</strong><p>زامن القوالب مع Meta ثم حاول مرة أخرى.</p></div>`);
+  const permissions = state.metaTemplates?.permissions || {};
   const components = Array.isArray(template.components) ? template.components : [];
   const body = components.find((component) => component.type === "BODY")?.text || "";
   const categoryLabel = template.category === "MARKETING" ? "تسويقي" : template.category === "AUTHENTICATION" ? "مصادقة" : "خدمي";
   const updated = template.lastSyncedAt ? new Date(template.lastSyncedAt).toLocaleString("ar-SA") : "لم تتم المزامنة بعد";
-  const approved = template.status === "approved";
-  return dashboardShell(`<div class="template-breadcrumb"><span>القوالب العامة</span><b>/</b><strong>قالب واتساب المعتمد</strong></div>
+  const approved = template.status === "approved" && template.metaStatus === "APPROVED";
+  return dashboardShell(`<div class="template-breadcrumb"><span>${backPath === "/dashboard/approved-templates" ? "القوالب المعتمدة" : "القوالب العامة"}</span><b>/</b><strong>قالب واتساب المعتمد</strong></div>
     ${pageTitle(template.displayName || "قالب واتساب المعتمد", backButton)}
     <p class="page-kicker">قالب مرتبط بحساب واتساب الرسمي، وتأتي حالته مباشرة من Meta.</p>
     <section class="meta-approved-editor">
@@ -7140,9 +7264,9 @@ function metaTemplateEditorPage(template) {
         <div class="meta-approved-footer">
           <span>${dashboardIcon("refresh")} آخر مزامنة: ${escapeHtml(updated)}</span>
           <div class="inline-actions">
-            ${["draft", "rejected", "error"].includes(template.status) ? `<button class="btn btn-primary" data-action="meta-template-submit" data-id="${template.id}">${dashboardIcon("send")} إرسال إلى Meta</button>` : ""}
-            <button class="btn btn-secondary" data-action="meta-template-sync">${dashboardIcon("refresh")} مزامنة مع Meta</button>
-            <button class="btn btn-danger-outline" data-action="meta-template-delete" data-id="${template.id}">${dashboardIcon("delete")} حذف القالب</button>
+            ${permissions.canSubmit !== false && ["draft", "rejected", "error", "sync_error"].includes(template.status) ? `<button class="btn btn-primary" data-action="meta-template-submit" data-id="${template.id}">${dashboardIcon("send")} إرسال إلى Meta</button>` : ""}
+            ${permissions.canSync !== false ? `<button class="btn btn-secondary" data-action="meta-template-sync">${dashboardIcon("refresh")} مزامنة مع Meta</button>` : ""}
+            ${permissions.canDelete !== false ? `<button class="btn btn-danger-outline" data-action="meta-template-delete" data-id="${template.id}">${dashboardIcon("delete")} حذف القالب</button>` : ""}
           </div>
         </div>
       </article>
@@ -9838,7 +9962,7 @@ async function handleAction(target) {
   }
   if (action === "open-whatsapp-channel") return navigate("/dashboard/channels/whatsapp");
   if (action === "open-email-channel" || action === "email-channel-details") return navigate("/dashboard/channels/email");
-  if (action === "open-approved-templates") return navigate("/dashboard/templates");
+  if (action === "open-approved-templates") return navigate("/dashboard/approved-templates");
   if (action === "customer-export-dialog") return openModal("تصدير العملاء", `<form data-submit="customer-export" class="grid"><label class="field"><span>النطاق</span><select class="select" name="scope"><option value="all">كل العملاء</option><option value="current">النتائج الحالية</option><option value="selected" ${(state.customerSelection || []).length ? "" : "disabled"}>المحددون فقط</option></select></label><label class="field"><span>الصيغة</span><select class="select" name="format"><option value="csv">CSV</option><option value="xlsx">XLSX</option></select></label><button class="btn btn-primary">تجهيز الملف</button></form>`);
   if (action === "export-report-dialog") return openModal("تصدير التقرير", `<form data-submit="report-export" class="grid"><div class="suite-export-summary"><span>الفترة: آخر 30 يومًا</span><span>القناة: جميع القنوات</span><span>التقرير: الأداء العام</span></div><label class="field"><span>الصيغة</span><select class="select" name="format"><option value="csv">CSV</option><option value="pdf">PDF</option><option value="xlsx">XLSX</option></select></label><label class="setting-line"><span>تضمين التفاصيل اليومية</span><input type="checkbox" name="daily" checked></label><button class="btn btn-primary">تصدير</button></form>`);
   if (action === "email-manage-scroll") {
@@ -10017,6 +10141,37 @@ async function handleAction(target) {
     state.whatsappUsageExpanded = !state.whatsappUsageExpanded;
     return render();
   }
+  if (action === "meta-template-reload") {
+    state.metaTemplates = null;
+    await syncRouteData(true);
+    return;
+  }
+  if (action === "meta-template-view") {
+    state.metaTemplateView = target.dataset.view === "grid" ? "grid" : "list";
+    storage.set("renvix.meta-templates.view", state.metaTemplateView);
+    render();
+    return;
+  }
+  if (action === "meta-template-preview") {
+    const item = (state.metaTemplates?.items || []).find((template) => template.id === target.dataset.id);
+    if (!item) return toast("تعذر العثور على القالب المطلوب.", "danger");
+    const components = Array.isArray(item.components) ? item.components : [];
+    const header = components.find((component) => component.type === "HEADER");
+    const footer = components.find((component) => component.type === "FOOTER");
+    const buttons = components.find((component) => component.type === "BUTTONS")?.buttons || [];
+    const approved = item.status === "approved" && item.metaStatus === "APPROVED";
+    return openDrawer("معاينة قالب واتساب", `<section class="approved-template-preview-drawer"><header><span class="meta-mark">∞</span><div><h3>${escapeHtml(item.displayName || item.name)}</h3><small dir="ltr">${escapeHtml(item.name)} · ${escapeHtml(item.language)}</small></div><span class="status ${metaTemplateStatusTone(item.status)}">${metaTemplateStatusLabel(item.status)}</span></header><div class="approved-template-phone"><div class="approved-template-phone-head">${dashboardIcon("whatsapp")} <strong>WhatsApp Business</strong></div><article>${header ? `<b>${header.format === "TEXT" ? escapeHtml(header.text || "") : `[${escapeHtml(header.format)}]`}</b>` : ""}<p>${escapeHtml(metaTemplateBody(item)).replaceAll("\n", "<br>")}</p>${footer ? `<small>${escapeHtml(footer.text || "")}</small>` : ""}${buttons.length ? `<nav>${buttons.map((button) => `<span>${escapeHtml(button.text || "زر")}</span>`).join("")}</nav>` : ""}<time>الآن ✓✓</time></article></div><dl><div><dt>التصنيف</dt><dd>${metaTemplateCategoryLabel(item.category)}</dd></div><div><dt>اللغة</dt><dd>${escapeHtml(metaTemplateLanguageLabel(item.language))}</dd></div><div><dt>حساب واتساب</dt><dd>${escapeHtml(item.channelName || item.phoneNumber || "Meta")}</dd></div><div><dt>آخر مزامنة</dt><dd>${escapeHtml(metaTemplateUpdatedTime(item))}</dd></div></dl>${item.rejectionReason ? `<aside class="inline-notice danger"><strong>سبب رفض Meta</strong><p>${escapeHtml(item.rejectionReason)}</p></aside>` : ""}<footer>${approved ? `<button class="btn btn-primary" data-action="meta-template-use" data-id="${escapeHtml(item.id)}">${dashboardIcon("send")} استخدام في حملة</button>` : `<p>لا يمكن استخدام القالب حتى تعيده Meta بحالة APPROVED.</p>`}<button class="btn btn-secondary" data-link="/dashboard/approved-templates?metaTemplateId=${encodeURIComponent(item.id)}">عرض التفاصيل الكاملة</button></footer></section>`);
+  }
+  if (action === "meta-template-use") {
+    const item = (state.metaTemplates?.items || []).find((template) => template.id === target.dataset.id);
+    if (!item || item.status !== "approved" || item.metaStatus !== "APPROVED") return toast("هذا القالب غير معتمد من Meta ولا يمكن استخدامه.", "warning");
+    closePortal();
+    state.campaignBuilderChannel = "whatsapp";
+    state.campaignBuilderKind = "custom";
+    state.campaignBuilderCards = [];
+    state.campaignBuilderDraft = { values: { metaTemplateId: item.id, whatsappChannelId: item.integrationId || "", body: metaTemplateBody(item) }, cards: [] };
+    return navigate("/dashboard/campaigns/new");
+  }
   if (action === "meta-template-create") {
     const integrations = Array.isArray(state.metaTemplates?.integrations) ? state.metaTemplates.integrations : [];
     const options = integrations.map((item) => `<option value="${item.id}" ${item.status !== "connected" ? "disabled" : ""}>${escapeHtml(item.channelName || item.phoneNumber || "قناة Meta")} — ${item.status === "connected" ? "متصلة" : "غير متصلة"}</option>`).join("");
@@ -10029,7 +10184,9 @@ async function handleAction(target) {
       <div class="form-grid"><label class="field"><span>الفئة</span><select class="select" name="category"><option value="UTILITY">خدمية</option><option value="MARKETING">تسويقية</option><option value="AUTHENTICATION">مصادقة</option></select></label><label class="field"><span>اللغة</span><select class="select" name="language"><option value="ar">العربية</option><option value="en_US">English (US)</option></select></label></div>
       <label class="field"><span>رأس نصي (اختياري)</span><input class="input" name="header" maxlength="1024"></label>
       <label class="field"><span>محتوى الرسالة</span><textarea class="textarea" name="body" rows="7" maxlength="4096" required placeholder="مرحبًا {{1}}، نذكرك بموعد تجديد اشتراكك."></textarea></label>
+      <label class="field"><span>أمثلة المتغيرات</span><input class="input" name="variableExamples" maxlength="1000" placeholder="أحمد | 12540"><small>اكتب مثالًا آمنًا لكل متغير بالترتيب وافصل بينها بعلامة |. لا تستخدم بيانات عملاء حقيقية.</small></label>
       <label class="field"><span>التذييل (اختياري)</span><input class="input" name="footer" maxlength="1024"></label>
+      <div class="form-grid"><label class="field"><span>نص زر رابط (اختياري)</span><input class="input" name="buttonText" maxlength="80" placeholder="تتبع الطلب"></label><label class="field"><span>رابط الزر</span><input class="input" type="url" name="buttonUrl" maxlength="2048" placeholder="https://example.com/order"></label></div>
       <button class="btn btn-primary">حفظ كمسودة</button>
     </form>`);
   }
@@ -10075,7 +10232,7 @@ async function handleAction(target) {
         items: (state.metaTemplates?.items || []).filter((item) => item.id !== id)
       };
       toast(payload.message || "تم حذف القالب.");
-      navigate("/dashboard/templates");
+      navigate(state.route === "/dashboard/approved-templates" ? "/dashboard/approved-templates" : "/dashboard/templates");
     } catch (error) {
       toast(error.message || "تعذر حذف القالب من Meta.", "danger");
     } finally {
@@ -13918,8 +14075,15 @@ async function handleSubmit(form, event) {
   if (type === "meta-template-create") {
     const components = [];
     if (data.header?.trim()) components.push({ type: "HEADER", format: "TEXT", text: data.header.trim() });
-    components.push({ type: "BODY", text: data.body?.trim() || "" });
+    const variableExamples = String(data.variableExamples || "").split("|").map((value) => value.trim()).filter(Boolean);
+    const bodyComponent = { type: "BODY", text: data.body?.trim() || "" };
+    if (variableExamples.length) bodyComponent.example = { body_text: [variableExamples] };
+    components.push(bodyComponent);
     if (data.footer?.trim()) components.push({ type: "FOOTER", text: data.footer.trim() });
+    if (data.buttonText?.trim() || data.buttonUrl?.trim()) {
+      if (!data.buttonText?.trim() || !data.buttonUrl?.trim()) return toast("أكمل نص زر الرابط ورابطه معًا.", "danger");
+      components.push({ type: "BUTTONS", buttons: [{ type: "URL", text: data.buttonText.trim(), url: data.buttonUrl.trim() }] });
+    }
     const button = form.querySelector("button[type='submit'],button:not([type])");
     setSubmitBusy(button, true, "جارٍ حفظ المسودة...");
     try {
@@ -15249,6 +15413,7 @@ function render() {
       "/dashboard/subscriptions": subscriptionsPage,
       "/dashboard/customers": customersPage,
       "/dashboard/templates": templatesCatalogPage,
+      "/dashboard/approved-templates": approvedTemplatesPage,
       "/dashboard/campaigns": campaignsPage,
       "/dashboard/campaigns/new": campaignBuilderPage,
       "/dashboard/contacts": contactsPage,
@@ -15928,6 +16093,16 @@ document.addEventListener("input", (event) => {
     });
     return;
   }
+  if (target.dataset.action === "meta-template-search") {
+    state.metaTemplateSearch = target.value;
+    render();
+    requestAnimationFrame(() => {
+      const input = document.querySelector('[data-action="meta-template-search"]');
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+    return;
+  }
   if (target.dataset.sallaRuleField) {
     const index = Number(target.dataset.ruleIndex);
     const drafts = readSallaRuleDrafts();
@@ -16112,6 +16287,11 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "storage-date-filter") {
     state.storageDateFrom = target.value || ""; state.storageCenter = null; syncRouteData(true); return;
   }
+  if (target.dataset.action === "meta-template-status-filter") { state.metaTemplateStatusFilter = target.value || "all"; render(); return; }
+  if (target.dataset.action === "meta-template-category-filter") { state.metaTemplateCategoryFilter = target.value || "all"; render(); return; }
+  if (target.dataset.action === "meta-template-language-filter") { state.metaTemplateLanguageFilter = target.value || "all"; render(); return; }
+  if (target.dataset.action === "meta-template-integration-filter") { state.metaTemplateIntegrationFilter = target.value || "all"; render(); return; }
+  if (target.dataset.action === "meta-template-sort") { state.metaTemplateSort = target.value || "updated"; render(); return; }
   if (target.matches?.('form[data-submit="ai-message"] input[name="images"]')) {
     addAIAttachments(target.files, target.form, { kind: "image" });
     return;
@@ -16512,7 +16692,16 @@ document.addEventListener("paste", (event) => {
   document.querySelector(`[data-otp-digit="${Math.min(5, digits.length - 1)}"]`)?.focus();
 });
 setInterval(updateEmailOtpCountdown, 1000);
+setInterval(() => {
+  if (document.visibilityState !== "visible" || state.route !== "/dashboard/approved-templates" || state.remoteLoading.metaTemplates) return;
+  state.metaTemplates = null;
+  void syncRouteData(true);
+}, 60_000);
 document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && state.route === "/dashboard/approved-templates") {
+    state.metaTemplates = null;
+    void syncRouteData(true);
+  }
   if (document.visibilityState === "visible" && supportLiveRouteActive() && state.supportLiveRefreshPending) {
     void refreshSupportLiveData();
   }

@@ -8,12 +8,15 @@ export const META_TEMPLATE_STATUSES = Object.freeze({
   PENDING: "pending",
   APPROVED: "approved",
   REJECTED: "rejected",
+  FLAGGED: "flagged",
+  IN_APPEAL: "in_appeal",
   PAUSED: "paused",
   DISABLED: "disabled",
   PENDING_DELETION: "pending_deletion",
   DELETED: "deleted",
   UNKNOWN: "unknown",
-  ERROR: "error"
+  ERROR: "error",
+  SYNC_ERROR: "sync_error"
 });
 
 const buttonSchema = z.object({
@@ -59,8 +62,27 @@ export const metaTemplateDraftSchema = z.object({
   const bodies = value.components.filter((component) => component.type === "BODY");
   if (bodies.length !== 1) {
     context.addIssue({ code: "custom", path: ["components"], message: "يجب أن يحتوي القالب على نص رئيسي واحد" });
+    return;
+  }
+  const indexes = [...bodies[0].text.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1]));
+  const maximum = indexes.length ? Math.max(...indexes) : 0;
+  if (maximum && !Array.from({ length: maximum }, (_, index) => index + 1).every((index) => indexes.includes(index))) {
+    context.addIssue({ code: "custom", path: ["components"], message: "رتّب متغيرات النص تسلسليًا بدءًا من {{1}} دون تخطي أرقام" });
   }
 });
+
+function assertMetaSubmissionExamples(components) {
+  const body = (Array.isArray(components) ? components : []).find((component) => component.type === "BODY");
+  const indexes = [...String(body?.text || "").matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1]));
+  const maximum = indexes.length ? Math.max(...indexes) : 0;
+  const examples = body?.example?.body_text?.[0] || [];
+  if (maximum && examples.length < maximum) {
+    const error = new Error("أضف مثالًا آمنًا لكل متغير مستخدم قبل إرسال القالب إلى Meta.");
+    error.code = "META_TEMPLATE_EXAMPLES_REQUIRED";
+    error.status = 400;
+    throw error;
+  }
+}
 
 function templateSelect() {
   return `SELECT mt.id, mt.meta_integration_id AS "integrationId",
@@ -193,9 +215,9 @@ export async function updateMetaTemplateDraft({ tenantId, userId, templateId, in
 }
 
 function graphConfiguration(channel) {
-  const version = String(process.env.META_GRAPH_API_VERSION || "");
+  const version = String(process.env.META_GRAPH_VERSION || process.env.META_GRAPH_API_VERSION || "");
   if (!/^v\d+\.\d+$/.test(version)) {
-    const error = new Error("اضبط META_GRAPH_API_VERSION بإصدار Graph API المعتمد في بيئتك.");
+    const error = new Error("اضبط META_GRAPH_VERSION بإصدار Graph API المعتمد في بيئتك.");
     error.code = "META_GRAPH_VERSION_REQUIRED";
     error.status = 503;
     throw error;
@@ -209,12 +231,26 @@ function graphConfiguration(channel) {
   return {
     version,
     wabaId: channel.waba_id,
-    accessToken: decryptSecret(channel.channel_token_encrypted, process.env.ENCRYPTION_KEY)
+    accessToken: decryptSecret(channel.channel_token_encrypted, process.env.ENCRYPTION_KEY),
+    baseUrl: metaGraphBaseUrl()
   };
 }
 
-async function graphRequest({ method = "GET", path, accessToken, body }) {
-  const response = await fetch(`https://graph.facebook.com/${path}`, {
+function metaGraphBaseUrl() {
+  const value = String(process.env.META_GRAPH_BASE_URL || "https://graph.facebook.com").trim().replace(/\/+$/, "");
+  let url;
+  try { url = new URL(value); } catch { url = null; }
+  if (!url || url.protocol !== "https:") {
+    const error = new Error("META_GRAPH_BASE_URL يجب أن يكون رابط HTTPS صالحًا.");
+    error.code = "META_GRAPH_BASE_URL_INVALID";
+    error.status = 503;
+    throw error;
+  }
+  return url.toString().replace(/\/+$/, "");
+}
+
+async function graphRequest({ method = "GET", path, accessToken, body, baseUrl = metaGraphBaseUrl() }) {
+  const response = await fetch(`${baseUrl}/${path}`, {
     method,
     headers: {
       authorization: `Bearer ${accessToken}`,
@@ -256,6 +292,7 @@ export async function submitMetaTemplate({ tenantId, userId, templateId }) {
       error.status = 409;
       throw error;
     }
+    assertMetaSubmissionExamples(row.components);
     await client.query(
       "UPDATE meta_message_templates SET local_status='submitting',rejection_reason=NULL,updated_at=now() WHERE id=$1",
       [templateId]
@@ -270,6 +307,7 @@ export async function submitMetaTemplate({ tenantId, userId, templateId }) {
       method: "POST",
       path: `${config.version}/${encodeURIComponent(config.wabaId)}/message_templates`,
       accessToken: config.accessToken,
+      baseUrl: config.baseUrl,
       body: {
         name: prepared.template_name,
         language: prepared.language,
@@ -308,10 +346,13 @@ function localStatus(metaStatus) {
   const normalized = String(metaStatus || "").toUpperCase();
   if (normalized === "APPROVED") return "approved";
   if (normalized === "REJECTED") return "rejected";
+  if (normalized === "FLAGGED") return "flagged";
+  if (normalized === "IN_APPEAL") return "in_appeal";
   if (normalized === "PAUSED") return "paused";
   if (normalized === "DISABLED") return "disabled";
   if (normalized === "DELETED") return "deleted";
-  if (["PENDING", "IN_APPEAL", "PENDING_DELETION"].includes(normalized)) return normalized === "PENDING_DELETION" ? "pending_deletion" : "pending";
+  if (normalized === "PENDING") return "pending";
+  if (normalized === "PENDING_DELETION") return "pending_deletion";
   return "unknown";
 }
 
@@ -349,7 +390,8 @@ export async function applyMetaTemplateStatus({
       `UPDATE meta_message_templates SET meta_status=$3,local_status=$4,
        approved_category=COALESCE($5,approved_category),rejection_reason=$6,
        quality_rating=COALESCE($7,quality_rating),
-       raw_meta_payload=COALESCE($8::jsonb,raw_meta_payload),last_synced_at=now(),
+       raw_meta_payload=COALESCE($8::jsonb,raw_meta_payload),
+       last_meta_event=COALESCE($8::jsonb,last_meta_event),last_synced_at=now(),
        approved_at=CASE WHEN $4='approved' THEN now() ELSE approved_at END,
        rejected_at=CASE WHEN $4='rejected' THEN now() ELSE rejected_at END,
        updated_at=now() WHERE id=$1 AND tenant_id=$2`,
@@ -361,11 +403,21 @@ export async function applyMetaTemplateStatus({
     );
     const approved = mapped === "approved";
     const rejected = mapped === "rejected";
+    if (found.rows[0].local_status !== mapped) {
+      await client.query(
+        `INSERT INTO activity_logs (tenant_id,type,title,metadata)
+         VALUES ($1,$2,$3,$4::jsonb)`,
+        [channel.rows[0].tenant_id,
+          approved ? "whatsapp_template.approved" : rejected ? "whatsapp_template.rejected" : "whatsapp_template.status_updated",
+          approved ? "Meta WhatsApp template approved" : rejected ? "Meta WhatsApp template rejected" : "Meta WhatsApp template status updated",
+          JSON.stringify({ templateId: found.rows[0].id, previousStatus: found.rows[0].local_status, status: mapped, metaStatus: status })]
+      );
+    }
     if (approved || rejected) {
       await client.query(
         `INSERT INTO in_app_notifications (
            tenant_id,type,title,message,entity_type,entity_id,priority,action_url,metadata,dedupe_key
-         ) VALUES ($1,$2,$3,$4,'meta_template',$5,$6,'/dashboard/templates',$7::jsonb,$8)
+         ) VALUES ($1,$2,$3,$4,'meta_template',$5,$6,'/dashboard/approved-templates',$7::jsonb,$8)
          ON CONFLICT (tenant_id,dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
         [channel.rows[0].tenant_id,
           approved ? "meta_template_approved" : "meta_template_rejected",
@@ -391,7 +443,8 @@ async function listAllGraphTemplates(config) {
     if (after) params.set("after", after);
     const payload = await graphRequest({
       path: `${config.version}/${encodeURIComponent(config.wabaId)}/message_templates?${params}`,
-      accessToken: config.accessToken
+      accessToken: config.accessToken,
+      baseUrl: config.baseUrl
     });
     items.push(...(Array.isArray(payload.data) ? payload.data : []));
     after = payload?.paging?.next ? String(payload?.paging?.cursors?.after || "") : "";
@@ -508,6 +561,31 @@ export async function syncMetaTemplates({ tenantId, userId }) {
   return { ...summary, total: summary.added + summary.updated + summary.unchanged };
 }
 
+export async function reconcileAllMetaTemplates() {
+  const tenants = await query(
+    `SELECT DISTINCT wc.tenant_id AS "tenantId",
+       (SELECT u.id FROM users u WHERE u.tenant_id=wc.tenant_id ORDER BY u.created_at LIMIT 1) AS "userId"
+       FROM whatsapp_channels wc
+      WHERE wc.provider IN ('meta','meta_cloud_api') AND wc.status='connected'
+        AND wc.waba_id IS NOT NULL AND wc.channel_token_encrypted IS NOT NULL`
+  );
+  const result = { tenants: tenants.rowCount, synchronized: 0, failed: 0, templates: 0, failures: [] };
+  for (const tenant of tenants.rows) {
+    try {
+      const summary = await syncMetaTemplates(tenant);
+      result.synchronized += 1;
+      result.templates += summary.total;
+    } catch (error) {
+      result.failed += 1;
+      result.failures.push({
+        tenantId: tenant.tenantId,
+        code: String(error.code || "META_TEMPLATE_RECONCILIATION_FAILED")
+      });
+    }
+  }
+  return result;
+}
+
 export async function deleteMetaTemplate({ tenantId, userId, templateId }) {
   const prepared = await transaction(async (client) => {
     const result = await client.query(
@@ -545,7 +623,8 @@ export async function deleteMetaTemplate({ tenantId, userId, templateId }) {
       await graphRequest({
         method: "DELETE",
         path: `${config.version}/${encodeURIComponent(config.wabaId)}/message_templates?${params}`,
-        accessToken: config.accessToken
+        accessToken: config.accessToken,
+        baseUrl: config.baseUrl
       });
     }
     await transaction(async (client) => {

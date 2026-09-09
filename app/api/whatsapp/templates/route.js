@@ -4,6 +4,7 @@ import {
   listMetaTemplates
 } from "../../../../src/server/meta-template-service.js";
 import { sameOriginRequest } from "../../../../src/server/campaign-contacts.js";
+import { can } from "../../../../src/lib/permissions.js";
 
 function failure(error) {
   return Response.json(
@@ -15,7 +16,17 @@ function failure(error) {
 export async function GET(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
-  return Response.json({ ok: true, ...(await listMetaTemplates(auth.session.tenantId)) }, {
+  const role = String(auth.session.role || "").toLowerCase();
+  return Response.json({
+    ok: true,
+    ...(await listMetaTemplates(auth.session.tenantId)),
+    permissions: {
+      canCreate: can(role, "create:any"),
+      canSubmit: can(role, "update:any"),
+      canSync: can(role, "update:any"),
+      canDelete: can(role, "delete:any")
+    }
+  }, {
     headers: { "Cache-Control": "private, no-store, max-age=0" }
   });
 }
@@ -23,6 +34,9 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
+  if (!can(String(auth.session.role || "").toLowerCase(), "create:any")) {
+    return Response.json({ ok: false, message: "ليس لديك صلاحية إنشاء قوالب Meta." }, { status: 403 });
+  }
   if (!sameOriginRequest(request)) return Response.json({ ok: false, message: "طلب غير موثوق." }, { status: 403 });
   try {
     const item = await createMetaTemplateDraft({

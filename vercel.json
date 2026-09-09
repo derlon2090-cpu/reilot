@@ -44,6 +44,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/meta-template-reconciliation",
+      "schedule": "17 */6 * * *"
+    },
+    {
       "path": "/api/cron/message-retry",
       "schedule": "0 8 * * *"
     },
