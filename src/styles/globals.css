@@ -15335,16 +15335,14 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 
 .rvx-ai-drawer-close .line-icon { width: 18px; height: 18px; }
 
-/* iPad landscape and compact laptops: give the workspace the complete width. */
+/* iPad landscape and compact laptops: AI keeps a modal dashboard drawer.
+   Support Center intentionally inherits the same persistent sidebar as Storage Center. */
 @media (max-width: 1366px) {
-  .dashboard-shell:has(.rvx-support-suite),
   .dashboard-shell:has(.rvx-ai-page),
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite),
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar {
     position: fixed;
     z-index: 45;
@@ -15358,54 +15356,36 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     box-shadow: -20px 0 50px rgba(6, 43, 40, .16);
   }
 
-  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar,
   [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar {
     transform: translateX(-110%);
     box-shadow: 20px 0 50px rgba(6, 43, 40, .16);
   }
 
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar.open,
-  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
   [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar.open {
     transform: translateX(0);
   }
 
-  .dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle,
-  .dashboard-shell:has(.rvx-ai-page) .mobile-side-toggle {
-    display: inline-flex;
-  }
+  .dashboard-shell:has(.rvx-ai-page) .mobile-side-toggle { display: inline-flex; }
+  .dashboard-shell:has(.rvx-ai-page) .dashboard-sidebar-toggle { display: none; }
+  .dashboard-shell:has(.rvx-ai-page) .topbar .dashboard-search { transform: none; }
 
-  .dashboard-shell:has(.rvx-support-suite) .dashboard-sidebar-toggle,
-  .dashboard-shell:has(.rvx-ai-page) .dashboard-sidebar-toggle {
-    display: none;
-  }
-
-  .dashboard-shell:has(.rvx-support-suite) .topbar .dashboard-search,
-  .dashboard-shell:has(.rvx-ai-page) .topbar .dashboard-search {
-    transform: none;
-  }
-
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar,
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar {
     width: min(320px, 86vw);
     padding: 20px 14px;
   }
 
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar-brand,
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar-brand {
     justify-content: flex-start;
     padding-inline: 8px;
   }
 
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar .brand,
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar .brand {
     width: 100%;
     min-width: 0;
     justify-content: flex-start;
   }
 
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) .sidebar .brand-logo-image--mark,
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) .sidebar .brand-logo-image--mark {
     content: url('/assets/renvix-logo-exact.png');
     width: 142px;
@@ -15413,12 +15393,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     max-height: 42px;
   }
 
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) :is(.side-group-title, .side-link span, .sidebar-support-link span),
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) :is(.side-group-title, .side-link span, .sidebar-support-link span) {
     display: inline;
   }
 
-  .dashboard-shell.sidebar-collapsed:has(.rvx-support-suite) :is(.side-link, .sidebar-support-link),
   .dashboard-shell.sidebar-collapsed:has(.rvx-ai-page) :is(.side-link, .sidebar-support-link) {
     width: 100%;
     min-width: 0;
@@ -15740,7 +15718,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar,
   .rvx-ai-sidebar-backdrop { transition: none !important; }
 }
@@ -16221,7 +16198,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .storage-image-picker > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Support Center on iPad: the main navigation is a fully dismissible modal drawer. */
+/* Small-screen dashboard drawer close control. */
 .sidebar-drawer-close {
   display: none;
   width: 40px;
@@ -16241,7 +16218,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .sidebar-drawer-close .line-icon { width: 18px; height: 18px; }
 
 @media (max-width: 1366px) {
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar {
     inset-inline-start: 0 !important;
     inset-inline-end: auto !important;
@@ -16257,14 +16233,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     overscroll-behavior: contain;
   }
 
-  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar,
   [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar {
     transform: translate3d(calc(-100% - 32px), 0, 0) !important;
   }
 
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar.open,
-  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
   [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar.open {
     visibility: visible;
     opacity: 1;
@@ -16274,12 +16247,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     transition-delay: 0s;
   }
 
-  [dir="ltr"] .dashboard-shell:has(.rvx-support-suite) > .sidebar.open,
   [dir="ltr"] .dashboard-shell:has(.rvx-ai-page) > .sidebar.open {
     box-shadow: 18px 0 44px rgba(6, 43, 40, .16) !important;
   }
 
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar-backdrop {
     position: fixed;
     z-index: 44;
@@ -16297,13 +16268,11 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     -webkit-tap-highlight-color: transparent;
   }
 
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar .sidebar-brand,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar .sidebar-brand {
     justify-content: space-between;
     gap: 12px;
   }
 
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar .sidebar-drawer-close,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar .sidebar-drawer-close {
     display: inline-flex;
   }
@@ -16325,7 +16294,6 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-shell:has(.rvx-support-suite) > .sidebar,
   .dashboard-shell:has(.rvx-ai-page) > .sidebar { transition: none !important; }
 }
 

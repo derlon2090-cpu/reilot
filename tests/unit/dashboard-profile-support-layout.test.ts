@@ -54,12 +54,13 @@ describe("dashboard profile and support layout", () => {
     expect(styles).toContain(".rvx-ticket-th");
   });
 
-  it("uses a full-width iPad workspace and card-based mobile ticket rows", () => {
+  it("matches Storage Center's persistent iPad navigation and keeps card-based mobile ticket rows", () => {
     expect(styles).toContain("Renvix Center + Intelligence responsive hardening");
     expect(styles).toContain("@media (max-width: 1366px)");
-    expect(styles).toContain(".dashboard-shell:has(.rvx-support-suite)");
-    expect(styles).toContain("grid-template-columns: minmax(0, 1fr) !important");
-    expect(styles).toContain(".dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle");
+    expect(styles).toContain("Support Center intentionally inherits the same persistent sidebar as Storage Center.");
+    expect(styles).not.toContain(".dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle");
+    expect(styles).not.toContain(".dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop");
+    expect(styles).toContain("grid-template-columns: 284px minmax(0, 1fr)");
     expect(styles).toContain("@media (min-width: 701px) and (max-width: 900px)");
     expect(styles).toContain(".rvx-ticket-tr:not(.rvx-ticket-th)");
     expect(styles).toContain('"number status"');

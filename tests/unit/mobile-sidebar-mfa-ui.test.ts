@@ -37,13 +37,13 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("z-index: 44");
   });
 
-  it("fully dismisses the dashboard drawer on iPad inside Renvix Center", () => {
-    expect(stylesSource).toContain("Support Center on iPad: the main navigation is a fully dismissible modal drawer.");
+  it("keeps Renvix Center on the same persistent iPad sidebar layout as Storage Center", () => {
+    expect(stylesSource).toContain("Support Center intentionally inherits the same persistent sidebar as Storage Center.");
     expect(stylesSource).toContain("@media (max-width: 1366px)");
-    expect(stylesSource).toContain(".dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop");
-    expect(stylesSource).toContain("transform: translate3d(calc(100% + 32px), 0, 0) !important;");
-    expect(stylesSource).toContain("visibility: hidden;");
-    expect(stylesSource).toContain("pointer-events: none;");
+    expect(stylesSource).not.toContain(".dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop");
+    expect(stylesSource).not.toContain(".dashboard-shell:has(.rvx-support-suite) .mobile-side-toggle");
+    expect(stylesSource).toContain("grid-template-columns: 284px minmax(0, 1fr)");
+    expect(stylesSource).toMatch(/\.dashboard-shell > \.sidebar \{\s*position: sticky;/);
     expect(appSource).toContain('document.querySelector(".dashboard-shell > .sidebar")?.classList.remove("open")');
     expect(appSource).toContain('document.querySelector(".sidebar-backdrop")?.remove()');
   });
