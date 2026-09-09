@@ -863,6 +863,7 @@ state.storageComposeType = "";
 state.storageDocument = null;
 state.storageDocumentLoadingId = "";
 state.storageDocumentRequestController = null;
+state.storageCenterRequestController = null;
 state.storageCenterRevision = 0;
 state.storageEditingDocument = null;
 state.storageDocumentDraft = null;
@@ -1532,6 +1533,9 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     }
     if (["aiUsage", "aiOverview", "aiConversations", "aiStorageSummary"].includes(target)) clearAIRemoteRetry(key);
   } catch (error) {
+    if (target === "storageCenter" && (storageRevisionAtStart !== state.storageCenterRevision || state.route !== "/dashboard/storage")) {
+      return state.storageCenter;
+    }
     if (target === "publicPlans") {
       state.publicPlans = readCachedPublicPlans() || (Array.isArray(state.publicPlans?.plans) ? { ...state.publicPlans, cached: true } : { error: error.message || "تعذر تحميل الباقات" });
     } else if (scheduleAIRemoteRetry(key, url, target, options, error)) {
@@ -1569,7 +1573,10 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     }
   } finally {
     state.remoteLoading[key] = false;
-    if (renderOnComplete) render();
+    if (target === "storageCenter" && state.storageCenterRequestController?.signal === options?.signal) {
+      state.storageCenterRequestController = null;
+    }
+    if (renderOnComplete && (target !== "storageCenter" || (state.route === "/dashboard/storage" && storageRevisionAtStart === state.storageCenterRevision))) render();
   }
   return state[target];
 }
@@ -1696,7 +1703,16 @@ function syncRouteData(force = false) {
     if (state.storageTypeFilter !== "all") params.set("type", state.storageTypeFilter);
     if (state.storageDateFrom) params.set("dateFrom", state.storageDateFrom);
     state.storageCurrentFolderId = folderId || "";
-    queue("storageCenter", `/api/storage?${params}`, "storageCenter");
+    if (!state.remoteLoading.storageCenter) {
+      state.storageCenterRequestController?.abort();
+      const controller = new AbortController();
+      state.storageCenterRequestController = controller;
+      queue("storageCenter", `/api/storage?${params}`, "storageCenter", {
+        signal: controller.signal,
+        timeoutMs: 10_000,
+        timeoutMessage: "استغرق تحميل مركز التخزين وقتًا أطول من المتوقع. أعد المحاولة."
+      });
+    }
   }
   if (state.route === "/dashboard/storage") {
     const requestedDocumentId = state.query.get("document") || "";
@@ -1763,19 +1779,57 @@ async function syncLinkedDevice() {
   }
 }
 
-async function browserSessionIsValid() {
-  try {
-    const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "include" });
-    const payload = await response.json().catch(() => null);
-    const valid = response.ok && payload?.ok === true && Boolean(payload.user?.id);
-    if (valid) {
+let browserSessionStatusRequest = null;
+
+async function browserSessionStatus() {
+  if (browserSessionStatusRequest) return browserSessionStatusRequest;
+  browserSessionStatusRequest = (async () => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 5_000);
+    try {
+      const response = await fetch("/api/auth/session", {
+        cache: "no-store",
+        credentials: "include",
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => null);
+      if (response.status === 401 || response.status === 403) return "invalid";
+      if (!response.ok) return "unavailable";
+      const valid = payload?.ok === true && Boolean(payload.user?.id);
+      if (!valid) return "invalid";
       state.mustChangePassword = Boolean(payload.user?.mustChangePassword);
       cacheAuthenticatedUserProfile(payload.user);
+      return "valid";
+    } catch {
+      return "unavailable";
+    } finally {
+      window.clearTimeout(timeout);
     }
-    return valid;
-  } catch {
-    return false;
+  })();
+  try {
+    return await browserSessionStatusRequest;
+  } finally {
+    browserSessionStatusRequest = null;
   }
+}
+
+async function browserSessionIsValid() {
+  return await browserSessionStatus() === "valid";
+}
+
+function expireDashboardSession() {
+  if (!state.route.startsWith("/dashboard")) return;
+  if (state.route === "/dashboard/storage") disposeStorageRoute();
+  history.replaceState({}, "", "/login");
+  state.route = "/login";
+  state.query = new URLSearchParams();
+  render();
+  toast(t("auth.invalidCredentials"), "danger");
+}
+
+async function revalidateDashboardSession() {
+  const result = await browserSessionStatus();
+  if (result === "invalid") expireDashboardSession();
 }
 
 const authPortalPaths = new Set([
@@ -1839,8 +1893,10 @@ async function navigate(to, { sessionVerified = false } = {}) {
   if (enterCanonicalPortal(to) || enterAuthPortal(to)) return;
   const url = new URL(to, location.origin);
   url.pathname = dashboardAliases[url.pathname] || url.pathname;
+  const previousRoute = state.route;
+  const internalDashboardTransition = previousRoute.startsWith("/dashboard") && url.pathname.startsWith("/dashboard");
   if (url.pathname.startsWith("/dashboard")) {
-    if (!sessionVerified && !await browserSessionIsValid()) {
+    if (!sessionVerified && !internalDashboardTransition && !await browserSessionIsValid()) {
       history.pushState({}, "", "/login");
       state.route = "/login";
       render();
@@ -1853,6 +1909,11 @@ async function navigate(to, { sessionVerified = false } = {}) {
       appToast.warning("غيّر كلمة المرور المؤقتة", { description: "لحماية حسابك، يجب تعيين كلمة مرور جديدة قبل استخدام المنصة.", id: "must-change-password" });
     }
     if (leaveAuthPortal(url.pathname + url.search)) return;
+  }
+  if (previousRoute === "/dashboard/storage" && url.pathname !== "/dashboard/storage") disposeStorageRoute();
+  if (previousRoute !== "/dashboard/storage" && url.pathname === "/dashboard/storage" && !url.searchParams.has("folder")) {
+    state.storageCurrentFolderId = "";
+    state.storageCenter = null;
   }
   history.pushState({}, "", url.pathname + url.search);
   state.route = url.pathname;
@@ -1871,6 +1932,7 @@ async function navigate(to, { sessionVerified = false } = {}) {
   render();
   requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
   if (state.route === "/dashboard/channels") void syncLinkedDevice();
+  if (internalDashboardTransition && !sessionVerified) void revalidateDashboardSession();
 }
 
 async function enterDashboardAfterSessionVerification({ sessionVerified = false } = {}) {
@@ -15242,6 +15304,17 @@ function stopStorageDocumentCountdowns() {
   storageDocumentCountdownTimer = null;
 }
 
+function disposeStorageRoute() {
+  syncStorageDocumentDraft();
+  state.storageCenterRevision += 1;
+  state.storageCenterRequestController?.abort();
+  state.storageCenterRequestController = null;
+  state.storageDocumentRequestController?.abort();
+  state.storageDocumentRequestController = null;
+  state.storageDocumentLoadingId = "";
+  stopStorageDocumentCountdowns();
+}
+
 function bindStorageDocumentCountdowns() {
   stopStorageDocumentCountdowns();
   const editorForm = document.querySelector('form[data-submit="storage-document"]');
@@ -16675,6 +16748,8 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("popstate", () => {
+  const nextRoute = dashboardAliases[location.pathname] || location.pathname;
+  if (state.route === "/dashboard/storage" && nextRoute !== "/dashboard/storage") disposeStorageRoute();
   const requestedDocumentId = new URLSearchParams(location.search).get("document") || "";
   if (!requestedDocumentId) {
     state.storageDocumentRequestController?.abort();
