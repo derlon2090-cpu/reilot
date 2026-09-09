@@ -45,7 +45,7 @@
     },
     {
       "path": "/api/cron/meta-template-reconciliation",
-      "schedule": "17 */6 * * *"
+      "schedule": "17 4 * * *"
     },
     {
       "path": "/api/cron/message-retry",

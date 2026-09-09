@@ -56,6 +56,6 @@ describe("approved Meta templates center", () => {
     expect(cron).toContain("validateCronRequest(request)");
     expect(cron).toContain("reconcileAllMetaTemplates()");
     expect(vercel).toContain('"path": "/api/cron/meta-template-reconciliation"');
-    expect(vercel).toContain('"schedule": "17 */6 * * *"');
+    expect(vercel).toContain('"schedule": "17 4 * * *"');
   });
 });
