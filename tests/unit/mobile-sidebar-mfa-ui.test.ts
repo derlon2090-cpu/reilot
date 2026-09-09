@@ -31,9 +31,21 @@ describe("mobile sidebar and MFA UI contracts", () => {
 
   it("closes the mobile sidebar through a real outside backdrop", () => {
     expect(appSource).toContain('class="sidebar-backdrop" data-action="close-sidebar"');
+    expect(appSource).toContain('class="sidebar-drawer-close" data-action="close-sidebar"');
     expect(appSource).toContain('action === "close-sidebar"');
     expect(stylesSource).toContain(".sidebar-backdrop");
     expect(stylesSource).toContain("z-index: 44");
+  });
+
+  it("fully dismisses the dashboard drawer on iPad inside Renvix Center", () => {
+    expect(stylesSource).toContain("Support Center on iPad: the main navigation is a fully dismissible modal drawer.");
+    expect(stylesSource).toContain("@media (max-width: 1366px)");
+    expect(stylesSource).toContain(".dashboard-shell:has(.rvx-support-suite) > .sidebar-backdrop");
+    expect(stylesSource).toContain("transform: translate3d(calc(100% + 32px), 0, 0) !important;");
+    expect(stylesSource).toContain("visibility: hidden;");
+    expect(stylesSource).toContain("pointer-events: none;");
+    expect(appSource).toContain('document.querySelector(".dashboard-shell > .sidebar")?.classList.remove("open")');
+    expect(appSource).toContain('document.querySelector(".sidebar-backdrop")?.remove()');
   });
 
   it("keeps the MFA switch tied to persisted server state", () => {

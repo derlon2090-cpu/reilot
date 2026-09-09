@@ -4326,7 +4326,7 @@ function dashboardShell(content) {
     : (state.language === "ar" ? "إظهار الأيقونات فقط" : "Show icons only");
   return `<div class="dashboard-shell ${state.sidebarCollapsed ? "sidebar-collapsed" : ""}">
     <aside class="sidebar ${state.sidebarOpen ? "open" : ""}">
-      <div class="sidebar-brand">${logo(state.sidebarCollapsed)}</div>
+      <div class="sidebar-brand">${logo(state.sidebarCollapsed)}<button type="button" class="sidebar-drawer-close" data-action="close-sidebar" aria-label="${state.language === "ar" ? "إغلاق القائمة" : "Close navigation"}">${dashboardIcon("close")}</button></div>
       <nav class="side-links">${links}</nav>
       <button class="sidebar-support-link ${state.route.startsWith("/dashboard/support") ? "active" : ""}" data-link="/dashboard/support" data-sidebar-icon="support" aria-label="${state.language === "ar" ? "مركز Renvix" : "Renvix Center"}" title="${state.language === "ar" ? "مركز Renvix" : "Renvix Center"}">${dashboardIcon("support")}<span>${state.language === "ar" ? "مركز Renvix" : "Renvix Center"}</span></button>
     </aside>
@@ -15828,6 +15828,11 @@ document.addEventListener("click", (event) => {
   }
   if (link) {
     event.preventDefault();
+    if (state.sidebarOpen) {
+      state.sidebarOpen = false;
+      document.querySelector(".dashboard-shell > .sidebar")?.classList.remove("open");
+      document.querySelector(".sidebar-backdrop")?.remove();
+    }
     navigate(link.dataset.link);
     return;
   }
