@@ -109,12 +109,16 @@ describe("storage center form wiring", () => {
     expect(source).toContain("function captureStorageEditorSelection");
     expect(source).toContain("function restoreStorageEditorSelection");
     expect(source).toContain("function applyStorageEditorCommand");
+    expect(source).toContain("function normalizeStorageBoldMarkup");
+    expect(source).toContain('setAttribute("data-storage-bold", "true")');
     expect(source).toContain('inputTypes = { bold: "formatBold"');
     expect(source).toContain('new InputEvent("input", { bubbles: true, inputType })');
     expect(source).toContain('document.addEventListener("mousedown"');
     expect(source).toContain('document.addEventListener("pointerdown"');
     expect(source).toContain('document.addEventListener("selectionchange"');
     expect(styles).toContain(".storage-editor-toolbar button.is-active");
+    expect(styles).toContain('[data-storage-bold="true"]');
+    expect(styles).toContain("font-weight:800!important");
   });
 
   it("loads a complete account usage breakdown only when space management opens", () => {

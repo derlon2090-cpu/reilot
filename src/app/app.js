@@ -8915,6 +8915,7 @@ function restoreStorageDocumentDraft() {
   form.dataset.timerEndsAt = draft.timerEndsAt;
   form.dataset.timerDisplayMode = draft.timerDisplayMode === "hours" ? "hours" : "days";
   editor.innerHTML = draft.body;
+  normalizeStorageBoldMarkup(editor);
   const words = String(editor.innerText || "").trim().split(/\s+/).filter(Boolean).length;
   const output = form.querySelector("[data-storage-word-count]");
   if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
@@ -8957,11 +8958,22 @@ function refreshStorageEditorToolbarState(editor = document.querySelector("[data
   });
 }
 
+function normalizeStorageBoldMarkup(editor = document.querySelector("[data-storage-editor]")) {
+  if (!editor) return;
+  editor.querySelectorAll("b,strong").forEach((node) => node.setAttribute("data-storage-bold", "true"));
+  editor.querySelectorAll("span[style]").forEach((node) => {
+    const weight = String(node.style.fontWeight || "").toLowerCase();
+    if (weight === "bold" || Number(weight) >= 600) node.setAttribute("data-storage-bold", "true");
+    else node.removeAttribute("data-storage-bold");
+  });
+}
+
 function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection") {
   const editor = document.querySelector("[data-storage-editor]");
   if (!editor) return false;
   restoreStorageEditorSelection(editor);
   const applied = document.execCommand(command, false, value);
+  normalizeStorageBoldMarkup(editor);
   captureStorageEditorSelection(editor);
   editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType }));
   refreshStorageEditorToolbarState(editor);
@@ -15670,6 +15682,7 @@ document.addEventListener("input", (event) => {
   const target = event.target;
   const storageTimerForm = target.closest?.('form[data-submit="storage-document-timer"]');
   if (storageTimerForm) updateStorageTimerDialogPreview(storageTimerForm);
+  if (target.matches?.("[data-storage-editor]")) normalizeStorageBoldMarkup(target);
   const storageDraftForm = target.closest?.('form[data-submit="storage-document"]');
   if (storageDraftForm) syncStorageDocumentDraft(storageDraftForm);
   if (target.name === "emailHtmlContent") {
