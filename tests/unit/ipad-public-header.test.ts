@@ -8,6 +8,8 @@ const staticIndex = readFileSync(new URL("../../index.html", import.meta.url), "
 
 const marker = "/* iPad public header: compact brand, balanced controls, and a single landscape rail. */";
 const sourceRules = sourceStyles.slice(sourceStyles.indexOf(marker));
+const finalMarker = "/* Final iPad public header rail: complete laptop navigation at the compact 74px height. */";
+const finalRules = sourceStyles.slice(sourceStyles.indexOf(finalMarker));
 
 describe("iPad public header", () => {
   it("uses the reference proportions on wide iPad layouts", () => {
@@ -38,6 +40,19 @@ describe("iPad public header", () => {
     expect(sourceRules).toContain('@media (min-width:641px) and (max-width:900px)');
     expect(sourceRules).toContain("width:132px!important");
     expect(sourceRules).toContain("inset-inline-end:clamp(-29px,-3.5vw,-22px)");
+  });
+
+  it("shows the complete laptop rail without increasing the iPad header height", () => {
+    expect(sourceStyles.indexOf(finalMarker)).toBeGreaterThan(sourceStyles.indexOf("/* Single, full-height route state across laptop and tablet navigation. */"));
+    expect(finalRules).toContain('@media (min-width: 901px) and (max-width: 1366px)');
+    expect(finalRules).toContain("min-height: 74px !important");
+    expect(finalRules).toContain('grid-template-areas: "brand links actions" !important');
+    expect(finalRules).toContain("width: calc(100% - 28px) !important");
+    expect(finalRules).toContain(".nav-link:nth-child(4)");
+    expect(finalRules).toContain(".nav-link:nth-child(5)");
+    expect(finalRules).toContain("display: inline-flex !important");
+    expect(finalRules).toContain(".public-nav-more");
+    expect(finalRules).toContain("display: none !important");
   });
 
   it("ships identical source and public rules with one cache key", () => {
