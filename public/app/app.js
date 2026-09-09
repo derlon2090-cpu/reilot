@@ -8920,6 +8920,54 @@ function restoreStorageDocumentDraft() {
   if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
 }
 
+let storageEditorSelectionRange = null;
+
+function captureStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
+  const selection = window.getSelection?.();
+  if (!editor || !selection?.rangeCount) return false;
+  const range = selection.getRangeAt(0);
+  const container = range.commonAncestorContainer.nodeType === Node.TEXT_NODE ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
+  if (!container || !editor.contains(container)) return false;
+  storageEditorSelectionRange = range.cloneRange();
+  return true;
+}
+
+function restoreStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
+  if (!editor) return false;
+  editor.focus({ preventScroll: true });
+  const range = storageEditorSelectionRange;
+  if (!range || !range.startContainer?.isConnected || !editor.contains(range.commonAncestorContainer)) return false;
+  const selection = window.getSelection?.();
+  if (!selection) return false;
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return true;
+}
+
+function refreshStorageEditorToolbarState(editor = document.querySelector("[data-storage-editor]")) {
+  const toolbar = editor?.closest(".storage-editor")?.querySelector(".storage-editor-toolbar");
+  if (!toolbar) return;
+  toolbar.querySelectorAll('[data-action="storage-editor-command"]').forEach((button) => {
+    const command = button.dataset.command;
+    const supportsPressedState = ["bold", "italic", "underline", "insertUnorderedList"].includes(command);
+    let active = false;
+    try { active = supportsPressedState && document.queryCommandState(command); } catch {}
+    button.classList.toggle("is-active", active);
+    if (supportsPressedState) button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection") {
+  const editor = document.querySelector("[data-storage-editor]");
+  if (!editor) return false;
+  restoreStorageEditorSelection(editor);
+  const applied = document.execCommand(command, false, value);
+  captureStorageEditorSelection(editor);
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType }));
+  refreshStorageEditorToolbarState(editor);
+  return applied;
+}
+
 async function autosaveStorageDocument(form) {
   const documentId = form?.dataset.id;
   if (!documentId || !["note", "custom"].includes(form.dataset.type)) return false;
@@ -9180,15 +9228,13 @@ async function handleAction(target) {
     return;
   }
   if (storageAction === "storage-editor-command") {
-    document.querySelector("[data-storage-editor]")?.focus();
-    document.execCommand(target.dataset.command, false, target.dataset.value || null);
+    const command = target.dataset.command;
+    const inputTypes = { bold: "formatBold", italic: "formatItalic", underline: "formatUnderline", insertUnorderedList: "insertUnorderedList", undo: "historyUndo", redo: "historyRedo" };
+    applyStorageEditorCommand(command, target.dataset.value || null, inputTypes[command] || "formatBlock");
     return;
   }
   if (storageAction === "storage-editor-color") {
-    const editor = document.querySelector("[data-storage-editor]");
-    editor?.focus();
-    document.execCommand("foreColor", false, target.dataset.value || "#173d39");
-    editor?.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatForeColor" }));
+    applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor");
     return;
   }
   if (storageAction === "storage-editor-ai-format") {
@@ -9225,8 +9271,10 @@ async function handleAction(target) {
     return;
   }
   if (storageAction === "storage-editor-link") {
+    const editor = document.querySelector("[data-storage-editor]");
+    captureStorageEditorSelection(editor);
     const href = window.prompt("أدخل رابطًا يبدأ بـ https://");
-    if (href && /^https:\/\//i.test(href)) document.execCommand("createLink", false, href);
+    if (href && /^https:\/\//i.test(href)) applyStorageEditorCommand("createLink", href, "createLink");
     return;
   }
   if (storageAction === "storage-copy-field") {
@@ -15486,6 +15534,23 @@ function bindQrImageState() {
   markLoaded();
   requestAnimationFrame(markLoaded);
 }
+
+document.addEventListener("mousedown", (event) => {
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"]');
+  if (!control) return;
+  captureStorageEditorSelection();
+  event.preventDefault();
+});
+
+document.addEventListener("pointerdown", (event) => {
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"]');
+  if (control) captureStorageEditorSelection();
+});
+
+document.addEventListener("selectionchange", () => {
+  const editor = document.querySelector("[data-storage-editor]");
+  if (captureStorageEditorSelection(editor)) refreshStorageEditorToolbarState(editor);
+});
 
 document.addEventListener("click", (event) => {
   if (state.notificationDropdownOpen && !event.target.closest(".notification-trigger-wrap")) {
