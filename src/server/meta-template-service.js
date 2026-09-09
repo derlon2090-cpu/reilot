@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { decryptSecret } from "../lib/encryption.js";
 import { query, transaction } from "./db.js";
+import { ensureMetaTemplateSchema } from "./meta-template-schema.js";
 
 export const META_TEMPLATE_STATUSES = Object.freeze({
   DRAFT: "draft",
@@ -110,6 +111,7 @@ function integrationSelect() {
 }
 
 export async function listMetaTemplates(tenantId) {
+  await ensureMetaTemplateSchema();
   const [templates, integrations] = await Promise.all([
     query(`${templateSelect()} WHERE mt.tenant_id=$1 AND mt.deleted_at IS NULL ORDER BY mt.updated_at DESC`, [tenantId]),
     query(integrationSelect(), [tenantId])
@@ -135,6 +137,7 @@ async function chooseIntegration(client, tenantId, integrationId) {
 }
 
 export async function createMetaTemplateDraft({ tenantId, userId, input }) {
+  await ensureMetaTemplateSchema();
   const parsed = metaTemplateDraftSchema.safeParse(input);
   if (!parsed.success) {
     const error = new Error(parsed.error.issues[0]?.message || "بيانات القالب غير صالحة");
@@ -171,6 +174,7 @@ export async function createMetaTemplateDraft({ tenantId, userId, input }) {
 }
 
 export async function updateMetaTemplateDraft({ tenantId, userId, templateId, input }) {
+  await ensureMetaTemplateSchema();
   const parsed = metaTemplateDraftSchema.safeParse(input);
   if (!parsed.success) {
     const error = new Error(parsed.error.issues[0]?.message || "بيانات القالب غير صالحة");
@@ -271,6 +275,7 @@ async function graphRequest({ method = "GET", path, accessToken, body, baseUrl =
 }
 
 export async function submitMetaTemplate({ tenantId, userId, templateId }) {
+  await ensureMetaTemplateSchema();
   const prepared = await transaction(async (client) => {
     const result = await client.query(
       `SELECT mt.*, wc.provider, wc.status AS channel_status, wc.waba_id,
@@ -359,6 +364,7 @@ function localStatus(metaStatus) {
 export async function applyMetaTemplateStatus({
   wabaId, templateId, name, language, status, category, reason, qualityRating, rawPayload
 }) {
+  await ensureMetaTemplateSchema();
   const channel = await query(
     `SELECT id,tenant_id FROM whatsapp_channels
       WHERE waba_id=$1 AND provider IN ('meta','meta_cloud_api') LIMIT 1`,
@@ -518,6 +524,7 @@ async function upsertSyncedTemplate({ client, tenantId, integration, item, userI
 }
 
 export async function syncMetaTemplates({ tenantId, userId }) {
+  await ensureMetaTemplateSchema();
   const integrations = await query(
     `SELECT id,waba_id,channel_token_encrypted,status FROM whatsapp_channels
       WHERE tenant_id=$1 AND provider IN ('meta','meta_cloud_api')
@@ -587,6 +594,7 @@ export async function reconcileAllMetaTemplates() {
 }
 
 export async function deleteMetaTemplate({ tenantId, userId, templateId }) {
+  await ensureMetaTemplateSchema();
   const prepared = await transaction(async (client) => {
     const result = await client.query(
       `SELECT mt.id,mt.template_name,mt.meta_template_id,mt.local_status,

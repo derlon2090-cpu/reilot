@@ -6,6 +6,7 @@ const route = readFileSync("app/api/whatsapp/templates/[id]/route.js", "utf8");
 const migration = readFileSync("drizzle/0037_meta_template_lifecycle.sql", "utf8");
 const statusMigration = readFileSync("drizzle/0096_meta_template_status_expansion.sql", "utf8");
 const productionEnv = readFileSync(".env.production.example", "utf8");
+const schemaGate = readFileSync("src/server/meta-template-schema.js", "utf8");
 
 describe("Meta WhatsApp template lifecycle", () => {
   it("keeps Meta identity tenant and WABA scoped", () => {
@@ -53,5 +54,12 @@ describe("Meta WhatsApp template lifecycle", () => {
     expect(productionEnv).toContain("META_GRAPH_BASE_URL=https://graph.facebook.com");
     expect(productionEnv).toContain("META_WEBHOOK_VERIFY_TOKEN=");
     expect(productionEnv).toContain("META_WEBHOOK_APP_SECRET=");
+  });
+
+  it("gates every production code path on the idempotent migration when Actions is unavailable", () => {
+    expect(schemaGate).toContain('const META_TEMPLATE_MIGRATION_NAME = "0096_meta_template_status_expansion.sql"');
+    expect(schemaGate).toContain("runMigrationPlan(client");
+    expect(schemaGate).toContain("let schemaReadyPromise");
+    expect(service.match(/await ensureMetaTemplateSchema\(\);/g)?.length).toBeGreaterThanOrEqual(7);
   });
 });
