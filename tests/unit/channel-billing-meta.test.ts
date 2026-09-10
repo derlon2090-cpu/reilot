@@ -48,21 +48,17 @@ describe("channel billing separation", () => {
     expect(whatsappTopupRoute).toContain("لا تبيع Renvix رصيد واتساب");
   });
 
-  it("routes additional credit requests to email instead of WhatsApp", () => {
-    expect(appSource).toContain("شحن رصيد رسائل البريد");
-    expect(appSource).toContain("function emailCreditPanel(emailUsage = {}, showUpgrade = true)");
-    expect(appSource).toContain('class="email-credit-packages"');
-    expect(appSource).toContain("messages: amount / 50 * 1500");
-    expect(appSource).toContain('data-action="billing-tab" data-tab="topup"');
-    expect(appSource).not.toContain("يراجعه فريق الدعم");
+  it("keeps the plan catalog full-width without an embedded email-credit sales panel", () => {
+    expect(appSource).not.toContain("function emailCreditPanel");
+    expect(appSource).not.toContain('class="email-credit-packages"');
+    expect(appSource).not.toContain('data-action="billing-tab" data-tab="topup"');
+    expect(appSource).toContain('panel = `${overview}${trialNotice}${plansPanel}');
   });
 
-  it("hides plan upgrades when Salla or Zid is already connected", () => {
+  it("keeps commerce-connection billing data genuine", () => {
     expect(billingSource).toContain("provider IN ('salla','zid')");
     expect(billingSource).toContain("status IN ('connected','ready')");
     expect(billingSource).toContain("commerceConnection: {");
-    expect(appSource).toContain("const showUpgrade = data.commerceConnection?.connected !== true");
-    expect(appSource).toContain("emailCreditPanel(emailUsage, showUpgrade)");
   });
 
   it("keeps provider names out of the campaign creation channel selector", () => {

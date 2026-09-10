@@ -8060,12 +8060,6 @@ function billingInvoices(invoices = []) {
   return `<article class="card table-card billing-tab-panel"><div class="section-head"><div><h2>الفواتير</h2><p>لا تظهر إلا الفواتير الصادرة والمسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد إتمام أول عملية دفع موثقة.")}</article>`;
 }
 
-function emailCreditPanel(emailUsage = {}, showUpgrade = true) {
-  const remaining = emailUsage?.remaining == null ? null : Math.max(0, Number(emailUsage.remaining));
-  const packages = [50, 100, 250, 500, 1000].map((amount) => ({ amount, messages: amount / 50 * 1500 }));
-  return `<article class="card billing-topup-panel billing-tab-panel"><div class="section-head"><div><h2>شحن رصيد رسائل البريد</h2><p>اختر عدد الرسائل المناسب دون التأثير على ربط واتساب الرسمي.</p></div><strong>${remaining == null ? "—" : remaining.toLocaleString("ar-SA")} ${remaining == null ? "" : "رسالة متبقية"}</strong></div><div class="topup-amounts billing-topup-actions"><button class="topup-option" data-action="billing-tab" data-tab="topup"><strong>طلب رصيد إضافي</strong><span>عرض باقات رسائل البريد</span></button>${showUpgrade ? `<button class="topup-option" data-action="billing-tab" data-tab="plans"><strong>ترقية الباقة</strong><span>حد بريد أعلى</span></button>` : ""}</div><div class="email-credit-packages" aria-label="باقات رصيد رسائل البريد">${packages.map(({ amount, messages }) => `<article class="email-credit-package"><strong>${messages.toLocaleString("ar-SA")} رسالة</strong><span>${amount.toLocaleString("ar-SA")} ر.س</span></article>`).join("")}</div><div class="billing-safe-note">${dashboardIcon("security")} سيُوثق أي رصيد إضافي مدفوع ضمن باقتك وفواتير حسابك.</div></article>`;
-}
-
 function billingWorkspacePage() {
   if (state.billingOverview === null || state.messageUsage === null) {
     return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">جاري تحميل بيانات خطتك واستخدامك الموثق...</p><div class="card loading-state" role="status" aria-live="polite">جاري مزامنة بيانات الفوترة</div>`);
@@ -8087,8 +8081,7 @@ function billingWorkspacePage() {
   const trialActive = statusKey === "trial" && days !== null && days > 0;
   const trialExpired = statusKey === "expired" || (statusKey === "trial" && days === 0);
   const invoices = data.invoices || [];
-  const showUpgrade = data.commerceConnection?.connected !== true;
-  const tab = ["overview", "plans", "whatsapp", "email", "topup", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
+  const tab = ["overview", "plans", "whatsapp", "email", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
   const numberOrNull = (value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
   const valueText = (value, suffix = "") => numberOrNull(value) === null ? "—" : `${numberOrNull(value).toLocaleString("ar-SA")}${suffix}`;
   const usedEmail = numberOrNull(emailUsage?.used);
@@ -8105,7 +8098,7 @@ function billingWorkspacePage() {
   const planLabel = trialActive || trialExpired ? "التجربة المجانية" : current.planName || "—";
   const tabs = [
     ["overview", "نظرة عامة", "home"], ["plans", "الباقات", "publicPlans"], ["whatsapp", "استخدام واتساب", "whatsapp"],
-    ["email", "استخدام البريد", "email"], ["topup", "شحن رصيد رسائل البريد", "add"], ["invoices", "الفواتير", "document"]
+    ["email", "استخدام البريد", "email"], ["invoices", "الفواتير", "document"]
   ];
   const overview = `<section class="billing-stats-grid">
     <article class="card billing-stat"><span>${dashboardIcon("subscriptions")}</span><div><small>الخطة الحالية</small><strong>${escapeHtml(planLabel)}</strong><em>${statusLabel}</em></div></article>
@@ -8122,11 +8115,10 @@ function billingWorkspacePage() {
       : "";
   const plansPanel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>مزايا وحدود كل باقة مستخرجة مباشرة من تعريفها الفعلي في النظام.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
   let panel = "";
-  if (tab === "overview") panel = `${overview}${trialNotice}<section class="section billing-reference-main">${plansPanel}<aside>${emailCreditPanel(emailUsage, showUpgrade)}</aside></section><section class="section">${billingInvoices(invoices)}</section>`;
+  if (tab === "overview") panel = `${overview}${trialNotice}${plansPanel}<section class="section">${billingInvoices(invoices)}</section>`;
   if (tab === "plans") panel = `${trialNotice}${plansPanel}`;
   if (tab === "whatsapp") panel = whatsapp ? `<section class="billing-tab-panel">${whatsappBillingCard(whatsapp, true)}</section>` : emptyState("بيانات استخدام واتساب غير متاحة", "لم نعرض رقمًا تقديريًا بدل البيانات الفعلية.");
   if (tab === "email") panel = `<section class="billing-tab-panel">${emailBillingCard(usage)}</section>`;
-  if (tab === "topup") panel = emailCreditPanel(emailUsage, showUpgrade);
   if (tab === "invoices") panel = billingInvoices(invoices);
   return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">إدارة خطتك ورصيد البريد والفواتير، مع عرض استخدام واتساب المتزامن من Meta.</p>
     <nav class="billing-tabs dashboard-line-tabs" aria-label="أقسام الفوترة">${tabs.map(([key, label, icon]) => `<button class="${tab === key ? "active" : ""}" data-action="billing-tab" data-tab="${key}" aria-current="${tab === key ? "page" : "false"}"><span class="dashboard-line-tab-icon">${dashboardIcon(icon)}</span><span>${label}</span></button>`).join("")}</nav>${panel}`);

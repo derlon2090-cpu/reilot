@@ -50,12 +50,21 @@ describe("iPad dashboard navigation and metric rows", () => {
     expect(tabletPolish).toContain("overflow-x:auto");
   });
 
+  it("contains storage timers, channel metrics, billing plans, and chat actions on iPad", () => {
+    expect(tabletPolish).toContain("/* iPad content-density pass:");
+    expect(tabletPolish).toContain(".storage-document-timer");
+    expect(tabletPolish).toContain("grid-template-columns:14px minmax(0,1fr) auto");
+    expect(tabletPolish).toContain(".ref-metrics .suite-metric");
+    expect(tabletPolish).toContain(".dashboard-plan-grid");
+    expect(tabletPolish).toContain(".rvx-ai-quick-actions");
+  });
+
   it("ships the same tablet styles and cache version to both application entries", () => {
     expect(publicStyles).toContain(tabletPolish.trim());
     const versions = [rootLayout, staticIndex].flatMap((markup) =>
       [...markup.matchAll(/(?:globals\.css|app\.js)\?v=([^"']+)/g)].map((match) => match[1])
     );
     expect(versions.length).toBe(4);
-    expect(new Set(versions)).toEqual(new Set(["20260909-ipad-dashboard-polish-v146"]));
+    expect(new Set(versions)).toEqual(new Set(["20260910-ipad-layout-polish-v147"]));
   });
 });

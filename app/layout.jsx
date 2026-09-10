@@ -47,13 +47,13 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260909-ipad-dashboard-polish-v146" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260910-ipad-layout-polish-v147" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
-        <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260909-ipad-dashboard-polish-v146" />
+        <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260910-ipad-layout-polish-v147" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260909-ipad-dashboard-polish-v146" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260910-ipad-layout-polish-v147" strategy="afterInteractive" />
       </body>
     </html>
   );
