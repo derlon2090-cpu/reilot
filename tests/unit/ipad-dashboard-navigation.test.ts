@@ -22,6 +22,16 @@ describe("iPad dashboard navigation and metric rows", () => {
     expect(navigationSource).toContain("disposeStorageRoute()");
   });
 
+  it("preserves the user dashboard position when a sidebar section is selected", () => {
+    expect(appSource).toContain("dashboardRouteScrollPositions: new Map()");
+    expect(appSource).toContain('history.scrollRestoration = "manual"');
+    expect(appSource).toContain("function captureDashboardScrollPosition");
+    expect(appSource).toContain("function restoreDashboardSidebarScroll");
+    expect(appSource).toContain("function restoreDashboardScrollPosition");
+    expect(appSource).toContain('preserveScroll: Boolean(link.closest(".sidebar"))');
+    expect(appSource).not.toContain('requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }))');
+  });
+
   it("cancels stale storage work and prevents it from repainting another section", () => {
     expect(appSource).toContain("state.storageCenterRequestController = null");
     expect(appSource).toContain("function disposeStorageRoute()");
@@ -65,6 +75,6 @@ describe("iPad dashboard navigation and metric rows", () => {
       [...markup.matchAll(/(?:globals\.css|app\.js)\?v=([^"']+)/g)].map((match) => match[1])
     );
     expect(versions.length).toBe(4);
-    expect(new Set(versions)).toEqual(new Set(["20260910-ipad-layout-polish-v147"]));
+    expect(new Set(versions)).toEqual(new Set(["20260910-dashboard-scroll-v148"]));
   });
 });

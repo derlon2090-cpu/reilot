@@ -801,6 +801,8 @@ const state = {
   navOpen: false,
   sidebarOpen: false,
   sidebarCollapsed: storage.get(dashboardSidebarCollapsedKey, false) === true,
+  dashboardSidebarScrollTop: 0,
+  dashboardRouteScrollPositions: new Map(),
   theme: readPreference("renewpilot_theme", "renewpilot.theme", "light"),
   language: readPreference("renewpilot_locale", "renewpilot.language", "ar"),
   interfaceDensity: readDensityPreference(),
@@ -1889,12 +1891,49 @@ function enterCanonicalPortal(to) {
   return true;
 }
 
-async function navigate(to, { sessionVerified = false } = {}) {
+function dashboardScrollKey(route = state.route, query = state.query) {
+  const search = query instanceof URLSearchParams ? query.toString() : String(query || "").replace(/^\?/, "");
+  return `${route}${search ? `?${search}` : ""}`;
+}
+
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+function captureDashboardScrollPosition(key = dashboardScrollKey()) {
+  const position = {
+    top: Math.max(0, Number(window.scrollY || document.documentElement.scrollTop || 0)),
+    left: Math.max(0, Number(window.scrollX || document.documentElement.scrollLeft || 0))
+  };
+  if (String(key).startsWith("/dashboard")) state.dashboardRouteScrollPositions.set(key, position);
+  const sidebar = app.querySelector(".dashboard-shell > .sidebar");
+  if (sidebar) state.dashboardSidebarScrollTop = Math.max(0, sidebar.scrollTop);
+  return position;
+}
+
+function restoreDashboardSidebarScroll() {
+  const sidebar = app.querySelector(".dashboard-shell > .sidebar");
+  if (sidebar) sidebar.scrollTop = Math.max(0, Number(state.dashboardSidebarScrollTop || 0));
+}
+
+function restoreDashboardScrollPosition(key, { fallback = { top: 0, left: 0 }, useSaved = true } = {}) {
+  const saved = useSaved ? state.dashboardRouteScrollPositions.get(key) : null;
+  const position = saved || fallback;
+  requestAnimationFrame(() => {
+    window.scrollTo({
+      top: Math.max(0, Number(position?.top || 0)),
+      left: Math.max(0, Number(position?.left || 0)),
+      behavior: "instant"
+    });
+    restoreDashboardSidebarScroll();
+  });
+}
+
+async function navigate(to, { sessionVerified = false, preserveScroll = false } = {}) {
   if (enterCanonicalPortal(to) || enterAuthPortal(to)) return;
   const url = new URL(to, location.origin);
   url.pathname = dashboardAliases[url.pathname] || url.pathname;
   const previousRoute = state.route;
   const internalDashboardTransition = previousRoute.startsWith("/dashboard") && url.pathname.startsWith("/dashboard");
+  const previousPosition = internalDashboardTransition ? captureDashboardScrollPosition() : { top: 0, left: 0 };
   if (url.pathname.startsWith("/dashboard")) {
     if (!sessionVerified && !internalDashboardTransition && !await browserSessionIsValid()) {
       history.pushState({}, "", "/login");
@@ -1930,7 +1969,10 @@ async function navigate(to, { sessionVerified = false } = {}) {
   state.search = "";
   state.filter = "الكل";
   render();
-  requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
+  restoreDashboardScrollPosition(`${url.pathname}${url.search}`, {
+    fallback: preserveScroll && internalDashboardTransition ? previousPosition : { top: 0, left: 0 },
+    useSaved: preserveScroll && internalDashboardTransition
+  });
   if (state.route === "/dashboard/channels") void syncLinkedDevice();
   if (internalDashboardTransition && !sessionVerified) void revalidateDashboardSession();
 }
@@ -15460,6 +15502,8 @@ function storageCenterPage() {
 }
 
 function render() {
+  const visibleSidebar = app.querySelector(".dashboard-shell > .sidebar");
+  if (visibleSidebar) state.dashboardSidebarScrollTop = Math.max(0, visibleSidebar.scrollTop);
   disposeMarketingMotion();
   applyPreferences();
   const requestedRoute = location.pathname;
@@ -15520,6 +15564,7 @@ function render() {
           ? dashboardSupportPage
           : pages[state.route] || dashboardHome;
     app.innerHTML = dashboardPage();
+    restoreDashboardSidebarScroll();
     if (state.route === "/dashboard/storage") restoreStorageDocumentDraft();
     localizeElement(app);
     ensurePasswordToggles();
@@ -15902,7 +15947,7 @@ document.addEventListener("click", (event) => {
       document.querySelector(".dashboard-shell > .sidebar")?.classList.remove("open");
       document.querySelector(".sidebar-backdrop")?.remove();
     }
-    navigate(link.dataset.link);
+    navigate(link.dataset.link, { preserveScroll: Boolean(link.closest(".sidebar")) });
     return;
   }
   if (action) {
@@ -16740,6 +16785,7 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("popstate", () => {
+  captureDashboardScrollPosition();
   const nextRoute = dashboardAliases[location.pathname] || location.pathname;
   if (state.route === "/dashboard/storage" && nextRoute !== "/dashboard/storage") disposeStorageRoute();
   const requestedDocumentId = new URLSearchParams(location.search).get("document") || "";
@@ -16753,7 +16799,7 @@ window.addEventListener("popstate", () => {
     state.storageDocumentDraft = null;
   }
   render();
-  requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
+  restoreDashboardScrollPosition(`${nextRoute}${location.search}`);
 });
 document.addEventListener("paste", (event) => {
   const target = event.target.closest?.("[data-otp-digit]");
