@@ -2686,8 +2686,8 @@ function pageHero(title, lead, actions = "") {
   </section>`;
 }
 
-function statGrid(items) {
-  return `<div class="grid grid-5 dashboard-stat-grid">${items.map((item) => `<article class="card stat-card ${item.tone || "info"}">
+function statGrid(items, className = "") {
+  return `<div class="grid grid-5 dashboard-stat-grid ${escapeHtml(className)}">${items.map((item) => `<article class="card stat-card ${item.tone || "info"}">
     <div><span class="muted">${item.title}</span><strong>${item.value}</strong><small>${item.caption || item.change || ""}</small></div>
     <span class="stat-card-icon">${dashboardIcon(item.icon || "reports")}</span>
   </article>`).join("")}</div>`;
@@ -5419,7 +5419,7 @@ function subscriptionsPage() {
       { title: "الاشتراكات النشطة", value: Number(stats.active||0), caption: "نشط", tone: "success", icon: "security" },
       { title: "تجديد قريب (7 أيام)", value: Number(stats.upcoming7||0), caption: "موعد", tone: "warning", icon: "reports" },
       { title: "قيمة الاشتراكات النشطة", value: formatMoney(Number(stats.activeValue||0)), caption: "ر.س", tone: "purple", icon: "billing" }
-    ])}
+    ], "subscription-metrics")}
     ${Number(meta.unmappedCount||0)>0?`<button class="inline-notice warning subscription-unmapped-notice" data-link="/dashboard/apps">${Number(meta.unmappedCount)} عناصر طلب من سلة تحتاج إلى ربط باقة ومدة — لم يُنشأ لها اشتراك تلقائيًا.</button>`:""}
     <nav class="subscription-section-tabs dashboard-line-tabs" aria-label="أقسام الاشتراكات">${tabs.map(([key,label,icon])=>`<button class="${state.subscriptionSection===key?"active":""}" data-action="subscription-section" data-section="${key}" aria-current="${state.subscriptionSection===key?"page":"false"}"><span class="dashboard-line-tab-icon">${dashboardIcon(icon)}</span><span>${label}</span></button>`).join("")}</nav>
     ${state.subscriptionSection === "list" ? subscriptionToolbar() : ""}

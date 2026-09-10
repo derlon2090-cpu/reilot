@@ -16723,3 +16723,166 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   :root[data-home-tablet-layout="true"] .rvx-ai-tools { padding-inline:12px; }
   :root[data-home-tablet-layout="true"] .rvx-ai-composer { margin:0 12px 10px; padding:7px 10px 6px; }
 }
+
+/* Unified dashboard metric cards: consistent type, color, and iPad geometry. */
+.dashboard-main{
+  --metric-card-surface:#fff;
+  --metric-card-border:#dfe9e7;
+  --metric-card-title:#173d39;
+  --metric-card-caption:#879692;
+  --metric-card-shadow:0 5px 16px rgba(6,43,40,.035);
+}
+.dashboard-main :is(
+  .stat-card,
+  .suite-metric,
+  .storage-stats>article,
+  .billing-stat,
+  .apps-overview-stat,
+  .approved-template-stats>article,
+  .security-ref-metrics>article,
+  .capi-summary-card
+){
+  color:var(--metric-card-title);
+  border-color:var(--metric-card-border);
+  border-radius:14px;
+  background-color:var(--metric-card-surface);
+  box-shadow:var(--metric-card-shadow);
+}
+.dashboard-main :is(
+  .stat-card .muted,
+  .suite-metric>div>span,
+  .storage-stats>article small,
+  .billing-stat small,
+  .apps-overview-stat strong,
+  .approved-template-stats>article small,
+  .security-ref-metrics>article small,
+  .capi-summary-card small
+){
+  color:var(--metric-card-title)!important;
+  font-family:var(--font-arabic),sans-serif;
+  font-weight:800;
+  line-height:1.45;
+}
+.dashboard-main :is(
+  .stat-card strong,
+  .suite-metric strong,
+  .storage-stats>article strong,
+  .billing-stat strong,
+  .apps-overview-stat b,
+  .approved-template-stats>article strong,
+  .security-ref-metrics>article>div>strong,
+  .capi-summary-card strong
+){
+  color:var(--metric-value-ink)!important;
+  font-family:var(--font-latin),var(--font-arabic),sans-serif;
+  font-weight:750;
+  font-variant-numeric:tabular-nums;
+}
+.dashboard-main :is(
+  .stat-card small,
+  .suite-metric small,
+  .storage-stats>article em,
+  .billing-stat em,
+  .apps-overview-stat small,
+  .approved-template-stats>article em,
+  .security-ref-metrics>article em,
+  .capi-summary-card em
+){
+  color:var(--metric-card-caption)!important;
+  font-family:var(--font-arabic),sans-serif;
+  font-weight:500;
+  line-height:1.5;
+}
+.dashboard-main .approved-template-stats>article>span{
+  color:var(--metric-icon-ink)!important;
+  border:1px solid var(--metric-icon-border)!important;
+  background:var(--metric-icon-surface)!important;
+  box-shadow:var(--metric-icon-shadow);
+}
+:root[data-theme="dark"] .dashboard-main{
+  --metric-card-surface:#123632;
+  --metric-card-border:#31534d;
+  --metric-card-title:#e5f2ef;
+  --metric-card-caption:#9eb4b0;
+  --metric-card-shadow:none;
+}
+
+@media (min-width:901px) and (max-width:1700px) {
+  :root[data-home-tablet-layout="true"] .subscription-metrics{
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:10px;
+    overflow:visible;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card{
+    display:grid;
+    grid-template-columns:40px minmax(0,1fr);
+    align-items:center;
+    min-width:0;
+    min-height:132px;
+    gap:11px;
+    padding:16px 14px;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card-icon{
+    grid-column:1;
+    grid-row:1;
+    width:40px;
+    height:40px;
+    flex-basis:40px;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card-icon .line-icon{
+    width:21px;
+    height:21px;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card>div{
+    grid-column:2;
+    grid-row:1;
+    min-width:0;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card .muted{
+    display:-webkit-box;
+    min-height:2.9em;
+    overflow:hidden;
+    font-size:11px;
+    line-height:1.45;
+    white-space:normal;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card strong{
+    display:block;
+    max-width:100%;
+    margin:6px 0 3px;
+    overflow:hidden;
+    font-size:21px;
+    line-height:1.2;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card small{
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    font-size:9.5px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+}
+
+@media (min-width:641px) and (max-width:900px) {
+  :root[data-home-tablet-layout="true"] .subscription-metrics{
+    display:flex!important;
+    gap:10px;
+    overflow-x:auto;
+    padding-block-end:8px;
+    scroll-snap-type:inline proximity;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  :root[data-home-tablet-layout="true"] .subscription-metrics .stat-card{
+    flex:0 0 210px;
+    min-width:0;
+    min-height:126px;
+    scroll-snap-align:start;
+  }
+}

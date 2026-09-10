@@ -69,12 +69,20 @@ describe("iPad dashboard navigation and metric rows", () => {
     expect(tabletPolish).toContain(".rvx-ai-quick-actions");
   });
 
+  it("keeps subscription metrics in one balanced iPad row", () => {
+    expect(appSource).toContain('], "subscription-metrics")}');
+    expect(tabletPolish).toContain(".subscription-metrics");
+    expect(tabletPolish).toContain("grid-template-columns:repeat(4,minmax(0,1fr))!important");
+    expect(tabletPolish).toContain("grid-template-columns:40px minmax(0,1fr)");
+    expect(tabletPolish).toContain("-webkit-line-clamp:2");
+  });
+
   it("ships the same tablet styles and cache version to both application entries", () => {
     expect(publicStyles).toContain(tabletPolish.trim());
     const versions = [rootLayout, staticIndex].flatMap((markup) =>
       [...markup.matchAll(/(?:globals\.css|app\.js)\?v=([^"']+)/g)].map((match) => match[1])
     );
     expect(versions.length).toBe(4);
-    expect(new Set(versions)).toEqual(new Set(["20260910-dashboard-scroll-v148"]));
+    expect(new Set(versions)).toEqual(new Set(["20260910-metric-cards-v149"]));
   });
 });

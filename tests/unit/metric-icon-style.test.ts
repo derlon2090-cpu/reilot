@@ -37,4 +37,13 @@ describe("shared dashboard icon treatment", () => {
     expect(sourceStyles).not.toContain(".salla-template-card:nth-child(4n+2) .salla-template-card-icon");
     expect(sourceStyles).not.toContain(".suite-metric.info .suite-metric-icon{color:#2d6fb3");
   });
+
+  it("uses one professional typography and surface palette for dashboard metrics", () => {
+    expect(sourceStyles).toContain("Unified dashboard metric cards: consistent type, color, and iPad geometry");
+    expect(sourceStyles).toContain("--metric-card-title:#173d39");
+    expect(sourceStyles).toContain("--metric-card-caption:#879692");
+    expect(sourceStyles).toContain(".approved-template-stats>article small");
+    expect(sourceStyles).toContain(".security-ref-metrics>article>div>strong");
+    expect(sourceStyles).toContain("font-weight:800");
+  });
 });
