@@ -16920,3 +16920,25 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     height:118px;
   }
 }
+
+/* Full-width desktop support strip: meet both viewport edges and keep artwork clear of the footer. */
+@media (min-width:901px) {
+  html:not([data-home-tablet-layout="true"]) .renvix-home .home-support {
+    padding:12px 0 8px;
+  }
+
+  html:not([data-home-tablet-layout="true"]) .renvix-home .home-support > .container {
+    width:100%!important;
+    max-width:none!important;
+    padding-inline:0!important;
+  }
+
+  html:not([data-home-tablet-layout="true"]) .renvix-home .home-support-panel {
+    height:120px;
+    min-height:120px;
+  }
+
+  html:not([data-home-tablet-layout="true"]) .renvix-home .home-support-grid article {
+    min-height:116px;
+  }
+}
