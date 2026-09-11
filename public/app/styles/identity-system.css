@@ -113,3 +113,22 @@ html body .auth-suite-page .auth-suite-brandbar-logo .brand-logo-image{max-width
     max-height:48px!important;
   }
 }
+
+/* Render the public-header logo once, with breathing room around its source edges. */
+html body .public-site>.public-nav .nav-inner>.brand{
+  padding:4px 7px!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
+  background-image:none!important;
+}
+html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  object-position:right center!important;
+  image-rendering:auto;
+}
