@@ -2044,18 +2044,27 @@ function icon(text, tone = "") {
   return `<span class="icon-bubble ${tone}">${text}</span>`;
 }
 
+const RENVIX_BRAND_ASSETS = Object.freeze({
+  primary: "/assets/renvix-logo-primary.png",
+  compact: "/assets/renvix-logo-deep-teal.svg",
+  icon: "/assets/renvix-mark-deep-teal.svg",
+  compactDark: "/assets/renvix-logo-auth-dark.svg"
+});
+
 function logo(compact = false) {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
+  const variant = compact ? "icon" : state.route.startsWith("/dashboard") ? "compact" : "primary";
+  const dimensions = variant === "icon" ? 'width="64" height="48"' : variant === "primary" ? 'width="814" height="228"' : 'width="190" height="55"';
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image${compact ? " brand-logo-image--mark" : ""}" src="${compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-deep-teal.svg"}" ${compact ? 'width="64" height="48"' : 'width="190" height="55"'} alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image brand-logo-image--${variant === "icon" ? "mark" : variant}" src="${RENVIX_BRAND_ASSETS[variant]}" ${dimensions} alt="${escapeHtml(appName)}" decoding="async">
   </button>`;
 }
 
 function stackedLogo() {
   const appName = t("app.name") || "Renvix";
   return `<div class="brand-logo-stacked" role="img" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image" src="/assets/renvix-logo-exact.png" width="1029" height="221" alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image brand-logo-image--primary" src="${RENVIX_BRAND_ASSETS.primary}" width="814" height="228" alt="${escapeHtml(appName)}">
   </div>`;
 }
 
@@ -4038,7 +4047,7 @@ function authModeTabs(activeMode) {
 }
 
 function authMobileMark() {
-  return '<div class="auth-mobile-brand" aria-hidden="true"><img src="/assets/renvix-logo-exact.png" width="1029" height="221" alt=""></div>';
+  return '<div class="auth-mobile-brand" aria-hidden="true"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt=""></div>';
 }
 
 function authMobileScene(kind) {
@@ -4055,7 +4064,7 @@ function authDashboardScene() {
     <div class="auth-platform-monitor">
       <i class="auth-platform-camera"></i>
       <div class="auth-platform-screen">
-        <header><img src="/assets/renvix-logo-exact.png" alt="" width="1029" height="221"></header>
+        <header><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" alt="" width="814" height="228"></header>
         <div class="auth-platform-dashboard">
           <aside><span class="active">${dashboardIcon("home")} لوحة التحكم</span><span>${dashboardIcon("subscriptions")} الاشتراكات</span><span>${dashboardIcon("customers")} العملاء</span><span>${dashboardIcon("reports")} التقارير</span><span>${dashboardIcon("settings")} الإعدادات</span></aside>
           <main><div class="auth-platform-stats"><span><small>إجمالي الاشتراكات</small><strong>1,250</strong></span><span><small>القادمة للتجديد</small><strong>320</strong></span><span><small>الإيرادات الشهرية</small><strong>45,680</strong></span><span><small>معدل التجديد</small><strong>98%</strong></span></div><section><b>نظرة عامة</b><div class="auth-platform-chart"><i></i><i></i><i></i><i></i><i></i><i></i></div></section><footer><span><i></i><b>شركة الرياض للتقنية</b><small>نشط</small></span><span><i></i><b>متجر النخبة</b><small>قريب من التجديد</small></span></footer></main>
@@ -5685,7 +5694,7 @@ function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind) {
   return `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${escapeHtml(emailDesign)}">
     <div class="campaign-email-windowbar"><span aria-hidden="true"><i></i><i></i><i></i></span><b>Renvix Mail</b><small>البريد الوارد</small></div>
     <div class="campaign-email-message-meta"><span>${dashboardIcon("customers")}</span><div><strong data-campaign-live-from>${escapeHtml(fromName || "Renvix")}</strong><small dir="ltr">&lt;${escapeHtml(emailSender || "")}&gt;</small></div><time>10:30 ص</time>${dashboardIcon("heart")}${dashboardIcon("back")}${dashboardIcon("menu")}</div>
-    <div class="campaign-email-brand"><img src="/assets/renvix-logo-exact.png" alt="Renvix"></div>
+    <div class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt="Renvix"></div>
     <section><div class="campaign-email-hero"><div><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p></div><div class="campaign-email-hero-media ${firstImage ? "has-image" : ""}" data-campaign-email-hero-media>${heroMedia}</div></div><h3 class="campaign-email-cards-title">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h3><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "email")}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section>
     <footer><span data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</span><small>Renvix</small></footer>
   </div>`;

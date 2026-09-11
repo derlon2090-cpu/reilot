@@ -19,7 +19,7 @@ describe("campaign studio reference layout", () => {
     expect(appSource).toContain("function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind)");
     expect(appSource).toContain('class="campaign-email-windowbar"');
     expect(appSource).toContain('class="campaign-email-message-meta"');
-    expect(appSource).toContain('src="/assets/renvix-logo-exact.png"');
+    expect(appSource).toContain('src="/assets/renvix-logo-primary.png"');
     expect(appSource).toContain('src="/assets/renvix-mark-deep-teal.svg"');
     expect(stylesSource).toMatch(/\.campaign-studio\.is-whatsapp \.campaign-studio-phone\{[^}]*min-height:720px/);
     expect(stylesSource).toMatch(/\.campaign-studio\.is-email \.campaign-studio-email-preview\{[^}]*min-height:720px/);

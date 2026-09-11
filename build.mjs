@@ -15,6 +15,7 @@ await cp(path.join(root, "src", "styles", "globals.css"), path.join(publicApp, "
 await cp(path.join(root, "src", "styles", "approved-templates-reference.css"), path.join(publicApp, "styles", "approved-templates-reference.css"));
 await cp(path.join(root, "src", "styles", "tokens.css"), path.join(publicApp, "styles", "tokens.css"));
 await cp(path.join(root, "src", "styles", "dark-system.css"), path.join(publicApp, "styles", "dark-system.css"));
+await cp(path.join(root, "src", "styles", "identity-system.css"), path.join(publicApp, "styles", "identity-system.css"));
 await mkdir(path.join(publicApp, "locales"), { recursive: true });
 await cp(path.join(root, "src", "locales"), path.join(publicApp, "locales"), { recursive: true });
 await mkdir(path.join(root, "public", "data"), { recursive: true });

@@ -266,7 +266,7 @@ describe("mobile sidebar and MFA UI contracts", () => {
   it("keeps the mobile authentication identity in sync with local display controls", () => {
     expect(appSource).toContain("function authMobileMark");
     expect(appSource).toContain("function authMobileScene");
-    expect(appSource).toContain('/assets/renvix-logo-exact.png');
+    expect(appSource).toContain('/assets/renvix-logo-primary.png');
     expect(stylesSource).toContain("/* Final compact authentication presentation */");
     expect(stylesSource).toContain(".auth-mobile-brand");
     expect(stylesSource).toContain(".auth-mobile-scene");

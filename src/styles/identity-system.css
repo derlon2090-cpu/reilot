@@ -1,0 +1,57 @@
+/* Renvix identity system — authoritative visual layer for every application surface. */
+:root{font-family:var(--font-primary);font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html,body,#app,#portal{font-family:var(--font-primary);font-weight:var(--weight-regular);line-height:var(--leading-normal)}
+
+/* All UI copy uses Alexandria; source-code surfaces intentionally remain monospace. */
+body :where(*):not(code):not(pre):not(kbd):not(samp){font-family:var(--font-primary)!important}
+code,pre,kbd,samp,textarea.email-html-editor,textarea.salla-css-code-editor,textarea.campaign-html-code{font-family:var(--font-mono)!important}
+body :where(p,li,dd,dt,input,textarea,select){font-weight:var(--weight-regular)}
+body :where(label,legend,th,.side-link,.sidebar-support-link,.nav-link){font-weight:var(--weight-medium)!important}
+body :where(button,.btn,[role="button"],h3,h4,h5,h6,strong,b){font-weight:var(--weight-semibold)!important}
+body :where(h1,.page-title,.page-heading,.approved-templates-title h1){font-weight:var(--weight-bold)!important;line-height:var(--leading-tight)}
+body :where(h2,.section-title,.section-head h2){font-weight:var(--weight-bold)!important;line-height:1.4}
+body :where(p,.muted,.helper-text,small){line-height:var(--leading-normal)}
+
+/* Stable numeric rhythm for dashboards, storage, plans, reports, and tables. */
+body :where(table,[data-number],.stat-card strong,.suite-metric strong,.storage-stats strong,.storage-document-timer,.billing-stat strong,.dashboard-plan .plan-price,.report-metric strong,.approved-template-stats strong,.capi-summary-card strong){font-variant-numeric:tabular-nums}
+
+/* Machine-readable values stay predictable inside Arabic pages. */
+body :where(input[type="email"],input[type="url"],input[type="tel"],input[type="password"],input[name*="email" i],input[name*="phone" i],input[name*="url" i],input[name*="token" i],input[name*="secret" i],input[name*="api" i],input[name*="key" i],textarea[name*="html" i],textarea[name*="code" i],.mfa-secret,.pairing-code-line,.api-key,.ltr-field){direction:ltr;text-align:left;unicode-bidi:plaintext}
+
+/* Shared geometry and action hierarchy. */
+body :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select,.input,.select,.textarea){border-radius:var(--radius-input)!important}
+body button:not(.icon-btn):not(.public-theme):not(.notification-trigger),body .btn:not(.icon-btn){border-radius:var(--radius-button)!important}
+body .card,body .suite-card,body .table-card,body .empty-state,body .loading-state{border-radius:var(--radius-card)!important;box-shadow:var(--shadow-sm)!important}
+body .modal,body .modal-card,body .modal-panel,body .drawer,body .drawer-panel,body .sheet,body .sheet-panel{border-radius:var(--radius-modal)!important;box-shadow:var(--shadow-lg)!important}
+html body :is(.public-site,.dashboard-main,.auth-suite-page,.auth-light-page) button.btn{border-radius:var(--radius-button)!important}
+html body .public-site :is(.nav-actions,.hero-actions,.public-mobile-drawer) .btn,html body .dashboard-main .btn,html body :is(.auth-suite-page,.auth-light-page) .btn{border-radius:var(--radius-button)!important}
+html body :is(.public-site,.dashboard-main,.auth-suite-page,.auth-light-page) :is(.card,.suite-card,.table-card){border-radius:var(--radius-card)!important;box-shadow:var(--shadow-sm)!important}
+body :where(.btn-primary,button.primary,[data-variant="primary"]){color:var(--brand-primary-foreground)!important;border-color:var(--brand-primary)!important;background:var(--brand-primary)!important;box-shadow:var(--shadow-sm)}
+body :where(.btn-primary,button.primary,[data-variant="primary"]):hover{border-color:var(--brand-primary-hover)!important;background:var(--brand-primary-hover)!important}
+body :where(.btn-secondary,[data-variant="secondary"]){color:var(--brand-primary)!important;border-color:var(--brand-primary-border)!important;background:#fff!important}
+body :where(.danger,.danger-text,.btn-danger,.destructive,[data-variant="destructive"]){color:var(--danger)!important}
+body :where(.btn-danger,.destructive,[data-variant="destructive"]){border-color:var(--danger)!important}
+body :where(a,.text-link,button.link){text-underline-offset:3px}
+body :where(button,a,input,textarea,select,[tabindex]):focus-visible{outline:3px solid var(--focus-ring)!important;outline-offset:2px}
+
+/* Official logo roles. Wordmarks remain image assets and are never reconstructed with CSS text. */
+.brand-logo-image,.renvix-logo{display:block;width:auto;max-width:100%;height:auto;object-fit:contain;object-position:center;flex:0 0 auto}
+.brand-logo-image--primary{width:210px!important;min-width:176px;max-height:54px!important}
+.brand-logo-image--compact{width:142px!important;min-width:116px;max-height:48px!important}
+.brand-logo-image--mark{width:42px!important;min-width:42px;height:42px!important;max-height:42px!important}
+.dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--compact{width:142px!important;min-width:116px;max-height:44px!important}
+.dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark{content:url("/assets/renvix-mark-deep-teal.svg")!important;width:42px;min-width:42px;height:42px;max-height:42px;filter:none!important}
+:root[data-theme="dark"] :is(.brand-logo-image--primary,.brand-logo-image--compact,.brand-logo-stacked .brand-logo-image,.auth-mobile-brand .brand-logo-image){content:url("/assets/renvix-logo-auth-dark.svg")!important;min-width:128px;max-height:58px;filter:none!important}
+:root[data-theme="dark"] .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark{content:url("/assets/renvix-mark-deep-teal.svg")!important;filter:brightness(0) invert(1)!important}
+
+@media (min-width:641px) and (max-width:1180px){
+  .brand-logo-image--primary{content:url("/assets/renvix-logo-deep-teal.svg")!important;width:148px!important;min-width:120px;max-height:44px!important}
+  .brand-logo-image--compact{width:132px!important;min-width:108px;max-height:42px!important}
+  .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark{content:url("/assets/renvix-logo-deep-teal.svg")!important;width:132px;min-width:108px;height:auto;max-height:42px}
+}
+@media (max-width:640px){
+  :is(.brand-logo-image--primary,.brand-logo-image--compact){content:url("/assets/renvix-mark-deep-teal.svg")!important;width:44px;min-width:44px;height:44px;max-height:44px}
+  :root[data-theme="dark"] :is(.brand-logo-image--primary,.brand-logo-image--compact){filter:brightness(0) invert(1)!important}
+}
+:root[data-theme="dark"] body :where(.btn-secondary,[data-variant="secondary"]){color:var(--brand-dark-text)!important;border-color:var(--brand-dark-border)!important;background:var(--brand-dark-surface)!important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important}}
