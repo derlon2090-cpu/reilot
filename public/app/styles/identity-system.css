@@ -39,41 +39,43 @@ body :where(button,a,input,textarea,select,[tabindex]):focus-visible{outline:3px
 .brand-logo-image--primary{width:210px!important;min-width:176px;max-height:54px!important}
 .brand-logo-image--compact{width:142px!important;min-width:116px;max-height:48px!important}
 .brand-logo-image--mark{width:42px!important;min-width:42px;height:42px!important;max-height:42px!important}
-.brand-logo-image--footer{width:150px!important;min-width:120px;max-width:150px!important;max-height:46px!important;filter:none!important}
+.brand-logo-image--footer{width:190px!important;min-width:150px;max-width:190px!important;max-height:54px!important;filter:none!important}
 .dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary{width:176px!important;min-width:154px;max-width:176px!important;max-height:50px!important}
 .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark{content:url("/assets/renvix-mark-deep-teal.svg")!important;width:42px;min-width:42px;height:42px;max-height:42px;filter:none!important}
 :root[data-theme="dark"] :is(.brand-logo-image--primary,.brand-logo-image--compact,.brand-logo-stacked .brand-logo-image,.auth-mobile-brand .brand-logo-image){content:url("/assets/renvix-logo-auth-dark.svg")!important;min-width:128px;max-height:58px;filter:none!important}
 :root[data-theme="dark"] .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark{content:url("/assets/renvix-mark-deep-teal.svg")!important;filter:brightness(0) invert(1)!important}
 
 /* Header, footer, and dashboard logos have independent geometry and contrast. */
-html body .public-site>.public-nav .nav-inner>.brand{width:190px!important;min-width:190px!important;max-width:190px!important;overflow:visible!important;transform:none!important}
-html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{display:block!important;width:190px!important;min-width:0!important;max-width:190px!important;height:auto!important;max-height:54px!important;object-position:center!important;transform:none!important}
-html body .public-site>.marketing-footer .marketing-footer-brand>.brand{width:150px!important;min-width:150px!important;max-width:150px!important;padding:0!important;overflow:visible!important;background:transparent!important}
-html body .public-site>.marketing-footer .marketing-footer-brand .brand-logo-image--footer{content:url("/assets/renvix-logo-auth-dark.svg")!important;width:150px!important;min-width:120px!important;max-width:150px!important;height:auto!important;max-height:46px!important;filter:brightness(0) invert(1)!important;background:transparent!important;object-position:center!important}
+html body .public-site>.public-nav .nav-inner{direction:ltr!important;grid-template-columns:210px minmax(0,1fr) auto!important;grid-template-areas:"brand links actions"!important}
+html body .public-site>.public-nav .nav-inner>.brand{grid-area:brand;width:202px!important;min-width:202px!important;max-width:202px!important;justify-self:left!important;overflow:visible!important;transform:none!important}
+html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{display:block!important;width:202px!important;min-width:0!important;max-width:202px!important;height:auto!important;max-height:58px!important;object-position:left center!important;transform:none!important}
+html body .public-site>.public-nav .nav-links{grid-area:links;direction:rtl}
+html body .public-site>.public-nav .nav-actions{grid-area:actions;direction:rtl}
+html body .public-site>.marketing-footer .marketing-footer-brand>.brand{width:206px!important;min-width:206px!important;max-width:206px!important;padding:7px 8px!important;overflow:visible!important;border-radius:10px!important;background:#fff!important}
+html body .public-site>.marketing-footer .marketing-footer-brand .brand-logo-image--footer{content:url("/assets/renvix-logo-primary.png")!important;width:190px!important;min-width:150px!important;max-width:190px!important;height:auto!important;max-height:54px!important;filter:none!important;background:#fff!important;object-position:left center!important}
 html body .dashboard-shell:not(.sidebar-collapsed) .sidebar .sidebar-brand>.brand{width:176px!important;min-width:154px!important;max-width:176px!important;padding:0!important;overflow:visible!important}
 html body .dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary{content:url("/assets/renvix-logo-primary.png")!important;width:176px!important;min-width:154px!important;max-width:176px!important;height:auto!important;max-height:50px!important;filter:none!important;object-position:center!important}
 
 @media (min-width:641px) and (max-width:1180px){
-  .brand-logo-image--primary{content:url("/assets/renvix-logo-deep-teal.svg")!important;width:148px!important;min-width:120px;max-height:44px!important}
+  .brand-logo-image--primary{content:url("/assets/renvix-logo-primary.png")!important;width:150px!important;min-width:120px;max-height:44px!important}
   .brand-logo-image--compact{width:132px!important;min-width:108px;max-height:42px!important}
   .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark{content:url("/assets/renvix-logo-deep-teal.svg")!important;width:132px;min-width:108px;height:auto;max-height:42px}
-  html body .public-site>.public-nav .nav-inner{padding-inline:0!important}
-  html body .public-site>.public-nav .nav-inner>.brand{width:138px!important;min-width:138px!important;max-width:138px!important;margin:0!important;padding-inline:0!important}
-  html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{content:url("/assets/renvix-logo-deep-teal.svg")!important;width:138px!important;min-width:0!important;max-width:138px!important;height:auto!important;max-height:42px!important}
+  html body .public-site>.public-nav .nav-inner{padding-inline:0!important;grid-template-columns:160px minmax(0,1fr) auto!important}
+  html body .public-site>.public-nav .nav-inner>.brand{width:150px!important;min-width:150px!important;max-width:150px!important;margin:0!important;padding-inline:0!important}
+  html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{content:url("/assets/renvix-logo-primary.png")!important;width:150px!important;min-width:0!important;max-width:150px!important;height:auto!important;max-height:44px!important}
   html body .dashboard-shell:not(.sidebar-collapsed) .sidebar .sidebar-brand>.brand{width:176px!important;min-width:154px!important;max-width:176px!important}
   html body .dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary{content:url("/assets/renvix-logo-primary.png")!important;width:176px!important;min-width:154px!important;max-width:176px!important;max-height:50px!important}
 }
 @media (max-width:640px){
-  :is(.brand-logo-image--primary,.brand-logo-image--compact){content:url("/assets/renvix-mark-deep-teal.svg")!important;width:44px;min-width:44px;height:44px;max-height:44px}
+  :is(.brand-logo-image--primary,.brand-logo-image--compact){content:url("/assets/renvix-logo-primary.png")!important;width:116px!important;min-width:116px!important;height:auto!important;max-height:36px!important}
   :root[data-theme="dark"] :is(.brand-logo-image--primary,.brand-logo-image--compact){filter:brightness(0) invert(1)!important}
-  html body .public-site>.public-nav .nav-inner>.brand{width:44px!important;min-width:44px!important;max-width:44px!important;margin:0!important;padding:0!important}
-  html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{content:url("/assets/renvix-mark-deep-teal.svg")!important;width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;max-height:44px!important}
+  html body .public-site>.public-nav .nav-inner{direction:ltr!important}
+  html body .public-site>.public-nav .nav-inner>.brand{width:116px!important;min-width:116px!important;max-width:116px!important;margin-right:auto!important;margin-left:0!important;padding:0!important}
+  html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{content:url("/assets/renvix-logo-primary.png")!important;width:116px!important;min-width:116px!important;max-width:116px!important;height:auto!important;max-height:36px!important}
   html body .dashboard-shell:not(.sidebar-collapsed) .sidebar .sidebar-brand>.brand{width:176px!important;min-width:154px!important;max-width:176px!important}
   html body .dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary{content:url("/assets/renvix-logo-primary.png")!important;width:176px!important;min-width:154px!important;max-width:176px!important;height:auto!important;max-height:50px!important;filter:none!important}
 }
-@media (max-width:900px){
-  html body .public-site>.public-nav .nav-inner>.brand{margin-left:auto!important;margin-right:0!important}
-}
+@media (max-width:900px){html body .public-site>.public-nav .nav-inner>.brand{margin-right:auto!important;margin-left:0!important}}
 :root[data-theme="dark"] body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary,
 :root[data-theme="dark"] body .dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary{content:url("/assets/renvix-logo-auth-dark.svg")!important;filter:none!important}
 :root[data-theme="dark"] body :where(.btn-secondary,[data-variant="secondary"]){color:var(--brand-dark-text)!important;border-color:var(--brand-dark-border)!important;background:var(--brand-dark-surface)!important}

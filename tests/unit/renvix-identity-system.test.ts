@@ -35,14 +35,14 @@ describe("Renvix identity system", () => {
     expect(appSource).toContain('compact: "/assets/renvix-logo-deep-teal.svg"');
     expect(appSource).toContain('icon: "/assets/renvix-mark-deep-teal.svg"');
     expect(appSource).toContain('compactDark: "/assets/renvix-logo-auth-dark.svg"');
-    expect(appSource).toContain('surface === "footer" ? "compactDark"');
+    expect(appSource).toContain('surface === "footer" ? "primary"');
     expect(appSource).toContain('logo(false, "footer")');
     expect(identity).toContain("Wordmarks remain image assets");
     expect(identity).toContain("object-fit:contain");
     expect(identity).toContain('content:url("/assets/renvix-logo-deep-teal.svg")!important');
-    expect(identity).toContain('content:url("/assets/renvix-logo-auth-dark.svg")!important');
+    expect(identity).toContain('content:url("/assets/renvix-logo-primary.png")!important');
     expect(identity).toContain(".brand-logo-image--footer");
-    expect(identity).toContain("filter:brightness(0) invert(1)!important");
+    expect(identity).toContain('grid-template-areas:"brand links actions"');
     expect(identity).toContain(".public-site>.public-nav .nav-inner>.brand");
     expect(identity).toContain(".dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary");
   });
