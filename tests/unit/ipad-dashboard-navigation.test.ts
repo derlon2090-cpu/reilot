@@ -83,6 +83,6 @@ describe("iPad dashboard navigation and metric rows", () => {
       [...markup.matchAll(/(?:globals\.css|app\.js)\?v=([^"']+)/g)].map((match) => match[1])
     );
     expect(versions.length).toBe(6);
-    expect(new Set(versions)).toEqual(new Set(["20260911-header-ready-v158"]));
+    expect(new Set(versions)).toEqual(new Set(["20260911-brand-surfaces-v159"]));
   });
 });
