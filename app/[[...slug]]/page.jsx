@@ -47,9 +47,9 @@ export default async function SpaPage({ params }) {
     <>
       <div id="app">
         {showPublicHeaderFallback ? (
-          <nav className="public-nav public-nav-bootstrap" aria-label="التنقل الرئيسي">
-            <div className="container nav-inner">
-              <a className="brand btn-ghost" href="/" aria-label="Renvix">
+          <nav className="public-nav public-nav-bootstrap" aria-label="التنقل الرئيسي" style={{ minHeight: "74px" }}>
+            <div className="container nav-inner" style={{ minHeight: "74px", display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+              <a className="brand btn-ghost" href="/" aria-label="Renvix" style={{ width: "188px", minWidth: "188px", height: "54px", display: "inline-flex", alignItems: "center" }}>
                 <img
                   className="brand-logo-image brand-logo-image--primary"
                   src="/assets/renvix-logo-primary.png"
@@ -57,6 +57,7 @@ export default async function SpaPage({ params }) {
                   height="228"
                   alt="Renvix"
                   fetchPriority="high"
+                  style={{ width: "188px", height: "auto", maxHeight: "52px", objectFit: "contain" }}
                 />
               </a>
             </div>

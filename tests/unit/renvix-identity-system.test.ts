@@ -57,7 +57,8 @@ describe("Renvix identity system", () => {
     expect(spaPage).toContain('className="public-nav public-nav-bootstrap"');
     expect(spaPage).toContain('src="/assets/renvix-logo-primary.png"');
     expect(spaPage).toContain('fetchPriority="high"');
-    expect(layout).toContain('rel="preload" as="image" href="/assets/renvix-logo-primary.png?v=20260911-logo-stable-v157"');
+    expect(layout).toContain('rel="preload" as="image" href="/assets/renvix-logo-primary.png"');
+    expect(spaPage).toContain('style={{ width: "188px", height: "auto", maxHeight: "52px", objectFit: "contain" }}');
     expect(identity).toContain('background-image:url("/assets/renvix-logo-primary.png")!important');
     expect(identity).toContain("content:normal!important");
   });
