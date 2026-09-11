@@ -16892,7 +16892,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .public-site > .public-nav .nav-inner > .brand {
     width:164px!important;
     min-width:164px!important;
-    transform:translateX(14px)!important;
+    transform:none!important;
   }
 
   .public-site > .public-nav .brand-logo-image {

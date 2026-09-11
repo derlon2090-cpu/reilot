@@ -98,22 +98,6 @@ html body .auth-suite-page .auth-suite-brandbar-logo .brand-logo-stacked{width:1
 html body .auth-suite-page .auth-suite-brandbar-logo .brand-logo-image{max-width:128px!important;max-height:36px!important}
 }
 
-/* Laptop only: refine the logo without changing header order or tablet geometry. */
-@media (min-width:901px){
-  html:not([data-home-tablet-layout="true"])[dir="rtl"] body .public-site>.public-nav .nav-inner>.brand{
-    width:174px!important;
-    min-width:174px!important;
-    max-width:174px!important;
-    flex-basis:174px!important;
-    transform:translateX(24px)!important;
-  }
-  html:not([data-home-tablet-layout="true"])[dir="rtl"] body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{
-    width:174px!important;
-    max-width:174px!important;
-    max-height:48px!important;
-  }
-}
-
 /* Render the public-header logo once, with breathing room around its source edges. */
 html body .public-site>.public-nav .nav-inner>.brand{
   padding:4px 7px!important;
@@ -133,8 +117,147 @@ html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{
   image-rendering:auto;
 }
 
-/* iPad: keep the approved right-edge position while making the logo slightly larger. */
-html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-inner>.brand{
-  transform:scale(1.08)!important;
-  transform-origin:right center!important;
+/* Independent public-navbar zones: account actions, centered navigation, and right-anchored brand. */
+@media (min-width:901px){
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav{
+    width:100%!important;
+    min-height:88px!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .nav-inner{
+    width:100%!important;
+    max-width:none!important;
+    min-height:88px!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+    grid-template-areas:"actions links brand"!important;
+    align-items:center!important;
+    gap:clamp(12px,1.5vw,28px)!important;
+    padding-inline:clamp(24px,3vw,40px)!important;
+    box-sizing:border-box!important;
+    direction:ltr!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .nav-inner>.brand{
+    grid-area:brand!important;
+    justify-self:end!important;
+    align-self:center!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    margin:0!important;
+    transform:none!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .nav-links{
+    grid-area:links!important;
+    width:max-content!important;
+    max-width:100%!important;
+    min-height:88px!important;
+    justify-self:center!important;
+    justify-content:center!important;
+    display:flex!important;
+    direction:rtl!important;
+    transform:none!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .nav-actions{
+    grid-area:actions!important;
+    width:max-content!important;
+    max-width:100%!important;
+    justify-self:start!important;
+    display:flex!important;
+    direction:rtl!important;
+    transform:none!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav :is(.mobile-menu,.mobile-public-login){
+    display:none!important;
+  }
+}
+
+@media (min-width:1280px){
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .nav-inner>.brand{
+    width:236px!important;
+    min-width:236px!important;
+    max-width:236px!important;
+    flex-basis:236px!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .brand-logo-image--primary{
+    width:220px!important;
+    max-width:220px!important;
+    max-height:62px!important;
+  }
+}
+
+@media (min-width:901px) and (max-width:1279px){
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .nav-inner>.brand{
+    width:216px!important;
+    min-width:216px!important;
+    max-width:216px!important;
+    flex-basis:216px!important;
+  }
+  html:not([data-home-tablet-layout="true"]) body .public-site>.public-nav .brand-logo-image--primary{
+    width:200px!important;
+    max-width:200px!important;
+    max-height:56px!important;
+  }
+}
+
+@media (min-width:901px) and (max-width:1366px){
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-inner{
+    width:100%!important;
+    max-width:none!important;
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+    grid-template-areas:"actions links brand"!important;
+    gap:clamp(8px,1vw,12px)!important;
+    padding-inline:24px!important;
+    box-sizing:border-box!important;
+    direction:ltr!important;
+  }
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-inner>.brand{
+    grid-area:brand!important;
+    width:196px!important;
+    min-width:196px!important;
+    max-width:196px!important;
+    justify-self:end!important;
+    margin:0!important;
+    transform:none!important;
+  }
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .brand-logo-image--primary{
+    width:180px!important;
+    max-width:180px!important;
+    max-height:52px!important;
+  }
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-links{
+    grid-area:links!important;
+    width:max-content!important;
+    max-width:100%!important;
+    justify-self:center!important;
+    justify-content:center!important;
+    display:flex!important;
+    direction:rtl!important;
+    transform:none!important;
+  }
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-actions{
+    grid-area:actions!important;
+    width:max-content!important;
+    max-width:100%!important;
+    justify-self:start!important;
+    display:flex!important;
+    direction:rtl!important;
+    transform:none!important;
+  }
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav :is(.mobile-menu,.mobile-public-login){
+    display:none!important;
+  }
+}
+
+@media (min-width:768px) and (max-width:900px){
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-inner>.brand{
+    width:175px!important;
+    min-width:175px!important;
+    max-width:175px!important;
+    transform:none!important;
+  }
+  html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .brand-logo-image--primary{
+    width:175px!important;
+    max-width:175px!important;
+    max-height:49px!important;
+  }
 }
