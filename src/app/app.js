@@ -2058,7 +2058,7 @@ function logo(compact = false, surface = "default") {
   const classVariant = surface === "footer" ? "footer" : variant === "icon" ? "mark" : variant;
   const dimensions = variant === "icon" ? 'width="64" height="48"' : variant === "primary" ? 'width="814" height="228"' : 'width="190" height="55"';
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image brand-logo-image--${classVariant}" src="${RENVIX_BRAND_ASSETS[variant]}" ${dimensions} alt="${escapeHtml(appName)}" decoding="async">
+    <img class="brand-logo-image brand-logo-image--${classVariant}" src="${RENVIX_BRAND_ASSETS[variant]}" ${dimensions} alt="${escapeHtml(appName)}" decoding="sync" loading="eager" fetchpriority="high">
   </button>`;
 }
 

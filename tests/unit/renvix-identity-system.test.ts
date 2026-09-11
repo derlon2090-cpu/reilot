@@ -7,6 +7,7 @@ const publicIdentity = await readFile("public/app/styles/identity-system.css", "
 const layout = await readFile("app/layout.jsx", "utf8");
 const staticIndex = await readFile("index.html", "utf8");
 const appSource = await readFile("src/app/app.js", "utf8");
+const spaPage = await readFile("app/[[...slug]]/page.jsx", "utf8");
 
 describe("Renvix identity system", () => {
   it("defines the complete brand and typography token scale", () => {
@@ -49,6 +50,16 @@ describe("Renvix identity system", () => {
     expect(identity).toContain("background:#fff");
     expect(identity).toContain(".public-site>.public-nav .nav-inner>.brand");
     expect(identity).toContain(".dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary");
+  });
+
+  it("renders and preloads a public header logo before the client app starts", () => {
+    expect(spaPage).toContain("showPublicHeaderFallback");
+    expect(spaPage).toContain('className="public-nav public-nav-bootstrap"');
+    expect(spaPage).toContain('src="/assets/renvix-logo-primary.png"');
+    expect(spaPage).toContain('fetchPriority="high"');
+    expect(layout).toContain('rel="preload" as="image" href="/assets/renvix-logo-primary.png?v=20260911-logo-stable-v157"');
+    expect(identity).toContain('background-image:url("/assets/renvix-logo-primary.png")!important');
+    expect(identity).toContain("content:normal!important");
   });
 
   it("applies consistent weights, geometry, numeric alignment, and LTR fields", () => {
