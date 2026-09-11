@@ -16886,3 +16886,37 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
     scroll-snap-align:start;
   }
 }
+
+/* Final laptop balance for the public brand and support artwork. */
+@media (min-width:901px) {
+  .public-site > .public-nav .nav-inner > .brand {
+    width:164px!important;
+    min-width:164px!important;
+    transform:translateX(14px)!important;
+  }
+
+  .public-site > .public-nav .brand-logo-image {
+    width:164px!important;
+    max-width:164px!important;
+    max-height:46px!important;
+  }
+
+  .home-support-panel {
+    height:112px;
+    min-height:112px;
+  }
+
+  .home-support-grid article {
+    min-height:108px;
+  }
+
+  .home-assistant-illustration {
+    height:100px;
+  }
+
+  .home-assistant-illustration > img {
+    top:calc(50% - 3px);
+    width:118px;
+    height:118px;
+  }
+}
