@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateThreatScore, incidentAlertDedupeKey, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
-  remediationPolicy, severityForRisk, verifySignedIngestion
+  honeypotDeviceFingerprint, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
 
@@ -47,6 +47,42 @@ describe("security center risk and privacy policy", () => {
   it("reports device class rather than claiming a real device name", () => {
     expect(parseUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit/605.1.15 Version/18.0 Mobile Safari/604.1"))
       .toMatchObject({ browser: "Safari", os: "iOS/iPadOS", deviceClass: "mobile" });
+  });
+
+  it("keeps only bounded aggregate honeypot telemetry and drops submitted credentials", () => {
+    const telemetry = normalizeHoneypotTelemetry({
+      kind: "login_attempt", visitId: "visit-12345678", password: "must-not-leak", identity: "person@example.test",
+      device: { screenWidth: 99_999, screenHeight: 900, timezone: "Asia/Riyadh", languages: ["ar-SA", "en-US"] },
+      interaction: { mouseMoves: 12, clicks: 2, keyPresses: 18, scrollDepth: 150, loginAttempts: 1, heatmap: [1, 2, 3] }
+    });
+    expect(telemetry).toMatchObject({
+      kind: "login_attempt", visitId: "visit-12345678",
+      device: { screenWidth: 10_000, screenHeight: 900, timezone: "Asia/Riyadh" },
+      interaction: { mouseMoves: 12, clicks: 2, keyPresses: 18, scrollDepth: 100, loginAttempts: 1 }
+    });
+    expect(JSON.stringify(telemetry)).not.toContain("must-not-leak");
+    expect(JSON.stringify(telemetry)).not.toContain("person@example.test");
+  });
+
+  it("keeps the probabilistic fingerprint stable across viewport and connection changes", () => {
+    const base = normalizeHoneypotTelemetry({
+      kind: "page_view", visitId: "visit-stable-1",
+      device: {
+        screenWidth: 1920, screenHeight: 1080, viewportWidth: 1280, viewportHeight: 720,
+        pixelRatio: 1, colorDepth: 24, timezone: "Asia/Riyadh", language: "ar-SA",
+        languages: ["ar-SA", "en-US"], platform: "Win32", vendor: "Google Inc.",
+        browserBrands: [{ brand: "Chromium", version: "140" }], hardwareConcurrency: 8,
+        deviceMemory: 8, touchPoints: 0, connection: "4g", graphicsVendor: "Google Inc.",
+        graphicsRenderer: "ANGLE (NVIDIA)"
+      }
+    });
+    const changedWindow = normalizeHoneypotTelemetry({
+      ...base,
+      device: { ...base?.device, viewportWidth: 900, viewportHeight: 600, connection: "3g", webdriver: true }
+    });
+    const first = honeypotDeviceFingerprint("Mozilla/5.0 test", base);
+    expect(first).toMatch(/^hf2_[a-f0-9]{32}$/);
+    expect(honeypotDeviceFingerprint("Mozilla/5.0 test", changedWindow)).toBe(first);
   });
 
   it("enforces the remediation allowlist and blocks destructive actions", () => {

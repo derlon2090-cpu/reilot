@@ -28,7 +28,30 @@ export async function GET(request) {
             WHERE event_type='ADMIN_HONEYPOT_ACCESS' AND last_seen>now()-interval '7 days' GROUP BY requested_path ORDER BY count DESC LIMIT 8`),
     query(`SELECT se.event_id AS id,se.last_seen AS time,se.severity,se.risk_score AS "riskScore",se.source_ip AS ip,
                   concat_ws('، ',se.country,se.city_approx) AS location,se.device_class AS device,se.browser,se.os,
-                  se.requested_path AS path,se.method,se.incident_id AS "incidentId",si.incident_number AS "incidentNumber"
+                  se.requested_path AS path,se.method,se.metadata->'clientTelemetry' AS telemetry,
+                  se.metadata->>'deviceFingerprint' AS "deviceFingerprint",
+                  se.metadata->>'fingerprintConfidence' AS "fingerprintConfidence",
+                  se.metadata->'ipLocation' AS "ipLocation",
+                  COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object(
+                      'path',history.requested_path,'country',history.country,'region',history.region,
+                      'city',history.city_approx,'ipLocation',history.metadata->'ipLocation','lastSeen',history.last_seen
+                    ) ORDER BY history.last_seen DESC)
+                    FROM (
+                      SELECT * FROM (
+                        SELECT DISTINCT ON (candidate.requested_path,candidate.country,candidate.region,candidate.city_approx)
+                          candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.metadata,candidate.last_seen
+                        FROM security_source_events candidate
+                        WHERE candidate.event_type='ADMIN_HONEYPOT_ACCESS'
+                          AND COALESCE(se.metadata->>'deviceFingerprint','')<>''
+                          AND candidate.metadata->>'deviceFingerprint'=se.metadata->>'deviceFingerprint'
+                          AND (candidate.metadata->'clientTelemetry' IS NULL OR candidate.metadata#>>'{clientTelemetry,kind}'='page_view')
+                        ORDER BY candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.last_seen DESC
+                      ) distinct_history
+                      ORDER BY distinct_history.last_seen DESC LIMIT 5
+                    ) history
+                  ),'[]'::jsonb) AS "recentActivity",
+                  se.incident_id AS "incidentId",si.incident_number AS "incidentNumber"
              FROM security_source_events se LEFT JOIN security_incidents si ON si.id=se.incident_id
             WHERE se.event_type='ADMIN_HONEYPOT_ACCESS' ORDER BY se.last_seen DESC LIMIT 50`),
     query(`SELECT id,incident_number AS "incidentNumber",title,category,severity,risk_score AS "riskScore",status,
