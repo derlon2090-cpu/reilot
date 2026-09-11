@@ -291,7 +291,8 @@ function normalizeHoneypotInput(input = {}) {
     deviceFingerprint,
     fingerprintConfidence,
     ipLocation,
-    honeypotDeviceId
+    honeypotDeviceId,
+    autoBlockDevice: input.auto_block_device === true && Boolean(honeypotDeviceId)
   };
 }
 
@@ -379,11 +380,15 @@ export async function ingestHoneypotEvent(rawInput) {
     const attempts = Number(facts.attempts || 0) + 1;
     const distinctPaths = Number(facts.distinctPaths || 0) + (facts.pathSeen ? 0 : 1);
     const eventTypes = [...new Set([...(facts.eventTypes || []), "ADMIN_HONEYPOT_ACCESS"] )];
-    const riskScore = calculateThreatScore({
+    const calculatedRiskScore = calculateThreatScore({
       requestedPath: input.requestedPath, method: input.method, attempts, distinctPaths,
       correlatedEventTypes: eventTypes, rateLimited: input.rateLimited,
       cloudflareThreatScore: input.cloudflareThreatScore
     });
+    // An external honeypot page view requests preventive containment of the
+    // signed pseudonymous ID. Keep the incident at MEDIUM (not CRITICAL) so a
+    // reviewable incident exists for the required security_blocks relation.
+    const riskScore = input.autoBlockDevice ? Math.max(calculatedRiskScore, 25) : calculatedRiskScore;
     const severity = severityForRisk(riskScore);
     const safeEvidence = redactSecurityValue({
       requestedPath: input.requestedPath, method: input.method, country: input.country,
@@ -391,6 +396,7 @@ export async function ingestHoneypotEvent(rawInput) {
       attempts, distinctPaths, cfRayId: input.cfRayId,
       clientSignal: input.telemetry?.kind || "http_request",
       honeypotDeviceId: input.honeypotDeviceId || null,
+      automaticDeviceContainment: input.autoBlockDevice,
       interaction: input.telemetry?.interaction || null
     });
     const existingIncident = await client.query(
@@ -438,9 +444,38 @@ export async function ingestHoneypotEvent(rawInput) {
         JSON.stringify({
           trustedCloudflareContext: true, clientTelemetry: input.telemetry, deviceFingerprint: input.deviceFingerprint,
           fingerprintConfidence: input.fingerprintConfidence, ipLocation: input.ipLocation,
-          honeypotDeviceId: input.honeypotDeviceId
+          honeypotDeviceId: input.honeypotDeviceId,
+          automaticDeviceContainment: input.autoBlockDevice
         })]
     );
+    let automaticBlock = null;
+    if (input.autoBlockDevice && input.honeypotDeviceId && incident) {
+      const targetHash = securityTargetHash("device", input.honeypotDeviceId);
+      if (targetHash) {
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`honeypot-device-block:${targetHash}`]);
+        const activeBlock = await client.query(
+          `SELECT * FROM security_blocks WHERE target_type='device' AND target_hash=$1 AND revoked_at IS NULL
+            AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+          [targetHash]
+        );
+        automaticBlock = activeBlock.rows[0] || null;
+        if (!automaticBlock) {
+          automaticBlock = (await client.query(
+            `INSERT INTO security_blocks
+              (target_type,target_hash,target_label,reason,severity,blocked_by,expires_at,incident_id,metadata)
+             VALUES ('device',$1,$2,$3,$4,NULL,NULL,$5,$6::jsonb) RETURNING *`,
+            [targetHash, input.honeypotDeviceId, "دخول مباشر إلى نطاق الإدارة الوهمي — عزل وقائي آلي",
+              incident.severity, incident.id, JSON.stringify({ automated: true, source: "admin_honeypot" })]
+          )).rows[0];
+          await appendIncidentEvent(client, incident.id, "automatic_device_containment", {
+            referenceId: automaticBlock.reference_id,
+            honeypotDeviceId: input.honeypotDeviceId,
+            scope: "device",
+            duration: "permanent"
+          }, { type: "worker" });
+        }
+      }
+    }
     const finding = await client.query(
       `INSERT INTO security_findings
         (incident_id,check_id,category,title,description,severity,risk_score,affected_service,source_key,evidence,recommended_action,dedupe_key)
@@ -456,7 +491,10 @@ export async function ingestHoneypotEvent(rawInput) {
     if (incident) await syncIncidentNotifications(client, incident);
     await appendLedger(client, {
       eventType: "ADMIN_HONEYPOT_ACCESS", aggregateType: "security_source_event", aggregateId: event.rows[0].event_id,
-      payload: { findingId: finding.rows[0].id, incidentId: incident?.id || null, riskScore, severity, sourceKey }
+      payload: {
+        findingId: finding.rows[0].id, incidentId: incident?.id || null, riskScore, severity, sourceKey,
+        automaticBlockReference: automaticBlock?.reference_id || null
+      }
     });
     const mitigation = await client.query(
       `SELECT mitigation_type,expires_at FROM security_mitigations
@@ -465,7 +503,8 @@ export async function ingestHoneypotEvent(rawInput) {
     );
     return {
       ok: true, eventId: event.rows[0].event_id, incidentId: incident?.id || null,
-      riskScore, severity, mitigation: mitigation.rows[0] || null
+      riskScore, severity, mitigation: mitigation.rows[0] || null,
+      automaticBlockReference: automaticBlock?.reference_id || null
     };
   });
   await dispatchIncidentAlertsImmediately(outcome);

@@ -1,12 +1,13 @@
 # Renvix admin honeypot
 
 This Cloudflare Worker is isolated from the real Renvix application and admin
-deployment. It serves a self-contained decoy sign-in shell and sends bounded,
+deployment. It serves a self-contained administrative session-check shell and sends bounded,
 signed security events to the existing ingestion service.
 
 The browser telemetry is intentionally aggregated. It includes device and
 viewport characteristics plus counts for pointer movement, clicks, scrolling,
-key presses, and decoy form submissions. It never reads or sends input values,
+and key presses. It contains no sign-in form and never asks for credentials. It
+never reads or sends input values,
 passwords, cookies, clipboard data, camera, microphone, or precise geolocation.
 The server derives a peppered probabilistic device fingerprint and a confidence
 level from bounded browser signals. Cloudflare IP geolocation is stored as an
@@ -20,6 +21,19 @@ Security Center and can be contained through the existing device block scope.
 It is not a hardware serial number: clearing site data or closing an incognito
 session can cause the browser to receive a new ID. Every request carrying a
 valid signed ID is checked against active blocks before the decoy is served.
+The first external page response also requests an automatic, device-only
+preventive block in the same database transaction as the incident. Later page
+requests carrying that signed ID receive a professional block notice and a
+support-review reference. IP blocking is never automatic because shared IPs can
+belong to unrelated users.
+After the initial bounded telemetry acknowledgement, the session-check shell
+replaces itself with that block notice so the first visit does not remain on a
+credential-like screen.
+
+The hidden same-origin 1x1 pixel only confirms that the page resource was
+requested and helps issue the same signed Host-Only ID. It cannot enter the
+device, inspect files, or obtain a hardware serial. Because the cookie remains
+Host-Only, the ID is intentionally not shared with other Renvix subdomains.
 
 Deployment requirements:
 

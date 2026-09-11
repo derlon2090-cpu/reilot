@@ -40,6 +40,9 @@ describe("isolated admin honeypot", () => {
         expect(response.headers.get("content-security-policy")).toContain("script-src 'self'");
         expect(body).toContain('data-honeypot-shell="v2"');
         expect(body).toContain("/__renvix/honeypot.js");
+        expect(body).toContain("/__renvix/pixel.gif");
+        expect(body).not.toContain("<form");
+        expect(body).not.toContain('type="password"');
         if (!referenceBody) referenceBody = body;
         expect(body).toBe(referenceBody);
       }
@@ -50,7 +53,7 @@ describe("isolated admin honeypot", () => {
     }
   });
 
-  it("serves bounded interaction telemetry without reading credentials", async () => {
+  it("serves bounded interaction telemetry without presenting or reading credentials", async () => {
     const { context, env } = runtime();
     const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app/__renvix/honeypot.js"), env, context);
     const script = await response.text();
@@ -60,9 +63,21 @@ describe("isolated admin honeypot", () => {
     expect(script).toContain('addEventListener("pointerdown"');
     expect(script).toContain('addEventListener("scroll"');
     expect(script).toContain('addEventListener("keydown"');
-    expect(script).toContain('transmit("login_attempt"');
+    expect(script).toContain('credentials: "same-origin"');
+    expect(script).toContain('location.replace(location.pathname)');
+    expect(script).not.toContain('transmit("login_attempt"');
     expect(script).not.toContain(".value");
     expect(script).not.toMatch(/clipboard|getUserMedia|geolocation\.getCurrentPosition/i);
+  });
+
+  it("serves a same-origin tracking pixel without accessing device files", async () => {
+    const { context, env } = runtime();
+    const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app/__renvix/pixel.gif"), env, context);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/gif");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(bytes.length).toBeGreaterThan(20);
   });
 
   it("accepts same-origin telemetry, strips unknown fields, and signs it server-side", async () => {
@@ -93,6 +108,7 @@ describe("isolated admin honeypot", () => {
       const event = JSON.parse(body);
       expect(event.requested_path).toBe("/login");
       expect(event.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
+      expect(event.auto_block_device).toBe(false);
       expect(event.telemetry).toMatchObject({
         kind: "login_attempt", visitId: "visit-12345678",
         interaction: { mouseMoves: 27, clicks: 3, keyPresses: 14, loginAttempts: 1 }
@@ -103,6 +119,23 @@ describe("isolated admin honeypot", () => {
       const timestamp = headers.get("x-renvix-timestamp") || "";
       const expected = crypto.createHmac("sha256", env.HONEYPOT_INGESTION_SECRET).update(`${timestamp}.${body}`).digest("hex");
       expect(headers.get("x-renvix-signature")).toBe(expected);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("requests automatic device containment only for the first external page response", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    const { pending, context, env } = runtime();
+    try {
+      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/portal", {
+        headers: { "cf-connecting-ip": "203.0.113.11", "user-agent": "test-agent" }
+      }), env, context);
+      expect(first.status).toBe(200);
+      await Promise.all(pending);
+      const event = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      expect(event.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
+      expect(event.auto_block_device).toBe(true);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -132,7 +165,10 @@ describe("isolated admin honeypot", () => {
         headers: { cookie, "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
       }), env, context);
       expect(blocked.status).toBe(403);
-      expect(await blocked.text()).toContain("SEC-DEVICE-1");
+      const blockedBody = await blocked.text();
+      expect(blockedBody).toContain("تم حظر الوصول");
+      expect(blockedBody).toContain("مراجعة الحظر مع الدعم");
+      expect(blockedBody).toContain("SEC-DEVICE-1");
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
       fetchSpy.mockRestore();
@@ -182,6 +218,8 @@ describe("isolated admin honeypot", () => {
     expect(combined).not.toMatch(/redirect\s*\(/i);
     expect(pageSource).not.toContain("https://");
     expect(pageSource).not.toContain("document.cookie");
+    expect(pageSource).not.toContain("<form");
+    expect(pageSource).not.toContain('type="password"');
   });
 
   it("uses Cloudflare trusted context instead of spoofable forwarding headers", () => {
