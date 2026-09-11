@@ -15955,3 +15955,95 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .storage-image-picker { min-width: 0; }
   .storage-image-picker > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Reference-brand lockup: keep the bilingual mark complete in every primary shell. */
+@media (min-width: 901px) {
+  .public-site > .public-nav .nav-inner {
+    grid-template-columns: 196px minmax(0, 1fr) auto !important;
+    grid-template-areas: "brand links actions";
+    direction: ltr;
+  }
+
+  .public-site > .public-nav .nav-inner > .brand {
+    grid-area: brand;
+    width: 182px !important;
+    justify-self: left;
+    transform: translateX(14px);
+  }
+
+  .public-site > .public-nav .nav-links { grid-area: links; direction: rtl; }
+  .public-site > .public-nav .nav-actions { grid-area: actions; direction: rtl; }
+  .public-site > .public-nav .brand-logo-image {
+    width: 182px !important;
+    max-width: 182px !important;
+    max-height: 56px !important;
+  }
+
+  .home-support-panel {
+    height: 112px;
+    min-height: 112px;
+  }
+
+  .home-support-grid article {
+    min-height: 108px;
+  }
+
+  .home-assistant-illustration {
+    height: 100px;
+  }
+
+  .home-assistant-illustration > img {
+    top: calc(50% - 3px);
+    width: 118px;
+    height: 118px;
+  }
+}
+
+.public-site > .marketing-footer .marketing-footer-brand .brand {
+  width: 190px;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.public-site > .marketing-footer .marketing-footer-brand .brand-logo-image {
+  width: 190px !important;
+  max-width: 100% !important;
+  max-height: 66px !important;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.dashboard-shell > .sidebar .sidebar-brand { min-height: 66px; overflow: visible; }
+.dashboard-shell > .sidebar .sidebar-brand .brand { overflow: visible; }
+.dashboard-shell:not(.sidebar-collapsed) > .sidebar .brand-logo-image {
+  width: 190px;
+  max-width: 100%;
+  max-height: 62px;
+  object-fit: contain;
+}
+
+.dashboard-shell.sidebar-collapsed > .sidebar .brand-logo-image--mark {
+  content: url('/assets/renvix-mark-deep-teal.svg');
+  object-fit: contain;
+}
+
+:root[data-theme="dark"] :is(.public-site, .dashboard-shell) .brand-logo-image:not(.brand-logo-image--mark) {
+  content: url('/assets/renvix-logo-reference.svg') !important;
+}
+
+@media (max-width: 900px) {
+  .public-site > .public-nav .nav-inner { direction: ltr; }
+  .public-site > .public-nav .nav-inner > .brand {
+    margin-right: auto !important;
+    margin-left: 0 !important;
+    justify-content: flex-start;
+  }
+  .public-site > .public-nav .mobile-public-login { direction: rtl; }
+}
+
+@media (max-width: 640px) {
+  .public-site > .marketing-footer .marketing-footer-brand .brand,
+  .public-site > .marketing-footer .marketing-footer-brand .brand-logo-image {
+    width: 176px !important;
+  }
+}

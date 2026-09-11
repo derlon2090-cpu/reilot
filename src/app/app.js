@@ -1890,7 +1890,7 @@ function logo(compact = false) {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image${compact ? " brand-logo-image--mark" : ""}" src="${compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-deep-teal.svg"}" ${compact ? 'width="64" height="48"' : 'width="190" height="55"'} alt="${escapeHtml(appName)}">
+    <img class="brand-logo-image${compact ? " brand-logo-image--mark" : ""}" src="${compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-reference.svg"}" ${compact ? 'width="64" height="48"' : 'width="195" height="60"'} alt="${escapeHtml(appName)}">
   </button>`;
 }
 
@@ -2823,7 +2823,7 @@ function homeDashboardPreview() {
       </g>
     </svg>
     <article class="home-dashboard" aria-label="${localizedCopy("معاينة حية للوحة تحكم Renvix", "Live Renvix dashboard preview")}">
-      <header class="home-dashboard-header"><img src="/assets/renvix-logo-deep-teal.svg" width="112" height="33" alt="Renvix"><div><strong>${localizedCopy("مرحبًا، أحمد", "Welcome, Ahmed")}</strong><small>${localizedCopy("إليك نظرة عامة على اشتراكاتك والتنبيهات اليوم", "Here is today's subscription and alerts overview")}</small></div></header>
+      <header class="home-dashboard-header"><img src="/assets/renvix-logo-reference.svg" width="122" height="38" alt="رينفكس Renvix"><div><strong>${localizedCopy("مرحبًا، أحمد", "Welcome, Ahmed")}</strong><small>${localizedCopy("إليك نظرة عامة على اشتراكاتك والتنبيهات اليوم", "Here is today's subscription and alerts overview")}</small></div></header>
       <div class="home-dashboard-metrics">${metrics.map(([label, value, change, icon, tone]) => `<section><header><span>${dashboardIcon(icon)}</span><small>${label}</small></header><strong>${value}</strong><em class="${tone}">${change}</em></section>`).join("")}</div>
       <div class="home-dashboard-analytics">
         <section class="home-line-chart"><header><div><strong>${localizedCopy("الإيرادات المتوقعة (آخر 30 يومًا)", "Expected revenue (last 30 days)")}</strong></div></header><div class="home-line-chart-plot"><div class="home-chart-axis" aria-hidden="true"><b>${localizedCopy("20 ألف", "20k")}</b><b>${localizedCopy("10 ألف", "10k")}</b><b>0</b></div><div class="home-line-chart-canvas"><i></i><i></i><i></i><svg viewBox="0 0 460 120" role="img" aria-label="${localizedCopy("مخطط نمو الإيرادات خلال الشهر", "Revenue growth during the month")}"><path class="home-chart-area" d="M8 102 C44 94 62 96 88 78 S130 48 156 72 S200 100 226 68 S264 58 286 74 S330 58 354 43 S402 47 452 18 L452 116 L8 116Z"/><path class="home-chart-line" d="M8 102 C44 94 62 96 88 78 S130 48 156 72 S200 100 226 68 S264 58 286 74 S330 58 354 43 S402 47 452 18"/><circle cx="88" cy="78" r="3.5"/><circle cx="226" cy="68" r="3.5"/><circle cx="354" cy="43" r="3.5"/><circle cx="452" cy="18" r="3.5"/></svg></div></div><footer><span>${localizedCopy("20 أبريل", "Apr 20")}</span><span>${localizedCopy("27 أبريل", "Apr 27")}</span><span>${localizedCopy("6 مايو", "May 6")}</span><span>${localizedCopy("11 مايو", "May 11")}</span><span>${localizedCopy("16 مايو", "May 16")}</span></footer></section>
