@@ -50,14 +50,17 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(!window.matchMedia('(min-width:744px)').matches)return;var p=location.pathname;var m={'/login':['dashboard-v2.png'],'/register':['dashboard-v2.png'],'/forgot-password':['reset-v2.png'],'/reset-password':['reset-v2.png'],'/verify-mfa':['mfa-v2.png'],'/verify-email':['signup-otp-v2.png','login-otp-v2.png'],'/auth/verify-mfa':['mfa-v2.png'],'/auth/verify-email':['signup-otp-v2.png','login-otp-v2.png']};(m[p]||[]).forEach(function(n){var l=document.createElement('link');l.rel='preload';l.as='image';l.fetchPriority='high';l.href='/app/assets/auth-reference/'+n+'?v=20260812-auth-dark-v100';l.dataset.authReferencePreload='true';document.head.appendChild(l)})}catch(e){}})();` }} />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260911-logo-stable-v157" />
+        <link rel="modulepreload" href="/app/app.js?v=20260911-header-ready-v158" crossOrigin="anonymous" />
+        <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
+        <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260911-header-ready-v158" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
-        <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260911-logo-stable-v157" />
-        <link rel="stylesheet" href="/app/styles/identity-system.css?v=20260911-logo-stable-v157" />
+        <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260911-header-ready-v158" />
+        <link rel="stylesheet" href="/app/styles/identity-system.css?v=20260911-header-ready-v158" />
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260911-logo-stable-v157" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260911-header-ready-v158" strategy="afterInteractive" />
       </body>
     </html>
   );

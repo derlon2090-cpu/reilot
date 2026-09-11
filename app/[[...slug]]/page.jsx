@@ -25,7 +25,6 @@ export default async function SpaPage({ params }) {
   const isDashboard = slug[0] === "dashboard";
   const path = `/${slug.join("/")}`;
   const authPath = isAuthPath(path);
-  const showPublicHeaderFallback = !isDashboard && !authPath;
 
   if (isDashboard || authPath) {
     const requestHeaders = await headers();
@@ -45,25 +44,7 @@ export default async function SpaPage({ params }) {
 
   return (
     <>
-      <div id="app">
-        {showPublicHeaderFallback ? (
-          <nav className="public-nav public-nav-bootstrap" aria-label="التنقل الرئيسي" style={{ minHeight: "74px" }}>
-            <div className="container nav-inner" style={{ minHeight: "74px", display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
-              <a className="brand btn-ghost" href="/" aria-label="Renvix" style={{ width: "188px", minWidth: "188px", height: "54px", display: "inline-flex", alignItems: "center" }}>
-                <img
-                  className="brand-logo-image brand-logo-image--primary"
-                  src="/assets/renvix-logo-primary.png"
-                  width="814"
-                  height="228"
-                  alt="Renvix"
-                  fetchPriority="high"
-                  style={{ width: "188px", height: "auto", maxHeight: "52px", objectFit: "contain" }}
-                />
-              </a>
-            </div>
-          </nav>
-        ) : null}
-      </div>
+      <div id="app" />
       <div id="portal" />
     </>
   );

@@ -52,15 +52,15 @@ describe("Renvix identity system", () => {
     expect(identity).toContain(".dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary");
   });
 
-  it("renders and preloads a public header logo before the client app starts", () => {
-    expect(spaPage).toContain("showPublicHeaderFallback");
-    expect(spaPage).toContain('className="public-nav public-nav-bootstrap"');
-    expect(spaPage).toContain('src="/assets/renvix-logo-primary.png"');
-    expect(spaPage).toContain('fetchPriority="high"');
-    expect(layout).toContain('rel="preload" as="image" href="/assets/renvix-logo-primary.png"');
-    expect(spaPage).toContain('style={{ width: "188px", height: "auto", maxHeight: "52px", objectFit: "contain" }}');
-    expect(identity).toContain('background-image:url("/assets/renvix-logo-primary.png")!important');
-    expect(identity).toContain("content:normal!important");
+  it("preloads startup assets without rendering an isolated oversized logo", () => {
+    expect(spaPage).not.toContain("public-nav-bootstrap");
+    expect(spaPage).toContain('<div id="app" />');
+    for (const markup of [layout, staticIndex]) {
+      expect(markup).toContain('rel="modulepreload"');
+      expect(markup).toContain('/app/locales/ar.json');
+      expect(markup).toContain('/app/locales/en.json');
+      expect(markup).toContain('rel="preload" as="image" href="/assets/renvix-logo-primary.png"');
+    }
   });
 
   it("applies consistent weights, geometry, numeric alignment, and LTR fields", () => {
