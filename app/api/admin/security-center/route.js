@@ -29,6 +29,7 @@ export async function GET(request) {
     query(`SELECT se.event_id AS id,se.last_seen AS time,se.severity,se.risk_score AS "riskScore",se.source_ip AS ip,
                   concat_ws('، ',se.country,se.city_approx) AS location,se.device_class AS device,se.browser,se.os,
                   se.requested_path AS path,se.method,se.metadata->'clientTelemetry' AS telemetry,
+                  se.metadata->>'honeypotDeviceId' AS "honeypotDeviceId",
                   se.metadata->>'deviceFingerprint' AS "deviceFingerprint",
                   se.metadata->>'fingerprintConfidence' AS "fingerprintConfidence",
                   se.metadata->'ipLocation' AS "ipLocation",
@@ -43,8 +44,14 @@ export async function GET(request) {
                           candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.metadata,candidate.last_seen
                         FROM security_source_events candidate
                         WHERE candidate.event_type='ADMIN_HONEYPOT_ACCESS'
-                          AND COALESCE(se.metadata->>'deviceFingerprint','')<>''
-                          AND candidate.metadata->>'deviceFingerprint'=se.metadata->>'deviceFingerprint'
+                          AND (
+                            (COALESCE(se.metadata->>'honeypotDeviceId','')<>''
+                              AND candidate.metadata->>'honeypotDeviceId'=se.metadata->>'honeypotDeviceId')
+                            OR
+                            (COALESCE(se.metadata->>'honeypotDeviceId','')=''
+                              AND COALESCE(se.metadata->>'deviceFingerprint','')<>''
+                              AND candidate.metadata->>'deviceFingerprint'=se.metadata->>'deviceFingerprint')
+                          )
                           AND (candidate.metadata->'clientTelemetry' IS NULL OR candidate.metadata#>>'{clientTelemetry,kind}'='page_view')
                         ORDER BY candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.last_seen DESC
                       ) distinct_history

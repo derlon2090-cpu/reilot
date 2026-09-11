@@ -16,6 +16,11 @@ const BASE_HEADERS = Object.freeze({
 const HTML_CSP = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 const SCRIPT_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 const MAX_TELEMETRY_BYTES = 12_288;
+const DEVICE_COOKIE = "__Host-renvix_hp_device";
+const DEVICE_ID_PATTERN = /^hpd_[a-f0-9]{32}$/;
+const BLOCK_CACHE_TTL_MS = 5_000;
+const BLOCK_CACHE_MAX = 1_000;
+const blockCache = new Map();
 
 function text(value, max) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
@@ -43,23 +48,98 @@ async function isInternalProbe(request, env, url) {
   return signature.length === expected.length && signature === expected;
 }
 
-function response(body, status, contentType, csp = SCRIPT_CSP) {
+function response(body, status, contentType, csp = SCRIPT_CSP, extraHeaders = {}) {
   return new Response(body, {
     status,
-    headers: { ...BASE_HEADERS, "content-type": contentType, "content-security-policy": csp }
+    headers: { ...BASE_HEADERS, "content-type": contentType, "content-security-policy": csp, ...extraHeaders }
   });
 }
 
-function emptyResponse(status = 204) {
-  return response(null, status, "text/plain; charset=utf-8");
+function emptyResponse(status = 204, setCookie = "") {
+  return response(null, status, "text/plain; charset=utf-8", SCRIPT_CSP, setCookie ? { "set-cookie": setCookie } : {});
 }
 
-function pageResponse() {
-  return response(HONEYPOT_HTML, 200, "text/html; charset=utf-8", HTML_CSP);
+function pageResponse(setCookie = "") {
+  return response(HONEYPOT_HTML, 200, "text/html; charset=utf-8", HTML_CSP, setCookie ? { "set-cookie": setCookie } : {});
 }
 
-function scriptResponse() {
-  return response(HONEYPOT_SCRIPT, 200, "application/javascript; charset=utf-8");
+function scriptResponse(setCookie = "") {
+  return response(HONEYPOT_SCRIPT, 200, "application/javascript; charset=utf-8", SCRIPT_CSP, setCookie ? { "set-cookie": setCookie } : {});
+}
+
+function cookieValue(request, name) {
+  for (const part of String(request.headers.get("cookie") || "").split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return value.join("=").slice(0, 180);
+  }
+  return "";
+}
+
+async function deviceIdentity(request, env) {
+  const secret = String(env.HONEYPOT_INGESTION_SECRET || "");
+  if (secret.length < 32) return { id: "", setCookie: "", existing: false };
+  const supplied = cookieValue(request, DEVICE_COOKIE);
+  const separator = supplied.lastIndexOf(".");
+  const candidate = separator > 0 ? supplied.slice(0, separator) : "";
+  const signature = separator > 0 ? supplied.slice(separator + 1) : "";
+  if (DEVICE_ID_PATTERN.test(candidate)) {
+    const expected = await hmac(secret, `honeypot-device:${candidate}`);
+    if (signature.length === expected.length && signature === expected) {
+      return { id: candidate, setCookie: "", existing: true };
+    }
+  }
+  const id = `hpd_${crypto.randomUUID().replace(/-/g, "")}`;
+  const signed = await hmac(secret, `honeypot-device:${id}`);
+  return {
+    id,
+    existing: false,
+    setCookie: `${DEVICE_COOKIE}=${id}.${signed}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Strict`
+  };
+}
+
+function blockCheckUrl(env) {
+  try {
+    return new URL("/api/security/block-check", env.SECURITY_INGESTION_URL).toString();
+  } catch {
+    return "";
+  }
+}
+
+async function checkDeviceBlock(env, deviceId) {
+  if (!DEVICE_ID_PATTERN.test(deviceId)) return null;
+  const cached = blockCache.get(deviceId);
+  if (cached?.expiresAt > Date.now()) return cached.value;
+  const endpoint = blockCheckUrl(env);
+  const secret = String(env.HONEYPOT_INGESTION_SECRET || "");
+  if (!endpoint || secret.length < 32) return null;
+  const timestamp = Date.now().toString();
+  const body = JSON.stringify({ honeypotDeviceId: deviceId });
+  const signature = await hmac(secret, `${timestamp}.${body}`);
+  try {
+    const result = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-security-timestamp": timestamp, "x-security-signature": signature },
+      body,
+      signal: AbortSignal.timeout(1_200)
+    });
+    if (!result.ok) return null;
+    const payload = await result.json();
+    const decision = payload?.blocked
+      ? { blocked: true, referenceId: text(payload.referenceId, 40) || "SEC-UNKNOWN" }
+      : { blocked: false };
+    if (blockCache.size >= BLOCK_CACHE_MAX) blockCache.delete(blockCache.keys().next().value);
+    blockCache.set(deviceId, { value: decision, expiresAt: Date.now() + BLOCK_CACHE_TTL_MS });
+    return decision;
+  } catch {
+    return null;
+  }
+}
+
+function blockedResponse(referenceId, scriptOrTelemetry = false) {
+  if (scriptOrTelemetry) return emptyResponse(403);
+  const reference = text(referenceId, 40).replace(/[^a-z0-9-]/gi, "") || "SEC-UNKNOWN";
+  const body = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تعذر الوصول</title></head><body><main><h1>تعذر الوصول إلى هذه الصفحة حاليًا.</h1><p>REF: ${reference}</p></main></body></html>`;
+  return response(body, 403, "text/html; charset=utf-8", HTML_CSP);
 }
 
 function normalizeTelemetry(input) {
@@ -106,7 +186,7 @@ async function readTelemetry(request) {
   }
 }
 
-function eventBody(request, rateLimited, telemetry = null) {
+function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = "") {
   const url = new URL(request.url);
   const cf = request.cf || {};
   const pagePath = telemetry?.pagePath?.startsWith("/") ? telemetry.pagePath : url.pathname;
@@ -124,6 +204,7 @@ function eventBody(request, rateLimited, telemetry = null) {
     referrer: text(request.headers.get("referer"), 500),
     cf_ray_id: text(request.headers.get("cf-ray"), 100),
     request_id: crypto.randomUUID(), rate_limited: rateLimited,
+    honeypot_device_id: DEVICE_ID_PATTERN.test(honeypotDeviceId) ? honeypotDeviceId : "",
     cloudflare_threat_score: Number.isFinite(Number(cf.threatScore)) ? Number(cf.threatScore) : null,
     ip_location: {
       latitude: Number.isFinite(Number(cf.latitude)) ? number(cf.latitude, -90, 90) : null,
@@ -160,8 +241,8 @@ async function postSigned(env, body) {
   return responseValue;
 }
 
-async function sendEvent(request, env, rateLimited, telemetry = null) {
-  return postSigned(env, eventBody(request, rateLimited, telemetry));
+async function sendEvent(request, env, rateLimited, telemetry = null, honeypotDeviceId = "") {
+  return postSigned(env, eventBody(request, rateLimited, telemetry, honeypotDeviceId));
 }
 
 async function endToEndProbe(env) {
@@ -191,18 +272,23 @@ const worker = {
   async fetch(request, env, context) {
     const url = new URL(request.url);
     if (await isInternalProbe(request, env, url)) return endToEndProbe(env);
-    if (url.pathname === HONEYPOT_SCRIPT_PATH && request.method === "GET") return scriptResponse();
-
     const rateLimited = await rateLimit(request, env);
+    const identity = await deviceIdentity(request, env);
+    const block = identity.existing && !rateLimited ? await checkDeviceBlock(env, identity.id) : null;
+    if (block?.blocked) {
+      return blockedResponse(block.referenceId, url.pathname === HONEYPOT_SCRIPT_PATH || url.pathname === HONEYPOT_TELEMETRY_PATH);
+    }
+    if (url.pathname === HONEYPOT_SCRIPT_PATH && request.method === "GET") return scriptResponse(identity.setCookie);
+
     if (url.pathname === HONEYPOT_TELEMETRY_PATH && request.method === "POST") {
       const origin = request.headers.get("origin");
       const telemetry = (!origin || origin === url.origin) ? await readTelemetry(request) : null;
-      if (telemetry && !rateLimited) queueEvent(context, sendEvent(request, env, false, telemetry));
-      return emptyResponse(204);
+      if (telemetry && !rateLimited) queueEvent(context, sendEvent(request, env, false, telemetry, identity.id));
+      return emptyResponse(204, identity.setCookie);
     }
 
-    if (!rateLimited) queueEvent(context, sendEvent(request, env, false));
-    return pageResponse();
+    if (!rateLimited) queueEvent(context, sendEvent(request, env, false, null, identity.id));
+    return pageResponse(identity.setCookie);
   }
 };
 

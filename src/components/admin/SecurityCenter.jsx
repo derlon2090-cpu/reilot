@@ -60,6 +60,7 @@ export default function SecurityCenter() {
   const [reason, setReason] = useState("");
   const [containmentOpen, setContainmentOpen] = useState(false);
   const [scopes, setScopes] = useState([]);
+  const [containmentDeviceId, setContainmentDeviceId] = useState("");
   const [unblock, setUnblock] = useState(null);
 
   const load = useCallback(async (incidentId = "") => {
@@ -127,10 +128,28 @@ export default function SecurityCenter() {
     await load(incident.id);
   }
 
+  async function openHoneypotDeviceBlock(event) {
+    if (!event?.incidentId || !event?.honeypotDeviceId) return;
+    const incident = data?.incidents?.find((item) => item.id === event.incidentId) || {
+      id: event.incidentId,
+      incidentNumber: event.incidentNumber || "حادث Honeypot",
+      title: "محاولة اكتشاف واجهة الإدارة"
+    };
+    setSelectedIncident(incident);
+    setTab("incidents");
+    await load(event.incidentId);
+    setScopes(["device"]);
+    setContainmentDeviceId(event.honeypotDeviceId);
+    setDuration("10080");
+    setReason(`حظر Renvix Device ID المرتبط بالحادث ${event.incidentNumber || event.incidentId}`.slice(0, 300));
+    setContainmentOpen(true);
+  }
+
   function openContainment() {
     const available = data?.containment?.availableTargets || {};
     const suggested = ["account", "session", "device", "ip"].filter((scope) => available[scope]);
     setScopes(suggested);
+    setContainmentDeviceId("");
     setDuration("60");
     setReason("");
     setContainmentOpen(true);
@@ -215,6 +234,7 @@ export default function SecurityCenter() {
       <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>الأحداث المرصودة</h3><p>اختر سجلًا لعرض مواصفات الجهاز وملخص الحركة. لا يتم حفظ محتوى الحقول أو كلمات المرور.</p></div></div><Table rows={data?.events} onRow={setSelectedHoneypotEvent} columns={[
         { key: "time", label: "الوقت", render: date }, { key: "severity", label: "الخطورة", render: (value, row) => <Severity value={value} score={row.riskScore} /> },
         { key: "ip", label: "IP" }, { key: "location", label: "الموقع التقريبي" }, { key: "device", label: "الجهاز" }, { key: "browser", label: "المتصفح" },
+        { key: "honeypotDeviceId", label: "Renvix Device ID", render: (value) => <span dir="ltr">{value || "—"}</span> },
         { key: "telemetry", label: "الإشارة", render: (value) => telemetryKind(value?.kind) },
         { key: "movement", label: "الحركة", render: (_value, row) => row.telemetry?.interaction?.mouseMoves || 0 },
         { key: "clicks", label: "النقرات", render: (_value, row) => row.telemetry?.interaction?.clicks || 0 },
@@ -225,6 +245,7 @@ export default function SecurityCenter() {
           {selectedHoneypotEvent.telemetry ? <>
             <dl className={styles.securityTelemetryGrid}>
               <div><dt>معرّف الزيارة</dt><dd dir="ltr">{selectedHoneypotEvent.telemetry.visitId || "—"}</dd></div>
+              <div><dt>Renvix Device ID</dt><dd dir="ltr">{selectedHoneypotEvent.honeypotDeviceId || "—"}</dd></div>
               <div><dt>بصمة الجهاز التقديرية</dt><dd dir="ltr">{selectedHoneypotEvent.deviceFingerprint || "—"}</dd></div>
               <div><dt>ثقة مطابقة البصمة</dt><dd>{confidence(selectedHoneypotEvent.fingerprintConfidence)} — ليست Device ID قطعيًا</dd></div>
               <div><dt>الموقع عبر IP</dt><dd>{approximateLocation(selectedHoneypotEvent)} — تقريبي وليس GPS</dd></div>
@@ -239,8 +260,8 @@ export default function SecurityCenter() {
               <div><dt>محاولات الدخول</dt><dd>{selectedHoneypotEvent.telemetry.interaction?.loginAttempts || 0}</dd></div>
             </dl>
             <div className={styles.securityHeatmap} aria-label="خريطة حركة المؤشر">{(selectedHoneypotEvent.telemetry.interaction?.heatmap || []).map((count, index) => <span key={index} style={{ "--heat": Math.min(1, Number(count || 0) / Math.max(...(selectedHoneypotEvent.telemetry.interaction?.heatmap || [1]), 1)) }} title={`${count} حركة`}>{count}</span>)}</div>
-            <section className={styles.securityRecentActivity}><h4>آخر 5 زيارات مرتبطة بهذه البصمة</h4>{selectedHoneypotEvent.recentActivity?.length ? <ol>{selectedHoneypotEvent.recentActivity.map((item, index) => <li key={`${item.path}-${item.lastSeen}-${index}`}><div><b dir="ltr">{item.path || "/"}</b><span>{[item.country, item.region, item.city].filter(Boolean).join("، ") || "موقع غير معروف"}</span></div><time>{date(item.lastSeen)}</time></li>)}</ol> : <Empty>لا توجد زيارات أخرى مرتبطة بهذه البصمة.</Empty>}</section>
-            {selectedHoneypotEvent.incidentId ? <div className={styles.securityTelemetryActions}><button type="button" onClick={() => selectIncident(data?.incidents?.find((incident) => incident.id === selectedHoneypotEvent.incidentId))}>فتح الحادث وخيارات الاحتواء</button><small>حظر IP يتطلب خطورة HIGH/CRITICAL وتأكيدًا إداريًا؛ لا يُحظر جهاز بناءً على بصمة احتمالية وحدها.</small></div> : null}
+            <section className={styles.securityRecentActivity}><h4>آخر 5 زيارات مرتبطة بهذا الجهاز</h4>{selectedHoneypotEvent.recentActivity?.length ? <ol>{selectedHoneypotEvent.recentActivity.map((item, index) => <li key={`${item.path}-${item.lastSeen}-${index}`}><div><b dir="ltr">{item.path || "/"}</b><span>{[item.country, item.region, item.city].filter(Boolean).join("، ") || "موقع غير معروف"}</span></div><time>{date(item.lastSeen)}</time></li>)}</ol> : <Empty>لا توجد زيارات أخرى مرتبطة بهذا المعرّف أو البصمة.</Empty>}</section>
+            {selectedHoneypotEvent.incidentId ? <div className={styles.securityTelemetryActions}>{selectedHoneypotEvent.honeypotDeviceId && data?.permissions?.canManageIncidents ? <button type="button" onClick={() => openHoneypotDeviceBlock(selectedHoneypotEvent)}>حظر Renvix Device ID</button> : null}<button type="button" onClick={() => selectIncident(data?.incidents?.find((incident) => incident.id === selectedHoneypotEvent.incidentId))}>فتح الحادث وخيارات الاحتواء</button><small>المعرّف موقّع وHost-Only وليس رقمًا عتاديًا؛ مسح بيانات المتصفح أو إغلاق جلسة خفية قد يؤدي إلى إصدار معرّف جديد.</small></div> : null}
           </> : <Empty>هذا سجل طلب HTTP أولي؛ تفاصيل الجهاز والحركة تصل بعد تشغيل JavaScript في المتصفح.</Empty>}
         </article> : null}
       </section>
@@ -255,7 +276,7 @@ export default function SecurityCenter() {
       { key: "severity", label: "المستوى", render: (value) => <Severity value={value} /> }, { key: "channel", label: "القناة" }, { key: "status", label: "الحالة" }, { key: "attempts", label: "المحاولات" }, { key: "createdAt", label: "الإنشاء", render: date }, { key: "sentAt", label: "الإرسال", render: date }
     ]} /></section> : null}
 
-    {tab === "blocks" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>إدارة المحظورين</h3><p>الحساب والجلسة والجهاز الموثوق وIP أهداف مستقلة. لا يُعامل IP أو بصمة المتصفح كجهاز قطعي.</p></div></div><Table rows={data?.blocks} onRow={(block) => block.status === "active" && data?.permissions?.canManageIncidents ? setUnblock(block) : null} columns={[
+    {tab === "blocks" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>إدارة المحظورين</h3><p>الحساب والجلسة وRenvix Device ID والجهاز الموثوق وIP أهداف مستقلة. لا يُعامل IP أو بصمة المتصفح كجهاز قطعي.</p></div></div><Table rows={data?.blocks} onRow={(block) => block.status === "active" && data?.permissions?.canManageIncidents ? setUnblock(block) : null} columns={[
       { key: "referenceId", label: "المرجع" }, { key: "targetType", label: "النطاق" }, { key: "targetLabel", label: "الهدف" }, { key: "severity", label: "الخطورة", render: (value) => <Severity value={value} /> },
       { key: "status", label: "الحالة" }, { key: "incidentNumber", label: "الحادث" }, { key: "expiresAt", label: "الانتهاء", render: (value) => value ? date(value) : "دائم" }, { key: "createdAt", label: "الإنشاء", render: date }
     ]} /></section> : null}
@@ -267,8 +288,9 @@ export default function SecurityCenter() {
     {containmentOpen ? <div className={styles.securityModalBackdrop} role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setContainmentOpen(false)}><section className={styles.securityModal} role="dialog" aria-modal="true" aria-labelledby="containment-title"><div className={styles.securitySectionHead}><div><h3 id="containment-title">احتواء التهديد</h3><p>ينفذ فقط النطاقات التي أكدتها. إبطال الحساب أو الجهاز ينهي الجلسات والتحديات المفتوحة.</p></div><button type="button" onClick={() => setContainmentOpen(false)}>إغلاق</button></div>
       <label>سبب الاحتواء<input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="مثال: محاولة استكشاف لوحة الإدارة" /></label>
       <label>المدة<select value={duration} onChange={(event) => { setDuration(event.target.value); if (event.target.value === "permanent") setScopes((current) => current.filter((scope) => scope !== "ip")); }}><option value="60">ساعة</option><option value="1440">24 ساعة</option><option value="10080">7 أيام</option><option value="permanent">دائم (غير متاح لـ IP)</option></select></label>
-      <fieldset><legend>نطاق الاحتواء</legend>{[["account","الحساب"],["session","الجلسة"],["device","Device ID موقّع من الخادم"],["ip","IP مؤقتًا"]].map(([scope,label]) => { const available = Boolean(data?.containment?.availableTargets?.[scope]); const disabled = !available || (scope === "ip" && duration === "permanent"); return <label key={scope}><input type="checkbox" checked={scopes.includes(scope)} disabled={disabled} onChange={() => toggleScope(scope)} />{label}{!available ? " — غير متاح لهذا الحادث" : ""}</label>; })}</fieldset>
-      <div className={styles.securityModalActions}><button type="button" onClick={() => setContainmentOpen(false)}>إلغاء</button><button type="button" disabled={busy || reason.trim().length < 5 || scopes.length === 0} onClick={() => incidentAction("contain_threat", { duration, scopes })}>{busy ? "جارٍ الاحتواء..." : "تأكيد الاحتواء"}</button></div>
+      {containmentDeviceId ? <p>المعرّف المستهدف: <b dir="ltr">{containmentDeviceId}</b></p> : null}
+      <fieldset><legend>نطاق الاحتواء</legend>{[["account","الحساب"],["session","الجلسة"],["device","Device ID موقّع من الخادم"],["ip","IP مؤقتًا"]].map(([scope,label]) => { const available = Boolean(data?.containment?.availableTargets?.[scope]); const explicitDevice = scope === "device" && Boolean(containmentDeviceId); const disabled = (!available && !explicitDevice) || (scope === "ip" && duration === "permanent") || (Boolean(containmentDeviceId) && scope !== "device"); return <label key={scope}><input type="checkbox" checked={scopes.includes(scope)} disabled={disabled} onChange={() => toggleScope(scope)} />{label}{!available && !explicitDevice ? " — غير متاح لهذا الحادث" : ""}</label>; })}</fieldset>
+      <div className={styles.securityModalActions}><button type="button" onClick={() => setContainmentOpen(false)}>إلغاء</button><button type="button" disabled={busy || reason.trim().length < 5 || scopes.length === 0} onClick={() => incidentAction("contain_threat", { duration, scopes, targetDeviceId: containmentDeviceId || undefined })}>{busy ? "جارٍ الاحتواء..." : "تأكيد الاحتواء"}</button></div>
     </section></div> : null}
 
     {unblock ? <div className={styles.securityModalBackdrop}><section className={styles.securityModal} role="dialog" aria-modal="true"><div className={styles.securitySectionHead}><div><h3>فك الحظر</h3><p>{unblock.referenceId} · {unblock.targetType}</p></div></div><label>سبب فك الحظر<input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="سبب إداري واضح ومراجع" /></label><div className={styles.securityModalActions}><button type="button" onClick={() => { setUnblock(null); setReason(""); }}>إلغاء</button><button type="button" disabled={busy || reason.trim().length < 5} onClick={unblockSource}>تأكيد فك الحظر</button></div></section></div> : null}

@@ -10,6 +10,7 @@ describe("admin honeypot telemetry visibility", () => {
     const route = read("app/api/admin/security-center/route.js");
     expect(route).toContain("requireAdminPermission");
     expect(route).toContain("metadata->'clientTelemetry' AS telemetry");
+    expect(route).toContain("metadata->>'honeypotDeviceId' AS \"honeypotDeviceId\"");
     expect(route).toContain("metadata->>'deviceFingerprint' AS \"deviceFingerprint\"");
     expect(route).toContain("metadata->>'fingerprintConfidence' AS \"fingerprintConfidence\"");
     expect(route).toContain("metadata->'ipLocation' AS \"ipLocation\"");
@@ -24,7 +25,9 @@ describe("admin honeypot telemetry visibility", () => {
     expect(component).toContain("mouseDistance");
     expect(component).toContain("loginAttempts");
     expect(component).toContain("بصمة الجهاز التقديرية");
-    expect(component).toContain("آخر 5 زيارات مرتبطة بهذه البصمة");
+    expect(component).toContain("Renvix Device ID");
+    expect(component).toContain("حظر Renvix Device ID");
+    expect(component).toContain("آخر 5 زيارات مرتبطة بهذا الجهاز");
     expect(component).toContain("تقريبي وليس GPS");
     expect(component).toContain("فتح الحادث وخيارات الاحتواء");
     expect(component).toContain("لا يتم حفظ محتوى الحقول أو كلمات المرور");

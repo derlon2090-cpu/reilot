@@ -10,6 +10,7 @@ const pageSource = fs.readFileSync(path.join(root, "deploy/cloudflare/admin-hone
 const migration = fs.readFileSync(path.join(root, "drizzle/0091_security_operations_center.sql"), "utf8");
 const ingestion = fs.readFileSync(path.join(root, "app/api/security/ingest/honeypot/route.js"), "utf8");
 const alertMigration = fs.readFileSync(path.join(root, "drizzle/0092_honeypot_first_alerts.sql"), "utf8");
+const workerConfig = fs.readFileSync(path.join(root, "deploy/cloudflare/admin-honeypot/wrangler.toml"), "utf8");
 
 function runtime() {
   const pending: Promise<unknown>[] = [];
@@ -17,7 +18,7 @@ function runtime() {
     pending,
     context: { waitUntil(promise: Promise<unknown>) { pending.push(promise); } },
     env: {
-      SECURITY_INGESTION_URL: "https://api.renvix.app/api/security/ingest/honeypot",
+      SECURITY_INGESTION_URL: "https://renvix.app/api/security/ingest/honeypot",
       HONEYPOT_INGESTION_SECRET: "a-long-independent-honeypot-secret"
     }
   };
@@ -84,12 +85,14 @@ describe("isolated admin honeypot", () => {
       } });
       const response = await honeypotWorker.fetch(request, env, context);
       expect(response.status).toBe(204);
+      expect(response.headers.get("set-cookie")).toMatch(/^__Host-renvix_hp_device=hpd_[a-f0-9]{32}\.[a-f0-9]{64};/);
       await Promise.all(pending);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [, init] = fetchSpy.mock.calls[0];
       const body = String(init?.body);
       const event = JSON.parse(body);
       expect(event.requested_path).toBe("/login");
+      expect(event.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
       expect(event.telemetry).toMatchObject({
         kind: "login_attempt", visitId: "visit-12345678",
         interaction: { mouseMoves: 27, clicks: 3, keyPresses: 14, loginAttempts: 1 }
@@ -100,6 +103,37 @@ describe("isolated admin honeypot", () => {
       const timestamp = headers.get("x-renvix-timestamp") || "";
       const expected = crypto.createHmac("sha256", env.HONEYPOT_INGESTION_SECRET).update(`${timestamp}.${body}`).digest("hex");
       expect(headers.get("x-renvix-signature")).toBe(expected);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("issues a signed Host-Only device ID and denies a blocked identifier", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    const { pending, context, env } = runtime();
+    try {
+      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/login", {
+        headers: { "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
+      }), env, context);
+      const cookie = String(first.headers.get("set-cookie") || "").split(";")[0];
+      const deviceId = cookie.split("=")[1].split(".")[0];
+      expect(cookie).toMatch(/^__Host-renvix_hp_device=hpd_[a-f0-9]{32}\.[a-f0-9]{64}$/);
+      await Promise.all(pending);
+      fetchSpy.mockClear();
+      fetchSpy.mockImplementation(async (url, init) => {
+        expect(String(url)).toBe("https://renvix.app/api/security/block-check");
+        expect(JSON.parse(String(init?.body))).toEqual({ honeypotDeviceId: deviceId });
+        expect(new Headers(init?.headers).get("x-security-signature")).toMatch(/^[a-f0-9]{64}$/);
+        return new Response(JSON.stringify({ ok: true, blocked: true, referenceId: "SEC-DEVICE-1" }), {
+          status: 200, headers: { "content-type": "application/json" }
+        });
+      });
+      const blocked = await honeypotWorker.fetch(new Request("https://admin.renvix.app/login", {
+        headers: { cookie, "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
+      }), env, context);
+      expect(blocked.status).toBe(403);
+      expect(await blocked.text()).toContain("SEC-DEVICE-1");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -168,6 +202,8 @@ describe("isolated admin honeypot", () => {
     expect(ingestion).toContain("ingestHoneypotEvent");
     expect(ingestion).toContain("16_384");
     expect(ingestion).not.toContain('request.headers.get("x-forwarded-for")');
+    expect(workerConfig).toContain('SECURITY_INGESTION_URL = "https://renvix.app/api/security/ingest/honeypot"');
+    expect(workerConfig).not.toContain("https://api.renvix.app/api/security/ingest/honeypot");
   });
 
   it("keeps the scanner lock and audit ledger tamper evident", () => {

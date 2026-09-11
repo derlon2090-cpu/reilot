@@ -88,6 +88,11 @@ function normalizeHoneypotIpLocation(value) {
   };
 }
 
+function normalizeHoneypotDeviceId(value) {
+  const id = cleanText(value, 40).toLowerCase();
+  return /^hpd_[a-f0-9]{32}$/.test(id) ? id : "";
+}
+
 export function normalizeHoneypotTelemetry(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const device = value.device && typeof value.device === "object" ? value.device : {};
@@ -263,6 +268,7 @@ function normalizeHoneypotInput(input = {}) {
   const deviceFingerprint = honeypotDeviceFingerprint(userAgent, telemetry);
   const fingerprintConfidence = honeypotFingerprintConfidence(telemetry);
   const ipLocation = normalizeHoneypotIpLocation(input.ip_location);
+  const honeypotDeviceId = normalizeHoneypotDeviceId(input.honeypot_device_id);
   const queryKeys = Array.isArray(input.query_keys_without_sensitive_values)
     ? input.query_keys_without_sensitive_values.map((key) => cleanText(key, 80)).filter((key) => key && !SENSITIVE_KEY.test(key)).slice(0, 30)
     : [];
@@ -284,7 +290,8 @@ function normalizeHoneypotInput(input = {}) {
     telemetry,
     deviceFingerprint,
     fingerprintConfidence,
-    ipLocation
+    ipLocation,
+    honeypotDeviceId
   };
 }
 
@@ -383,6 +390,7 @@ export async function ingestHoneypotEvent(rawInput) {
       asn: input.asn, deviceClass: input.deviceClass, browser: input.browser, os: input.os,
       attempts, distinctPaths, cfRayId: input.cfRayId,
       clientSignal: input.telemetry?.kind || "http_request",
+      honeypotDeviceId: input.honeypotDeviceId || null,
       interaction: input.telemetry?.interaction || null
     });
     const existingIncident = await client.query(
@@ -429,7 +437,8 @@ export async function ingestHoneypotEvent(rawInput) {
         input.referrer || null, input.cfRayId || null, input.requestId, riskScore, severity, incident?.id || null,
         JSON.stringify({
           trustedCloudflareContext: true, clientTelemetry: input.telemetry, deviceFingerprint: input.deviceFingerprint,
-          fingerprintConfidence: input.fingerprintConfidence, ipLocation: input.ipLocation
+          fingerprintConfidence: input.fingerprintConfidence, ipLocation: input.ipLocation,
+          honeypotDeviceId: input.honeypotDeviceId
         })]
     );
     const finding = await client.query(
@@ -628,10 +637,14 @@ export async function incidentContainmentContext(incidentId) {
   const result = await query(
     `SELECT si.id,si.incident_number AS "incidentNumber",si.severity,si.risk_score AS "riskScore",
             se.source_ip AS "sourceIp",COALESCE(identity_event.user_id,d.user_id,s.user_id) AS "accountId",
-            identity_event.session_id AS "sessionId",identity_event.trusted_device_id AS "deviceId"
+            identity_event.session_id AS "sessionId",
+            COALESCE(identity_event.trusted_device_id::text,se.honeypot_device_id) AS "deviceId",
+            CASE WHEN identity_event.trusted_device_id IS NOT NULL THEN 'trusted'
+                 WHEN se.honeypot_device_id IS NOT NULL THEN 'honeypot' ELSE NULL END AS "deviceKind"
        FROM security_incidents si
        LEFT JOIN LATERAL (
-         SELECT source_ip,user_id,session_id,trusted_device_id FROM security_source_events
+         SELECT source_ip,user_id,session_id,trusted_device_id,
+                NULLIF(metadata->>'honeypotDeviceId','') AS honeypot_device_id FROM security_source_events
           WHERE incident_id=si.id ORDER BY last_seen DESC LIMIT 1
        ) se ON true
        LEFT JOIN LATERAL (
@@ -668,9 +681,11 @@ export async function findActiveSecurityBlock(targetType, value, client = null) 
   return result.rows[0] || null;
 }
 
-export async function evaluateSecurityBlockRequest({ sourceIp = "", sessionHashes = [], deviceToken = "" } = {}) {
+export async function evaluateSecurityBlockRequest({ sourceIp = "", sessionHashes = [], deviceToken = "", honeypotDeviceId = "" } = {}) {
   const targets = [];
   if (sourceIp) targets.push(["ip", sourceIp]);
+  const safeHoneypotDeviceId = normalizeHoneypotDeviceId(honeypotDeviceId);
+  if (safeHoneypotDeviceId) targets.push(["device", safeHoneypotDeviceId]);
   const safeSessionHashes = Array.isArray(sessionHashes)
     ? sessionHashes.filter((value) => /^[a-f0-9]{64}$/i.test(String(value))).slice(0, 4)
     : [];
@@ -745,7 +760,7 @@ async function deleteCloudflareIpRule(ruleId) {
   return { configured: true };
 }
 
-export async function containSecurityIncident({ incidentId, adminId, duration, scopes = [], reason }) {
+export async function containSecurityIncident({ incidentId, adminId, duration, scopes = [], reason, targetDeviceId = "" }) {
   if (process.env.NODE_ENV === "production" && String(process.env.SECURITY_BLOCK_PEPPER || "").length < 32) {
     throw Object.assign(new Error("security block pepper is unavailable"), { code: "SECURITY_BLOCK_CONFIG_REQUIRED" });
   }
@@ -756,13 +771,21 @@ export async function containSecurityIncident({ incidentId, adminId, duration, s
   if (!selectedScopes.length) throw Object.assign(new Error("containment scope is required"), { code: "SCOPE_REQUIRED" });
   const expiresAt = containmentExpiry(duration);
   if (!expiresAt && selectedScopes.includes("ip")) throw Object.assign(new Error("permanent IP blocks are prohibited"), { code: "PERMANENT_IP_PROHIBITED" });
+  const requestedHoneypotDeviceId = normalizeHoneypotDeviceId(targetDeviceId);
+  if (targetDeviceId && !requestedHoneypotDeviceId) {
+    throw Object.assign(new Error("invalid honeypot device target"), { code: "INVALID_DEVICE_TARGET" });
+  }
+  if (requestedHoneypotDeviceId && (selectedScopes.length !== 1 || selectedScopes[0] !== "device")) {
+    throw Object.assign(new Error("explicit honeypot device containment must be device-only"), { code: "DEVICE_SCOPE_REQUIRED" });
+  }
 
   const outcome = await transaction(async (client) => {
     const incidentResult = await client.query(
       `SELECT si.*,se.source_ip,COALESCE(identity_event.user_id,d.user_id,s.user_id) AS account_id,
-              identity_event.session_id,identity_event.trusted_device_id
+              identity_event.session_id,identity_event.trusted_device_id,se.honeypot_device_id
          FROM security_incidents si
-         LEFT JOIN LATERAL (SELECT source_ip,user_id,session_id,trusted_device_id FROM security_source_events
+         LEFT JOIN LATERAL (SELECT source_ip,user_id,session_id,trusted_device_id,
+                  NULLIF(metadata->>'honeypotDeviceId','') AS honeypot_device_id FROM security_source_events
            WHERE incident_id=si.id ORDER BY last_seen DESC LIMIT 1) se ON true
          LEFT JOIN LATERAL (SELECT user_id,session_id,trusted_device_id FROM security_source_events
            WHERE incident_id=si.id AND (user_id IS NOT NULL OR session_id IS NOT NULL OR trusted_device_id IS NOT NULL)
@@ -774,7 +797,22 @@ export async function containSecurityIncident({ incidentId, adminId, duration, s
     );
     const incident = incidentResult.rows[0];
     if (!incident) throw Object.assign(new Error("incident not found"), { code: "NOT_FOUND" });
-    const values = { account: incident.account_id, session: incident.session_id, device: incident.trusted_device_id, ip: incident.source_ip };
+    if (requestedHoneypotDeviceId) {
+      const verifiedDevice = await client.query(
+        `SELECT 1 FROM security_source_events
+          WHERE incident_id=$1 AND metadata->>'honeypotDeviceId'=$2 LIMIT 1`,
+        [incident.id, requestedHoneypotDeviceId]
+      );
+      if (!verifiedDevice.rows[0]) {
+        throw Object.assign(new Error("honeypot device is not linked to incident"), { code: "DEVICE_TARGET_MISMATCH" });
+      }
+    }
+    const values = {
+      account: incident.account_id,
+      session: incident.session_id,
+      device: requestedHoneypotDeviceId || incident.trusted_device_id || incident.honeypot_device_id,
+      ip: incident.source_ip
+    };
     if (selectedScopes.includes("ip") && !["HIGH", "CRITICAL"].includes(incident.severity)) {
       throw Object.assign(new Error("IP containment requires high risk"), { code: "IP_SCOPE_NOT_ALLOWED" });
     }
@@ -785,7 +823,9 @@ export async function containSecurityIncident({ incidentId, adminId, duration, s
     for (const scope of selectedScopes) {
       const targetValue = values[scope];
       const targetHash = securityTargetHash(scope, targetValue);
-      const label = scope === "ip" ? cleanText(targetValue, 80) : `${scope}:${String(targetValue).slice(-8)}`;
+      const label = scope === "ip" || (scope === "device" && normalizeHoneypotDeviceId(targetValue))
+        ? cleanText(targetValue, 80)
+        : `${scope}:${String(targetValue).slice(-8)}`;
       const existing = await client.query(
         `SELECT * FROM security_blocks WHERE target_type=$1 AND target_hash=$2 AND revoked_at IS NULL
           AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
@@ -823,7 +863,7 @@ export async function containSecurityIncident({ incidentId, adminId, duration, s
         [incident.account_id]
       );
     }
-    if (selectedScopes.includes("device")) {
+    if (selectedScopes.includes("device") && incident.trusted_device_id && !requestedHoneypotDeviceId) {
       const device = await client.query(
         `UPDATE auth_trusted_devices SET revoked_at=now(),revoke_reason='security_containment',updated_at=now()
           WHERE id=$1 RETURNING user_id`,
@@ -849,7 +889,8 @@ export async function containSecurityIncident({ incidentId, adminId, duration, s
     await client.query("UPDATE security_incidents SET status='Mitigated',remediation_status='succeeded',updated_at=now() WHERE id=$1", [incident.id]);
     await appendIncidentEvent(client, incident.id, "threat_contained", {
       scopes: selectedScopes, duration: expiresAt ? String(duration) : "permanent",
-      references: blocks.map((block) => block.reference_id), terminatedSessions, reason: safeReason
+      references: blocks.map((block) => block.reference_id), terminatedSessions, reason: safeReason,
+      honeypotDeviceId: requestedHoneypotDeviceId || null
     }, { type: "admin", id: adminId });
     return { incident, blocks, sourceIp: incident.source_ip, terminatedSessions };
   });
