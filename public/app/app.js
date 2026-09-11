@@ -2051,13 +2051,14 @@ const RENVIX_BRAND_ASSETS = Object.freeze({
   compactDark: "/assets/renvix-logo-auth-dark.svg"
 });
 
-function logo(compact = false) {
+function logo(compact = false, surface = "default") {
   const destination = state.route.startsWith("/dashboard") ? "/dashboard" : "/";
   const appName = t("app.name") || "Renvix";
-  const variant = compact ? "icon" : state.route.startsWith("/dashboard") ? "compact" : "primary";
+  const variant = surface === "footer" ? "compactDark" : compact ? "icon" : "primary";
+  const classVariant = variant === "icon" ? "mark" : variant === "compactDark" ? "footer" : variant;
   const dimensions = variant === "icon" ? 'width="64" height="48"' : variant === "primary" ? 'width="814" height="228"' : 'width="190" height="55"';
   return `<button class="brand btn-ghost" data-link="${destination}" aria-label="${escapeHtml(appName)}">
-    <img class="brand-logo-image brand-logo-image--${variant === "icon" ? "mark" : variant}" src="${RENVIX_BRAND_ASSETS[variant]}" ${dimensions} alt="${escapeHtml(appName)}" decoding="async">
+    <img class="brand-logo-image brand-logo-image--${classVariant}" src="${RENVIX_BRAND_ASSETS[variant]}" ${dimensions} alt="${escapeHtml(appName)}" decoding="async">
   </button>`;
 }
 
@@ -2254,7 +2255,7 @@ function publicFooter() {
     [localizedCopy("الموارد", "Resources"), [["/blog", localizedCopy("المدونة", "Blog")], ["/user-guide", localizedCopy("دليل المستخدم", "User guide")], ["/faq", localizedCopy("الأسئلة الشائعة", "FAQ")], ["/message-templates", localizedCopy("قوالب الرسائل", "Message templates")]]]
   ];
   return `<footer class="public-footer marketing-footer"><div class="container marketing-footer-grid">
-    <section class="marketing-footer-brand" data-reveal>${logo()}<p>${localizedCopy("منصة سعودية تساعدك على إدارة اشتراكاتك وتجديداتك بذكاء، والتكامل مع قنوات التواصل لتعزيز أعمالك.", "A Saudi platform for intelligent subscription, renewal, and customer communication management.")}</p><div class="marketing-meta-partner" aria-label="Meta Business Partner"><span><small>TECH PROVIDER</small><strong>Meta Business Partner</strong></span><b>${dashboardIcon("infinity")}</b></div><div class="footer-social" aria-label="${localizedCopy("وسائل التواصل الاجتماعي", "Social media")}"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">${dashboardIcon("instagram")}</a></div></section>
+    <section class="marketing-footer-brand" data-reveal>${logo(false, "footer")}<p>${localizedCopy("منصة سعودية تساعدك على إدارة اشتراكاتك وتجديداتك بذكاء، والتكامل مع قنوات التواصل لتعزيز أعمالك.", "A Saudi platform for intelligent subscription, renewal, and customer communication management.")}</p><div class="marketing-meta-partner" aria-label="Meta Business Partner"><span><small>TECH PROVIDER</small><strong>Meta Business Partner</strong></span><b>${dashboardIcon("infinity")}</b></div><div class="footer-social" aria-label="${localizedCopy("وسائل التواصل الاجتماعي", "Social media")}"><a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">${dashboardIcon("linkedin")}</a><a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">${dashboardIcon("x")}</a><a href="https://www.youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">${dashboardIcon("youtube")}</a><a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">${dashboardIcon("instagram")}</a></div></section>
     ${columns.map(([title, links]) => `<nav class="marketing-footer-column" aria-label="${title}" data-reveal><h2>${title}</h2>${links.map(([path, label]) => `<a href="${path}" data-link="${path}">${label}</a>`).join("")}</nav>`).join("")}
     <section class="marketing-footer-newsletter" data-reveal><h2>${localizedCopy("اشترك في نشرتنا البريدية", "Join our newsletter")}</h2><p>${localizedCopy("احصل على آخر التحديثات والنصائح والعروض الحصرية لتنمية اشتراكاتك.", "Get product updates and practical growth tips in your inbox.")}</p><form data-submit="newsletter"><label><span class="sr-only">${localizedCopy("البريد الإلكتروني", "Email")}</span><input type="email" name="email" placeholder="${localizedCopy("أدخل بريدك الإلكتروني", "Enter your email")}" required>${dashboardIcon("email")}</label><button type="submit" aria-label="${localizedCopy("اشتراك", "Subscribe")}">${dashboardIcon("send")}</button></form></section>
   </div><div class="container marketing-footer-bottom"><span>©2026 Renvix. ${localizedCopy("جميع الحقوق محفوظة.", "All rights reserved.")}</span><nav aria-label="${localizedCopy("السياسات القانونية", "Legal policies")}"><a href="/terms" data-link="/terms">${localizedCopy("الشروط والأحكام", "Terms")}</a><a href="/privacy" data-link="/privacy">${localizedCopy("سياسة الخصوصية", "Privacy")}</a><a href="/refund-policy" data-link="/refund-policy">${localizedCopy("سياسة الاستبدال والاسترجاع", "Refund policy")}</a></nav></div></footer>`;
