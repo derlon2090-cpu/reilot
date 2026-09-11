@@ -28,7 +28,9 @@ export async function GET(request) {
             WHERE event_type='ADMIN_HONEYPOT_ACCESS' AND last_seen>now()-interval '7 days' GROUP BY requested_path ORDER BY count DESC LIMIT 8`),
     query(`SELECT se.event_id AS id,se.last_seen AS time,se.severity,se.risk_score AS "riskScore",se.source_ip AS ip,
                   concat_ws('، ',se.country,se.city_approx) AS location,se.device_class AS device,se.browser,se.os,
-                  se.requested_path AS path,se.method,se.incident_id AS "incidentId",si.incident_number AS "incidentNumber"
+                  se.requested_path AS path,se.method,se.metadata->'clientTelemetry' AS telemetry,
+                  se.metadata->>'deviceFingerprint' AS "deviceFingerprint",
+                  se.incident_id AS "incidentId",si.incident_number AS "incidentNumber"
              FROM security_source_events se LEFT JOIN security_incidents si ON si.id=se.incident_id
             WHERE se.event_type='ADMIN_HONEYPOT_ACCESS' ORDER BY se.last_seen DESC LIMIT 50`),
     query(`SELECT id,incident_number AS "incidentNumber",title,category,severity,risk_score AS "riskScore",status,

@@ -115,11 +115,19 @@ async function checkHoneypot() {
   const body = (await response.text()).slice(0, 32_000);
   const leaked = /wa-admin\.renvix\.app|\/_next\/|renvix_admin_session|advanced-pro-control/i.test(body)
     || response.headers.has("x-powered-by") || /text\/html/i.test(response.headers.get("content-type") || "");
+  const endToEndIngestion = response.status === 204;
+  const healthy = !leaked && endToEndIngestion;
   return result({
-    status: leaked ? "failed" : "passed", severity: leaked ? "HIGH" : "INFO",
-    description: leaked ? "استجابة الفخ قد تكشف أصلًا أو اسمًا خاصًا بلوحة الإدارة." : "الفخ متاح ولا يعرض أصول لوحة الإدارة أو نطاقها الحقيقي.",
-    evidence: { reachable: true, statusCode: response.status, responseBytes: body.length, leakedAdminSurface: leaked },
-    recommendedAction: leaked ? "أوقف التوجيه إلى Vercel وانشر Worker المحايد فقط." : "استمر بفحص التسرب كل عشر ساعات."
+    status: healthy ? "passed" : "failed", severity: healthy ? "INFO" : "HIGH",
+    description: leaked
+      ? "استجابة الفخ قد تكشف أصلًا أو اسمًا خاصًا بلوحة الإدارة."
+      : endToEndIngestion
+        ? "الفخ معزول ومسار Cloudflare إلى ingestion يعمل بتوقيع صحيح."
+        : "الفخ متاح، لكن اختبار Cloudflare إلى ingestion فشل.",
+    evidence: { reachable: true, statusCode: response.status, responseBytes: body.length, leakedAdminSurface: leaked, endToEndIngestion },
+    recommendedAction: leaked
+      ? "أوقف أي توجيه إلى لوحة الإدارة الحقيقية وانشر Worker المعزول فقط."
+      : endToEndIngestion ? "استمر بفحص المسار الكامل كل عشر ساعات." : "طابق HONEYPOT_INGESTION_SECRET بين Worker وAPI وتحقق من اتصال قاعدة البيانات."
   });
 }
 

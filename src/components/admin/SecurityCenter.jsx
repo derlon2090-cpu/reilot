@@ -26,6 +26,10 @@ function Metric({ label, value, helper }) {
   return <article className={styles.securityMetric}><span>{label}</span><strong>{value}</strong><small>{helper}</small></article>;
 }
 
+function telemetryKind(value) {
+  return ({ page_view: "فتح الصفحة", interaction: "تفاعل", login_attempt: "محاولة دخول", page_hidden: "إخفاء الصفحة", page_exit: "مغادرة" })[value] || "طلب HTTP";
+}
+
 function Table({ columns, rows, onRow }) {
   if (!rows?.length) return <Empty>لا توجد سجلات ضمن هذا النطاق حتى الآن.</Empty>;
   return <div className={styles.adminTableWrap}><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>
@@ -41,6 +45,7 @@ export default function SecurityCenter() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const [selectedHoneypotEvent, setSelectedHoneypotEvent] = useState(null);
   const [duration, setDuration] = useState("60");
   const [reason, setReason] = useState("");
   const [containmentOpen, setContainmentOpen] = useState(false);
@@ -196,11 +201,34 @@ export default function SecurityCenter() {
         <Metric label="آخر حادث" value={lastIncident?.incidentNumber || "—"} helper={lastIncident ? date(lastIncident.lastSeen) : "لا يوجد"} />
       </section>
       <section className={styles.securityTopLists}>{[["أكثر الدول", honeypot.countries], ["أكثر الشبكات ASN", honeypot.asns], ["أكثر المسارات", honeypot.paths]].map(([title, rows]) => <article key={title}><h3>{title}</h3>{rows?.length ? rows.map((row) => <div key={row.label}><span>{row.label}</span><b>{row.count}</b></div>) : <Empty>لا توجد بيانات.</Empty>}</article>)}</section>
-      <section className={styles.adminSurface}><Table rows={data?.events} onRow={(row) => row.incidentId && selectIncident(data.incidents.find((incident) => incident.id === row.incidentId))} columns={[
+      <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>الأحداث المرصودة</h3><p>اختر سجلًا لعرض مواصفات الجهاز وملخص الحركة. لا يتم حفظ محتوى الحقول أو كلمات المرور.</p></div></div><Table rows={data?.events} onRow={setSelectedHoneypotEvent} columns={[
         { key: "time", label: "الوقت", render: date }, { key: "severity", label: "الخطورة", render: (value, row) => <Severity value={value} score={row.riskScore} /> },
         { key: "ip", label: "IP" }, { key: "location", label: "الموقع التقريبي" }, { key: "device", label: "الجهاز" }, { key: "browser", label: "المتصفح" },
-        { key: "path", label: "المسار" }, { key: "incidentNumber", label: "الحادث" }
-      ]} /></section>
+        { key: "telemetry", label: "الإشارة", render: (value) => telemetryKind(value?.kind) },
+        { key: "movement", label: "الحركة", render: (_value, row) => row.telemetry?.interaction?.mouseMoves || 0 },
+        { key: "clicks", label: "النقرات", render: (_value, row) => row.telemetry?.interaction?.clicks || 0 },
+        { key: "path", label: "المسار" }
+      ]} />
+        {selectedHoneypotEvent ? <article className={styles.securityTelemetryPanel}>
+          <div className={styles.securitySectionHead}><div><h3>تفاصيل الرصد</h3><p>{date(selectedHoneypotEvent.time)} · {telemetryKind(selectedHoneypotEvent.telemetry?.kind)}</p></div><button type="button" onClick={() => setSelectedHoneypotEvent(null)}>إغلاق</button></div>
+          {selectedHoneypotEvent.telemetry ? <>
+            <dl className={styles.securityTelemetryGrid}>
+              <div><dt>معرّف الزيارة</dt><dd dir="ltr">{selectedHoneypotEvent.telemetry.visitId || "—"}</dd></div>
+              <div><dt>بصمة الجهاز التقديرية</dt><dd dir="ltr">{selectedHoneypotEvent.deviceFingerprint || "—"}</dd></div>
+              <div><dt>الشاشة</dt><dd>{selectedHoneypotEvent.telemetry.device?.screenWidth || 0} × {selectedHoneypotEvent.telemetry.device?.screenHeight || 0}</dd></div>
+              <div><dt>نافذة العرض</dt><dd>{selectedHoneypotEvent.telemetry.device?.viewportWidth || 0} × {selectedHoneypotEvent.telemetry.device?.viewportHeight || 0}</dd></div>
+              <div><dt>النظام / المنطقة</dt><dd>{selectedHoneypotEvent.telemetry.device?.platform || selectedHoneypotEvent.os || "—"} · {selectedHoneypotEvent.telemetry.device?.timezone || "—"}</dd></div>
+              <div><dt>اللغة والاتصال</dt><dd>{selectedHoneypotEvent.telemetry.device?.language || "—"} · {selectedHoneypotEvent.telemetry.device?.connection || "—"}</dd></div>
+              <div><dt>المعالج / الذاكرة</dt><dd>{selectedHoneypotEvent.telemetry.device?.hardwareConcurrency || "—"} أنوية · {selectedHoneypotEvent.telemetry.device?.deviceMemory || "—"} GB</dd></div>
+              <div><dt>حركة المؤشر</dt><dd>{selectedHoneypotEvent.telemetry.interaction?.mouseMoves || 0} عينة · {selectedHoneypotEvent.telemetry.interaction?.mouseDistance || 0}px</dd></div>
+              <div><dt>النقر / لوحة المفاتيح</dt><dd>{selectedHoneypotEvent.telemetry.interaction?.clicks || 0} / {selectedHoneypotEvent.telemetry.interaction?.keyPresses || 0}</dd></div>
+              <div><dt>التمرير / مدة النشاط</dt><dd>{selectedHoneypotEvent.telemetry.interaction?.scrollDepth || 0}% · {Math.round((selectedHoneypotEvent.telemetry.interaction?.activeMs || 0) / 1000)}ث</dd></div>
+              <div><dt>محاولات الدخول</dt><dd>{selectedHoneypotEvent.telemetry.interaction?.loginAttempts || 0}</dd></div>
+            </dl>
+            <div className={styles.securityHeatmap} aria-label="خريطة حركة المؤشر">{(selectedHoneypotEvent.telemetry.interaction?.heatmap || []).map((count, index) => <span key={index} style={{ "--heat": Math.min(1, Number(count || 0) / Math.max(...(selectedHoneypotEvent.telemetry.interaction?.heatmap || [1]), 1)) }} title={`${count} حركة`}>{count}</span>)}</div>
+          </> : <Empty>هذا سجل طلب HTTP أولي؛ تفاصيل الجهاز والحركة تصل بعد تشغيل JavaScript في المتصفح.</Empty>}
+        </article> : null}
+      </section>
     </> : null}
 
     {tab === "notifications" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>إشعارات الأمان</h3><p>{data?.securityUnreadCount || 0} غير مقروء. تُجمع الإشعارات المتكررة تحت الحادث نفسه، وتعود غير مقروءة عند التصعيد.</p></div></div><Table rows={data?.notifications} onRow={markNotification} columns={[

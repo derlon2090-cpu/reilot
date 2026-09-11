@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateThreatScore, incidentAlertDedupeKey, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
-  remediationPolicy, severityForRisk, verifySignedIngestion
+  normalizeHoneypotTelemetry, remediationPolicy, severityForRisk, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
 
@@ -47,6 +47,21 @@ describe("security center risk and privacy policy", () => {
   it("reports device class rather than claiming a real device name", () => {
     expect(parseUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit/605.1.15 Version/18.0 Mobile Safari/604.1"))
       .toMatchObject({ browser: "Safari", os: "iOS/iPadOS", deviceClass: "mobile" });
+  });
+
+  it("keeps only bounded aggregate honeypot telemetry and drops submitted credentials", () => {
+    const telemetry = normalizeHoneypotTelemetry({
+      kind: "login_attempt", visitId: "visit-12345678", password: "must-not-leak", identity: "person@example.test",
+      device: { screenWidth: 99_999, screenHeight: 900, timezone: "Asia/Riyadh", languages: ["ar-SA", "en-US"] },
+      interaction: { mouseMoves: 12, clicks: 2, keyPresses: 18, scrollDepth: 150, loginAttempts: 1, heatmap: [1, 2, 3] }
+    });
+    expect(telemetry).toMatchObject({
+      kind: "login_attempt", visitId: "visit-12345678",
+      device: { screenWidth: 10_000, screenHeight: 900, timezone: "Asia/Riyadh" },
+      interaction: { mouseMoves: 12, clicks: 2, keyPresses: 18, scrollDepth: 100, loginAttempts: 1 }
+    });
+    expect(JSON.stringify(telemetry)).not.toContain("must-not-leak");
+    expect(JSON.stringify(telemetry)).not.toContain("person@example.test");
   });
 
   it("enforces the remediation allowlist and blocks destructive actions", () => {
