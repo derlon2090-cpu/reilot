@@ -42,7 +42,7 @@ describe("Renvix identity system", () => {
     expect(identity).toContain('content:url("/assets/renvix-logo-deep-teal.svg")!important');
     expect(identity).toContain('content:url("/assets/renvix-logo-primary.png")!important');
     expect(identity).toContain(".brand-logo-image--footer");
-    expect(identity).toContain('grid-template-areas:"brand links actions"');
+    expect(identity).toContain("direction:rtl!important");
     expect(identity).toContain(".public-site>.public-nav .nav-inner>.brand");
     expect(identity).toContain(".dashboard-shell:not(.sidebar-collapsed) .sidebar .brand-logo-image--primary");
   });
