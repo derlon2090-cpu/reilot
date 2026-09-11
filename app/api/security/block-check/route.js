@@ -5,12 +5,17 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function verify(rawBody, timestamp, signature) {
-  const secret = String(process.env.SECURITY_BLOCK_CHECK_SECRET || "");
   const time = Number(timestamp);
-  if (secret.length < 32 || !Number.isFinite(time) || Math.abs(Date.now() - time) > 60_000) return false;
-  const expected = crypto.createHmac("sha256", secret).update(`${time}.${rawBody}`).digest("hex");
+  if (!Number.isFinite(time) || Math.abs(Date.now() - time) > 60_000) return false;
   const supplied = String(signature || "").replace(/^sha256=/, "");
-  return supplied.length === expected.length && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  const secrets = [...new Set([
+    String(process.env.SECURITY_BLOCK_CHECK_SECRET || ""),
+    String(process.env.HONEYPOT_INGESTION_SECRET || "")
+  ].filter((value) => value.length >= 32))];
+  return secrets.some((secret) => {
+    const expected = crypto.createHmac("sha256", secret).update(`${time}.${rawBody}`).digest("hex");
+    return supplied.length === expected.length && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  });
 }
 
 export async function POST(request) {

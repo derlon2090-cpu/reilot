@@ -13,7 +13,8 @@ export async function POST(request, { params }) {
         adminId: auth.admin.adminId,
         duration: body.duration,
         scopes: body.scopes,
-        reason: body.reason
+        reason: body.reason,
+        targetDeviceId: body.targetDeviceId
       })
       : body.action === "temporary_block"
       ? await applyTemporaryMitigation({ incidentId, adminId: auth.admin.adminId, minutes: body.minutes, reason: body.reason })
@@ -25,6 +26,7 @@ export async function POST(request, { params }) {
       durationMinutes: body.minutes || null,
       duration: body.duration || null,
       scopes: Array.isArray(body.scopes) ? body.scopes.slice(0, 4) : [],
+      hasExplicitDeviceTarget: Boolean(body.targetDeviceId),
       status: body.status || null,
       reason: String(body.reason || "").slice(0, 300)
     } });
