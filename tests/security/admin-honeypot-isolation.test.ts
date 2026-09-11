@@ -78,6 +78,10 @@ describe("isolated admin honeypot", () => {
           interaction: { mouseMoves: 27, mouseDistance: 912, clicks: 3, keyPresses: 14, loginAttempts: 1, heatmap: [1, 2, 3] }
         })
       });
+      Object.defineProperty(request, "cf", { value: {
+        country: "SA", region: "Riyadh", city: "Riyadh", latitude: "24.7136", longitude: "46.6753",
+        postalCode: "11564", continent: "AS", asn: 12345, asOrganization: "Example ISP"
+      } });
       const response = await honeypotWorker.fetch(request, env, context);
       expect(response.status).toBe(204);
       await Promise.all(pending);
@@ -90,6 +94,7 @@ describe("isolated admin honeypot", () => {
         kind: "login_attempt", visitId: "visit-12345678",
         interaction: { mouseMoves: 27, clicks: 3, keyPresses: 14, loginAttempts: 1 }
       });
+      expect(event.ip_location).toMatchObject({ latitude: 24.7136, longitude: 46.6753, accuracy: "ip_approximate" });
       expect(body).not.toContain("must-not-leak");
       const headers = new Headers(init?.headers);
       const timestamp = headers.get("x-renvix-timestamp") || "";

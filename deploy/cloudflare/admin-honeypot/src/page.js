@@ -53,6 +53,18 @@ export const HONEYPOT_SCRIPT = `(() => {
   const bounded = (value, min, max) => Math.max(min, Math.min(max, Number(value) || 0));
   const short = (value, max) => String(value || "").slice(0, max);
   const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+  const graphics = (() => {
+    try {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (!context) return {};
+      const extension = context.getExtension("WEBGL_debug_renderer_info");
+      return {
+        vendor: short(extension ? context.getParameter(extension.UNMASKED_VENDOR_WEBGL) : context.getParameter(context.VENDOR), 120),
+        renderer: short(extension ? context.getParameter(extension.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER), 180)
+      };
+    } catch { return {}; }
+  })();
   const device = {
     screenWidth: bounded(screen.width, 0, 10000), screenHeight: bounded(screen.height, 0, 10000),
     viewportWidth: bounded(innerWidth, 0, 10000), viewportHeight: bounded(innerHeight, 0, 10000),
@@ -60,10 +72,13 @@ export const HONEYPOT_SCRIPT = `(() => {
     timezone: short(Intl.DateTimeFormat().resolvedOptions().timeZone, 80),
     language: short(navigator.language, 40), languages: Array.from(navigator.languages || []).slice(0, 6).map((item) => short(item, 40)),
     platform: short(navigator.userAgentData?.platform || navigator.platform, 80),
+    browserBrands: Array.from(navigator.userAgentData?.brands || []).slice(0, 5).map((item) => ({ brand: short(item.brand, 50), version: short(item.version, 20) })),
+    mobile: navigator.userAgentData?.mobile === true, vendor: short(navigator.vendor, 80),
     hardwareConcurrency: bounded(navigator.hardwareConcurrency, 0, 256),
     deviceMemory: bounded(navigator.deviceMemory, 0, 128), touchPoints: bounded(navigator.maxTouchPoints, 0, 32),
     reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
-    webdriver: navigator.webdriver === true, connection: short(connection.effectiveType, 20)
+    webdriver: navigator.webdriver === true, connection: short(connection.effectiveType, 20),
+    graphicsVendor: graphics.vendor || "", graphicsRenderer: graphics.renderer || ""
   };
 
   function payload(kind) {

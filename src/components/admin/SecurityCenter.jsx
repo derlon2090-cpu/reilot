@@ -30,6 +30,16 @@ function telemetryKind(value) {
   return ({ page_view: "فتح الصفحة", interaction: "تفاعل", login_attempt: "محاولة دخول", page_hidden: "إخفاء الصفحة", page_exit: "مغادرة" })[value] || "طلب HTTP";
 }
 
+function confidence(value) {
+  return ({ high: "مرتفعة", medium: "متوسطة", low: "منخفضة", unavailable: "غير متاحة" })[value] || "غير متاحة";
+}
+
+function approximateLocation(event) {
+  const coordinates = event?.ipLocation?.latitude != null && event?.ipLocation?.longitude != null
+    ? `${event.ipLocation.latitude}, ${event.ipLocation.longitude}` : "لا تتوفر إحداثيات";
+  return `${event?.location || "غير معروف"} · ${coordinates}`;
+}
+
 function Table({ columns, rows, onRow }) {
   if (!rows?.length) return <Empty>لا توجد سجلات ضمن هذا النطاق حتى الآن.</Empty>;
   return <div className={styles.adminTableWrap}><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>
@@ -111,6 +121,7 @@ export default function SecurityCenter() {
   }
 
   async function selectIncident(incident) {
+    if (!incident) return;
     setSelectedIncident(incident);
     setTab("incidents");
     await load(incident.id);
@@ -215,6 +226,8 @@ export default function SecurityCenter() {
             <dl className={styles.securityTelemetryGrid}>
               <div><dt>معرّف الزيارة</dt><dd dir="ltr">{selectedHoneypotEvent.telemetry.visitId || "—"}</dd></div>
               <div><dt>بصمة الجهاز التقديرية</dt><dd dir="ltr">{selectedHoneypotEvent.deviceFingerprint || "—"}</dd></div>
+              <div><dt>ثقة مطابقة البصمة</dt><dd>{confidence(selectedHoneypotEvent.fingerprintConfidence)} — ليست Device ID قطعيًا</dd></div>
+              <div><dt>الموقع عبر IP</dt><dd>{approximateLocation(selectedHoneypotEvent)} — تقريبي وليس GPS</dd></div>
               <div><dt>الشاشة</dt><dd>{selectedHoneypotEvent.telemetry.device?.screenWidth || 0} × {selectedHoneypotEvent.telemetry.device?.screenHeight || 0}</dd></div>
               <div><dt>نافذة العرض</dt><dd>{selectedHoneypotEvent.telemetry.device?.viewportWidth || 0} × {selectedHoneypotEvent.telemetry.device?.viewportHeight || 0}</dd></div>
               <div><dt>النظام / المنطقة</dt><dd>{selectedHoneypotEvent.telemetry.device?.platform || selectedHoneypotEvent.os || "—"} · {selectedHoneypotEvent.telemetry.device?.timezone || "—"}</dd></div>
@@ -226,6 +239,8 @@ export default function SecurityCenter() {
               <div><dt>محاولات الدخول</dt><dd>{selectedHoneypotEvent.telemetry.interaction?.loginAttempts || 0}</dd></div>
             </dl>
             <div className={styles.securityHeatmap} aria-label="خريطة حركة المؤشر">{(selectedHoneypotEvent.telemetry.interaction?.heatmap || []).map((count, index) => <span key={index} style={{ "--heat": Math.min(1, Number(count || 0) / Math.max(...(selectedHoneypotEvent.telemetry.interaction?.heatmap || [1]), 1)) }} title={`${count} حركة`}>{count}</span>)}</div>
+            <section className={styles.securityRecentActivity}><h4>آخر 5 زيارات مرتبطة بهذه البصمة</h4>{selectedHoneypotEvent.recentActivity?.length ? <ol>{selectedHoneypotEvent.recentActivity.map((item, index) => <li key={`${item.path}-${item.lastSeen}-${index}`}><div><b dir="ltr">{item.path || "/"}</b><span>{[item.country, item.region, item.city].filter(Boolean).join("، ") || "موقع غير معروف"}</span></div><time>{date(item.lastSeen)}</time></li>)}</ol> : <Empty>لا توجد زيارات أخرى مرتبطة بهذه البصمة.</Empty>}</section>
+            {selectedHoneypotEvent.incidentId ? <div className={styles.securityTelemetryActions}><button type="button" onClick={() => selectIncident(data?.incidents?.find((incident) => incident.id === selectedHoneypotEvent.incidentId))}>فتح الحادث وخيارات الاحتواء</button><small>حظر IP يتطلب خطورة HIGH/CRITICAL وتأكيدًا إداريًا؛ لا يُحظر جهاز بناءً على بصمة احتمالية وحدها.</small></div> : null}
           </> : <Empty>هذا سجل طلب HTTP أولي؛ تفاصيل الجهاز والحركة تصل بعد تشغيل JavaScript في المتصفح.</Empty>}
         </article> : null}
       </section>

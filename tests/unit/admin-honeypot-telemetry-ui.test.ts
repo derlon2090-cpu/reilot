@@ -11,6 +11,10 @@ describe("admin honeypot telemetry visibility", () => {
     expect(route).toContain("requireAdminPermission");
     expect(route).toContain("metadata->'clientTelemetry' AS telemetry");
     expect(route).toContain("metadata->>'deviceFingerprint' AS \"deviceFingerprint\"");
+    expect(route).toContain("metadata->>'fingerprintConfidence' AS \"fingerprintConfidence\"");
+    expect(route).toContain("metadata->'ipLocation' AS \"ipLocation\"");
+    expect(route).toContain("LIMIT 5");
+    expect(route).toContain('AS "recentActivity"');
   });
 
   it("shows device and aggregate interaction details without presenting captured field values", () => {
@@ -20,6 +24,9 @@ describe("admin honeypot telemetry visibility", () => {
     expect(component).toContain("mouseDistance");
     expect(component).toContain("loginAttempts");
     expect(component).toContain("بصمة الجهاز التقديرية");
+    expect(component).toContain("آخر 5 زيارات مرتبطة بهذه البصمة");
+    expect(component).toContain("تقريبي وليس GPS");
+    expect(component).toContain("فتح الحادث وخيارات الاحتواء");
     expect(component).toContain("لا يتم حفظ محتوى الحقول أو كلمات المرور");
     expect(component).not.toContain("telemetry.password");
     expect(component).not.toContain("telemetry.identity");

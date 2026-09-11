@@ -8,6 +8,11 @@ The browser telemetry is intentionally aggregated. It includes device and
 viewport characteristics plus counts for pointer movement, clicks, scrolling,
 key presses, and decoy form submissions. It never reads or sends input values,
 passwords, cookies, clipboard data, camera, microphone, or precise geolocation.
+The server derives a peppered probabilistic device fingerprint and a confidence
+level from bounded browser signals. Cloudflare IP geolocation is stored as an
+approximate location; it is not GPS. Private/incognito browsing usually keeps
+these hardware signals but can deliberately reduce or randomize them, so the
+fingerprint must not be treated as a cryptographic device identity.
 
 Deployment requirements:
 

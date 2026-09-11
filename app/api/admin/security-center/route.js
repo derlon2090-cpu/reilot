@@ -30,6 +30,27 @@ export async function GET(request) {
                   concat_ws('، ',se.country,se.city_approx) AS location,se.device_class AS device,se.browser,se.os,
                   se.requested_path AS path,se.method,se.metadata->'clientTelemetry' AS telemetry,
                   se.metadata->>'deviceFingerprint' AS "deviceFingerprint",
+                  se.metadata->>'fingerprintConfidence' AS "fingerprintConfidence",
+                  se.metadata->'ipLocation' AS "ipLocation",
+                  COALESCE((
+                    SELECT jsonb_agg(jsonb_build_object(
+                      'path',history.requested_path,'country',history.country,'region',history.region,
+                      'city',history.city_approx,'ipLocation',history.metadata->'ipLocation','lastSeen',history.last_seen
+                    ) ORDER BY history.last_seen DESC)
+                    FROM (
+                      SELECT * FROM (
+                        SELECT DISTINCT ON (candidate.requested_path,candidate.country,candidate.region,candidate.city_approx)
+                          candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.metadata,candidate.last_seen
+                        FROM security_source_events candidate
+                        WHERE candidate.event_type='ADMIN_HONEYPOT_ACCESS'
+                          AND COALESCE(se.metadata->>'deviceFingerprint','')<>''
+                          AND candidate.metadata->>'deviceFingerprint'=se.metadata->>'deviceFingerprint'
+                          AND (candidate.metadata->'clientTelemetry' IS NULL OR candidate.metadata#>>'{clientTelemetry,kind}'='page_view')
+                        ORDER BY candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.last_seen DESC
+                      ) distinct_history
+                      ORDER BY distinct_history.last_seen DESC LIMIT 5
+                    ) history
+                  ),'[]'::jsonb) AS "recentActivity",
                   se.incident_id AS "incidentId",si.incident_number AS "incidentNumber"
              FROM security_source_events se LEFT JOIN security_incidents si ON si.id=se.incident_id
             WHERE se.event_type='ADMIN_HONEYPOT_ACCESS' ORDER BY se.last_seen DESC LIMIT 50`),

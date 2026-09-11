@@ -73,6 +73,21 @@ function telemetryNumber(value, min, max) {
   return Math.round(clamp(value, min, max));
 }
 
+function telemetryCoordinate(value, min, max) {
+  if (value === "" || value == null || !Number.isFinite(Number(value))) return null;
+  return Math.round(Math.max(min, Math.min(max, Number(value))) * 1000) / 1000;
+}
+
+function normalizeHoneypotIpLocation(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return {
+    latitude: telemetryCoordinate(value.latitude, -90, 90),
+    longitude: telemetryCoordinate(value.longitude, -180, 180),
+    postalCode: cleanText(value.postal_code, 30), continent: cleanText(value.continent, 10),
+    metroCode: cleanText(value.metro_code, 20), accuracy: "ip_approximate"
+  };
+}
+
 export function normalizeHoneypotTelemetry(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const device = value.device && typeof value.device === "object" ? value.device : {};
@@ -93,10 +108,15 @@ export function normalizeHoneypotTelemetry(value) {
       languages: Array.isArray(device.languages)
         ? device.languages.map((item) => cleanText(item, 40)).filter(Boolean).slice(0, 6)
         : [],
-      platform: cleanText(device.platform, 80), hardwareConcurrency: telemetryNumber(device.hardwareConcurrency, 0, 256),
+      platform: cleanText(device.platform, 80), vendor: cleanText(device.vendor, 80), mobile: device.mobile === true,
+      browserBrands: Array.isArray(device.browserBrands) ? device.browserBrands.slice(0, 5).map((item) => ({
+        brand: cleanText(item?.brand, 50), version: cleanText(item?.version, 20)
+      })) : [],
+      hardwareConcurrency: telemetryNumber(device.hardwareConcurrency, 0, 256),
       deviceMemory: clamp(device.deviceMemory, 0, 128), touchPoints: telemetryNumber(device.touchPoints, 0, 32),
       reducedMotion: device.reducedMotion === true, webdriver: device.webdriver === true,
-      connection: cleanText(device.connection, 20)
+      connection: cleanText(device.connection, 20), graphicsVendor: cleanText(device.graphicsVendor, 120),
+      graphicsRenderer: cleanText(device.graphicsRenderer, 180)
     },
     interaction: {
       mouseMoves: telemetryNumber(interaction.mouseMoves, 0, 100_000),
@@ -113,11 +133,29 @@ export function normalizeHoneypotTelemetry(value) {
   };
 }
 
-function honeypotDeviceFingerprint(userAgent, telemetry) {
+export function honeypotDeviceFingerprint(userAgent, telemetry) {
   if (!telemetry) return "";
   const pepper = String(process.env.SECURITY_SOURCE_PEPPER || process.env.SESSION_SECRET || "renvix-honeypot-device");
-  const basis = stableStringify({ userAgent: cleanText(userAgent, 700), device: telemetry.device });
-  return sha256(`${pepper}:${basis}`).slice(0, 32);
+  const device = telemetry.device || {};
+  const basis = stableStringify({
+    userAgent: cleanText(userAgent, 700),
+    display: [device.screenWidth, device.screenHeight, device.pixelRatio, device.colorDepth],
+    locale: [device.timezone, device.language, device.languages],
+    platform: [device.platform, device.vendor, device.mobile, device.browserBrands],
+    hardware: [device.hardwareConcurrency, device.deviceMemory, device.touchPoints],
+    graphics: [device.graphicsVendor, device.graphicsRenderer],
+    preferences: [device.reducedMotion]
+  });
+  return `hf2_${sha256(`${pepper}:${basis}`).slice(0, 32)}`;
+}
+
+function honeypotFingerprintConfidence(telemetry) {
+  if (!telemetry) return "unavailable";
+  const device = telemetry.device || {};
+  const signals = [device.screenWidth, device.screenHeight, device.pixelRatio, device.timezone, device.language,
+    device.platform, device.hardwareConcurrency, device.deviceMemory, device.touchPoints, device.graphicsRenderer]
+    .filter((value) => value !== "" && value != null && value !== 0).length;
+  return signals >= 9 ? "high" : signals >= 6 ? "medium" : "low";
 }
 
 export function calculateThreatScore({
@@ -223,6 +261,8 @@ function normalizeHoneypotInput(input = {}) {
   const parsed = parseUserAgent(userAgent, input.client_hints || {});
   const telemetry = normalizeHoneypotTelemetry(input.telemetry);
   const deviceFingerprint = honeypotDeviceFingerprint(userAgent, telemetry);
+  const fingerprintConfidence = honeypotFingerprintConfidence(telemetry);
+  const ipLocation = normalizeHoneypotIpLocation(input.ip_location);
   const queryKeys = Array.isArray(input.query_keys_without_sensitive_values)
     ? input.query_keys_without_sensitive_values.map((key) => cleanText(key, 80)).filter((key) => key && !SENSITIVE_KEY.test(key)).slice(0, 30)
     : [];
@@ -242,7 +282,9 @@ function normalizeHoneypotInput(input = {}) {
     cloudflareThreatScore: Number.isFinite(Number(input.cloudflare_threat_score)) ? Number(input.cloudflare_threat_score) : null,
     rateLimited: input.rate_limited === true,
     telemetry,
-    deviceFingerprint
+    deviceFingerprint,
+    fingerprintConfidence,
+    ipLocation
   };
 }
 
@@ -385,7 +427,10 @@ export async function ingestHoneypotEvent(rawInput) {
         input.asn || null, input.organization || null, input.browser, input.browserVersion || null, input.os,
         input.deviceClass, input.userAgent, input.requestedPath, input.method, JSON.stringify(input.queryKeys),
         input.referrer || null, input.cfRayId || null, input.requestId, riskScore, severity, incident?.id || null,
-        JSON.stringify({ trustedCloudflareContext: true, clientTelemetry: input.telemetry, deviceFingerprint: input.deviceFingerprint })]
+        JSON.stringify({
+          trustedCloudflareContext: true, clientTelemetry: input.telemetry, deviceFingerprint: input.deviceFingerprint,
+          fingerprintConfidence: input.fingerprintConfidence, ipLocation: input.ipLocation
+        })]
     );
     const finding = await client.query(
       `INSERT INTO security_findings

@@ -76,10 +76,13 @@ function normalizeTelemetry(input) {
       pixelRatio: number(device.pixelRatio, 0, 10), colorDepth: number(device.colorDepth, 0, 64),
       timezone: text(device.timezone, 80), language: text(device.language, 40),
       languages: Array.isArray(device.languages) ? device.languages.map((item) => text(item, 40)).filter(Boolean).slice(0, 6) : [],
-      platform: text(device.platform, 80), hardwareConcurrency: number(device.hardwareConcurrency, 0, 256),
+      platform: text(device.platform, 80), vendor: text(device.vendor, 80), mobile: device.mobile === true,
+      browserBrands: Array.isArray(device.browserBrands) ? device.browserBrands.slice(0, 5).map((item) => ({ brand: text(item?.brand, 50), version: text(item?.version, 20) })) : [],
+      hardwareConcurrency: number(device.hardwareConcurrency, 0, 256),
       deviceMemory: number(device.deviceMemory, 0, 128), touchPoints: number(device.touchPoints, 0, 32),
       reducedMotion: device.reducedMotion === true, webdriver: device.webdriver === true,
-      connection: text(device.connection, 20)
+      connection: text(device.connection, 20), graphicsVendor: text(device.graphicsVendor, 120),
+      graphicsRenderer: text(device.graphicsRenderer, 180)
     },
     interaction: {
       mouseMoves: number(interaction.mouseMoves, 0, 100_000), mouseDistance: number(interaction.mouseDistance, 0, 10_000_000),
@@ -122,6 +125,12 @@ function eventBody(request, rateLimited, telemetry = null) {
     cf_ray_id: text(request.headers.get("cf-ray"), 100),
     request_id: crypto.randomUUID(), rate_limited: rateLimited,
     cloudflare_threat_score: Number.isFinite(Number(cf.threatScore)) ? Number(cf.threatScore) : null,
+    ip_location: {
+      latitude: Number.isFinite(Number(cf.latitude)) ? number(cf.latitude, -90, 90) : null,
+      longitude: Number.isFinite(Number(cf.longitude)) ? number(cf.longitude, -180, 180) : null,
+      postal_code: text(cf.postalCode, 30), continent: text(cf.continent, 10), metro_code: text(cf.metroCode, 20),
+      accuracy: "ip_approximate"
+    },
     telemetry
   });
 }
