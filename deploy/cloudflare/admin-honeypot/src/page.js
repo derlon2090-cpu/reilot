@@ -1,5 +1,6 @@
 export const HONEYPOT_SCRIPT_PATH = "/__renvix/honeypot.js";
 export const HONEYPOT_TELEMETRY_PATH = "/__renvix/telemetry";
+export const HONEYPOT_PIXEL_PATH = "/__renvix/pixel.gif";
 
 export const HONEYPOT_HTML = `<!doctype html>
 <html lang="ar" dir="rtl">
@@ -11,28 +12,26 @@ export const HONEYPOT_HTML = `<!doctype html>
   <style>
     :root{color-scheme:light;--ink:#123b38;--muted:#718783;--line:#dce8e6;--brand:#0b5650;--soft:#f3f8f7}
     *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(150deg,#f7fbfa,#e7f1ef);font-family:Tahoma,Arial,sans-serif;color:var(--ink)}
-    main{width:min(100%,420px);padding:34px;border:1px solid rgba(210,228,224,.9);border-radius:22px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(10,66,60,.12)}
+    main{width:min(100%,460px);padding:38px;border:1px solid rgba(210,228,224,.9);border-radius:22px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(10,66,60,.12)}
     .mark{width:52px;height:52px;display:grid;place-items:center;margin-bottom:24px;border-radius:15px;background:var(--brand);color:#fff;font-size:23px;font-weight:900}
     h1{margin:0 0 8px;font-size:25px}p{margin:0 0 27px;color:var(--muted);font-size:13px;line-height:1.8}
-    form{display:grid;gap:16px}label{display:grid;gap:7px;font-size:12px;font-weight:700}input{width:100%;height:47px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font:inherit;outline:none}input:focus{border-color:#62a99f;box-shadow:0 0 0 3px rgba(11,86,80,.09)}
-    button{height:48px;border:0;border-radius:11px;background:var(--brand);color:#fff;font:inherit;font-weight:800;cursor:pointer}button:disabled{opacity:.72;cursor:wait}
-    #status{min-height:19px;margin:0;color:#a33b3b;font-size:12px;text-align:center}.foot{margin:24px 0 0;padding-top:18px;border-top:1px solid var(--line);text-align:center;font-size:11px;color:#91a29f}
+    .verify{display:grid;grid-template-columns:auto 1fr;gap:15px;align-items:center;padding:18px;border:1px solid var(--line);border-radius:15px;background:var(--soft)}
+    .spinner{width:38px;height:38px;border:4px solid #d4e5e2;border-top-color:var(--brand);border-radius:50%;animation:spin .9s linear infinite}.verify strong{display:block;margin-bottom:5px;font-size:14px}.verify span{color:var(--muted);font-size:12px}
+    .checks{display:grid;gap:10px;margin:18px 0 0;padding:0;list-style:none}.checks li{display:flex;align-items:center;gap:9px;color:#4e6e69;font-size:12px}.checks i{width:8px;height:8px;border-radius:50%;background:#73aa9f;box-shadow:0 0 0 4px #e6f1ef}
+    .foot{margin:24px 0 0;padding-top:18px;border-top:1px solid var(--line);text-align:center;font-size:11px;color:#91a29f}@keyframes spin{to{transform:rotate(360deg)}}
     @media(max-width:480px){body{padding:14px}main{padding:26px 21px;border-radius:18px}}
   </style>
 </head>
 <body data-honeypot-shell="v2">
   <main>
     <div class="mark" aria-hidden="true">R</div>
-    <h1>تسجيل دخول الإدارة</h1>
-    <p>أدخل بيانات الوصول للمتابعة إلى لوحة التحكم.</p>
-    <form id="admin-login" autocomplete="off" novalidate>
-      <label>البريد الإلكتروني أو اسم المستخدم<input id="identity" type="text" autocomplete="off" spellcheck="false"></label>
-      <label>كلمة المرور<input id="password" type="password" autocomplete="new-password"></label>
-      <button id="submit" type="submit">تسجيل الدخول</button>
-      <p id="status" role="status" aria-live="polite"></p>
-    </form>
-    <p class="foot">بوابة وصول محمية</p>
+    <h1>بوابة الإدارة الآمنة</h1>
+    <p>تتم تهيئة مساحة الإدارة والتحقق من صلاحية جلسة الوصول.</p>
+    <section class="verify" aria-live="polite"><span class="spinner" aria-hidden="true"></span><div><strong>جارٍ التحقق من الجلسة</strong><span>يرجى إبقاء هذه الصفحة مفتوحة للحظات.</span></div></section>
+    <ul class="checks" aria-label="مراحل التحقق"><li><i></i>فحص اتصال البوابة الآمنة</li><li><i></i>مطابقة سياسة وصول الإدارة</li><li><i></i>تحضير بيئة لوحة التحكم</li></ul>
+    <p class="foot">اتصال إداري مشفّر ومحمي</p>
   </main>
+  <img src="${HONEYPOT_PIXEL_PATH}" width="1" height="1" alt="" hidden aria-hidden="true">
   <script src="${HONEYPOT_SCRIPT_PATH}" defer></script>
 </body>
 </html>`;
@@ -102,8 +101,10 @@ export const HONEYPOT_SCRIPT = `(() => {
       return;
     }
     fetch(endpoint, {
-      method: "POST", credentials: "omit", cache: "no-store", keepalive: true,
+      method: "POST", credentials: "same-origin", cache: "no-store", keepalive: true,
       headers: { "content-type": "application/json" }, body
+    }).then(() => {
+      if (kind === "page_view") location.replace(location.pathname);
     }).catch(() => undefined);
   }
 
@@ -123,14 +124,6 @@ export const HONEYPOT_SCRIPT = `(() => {
     state.scrollDepth = Math.max(state.scrollDepth, bounded((scrollY / height) * 100, 0, 100)); state.dirty = true;
   }, { passive: true });
   addEventListener("resize", () => { device.viewportWidth = bounded(innerWidth, 0, 10000); device.viewportHeight = bounded(innerHeight, 0, 10000); state.dirty = true; }, { passive: true });
-
-  document.getElementById("admin-login")?.addEventListener("submit", (event) => {
-    event.preventDefault(); state.loginAttempts += 1; state.dirty = true;
-    const button = document.getElementById("submit"); const status = document.getElementById("status");
-    if (button) button.disabled = true; if (status) status.textContent = "جارٍ التحقق من بيانات الدخول...";
-    transmit("login_attempt", false);
-    setTimeout(() => { if (button) button.disabled = false; if (status) status.textContent = "تعذر التحقق من بيانات الدخول. حاول مرة أخرى."; }, 900);
-  });
 
   setTimeout(() => transmit("page_view", false), 250);
   setInterval(() => transmit("interaction", false), 15000);

@@ -1,5 +1,5 @@
 import {
-  HONEYPOT_HTML, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
+  HONEYPOT_HTML, HONEYPOT_PIXEL_PATH, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
 } from "./page.js";
 
 const BASE_HEADERS = Object.freeze({
@@ -13,7 +13,7 @@ const BASE_HEADERS = Object.freeze({
   "x-robots-tag": "noindex, nofollow, noarchive"
 });
 
-const HTML_CSP = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+const HTML_CSP = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 const SCRIPT_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 const MAX_TELEMETRY_BYTES = 12_288;
 const DEVICE_COOKIE = "__Host-renvix_hp_device";
@@ -21,6 +21,7 @@ const DEVICE_ID_PATTERN = /^hpd_[a-f0-9]{32}$/;
 const BLOCK_CACHE_TTL_MS = 5_000;
 const BLOCK_CACHE_MAX = 1_000;
 const blockCache = new Map();
+const TRACKING_PIXEL = Uint8Array.from(atob("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="), (character) => character.charCodeAt(0));
 
 function text(value, max) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
@@ -65,6 +66,10 @@ function pageResponse(setCookie = "") {
 
 function scriptResponse(setCookie = "") {
   return response(HONEYPOT_SCRIPT, 200, "application/javascript; charset=utf-8", SCRIPT_CSP, setCookie ? { "set-cookie": setCookie } : {});
+}
+
+function pixelResponse(setCookie = "") {
+  return response(TRACKING_PIXEL, 200, "image/gif", SCRIPT_CSP, setCookie ? { "set-cookie": setCookie } : {});
 }
 
 function cookieValue(request, name) {
@@ -135,10 +140,9 @@ async function checkDeviceBlock(env, deviceId) {
   }
 }
 
-function blockedResponse(referenceId, scriptOrTelemetry = false) {
-  if (scriptOrTelemetry) return emptyResponse(403);
+function blockedResponse(referenceId) {
   const reference = text(referenceId, 40).replace(/[^a-z0-9-]/gi, "") || "SEC-UNKNOWN";
-  const body = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تعذر الوصول</title></head><body><main><h1>تعذر الوصول إلى هذه الصفحة حاليًا.</h1><p>REF: ${reference}</p></main></body></html>`;
+  const body = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تم حظر الوصول</title><style>:root{color-scheme:light}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#eef6f4,#dfecea);font-family:Tahoma,Arial,sans-serif;color:#113c38}.card{width:min(100%,520px);padding:42px 36px;border:1px solid #d4e4e1;border-radius:24px;background:#fff;box-shadow:0 24px 70px #103f381f;text-align:center}.icon{width:70px;height:70px;margin:0 auto 22px;display:grid;place-items:center;border-radius:50%;background:#fff1f0;color:#b42318;font-size:32px}h1{margin:0 0 12px;font-size:28px}p{margin:0;color:#647b77;line-height:1.9}.ref{margin:24px 0;padding:13px;border-radius:10px;background:#f3f7f6;font:700 13px monospace;direction:ltr}a{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 24px;border-radius:11px;background:#0b5650;color:#fff;text-decoration:none;font-weight:800}</style></head><body><main class="card"><div class="icon" aria-hidden="true">!</div><h1>تم حظر الوصول</h1><p>تعذر إكمال طلبك بسبب سياسة الحماية. إذا كنت تعتقد أن هذا الإجراء حدث بالخطأ، راجع فريق الدعم واذكر الرقم المرجعي.</p><div class="ref">${reference}</div><a href="mailto:support@renvix.app?subject=Security%20block%20review">مراجعة الحظر مع الدعم</a></main></body></html>`;
   return response(body, 403, "text/html; charset=utf-8", HTML_CSP);
 }
 
@@ -186,7 +190,7 @@ async function readTelemetry(request) {
   }
 }
 
-function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = "") {
+function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = "", autoBlockDevice = false) {
   const url = new URL(request.url);
   const cf = request.cf || {};
   const pagePath = telemetry?.pagePath?.startsWith("/") ? telemetry.pagePath : url.pathname;
@@ -205,6 +209,7 @@ function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = ""
     cf_ray_id: text(request.headers.get("cf-ray"), 100),
     request_id: crypto.randomUUID(), rate_limited: rateLimited,
     honeypot_device_id: DEVICE_ID_PATTERN.test(honeypotDeviceId) ? honeypotDeviceId : "",
+    auto_block_device: autoBlockDevice === true && DEVICE_ID_PATTERN.test(honeypotDeviceId),
     cloudflare_threat_score: Number.isFinite(Number(cf.threatScore)) ? Number(cf.threatScore) : null,
     ip_location: {
       latitude: Number.isFinite(Number(cf.latitude)) ? number(cf.latitude, -90, 90) : null,
@@ -241,8 +246,8 @@ async function postSigned(env, body) {
   return responseValue;
 }
 
-async function sendEvent(request, env, rateLimited, telemetry = null, honeypotDeviceId = "") {
-  return postSigned(env, eventBody(request, rateLimited, telemetry, honeypotDeviceId));
+async function sendEvent(request, env, rateLimited, telemetry = null, honeypotDeviceId = "", autoBlockDevice = false) {
+  return postSigned(env, eventBody(request, rateLimited, telemetry, honeypotDeviceId, autoBlockDevice));
 }
 
 async function endToEndProbe(env) {
@@ -274,11 +279,15 @@ const worker = {
     if (await isInternalProbe(request, env, url)) return endToEndProbe(env);
     const rateLimited = await rateLimit(request, env);
     const identity = await deviceIdentity(request, env);
-    const block = identity.existing && !rateLimited ? await checkDeviceBlock(env, identity.id) : null;
-    if (block?.blocked) {
-      return blockedResponse(block.referenceId, url.pathname === HONEYPOT_SCRIPT_PATH || url.pathname === HONEYPOT_TELEMETRY_PATH);
+    const internalRoute = url.pathname === HONEYPOT_SCRIPT_PATH
+      || url.pathname === HONEYPOT_PIXEL_PATH
+      || url.pathname === HONEYPOT_TELEMETRY_PATH;
+    const block = identity.existing && !rateLimited && !internalRoute ? await checkDeviceBlock(env, identity.id) : null;
+    if (identity.existing && !internalRoute) {
+      return blockedResponse(block?.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`);
     }
     if (url.pathname === HONEYPOT_SCRIPT_PATH && request.method === "GET") return scriptResponse(identity.setCookie);
+    if (url.pathname === HONEYPOT_PIXEL_PATH && request.method === "GET") return pixelResponse(identity.setCookie);
 
     if (url.pathname === HONEYPOT_TELEMETRY_PATH && request.method === "POST") {
       const origin = request.headers.get("origin");
@@ -287,7 +296,7 @@ const worker = {
       return emptyResponse(204, identity.setCookie);
     }
 
-    if (!rateLimited) queueEvent(context, sendEvent(request, env, false, null, identity.id));
+    if (!rateLimited) queueEvent(context, sendEvent(request, env, false, null, identity.id, true));
     return pageResponse(identity.setCookie);
   }
 };

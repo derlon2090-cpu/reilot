@@ -41,4 +41,17 @@ describe("security containment contract", () => {
     expect(center).toContain("honeypotDeviceId: input.honeypotDeviceId");
     expect(blockCheck).toContain("HONEYPOT_INGESTION_SECRET");
   });
+
+  it("automatically contains the signed honeypot ID without automatically blocking its IP", () => {
+    const center = read("src/server/security-center.js");
+    const worker = read("deploy/cloudflare/admin-honeypot/src/worker.js");
+    const page = read("deploy/cloudflare/admin-honeypot/src/page.js");
+    expect(worker).toContain("auto_block_device");
+    expect(center).toContain("automatic_device_containment");
+    expect(center).toContain("دخول مباشر إلى نطاق الإدارة الوهمي — عزل وقائي آلي");
+    expect(center).toContain('securityTargetHash("device", input.honeypotDeviceId)');
+    expect(page).toContain("/__renvix/pixel.gif");
+    expect(page).not.toContain("<form");
+    expect(center).not.toContain('securityTargetHash("ip", input.sourceIp)');
+  });
 });
