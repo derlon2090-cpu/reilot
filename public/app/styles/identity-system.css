@@ -105,7 +105,7 @@ html body .auth-suite-page .auth-suite-brandbar-logo .brand-logo-image{max-width
     min-width:174px!important;
     max-width:174px!important;
     flex-basis:174px!important;
-    transform:translateX(12px)!important;
+    transform:translateX(24px)!important;
   }
   html:not([data-home-tablet-layout="true"])[dir="rtl"] body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{
     width:174px!important;
@@ -131,4 +131,10 @@ html body .public-site>.public-nav .nav-inner>.brand .brand-logo-image--primary{
   object-fit:contain!important;
   object-position:right center!important;
   image-rendering:auto;
+}
+
+/* iPad: keep the approved right-edge position while making the logo slightly larger. */
+html[data-home-tablet-layout="true"][dir="rtl"] body .public-site>.public-nav .nav-inner>.brand{
+  transform:scale(1.08)!important;
+  transform-origin:right center!important;
 }
