@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import { transaction, query } from "./db.js";
-import { ensureDefaultTemplates } from "./default-templates.js";
 import { createSession } from "./session.js";
 import { normalizeEmail, sha256 } from "./security.js";
 import { createMfaLoginChallenge } from "./login-mfa.js";
@@ -176,34 +175,10 @@ async function loadGoogleUser(client, profile, intent) {
     return { error: { ok: false, status: 404, reason: "google_account_not_found" } };
   }
 
-  const importedProfile = resolveGoogleProfileFields(profile);
-  const workspace = importedProfile.name;
-  const slugBase = workspace.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "renvix";
-  const tenant = await client.query("INSERT INTO tenants (name,slug,status) VALUES ($1,$2,'trial') RETURNING id", [workspace, `${slugBase}-${crypto.randomBytes(4).toString("hex")}`]);
-  const tenantId = tenant.rows[0].id;
-  const inserted = await client.query(
-    `INSERT INTO users
-       (tenant_id,name,email,email_verified,email_verified_at,image,role,email_otp_enabled,must_change_password)
-     VALUES ($1,$2,$3,true,now(),NULLIF($4,''),'owner',true,false)
-     RETURNING id,tenant_id AS "tenantId",name,email,image,role,must_change_password AS "mustChangePassword",
-               email_otp_enabled AS "emailOtpEnabled",mfa_enabled AS "mfaEnabled",mfa_secret_encrypted AS "mfaSecret"`,
-    [tenantId, workspace, profile.email, importedProfile.image]
-  );
-  const user = inserted.rows[0];
-  await client.query("INSERT INTO accounts (user_id,account_id,provider_id) VALUES ($1,$2,'google')", [user.id, profile.subject]);
-  await client.query("INSERT INTO tenant_members (tenant_id,user_id,role) VALUES ($1,$2,'owner')", [tenantId, user.id]);
-  await client.query("INSERT INTO stores (tenant_id,name) VALUES ($1,$2)", [tenantId, workspace]);
-  await client.query("INSERT INTO settings (tenant_id,language,theme) VALUES ($1,'ar','light') ON CONFLICT DO NOTHING", [tenantId]);
-  await client.query("INSERT INTO whatsapp_safety_settings (tenant_id) VALUES ($1) ON CONFLICT DO NOTHING", [tenantId]).catch(() => null);
-  await ensureDefaultTemplates(client, tenantId, workspace);
-  const trial = await client.query("SELECT id FROM platform_plans WHERE slug='trial' LIMIT 1");
-  if (!trial.rows[0]) throw new Error("Trial policy is not configured");
-  await client.query(
-    `INSERT INTO platform_subscriptions (tenant_id,plan_id,status,current_period_start,current_period_end,trial_started_at,trial_ends_at)
-     VALUES ($1,$2,'trial',now(),now()+interval '7 days',now(),now()+interval '7 days')`,
-    [tenantId, trial.rows[0].id]
-  );
-  return { user, created: true, linked: false };
+  // New workspaces require a unique mobile number and commerce-platform
+  // selection. Google remains available for existing accounts and can be
+  // linked after the required registration form has been completed.
+  return { error: { ok: false, status: 409, reason: "registration_details_required" } };
 }
 
 async function providerRateLimited(ipHash) {

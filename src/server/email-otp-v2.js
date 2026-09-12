@@ -226,7 +226,7 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
   };
 }
 
-export async function createRegistrationEmailOtpChallenge({ name, companyName, email, passwordHash, passwordStrength, ipAddress, userAgent, locale = "ar" }) {
+export async function createRegistrationEmailOtpChallenge({ name, companyName, email, phone, commercePlatform, passwordHash, passwordStrength, ipAddress, userAgent, locale = "ar" }) {
   const ipHash = ipAddress ? sha256(ipAddress) : null;
   const recent = await query(
     `SELECT count(*)::int AS count FROM auth_pending_registrations
@@ -240,6 +240,14 @@ export async function createRegistrationEmailOtpChallenge({ name, companyName, e
     const user = await client.query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [email]);
     if (user.rows[0]?.accountStatus && user.rows[0].accountStatus !== "active") return { error: "account_blocked" };
     if (user.rowCount) return { error: "email_exists" };
+    const phoneOwner = await client.query("SELECT 1 FROM users WHERE account_phone_e164=$1", [phone]);
+    if (phoneOwner.rowCount) return { error: "phone_exists" };
+    const pendingPhone = await client.query(
+      `SELECT 1 FROM auth_pending_registrations
+        WHERE phone_e164=$1 AND email<>$2 AND consumed_at IS NULL AND invalidated_at IS NULL AND expires_at>now()`,
+      [phone, email]
+    );
+    if (pendingPhone.rowCount) return { error: "phone_exists" };
     const existing = await client.query(
       `SELECT id,expires_at AS "expiresAt",last_sent_at AS "lastSentAt"
          FROM auth_pending_registrations
@@ -253,10 +261,10 @@ export async function createRegistrationEmailOtpChallenge({ name, companyName, e
     code = generateEmailOtp();
     const inserted = await client.query(
       `INSERT INTO auth_pending_registrations
-         (email,name,company_name,password_hash,password_strength,code_digest,expires_at,ip_hash,user_agent_hash)
-       VALUES ($1,$2,$3,$4,$5,'',now() + interval '5 minutes',$6,$7)
+         (email,name,company_name,phone_e164,commerce_platform,password_hash,password_strength,code_digest,expires_at,ip_hash,user_agent_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'',now() + interval '5 minutes',$8,$9)
        RETURNING id,expires_at AS "expiresAt",last_sent_at AS "lastSentAt"`,
-      [email, String(name).trim(), String(companyName || "").trim() || null, passwordHash, passwordStrength, ipHash, userAgent ? sha256(userAgent) : null]
+      [email, String(name).trim(), String(companyName || "").trim() || null, phone, commercePlatform, passwordHash, passwordStrength, ipHash, userAgent ? sha256(userAgent) : null]
     );
     const row = inserted.rows[0];
     await client.query("UPDATE auth_pending_registrations SET code_digest=$2 WHERE id=$1", [row.id, digestOtp(code, row.id)]);
@@ -366,19 +374,21 @@ async function provisionPendingRegistration(client, row, { ipAddress, userAgent,
     return { ok: false, status: 403, reason: "account_blocked" };
   }
   if (duplicate.rowCount) return { ok: false, status: 409, reason: "email_exists" };
+  const duplicatePhone = await client.query("SELECT 1 FROM users WHERE account_phone_e164=$1", [row.phone_e164]);
+  if (duplicatePhone.rowCount) return { ok: false, status: 409, reason: "phone_exists" };
   const workspaceName = String(row.company_name || "").trim() || `متجر ${String(row.name).trim()}`;
   const tenant = await client.query("INSERT INTO tenants (name,slug) VALUES ($1,$2) RETURNING id", [workspaceName, slugify(workspaceName)]);
   const tenantId = tenant.rows[0].id;
   const inserted = await client.query(
     `INSERT INTO users
-       (tenant_id,name,email,email_verified,role,password_strength,password_changed_at,email_otp_enabled,email_verified_at)
-     VALUES ($1,$2,$3,true,'owner',$4,now(),true,now()) RETURNING id,name,email`,
-    [tenantId, row.name, row.email, row.password_strength]
+       (tenant_id,name,email,phone,account_phone_e164,email_verified,role,password_strength,password_changed_at,email_otp_enabled,email_verified_at)
+     VALUES ($1,$2,$3,$4,$4,true,'owner',$5,now(),true,now()) RETURNING id,name,email,phone`,
+    [tenantId, row.name, row.email, row.phone_e164, row.password_strength]
   );
   const userId = inserted.rows[0].id;
   await client.query("INSERT INTO accounts (user_id,account_id,provider_id,password_hash) VALUES ($1,$2,'credential',$3)", [userId, row.email, row.password_hash]);
   await client.query("INSERT INTO tenant_members (tenant_id,user_id,role) VALUES ($1,$2,'owner')", [tenantId, userId]);
-  await client.query("INSERT INTO stores (tenant_id,name) VALUES ($1,$2)", [tenantId, workspaceName]);
+  await client.query("INSERT INTO stores (tenant_id,name,commerce_platform) VALUES ($1,$2,$3)", [tenantId, workspaceName, row.commerce_platform]);
   await client.query("INSERT INTO settings (tenant_id,language,theme) VALUES ($1,'ar','light')", [tenantId]);
   await client.query("INSERT INTO whatsapp_safety_settings (tenant_id) VALUES ($1)", [tenantId]);
   await ensureDefaultTemplates(client, tenantId, workspaceName);
@@ -393,7 +403,7 @@ async function provisionPendingRegistration(client, row, { ipAddress, userAgent,
   await client.query("UPDATE auth_pending_registrations SET consumed_at=now(),updated_at=now() WHERE id=$1", [row.id]);
   const browser = await trustBrowserForUser({ userId, tenantId, rawToken: existingBrowserToken, ipAddress, userAgent, client });
   const session = await createSession(client, { userId, ipAddress, userAgent });
-  await audit(client, { tenantId, userId, type: "auth.registered", title: "Account created after email verification", metadata: { emailVerified: true } });
+  await audit(client, { tenantId, userId, type: "auth.registered", title: "Account created after email verification", metadata: { emailVerified: true, commercePlatform: row.commerce_platform } });
   return { ok: true, status: 201, user: { ...inserted.rows[0], tenantId, role: "owner" }, session, trustedToken: browser.rawToken, trustedUntil: browser.expiresAt };
 }
 

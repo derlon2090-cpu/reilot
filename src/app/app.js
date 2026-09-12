@@ -4186,14 +4186,23 @@ function authReferenceVisual(kind) {
   </div>`;
 }
 
+function registrationPlatformPicker() {
+  const platforms = [
+    ["zid", "زد", "Z"],
+    ["salla", "سلة", "S"],
+    ["shopify", "Shopify", "S"],
+    ["wordpress", "WordPress", "W"]
+  ];
+  return `<fieldset class="auth-platform-picker"><legend>${localizedCopy("اختر منصة متجرك", "Choose your store platform")} <b aria-hidden="true">*</b></legend><p>${localizedCopy("سنجهّز مساحة العمل والتكاملات المناسبة لمنصتك.", "We will prepare the right workspace and integrations for your platform.")}</p><div class="auth-platform-options">${platforms.map(([value, label, mark]) => `<label class="auth-platform-option"><input type="radio" name="commercePlatform" value="${value}" required><span class="auth-platform-card"><i class="auth-platform-mark auth-platform-mark--${value}" aria-hidden="true">${mark}</i><strong>${label}</strong><em>${localizedCopy("اختيار", "Select")}</em></span></label>`).join("")}</div></fieldset>`;
+}
+
 function authPublicPage() {
   const isRegister = state.route === "/register";
   return authSuiteFrame(`<section class="auth-light-shell auth-suite-shell ${isRegister ? "register" : "login"}">
-    <article class="card auth-light-panel auth-suite-panel">${authMobileMark()}${authModeTabs(isRegister ? "register" : "login")}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon(isRegister ? "register" : "login")}</span><h1>${isRegister ? "إنشاء حساب" : "تسجيل الدخول"}</h1><p>${isRegister ? "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية." : "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك."}</p></div>${!isRegister ? '<section class="auth-known-account" data-known-account hidden></section>' : ""}${state.query.get("plan") ? `<span class="badge auth-suite-plan">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form auth-suite-form" novalidate>
-      ${isRegister ? `<label class="field"><span>الاسم الكامل</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>اسم الشركة (اختياري)</span><input class="input" name="companyName" autocomplete="organization"></label>` : ""}
-      <label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label><label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="${isRegister ? "new-password" : "current-password"}" placeholder="${isRegister ? "اختر كلمة مرور قوية" : "أدخل كلمة المرور"}" required></label>
-      ${isRegister ? `<label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
-      <button class="btn btn-primary auth-submit">${isRegister ? localizedCopy("ابدأ تجربتك المجانية", "Start your free trial") : localizedCopy("تسجيل الدخول", "Sign in")} ${dashboardIcon("arrow-left")}</button><div class="auth-google-area"><div class="auth-google-divider"><span>${localizedCopy("أو المتابعة عبر", "Or continue with")}</span></div><div class="auth-google-button" data-auth-google data-context="${isRegister ? "register" : "login"}"><button type="button" class="auth-google-placeholder" disabled aria-label="${localizedCopy("المتابعة عبر Google", "Continue with Google")}"><svg aria-hidden="true" viewBox="0 0 18 18"><path fill="#4285f4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.91c1.704-1.568 2.683-3.88 2.683-6.615Z"/><path fill="#34a853" d="M9 18c2.43 0 4.467-.806 5.957-2.18l-2.91-2.258c-.806.54-1.835.858-3.047.858-2.344 0-4.328-1.585-5.037-3.714H.956v2.333A8.998 8.998 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.963 10.706A5.41 5.41 0 0 1 3.68 9c0-.592.102-1.167.283-1.706V4.961H.956A8.996 8.996 0 0 0 0 9c0 1.452.347 2.827.956 4.039l3.007-2.333Z"/><path fill="#ea4335" d="M9 3.58c1.322 0 2.508.454 3.442 1.346l2.58-2.58C13.463.892 11.426 0 9 0A8.998 8.998 0 0 0 .956 4.961l3.007 2.333C4.672 5.165 6.656 3.58 9 3.58Z"/></svg><span>${localizedCopy("المتابعة عبر Google", "Continue with Google")}</span></button></div><p class="auth-google-status" data-auth-google-status hidden role="status"></p></div><p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p><p class="auth-google-legal">${localizedCopy("بالمتابعة، أنت توافق على شروط الاستخدام وسياسة الخصوصية.", "By continuing, you agree to the Terms and Privacy Policy.")}</p></form></article>
+    <article class="card auth-light-panel auth-suite-panel">${authMobileMark()}${authModeTabs(isRegister ? "register" : "login")}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon(isRegister ? "register" : "login")}</span><h1>${isRegister ? "إنشاء حساب" : "تسجيل الدخول"}</h1><p>${isRegister ? "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية." : "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك."}</p></div>${!isRegister ? '<section class="auth-known-account" data-known-account hidden></section>' : ""}${state.query.get("plan") ? `<span class="badge auth-suite-plan">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form auth-suite-form${isRegister ? " auth-register-form" : ""}" novalidate>
+      ${isRegister ? `<div class="auth-register-grid"><label class="field"><span>${localizedCopy("الاسم الكامل", "Full name")}</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>${localizedCopy("اسم الشركة (اختياري)", "Company name (optional)")}</span><input class="input" name="companyName" autocomplete="organization"></label><label class="field"><span>${localizedCopy("رقم الجوال", "Mobile number")}</span><div class="auth-phone-input"><b aria-hidden="true">🇸🇦</b><input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" placeholder="05xxxxxxxx أو +966" aria-describedby="register-phone-hint" required></div><small id="register-phone-hint">${localizedCopy("يُستخدم لحساب واحد فقط", "One account per mobile number")}</small></label><label class="field"><span>${localizedCopy("البريد الإلكتروني", "Email")}</span><input class="input" type="email" name="email" autocomplete="email" placeholder="name@example.com" required></label></div>${registrationPlatformPicker()}` : `<label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label>`}
+      ${isRegister ? `<div class="auth-register-passwords"><label class="field"><span>${localizedCopy("كلمة المرور", "Password")}</span><input class="input" type="password" name="password" autocomplete="new-password" placeholder="${localizedCopy("8 أحرف مع رقم ورمز", "8 characters with a number and symbol")}" required></label><label class="field"><span>${localizedCopy("تأكيد كلمة المرور", "Confirm password")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label></div><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="current-password" placeholder="أدخل كلمة المرور" required></label><div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
+      <button class="btn btn-primary auth-submit">${isRegister ? localizedCopy("إنشاء الحساب وبدء التجربة", "Create account and start trial") : localizedCopy("تسجيل الدخول", "Sign in")} ${dashboardIcon("arrow-left")}</button>${!isRegister ? `<div class="auth-google-area"><div class="auth-google-divider"><span>${localizedCopy("أو المتابعة عبر", "Or continue with")}</span></div><div class="auth-google-button" data-auth-google data-context="login"><button type="button" class="auth-google-placeholder" disabled aria-label="${localizedCopy("المتابعة عبر Google", "Continue with Google")}"><svg aria-hidden="true" viewBox="0 0 18 18"><path fill="#4285f4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.91c1.704-1.568 2.683-3.88 2.683-6.615Z"/><path fill="#34a853" d="M9 18c2.43 0 4.467-.806 5.957-2.18l-2.91-2.258c-.806.54-1.835.858-3.047.858-2.344 0-4.328-1.585-5.037-3.714H.956v2.333A8.998 8.998 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.963 10.706A5.41 5.41 0 0 1 3.68 9c0-.592.102-1.167.283-1.706V4.961H.956A8.996 8.996 0 0 0 0 9c0 1.452.347 2.827.956 4.039l3.007-2.333Z"/><path fill="#ea4335" d="M9 3.58c1.322 0 2.508.454 3.442 1.346l2.58-2.58C13.463.892 11.426 0 9 0A8.998 8.998 0 0 0 .956 4.961l3.007 2.333C4.672 5.165 6.656 3.58 9 3.58Z"/></svg><span>${localizedCopy("المتابعة عبر Google", "Continue with Google")}</span></button></div><p class="auth-google-status" data-auth-google-status hidden role="status"></p></div>` : `<p class="auth-register-required-note">${dashboardIcon("security")} ${localizedCopy("رقم الجوال محمي ولا يمكن استخدامه لأكثر من حساب.", "Your mobile number is protected and can only be used for one account.")}</p>`}<p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p><p class="auth-google-legal">${localizedCopy("بالمتابعة، أنت توافق على شروط الاستخدام وسياسة الخصوصية.", "By continuing, you agree to the Terms and Privacy Policy.")}</p></form></article>
     <aside class="card auth-light-visual auth-suite-visual ${isRegister ? "auth-suite-register-visual" : "auth-suite-login-visual"}">${authReferenceVisual(isRegister ? "register" : "login")}</aside>
   </section>`);
 }
@@ -14060,7 +14069,8 @@ async function handleSubmit(form, event) {
           challenge_expired: "انتهت صلاحية رمز التحقق. اطلب رمزًا جديدًا.",
           challenge_invalid: "طلب التحقق غير صالح. سجّل الدخول من جديد.",
           account_blocked: "حسابك محظور، راجع الدعم.",
-          attempts_exceeded: "تم تجاوز عدد المحاولات المسموح. سجّل الدخول لطلب رمز جديد."
+          attempts_exceeded: "تم تجاوز عدد المحاولات المسموح. سجّل الدخول لطلب رمز جديد.",
+          phone_exists: "رقم الجوال مرتبط بحساب آخر. استخدم رقمًا مختلفًا."
         };
         const error = new Error(messages[payload.reason] || "تعذر التحقق من الرمز.");
         error.reason = payload.reason;
@@ -14097,7 +14107,13 @@ async function handleSubmit(form, event) {
   }
   if (type === "register") {
     if (!data.name || data.name.trim().length < 3) return toast(state.language === "ar" ? "يرجى إدخال الاسم الكامل." : "Please enter your full name.", "danger");
+    const normalizedPhoneDigits = String(data.phone || "")
+      .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
+      .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
+      .replace(/\D/g, "");
+    if (!/^(?:05\d{8}|5\d{8}|9665\d{8})$/.test(normalizedPhoneDigits)) return toast(state.language === "ar" ? "أدخل رقم جوال سعودي صحيح." : "Enter a valid Saudi mobile number.", "danger");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast(t("auth.invalidEmail"), "danger");
+    if (!["zid", "salla", "shopify", "wordpress"].includes(data.commercePlatform || "")) return toast(state.language === "ar" ? "اختر منصة متجرك للمتابعة." : "Choose your store platform to continue.", "danger");
     if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
     if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
     if (!data.acceptPolicies) return toast("يجب الموافقة على سياسة الاستخدام وسياسة الخصوصية.", "danger");
@@ -14109,7 +14125,10 @@ async function handleSubmit(form, event) {
           turnstile_failed: "تعذر التحقق الأمني. حاول مرة أخرى.",
           account_blocked: "حسابك محظور، راجع الدعم.",
           email_exists: "البريد الإلكتروني مستخدم مسبقًا.",
+          phone_exists: "رقم الجوال مستخدم في حساب آخر.",
           invalid_email: "صيغة البريد الإلكتروني غير صحيحة.",
+          invalid_phone: "أدخل رقم جوال سعودي صحيح.",
+          invalid_commerce_platform: "اختر منصة متجر صحيحة.",
           weak_password: "كلمة المرور لا تحقق شروط الأمان.",
           email_otp_unavailable: "تعذر إرسال رمز التحقق إلى بريدك حاليًا. يجري فحص خدمة البريد؛ حاول بعد قليل.",
           database_unavailable: "تعذر الاتصال بقاعدة البيانات، حاول لاحقًا.",
@@ -14118,7 +14137,10 @@ async function handleSubmit(form, event) {
           turnstile_failed: "Security verification failed. Please try again.",
           account_blocked: "Your account is blocked. Please contact support.",
           email_exists: "This email is already in use.",
+          phone_exists: "This mobile number is already linked to another account.",
           invalid_email: "The email address is invalid.",
+          invalid_phone: "Enter a valid Saudi mobile number.",
+          invalid_commerce_platform: "Choose a valid store platform.",
           weak_password: "The password does not meet the security requirements.",
           email_otp_unavailable: "The verification email could not be sent right now. Please try again shortly.",
           database_unavailable: "The database is currently unavailable. Please try again later.",

@@ -56,6 +56,9 @@ export async function POST(req) {
     if (result.trustedToken) headers.append("Set-Cookie", trustedDeviceCookie(result.trustedToken));
     return Response.json({ ok: true, user: result.user, redirectUrl: result.redirectUrl, trustedUntil: result.trustedUntil }, { headers });
   } catch (error) {
+    if (error?.code === "23505" && String(error?.constraint || "").includes("phone")) {
+      return Response.json({ ok: false, reason: "phone_exists" }, { status: 409 });
+    }
     console.error("email OTP verification failed", safeErrorMessage(error));
     return Response.json({ ok: false, reason: "server_error" }, { status: 500 });
   }

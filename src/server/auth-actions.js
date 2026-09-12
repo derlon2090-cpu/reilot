@@ -1,7 +1,7 @@
 import { query, transaction } from "./db.js";
 import { hashPassword, needsRehash, verifyPassword } from "./password.js";
 import { createSession } from "./session.js";
-import { isStrongPassword, normalizeEmail, sha256 } from "./security.js";
+import { isStrongPassword, normalizeAccountPhone, normalizeCommercePlatform, normalizeEmail, sha256 } from "./security.js";
 import { classifyPasswordStrength } from "./security-score.js";
 import {
   createLoginEmailOtpChallenge,
@@ -55,21 +55,29 @@ async function findCredentialUser(normalizedEmail) {
   }
 }
 
-export async function registerAccount({ name, companyName, email, password, ipAddress, userAgent }) {
+export async function registerAccount({ name, companyName, email, phone, commercePlatform, password, ipAddress, userAgent }) {
   const normalized = normalizeEmail(email);
+  const normalizedPhone = normalizeAccountPhone(phone);
+  const normalizedPlatform = normalizeCommercePlatform(commercePlatform);
   if (!name || String(name).trim().length < 3) return { ok: false, status: 400, reason: "invalid_name" };
+  if (!normalizedPhone) return { ok: false, status: 400, reason: "invalid_phone" };
+  if (!normalizedPlatform) return { ok: false, status: 400, reason: "invalid_commerce_platform" };
   if (!isStrongPassword(password)) return { ok: false, status: 400, reason: "weak_password" };
   const existing = await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email) = $1 LIMIT 1', [normalized]);
   if (existing.rows[0]?.accountStatus && existing.rows[0].accountStatus !== "active") {
     return { ok: false, status: 403, reason: "account_blocked" };
   }
   if (existing.rowCount) return { ok: false, status: 409, reason: "email_exists" };
+  const existingPhone = await query("SELECT 1 FROM users WHERE account_phone_e164 = $1", [normalizedPhone]);
+  if (existingPhone.rowCount) return { ok: false, status: 409, reason: "phone_exists" };
   const passwordHash = await hashPassword(password);
   if (!emailOtpDeliveryConfigured()) return { ok: false, status: 503, reason: "email_otp_unavailable" };
   const challenge = await createRegistrationEmailOtpChallenge({
     name: String(name).trim(),
     companyName: String(companyName || "").trim(),
     email: normalized,
+    phone: normalizedPhone,
+    commercePlatform: normalizedPlatform,
     passwordHash,
     passwordStrength: classifyPasswordStrength(password, normalized),
     ipAddress,

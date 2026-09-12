@@ -1,5 +1,5 @@
 import { registerAccount } from "../../../../src/server/auth-actions.js";
-import { isValidEmail, normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
+import { isValidEmail, normalizeAccountPhone, normalizeCommercePlatform, normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
 import { sessionCookie } from "../../../../src/server/session.js";
 import { challengeCookie } from "../../../../src/server/email-otp-v2.js";
 import { TURNSTILE_ACTIONS, turnstileFailureResponse, verifyTurnstileToken } from "../../../../src/server/turnstile.js";
@@ -8,7 +8,10 @@ function registrationFailure(error) {
   if (["EMAIL_DELIVERY_UNAVAILABLE", "EMAIL_PROVIDER_ERROR", "EMAIL_CONFIGURATION_ERROR"].includes(error?.code)) {
     return { reason: "email_otp_unavailable", status: 503 };
   }
-  if (error?.code === "23505") return { reason: "email_exists", status: 409 };
+  if (error?.code === "23505") {
+    const constraint = String(error?.constraint || "");
+    return { reason: constraint.includes("phone") ? "phone_exists" : "email_exists", status: 409 };
+  }
   if (["42P01", "42703"].includes(error?.code)) return { reason: "database_schema_missing", status: 503 };
   if (["08000", "08001", "08003", "08004", "08006", "08007", "08P01", "28P01", "3D000"].includes(error?.code)) {
     return { reason: "database_unavailable", status: 503 };
@@ -26,10 +29,16 @@ export async function POST(req) {
     if (!turnstile.ok) return turnstileFailureResponse(turnstile);
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
+    const phone = normalizeAccountPhone(body.phone);
+    if (!phone) return Response.json({ ok: false, reason: "invalid_phone" }, { status: 400 });
+    const commercePlatform = normalizeCommercePlatform(body.commercePlatform);
+    if (!commercePlatform) return Response.json({ ok: false, reason: "invalid_commerce_platform" }, { status: 400 });
     const result = await registerAccount({
       name: body.name,
       companyName: body.companyName,
       email,
+      phone,
+      commercePlatform,
       password: body.password,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
       userAgent: req.headers.get("user-agent")
