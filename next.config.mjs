@@ -16,7 +16,8 @@ const nextConfig = {
   output: "standalone",
   distDir: process.env.NEXT_DIST_DIR || ".next",
   outputFileTracingIncludes: {
-    "/api/storage": ["./drizzle/0094_storage_center_insights.sql"]
+    "/api/storage": ["./drizzle/0094_storage_center_insights.sql"],
+    "/api/internal/production-migration": ["./drizzle/*.sql"]
   },
   async headers() {
     const developmentScriptPolicy = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
