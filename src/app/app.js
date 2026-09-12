@@ -12171,6 +12171,7 @@ async function handleGoogleAuthResult(event) {
   if (!responseOk || payload?.ok !== true) {
     const messages = {
       account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية قبل ربط Google.", "This email belongs to an existing account. Sign in with your password first to confirm ownership before linking Google."),
+      account_blocked: localizedCopy("حسابك محظور، راجع الدعم.", "Your account is blocked. Please contact support."),
       account_inactive: localizedCopy("هذا الحساب محظور أو مُزال. تواصل مع إدارة المنصة لاستعادة الوصول.", "This account is suspended or removed. Contact the platform administrator to restore access."),
       google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. انتقل إلى إنشاء حساب واستخدم Google للبدء.", "No account uses this Google address yet. Go to Create account and continue with Google."),
       google_nonce_invalid: localizedCopy("انتهت جلسة Google الآمنة. أعد المحاولة من الزر.", "The secure Google session expired. Try again from the button."),
@@ -12465,6 +12466,7 @@ function consumeGoogleRedirectError() {
   state.query.delete("google_error");
   history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
   const messages = {
+    account_blocked: localizedCopy("حسابك محظور، راجع الدعم.", "Your account is blocked. Please contact support."),
     account_inactive: localizedCopy("هذا الحساب محظور أو مُزال. تواصل مع إدارة المنصة لاستعادة الوصول.", "This account is suspended or removed. Contact the platform administrator to restore access."),
     google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. استخدم صفحة إنشاء الحساب للبدء.", "No account uses this Google address yet. Use the Create account page to get started."),
     account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية.", "This email belongs to an existing account. Sign in with your password first to confirm ownership."),
@@ -13980,6 +13982,7 @@ async function handleSubmit(form, event) {
       if (networkFailed) return appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "login-network" });
       if (failureReason === "turnstile_failed") return appToast.error("تعذر التحقق الأمني", { description: "حدّث التحقق الأمني ثم حاول مرة أخرى.", id: "login-turnstile" });
       if (failureReason === "rate_limited") return appToast.warning("محاولات تسجيل دخول كثيرة", { description: "انتظر قليلًا قبل المحاولة مرة أخرى.", id: "login-rate-limit" });
+      if (failureReason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "login-account-blocked" });
       if (failureReason === "email_otp_unavailable") return appToast.error("تعذر إرسال رمز التحقق", { description: "خدمة التحقق عبر البريد غير متاحة حاليًا. تواصل مع مسؤول المنصة.", id: "login-otp-unavailable" });
       if (failureReason === "auth_database_error") return appToast.error("تعذر الوصول إلى بيانات الحساب", { description: "قاعدة بيانات تسجيل الدخول غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", id: "login-database-error" });
       if (failureReason === "auth_session_error") return appToast.error("تعذر تثبيت جلسة الدخول", { description: "تم التحقق من بياناتك، لكن تعذر إنشاء الجلسة الآمنة. حاول مرة أخرى بعد قليل.", id: "login-session-error" });
@@ -14014,6 +14017,7 @@ async function handleSubmit(form, event) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
         setSubmitBusy(button, false, "تحقق وسجّل الدخول");
+        if (payload.reason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "mfa-account-blocked" });
         if (payload.reason === "attempts_exceeded") return appToast.error("تم إيقاف طلب التحقق", { description: "تجاوزت عدد المحاولات المسموح. سجّل الدخول من جديد.", id: "mfa-login-attempts" });
         if (payload.reason === "challenge_expired" || payload.reason === "challenge_invalid") return appToast.error("انتهت صلاحية طلب التحقق", { description: "سجّل الدخول من جديد لبدء طلب آمن آخر.", id: "mfa-login-expired" });
         return appToast.error("رمز المصادقة غير صحيح", { description: `تحقق من الرمز الحالي وحاول مرة أخرى${Number.isFinite(Number(payload.attemptsRemaining)) ? ` — المتبقي ${payload.attemptsRemaining}` : ""}.`, id: "mfa-login-code-error" });
@@ -14055,6 +14059,7 @@ async function handleSubmit(form, event) {
           invalid_code: `رمز التحقق غير صحيح${Number.isFinite(payload.attemptsRemaining) ? ` — تبقى ${payload.attemptsRemaining} محاولات` : ""}.`,
           challenge_expired: "انتهت صلاحية رمز التحقق. اطلب رمزًا جديدًا.",
           challenge_invalid: "طلب التحقق غير صالح. سجّل الدخول من جديد.",
+          account_blocked: "حسابك محظور، راجع الدعم.",
           attempts_exceeded: "تم تجاوز عدد المحاولات المسموح. سجّل الدخول لطلب رمز جديد."
         };
         const error = new Error(messages[payload.reason] || "تعذر التحقق من الرمز.");
@@ -14102,6 +14107,7 @@ async function handleSubmit(form, event) {
       if (!response.ok) {
         const messages = state.language === "ar" ? {
           turnstile_failed: "تعذر التحقق الأمني. حاول مرة أخرى.",
+          account_blocked: "حسابك محظور، راجع الدعم.",
           email_exists: "البريد الإلكتروني مستخدم مسبقًا.",
           invalid_email: "صيغة البريد الإلكتروني غير صحيحة.",
           weak_password: "كلمة المرور لا تحقق شروط الأمان.",
@@ -14110,6 +14116,7 @@ async function handleSubmit(form, event) {
           database_schema_missing: "تعذر إنشاء مساحة العمل، حاول لاحقًا."
         } : {
           turnstile_failed: "Security verification failed. Please try again.",
+          account_blocked: "Your account is blocked. Please contact support.",
           email_exists: "This email is already in use.",
           invalid_email: "The email address is invalid.",
           weak_password: "The password does not meet the security requirements.",
@@ -14410,6 +14417,7 @@ async function handleSubmit(form, event) {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         setSubmitBusy(button, false, "إرسال رابط الاستعادة");
+        if (body.reason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "forgot-account-blocked" });
         if (response.status === 429) return appToast.warning("انتظر قبل إعادة الإرسال", { description: "يمكنك طلب رمز جديد بعد قليل.", id: "forgot-rate-limit" });
         return appToast.error("تعذر إرسال الطلب", { description: "حدث خطأ غير متوقع. حاول مرة أخرى بعد قليل.", id: "forgot-error" });
       }
@@ -14451,6 +14459,7 @@ async function handleSubmit(form, event) {
       const response = await fetchWithTurnstile(form, "/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resetEmail, code: data.code, password: data.password, turnstileToken: data.turnstileToken }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (payload.reason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "reset-account-blocked" });
         if (payload.reason === "expired") return appToast.warning("انتهت صلاحية الرمز", { description: "اطلب رمزًا جديدًا لإكمال إعادة تعيين كلمة المرور.", id: "reset-code-expired" });
         if (payload.reason === "invalid") return appToast.error("رمز التحقق غير صحيح", { description: "تحقق من الرمز المرسل إلى بريدك وحاول مرة أخرى.", id: "reset-code-invalid" });
         if (payload.reason === "weak_password") return appToast.warning("كلمة المرور غير قوية", { description: "استخدم حروفًا وأرقامًا ورمزًا خاصًا ثم حاول مرة أخرى.", id: "reset-password-weak-server" });

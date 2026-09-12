@@ -49,4 +49,13 @@ describe("POST /api/auth/register pending email verification", () => {
     await expect(response.json()).resolves.toMatchObject({ ok: false, reason: "invalid_request" });
     expect(registerAccount).not.toHaveBeenCalled();
   });
+
+  it("returns the blocked-account reason and creates no challenge cookie", async () => {
+    vi.mocked(registerAccount).mockResolvedValue({ ok: false, status: 403, reason: "account_blocked" });
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(await response.json()).toEqual({ ok: false, reason: "account_blocked" });
+  });
 });

@@ -124,6 +124,17 @@ function safeUser(row) {
 
 async function loadGoogleUser(client, profile, intent) {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`google:${profile.subject}:${profile.email}`]);
+  const emailAccess = await client.query(
+    `SELECT account_status AS "accountStatus"
+       FROM users
+      WHERE lower(email)=$1
+      LIMIT 1
+      FOR UPDATE`,
+    [profile.email]
+  );
+  if (emailAccess.rows[0]?.accountStatus && emailAccess.rows[0].accountStatus !== "active") {
+    return { error: { ok: false, status: 403, reason: "account_blocked" } };
+  }
   const linked = await client.query(
     `SELECT u.id,u.tenant_id AS "tenantId",u.name,u.email,u.image,
             u.must_change_password AS "mustChangePassword",u.email_otp_enabled AS "emailOtpEnabled",
@@ -136,7 +147,7 @@ async function loadGoogleUser(client, profile, intent) {
     [profile.subject]
   );
   if (linked.rows[0]) {
-    if (linked.rows[0].accountStatus && linked.rows[0].accountStatus !== "active") return { error: { ok: false, status: 403, reason: "account_inactive" } };
+    if (linked.rows[0].accountStatus && linked.rows[0].accountStatus !== "active") return { error: { ok: false, status: 403, reason: "account_blocked" } };
     const preservedProfile = resolveGoogleProfileFields(profile, linked.rows[0]);
     await client.query("UPDATE users SET email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),updated_at=now() WHERE id=$1", [linked.rows[0].id]);
     return { user: { ...linked.rows[0], ...preservedProfile }, created: false, linked: false };
@@ -153,7 +164,7 @@ async function loadGoogleUser(client, profile, intent) {
     [profile.email]
   );
   if (existing.rows[0]) {
-    if (existing.rows[0].accountStatus && existing.rows[0].accountStatus !== "active") return { error: { ok: false, status: 403, reason: "account_inactive" } };
+    if (existing.rows[0].accountStatus && existing.rows[0].accountStatus !== "active") return { error: { ok: false, status: 403, reason: "account_blocked" } };
     if (!googleAutoLinkAllowed(profile)) return { error: { ok: false, status: 409, reason: "account_link_verification_required" } };
     const preservedProfile = resolveGoogleProfileFields(profile, existing.rows[0]);
     await client.query("INSERT INTO accounts (user_id,account_id,provider_id) VALUES ($1,$2,'google') ON CONFLICT DO NOTHING", [existing.rows[0].id, profile.subject]);

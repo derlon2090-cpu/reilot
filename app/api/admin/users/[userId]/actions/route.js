@@ -52,6 +52,13 @@ export async function POST(request, { params }) {
           WHERE user_id=$1 AND expires_at>now() RETURNING id`,
         [user.id]
       );
+      if (nextStatus !== "active") {
+        await client.query("UPDATE auth_pending_registrations SET invalidated_at=now(),updated_at=now() WHERE lower(email)=lower($1) AND consumed_at IS NULL AND invalidated_at IS NULL", [user.email]);
+        await client.query("UPDATE auth_email_otp_challenges SET invalidated_at=now(),updated_at=now() WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL", [user.id]);
+        await client.query("UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now() WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL", [user.id]);
+        await client.query("UPDATE password_reset_codes SET used_at=now() WHERE user_id=$1 AND used_at IS NULL", [user.id]);
+        await client.query("UPDATE auth_trusted_devices SET revoked_at=now(),revoke_reason='account_blocked',updated_at=now() WHERE user_id=$1 AND revoked_at IS NULL", [user.id]);
+      }
       return { userId: user.id, tenantId: user.tenantId, email: user.email, previousStatus: user.status, status: nextStatus, disabledSessions: sessions.rowCount || 0 };
     });
 
@@ -61,7 +68,7 @@ export async function POST(request, { params }) {
       resource: userId,
       metadata: { tenantId: result.tenantId, previousStatus: result.previousStatus, status: result.status, disabledSessions: result.disabledSessions }
     });
-    const messages = { suspend_user: "تم حظر المستخدم وإنهاء جلساته فورًا.", restore_user: "تمت استعادة المستخدم ويمكنه تسجيل الدخول مجددًا.", remove_user: "تمت إزالة المستخدم من المنصة وإنهاء جلساته دون حذف سجل التدقيق." };
+    const messages = { suspend_user: "تم حظر المستخدم وبريده الإلكتروني وإنهاء جميع جلسات ومحاولات الدخول فورًا.", restore_user: "تمت استعادة المستخدم وبريده ويمكنه تسجيل الدخول مجددًا.", remove_user: "تمت إزالة المستخدم وحظر بريده وإنهاء جلساته دون حذف سجل التدقيق." };
     return Response.json({ ok: true, action: parsed.data.action, result, message: messages[parsed.data.action] }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     const reason = error?.code || "admin_user_action_failed";

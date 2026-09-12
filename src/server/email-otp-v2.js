@@ -237,7 +237,8 @@ export async function createRegistrationEmailOtpChallenge({ name, companyName, e
   let code = "";
   const challenge = await transaction(async (client) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`signup-email-otp:${email}`]);
-    const user = await client.query("SELECT 1 FROM users WHERE lower(email)=$1", [email]);
+    const user = await client.query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [email]);
+    if (user.rows[0]?.accountStatus && user.rows[0].accountStatus !== "active") return { error: "account_blocked" };
     if (user.rowCount) return { error: "email_exists" };
     const existing = await client.query(
       `SELECT id,expires_at AS "expiresAt",last_sent_at AS "lastSentAt"
@@ -261,7 +262,7 @@ export async function createRegistrationEmailOtpChallenge({ name, companyName, e
     await client.query("UPDATE auth_pending_registrations SET code_digest=$2 WHERE id=$1", [row.id, digestOtp(code, row.id)]);
     return { ...row, reused: false };
   });
-  if (challenge.error) return { ok: false, status: 409, reason: challenge.error };
+  if (challenge.error) return { ok: false, status: challenge.error === "account_blocked" ? 403 : 409, reason: challenge.error };
   if (!challenge.reused) {
     try {
       await sendLoginEmailOtp({ to: email, code, expiresInMinutes: 5, locale, name });
@@ -359,7 +360,11 @@ async function verifyLockedChallenge(client, row, challengeId, table, code) {
 }
 
 async function provisionPendingRegistration(client, row, { ipAddress, userAgent, existingBrowserToken }) {
-  const duplicate = await client.query("SELECT 1 FROM users WHERE lower(email)=$1", [row.email]);
+  const duplicate = await client.query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [row.email]);
+  if (duplicate.rows[0]?.accountStatus && duplicate.rows[0].accountStatus !== "active") {
+    await client.query("UPDATE auth_pending_registrations SET invalidated_at=now(),updated_at=now() WHERE id=$1", [row.id]);
+    return { ok: false, status: 403, reason: "account_blocked" };
+  }
   if (duplicate.rowCount) return { ok: false, status: 409, reason: "email_exists" };
   const workspaceName = String(row.company_name || "").trim() || `متجر ${String(row.name).trim()}`;
   const tenant = await client.query("INSERT INTO tenants (name,slug) VALUES ($1,$2) RETURNING id", [workspaceName, slugify(workspaceName)]);
@@ -407,13 +412,17 @@ export async function verifyEmailOtp({ rawCookie, code, ipAddress, userAgent, ex
   }
   return transaction(async (client) => {
     const locked = await client.query(
-      `SELECT c.*,u.email,u.name,u.must_change_password AS "mustChangePassword",COALESCE(tm.role,u.role) AS role
+      `SELECT c.*,u.email,u.name,u.account_status AS "accountStatus",u.must_change_password AS "mustChangePassword",COALESCE(tm.role,u.role) AS role
          FROM auth_email_otp_challenges c JOIN users u ON u.id=c.user_id
          LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=u.tenant_id
         WHERE c.id=$1 FOR UPDATE OF c`,
       [parsed.id]
     );
     const row = locked.rows[0];
+    if (row?.accountStatus && row.accountStatus !== "active") {
+      await client.query("UPDATE auth_email_otp_challenges SET invalidated_at=now(),updated_at=now() WHERE id=$1", [parsed.id]);
+      return { ok: false, status: 403, reason: "account_blocked", subjectUserId: row.user_id };
+    }
     const verified = await verifyLockedChallenge(client, row, parsed.id, "auth_email_otp_challenges", normalizedCode);
     if (!verified.ok) return { ...verified, subjectUserId: row?.user_id || null };
     await client.query("UPDATE auth_email_otp_challenges SET consumed_at=now(),updated_at=now() WHERE id=$1", [parsed.id]);

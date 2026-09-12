@@ -138,7 +138,7 @@ export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent, ex
   return transaction(async (client) => {
     const result = await client.query(
       `SELECT c.*,u.email,u.name,u.must_change_password AS "mustChangePassword",
-              u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
+              u.account_status AS "accountStatus",u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
               COALESCE(u.mfa_recovery_hashes,'[]'::jsonb) AS "recoveryHashes",
               u.mfa_last_verified_step AS "lastVerifiedStep",
               COALESCE(tm.role,u.role) AS role
@@ -149,6 +149,10 @@ export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent, ex
       [challengeId]
     );
     const row = result.rows[0];
+    if (row?.accountStatus && row.accountStatus !== "active") {
+      await client.query("UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now() WHERE id=$1", [challengeId]);
+      return { ok: false, status: 403, reason: "account_blocked" };
+    }
     if (!row || row.consumed_at || row.invalidated_at || !row.mfaEnabled || !row.mfaSecret) {
       return { ok: false, status: 401, reason: "challenge_invalid" };
     }

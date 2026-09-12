@@ -10,7 +10,7 @@ vi.mock("../../src/server/login-mfa.js", () => ({ createMfaLoginChallenge: vi.fn
 vi.mock("../../src/server/email-otp-v2.js", () => ({ createLoginEmailOtpChallenge: mocks.createLoginEmailOtpChallenge, createRegistrationEmailOtpChallenge: vi.fn() }));
 vi.mock("../../src/server/second-factor-router.js", () => ({ resolveSecondFactor: mocks.resolveSecondFactor }));
 
-import { loginAccount } from "../../src/server/auth-actions.js";
+import { loginAccount, registerAccount } from "../../src/server/auth-actions.js";
 
 describe("credential login availability", () => {
   beforeEach(() => {
@@ -20,6 +20,7 @@ describe("credential login availability", () => {
     mocks.resolveSecondFactor.mockResolvedValue({ method: "none", reason: "policy_disabled", requiresChallenge: false });
     mocks.transaction.mockImplementation(async (callback) => callback({ query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }) }));
     mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM users WHERE") && sql.includes("account_status")) return { rows: [], rowCount: 0 };
       if (sql.includes("SELECT count(*)") && sql.includes("login_attempts")) return { rows: [{ count: 0 }] };
       if (sql.includes("INSERT INTO login_attempts")) return { rows: [{ id: "attempt-1" }] };
       if (sql.includes("FROM users u") && sql.includes("JOIN accounts")) return { rows: [{ id: "user-1", tenantId: "tenant-1", email: "owner@example.test", name: "Owner", role: "owner", credentialId: "credential-1", passwordHash: "hash", mfaEnabled: false, mfaSecret: null }] };
@@ -41,6 +42,30 @@ describe("credential login availability", () => {
     const result = await loginAccount({ email: "owner@example.test", password: "CorrectPassword1!", ipAddress: "127.0.0.1", userAgent: "test" });
     expect(result).toEqual({ ok: false, status: 503, reason: "email_otp_unavailable" });
     expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
+  it("rejects a blocked email before checking its password", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM users WHERE") && sql.includes("account_status")) return { rows: [{ accountStatus: "suspended" }], rowCount: 1 };
+      if (sql.includes("SELECT count(*)") && sql.includes("login_attempts")) return { rows: [{ count: 0 }] };
+      if (sql.includes("FROM users u") && sql.includes("JOIN accounts")) {
+        return { rows: [{ id: "user-1", tenantId: "tenant-1", email: "blocked@example.test", accountStatus: "suspended", passwordHash: "hash" }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    await expect(loginAccount({ email: "blocked@example.test", password: "Anything!123", ipAddress: "127.0.0.1", userAgent: "test" }))
+      .resolves.toEqual({ ok: false, status: 403, reason: "account_blocked" });
+    expect(mocks.verifyPassword).not.toHaveBeenCalled();
+    expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
+  it("prevents a blocked email from registering another account", async () => {
+    mocks.query.mockResolvedValue({ rows: [{ accountStatus: "suspended" }], rowCount: 1 });
+
+    await expect(registerAccount({ name: "Blocked User", companyName: "Store", email: "BLOCKED@example.test", password: "StrongPassword!123", ipAddress: "127.0.0.1", userAgent: "test" }))
+      .resolves.toEqual({ ok: false, status: 403, reason: "account_blocked" });
+    expect(mocks.hashPassword).not.toHaveBeenCalled();
   });
 
   it("upgrades a verified legacy password hash to Argon2id during login", async () => {

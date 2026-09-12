@@ -44,6 +44,9 @@ describe("admin user lifecycle actions", () => {
     expect(response.status).toBe(200);
     expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE users SET account_status=$2") && params[0] === userId && params[1] === "suspended")).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE sessions") && params.length === 1 && params[0] === userId)).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE auth_pending_registrations") && params[0] === email)).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE password_reset_codes") && params[0] === userId)).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE auth_trusted_devices") && params[0] === userId)).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("UPDATE tenants"))).toBe(false);
   });
 

@@ -24,6 +24,7 @@ async function findCredentialUser(normalizedEmail) {
   try {
     return await query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
+              u.account_status AS "accountStatus",
               u.email_otp_enabled AS "emailOtpEnabled", u.mfa_enabled AS "mfaEnabled",
               u.mfa_secret_encrypted AS "mfaSecret",
               COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
@@ -31,7 +32,7 @@ async function findCredentialUser(normalizedEmail) {
          JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-        WHERE lower(u.email) = $1 AND u.account_status='active' LIMIT 1`,
+        WHERE lower(u.email) = $1 LIMIT 1`,
       [normalizedEmail]
     );
   } catch (error) {
@@ -41,13 +42,14 @@ async function findCredentialUser(normalizedEmail) {
     if (!isEmailOtpSchemaUnavailable(error)) throw error;
     return query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
+              u.account_status AS "accountStatus",
               false AS "emailOtpEnabled", false AS "mfaEnabled", NULL::text AS "mfaSecret",
               COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-        WHERE lower(u.email) = $1 AND u.account_status='active' LIMIT 1`,
+        WHERE lower(u.email) = $1 LIMIT 1`,
       [normalizedEmail]
     );
   }
@@ -57,7 +59,10 @@ export async function registerAccount({ name, companyName, email, password, ipAd
   const normalized = normalizeEmail(email);
   if (!name || String(name).trim().length < 3) return { ok: false, status: 400, reason: "invalid_name" };
   if (!isStrongPassword(password)) return { ok: false, status: 400, reason: "weak_password" };
-  const existing = await query("SELECT 1 FROM users WHERE lower(email) = $1", [normalized]);
+  const existing = await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email) = $1 LIMIT 1', [normalized]);
+  if (existing.rows[0]?.accountStatus && existing.rows[0].accountStatus !== "active") {
+    return { ok: false, status: 403, reason: "account_blocked" };
+  }
   if (existing.rowCount) return { ok: false, status: 409, reason: "email_exists" };
   const passwordHash = await hashPassword(password);
   if (!emailOtpDeliveryConfigured()) return { ok: false, status: 503, reason: "email_otp_unavailable" };
@@ -78,6 +83,12 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   let authStage = "rate_limit";
   try {
   const normalized = normalizeEmail(email);
+  authStage = "account_status";
+  const accountAccess = await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [normalized]);
+  if (accountAccess.rows[0]?.accountStatus && accountAccess.rows[0].accountStatus !== "active") {
+    return { ok: false, status: 403, reason: "account_blocked" };
+  }
+  authStage = "rate_limit";
   const attempts = await query(
     `SELECT count(*)::int AS count FROM login_attempts
       WHERE email = $1 AND success = false AND created_at > now() - interval '15 minutes'`,
@@ -88,6 +99,9 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   authStage = "credential_lookup";
   const result = await findCredentialUser(normalized);
   const user = result.rows[0];
+  if (user?.accountStatus && user.accountStatus !== "active") {
+    return { ok: false, status: 403, reason: "account_blocked" };
+  }
   authStage = "password_verification";
   const valid = user ? await verifyPassword(password, user.passwordHash) : false;
   authStage = "login_attempt_audit";

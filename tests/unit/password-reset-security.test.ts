@@ -16,7 +16,7 @@ vi.mock("../../src/server/email/resend.service.js", () => ({
   sendPasswordResetCodeEmail: mocks.sendPasswordResetCodeEmail
 }));
 
-import { resetPassword } from "../../src/server/password-reset.js";
+import { requestPasswordReset, resetPassword } from "../../src/server/password-reset.js";
 
 describe("password reset storage and invalidation", () => {
   beforeEach(() => {
@@ -24,6 +24,14 @@ describe("password reset storage and invalidation", () => {
     mocks.hashPassword.mockResolvedValue("$argon2id$v=19$m=19456,t=2,p=1$reset-hash");
     mocks.sendPasswordChangedEmail.mockResolvedValue({ id: "email-1" });
     mocks.query.mockResolvedValue({ rows: [], rowCount: 1 });
+  });
+
+  it("does not send a reset code to a blocked email", async () => {
+    mocks.query.mockResolvedValue({ rows: [{ id: "user-1", tenantId: "tenant-1", email: "blocked@example.test", accountStatus: "suspended" }], rowCount: 1 });
+
+    await expect(requestPasswordReset({ email: "blocked@example.test", locale: "ar" }))
+      .resolves.toEqual({ ok: false, status: 403, reason: "account_blocked", message: "حسابك محظور، راجع الدعم." });
+    expect(mocks.sendPasswordResetCodeEmail).not.toHaveBeenCalled();
   });
 
   it("stores only the Argon2id hash and invalidates reset tokens and sessions", async () => {

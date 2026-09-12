@@ -34,6 +34,15 @@ describe("POST /api/auth/login", () => {
     expect(await response.json()).toEqual({ ok: false, reason: "invalid_credentials" });
   });
 
+  it("returns the blocked-account reason without creating a cookie", async () => {
+    vi.mocked(loginAccount).mockResolvedValue({ ok: false, status: 403, reason: "account_blocked" });
+    const response = await POST(loginRequest("Correct@12345"));
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(await response.json()).toEqual({ ok: false, reason: "account_blocked" });
+  });
+
   it("rejects a missing challenge before checking credentials", async () => {
     const response = await POST(new Request("https://accounts.renvix.app/api/auth/login", {
       method: "POST",

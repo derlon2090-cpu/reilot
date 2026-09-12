@@ -35,9 +35,12 @@ export async function notifyPasswordChanged({ tenantId, userId, email, locale = 
 
 export async function requestPasswordReset({ email, locale = "ar", mailer = sendPasswordResetCodeEmail }) {
   const normalized = normalizeEmail(email);
-  const userResult = await query("SELECT id, tenant_id AS \"tenantId\", email FROM users WHERE lower(email) = $1 LIMIT 1", [normalized]);
+  const userResult = await query('SELECT id, tenant_id AS "tenantId", email, account_status AS "accountStatus" FROM users WHERE lower(email) = $1 LIMIT 1', [normalized]);
   const user = userResult.rows[0];
   if (!user) return { ok: true, status: 200, message: locale === "en" ? "If the email is registered, a reset code will arrive shortly." : "إذا كان البريد مسجلًا لدينا، فسيصلك رمز إعادة تعيين كلمة المرور." };
+  if (user.accountStatus && user.accountStatus !== "active") {
+    return { ok: false, status: 403, reason: "account_blocked", message: locale === "en" ? "Your account is blocked. Please contact support." : "حسابك محظور، راجع الدعم." };
+  }
 
   const recent = await query(
     "SELECT count(*)::int AS count FROM password_reset_codes WHERE email = $1 AND created_at > now() - interval '15 minutes'",
@@ -127,13 +130,17 @@ export async function resetPassword({ email, code, password }) {
     }
 
     const userResult = await client.query(
-      `SELECT id, tenant_id AS "tenantId", email
+      `SELECT id, tenant_id AS "tenantId", email, account_status AS "accountStatus"
          FROM users
         WHERE id = $1 AND lower(email) = $2
         LIMIT 1`,
       [reset.userId, normalized]
     );
     if (!userResult.rows[0]) return { ok: false, status: 400, reason: "expired" };
+    if (userResult.rows[0].accountStatus && userResult.rows[0].accountStatus !== "active") {
+      await client.query("UPDATE password_reset_codes SET used_at=now() WHERE user_id=$1 AND used_at IS NULL", [reset.userId]);
+      return { ok: false, status: 403, reason: "account_blocked" };
+    }
     const updatedAccount = await client.query(
       "UPDATE accounts SET password_hash = $1, updated_at = now() WHERE user_id = $2 AND provider_id = 'credential' RETURNING user_id",
       [passwordHash, reset.userId]

@@ -94,6 +94,7 @@ describe("Google account linking policy", () => {
     expect(source).toContain("const importedProfile = resolveGoogleProfileFields(profile)");
     expect(source).toContain("const preservedProfile = resolveGoogleProfileFields(profile, linked.rows[0])");
     expect(source).toContain("const preservedProfile = resolveGoogleProfileFields(profile, existing.rows[0])");
+    expect(source).toContain('reason: "account_blocked"');
   });
 
   it("creates a new account only from an explicit registration flow", () => {
