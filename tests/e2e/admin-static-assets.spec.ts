@@ -49,7 +49,6 @@ test("admin login loads same-origin CSS, hydrates, and submits without a native 
 
   for (const pathname of [
     "/app/app.js",
-    "/app/auth-google.js",
     "/app/auth-turnstile.js",
     "/app/locales/ar.json",
     "/data/publicData.js",

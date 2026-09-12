@@ -3,7 +3,7 @@ import { query, transaction } from "./db.js";
 import { createSession } from "./session.js";
 import { sendLoginEmailOtp } from "./email/resend.service.js";
 import { ensureDefaultTemplates } from "./default-templates.js";
-import { sha256 } from "./security.js";
+import { normalizeAccountPhone, normalizeCommercePlatform, sha256 } from "./security.js";
 import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
 import {
   TRUSTED_BROWSER_COOKIE,
@@ -237,6 +237,13 @@ export async function createRegistrationEmailOtpChallenge({ name, companyName, e
   let code = "";
   const challenge = await transaction(async (client) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`signup-email-otp:${email}`]);
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`signup-phone:${phone}`]);
+    await client.query(
+      `UPDATE auth_pending_registrations SET invalidated_at=now(),updated_at=now()
+        WHERE consumed_at IS NULL AND invalidated_at IS NULL AND expires_at<=now()
+          AND (email=$1 OR phone_e164=$2)`,
+      [email, phone]
+    );
     const user = await client.query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [email]);
     if (user.rows[0]?.accountStatus && user.rows[0].accountStatus !== "active") return { error: "account_blocked" };
     if (user.rowCount) return { error: "email_exists" };
@@ -251,10 +258,11 @@ export async function createRegistrationEmailOtpChallenge({ name, companyName, e
     const existing = await client.query(
       `SELECT id,expires_at AS "expiresAt",last_sent_at AS "lastSentAt"
          FROM auth_pending_registrations
-        WHERE email=$1 AND consumed_at IS NULL AND invalidated_at IS NULL
+        WHERE email=$1 AND phone_e164=$2 AND commerce_platform=$3
+          AND consumed_at IS NULL AND invalidated_at IS NULL
           AND expires_at > now() AND created_at >= now() - interval '15 seconds'
         LIMIT 1`,
-      [email]
+      [email, phone, commercePlatform]
     );
     if (existing.rows[0]) return { ...existing.rows[0], reused: true };
     await client.query("UPDATE auth_pending_registrations SET invalidated_at=now(),updated_at=now() WHERE email=$1 AND consumed_at IS NULL AND invalidated_at IS NULL", [email]);
@@ -368,6 +376,11 @@ async function verifyLockedChallenge(client, row, challengeId, table, code) {
 }
 
 async function provisionPendingRegistration(client, row, { ipAddress, userAgent, existingBrowserToken }) {
+  const normalizedPhone = normalizeAccountPhone(row.phone_e164);
+  const normalizedPlatform = normalizeCommercePlatform(row.commerce_platform);
+  if (!normalizedPhone || normalizedPhone !== row.phone_e164 || !normalizedPlatform) {
+    return { ok: false, status: 400, reason: "registration_details_required" };
+  }
   const duplicate = await client.query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [row.email]);
   if (duplicate.rows[0]?.accountStatus && duplicate.rows[0].accountStatus !== "active") {
     await client.query("UPDATE auth_pending_registrations SET invalidated_at=now(),updated_at=now() WHERE id=$1", [row.id]);

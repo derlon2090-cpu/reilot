@@ -14,9 +14,9 @@ export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Renvix",
   description: "منصة ذكية لإدارة الاشتراكات والتجديدات وروابط الطلبات والتنبيهات.",
   icons: {
-    icon: [{ url: "/assets/renvix-favicon.svg?v=20260812-google-v107", type: "image/svg+xml", sizes: "any" }],
-    shortcut: "/assets/renvix-favicon.svg?v=20260812-google-v107",
-    apple: "/assets/renvix-favicon.svg?v=20260812-google-v107"
+    icon: [{ url: "/assets/renvix-favicon.svg?v=20260912-auth-v108", type: "image/svg+xml", sizes: "any" }],
+    shortcut: "/assets/renvix-favicon.svg?v=20260912-auth-v108",
+    apple: "/assets/renvix-favicon.svg?v=20260912-auth-v108"
   }
 };
 

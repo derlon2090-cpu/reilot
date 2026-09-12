@@ -1,5 +1,4 @@
 const AUTH_READINESS_PATH = "/api/auth/readiness";
-const LEGACY_READINESS_PATH = "/api/auth/google/config";
 const READY_CACHE_MS = 45_000;
 const WARMUP_DELAYS_MS = Object.freeze([0, 400, 800, 1_400, 2_200, 3_200, 4_000]);
 const TRANSIENT_STATUSES = new Set([502, 503, 504]);
@@ -85,25 +84,17 @@ async function readinessProbe(path, apiOrigin, fetcher) {
     signal: AbortSignal.timeout(2_000)
   });
   const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-  if (!contentType.includes("application/json")) return { ready: false, missing: response.status === 404 || response.status === 200 };
+  if (!contentType.includes("application/json")) return { ready: false };
   const payload = await response.json().catch(() => null);
   if (path === AUTH_READINESS_PATH) {
-    return { ready: payload?.ok === true && payload?.service === "renvix-auth", missing: payload?.service !== "renvix-auth" };
+    return { ready: payload?.ok === true && payload?.service === "renvix-auth" };
   }
-  return { ready: Boolean(payload && typeof payload === "object"), missing: false };
+  return { ready: Boolean(payload && typeof payload === "object") };
 }
 
 async function readinessAttempt(apiOrigin, fetcher) {
   const primary = await readinessProbe(AUTH_READINESS_PATH, apiOrigin, fetcher);
-  if (primary.ready) return true;
-  // During a rolling deploy, Vercel can receive the gateway before Render has
-  // the dedicated readiness route. A known lightweight JSON route proves the
-  // old backend process is awake without exposing its holding page.
-  if (primary.missing) {
-    const legacy = await readinessProbe(LEGACY_READINESS_PATH, apiOrigin, fetcher);
-    return legacy.ready;
-  }
-  return false;
+  return primary.ready;
 }
 
 export async function ensureAuthBackendReady(apiOrigin, { fetcher = fetch, now = Date.now } = {}) {

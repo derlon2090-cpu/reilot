@@ -8,6 +8,32 @@ ALTER TABLE auth_pending_registrations
 ALTER TABLE stores
   ADD COLUMN IF NOT EXISTS commerce_platform text;
 
+-- Preserve legacy phone values while claiming any safely normalizable, unique
+-- Saudi mobile identity for the account-level uniqueness rule.
+WITH normalized AS (
+  SELECT id,
+    CASE
+      WHEN regexp_replace(phone, '[^0-9+]', '', 'g') ~ '^\+[1-9][0-9]{7,14}$'
+        THEN regexp_replace(phone, '[^0-9+]', '', 'g')
+      WHEN regexp_replace(phone, '[^0-9]', '', 'g') ~ '^9665[0-9]{8}$'
+        THEN '+' || regexp_replace(phone, '[^0-9]', '', 'g')
+      WHEN regexp_replace(phone, '[^0-9]', '', 'g') ~ '^05[0-9]{8}$'
+        THEN '+966' || substring(regexp_replace(phone, '[^0-9]', '', 'g') from 2)
+      WHEN regexp_replace(phone, '[^0-9]', '', 'g') ~ '^5[0-9]{8}$'
+        THEN '+966' || regexp_replace(phone, '[^0-9]', '', 'g')
+      ELSE NULL
+    END AS e164
+  FROM users
+  WHERE account_phone_e164 IS NULL AND phone IS NOT NULL
+), unique_normalized AS (
+  SELECT e164 FROM normalized WHERE e164 IS NOT NULL GROUP BY e164 HAVING count(*) = 1
+)
+UPDATE users u
+SET account_phone_e164 = n.e164
+FROM normalized n
+JOIN unique_normalized un ON un.e164 = n.e164
+WHERE u.id = n.id;
+
 ALTER TABLE auth_pending_registrations
   DROP CONSTRAINT IF EXISTS auth_pending_registrations_commerce_platform_check;
 

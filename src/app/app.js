@@ -2,7 +2,6 @@ import { features, knowledgeBase } from "../data/publicData.js?v=20260811-centra
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
 import { AuthTurnstile } from "./auth-turnstile.js?v=20260813-auth-routing-v110";
-import { AuthGoogle } from "./auth-google.js?v=20260814-auth-gateway-v118";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -4199,10 +4198,10 @@ function registrationPlatformPicker() {
 function authPublicPage() {
   const isRegister = state.route === "/register";
   return authSuiteFrame(`<section class="auth-light-shell auth-suite-shell ${isRegister ? "register" : "login"}">
-    <article class="card auth-light-panel auth-suite-panel">${authMobileMark()}${authModeTabs(isRegister ? "register" : "login")}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon(isRegister ? "register" : "login")}</span><h1>${isRegister ? "إنشاء حساب" : "تسجيل الدخول"}</h1><p>${isRegister ? "أنشئ حسابك لبدء إدارة اشتراكاتك بذكاء واحترافية." : "مرحبًا بعودتك، يرجى إدخال بياناتك للوصول إلى حسابك."}</p></div>${!isRegister ? '<section class="auth-known-account" data-known-account hidden></section>' : ""}${state.query.get("plan") ? `<span class="badge auth-suite-plan">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form auth-suite-form${isRegister ? " auth-register-form" : ""}" novalidate>
-      ${isRegister ? `<div class="auth-register-grid"><label class="field"><span>${localizedCopy("الاسم الكامل", "Full name")}</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>${localizedCopy("اسم الشركة (اختياري)", "Company name (optional)")}</span><input class="input" name="companyName" autocomplete="organization"></label><label class="field"><span>${localizedCopy("رقم الجوال", "Mobile number")}</span><div class="auth-phone-input"><b aria-hidden="true">🇸🇦</b><input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" placeholder="05xxxxxxxx أو +966" aria-describedby="register-phone-hint" required></div><small id="register-phone-hint">${localizedCopy("يُستخدم لحساب واحد فقط", "One account per mobile number")}</small></label><label class="field"><span>${localizedCopy("البريد الإلكتروني", "Email")}</span><input class="input" type="email" name="email" autocomplete="email" placeholder="name@example.com" required></label></div>${registrationPlatformPicker()}` : `<label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" placeholder="أدخل بريدك الإلكتروني" required></label>`}
-      ${isRegister ? `<div class="auth-register-passwords"><label class="field"><span>${localizedCopy("كلمة المرور", "Password")}</span><input class="input" type="password" name="password" autocomplete="new-password" placeholder="${localizedCopy("8 أحرف مع رقم ورمز", "8 characters with a number and symbol")}" required></label><label class="field"><span>${localizedCopy("تأكيد كلمة المرور", "Confirm password")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label></div><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<label class="field"><span>كلمة المرور</span><input class="input" type="password" name="password" autocomplete="current-password" placeholder="أدخل كلمة المرور" required></label><div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> تذكرني</label><button type="button" class="link-button" data-link="/forgot-password">نسيت كلمة المرور؟</button></div>`}
-      <button class="btn btn-primary auth-submit">${isRegister ? localizedCopy("إنشاء الحساب وبدء التجربة", "Create account and start trial") : localizedCopy("تسجيل الدخول", "Sign in")} ${dashboardIcon("arrow-left")}</button>${!isRegister ? `<div class="auth-google-area"><div class="auth-google-divider"><span>${localizedCopy("أو المتابعة عبر", "Or continue with")}</span></div><div class="auth-google-button" data-auth-google data-context="login"><button type="button" class="auth-google-placeholder" disabled aria-label="${localizedCopy("المتابعة عبر Google", "Continue with Google")}"><svg aria-hidden="true" viewBox="0 0 18 18"><path fill="#4285f4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.91c1.704-1.568 2.683-3.88 2.683-6.615Z"/><path fill="#34a853" d="M9 18c2.43 0 4.467-.806 5.957-2.18l-2.91-2.258c-.806.54-1.835.858-3.047.858-2.344 0-4.328-1.585-5.037-3.714H.956v2.333A8.998 8.998 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.963 10.706A5.41 5.41 0 0 1 3.68 9c0-.592.102-1.167.283-1.706V4.961H.956A8.996 8.996 0 0 0 0 9c0 1.452.347 2.827.956 4.039l3.007-2.333Z"/><path fill="#ea4335" d="M9 3.58c1.322 0 2.508.454 3.442 1.346l2.58-2.58C13.463.892 11.426 0 9 0A8.998 8.998 0 0 0 .956 4.961l3.007 2.333C4.672 5.165 6.656 3.58 9 3.58Z"/></svg><span>${localizedCopy("المتابعة عبر Google", "Continue with Google")}</span></button></div><p class="auth-google-status" data-auth-google-status hidden role="status"></p></div>` : `<p class="auth-register-required-note">${dashboardIcon("security")} ${localizedCopy("رقم الجوال محمي ولا يمكن استخدامه لأكثر من حساب.", "Your mobile number is protected and can only be used for one account.")}</p>`}<p class="auth-switch">${isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? "تسجيل الدخول" : "إنشاء حساب"}</button></p><p class="auth-google-legal">${localizedCopy("بالمتابعة، أنت توافق على شروط الاستخدام وسياسة الخصوصية.", "By continuing, you agree to the Terms and Privacy Policy.")}</p></form></article>
+    <article class="card auth-light-panel auth-suite-panel">${authMobileMark()}${authModeTabs(isRegister ? "register" : "login")}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon(isRegister ? "register" : "login")}</span><h1>${isRegister ? localizedCopy("إنشاء حساب", "Create account") : localizedCopy("تسجيل الدخول", "Sign in")}</h1><p>${isRegister ? localizedCopy("أنشئ حسابك وابدأ باستخدام Renvix.", "Create your account and start using Renvix.") : localizedCopy("مرحبًا بعودتك، سجّل الدخول للوصول إلى حسابك في Renvix.", "Welcome back. Sign in to access your Renvix account.")}</p></div>${state.query.get("plan") ? `<span class="badge auth-suite-plan">الخطة المختارة: ${escapeHtml(state.query.get("plan"))}</span>` : ""}<form data-submit="${isRegister ? "register" : "login"}" class="grid auth-form auth-suite-form${isRegister ? " auth-register-form" : ""}" novalidate>
+      ${isRegister ? `<div class="auth-register-grid"><label class="field"><span>${localizedCopy("الاسم الكامل", "Full name")}</span><input class="input" name="name" autocomplete="name" required></label><label class="field"><span>${localizedCopy("اسم الشركة (اختياري)", "Company name (optional)")}</span><input class="input" name="companyName" autocomplete="organization"></label><label class="field"><span>${localizedCopy("رقم الجوال", "Mobile number")}</span><div class="auth-phone-input"><b aria-hidden="true" dir="ltr">+966</b><input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" maxlength="20" placeholder="05xxxxxxxx" aria-describedby="register-phone-hint" required></div><small id="register-phone-hint">${localizedCopy("يُستخدم لحساب واحد فقط", "One account per mobile number")}</small></label><label class="field"><span>${localizedCopy("البريد الإلكتروني", "Email")}</span><input class="input" type="email" name="email" autocomplete="email" placeholder="name@example.com" required></label></div>${registrationPlatformPicker()}` : `<label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" autocomplete="email" dir="ltr" placeholder="name@example.com" required></label>`}
+      ${isRegister ? `<div class="auth-register-passwords"><label class="field"><span>${localizedCopy("كلمة المرور", "Password")}</span><input class="input" type="password" name="password" autocomplete="new-password" placeholder="${localizedCopy("8 أحرف مع رقم ورمز", "8 characters with a number and symbol")}" required></label><label class="field"><span>${localizedCopy("تأكيد كلمة المرور", "Confirm password")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" required></label></div><label class="policy-check"><input type="checkbox" name="acceptPolicies"> أوافق على <button type="button" data-link="/terms">سياسة الاستخدام</button> و<button type="button" data-link="/privacy">سياسة الخصوصية</button></label>` : `<label class="field"><span>${localizedCopy("كلمة المرور", "Password")}</span><input class="input" type="password" name="password" autocomplete="current-password" placeholder="${localizedCopy("أدخل كلمة المرور", "Enter your password")}" required></label><div class="inline-actions split-between"><label class="remember"><input type="checkbox" name="remember"> ${localizedCopy("تذكرني", "Remember me")}</label><button type="button" class="link-button" data-link="/forgot-password">${localizedCopy("نسيت كلمة المرور؟", "Forgot password?")}</button></div>`}
+      <button class="btn btn-primary auth-submit">${isRegister ? localizedCopy("إنشاء الحساب", "Create account") : localizedCopy("تسجيل الدخول", "Sign in")} ${dashboardIcon("arrow-left")}</button>${isRegister ? `<p class="auth-register-required-note">${dashboardIcon("security")} ${localizedCopy("رقم الجوال محمي ولا يمكن استخدامه لأكثر من حساب.", "Your mobile number is protected and can only be used for one account.")}</p>` : ""}<p class="auth-switch">${isRegister ? localizedCopy("لديك حساب بالفعل؟", "Already have an account?") : localizedCopy("ليس لديك حساب؟", "Don't have an account?")} <button type="button" class="link-button" data-link="${isRegister ? "/login" : "/register"}">${isRegister ? localizedCopy("تسجيل الدخول", "Sign in") : localizedCopy("إنشاء حساب", "Create account")}</button></p>${isRegister ? `<p class="auth-legal">${localizedCopy("بإنشاء الحساب، أنت توافق على شروط الاستخدام وسياسة الخصوصية.", "By creating an account, you agree to the Terms and Privacy Policy.")}</p>` : ""}</form></article>
     <aside class="card auth-light-visual auth-suite-visual ${isRegister ? "auth-suite-register-visual" : "auth-suite-login-visual"}">${authReferenceVisual(isRegister ? "register" : "login")}</aside>
   </section>`);
 }
@@ -11878,7 +11877,6 @@ async function handleAction(target) {
   if (action === "billing") { state.billing = target.dataset.billing; storage.set("renewpilot.billing", state.billing); render(); }
   if (action === "select-plan") navigate(`/register?plan=${target.dataset.plan}`);
   if (action === "forgot-password") navigate("/forgot-password");
-  if (action === "google-login") toast("سيتم ربط تسجيل الدخول عبر Google لاحقًا", "warning");
   if (action === "open-ticket") openModal("فتح تذكرة دعم", `<form data-submit="ticket" class="grid">${field("الموضوع", "subject")}${field("البريد", "email", "email")}<textarea class="textarea" name="body" required placeholder="وصف المشكلة"></textarea><button class="btn btn-primary">إرسال التذكرة</button></form>`);
   if (action === "open-chat") {
     openDrawer("ابدأ محادثة مع الدعم", `<div class="support-chat-intro">${dashboardIcon("chat")}<div><strong>فريق دعم Renvix</strong><p class="muted">أرسل رسالتك الآن. ستصل إلى لوحة الدعم وسنرسل الرد إلى بريدك الإلكتروني.</p></div></div><form data-submit="support-chat" class="grid support-chat-form"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" minlength="2" maxlength="120" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" maxlength="254" required></label><label class="field"><span>نوع الطلب</span><select class="select" name="type"><option value="INQUIRY">استفسار عام</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="BILLING">الفوترة والباقات</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="COMPLAINT">شكوى</option><option value="OTHER">أخرى</option></select></label><label class="field"><span>عنوان المحادثة</span><input class="input" name="subject" minlength="5" maxlength="150" required></label><label class="field"><span>رسالتك</span><textarea class="textarea" name="message" minlength="10" maxlength="2000" required></textarea></label><button class="btn btn-primary" type="submit">إرسال إلى فريق الدعم</button></form>`);
@@ -12175,60 +12173,6 @@ async function fetchWithTurnstile(form, url, options) {
   }
 }
 
-async function handleGoogleAuthResult(event) {
-  const { responseOk, payload, intent = "login" } = event.detail || {};
-  if (!responseOk || payload?.ok !== true) {
-    const messages = {
-      account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية قبل ربط Google.", "This email belongs to an existing account. Sign in with your password first to confirm ownership before linking Google."),
-      account_blocked: localizedCopy("حسابك محظور، راجع الدعم.", "Your account is blocked. Please contact support."),
-      account_inactive: localizedCopy("هذا الحساب محظور أو مُزال. تواصل مع إدارة المنصة لاستعادة الوصول.", "This account is suspended or removed. Contact the platform administrator to restore access."),
-      google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. انتقل إلى إنشاء حساب واستخدم Google للبدء.", "No account uses this Google address yet. Go to Create account and continue with Google."),
-      google_nonce_invalid: localizedCopy("انتهت جلسة Google الآمنة. أعد المحاولة من الزر.", "The secure Google session expired. Try again from the button."),
-      google_auth_unavailable: localizedCopy("خدمة تسجيل Google غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", "Google authentication is temporarily unavailable. Try again shortly."),
-      email_otp_unavailable: localizedCopy("تعذر إرسال رمز التحقق الاحتياطي. حاول مرة أخرى بعد قليل.", "The backup verification code could not be sent. Try again shortly."),
-      rate_limited: localizedCopy("محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.", "Too many attempts. Wait briefly and try again.")
-    };
-    const missingAccount = payload?.reason === "google_account_not_found";
-    const title = missingAccount
-      ? localizedCopy("الحساب غير موجود", "Account not found")
-      : intent === "register"
-        ? localizedCopy("تعذر إنشاء الحساب عبر Google", "Google sign-up failed")
-        : localizedCopy("تعذر تسجيل الدخول عبر Google", "Google sign-in failed");
-    return appToast.error(title, {
-      description: messages[payload?.reason] || localizedCopy("تحقق من حساب Google وحاول مرة أخرى.", "Check your Google account and try again."),
-      id: "google-auth-error"
-    });
-  }
-  if (payload.user) AuthGoogle.rememberAccount(payload.user);
-  if (payload.requiresMfa) {
-    state.mfaLoginStatus = { ok: true, expiresAt: payload.expiresAt, attemptsRemaining: payload.attemptsRemaining };
-    history.pushState({}, "", "/verify-mfa");
-    state.route = "/verify-mfa";
-    render();
-    requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]')?.focus());
-    return appToast.info(localizedCopy("أدخل رمز تطبيق المصادقة", "Enter your authenticator code"), { id: "google-mfa-required" });
-  }
-  if (payload.requiresEmailOtp) {
-    state.emailOtpStatus = { ok: true, maskedEmail: payload.maskedEmail, expiresAt: payload.expiresAt, resendAt: payload.resendAt, attemptsRemaining: 5 };
-    history.pushState({}, "", "/verify-email");
-    state.route = "/verify-email";
-    render();
-    requestAnimationFrame(() => document.querySelector('[data-otp-digit="0"]')?.focus());
-    return appToast.info(localizedCopy("أرسلنا رمز التحقق إلى بريدك", "We sent a verification code to your email"), { id: "google-email-otp-required" });
-  }
-  clearCachedDashboardProfile();
-  cacheAuthenticatedUserProfile(payload.user);
-  if (!await browserSessionIsValid()) {
-    return appToast.error(localizedCopy("تعذر تثبيت جلسة الدخول", "Could not establish the sign-in session"), { id: "google-session-error" });
-  }
-  const created = payload.created === true;
-  appToast.success(
-    created ? localizedCopy("تم إنشاء حسابك عبر Google", "Account created with Google") : localizedCopy("تم تسجيل الدخول عبر Google", "Signed in with Google"),
-    { description: created ? localizedCopy("أهلًا بك في Renvix، حسابك جاهز الآن.", "Welcome to Renvix. Your account is ready.") : localizedCopy("مرحبًا بك في Renvix.", "Welcome to Renvix."), id: "google-auth-success" }
-  );
-  void enterDashboardAfterSessionVerification({ sessionVerified: true });
-}
-
 function aiMessageListIsNearBottom(list, threshold = 110) {
   if (!list) return true;
   return list.scrollHeight - list.scrollTop - list.clientHeight <= threshold;
@@ -12465,29 +12409,6 @@ async function deleteAIConversationFromMenu(conversationId) {
   } finally {
     state.aiConversationActionBusy = "";
   }
-}
-
-function consumeGoogleRedirectError() {
-  const reason = state.query.get("google_error");
-  if (!reason) return;
-  const cleanUrl = new URL(location.href);
-  cleanUrl.searchParams.delete("google_error");
-  state.query.delete("google_error");
-  history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
-  const messages = {
-    account_blocked: localizedCopy("حسابك محظور، راجع الدعم.", "Your account is blocked. Please contact support."),
-    account_inactive: localizedCopy("هذا الحساب محظور أو مُزال. تواصل مع إدارة المنصة لاستعادة الوصول.", "This account is suspended or removed. Contact the platform administrator to restore access."),
-    google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. استخدم صفحة إنشاء الحساب للبدء.", "No account uses this Google address yet. Use the Create account page to get started."),
-    account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية.", "This email belongs to an existing account. Sign in with your password first to confirm ownership."),
-    invalid_state: localizedCopy("انتهت جلسة Google الآمنة. ابدأ المحاولة من جديد.", "The secure Google session expired. Start again."),
-    cancelled: localizedCopy("أُلغيت المتابعة عبر Google.", "Google authentication was cancelled."),
-    google_backend_not_configured: localizedCopy("إعداد Google على خادم المصادقة غير مكتمل.", "Google is not fully configured on the authentication server."),
-    auth_backend_required: localizedCopy("خادم المصادقة الآمن غير متاح حاليًا.", "The secure authentication server is currently unavailable.")
-  };
-  queueMicrotask(() => appToast.error(
-    reason === "google_account_not_found" ? localizedCopy("الحساب غير موجود", "Account not found") : localizedCopy("تعذر إكمال المصادقة عبر Google", "Google authentication failed"),
-    { description: messages[reason] || localizedCopy("حاول مرة أخرى من زر Google.", "Try again from the Google button."), id: "google-redirect-error" }
-  ));
 }
 
 function setAIComposerStreaming(form, streaming) {
@@ -13940,7 +13861,6 @@ async function handleSubmit(form, event) {
       });
       const payload = await response.json().catch(() => null);
       if (response.ok && payload?.ok === true && payload?.requiresMfa === true) {
-        AuthGoogle.rememberAccount({ email: data.email, name: "" });
         state.mfaLoginStatus = {
           ok: true,
           expiresAt: payload.expiresAt,
@@ -13958,7 +13878,6 @@ async function handleSubmit(form, event) {
         return;
       }
       if (response.ok && payload?.ok === true && payload?.requiresEmailOtp === true) {
-        AuthGoogle.rememberAccount({ email: data.email, name: "" });
         state.emailOtpStatus = {
           ok: true,
           maskedEmail: payload.maskedEmail,
@@ -13980,7 +13899,6 @@ async function handleSubmit(form, event) {
       loginAccepted = response.ok && payload?.ok === true && Boolean(payload.user?.id);
       if (loginAccepted) {
         authenticatedUser = payload.user;
-        AuthGoogle.rememberAccount(payload.user);
       }
       failureReason = payload?.reason || "";
     } catch {
@@ -14077,7 +13995,6 @@ async function handleSubmit(form, event) {
         throw error;
       }
       state.emailOtpStatus = null;
-      if (payload.user) AuthGoogle.rememberAccount(payload.user);
       clearCachedDashboardProfile();
       cacheAuthenticatedUserProfile(payload.user);
       if (payload.redirectUrl === "/admin") {
@@ -14149,7 +14066,6 @@ async function handleSubmit(form, event) {
         return toast(messages[payload?.reason] || t("common.serverError"), "danger");
       }
       if (payload?.ok === true && payload?.requiresEmailOtp === true) {
-        AuthGoogle.rememberAccount({ email: data.email, name: data.name || "" });
         state.emailOtpStatus = {
           ok: true,
           purpose: "signup",
@@ -15664,8 +15580,6 @@ function render() {
   if (authRoute) state.language = siteLanguage;
   ensurePasswordToggles();
   if (authRoute) void AuthTurnstile.mountAll(app);
-  if (state.route === "/login" || state.route === "/register") AuthGoogle.mountAll(app);
-  if ((state.route === "/login" || state.route === "/register") && state.query.has("google_error")) consumeGoogleRedirectError();
   requestAnimationFrame(() => initMarketingMotion());
   if (state.route === "/verify-email") {
     if (!state.emailOtpStatus) queueMicrotask(() => loadEmailOtpStatus());
@@ -16008,7 +15922,6 @@ document.addEventListener("submit", (event) => {
   if (form) handleSubmit(form, event);
 });
 
-window.addEventListener("renvix:google-auth-result", (event) => { void handleGoogleAuthResult(event); });
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && portal.innerHTML) closePortal();

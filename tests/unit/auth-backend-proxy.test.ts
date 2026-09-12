@@ -16,11 +16,11 @@ describe("stable authentication backend gateway", () => {
       }
       expect(init?.headers instanceof Headers ? init.headers.get("x-renvix-auth-gateway") : null).toBe("accounts");
       expect(init?.headers instanceof Headers ? init.headers.get("cf-access-jwt-assertion") : null).toBeNull();
-      return Response.json({ ok: true, clientId: "web-client.apps.googleusercontent.com" });
+      return Response.json({ ok: true });
     });
 
     const response = await proxyAuthBackendRequest(
-      new Request("https://accounts.renvix.app/api/auth/google/config", {
+      new Request("https://accounts.renvix.app/api/auth/login", {
         headers: { Accept: "application/json", "Cf-Access-Jwt-Assertion": "must-not-reach-render" }
       }),
       "https://api.renvix.app",
@@ -31,30 +31,7 @@ describe("stable authentication backend gateway", () => {
     expect(await response.json()).toMatchObject({ ok: true });
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(new URL(String(fetcher.mock.calls[0][0])).hostname).toBe("api.renvix.app");
-    expect(new URL(String(fetcher.mock.calls[1][0])).pathname).toBe("/api/auth/google/config");
-  });
-
-  it("stays available while Render is still on the previous deployment", async () => {
-    const fetcher = vi.fn(async (input: URL | RequestInfo) => {
-      const url = new URL(String(input));
-      if (url.pathname === "/api/auth/readiness") {
-        return new Response("<html>old catch-all page</html>", { headers: { "Content-Type": "text/html" } });
-      }
-      if (url.pathname === "/api/auth/google/config") {
-        return Response.json({ ok: true, clientId: "web-client.apps.googleusercontent.com" });
-      }
-      return Response.json({ ok: true });
-    });
-
-    const response = await proxyAuthBackendRequest(
-      new Request("https://accounts.renvix.app/api/auth/session", { headers: { Accept: "application/json" } }),
-      "https://api.renvix.app",
-      { fetcher }
-    );
-
-    expect(response.status).toBe(200);
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(new URL(String(fetcher.mock.calls[1][0])).pathname).toBe("/api/auth/google/config");
+    expect(new URL(String(fetcher.mock.calls[1][0])).pathname).toBe("/api/auth/login");
   });
 
   it("forwards redirects and every shared-domain authentication cookie", async () => {
@@ -62,22 +39,22 @@ describe("stable authentication backend gateway", () => {
       if (new URL(String(input)).pathname === "/api/auth/readiness") {
         return Response.json({ ok: true, service: "renvix-auth" });
       }
-      const headers = new Headers({ Location: "https://accounts.google.com/o/oauth2/v2/auth?state=safe" });
-      headers.append("Set-Cookie", "renvix_google_oauth_state=one; Path=/api/auth/google; Domain=.renvix.app; HttpOnly");
-      headers.append("Set-Cookie", "renvix_google_oauth_verifier=two; Path=/api/auth/google; Domain=.renvix.app; HttpOnly");
+      const headers = new Headers({ Location: "https://dash.renvix.app/dashboard" });
+      headers.append("Set-Cookie", "renewpilot_session=one; Path=/; Domain=.renvix.app; HttpOnly");
+      headers.append("Set-Cookie", "renvix_trusted_browser=two; Path=/; Domain=.renvix.app; HttpOnly");
       return new Response(null, { status: 302, headers });
     });
 
     const response = await proxyAuthBackendRequest(
-      new Request("https://accounts.renvix.app/api/auth/google/start?intent=register", { headers: { Accept: "text/html" } }),
+      new Request("https://accounts.renvix.app/api/auth/session/continue", { headers: { Accept: "text/html" } }),
       "https://api.renvix.app",
       { fetcher }
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toContain("accounts.google.com");
-    expect(response.headers.get("set-cookie")).toContain("renvix_google_oauth_state=one");
-    expect(response.headers.get("set-cookie")).toContain("renvix_google_oauth_verifier=two");
+    expect(response.headers.get("location")).toContain("dash.renvix.app");
+    expect(response.headers.get("set-cookie")).toContain("renewpilot_session=one");
+    expect(response.headers.get("set-cookie")).toContain("renvix_trusted_browser=two");
     expect(response.headers.get("x-renvix-auth-gateway")).toBe("accounts");
   });
 
@@ -109,7 +86,7 @@ describe("stable authentication backend gateway", () => {
   });
 
   it("returns a machine-readable warming response to fetch clients", async () => {
-    const response = authBackendWarmingResponse(new Request("https://accounts.renvix.app/api/auth/google/config", {
+    const response = authBackendWarmingResponse(new Request("https://accounts.renvix.app/api/auth/login", {
       headers: { Accept: "application/json" }
     }));
     expect(response.status).toBe(503);

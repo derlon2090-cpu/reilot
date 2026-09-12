@@ -8,7 +8,7 @@ function request() {
   return new Request("http://localhost/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "New Owner", companyName: "Store", email: "new@example.com", password: "StrongPass!234", turnstileToken: "1x00000000000000000000AA" })
+    body: JSON.stringify({ name: "New Owner", companyName: "Store", phone: "0551234567", commercePlatform: "salla", email: "new@example.com", password: "StrongPass!234", turnstileToken: "1x00000000000000000000AA" })
   });
 }
 
@@ -37,6 +37,10 @@ describe("POST /api/auth/register pending email verification", () => {
     expect(cookie).toContain("renvix_email_otp_challenge=");
     expect(cookie).not.toContain("renewpilot_session=");
     expect(JSON.stringify(body)).not.toContain("signed-signup");
+    expect(registerAccount).toHaveBeenCalledWith(expect.objectContaining({
+      phone: "+966551234567",
+      commercePlatform: "salla"
+    }));
   });
 
   it("returns a validation error instead of a server error for malformed JSON", async () => {

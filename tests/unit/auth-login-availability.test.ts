@@ -63,7 +63,7 @@ describe("credential login availability", () => {
   it("prevents a blocked email from registering another account", async () => {
     mocks.query.mockResolvedValue({ rows: [{ accountStatus: "suspended" }], rowCount: 1 });
 
-    await expect(registerAccount({ name: "Blocked User", companyName: "Store", email: "BLOCKED@example.test", password: "StrongPassword!123", ipAddress: "127.0.0.1", userAgent: "test" }))
+    await expect(registerAccount({ name: "Blocked User", companyName: "Store", phone: "0551234567", commercePlatform: "salla", email: "BLOCKED@example.test", password: "StrongPassword!123", ipAddress: "127.0.0.1", userAgent: "test" }))
       .resolves.toEqual({ ok: false, status: 403, reason: "account_blocked" });
     expect(mocks.hashPassword).not.toHaveBeenCalled();
   });
