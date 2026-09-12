@@ -50,7 +50,7 @@ function humanStatus(value) {
   return {
     active: "نشط", trial: "تجريبي", expired: "منتهي", pending: "معلّق", connected: "متصل",
     disconnected: "غير متصل", healthy: "سليم", degraded: "يحتاج متابعة", error: "متعثر",
-    not_configured: "غير مهيأ", sent: "تم الإرسال", failed: "فشل", disabled: "معطل",
+    not_configured: "غير مهيأ", sent: "تم الإرسال", failed: "فشل", disabled: "مُزال", suspended: "محظور",
     scheduled: "مجدول", queueing: "قيد الجدولة", sending: "قيد الإرسال", draft: "مسودة",
     validating: "جارٍ التحقق", preparing: "تجهيز الجمهور", publishing: "قيد النشر",
     published: "تم النشر", partially_published: "نشر جزئي", partial: "مكتملة جزئيًا", cancelled: "ملغي", archived: "مؤرشف",
@@ -60,7 +60,7 @@ function humanStatus(value) {
 
 function statusTone(value) {
   if (["active", "connected", "healthy", "sent", "completed"].includes(value)) return "good";
-  if (["failed", "error", "expired", "disconnected"].includes(value)) return "bad";
+  if (["failed", "error", "expired", "disconnected", "disabled", "suspended"].includes(value)) return "bad";
   return "warn";
 }
 
@@ -151,7 +151,9 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
         ? { action, amount: Number(amount), note: note.trim() }
         : action === "change_plan"
           ? { action, planId }
-          : { action, confirmation: confirmation.trim() };
+          : action === "restore_customer"
+            ? { action }
+            : { action, confirmation: confirmation.trim() };
       const response = await fetch(`/api/admin/tenants/${row.tenantId}/actions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -163,6 +165,8 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
           confirmation_mismatch: "اكتب اسم مساحة العمل كما هو لتأكيد الإزالة.",
           admin_tenant_cannot_be_removed: "لا يمكن إزالة مساحة عمل مرتبطة بحساب أدمن نشط.",
           customer_removed: "هذا العميل مُزال بالفعل ولا يمكن تعديل رصيده أو باقته.",
+          customer_already_suspended: "هذا العميل محظور بالفعل.",
+          customer_not_suspended: "هذا العميل غير محظور.",
           plan_not_found: "الباقة المحددة غير متاحة حاليًا."
         };
         throw new Error(messages[payload.reason] || "تعذر تنفيذ العملية. حاول مرة أخرى.");
@@ -179,19 +183,22 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   if (!canManage) return <span className={styles.adminReadOnlyLabel}>عرض فقط</span>;
   const submitDisabled = busy || success || (action === "add_credit" && (!Number.isFinite(Number(amount)) || Number(amount) < 1))
     || (action === "change_plan" && !planId)
-    || (action === "remove_customer" && confirmation.trim() !== tenantName);
+    || (["remove_customer", "suspend_customer"].includes(action) && confirmation.trim() !== tenantName);
   return <>
     <div className={styles.adminCustomerActions} aria-label={`إدارة ${tenantName}`}>
       <button type="button" onClick={() => open("add_credit")} title="إضافة رصيد"><Glyph name="wallet" /><span>رصيد</span></button>
       <button type="button" onClick={() => open("change_plan")} title="تغيير الباقة"><Glyph name="swap" /><span>الباقة</span></button>
+      {row.status === "suspended"
+        ? <button type="button" onClick={() => open("restore_customer")} title="إلغاء حظر العميل"><Glyph name="check" /><span>إلغاء الحظر</span></button>
+        : <button type="button" className={styles.adminCustomerRemoveButton} onClick={() => open("suspend_customer")} title="حظر العميل"><Glyph name="alert" /><span>حظر</span></button>}
       <button type="button" className={styles.adminCustomerRemoveButton} onClick={() => open("remove_customer")} title="إزالة العميل"><Glyph name="trash" /><span>إزالة</span></button>
     </div>
     {action ? <div className={styles.adminCustomerModalBackdrop} role="presentation" onMouseDown={() => !busy && setAction("")}>
       <section className={styles.adminCustomerModal} role="dialog" aria-modal="true" aria-labelledby="admin-customer-action-title" onMouseDown={(event) => event.stopPropagation()}>
         <header>
           <div>
-            <span className={`${styles.adminCustomerModalIcon} ${action === "remove_customer" ? styles.adminCustomerModalIconDanger : ""}`}><Glyph name={action === "add_credit" ? "wallet" : action === "change_plan" ? "swap" : "trash"} /></span>
-            <div><h2 id="admin-customer-action-title">{action === "add_credit" ? "إضافة رصيد العميل" : action === "change_plan" ? "تغيير باقة العميل" : "إزالة العميل"}</h2><p>{tenantName}</p></div>
+            <span className={`${styles.adminCustomerModalIcon} ${["remove_customer", "suspend_customer"].includes(action) ? styles.adminCustomerModalIconDanger : ""}`}><Glyph name={action === "add_credit" ? "wallet" : action === "change_plan" ? "swap" : action === "restore_customer" ? "check" : action === "suspend_customer" ? "alert" : "trash"} /></span>
+            <div><h2 id="admin-customer-action-title">{action === "add_credit" ? "إضافة رصيد العميل" : action === "change_plan" ? "تغيير باقة العميل" : action === "suspend_customer" ? "حظر العميل" : action === "restore_customer" ? "إلغاء حظر العميل" : "إزالة العميل"}</h2><p>{tenantName}</p></div>
           </div>
           <button type="button" aria-label="إغلاق" disabled={busy} onClick={() => setAction("")}>×</button>
         </header>
@@ -211,8 +218,13 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
             <div className={styles.adminCustomerDangerNote}><Glyph name="alert" /><div><strong>عملية حساسة</strong><p>سيُعطّل الحساب، وتُلغى اشتراكاته النشطة وتنتهي جلساته فورًا، مع الاحتفاظ بالسجلات والفواتير لأغراض المراجعة.</p></div></div>
             <label><span>اكتب اسم مساحة العمل للتأكيد</span><input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={tenantName} autoComplete="off" /></label>
           </> : null}
+          {action === "suspend_customer" ? <>
+            <div className={styles.adminCustomerDangerNote}><Glyph name="alert" /><div><strong>حظر فوري</strong><p>ستنتهي جميع جلسات العميل فورًا، ولن يتمكن من فتح لوحة المنصة أو تسجيل الدخول حتى إلغاء الحظر.</p></div></div>
+            <label><span>اكتب اسم مساحة العمل للتأكيد</span><input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={tenantName} autoComplete="off" /></label>
+          </> : null}
+          {action === "restore_customer" ? <div className={styles.adminCurrentBalance}><span>الحالة الجديدة</span><strong>نشط — يمكنه تسجيل الدخول</strong></div> : null}
           {error ? <div className={styles.adminCustomerActionError}>{error}</div> : null}
-          <footer><button type="submit" disabled={submitDisabled} className={action === "remove_customer" ? styles.adminDangerButton : styles.adminPrimaryButton}>{busy ? "جارٍ التنفيذ..." : action === "remove_customer" ? "تأكيد إزالة العميل" : "حفظ وتنفيذ"}</button><button type="button" className={styles.adminOutlineButton} disabled={busy} onClick={() => setAction("")}>إلغاء</button></footer>
+          <footer><button type="submit" disabled={submitDisabled} className={["remove_customer", "suspend_customer"].includes(action) ? styles.adminDangerButton : styles.adminPrimaryButton}>{busy ? "جارٍ التنفيذ..." : action === "remove_customer" ? "تأكيد إزالة العميل" : action === "suspend_customer" ? "تأكيد حظر العميل" : action === "restore_customer" ? "إلغاء الحظر" : "حفظ وتنفيذ"}</button><button type="button" className={styles.adminOutlineButton} disabled={busy} onClick={() => setAction("")}>إلغاء</button></footer>
         </form>}
         {success ? <footer><button type="button" className={styles.adminPrimaryButton} onClick={() => setAction("")}>إغلاق</button></footer> : null}
       </section>
@@ -296,7 +308,7 @@ function Subscriptions({ data, stats, admin, onRefresh }) {
   </>;
 }
 
-function Customers({ data, stats }) {
+function Customers({ data, stats, admin, onRefresh }) {
   const [search, setSearch] = useState("");
   const rows = useMemo(() => (data.customers || []).filter((row) => `${row.name} ${row.email} ${row.tenantName}`.toLowerCase().includes(search.toLowerCase())), [data.customers, search]);
   return <>
@@ -312,7 +324,8 @@ function Customers({ data, stats }) {
       <SimpleTable emptyTitle="لا توجد حسابات عملاء حتى الآن" rows={rows} columns={[
         { key: "name", label: "العميل" }, { key: "email", label: "البريد الإلكتروني" }, { key: "phone", label: "الهاتف" },
         { key: "storeCount", label: "عدد المتاجر" }, { key: "planName", label: "الباقة الحالية" },
-        { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "createdAt", label: "آخر نشاط", render: formatDate }
+        { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "createdAt", label: "آخر نشاط", render: formatDate },
+        { key: "actions", label: "إدارة العميل", render: (_value, row) => <TenantActions row={row} plans={data.plans || []} onComplete={onRefresh} canManage={MANAGE_CUSTOMER_ROLES.has(admin.role)} /> }
       ]} />
     </section>
   </>;
@@ -361,6 +374,37 @@ function Templates({ data, stats }) {
       <div className={styles.adminTabs}><button onClick={() => setChannel("all")} className={channel === "all" ? styles.adminTabActive : ""}>الكل</button><button onClick={() => setChannel("email")} className={channel === "email" ? styles.adminTabActive : ""}>البريد الإلكتروني</button><button onClick={() => setChannel("whatsapp")} className={channel === "whatsapp" ? styles.adminTabActive : ""}>واتساب</button><button onClick={() => setChannel("system")} className={channel === "system" ? styles.adminTabActive : ""}>النظام</button></div>
       <SearchFilters value={search} onChange={setSearch} searchPlaceholder="بحث في القوالب..." placeholders={["التصنيف", "اللغة", "حالة القالب"]} />
       {!rows.length ? <Empty title="لا توجد قوالب مطابقة" /> : <div className={styles.adminTemplateList}>{rows.map((row) => <article key={row.id}><span className={styles.adminTemplateIcon}><Glyph name={row.channel === "email" ? "mail" : row.channel === "evolution_whatsapp" ? "send" : "settings"} /></span><div><h3>{row.name}</h3><p>{row.description}</p><span><StatusPill value={row.isActive ? "active" : "disabled"} /> · الإصدار {row.version}</span></div><div className={styles.adminRowActions}><a href={`/admin/templates/${row.templateKey}`}>تحرير</a><a href={`/admin/templates/${row.templateKey}?preview=1`}>معاينة</a></div></article>)}</div>}
+    </section>
+  </>;
+}
+
+function Messages({ data }) {
+  const tenantMessages = data.tenantMessages || [];
+  const platformMessages = data.adminMessages || [];
+  const successful = (rows) => rows.filter((row) => ["accepted", "sent", "delivered", "read"].includes(row.status)).length;
+  const failed = (rows) => rows.filter((row) => row.status === "failed").length;
+  return <>
+    <KpiGrid items={[
+      { label: "رسائل مساحات العمل", value: ar(tenantMessages.length), helper: "من طوابير العملاء والمتاجر", icon: "send", tone: "brand" },
+      { label: "رسائل المنصة", value: ar(platformMessages.length), helper: "من قنوات إدارة Renvix", icon: "mail", tone: "brandMuted" },
+      { label: "عمليات ناجحة", value: ar(successful(tenantMessages) + successful(platformMessages)), helper: "في السجل المعروض", icon: "check", tone: "green" },
+      { label: "عمليات فاشلة", value: ar(failed(tenantMessages) + failed(platformMessages)), helper: "تحتاج مراجعة", icon: "alert", tone: "red" }
+    ]} />
+    <section className={styles.adminSurface}>
+      <PanelTitle title="رسائل العملاء والمتاجر" description="رسائل كل مساحة عمل من طابور الإرسال الخاص بها، مع إظهار اسم المساحة بوضوح." />
+      <SimpleTable rows={tenantMessages} emptyTitle="لا توجد رسائل لمساحات العمل" columns={[
+        { key: "tenantName", label: "مساحة العمل" }, { key: "channel", label: "القناة" },
+        { key: "recipient", label: "المستلم" }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> },
+        { key: "attempts", label: "المحاولات", render: ar }, { key: "scheduledFor", label: "موعد الإرسال", render: (value) => formatDate(value, true) }
+      ]} />
+    </section>
+    <section className={styles.adminSurface}>
+      <PanelTitle title="رسائل المنصة" description="رسائل Renvix الإدارية مستقلة عن رسائل العملاء ولا تدخل في عدادات باقاتهم." />
+      <SimpleTable rows={platformMessages} emptyTitle="لا توجد رسائل منصة" columns={[
+        { key: "eventType", label: "الحدث" }, { key: "templateKey", label: "القالب" },
+        { key: "channel", label: "القناة" }, { key: "provider", label: "المزود" },
+        { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "createdAt", label: "وقت الإنشاء", render: (value) => formatDate(value, true) }
+      ]} />
     </section>
   </>;
 }
@@ -1214,12 +1258,12 @@ function Settings({ data, stats, admin }) {
   </>;
 }
 
-export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "notifications", "support", "templates", "campaigns", "devices", "integrations", "security", "security-center", "reports", "settings"]);
+export const SPECIAL_ADMIN_PANELS = new Set(["overview", "subscriptions", "customers", "stores", "messages", "notifications", "support", "templates", "campaigns", "devices", "integrations", "security", "security-center", "reports", "settings"]);
 
 export default function AdminSectionView({ panel, data, stats, admin, onRefresh }) {
   if (!data || !stats) return null;
   const components = {
-    overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, notifications: Notifications, support: Support, templates: Templates,
+    overview: Overview, subscriptions: Subscriptions, customers: Customers, stores: Stores, messages: Messages, notifications: Notifications, support: Support, templates: Templates,
     campaigns: Campaigns, devices: Devices, integrations: Integrations, security: Security, "security-center": SecurityCenter, reports: Reports, settings: Settings
   };
   const Component = components[panel];

@@ -3,6 +3,7 @@ import {
   createPlatformNotification,
   createPlatformNotificationSchema,
   listPlatformNotifications,
+  runPlatformNotificationWorker,
   sameOriginRequest
 } from "../../../../src/server/platform-notifications.js";
 import { query } from "../../../../src/server/db.js";
@@ -10,6 +11,7 @@ import { query } from "../../../../src/server/db.js";
 export async function GET(request) {
   const auth = await requireAdminPermission(request, "notifications", "read");
   if (!auth.ok) return auth.response;
+  await runPlatformNotificationWorker({ maxNotifications: 1 }).catch(() => null);
   const url = new URL(request.url);
   const data = await listPlatformNotifications({
     status: url.searchParams.get("status") || "",
@@ -40,6 +42,16 @@ export async function POST(request) {
   }
   try {
     const result = await createPlatformNotification({ input: parsed.data, admin: auth.admin, requestUrl: request.url });
+    if (parsed.data.scheduleMode === "now") {
+      await runPlatformNotificationWorker({ maxNotifications: 1, notificationId: result.notification.id });
+      const published = await query(
+        `SELECT status,created_recipients AS "createdRecipients",delivered_count AS "deliveredCount",
+                failed_recipients AS "failedRecipients",published_at AS "publishedAt"
+           FROM platform_notifications WHERE id=$1`,
+        [result.notification.id]
+      );
+      Object.assign(result.notification, published.rows[0] || {});
+    }
     await auditAdmin(request, {
       admin: auth.admin,
       action: "admin.notification.created",
@@ -49,7 +61,10 @@ export async function POST(request) {
     const messages = {
       draft: "تم حفظ الإشعار كمسودة. لن يظهر للمستخدمين حتى يتم نشره.",
       scheduled: "تمت جدولة الإشعار بنجاح. سيبدأ النشر تلقائيًا في الموعد المحدد.",
-      validating: "بدأ تجهيز جمهور الإشعار. يمكنك متابعة تقدم النشر من سجل الإشعارات."
+      validating: "بدأ تجهيز جمهور الإشعار. يمكنك متابعة تقدم النشر من سجل الإشعارات.",
+      published: "تم نشر الإشعار ووصل إلى مستخدمي المنصة المستهدفين.",
+      partially_published: "تم نشر الإشعار جزئيًا، ويعرض السجل عدد المستلمين الفعلي.",
+      failed: "تعذر نشر الإشعار. راجع حالة العامل ثم أعد المحاولة."
     };
     return Response.json({ ok: true, ...result, message: messages[result.notification.status] }, { status: 201 });
   } catch (error) {

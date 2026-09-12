@@ -1,9 +1,11 @@
 import { query } from "../../../../src/server/db.js";
+import { runPlatformNotificationWorker } from "../../../../src/server/platform-notifications.js";
 import { requireSession } from "../../../../src/server/session.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
+  await runPlatformNotificationWorker({ maxNotifications: 1 }).catch(() => null);
   const result = await query(
     `SELECT COUNT(*)::int AS count
        FROM in_app_notifications

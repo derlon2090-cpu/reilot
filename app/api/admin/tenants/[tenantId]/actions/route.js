@@ -15,6 +15,13 @@ const inputSchema = z.discriminatedUnion("action", [
     planId: z.string().uuid()
   }),
   z.object({
+    action: z.literal("suspend_customer"),
+    confirmation: z.string().trim().min(1).max(200)
+  }),
+  z.object({
+    action: z.literal("restore_customer")
+  }),
+  z.object({
     action: z.literal("remove_customer"),
     confirmation: z.string().trim().min(1).max(200)
   })
@@ -63,26 +70,69 @@ async function addCredit(client, tenant, input, admin) {
 
 async function changePlan(client, tenant, input) {
   const planResult = await client.query(
-    `SELECT id,name,slug FROM platform_plans WHERE id=$1 AND is_active=true LIMIT 1`,
+    `SELECT id,name,slug,monthly_message_limit,whatsapp_message_limit,email_message_limit,sms_message_limit
+       FROM platform_plans WHERE id=$1 AND is_active=true LIMIT 1`,
     [input.planId]
   );
   const plan = planResult.rows[0];
   if (!plan) throw actionError("plan_not_found", 404);
   const subscriptionResult = await client.query(
-    `SELECT id,plan_id AS "planId" FROM platform_subscriptions
+    `SELECT id,plan_id AS "planId",status,billing_cycle AS "billingCycle",
+            current_period_start AS "periodStart",current_period_end AS "periodEnd"
+       FROM platform_subscriptions
       WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
     [tenant.id]
   );
   const subscription = subscriptionResult.rows[0];
   if (!subscription) throw actionError("subscription_not_found", 404);
-  await client.query(
+  const updated = await client.query(
     `UPDATE platform_subscriptions
-        SET plan_id=$2,status=CASE WHEN status IN ('cancelled','expired') THEN 'active' ELSE status END,
+        SET plan_id=$2,
+            status=CASE WHEN status IN ('cancelled','canceled','expired','paused','past_due') THEN 'active' ELSE status END,
+            current_period_start=CASE WHEN current_period_end<=now() THEN now() ELSE current_period_start END,
+            current_period_end=CASE WHEN current_period_end<=now()
+              THEN now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END
+              ELSE current_period_end END,
+            trial_started_at=CASE WHEN $3='trial' THEN trial_started_at ELSE NULL END,
+            trial_ends_at=CASE WHEN $3='trial' THEN trial_ends_at ELSE NULL END,
             updated_at=now()
-      WHERE id=$1`,
-    [subscription.id, plan.id]
+      WHERE id=$1
+      RETURNING current_period_start AS "periodStart",current_period_end AS "periodEnd"`,
+    [subscription.id, plan.id, plan.slug]
+  );
+  const periodStart = updated.rows[0]?.periodStart || subscription.periodStart;
+  const periodEnd = updated.rows[0]?.periodEnd || subscription.periodEnd;
+  await client.query(
+    `INSERT INTO message_usage_periods
+       (tenant_id,platform_subscription_id,plan_id,period_start,period_end,message_limit,
+        whatsapp_message_limit,email_message_limit,sms_message_limit)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     ON CONFLICT (tenant_id,period_start,period_end) DO UPDATE SET
+       platform_subscription_id=EXCLUDED.platform_subscription_id,plan_id=EXCLUDED.plan_id,
+       message_limit=EXCLUDED.message_limit,whatsapp_message_limit=EXCLUDED.whatsapp_message_limit,
+       email_message_limit=EXCLUDED.email_message_limit,sms_message_limit=EXCLUDED.sms_message_limit,updated_at=now()`,
+    [tenant.id, subscription.id, plan.id, periodStart, periodEnd, plan.monthly_message_limit,
+      plan.whatsapp_message_limit, plan.email_message_limit, plan.sms_message_limit]
   );
   return { plan, previousPlanId: subscription.planId, subscriptionId: subscription.id };
+}
+
+async function setCustomerSuspension(client, tenant, suspended) {
+  if (suspended && tenant.status === "suspended") throw actionError("customer_already_suspended");
+  if (!suspended && tenant.status !== "suspended") throw actionError("customer_not_suspended");
+  const nextStatus = suspended ? "suspended" : "active";
+  await client.query("UPDATE tenants SET status=$2,updated_at=now() WHERE id=$1", [tenant.id, nextStatus]);
+  let disabledSessions = 0;
+  if (suspended) {
+    const sessions = await client.query(
+      `UPDATE sessions SET expires_at=now(),updated_at=now()
+        WHERE user_id IN (SELECT id FROM users WHERE tenant_id=$1) AND expires_at>now()
+        RETURNING id`,
+      [tenant.id]
+    );
+    disabledSessions = sessions.rowCount || 0;
+  }
+  return { status: nextStatus, disabledSessions };
 }
 
 async function removeCustomer(client, tenant, input) {
@@ -131,6 +181,11 @@ export async function POST(request, { params }) {
       }
       if (parsed.data.action === "add_credit") return { tenant, action: parsed.data.action, ...(await addCredit(client, tenant, parsed.data, auth.admin)) };
       if (parsed.data.action === "change_plan") return { tenant, action: parsed.data.action, ...(await changePlan(client, tenant, parsed.data)) };
+      if (parsed.data.action === "suspend_customer") {
+        if (parsed.data.confirmation !== tenant.name) throw actionError("confirmation_mismatch", 400);
+        return { tenant, action: parsed.data.action, ...(await setCustomerSuspension(client, tenant, true)) };
+      }
+      if (parsed.data.action === "restore_customer") return { tenant, action: parsed.data.action, ...(await setCustomerSuspension(client, tenant, false)) };
       return { tenant, action: parsed.data.action, ...(await removeCustomer(client, tenant, parsed.data)) };
     });
 
@@ -149,7 +204,11 @@ export async function POST(request, { params }) {
       ? `تمت إضافة ${Number(parsed.data.amount).toLocaleString("en-US")} ر.س إلى رصيد العميل.`
       : result.action === "change_plan"
         ? `تم تغيير باقة العميل إلى ${result.plan?.name || "الباقة المحددة"}.`
-        : "تمت إزالة العميل من القوائم النشطة وتعطيل جلساته دون حذف سجلاته.";
+        : result.action === "suspend_customer"
+          ? "تم حظر العميل وإنهاء جميع جلساته فورًا."
+          : result.action === "restore_customer"
+            ? "تم إلغاء حظر العميل ويمكنه تسجيل الدخول مجددًا."
+            : "تمت إزالة العميل من القوائم النشطة وتعطيل جلساته دون حذف سجلاته.";
     return Response.json({ ok: true, action: result.action, result, message }, {
       headers: { "Cache-Control": "private, no-store, max-age=0" }
     });
@@ -167,6 +226,8 @@ export async function POST(request, { params }) {
       customer_not_found: "العميل غير موجود.",
       customer_removed: "العميل مُزال ولا يمكن تعديل بياناته.",
       customer_already_removed: "العميل مُزال بالفعل.",
+      customer_already_suspended: "العميل محظور بالفعل.",
+      customer_not_suspended: "العميل غير محظور.",
       confirmation_mismatch: "اسم مساحة العمل غير مطابق.",
       admin_tenant_cannot_be_removed: "لا يمكن إزالة مساحة عمل مرتبطة بحساب أدمن نشط.",
       plan_not_found: "الباقة المحددة غير متاحة.",

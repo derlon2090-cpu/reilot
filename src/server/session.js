@@ -52,7 +52,7 @@ export async function getSessionWithToken(req, { allowInactiveTenant = false, co
   const tokenHashes = rawTokens.map((token) => sha256(token));
   const tenantJoin = allowInactiveTenant
     ? "LEFT JOIN tenants t ON t.id = u.tenant_id"
-    : "JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'";
+    : "JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')";
   const result = await query(
     `SELECT s.id, s.token AS "_tokenHash", s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.image, u.must_change_password AS "mustChangePassword",
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
