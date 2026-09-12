@@ -1,5 +1,6 @@
 const SESSION_COOKIES = ["renewpilot_session", "renvix_admin_session"];
 const TRUSTED_DEVICE_COOKIE = "__Host-rvx_trusted_browser";
+const HONEYPOT_DEVICE_COOKIE = "renvix_honeypot_device";
 const CACHE_TTL_MS = 5000;
 const CACHE_MAX = 1000;
 const decisionCache = new Map();
@@ -52,7 +53,23 @@ export async function checkSecurityBlockAtBoundary(request, env = process.env) {
   const sessions = SESSION_COOKIES.map((name) => request.cookies.get(name)?.value).filter(Boolean);
   const sessionHashes = await Promise.all(sessions.map(sha256));
   const deviceToken = String(request.cookies.get(TRUSTED_DEVICE_COOKIE)?.value || "").slice(0, 256);
-  const payload = { sourceIp: sourceIp(request), sessionHashes, deviceToken };
+  const honeypotDeviceToken = String(request.cookies.get(HONEYPOT_DEVICE_COOKIE)?.value || "").slice(0, 180);
+  const url = new URL(request.url);
+  const referrer = (() => {
+    try {
+      const value = new URL(String(request.headers.get("referer") || ""));
+      return `${value.origin}${value.pathname}`.slice(0, 500);
+    } catch {
+      return "";
+    }
+  })();
+  const payload = {
+    sourceIp: sourceIp(request), sessionHashes, deviceToken, honeypotDeviceToken,
+    requestedHost: url.hostname.toLowerCase().slice(0, 253),
+    requestedPath: url.pathname.slice(0, 300),
+    method: String(request.method || "GET").toUpperCase().slice(0, 12),
+    referrer
+  };
   const cacheKey = await sha256(JSON.stringify(payload));
   const hit = cached(cacheKey);
   if (hit) return hit;
@@ -104,6 +121,6 @@ export function neutralSecurityBlockResponse(referenceId, apiRequest = false) {
       headers: { ...headers, "content-type": "application/json; charset=utf-8" }
     });
   }
-  const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تعذر الوصول</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f8f7;color:#062b28;font-family:Arial,sans-serif}.card{width:min(88vw,520px);padding:36px;border:1px solid #dce9e7;border-radius:18px;background:#fff;box-shadow:0 18px 50px #062b2814}h1{font-size:25px;margin:0 0 12px}p{color:#526b68;line-height:1.8}.ref{direction:ltr;text-align:right;font:600 13px monospace;color:#78908d}</style></head><body><main class="card"><h1>تعذر الوصول إلى هذه الصفحة حاليًا.</h1><p>إذا كنت تعتقد أن هذا خطأ، تواصل مع الدعم.</p><div class="ref">REF: ${reference}</div></main></body></html>`;
+  const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تم حظر الوصول</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#eef6f4,#dfecea);color:#062b28;font-family:Tahoma,Arial,sans-serif}.card{width:min(100%,520px);padding:42px 36px;border:1px solid #d4e4e1;border-radius:24px;background:#fff;box-shadow:0 24px 70px #103f381f;text-align:center}.icon{width:70px;height:70px;margin:0 auto 22px;display:grid;place-items:center;border-radius:50%;background:#fff1f0;color:#b42318;font-size:32px}h1{font-size:28px;margin:0 0 12px}p{color:#526b68;line-height:1.9}.ref{margin:24px 0;padding:13px;border-radius:10px;background:#f3f7f6;direction:ltr;font:700 13px monospace}a{display:inline-flex;min-height:46px;align-items:center;justify-content:center;padding:0 24px;border-radius:11px;background:#0b5650;color:#fff;text-decoration:none;font-weight:800}</style></head><body><main class="card"><div class="icon" aria-hidden="true">!</div><h1>تم حظر الوصول</h1><p>تم حظر هذا الجهاز من استخدام خدمات Renvix وفق سياسة الحماية. إذا كنت تعتقد أن الإجراء حدث بالخطأ، راجع الدعم واذكر الرقم المرجعي.</p><div class="ref">REF: ${reference}</div><a href="mailto:support@renvix.app?subject=Security%20block%20review">مراجعة الحظر مع الدعم</a></main></body></html>`;
   return new Response(html, { status: 403, headers: { ...headers, "content-type": "text/html; charset=utf-8" } });
 }

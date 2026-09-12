@@ -35,11 +35,16 @@ describe("security containment contract", () => {
     const worker = read("deploy/cloudflare/admin-honeypot/src/worker.js");
     const blockCheck = read("app/api/security/block-check/route.js");
     expect(worker).toContain("__Host-renvix_hp_device");
+    expect(worker).toContain("renvix_honeypot_device");
+    expect(worker).toContain("Domain=renvix.app");
     expect(worker).toContain("HttpOnly; Secure; SameSite=Strict");
     expect(worker).toContain("honeypotDeviceId");
     expect(center).toContain('targets.push(["device", safeHoneypotDeviceId])');
+    expect(center).toContain("verifyHoneypotDeviceToken");
+    expect(center).toContain("recordBlockedHoneypotNavigation");
     expect(center).toContain("honeypotDeviceId: input.honeypotDeviceId");
     expect(blockCheck).toContain("HONEYPOT_INGESTION_SECRET");
+    expect(blockCheck).toContain("honeypotDeviceToken");
   });
 
   it("automatically contains the signed honeypot ID without automatically blocking its IP", () => {

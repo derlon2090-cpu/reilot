@@ -8,7 +8,7 @@ routes = [
 ]
 
 [vars]
-SECURITY_INGESTION_URL = "https://renvix.app/api/security/ingest/honeypot"
+SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"
 
 [[unsafe.bindings]]
 name = "HONEYPOT_RATE_LIMITER"

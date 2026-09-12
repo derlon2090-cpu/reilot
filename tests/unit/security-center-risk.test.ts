@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateThreatScore, incidentAlertDedupeKey, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
-  honeypotDeviceFingerprint, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk, verifySignedIngestion
+  honeypotDeviceFingerprint, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
+  verifyHoneypotDeviceToken, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
 
@@ -99,6 +100,14 @@ describe("security center risk and privacy policy", () => {
     const signature = crypto.createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
     expect(verifySignedIngestion({ rawBody, timestamp, signature, secret })).toBe(true);
     expect(verifySignedIngestion({ rawBody: `${rawBody}x`, timestamp, signature, secret })).toBe(false);
+  });
+
+  it("accepts only an authentic signed cross-domain honeypot marker", () => {
+    const secret = "marker-secret-that-is-at-least-32-bytes";
+    const deviceId = `hpd_${"c".repeat(32)}`;
+    const signature = crypto.createHmac("sha256", secret).update(`honeypot-device:${deviceId}`).digest("hex");
+    expect(verifyHoneypotDeviceToken(`${deviceId}.${signature}`, secret)).toBe(deviceId);
+    expect(verifyHoneypotDeviceToken(`${deviceId}.${"0".repeat(64)}`, secret)).toBe("");
   });
 
   it("uses a fixed ten-hour cadence and prevents health probes from creating incidents", async () => {

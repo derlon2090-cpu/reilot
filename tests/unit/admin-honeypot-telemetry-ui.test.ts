@@ -16,6 +16,8 @@ describe("admin honeypot telemetry visibility", () => {
     expect(route).toContain("metadata->'ipLocation' AS \"ipLocation\"");
     expect(route).toContain("LIMIT 5");
     expect(route).toContain('AS "recentActivity"');
+    expect(route).toContain("requestedHost");
+    expect(route).toContain("blockedNavigation");
   });
 
   it("shows device and aggregate interaction details without presenting captured field values", () => {
@@ -27,7 +29,9 @@ describe("admin honeypot telemetry visibility", () => {
     expect(component).toContain("بصمة الجهاز التقديرية");
     expect(component).toContain("Renvix Device ID");
     expect(component).toContain("حظر Renvix Device ID");
-    expect(component).toContain("آخر 5 زيارات مرتبطة بهذا الجهاز");
+    expect(component).toContain("آخر 5 مسارات داخل نطاقات Renvix");
+    expect(component).toContain("محاولة مُنعت بواسطة الحظر");
+    expect(component).toContain("لا يستطيع الموقع قراءة سجل التصفح خارج نطاقاته");
     expect(component).toContain("تقريبي وليس GPS");
     expect(component).toContain("فتح الحادث وخيارات الاحتواء");
     expect(component).toContain("لا يتم حفظ محتوى الحقول أو كلمات المرور");

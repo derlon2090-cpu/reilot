@@ -16,8 +16,11 @@ these hardware signals but can deliberately reduce or randomize them, so the
 fingerprint must not be treated as a cryptographic device identity.
 
 The Worker also issues a server-signed `Renvix Device ID` in an HttpOnly,
-Secure, SameSite=Strict, Host-Only cookie. This pseudonymous ID is shown in the
-Security Center and can be contained through the existing device block scope.
+Secure, SameSite=Strict, Host-Only cookie. A second signed marker scoped to
+`renvix.app` carries the same pseudonymous ID so the central middleware can
+enforce an active block on the public Renvix hosts. Neither cookie contains
+personal data. The ID is shown in the Security Center and can be contained
+through the existing device block scope.
 It is not a hardware serial number: clearing site data or closing an incognito
 session can cause the browser to receive a new ID. Every request carrying a
 valid signed ID is checked against active blocks before the decoy is served.
@@ -31,9 +34,10 @@ replaces itself with that block notice so the first visit does not remain on a
 credential-like screen.
 
 The hidden same-origin 1x1 pixel only confirms that the page resource was
-requested and helps issue the same signed Host-Only ID. It cannot enter the
-device, inspect files, or obtain a hardware serial. Because the cookie remains
-Host-Only, the ID is intentionally not shared with other Renvix subdomains.
+requested and helps issue the signed ID. It cannot enter the device, inspect
+files, obtain a hardware serial, or read browser history. The Security Center
+can show the five most recent Renvix host/path attempts associated with the
+signed marker, but no website can read browsing history from unrelated domains.
 
 Deployment requirements:
 
@@ -42,8 +46,8 @@ Deployment requirements:
 2. Keep `wa-admin.renvix.app` behind Cloudflare Zero Trust.
 3. Set the Worker secret with `wrangler secret put HONEYPOT_INGESTION_SECRET`
    and set the same server-only value on the ingestion service.
-   Keep `SECURITY_INGESTION_URL` on the public Vercel application origin; the
-   API hostname is not used because it serves the separate backend runtime.
+   Keep `SECURITY_INGESTION_URL` on the Render backend origin
+   (`https://api.renvix.app/api/security/ingest/honeypot`).
 4. Keep Cloudflare WAF and zone rate limits enabled. The binding in
    `wrangler.toml` is an additional Worker-local guard.
 5. Never add real Renvix application assets, analytics, cookies, redirects, or
