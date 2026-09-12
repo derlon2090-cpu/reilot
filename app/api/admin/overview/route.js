@@ -30,6 +30,7 @@ export async function GET(request) {
     adminTemplates,
     integrationHealth,
     adminMessages,
+    tenantMessages,
     dailyMetrics,
     platformPlans
   ] = await Promise.all([
@@ -119,7 +120,7 @@ export async function GET(request) {
     ),
     query("SELECT count(*)::int AS count FROM stores s JOIN tenants t ON t.id=s.tenant_id WHERE t.status <> 'disabled'"),
     query(
-      `SELECT u.id,u.name,u.email,
+      `SELECT u.id,t.id AS "tenantId",u.name,u.email,
               CASE WHEN u.phone IS NULL OR u.phone='' THEN NULL ELSE left(u.phone,4) || ' *** ' || right(u.phone,3) END AS phone,
               u.role,u.created_at AS "createdAt",t.name AS "tenantName",t.status,
               COALESCE(store_count.count,0)::int AS "storeCount",pp.name AS "planName"
@@ -166,6 +167,14 @@ export async function GET(request) {
       `SELECT id,template_key AS "templateKey",event_type AS "eventType",provider,channel,status,
               credit_status AS "creditStatus",is_test_message AS "isTestMessage",created_at AS "createdAt"
          FROM admin_outbound_messages ORDER BY created_at DESC LIMIT 30`
+    ),
+    query(
+      `SELECT mq.id,t.name AS "tenantName",mq.channel_type AS channel,mq.status,mq.attempts,
+              CASE WHEN mq.destination IS NULL OR mq.destination='' THEN '—'
+                   ELSE left(mq.destination,4) || '***' || right(mq.destination,3) END AS recipient,
+              mq.scheduled_for AS "scheduledFor",mq.created_at AS "createdAt"
+         FROM message_queue mq JOIN tenants t ON t.id=mq.tenant_id
+        ORDER BY mq.created_at DESC LIMIT 30`
     ),
     query(
       `SELECT metric_date AS date,stores_count AS stores,active_users_count AS "activeUsers",
@@ -260,6 +269,7 @@ export async function GET(request) {
     adminTemplates: adminCan(auth.admin, "templates", "read") ? adminTemplates.rows : [],
     integrationHealth: adminCan(auth.admin, "integrations", "read") ? integrationHealth.rows : [],
     adminMessages: adminCan(auth.admin, "reports", "read") ? adminMessages.rows : [],
+    tenantMessages: adminCan(auth.admin, "reports", "read") ? tenantMessages.rows : [],
     campaigns: [],
     campaignContacts: adminCan(auth.admin, "contacts", "read") ? recentCampaignContacts.rows : [],
     dailyMetrics: dailyMetrics.rows.reverse()

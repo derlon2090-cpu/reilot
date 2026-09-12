@@ -28,7 +28,7 @@ async function findCredentialUser(normalizedEmail) {
               u.mfa_secret_encrypted AS "mfaSecret",
               COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
          FROM users u
-         JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
+         JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
         WHERE lower(u.email) = $1 LIMIT 1`,
@@ -44,7 +44,7 @@ async function findCredentialUser(normalizedEmail) {
               false AS "emailOtpEnabled", false AS "mfaEnabled", NULL::text AS "mfaSecret",
               COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
          FROM users u
-         JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'
+         JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
         WHERE lower(u.email) = $1 LIMIT 1`,

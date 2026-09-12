@@ -91,7 +91,7 @@ export function validateNotificationActionUrl(value, requestUrl) {
 
 function audienceWhere(audienceType, filters = {}) {
   const values = [];
-  const where = ["u.tenant_id IS NOT NULL", "COALESCE(t.status, 'disabled') <> 'disabled'"];
+  const where = ["u.tenant_id IS NOT NULL", "t.status IN ('active','trial')"];
   const add = (value) => {
     values.push(value);
     return `$${values.length}`;
@@ -252,13 +252,15 @@ async function materializeAudienceBatch(client, notification, cursor, limit = 50
   return { count: inserted.rowCount, lastCursor: users.rows.at(-1).id, scanned: users.rowCount };
 }
 
-export async function runPlatformNotificationWorker({ maxNotifications = 10, batchSize = 500 } = {}) {
+export async function runPlatformNotificationWorker({ maxNotifications = 10, batchSize = 500, notificationId = null } = {}) {
   await query(
     `UPDATE platform_notification_outbox o
         SET status='pending',available_at=now(),failure_code=NULL
       FROM platform_notifications n
       WHERE o.notification_id=n.id AND o.status='failed' AND o.attempts < 5 AND o.available_at <= now()
-        AND n.status IN ('validating','scheduled','preparing','publishing','failed','partially_published')`
+        AND n.status IN ('validating','scheduled','preparing','publishing','failed','partially_published')
+        AND ($1::uuid IS NULL OR o.notification_id=$1)`,
+    [notificationId]
   );
   const due = await transaction(async (client) => client.query(
     `WITH claimed AS (
@@ -267,6 +269,7 @@ export async function runPlatformNotificationWorker({ maxNotifications = 10, bat
          JOIN platform_notifications n ON n.id=o.notification_id
         WHERE o.status='pending' AND o.available_at <= now()
           AND n.status IN ('validating','scheduled','preparing','publishing','failed','partially_published')
+          AND ($2::uuid IS NULL OR o.notification_id=$2)
         ORDER BY o.available_at
         FOR UPDATE OF o SKIP LOCKED
         LIMIT $1
@@ -276,7 +279,7 @@ export async function runPlatformNotificationWorker({ maxNotifications = 10, bat
        FROM claimed,platform_notifications n
       WHERE o.id=claimed.id AND n.id=o.notification_id
       RETURNING o.id AS outbox_id,o.notification_id,o.attempts,n.*`,
-    [maxNotifications]
+    [maxNotifications, notificationId]
   ));
   let published = 0;
   let failed = 0;

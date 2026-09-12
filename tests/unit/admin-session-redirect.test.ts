@@ -14,12 +14,12 @@ describe("admin session redirect", () => {
     queryMock.mockResolvedValue({ rows: [{ id: "session-1", userId: "user-1" }] });
   });
 
-  it("keeps disabled tenants blocked for ordinary user sessions", async () => {
+  it("keeps disabled and suspended tenants blocked for ordinary user sessions", async () => {
     await getSession(new Request("https://renvix.app/dashboard", {
       headers: { cookie: "renewpilot_session=ordinary-token" }
     }));
 
-    expect(queryMock.mock.calls[0][0]).toContain("JOIN tenants t ON t.id = u.tenant_id AND t.status <> 'disabled'");
+    expect(queryMock.mock.calls[0][0]).toContain("JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')");
     expect(queryMock.mock.calls[0][0]).not.toContain("LEFT JOIN tenants t");
   });
 
@@ -29,7 +29,7 @@ describe("admin session redirect", () => {
     }), { allowInactiveTenant: true, cookieName: "renvix_admin_session" });
 
     expect(queryMock.mock.calls[0][0]).toContain("LEFT JOIN tenants t ON t.id = u.tenant_id");
-    expect(queryMock.mock.calls[0][0]).not.toContain("AND t.status <> 'disabled'");
+    expect(queryMock.mock.calls[0][0]).not.toContain("AND t.status IN ('active','trial')");
     const adminAuthSource = readFileSync(resolve("src/server/admin-auth.js"), "utf8");
     expect(adminAuthSource).toContain("getSession(req, { allowInactiveTenant: true, cookieName: ADMIN_SESSION_COOKIE })");
   });

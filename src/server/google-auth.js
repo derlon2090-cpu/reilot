@@ -130,7 +130,7 @@ async function loadGoogleUser(client, profile, intent) {
             u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
             COALESCE(tm.role,u.role) AS role
        FROM accounts a JOIN users u ON u.id=a.user_id
-       JOIN tenants t ON t.id=u.tenant_id AND t.status <> 'disabled'
+       JOIN tenants t ON t.id=u.tenant_id AND t.status IN ('active','trial')
        LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=u.tenant_id
       WHERE a.provider_id='google' AND a.account_id=$1 LIMIT 1 FOR UPDATE OF a,u`,
     [profile.subject]
@@ -146,7 +146,7 @@ async function loadGoogleUser(client, profile, intent) {
             u.must_change_password AS "mustChangePassword",u.email_otp_enabled AS "emailOtpEnabled",
             u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
             COALESCE(tm.role,u.role) AS role
-       FROM users u JOIN tenants t ON t.id=u.tenant_id AND t.status <> 'disabled'
+       FROM users u JOIN tenants t ON t.id=u.tenant_id AND t.status IN ('active','trial')
        LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=u.tenant_id
       WHERE lower(u.email)=$1 LIMIT 1 FOR UPDATE OF u`,
     [profile.email]

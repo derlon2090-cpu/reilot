@@ -127,12 +127,31 @@ describe("admin customer actions", () => {
     expect(clientQueryMock.mock.calls.some(([sql]) => /^\s*DELETE\s/i.test(String(sql)))).toBe(false);
   });
 
+  it("suspends a customer and expires every active session immediately", async () => {
+    clientQueryMock.mockImplementation(async (sql) => {
+      const statement = String(sql);
+      if (statement.includes("FROM tenants")) return { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] };
+      if (statement.includes("UPDATE sessions")) return { rows: [{ id: "session-1" }], rowCount: 1 };
+      return { rows: [], rowCount: 1 };
+    });
+
+    const response = await call({ action: "suspend_customer", confirmation: "متجر الندى" });
+    const payload = await response.json();
+
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE tenants SET status=$2") && params.includes("suspended"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("UPDATE sessions SET expires_at=now()"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("UPDATE platform_subscriptions SET status='cancelled'"))).toBe(false);
+  });
+
   it("renders all three guarded actions beside subscriptions and stores", () => {
     const source = readFileSync(resolve("src/components/admin/AdminSections.jsx"), "utf8");
-    expect(source.match(/label: "إدارة العميل"/g)).toHaveLength(2);
+    expect(source.match(/label: "إدارة العميل"/g)).toHaveLength(3);
     expect(source).toContain('open("add_credit")');
     expect(source).toContain('open("change_plan")');
     expect(source).toContain('open("remove_customer")');
+    expect(source).toContain('open("suspend_customer")');
+    expect(source).toContain('open("restore_customer")');
     expect(source).toContain("اكتب اسم مساحة العمل للتأكيد");
   });
 });
