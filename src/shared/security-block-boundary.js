@@ -1,6 +1,7 @@
 const SESSION_COOKIES = ["renewpilot_session", "renvix_admin_session"];
 const TRUSTED_DEVICE_COOKIE = "__Host-rvx_trusted_browser";
 const HONEYPOT_DEVICE_COOKIE = "renvix_honeypot_device";
+const HONEYPOT_DEVICE_PATTERN = /^hpd_[a-f0-9]{32}$/;
 const CACHE_TTL_MS = 5000;
 const CACHE_MAX = 1000;
 const decisionCache = new Map();
@@ -22,6 +23,41 @@ async function hmac(secret, value) {
     ["sign"]
   );
   return hex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
+}
+
+function hexBytes(value) {
+  if (!/^[a-f0-9]{64}$/.test(value)) return null;
+  return Uint8Array.from(value.match(/.{2}/g), (pair) => Number.parseInt(pair, 16));
+}
+
+async function verifiedHoneypotDeviceId(token, secret) {
+  const value = String(token || "").slice(0, 180);
+  const keyValue = String(secret || "");
+  const separator = value.lastIndexOf(".");
+  if (keyValue.length < 32 || separator <= 0) return "";
+  const deviceId = value.slice(0, separator);
+  const signature = hexBytes(value.slice(separator + 1));
+  if (!HONEYPOT_DEVICE_PATTERN.test(deviceId) || !signature) return "";
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(keyValue),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    signature,
+    new TextEncoder().encode(`honeypot-device:${deviceId}`)
+  );
+  return valid ? deviceId : "";
+}
+
+function localHoneypotBlock(deviceId) {
+  return deviceId
+    ? { blocked: true, referenceId: `HP-${deviceId.slice(-12).toUpperCase()}` }
+    : null;
 }
 
 function sourceIp(request) {
@@ -49,11 +85,13 @@ function remember(key, value) {
 
 export async function checkSecurityBlockAtBoundary(request, env = process.env) {
   const secret = String(env.SECURITY_BLOCK_CHECK_SECRET || "");
-  if (secret.length < 32) return { blocked: false, enforcement: "not_configured" };
   const sessions = SESSION_COOKIES.map((name) => request.cookies.get(name)?.value).filter(Boolean);
   const sessionHashes = await Promise.all(sessions.map(sha256));
   const deviceToken = String(request.cookies.get(TRUSTED_DEVICE_COOKIE)?.value || "").slice(0, 256);
   const honeypotDeviceToken = String(request.cookies.get(HONEYPOT_DEVICE_COOKIE)?.value || "").slice(0, 180);
+  const honeypotDeviceId = await verifiedHoneypotDeviceId(honeypotDeviceToken, env.HONEYPOT_INGESTION_SECRET);
+  const localBlock = localHoneypotBlock(honeypotDeviceId);
+  if (secret.length < 32) return localBlock || { blocked: false, enforcement: "not_configured" };
   const url = new URL(request.url);
   const referrer = (() => {
     try {
@@ -94,16 +132,18 @@ export async function checkSecurityBlockAtBoundary(request, env = process.env) {
       cache: "no-store",
       signal: AbortSignal.timeout(1200)
     });
-    if (!response.ok) return { blocked: false, enforcement: "unavailable" };
+    if (!response.ok) return localBlock || { blocked: false, enforcement: "unavailable" };
     const result = await response.json();
     const decision = result?.blocked
       ? { blocked: true, referenceId: String(result.referenceId || "SEC-UNKNOWN").slice(0, 40) }
-      : { blocked: false, enforcement: "active" };
+      : localBlock || { blocked: false, enforcement: "active" };
     remember(cacheKey, decision);
     return decision;
   } catch {
     // Fail open to avoid turning an internal lookup outage into a platform outage.
-    return { blocked: false, enforcement: "unavailable" };
+    // A locally verified honeypot marker is already definitive evidence and
+    // remains fail-closed without depending on the central lookup latency.
+    return localBlock || { blocked: false, enforcement: "unavailable" };
   }
 }
 
