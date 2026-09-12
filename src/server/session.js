@@ -57,7 +57,7 @@ export async function getSessionWithToken(req, { allowInactiveTenant = false, co
     `SELECT s.id, s.token AS "_tokenHash", s.user_id AS "userId", u.tenant_id AS "tenantId", u.email, u.name, u.image, u.must_change_password AS "mustChangePassword",
             COALESCE(tm.role, u.role) AS role, s.expires_at AS "expiresAt"
        FROM sessions s
-       JOIN users u ON u.id = s.user_id
+       JOIN users u ON u.id = s.user_id AND u.account_status='active'
        ${tenantJoin}
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
       WHERE s.token = ANY($1::text[]) AND s.expires_at > now()

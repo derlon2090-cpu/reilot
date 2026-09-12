@@ -12171,6 +12171,7 @@ async function handleGoogleAuthResult(event) {
   if (!responseOk || payload?.ok !== true) {
     const messages = {
       account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية قبل ربط Google.", "This email belongs to an existing account. Sign in with your password first to confirm ownership before linking Google."),
+      account_inactive: localizedCopy("هذا الحساب محظور أو مُزال. تواصل مع إدارة المنصة لاستعادة الوصول.", "This account is suspended or removed. Contact the platform administrator to restore access."),
       google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. انتقل إلى إنشاء حساب واستخدم Google للبدء.", "No account uses this Google address yet. Go to Create account and continue with Google."),
       google_nonce_invalid: localizedCopy("انتهت جلسة Google الآمنة. أعد المحاولة من الزر.", "The secure Google session expired. Try again from the button."),
       google_auth_unavailable: localizedCopy("خدمة تسجيل Google غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", "Google authentication is temporarily unavailable. Try again shortly."),
@@ -12464,6 +12465,7 @@ function consumeGoogleRedirectError() {
   state.query.delete("google_error");
   history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
   const messages = {
+    account_inactive: localizedCopy("هذا الحساب محظور أو مُزال. تواصل مع إدارة المنصة لاستعادة الوصول.", "This account is suspended or removed. Contact the platform administrator to restore access."),
     google_account_not_found: localizedCopy("لا يوجد حساب مرتبط بعنوان Google هذا. استخدم صفحة إنشاء الحساب للبدء.", "No account uses this Google address yet. Use the Create account page to get started."),
     account_link_verification_required: localizedCopy("هذا البريد مرتبط بحساب قائم. سجّل بكلمة المرور أولًا لتأكيد الملكية.", "This email belongs to an existing account. Sign in with your password first to confirm ownership."),
     invalid_state: localizedCopy("انتهت جلسة Google الآمنة. ابدأ المحاولة من جديد.", "The secure Google session expired. Start again."),

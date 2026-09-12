@@ -119,6 +119,7 @@ function SimpleTable({ columns, rows, emptyTitle }) {
 }
 
 const MANAGE_CUSTOMER_ROLES = new Set(["super_admin", "operations_admin", "admin", "billing_admin"]);
+const MANAGE_USER_ROLES = new Set(["super_admin", "operations_admin", "admin"]);
 
 function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   const [action, setAction] = useState("");
@@ -232,6 +233,66 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   </>;
 }
 
+function UserActions({ row, onComplete, canManage = false }) {
+  const [action, setAction] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const email = row.email || "";
+
+  function open(nextAction) {
+    setAction(nextAction);
+    setConfirmation("");
+    setError("");
+    setSuccess("");
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!row.id) return setError("تعذر تحديد المستخدم.");
+    setBusy(true);
+    setError("");
+    try {
+      const body = action === "restore_user" ? { action } : { action, confirmation: confirmation.trim() };
+      const response = await fetch(`/api/admin/users/${row.id}/actions`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || "تعذر تنفيذ العملية على المستخدم.");
+      setSuccess(payload.message || "تم تنفيذ العملية بنجاح.");
+      await onComplete?.();
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canManage) return <span className={styles.adminReadOnlyLabel}>عرض فقط</span>;
+  const confirmRequired = action === "suspend_user" || action === "remove_user";
+  const submitDisabled = busy || success || (confirmRequired && confirmation.trim().toLowerCase() !== email.toLowerCase());
+  return <>
+    <div className={styles.adminCustomerActions} aria-label={`إدارة المستخدم ${email}`}>
+      {row.status === "active" ? <button type="button" className={styles.adminCustomerRemoveButton} onClick={() => open("suspend_user")}><Glyph name="alert" /><span>حظر</span></button> : null}
+      {row.status !== "active" ? <button type="button" onClick={() => open("restore_user")}><Glyph name="check" /><span>استعادة</span></button> : null}
+      {row.status !== "removed" ? <button type="button" className={styles.adminCustomerRemoveButton} onClick={() => open("remove_user")}><Glyph name="trash" /><span>إزالة</span></button> : null}
+    </div>
+    {action ? <div className={styles.adminCustomerModalBackdrop} role="presentation" onMouseDown={() => !busy && setAction("")}>
+      <section className={styles.adminCustomerModal} role="dialog" aria-modal="true" aria-labelledby="admin-user-action-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header><div><span className={`${styles.adminCustomerModalIcon} ${action !== "restore_user" ? styles.adminCustomerModalIconDanger : ""}`}><Glyph name={action === "restore_user" ? "check" : action === "suspend_user" ? "alert" : "trash"} /></span><div><h2 id="admin-user-action-title">{action === "restore_user" ? "استعادة المستخدم" : action === "suspend_user" ? "حظر المستخدم" : "إزالة المستخدم"}</h2><p>{email}</p></div></div><button type="button" aria-label="إغلاق" disabled={busy} onClick={() => setAction("")}>×</button></header>
+        {success ? <div className={styles.adminCustomerActionSuccess}><Glyph name="check" /><div><strong>تمت العملية بنجاح</strong><p>{success}</p></div></div> : <form onSubmit={submit}>
+          <div className={action === "restore_user" ? styles.adminCurrentBalance : styles.adminCustomerDangerNote}><Glyph name={action === "restore_user" ? "check" : "alert"} /><div><strong>{action === "restore_user" ? "إعادة الوصول" : "إجراء على هذا المستخدم فقط"}</strong><p>{action === "restore_user" ? "سيتمكن المستخدم من تسجيل الدخول من جديد." : action === "suspend_user" ? "ستنتهي جلساته فورًا دون التأثير على بقية أعضاء مساحة العمل." : "سيُزال حسابه منطقيًا مع الاحتفاظ بسجل التدقيق، دون التأثير على بقية أعضاء مساحة العمل."}</p></div></div>
+          {confirmRequired ? <label><span>اكتب بريد المستخدم للتأكيد</span><input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={email} dir="ltr" autoComplete="off" /></label> : null}
+          {error ? <div className={styles.adminCustomerActionError}>{error}</div> : null}
+          <footer><button type="submit" disabled={submitDisabled} className={action === "restore_user" ? styles.adminPrimaryButton : styles.adminDangerButton}>{busy ? "جارٍ التنفيذ..." : action === "restore_user" ? "استعادة المستخدم" : action === "suspend_user" ? "تأكيد الحظر" : "تأكيد الإزالة"}</button><button type="button" className={styles.adminOutlineButton} disabled={busy} onClick={() => setAction("")}>إلغاء</button></footer>
+        </form>}
+        {success ? <footer><button type="button" className={styles.adminPrimaryButton} onClick={() => setAction("")}>إغلاق</button></footer> : null}
+      </section>
+    </div> : null}
+  </>;
+}
+
 function TrendChart({ metrics = [], title = "اتجاه الأداء", keys = [{ key: "accepted", label: "الرسائل", color: "#0B3F3B" }] }) {
   const data = metrics.length ? metrics : [{ date: new Date().toISOString(), accepted: 0 }];
   const max = Math.max(1, ...data.flatMap((item) => keys.map((entry) => n(item[entry.key]))));
@@ -325,7 +386,7 @@ function Customers({ data, stats, admin, onRefresh }) {
         { key: "name", label: "العميل" }, { key: "email", label: "البريد الإلكتروني" }, { key: "phone", label: "الهاتف" },
         { key: "storeCount", label: "عدد المتاجر" }, { key: "planName", label: "الباقة الحالية" },
         { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "createdAt", label: "آخر نشاط", render: formatDate },
-        { key: "actions", label: "إدارة العميل", render: (_value, row) => <TenantActions row={row} plans={data.plans || []} onComplete={onRefresh} canManage={MANAGE_CUSTOMER_ROLES.has(admin.role)} /> }
+        { key: "actions", label: "إدارة المستخدم", render: (_value, row) => <UserActions row={row} onComplete={onRefresh} canManage={MANAGE_USER_ROLES.has(admin.role)} /> }
       ]} />
     </section>
   </>;

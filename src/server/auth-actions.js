@@ -31,7 +31,7 @@ async function findCredentialUser(normalizedEmail) {
          JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-        WHERE lower(u.email) = $1 LIMIT 1`,
+        WHERE lower(u.email) = $1 AND u.account_status='active' LIMIT 1`,
       [normalizedEmail]
     );
   } catch (error) {
@@ -47,7 +47,7 @@ async function findCredentialUser(normalizedEmail) {
          JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')
          JOIN accounts a ON a.user_id = u.id AND a.provider_id = 'credential'
          LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
-        WHERE lower(u.email) = $1 LIMIT 1`,
+        WHERE lower(u.email) = $1 AND u.account_status='active' LIMIT 1`,
       [normalizedEmail]
     );
   }

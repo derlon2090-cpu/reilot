@@ -144,9 +144,9 @@ describe("admin customer actions", () => {
     expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("UPDATE platform_subscriptions SET status='cancelled'"))).toBe(false);
   });
 
-  it("renders all three guarded actions beside subscriptions and stores", () => {
+  it("renders workspace actions beside subscriptions and stores", () => {
     const source = readFileSync(resolve("src/components/admin/AdminSections.jsx"), "utf8");
-    expect(source.match(/label: "إدارة العميل"/g)).toHaveLength(3);
+    expect(source.match(/label: "إدارة العميل"/g)).toHaveLength(2);
     expect(source).toContain('open("add_credit")');
     expect(source).toContain('open("change_plan")');
     expect(source).toContain('open("remove_customer")');

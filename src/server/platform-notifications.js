@@ -91,7 +91,7 @@ export function validateNotificationActionUrl(value, requestUrl) {
 
 function audienceWhere(audienceType, filters = {}) {
   const values = [];
-  const where = ["u.tenant_id IS NOT NULL", "t.status IN ('active','trial')"];
+  const where = ["u.tenant_id IS NOT NULL", "u.account_status='active'", "t.status IN ('active','trial')"];
   const add = (value) => {
     values.push(value);
     return `$${values.length}`;

@@ -127,7 +127,7 @@ async function loadGoogleUser(client, profile, intent) {
   const linked = await client.query(
     `SELECT u.id,u.tenant_id AS "tenantId",u.name,u.email,u.image,
             u.must_change_password AS "mustChangePassword",u.email_otp_enabled AS "emailOtpEnabled",
-            u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
+            u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",u.account_status AS "accountStatus",
             COALESCE(tm.role,u.role) AS role
        FROM accounts a JOIN users u ON u.id=a.user_id
        JOIN tenants t ON t.id=u.tenant_id AND t.status IN ('active','trial')
@@ -136,6 +136,7 @@ async function loadGoogleUser(client, profile, intent) {
     [profile.subject]
   );
   if (linked.rows[0]) {
+    if (linked.rows[0].accountStatus && linked.rows[0].accountStatus !== "active") return { error: { ok: false, status: 403, reason: "account_inactive" } };
     const preservedProfile = resolveGoogleProfileFields(profile, linked.rows[0]);
     await client.query("UPDATE users SET email_verified=true,email_verified_at=COALESCE(email_verified_at,now()),updated_at=now() WHERE id=$1", [linked.rows[0].id]);
     return { user: { ...linked.rows[0], ...preservedProfile }, created: false, linked: false };
@@ -144,7 +145,7 @@ async function loadGoogleUser(client, profile, intent) {
   const existing = await client.query(
     `SELECT u.id,u.tenant_id AS "tenantId",u.name,u.email,u.image,
             u.must_change_password AS "mustChangePassword",u.email_otp_enabled AS "emailOtpEnabled",
-            u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",
+            u.mfa_enabled AS "mfaEnabled",u.mfa_secret_encrypted AS "mfaSecret",u.account_status AS "accountStatus",
             COALESCE(tm.role,u.role) AS role
        FROM users u JOIN tenants t ON t.id=u.tenant_id AND t.status IN ('active','trial')
        LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=u.tenant_id
@@ -152,6 +153,7 @@ async function loadGoogleUser(client, profile, intent) {
     [profile.email]
   );
   if (existing.rows[0]) {
+    if (existing.rows[0].accountStatus && existing.rows[0].accountStatus !== "active") return { error: { ok: false, status: 403, reason: "account_inactive" } };
     if (!googleAutoLinkAllowed(profile)) return { error: { ok: false, status: 409, reason: "account_link_verification_required" } };
     const preservedProfile = resolveGoogleProfileFields(profile, existing.rows[0]);
     await client.query("INSERT INTO accounts (user_id,account_id,provider_id) VALUES ($1,$2,'google') ON CONFLICT DO NOTHING", [existing.rows[0].id, profile.subject]);

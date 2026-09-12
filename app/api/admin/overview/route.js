@@ -35,7 +35,7 @@ export async function GET(request) {
     platformPlans
   ] = await Promise.all([
     query("SELECT count(*)::int AS count FROM tenants WHERE status <> 'disabled'"),
-    query("SELECT count(*)::int AS count FROM users u JOIN tenants t ON t.id=u.tenant_id WHERE t.status <> 'disabled'"),
+    query("SELECT count(*)::int AS count FROM users u JOIN tenants t ON t.id=u.tenant_id WHERE t.status <> 'disabled' AND u.account_status='active'"),
     query(
       `SELECT
          count(*) FILTER (WHERE ps.status = 'active')::int AS active,
@@ -122,7 +122,7 @@ export async function GET(request) {
     query(
       `SELECT u.id,t.id AS "tenantId",u.name,u.email,
               CASE WHEN u.phone IS NULL OR u.phone='' THEN NULL ELSE left(u.phone,4) || ' *** ' || right(u.phone,3) END AS phone,
-              u.role,u.created_at AS "createdAt",t.name AS "tenantName",t.status,
+              u.role,u.created_at AS "createdAt",t.name AS "tenantName",u.account_status AS status,
               COALESCE(store_count.count,0)::int AS "storeCount",pp.name AS "planName"
          FROM users u
          LEFT JOIN tenants t ON t.id=u.tenant_id

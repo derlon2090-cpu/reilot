@@ -20,6 +20,7 @@ describe("admin session redirect", () => {
     }));
 
     expect(queryMock.mock.calls[0][0]).toContain("JOIN tenants t ON t.id = u.tenant_id AND t.status IN ('active','trial')");
+    expect(queryMock.mock.calls[0][0]).toContain("JOIN users u ON u.id = s.user_id AND u.account_status='active'");
     expect(queryMock.mock.calls[0][0]).not.toContain("LEFT JOIN tenants t");
   });
 
