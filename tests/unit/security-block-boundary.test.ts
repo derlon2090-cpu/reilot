@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHmac } from "node:crypto";
 import { checkSecurityBlockAtBoundary, neutralSecurityBlockResponse } from "../../src/shared/security-block-boundary.js";
 
 function request(cookies: Record<string, string> = {}) {
@@ -45,6 +46,33 @@ describe("central security block boundary", () => {
       SECURITY_BLOCK_CHECK_URL: "https://api.renvix.app/api/security/block-check"
     });
     expect(result).toEqual({ blocked: true, referenceId: "SEC-8F21A7" });
+  });
+
+  it("fails closed for a locally verified honeypot marker when the central lookup is unavailable", async () => {
+    const honeypotSecret = "h".repeat(32);
+    const deviceId = `hpd_${"a".repeat(32)}`;
+    const signature = createHmac("sha256", honeypotSecret).update(`honeypot-device:${deviceId}`).digest("hex");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("central timeout"); }));
+
+    await expect(checkSecurityBlockAtBoundary(request({
+      renvix_honeypot_device: `${deviceId}.${signature}`
+    }), {
+      SECURITY_BLOCK_CHECK_SECRET: "x".repeat(32),
+      HONEYPOT_INGESTION_SECRET: honeypotSecret,
+      SECURITY_BLOCK_CHECK_URL: "https://api.renvix.app/api/security/block-check"
+    })).resolves.toEqual({ blocked: true, referenceId: "HP-AAAAAAAAAAAA" });
+  });
+
+  it("does not trust a forged honeypot marker when the central lookup is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("central timeout"); }));
+
+    await expect(checkSecurityBlockAtBoundary(request({
+      renvix_honeypot_device: `hpd_${"b".repeat(32)}.${"0".repeat(64)}`
+    }), {
+      SECURITY_BLOCK_CHECK_SECRET: "x".repeat(32),
+      HONEYPOT_INGESTION_SECRET: "h".repeat(32),
+      SECURITY_BLOCK_CHECK_URL: "https://api.renvix.app/api/security/block-check"
+    })).resolves.toEqual({ blocked: false, enforcement: "unavailable" });
   });
 
   it("returns a professional 403 with a support-review reference", async () => {

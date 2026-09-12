@@ -21,6 +21,8 @@ describe("security containment contract", () => {
     expect(middleware.indexOf("const block = await checkSecurityBlockAtBoundary")).toBeLessThan(middleware.indexOf("const origins = configuredOrigins"));
     expect(boundary).toContain("__Host-rvx_trusted_browser");
     expect(boundary).toContain("access_unavailable");
+    expect(boundary).toContain("verifiedHoneypotDeviceId");
+    expect(boundary).toContain("localBlock ||");
     expect(`${middleware}\n${boundary}`).not.toMatch(/canvas|webgl|audiofingerprint/i);
   });
 
