@@ -18,7 +18,7 @@ function runtime() {
     pending,
     context: { waitUntil(promise: Promise<unknown>) { pending.push(promise); } },
     env: {
-      SECURITY_INGESTION_URL: "https://renvix.app/api/security/ingest/honeypot",
+      SECURITY_INGESTION_URL: "https://api.renvix.app/api/security/ingest/honeypot",
       HONEYPOT_INGESTION_SECRET: "a-long-independent-honeypot-secret"
     }
   };
@@ -101,6 +101,8 @@ describe("isolated admin honeypot", () => {
       const response = await honeypotWorker.fetch(request, env, context);
       expect(response.status).toBe(204);
       expect(response.headers.get("set-cookie")).toMatch(/^__Host-renvix_hp_device=hpd_[a-f0-9]{32}\.[a-f0-9]{64};/);
+      expect(response.headers.get("set-cookie")).toContain("renvix_honeypot_device=hpd_");
+      expect(response.headers.get("set-cookie")).toContain("Domain=renvix.app");
       await Promise.all(pending);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [, init] = fetchSpy.mock.calls[0];
@@ -154,7 +156,7 @@ describe("isolated admin honeypot", () => {
       await Promise.all(pending);
       fetchSpy.mockClear();
       fetchSpy.mockImplementation(async (url, init) => {
-        expect(String(url)).toBe("https://renvix.app/api/security/block-check");
+        expect(String(url)).toBe("https://api.renvix.app/api/security/block-check");
         expect(JSON.parse(String(init?.body))).toEqual({ honeypotDeviceId: deviceId });
         expect(new Headers(init?.headers).get("x-security-signature")).toMatch(/^[a-f0-9]{64}$/);
         return new Response(JSON.stringify({ ok: true, blocked: true, referenceId: "SEC-DEVICE-1" }), {
@@ -240,8 +242,7 @@ describe("isolated admin honeypot", () => {
     expect(ingestion).toContain("ingestHoneypotEvent");
     expect(ingestion).toContain("16_384");
     expect(ingestion).not.toContain('request.headers.get("x-forwarded-for")');
-    expect(workerConfig).toContain('SECURITY_INGESTION_URL = "https://renvix.app/api/security/ingest/honeypot"');
-    expect(workerConfig).not.toContain("https://api.renvix.app/api/security/ingest/honeypot");
+    expect(workerConfig).toContain('SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"');
   });
 
   it("keeps the scanner lock and audit ledger tamper evident", () => {

@@ -36,12 +36,16 @@ export async function GET(request) {
                   COALESCE((
                     SELECT jsonb_agg(jsonb_build_object(
                       'path',history.requested_path,'country',history.country,'region',history.region,
-                      'city',history.city_approx,'ipLocation',history.metadata->'ipLocation','lastSeen',history.last_seen
+                      'city',history.city_approx,'ipLocation',history.metadata->'ipLocation','lastSeen',history.last_seen,
+                      'host',COALESCE(NULLIF(history.metadata->>'requestedHost',''),'admin.renvix.app'),
+                      'referrer',history.referrer,
+                      'blocked',history.metadata->>'blockedNavigation'='true'
                     ) ORDER BY history.last_seen DESC)
                     FROM (
                       SELECT * FROM (
-                        SELECT DISTINCT ON (candidate.requested_path,candidate.country,candidate.region,candidate.city_approx)
-                          candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.metadata,candidate.last_seen
+                        SELECT DISTINCT ON (candidate.metadata->>'requestedHost',candidate.requested_path,candidate.country,candidate.region,candidate.city_approx)
+                          candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,
+                          candidate.metadata,candidate.referrer,candidate.last_seen
                         FROM security_source_events candidate
                         WHERE candidate.event_type='ADMIN_HONEYPOT_ACCESS'
                           AND (
@@ -53,7 +57,7 @@ export async function GET(request) {
                               AND candidate.metadata->>'deviceFingerprint'=se.metadata->>'deviceFingerprint')
                           )
                           AND (candidate.metadata->'clientTelemetry' IS NULL OR candidate.metadata#>>'{clientTelemetry,kind}'='page_view')
-                        ORDER BY candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.last_seen DESC
+                        ORDER BY candidate.metadata->>'requestedHost',candidate.requested_path,candidate.country,candidate.region,candidate.city_approx,candidate.last_seen DESC
                       ) distinct_history
                       ORDER BY distinct_history.last_seen DESC LIMIT 5
                     ) history

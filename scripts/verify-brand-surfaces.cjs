@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS verification script */
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 (async()=>{

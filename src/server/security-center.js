@@ -93,6 +93,20 @@ function normalizeHoneypotDeviceId(value) {
   return /^hpd_[a-f0-9]{32}$/.test(id) ? id : "";
 }
 
+export function verifyHoneypotDeviceToken(value, secret = process.env.HONEYPOT_INGESTION_SECRET) {
+  const token = cleanText(value, 180);
+  const separator = token.lastIndexOf(".");
+  if (separator < 1 || String(secret || "").length < 32) return "";
+  const deviceId = normalizeHoneypotDeviceId(token.slice(0, separator));
+  const supplied = token.slice(separator + 1);
+  if (!deviceId || !/^[a-f0-9]{64}$/.test(supplied)) return "";
+  const expected = crypto.createHmac("sha256", secret).update(`honeypot-device:${deviceId}`).digest("hex");
+  return supplied.length === expected.length
+    && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+    ? deviceId
+    : "";
+}
+
 export function normalizeHoneypotTelemetry(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const device = value.device && typeof value.device === "object" ? value.device : {};
@@ -281,7 +295,9 @@ function normalizeHoneypotInput(input = {}) {
     browserVersion: cleanText(input.browser_version, 40) || parsed.browserVersion,
     os: cleanText(input.os, 80) || parsed.os,
     deviceClass: cleanText(input.device_class, 40) || parsed.deviceClass,
-    userAgent, requestedPath: normalizedPath(input.requested_path),
+    userAgent,
+    requestedHost: cleanText(input.requested_host, 253).toLowerCase(),
+    requestedPath: normalizedPath(input.requested_path),
     method: cleanText(input.method, 12).toUpperCase() || "GET", queryKeys,
     referrer: referrerWithoutQuery(input.referrer), cfRayId: cleanText(input.cf_ray_id, 100),
     requestId: cleanText(input.request_id, 100) || crypto.randomUUID(),
@@ -445,6 +461,7 @@ export async function ingestHoneypotEvent(rawInput) {
           trustedCloudflareContext: true, clientTelemetry: input.telemetry, deviceFingerprint: input.deviceFingerprint,
           fingerprintConfidence: input.fingerprintConfidence, ipLocation: input.ipLocation,
           honeypotDeviceId: input.honeypotDeviceId,
+          requestedHost: input.requestedHost,
           automaticDeviceContainment: input.autoBlockDevice
         })]
     );
@@ -720,10 +737,13 @@ export async function findActiveSecurityBlock(targetType, value, client = null) 
   return result.rows[0] || null;
 }
 
-export async function evaluateSecurityBlockRequest({ sourceIp = "", sessionHashes = [], deviceToken = "", honeypotDeviceId = "" } = {}) {
+export async function evaluateSecurityBlockRequest({
+  sourceIp = "", sessionHashes = [], deviceToken = "", honeypotDeviceId = "", honeypotDeviceToken = ""
+} = {}) {
   const targets = [];
   if (sourceIp) targets.push(["ip", sourceIp]);
-  const safeHoneypotDeviceId = normalizeHoneypotDeviceId(honeypotDeviceId);
+  const markerDeviceId = verifyHoneypotDeviceToken(honeypotDeviceToken);
+  const safeHoneypotDeviceId = normalizeHoneypotDeviceId(honeypotDeviceId) || markerDeviceId;
   if (safeHoneypotDeviceId) targets.push(["device", safeHoneypotDeviceId]);
   const safeSessionHashes = Array.isArray(sessionHashes)
     ? sessionHashes.filter((value) => /^[a-f0-9]{64}$/i.test(String(value))).slice(0, 4)
@@ -751,15 +771,75 @@ export async function evaluateSecurityBlockRequest({ sourceIp = "", sessionHashe
     }
   }
   const candidateHashes = [...new Set(targets.map(([type, value]) => securityTargetHash(type, value)).filter(Boolean))];
-  if (!candidateHashes.length) return null;
+  if (!candidateHashes.length) return markerDeviceId ? {
+    referenceId: `HP-${markerDeviceId.slice(-12).toUpperCase()}`,
+    targetType: "device", honeypotDeviceId: markerDeviceId, markerOnly: true
+  } : null;
   const result = await query(
-    `SELECT id,reference_id AS "referenceId",target_type AS "targetType",expires_at AS "expiresAt"
-       FROM security_blocks WHERE target_hash=ANY($1::text[]) AND revoked_at IS NULL
-        AND (expires_at IS NULL OR expires_at>now())
-      ORDER BY CASE severity WHEN 'CRITICAL' THEN 3 WHEN 'HIGH' THEN 2 ELSE 1 END DESC,created_at DESC LIMIT 1`,
+    `SELECT b.id,b.reference_id AS "referenceId",b.target_type AS "targetType",b.expires_at AS "expiresAt",
+            b.incident_id AS "incidentId",b.severity,si.source_key AS "sourceKey"
+       FROM security_blocks b JOIN security_incidents si ON si.id=b.incident_id
+      WHERE b.target_hash=ANY($1::text[]) AND b.revoked_at IS NULL
+        AND (b.expires_at IS NULL OR b.expires_at>now())
+      ORDER BY CASE b.severity WHEN 'CRITICAL' THEN 3 WHEN 'HIGH' THEN 2 ELSE 1 END DESC,b.created_at DESC LIMIT 1`,
     [candidateHashes]
   );
-  return result.rows[0] || null;
+  if (result.rows[0]) return { ...result.rows[0], honeypotDeviceId: safeHoneypotDeviceId || null };
+  return markerDeviceId ? {
+    referenceId: `HP-${markerDeviceId.slice(-12).toUpperCase()}`,
+    targetType: "device", honeypotDeviceId: markerDeviceId, markerOnly: true
+  } : null;
+}
+
+function recordableBlockedPath(value) {
+  const path = normalizedPath(value);
+  return path === "/favicon.ico" || path.startsWith("/_next/") || path.startsWith("/assets/") || path.startsWith("/app/")
+    ? ""
+    : path;
+}
+
+export async function recordBlockedHoneypotNavigation({
+  block, sourceIp = "", requestedHost = "", requestedPath = "", method = "GET", referrer = "", honeypotDeviceId = ""
+} = {}) {
+  const deviceId = normalizeHoneypotDeviceId(honeypotDeviceId);
+  const path = recordableBlockedPath(requestedPath);
+  const host = cleanText(requestedHost, 253).toLowerCase();
+  if (!block?.incidentId || !block?.sourceKey || !deviceId || !path || (host !== "renvix.app" && !host.endsWith(".renvix.app"))) {
+    return { recorded: false };
+  }
+  return transaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`blocked-honeypot:${block.incidentId}:${deviceId}:${host}:${path}`]);
+    const existing = await client.query(
+      `SELECT event_id FROM security_source_events
+        WHERE incident_id=$1 AND requested_path=$2 AND metadata->>'honeypotDeviceId'=$3
+          AND metadata->>'requestedHost'=$4 AND metadata->>'blockedNavigation'='true'
+          AND last_seen>now()-interval '60 seconds'
+        ORDER BY last_seen DESC LIMIT 1 FOR UPDATE`,
+      [block.incidentId, path, deviceId, host]
+    );
+    if (existing.rows[0]) {
+      await client.query(
+        "UPDATE security_source_events SET occurrence_count=occurrence_count+1,last_seen=now() WHERE event_id=$1",
+        [existing.rows[0].event_id]
+      );
+      return { recorded: true, deduplicated: true };
+    }
+    const eventId = crypto.randomUUID();
+    await client.query(
+      `INSERT INTO security_source_events
+        (event_id,event_type,source_key,source_ip,requested_path,method,referrer,risk_score,severity,incident_id,metadata,expires_at)
+       VALUES ($1,'ADMIN_HONEYPOT_ACCESS',$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,now()+interval '365 days')`,
+      [eventId, block.sourceKey, cleanText(sourceIp, 80) || null, path, cleanText(method, 12).toUpperCase() || "GET",
+        referrerWithoutQuery(referrer) || null, Math.max(25, block.severity === "CRITICAL" ? 80 : block.severity === "HIGH" ? 50 : 25),
+        ["MEDIUM", "HIGH", "CRITICAL"].includes(block.severity) ? block.severity : "MEDIUM", block.incidentId,
+        JSON.stringify({ honeypotDeviceId: deviceId, requestedHost: host, blockedNavigation: true })]
+    );
+    await appendLedger(client, {
+      eventType: "SECURITY_BLOCK_ENFORCED", aggregateType: "security_source_event", aggregateId: eventId,
+      payload: { incidentId: block.incidentId, referenceId: block.referenceId, requestedHost: host, requestedPath: path }
+    });
+    return { recorded: true, deduplicated: false };
+  });
 }
 
 function containmentExpiry(duration) {

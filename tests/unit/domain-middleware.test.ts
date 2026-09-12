@@ -5,7 +5,8 @@ import { isStaticAssetPath, middlewareRequest } from "../../middleware.js";
 const keys = [
   "NODE_ENV", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_APP_URL",
   "NEXT_PUBLIC_ADMIN_URL", "NEXT_PUBLIC_API_BASE_URL", "API_PUBLIC_URL",
-  "CLOUDFLARE_ACCESS_TEAM_DOMAIN", "CLOUDFLARE_ACCESS_AUD"
+  "CLOUDFLARE_ACCESS_TEAM_DOMAIN", "CLOUDFLARE_ACCESS_AUD",
+  "SECURITY_BLOCK_CHECK_SECRET", "SECURITY_BLOCK_CHECK_URL"
 ] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const allowAccess = vi.fn(async () => ({ ok: true as const, payload: { sub: "access-user" } }));
@@ -43,6 +44,8 @@ beforeEach(() => {
   process.env.CLOUDFLARE_ACCESS_AUD = "test-audience";
   delete process.env.NEXT_PUBLIC_API_BASE_URL;
   delete process.env.API_PUBLIC_URL;
+  delete process.env.SECURITY_BLOCK_CHECK_SECRET;
+  delete process.env.SECURITY_BLOCK_CHECK_URL;
 });
 
 afterEach(() => {
@@ -82,6 +85,29 @@ describe("canonical domain middleware", () => {
     const authResponse = await run("https://accounts.renvix.app/login");
     expect(publicResponse.headers.get("x-middleware-next")).toBe("1");
     expect(authResponse.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("blocks the signed honeypot identity on the main site before public routing", async () => {
+    process.env.SECURITY_BLOCK_CHECK_SECRET = "boundary-secret-that-is-long-enough";
+    process.env.SECURITY_BLOCK_CHECK_URL = "https://api.renvix.app/api/security/block-check";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      expect(body).toMatchObject({
+        honeypotDeviceToken: "signed-cross-domain-marker",
+        requestedHost: "renvix.app",
+        requestedPath: "/pricing"
+      });
+      return Response.json({ ok: true, blocked: true, referenceId: "SEC-HONEYPOT-1" });
+    });
+    try {
+      const response = await middlewareRequest(request("https://renvix.app/pricing", "none", {
+        cookie: "renvix_honeypot_device=signed-cross-domain-marker"
+      }), { verifyAccess: allowAccess, recordHoneypot });
+      expect(response.status).toBe(403);
+      expect(await response.text()).toContain("تم حظر الوصول");
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 
   it("keeps storage API aliases on the dashboard host without a cross-origin redirect", async () => {
