@@ -1,5 +1,6 @@
 import { isRenderAuthRuntime } from "../../../../src/server/auth-backend-runtime.js";
 import { databaseHealth } from "../../../../src/server/db.js";
+import { ensureAuthSchemaReady } from "../../../../src/server/auth-schema-repair.js";
 
 export async function GET() {
   if (!isRenderAuthRuntime()) {
@@ -9,6 +10,7 @@ export async function GET() {
     );
   }
   try {
+    await ensureAuthSchemaReady();
     const database = await databaseHealth();
     return Response.json(
       { ok: true, service: "renvix-auth", database: "connected", latencyMs: database.latencyMs },
