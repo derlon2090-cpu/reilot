@@ -3339,15 +3339,6 @@ function authIntroIcon(kind) {
   return `<svg class="auth-intro-symbol auth-intro-symbol--${kind}" viewBox="0 0 64 64" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${icons[kind] || icons.login}</g></svg>`;
 }
 
-function authFeatureStrip() {
-  const features = [
-    [localizedCopy("إدارة شاملة", "Complete management"), localizedCopy("منصة واحدة لكل اشتراكاتك", "One platform for all your subscriptions"), "subscriptions"],
-    [localizedCopy("تنبيهات ذكية", "Smart reminders"), localizedCopy("لا يفوتك أي تجديد أو موعد مهم", "Never miss a renewal or important date"), "clock"],
-    [localizedCopy("تقارير وتحليلات", "Reports and analytics"), localizedCopy("رؤى دقيقة لقرارات أكثر ذكاء", "Accurate insights for smarter decisions"), "reports"],
-    [localizedCopy("آمن وموثوق", "Secure and reliable"), localizedCopy("حماية بياناتك بأعلى المعايير", "Your data is protected to high standards"), "security"]
-  ];
-  return `<div class="auth-suite-feature-strip">${features.map(([title, copy, icon]) => `<div><span>${dashboardIcon(icon)}</span><strong>${title}</strong><small>${copy}</small></div>`).join("")}</div>`;
-}
 
 function linkedDeviceById(deviceId) {
   const devices = Array.isArray(state.linkedDevice?.devices) ? state.linkedDevice.devices : [];
@@ -4039,7 +4030,10 @@ function authSuiteFrame(content, pageClass = "auth-light-page") {
   const language = state.authDisplayLanguage === "en" ? "en" : "ar";
   const theme = state.authDisplayTheme === "dark" ? "dark" : "light";
   const arabic = language === "ar";
-  return `<main class="${pageClass} auth-suite-page" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls" role="group" aria-label="${arabic ? "اللغة والمظهر" : "Language and theme"}"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="auth-display-theme" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div></main>`;
+  const html = `<main class="${pageClass} auth-suite-page auth-renvix" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls" role="group" aria-label="${arabic ? "اللغة والمظهر" : "Language and theme"}"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="auth-display-theme" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div></main>`;
+  // Keep the original mobile header; desktop uses the same controls inside the card.
+  const header = html.match(/<header class="auth-suite-brandbar">[\s\S]*?<\/header>/)?.[0] || "";
+  return html.replace(/(<article class="[^"]*(?:auth-suite-panel|email-otp-panel)[^"]*">)/, (match) => match + '<div class="renvix-auth-card-header">' + header + '</div>');
 }
 
 function authModeTabs(activeMode) {
@@ -4054,135 +4048,31 @@ function authMobileScene(kind) {
   return `<div class="auth-mobile-scene" aria-hidden="true">${authScene(kind)}</div>`;
 }
 
-function authDashboardScene() {
-  return `<div class="auth-platform-scene">
-    <span class="auth-platform-feature auth-platform-feature--alerts">${dashboardIcon("notifications")}<b>تذكيرات ذكية</b></span>
-    <span class="auth-platform-feature auth-platform-feature--reports">${dashboardIcon("barChart")}<b>تقارير وتحليلات</b></span>
-    <span class="auth-platform-feature auth-platform-feature--automation">${dashboardIcon("settings")}<b>أتمتة التجديدات</b></span>
-    <span class="auth-platform-feature auth-platform-feature--campaigns">${dashboardIcon("campaigns")}<b>حملات مخصصة</b></span>
-    <span class="auth-platform-feature auth-platform-feature--security">${dashboardIcon("security")}<b>أمان وموثوقية</b></span>
-    <div class="auth-platform-monitor">
-      <i class="auth-platform-camera"></i>
-      <div class="auth-platform-screen">
-        <header><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" alt="" width="814" height="228"></header>
-        <div class="auth-platform-dashboard">
-          <aside><span class="active">${dashboardIcon("home")} لوحة التحكم</span><span>${dashboardIcon("subscriptions")} الاشتراكات</span><span>${dashboardIcon("customers")} العملاء</span><span>${dashboardIcon("reports")} التقارير</span><span>${dashboardIcon("settings")} الإعدادات</span></aside>
-          <main><div class="auth-platform-stats"><span><small>إجمالي الاشتراكات</small><strong>1,250</strong></span><span><small>القادمة للتجديد</small><strong>320</strong></span><span><small>الإيرادات الشهرية</small><strong>45,680</strong></span><span><small>معدل التجديد</small><strong>98%</strong></span></div><section><b>نظرة عامة</b><div class="auth-platform-chart"><i></i><i></i><i></i><i></i><i></i><i></i></div></section><footer><span><i></i><b>شركة الرياض للتقنية</b><small>نشط</small></span><span><i></i><b>متجر النخبة</b><small>قريب من التجديد</small></span></footer></main>
-        </div>
-      </div>
-      <div class="auth-platform-stand"><i></i></div>
-    </div>
-    <div class="auth-platform-phone">
-      <i class="auth-platform-notch"></i>
-      <header>${dashboardIcon("whatsapp")}<span>•••</span></header>
-      <main><p>مرحبًا 👋<br>هذا تذكير بأن اشتراكك سيتم تجديده خلال 3 أيام.</p><p>هل ترغب في التجديد الآن؟</p><p class="reply">نعم، يرجى التجديد</p><p>✅ تم تجديد اشتراكك بنجاح.<br>شكرًا لثقتك بنا.</p></main>
-      <footer><span>اكتب رسالة</span><b>●</b></footer>
-    </div>
-  </div>`;
-}
-
-function prioritizeAuthReference(source) {
-  if (typeof document === "undefined" || !window.matchMedia("(min-width: 744px)").matches) return;
-  const absoluteSource = new URL(source, window.location.href).href;
-  const alreadyQueued = [...document.head.querySelectorAll('link[data-auth-reference-preload]')]
-    .some((link) => link.href === absoluteSource);
-  if (alreadyQueued) return;
-  const preload = document.createElement("link");
-  preload.rel = "preload";
-  preload.as = "image";
-  preload.href = source;
-  preload.fetchPriority = "high";
-  preload.dataset.authReferencePreload = "true";
-  document.head.append(preload);
+function authBrandIllustration(kind) {
+  const dashboard = '<rect x="80" y="95" width="340" height="235" rx="18" fill="white"/><path d="M80 137h340" /><rect x="98" y="113" width="44" height="7" rx="3" fill="currentColor" stroke="none"/><rect x="100" y="158" width="65" height="145" rx="8" fill="#edf7f5" stroke="none"/><rect x="183" y="158" width="96" height="49" rx="8" fill="#edf7f5" stroke="none"/><rect x="294" y="158" width="106" height="49" rx="8" fill="#edf7f5" stroke="none"/><path d="M189 287h205M189 229v58" stroke="#d4e9e3"/><path d="m192 272 34-18 32 7 39-30 31 8 36-25 27 6" stroke-width="4"/><path d="M216 351h70m-35-21v21"/>';
+  const envelope = '<rect x="130" y="169" width="240" height="166" rx="16" fill="#d4e9e3"/><path d="m132 176 118 87 118-87M135 327l82-76m148 76-82-76"/><rect x="176" y="112" width="148" height="138" rx="12" fill="white"/><circle cx="250" cy="164" r="25" fill="#edf7f5" stroke="none"/><path d="m237 165 9 9 18-21" stroke-width="4"/><path d="M205 212h90" stroke="#d4e9e3" stroke-width="8"/>';
+  const lock = '<path d="M215 195v-36a35 35 0 0 1 70 0v36" stroke-width="9"/><rect x="192" y="190" width="116" height="100" rx="18" fill="white"/><circle cx="250" cy="231" r="8" fill="currentColor" stroke="none"/><path d="M250 239v20" stroke-width="7"/>';
+  const phone = '<rect x="315" y="157" width="97" height="178" rx="19" fill="white"/><path d="M344 173h40M352 318h21"/><rect x="329" y="222" width="69" height="36" rx="8" fill="#edf7f5" stroke="none"/><path d="M341 240h4m12 0h4m12 0h4m12 0h1" stroke-width="5"/>';
+  const shield = '<path d="m213 112 86 34v73c0 53-42 87-86 107-44-20-86-54-86-107v-73Z" fill="#d4e9e3"/><circle cx="213" cy="210" r="40" fill="white" stroke="none"/><path d="m195 211 13 13 26-30" stroke-width="5"/>';
+  const connect = '<rect x="314" y="239" width="110" height="94" rx="17" fill="white"/><path d="M369 264v43m-21-22h43" stroke-width="5"/><path d="M284 343h20m0 0v-18" stroke-dasharray="5 6"/>';
+  const recovery = '<path d="M171 129a113 113 0 0 1 170 35m-2-31 4 35-35-3M327 320a113 113 0 0 1-167-39m0 31-4-35 36 3" stroke-width="5"/>';
+  const artwork = kind === "login" ? dashboard : kind === "register" ? dashboard + connect : kind === "mfa" ? shield + phone : kind === "forgot" ? envelope + '<path d="M217 164a32 32 0 0 1 61-13m0-14 2 18-18-2" stroke-width="4"/>' : kind === "reset" ? lock + recovery : envelope;
+  return `<svg class="renvix-auth-illustration" viewBox="0 0 500 440" aria-hidden="true" focusable="false"><ellipse cx="250" cy="227" rx="205" ry="175" fill="#edf7f5"/><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${artwork}</g><ellipse cx="250" cy="374" rx="146" ry="8" fill="#d4e9e3"/></svg>`;
 }
 
 function authReferenceVisual(kind) {
-  const showcases = {
-    login: {
-      title: localizedCopy("منصة ذكية لإدارة الاشتراكات والتجديدات", "Smart subscription and renewal management"),
-      description: localizedCopy("تابع اشتراكاتك، بسّط عملياتك، واتخذ قرارات أفضل لنمو عملك.", "Track subscriptions, streamline operations, and make better decisions for growth."),
-      scene: "login",
-      note: "لوحة تحكم متكاملة تمنحك رؤية واضحة لعملك وتساعدك على اتخاذ قرارات أفضل.",
-      icon: "reports"
-    },
-    register: {
-      title: localizedCopy("منصة ذكية لإدارة الاشتراكات والتجديدات", "Smart subscription and renewal management"),
-      description: localizedCopy("أنشئ حسابك وابدأ بتنظيم اشتراكاتك وتجديدات عملائك بسهولة.", "Create your account and organize customer subscriptions and renewals with ease."),
-      scene: "register",
-      note: "ابدأ اليوم بلوحة واضحة تجمع الاشتراكات والتجديدات والتنبيهات في مكان واحد.",
-      icon: "star"
-    },
-    reset: {
-      title: localizedCopy("استعادة الوصول بسهولة", "Recover access with ease"),
-      description: localizedCopy("خطوة سريعة وآمنة لإرجاع الوصول إلى حسابك ومتابعة إدارة اشتراكاتك.", "A quick, secure step to regain access and continue managing your subscriptions."),
-      scene: "reset",
-      note: "صُممت عملية الاستعادة بحماية عالية لضمان سرية حسابك وأمان بياناتك.",
-      icon: "security"
-    },
-    mfa: {
-      title: localizedCopy("المصادقة الثنائية تحمي حسابك", "Two-factor authentication protects your account"),
-      description: localizedCopy("طبقة حماية إضافية تمنح حسابك أمانًا أعلى قبل الوصول إلى المنصة.", "An extra layer of protection before you access the platform."),
-      scene: "mfa",
-      note: "حتى عند معرفة كلمة مرورك، لن يتمكن أحد من الدخول دون رمز التحقق.",
-      icon: "security"
-    },
-    signupOtp: {
-      title: localizedCopy("فعّل حسابك بثقة", "Activate your account with confidence"),
-      description: localizedCopy("تأكيد البريد الإلكتروني يضمن أمان الحساب وبدء استخدام المنصة مباشرة.", "Email verification protects your account and gets you started securely."),
-      scene: "signupOtp",
-      note: "تأكيد سريع، حماية متقدمة، وبداية آمنة لاستخدام حسابك.",
-      icon: "email"
-    },
-    loginOtp: {
-      title: localizedCopy("تسجيل دخول آمن وموثوق", "Secure and trusted sign-in"),
-      description: localizedCopy("نضيف خطوة تحقق لحماية حسابك قبل الوصول إلى لوحة التحكم.", "We add a verification step before granting access to your dashboard."),
-      scene: "loginOtp",
-      note: "تجربة موثوقة تحافظ على بياناتك وتمنحك حماية متقدمة.",
-      icon: "security"
-    }
+  if (kind === "reset" && state.resetStep === 1) kind = "forgot";
+  const copy = {
+    login: ["تحكّم في اشتراكاتك، وركّز على نموّك", "Manage subscriptions. Focus on growth.", "Renvix يجمع الاشتراكات والتجديدات في مساحة عمل واضحة.", "Renvix brings subscriptions and renewals into one clear workspace."],
+    register: ["بداية منظّمة لأعمالك", "A connected start for your business", "أنشئ مساحة عملك واربط منصتك، لتبدأ الإدارة بثقة مع Renvix.", "Create your workspace and connect your platform with Renvix."],
+    signupOtp: ["حسابك يبدأ بخطوة آمنة", "A secure first step", "تحقّق من بريدك لتبدأ استخدام Renvix بثقة.", "Verify your email to get started confidently with Renvix."],
+    loginOtp: ["دخول آمن إلى مساحة عملك", "Secure access to your workspace", "خطوة تحقق تحمي وصولك إلى حساب Renvix.", "One verification step protects access to your Renvix account."],
+    mfa: ["طبقة إضافية من الاطمئنان", "An extra layer of confidence", "تحقّق من هويتك للحفاظ على أمان حسابك وبياناتك.", "Verify your identity to keep your account and data secure."],
+    forgot: ["استعد الوصول بكل اطمئنان", "Recover access with confidence", "خطوات واضحة وآمنة للعودة إلى مساحة عملك في Renvix.", "Clear, secure steps to return to your Renvix workspace."],
+    reset: ["كلمة مرور جديدة، بداية آمنة", "A new password. A secure start.", "جدّد حماية حسابك ثم عُد إلى إدارة أعمالك.", "Refresh your account security and get back to business."]
   };
-  const item = showcases[kind] || showcases.login;
-  const illustration = kind === "login" || kind === "register" ? authDashboardScene() : authScene(item.scene);
-  const referenceAssets = {
-    login: "/app/assets/auth-reference/dashboard-v2.png?v=20260810-auth-art-v29",
-    register: "/app/assets/auth-reference/dashboard-v2.png?v=20260810-auth-art-v29",
-    reset: "/app/assets/auth-reference/reset-v2.png?v=20260810-auth-art-v29",
-    mfa: "/app/assets/auth-reference/mfa-v2.png?v=20260810-auth-art-v29",
-    signupOtp: "/app/assets/auth-reference/signup-otp-v2.png?v=20260810-auth-art-v29",
-    loginOtp: "/app/assets/auth-reference/login-otp-v2.png?v=20260810-auth-art-v29"
-  };
-  const referenceAsset = referenceAssets[kind] || referenceAssets.login;
-  const featureConnectors = kind === "login" || kind === "register"
-    ? `<span class="auth-showcase-feature-connectors" aria-hidden="true"><i class="auth-feature-connector auth-feature-connector--alerts"></i><i class="auth-feature-connector auth-feature-connector--reports"></i><i class="auth-feature-connector auth-feature-connector--automation"></i><i class="auth-feature-connector auth-feature-connector--campaigns"></i><i class="auth-feature-connector auth-feature-connector--channels"></i><i class="auth-feature-connector auth-feature-connector--security"></i></span>`
-    : "";
-  const referenceFeatureLabels = kind === "login" || kind === "register"
-    ? [
-        ["alerts", localizedCopy("تذكيرات ذكية", "Smart reminders")],
-        ["reports", localizedCopy("تقارير وتحليلات", "Reports and analytics")],
-        ["automation", localizedCopy("أتمتة التجديدات", "Renewal automation")],
-        ["campaigns", localizedCopy("حملات مخصصة", "Custom campaigns")]
-      ]
-    : [];
-  const referenceFeatureLabelMarkup = referenceFeatureLabels.length
-    ? `<span class="auth-reference-feature-labels" aria-hidden="true">${referenceFeatureLabels.map(([position, label]) => `<span class="auth-reference-feature-label auth-reference-feature-label--${position}"><b>${label}</b></span>`).join("")}</span>`
-    : "";
-  const referenceArtwork = referenceFeatureLabels.length
-? `<svg class="auth-showcase-reference-art" viewBox="0 0 1127 1038" preserveAspectRatio="xMidYMid meet" role="presentation" focusable="false"><defs><mask id="auth-dashboard-label-mask" x="0" y="0" width="1127" height="1038" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse"><rect width="1127" height="1038" fill="#fff"></rect><rect x="20" y="137" width="190" height="58" fill="#000"></rect><rect x="940" y="145" width="187" height="62" fill="#000"></rect><rect x="5" y="465" width="165" height="98" fill="#000"></rect><rect x="5" y="820" width="165" height="106" fill="#000"></rect><rect x="282" y="862" width="755" height="176" fill="#000"></rect></mask><clipPath id="auth-login-label-clip" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M0 0H1127V1038H0Z M20 137H210V195H20Z M940 145H1127V207H940Z M5 465H170V563H5Z M5 820H170V926H5Z M282 862H1037V1038H282Z"></path></clipPath></defs><image href="${referenceAsset}" width="1127" height="1038" preserveAspectRatio="xMidYMid meet" ${kind === "login" ? 'clip-path="url(#auth-login-label-clip)"' : 'mask="url(#auth-dashboard-label-mask)"'}></image></svg>`
-    : `<img class="auth-showcase-reference-art" src="${referenceAsset}" alt="" width="1127" height="1038" loading="eager" decoding="sync" fetchpriority="high">`;
-  const relocatedFeatureLabels = {
-    channels: localizedCopy("قنوات متصلة", "Connected channels"),
-    security: localizedCopy("أمان وموثوقية", "Security and reliability")
-  };
-  const relocatedFeatures = kind === "login" || kind === "register"
-    ? `<span class="auth-showcase-relocated-features" aria-hidden="true"><svg class="auth-relocated-connectors" viewBox="0 0 1000 1000" preserveAspectRatio="none" focusable="false"><line x1="910" y1="334" x2="984" y2="384"></line><circle cx="910" cy="334" r="4"></circle><line x1="910" y1="671" x2="984" y2="734"></line><circle cx="910" cy="671" r="4"></circle></svg><span class="auth-relocated-feature auth-relocated-feature--channels"><i>${dashboardIcon("cloud")}</i><b>${relocatedFeatureLabels.channels}</b></span><span class="auth-relocated-feature auth-relocated-feature--security"><i>${dashboardIcon("security")}</i><b>${relocatedFeatureLabels.security}</b></span></span>`
-    : "";
-  prioritizeAuthReference(referenceAsset);
-  return `<div class="auth-showcase auth-showcase--${kind}" aria-hidden="true">
-    <span class="auth-showcase-orb auth-showcase-orb--top"></span>
-    <span class="auth-showcase-orb auth-showcase-orb--bottom"></span>
-    <div class="auth-showcase-copy"><h2>${item.title}</h2><p>${item.description}</p></div>
-    <div class="auth-showcase-art">${featureConnectors}${relocatedFeatures}${referenceFeatureLabelMarkup}${referenceArtwork}${illustration}</div>
-  </div>`;
+  const item = copy[kind] || copy.login;
+  return `<div class="renvix-auth-brand-panel">${authBrandIllustration(kind)}<div class="renvix-auth-brand-copy"><h2>${localizedCopy(item[0], item[1])}</h2><p>${localizedCopy(item[2], item[3])}</p></div></div>`;
 }
 
 function registrationPlatformPicker() {
