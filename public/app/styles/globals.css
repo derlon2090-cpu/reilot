@@ -16984,6 +16984,34 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .storage-items :is(.storage-folder-card,.storage-file-card,.storage-image-card){position:relative}
 .storage-arrange-bar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 16px;border:1px solid var(--storage-line,#dce9e4);border-radius:12px;background:var(--surface,#fff)}.storage-arrange-bar>span{flex:1;min-width:200px;color:var(--storage-muted,#617870);font-size:12px}.storage-arrange-bar .btn{white-space:nowrap}.storage-browser [data-storage-draggable]{cursor:pointer}.storage-arrange-active [data-storage-draggable]{cursor:grab;transition:transform .18s ease,box-shadow .18s ease,outline-color .18s ease}.storage-arrange-active [data-storage-draggable]:active{cursor:grabbing}.storage-arrange-active [data-storage-draggable]:focus-visible{outline:3px solid #168f7d;outline-offset:3px}.storage-arrange-active .storage-items{background:rgba(18,143,125,.025)}.storage-items .storage-moving-selected{outline:2px solid #128f7d;outline-offset:3px;background:#eefaf6!important}@media(max-width:760px){.storage-arrange-bar{align-items:stretch;flex-direction:column;gap:8px}.storage-arrange-bar>.btn{justify-content:center}.storage-arrange-bar>span{min-width:0;line-height:1.7}}
 .storage-move-mode{padding:16px;border:1px solid #8bc9ba;border-radius:15px;background:var(--surface,#f3fcf8);box-shadow:0 6px 22px rgba(8,80,73,.08)}.storage-move-mode>header{display:flex;align-items:center;gap:10px}.storage-move-mode>header>span{color:#087267}.storage-move-mode>header>div{flex:1;min-width:0}.storage-move-mode strong,.storage-move-mode small{display:block}.storage-move-mode small{margin-top:3px;color:var(--muted,#617870)}.storage-move-mode button{display:flex;align-items:center;gap:7px;padding:10px 13px;border:1px solid #cce4dc;border-radius:10px;color:var(--text,#17473e);background:var(--surface,#fff);font:700 12px "Tajawal",sans-serif;cursor:pointer}.storage-move-mode button:hover{border-color:#168f7d;background:#eaf8f2}.storage-move-mode button:focus-visible{outline:3px solid #168f7d;outline-offset:3px}.storage-move-mode button:disabled{opacity:.5;cursor:wait}.storage-move-mode nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;max-height:240px;overflow:auto;padding:4px}.storage-move-mode svg{width:20px;height:20px}.storage-move-mode>p{margin:12px 0 0;color:var(--muted,#617870);font-size:11px}@media(max-width:760px){.storage-move-mode{padding:12px}.storage-move-mode>header{flex-wrap:wrap}.storage-move-mode nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.storage-move-mode nav button{min-width:0}.storage-move-mode nav span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}@media(prefers-reduced-motion:reduce){.storage-drop-working{animation:none!important}}
+/* Restore the approved compact, balanced sign-in composition. */
+@media (min-width:821px){
+  .auth-suite-page:has(.auth-suite-shell.login){padding:20px 24px!important}
+  .auth-suite-page:has(.auth-suite-shell.login) .auth-suite-stage{width:min(1020px,100%)!important;height:min(708px,100%)!important;grid-template-rows:50px minmax(0,1fr)!important;gap:8px!important;margin:auto!important}
+  .auth-suite-page:has(.auth-suite-shell.login) .auth-suite-brandbar{height:50px!important;min-height:50px!important}
+  .auth-suite-page:has(.auth-suite-shell.login) .auth-suite-brandbar-logo :is(.brand-logo-stacked,.brand-logo-image){width:174px!important;max-height:48px!important}
+  .auth-suite-page .auth-suite-shell.login{width:100%!important;grid-template-columns:minmax(0,430px) minmax(0,1fr)!important;gap:32px!important;--auth-showcase-height:min(650px,calc(100dvh - 98px))!important}
+  .auth-suite-page .auth-suite-shell.login>.auth-suite-panel{padding:32px 20px!important;height:100%!important;max-height:100%!important;justify-content:center!important}
+  .auth-suite-page .auth-suite-shell.login .auth-suite-mode-tabs{height:48px!important;min-height:48px!important;flex-basis:48px!important;margin-bottom:22px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-suite-mode-tabs button{height:48px!important;min-height:48px!important;font-size:16px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-suite-form{display:grid!important;grid-auto-rows:max-content!important;align-content:start!important;gap:14px!important;flex:0 0 auto!important}
+  .auth-suite-page .auth-suite-shell.login .field>span{font-size:14px!important}
+  .auth-suite-page .auth-suite-shell.login .input{height:48px!important;min-height:48px!important;font-size:14px!important}
+  .auth-suite-page .auth-suite-shell.login .inline-actions{margin:0!important;font-size:13px!important}
+  .auth-suite-page .auth-suite-shell.login .inline-actions .link-button{font-size:13px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-turnstile-slot{margin:0!important;min-height:0!important}
+  .auth-suite-page .auth-suite-shell.login .auth-submit{height:48px!important;min-height:48px!important;margin:0!important;font-size:16px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-switch{margin:4px 0 0!important;font-size:12px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-showcase-copy{padding-top:12px!important;max-width:440px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-showcase-copy h2{font-size:30px!important;line-height:1.4!important}
+  .auth-suite-page .auth-suite-shell.login .auth-showcase-copy p{font-size:13px!important;line-height:1.7!important}
+}
+@media (min-width:821px) and (max-width:1100px){
+  .auth-suite-page .auth-suite-shell.login{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:22px!important}
+  .auth-suite-page .auth-suite-shell.login>.auth-suite-panel{padding:24px 14px!important}
+  .auth-suite-page .auth-suite-shell.login .auth-showcase-copy h2{font-size:26px!important}
+}
+
 /* Complete password recovery flow and short iPad viewport containment. */
 .auth-recovery-progress{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 16px;padding:0;list-style:none}
 .auth-recovery-progress::before{position:absolute;z-index:0;top:13px;right:25%;left:25%;height:1px;background:#dce7e5;content:""}
