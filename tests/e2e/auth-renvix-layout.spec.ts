@@ -126,6 +126,11 @@ for(const viewport of [{width:1366,height:768},{width:1024,height:768},{width:76
     test(`${kind} fully fits normal ${viewport.width}x${viewport.height} viewport`,async({page})=>{
       await fixture(page,kind,viewport.width);
       await page.setViewportSize(viewport);
+      if(kind==="register") await page.locator('form[data-submit="register"]').evaluate(form=>{
+        let slot=form.querySelector<HTMLElement>(".auth-turnstile-slot");
+        if(!slot){slot=document.createElement("div");slot.className="auth-turnstile-slot";form.querySelector(".auth-submit")?.before(slot);}
+        slot.innerHTML='<div data-mock-turnstile style="height:65px"></div>';
+      });
       const card=page.locator(".auth-suite-shell>article");
       await expect(card).toBeInViewport();
       const metrics=await card.evaluate(node=>({top:node.getBoundingClientRect().top,bottom:node.getBoundingClientRect().bottom,viewport:innerHeight,pageHeight:document.documentElement.scrollHeight,horizontal:document.documentElement.scrollWidth-innerWidth}));

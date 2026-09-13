@@ -140,6 +140,15 @@
   .auth-suite-page.auth-renvix.auth-renvix :is(.auth-suite-shell.register,.auth-suite-shell:has(form[data-submit="reset-password"])) .renvix-auth-footer{display:none!important}
   .auth-suite-page.auth-renvix.auth-renvix .auth-turnstile-slot:empty{min-height:0!important;height:0!important;margin:0!important}
   .auth-suite-page.auth-renvix.auth-renvix .policy-check{font-size:9.5px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register>article{padding-block:14px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .renvix-auth-card-header{margin-bottom:8px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-suite-intro{margin-bottom:6px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-suite-mode-tabs{margin-bottom:8px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-register-form{gap:6px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-register-form .field>small{display:none!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-register-form .input{height:42px!important;min-height:42px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-platform-picker{padding-block:5px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell.register .auth-platform-card{min-height:46px!important}
   .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-otp{gap:7px;margin-top:-3px}
   .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-otp .input{height:50px!important;min-height:50px!important}
   .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-password-rules{padding:9px 12px!important;font-size:9.5px!important}
