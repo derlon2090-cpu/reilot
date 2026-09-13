@@ -4026,14 +4026,126 @@ function policyPage() {
   </main>`);
 }
 
+function authDesktopPasswordRequirements(content) {
+  if (!content.includes('data-submit="reset-password"')) return content;
+  const rules = [
+    ["length", localizedCopy("8 خانات على الأقل", "At least 8 characters")],
+    ["letter", localizedCopy("حرف إنجليزي واحد على الأقل", "At least one English letter")],
+    ["number", localizedCopy("رقم واحد على الأقل", "At least one number")],
+    ["symbol", localizedCopy("رمز خاص واحد على الأقل", "At least one special character")]
+  ];
+  const box = '<section class="renvix-auth-password-rules" aria-label="' + localizedCopy("شروط كلمة المرور", "Password requirements") + '"><strong>' + localizedCopy("يجب أن تحتوي كلمة المرور على:", "Your password must contain:") + '</strong><ul>' + rules.map(([rule, label]) => '<li data-auth-password-rule="' + rule + '"><i aria-hidden="true">✓</i><span>' + label + '</span></li>').join("") + '</ul></section>';
+  return content.replace('<button class="btn btn-primary auth-submit" type="submit">', box + '<button class="btn btn-primary auth-submit" type="submit">');
+}
+
+function handleAuthPasswordRequirementsInput(event) {
+  const input = event.target;
+  if (!input.matches?.('form[data-submit="reset-password"] input[name="password"]')) return;
+  const value = String(input.value || "");
+  const checks = {length:value.length >= 8,letter:/[A-Za-z]/.test(value),number:/\d/.test(value),symbol:/[^A-Za-z\d]/.test(value)};
+  input.form?.querySelectorAll("[data-auth-password-rule]").forEach(rule => {
+    rule.classList.toggle("is-valid", Boolean(checks[rule.dataset.authPasswordRule]));
+  });
+}
+
+document.addEventListener("input", handleAuthPasswordRequirementsInput);
+
+function authDesktopOtpFields(content) {
+  if (!content.includes('data-submit="mfa-login"') && !content.includes('data-submit="reset-password"')) return content;
+  return content.replace(/(<label class="field">(?:(?!<\/label>)[\s\S])*?<input[^>]*name="code"[^>]*>[\s\S]*?<\/label>)/, (field) => {
+    const disabled = /<input[^>]*name="code"[^>]*\sdisabled(?:\s|>)/.test(field);
+    const digits = Array.from({length:6}, (_, index) => '<input class="input" data-auth-otp-digit="' + index + '" inputmode="numeric" autocomplete="' + (index === 0 ? 'one-time-code' : 'off') + '" maxlength="' + (index === 0 ? 6 : 1) + '" aria-label="' + localizedCopy('الرقم ' + (index + 1) + ' من رمز التحقق', 'Verification digit ' + (index + 1)) + '"' + (disabled ? ' disabled' : '') + '>').join("");
+    return field.replace('name="code"', 'name="code" data-auth-otp-canonical') + '<div class="renvix-auth-otp" dir="ltr" role="group" aria-label="' + localizedCopy("رمز التحقق المكوّن من ستة أرقام", "Six-digit verification code") + '">' + digits + '</div>';
+  });
+}
+
+function syncAuthDesktopOtp(form) {
+  const digits = [...form.querySelectorAll("[data-auth-otp-digit]")];
+  const canonical = form.querySelector("[data-auth-otp-canonical]");
+  if (!canonical) return;
+  canonical.value = digits.map(input => input.value).join("");
+  canonical.dispatchEvent(new Event("input", {bubbles:true}));
+}
+
+function handleAuthDesktopOtpInput(event) {
+  const input = event.target;
+  if (input.matches?.("[data-auth-otp-canonical]")) {
+    const code = normalizeEmailOtpCode(input.value);
+    input.form?.querySelectorAll("[data-auth-otp-digit]").forEach((digit, index) => { digit.value = code[index] || ""; });
+    return;
+  }
+  if (!input.matches?.("[data-auth-otp-digit]") || event.isComposing) return;
+  const digits = [...input.closest("form").querySelectorAll("[data-auth-otp-digit]")];
+  const index = Number(input.dataset.authOtpDigit);
+  const code = normalizeEmailOtpCode(input.value);
+  input.value = code[0] || "";
+  if (code.length > 1) for (let offset = 0; offset < code.length && index + offset < 6; offset++) digits[index + offset].value = code[offset];
+  syncAuthDesktopOtp(input.closest("form"));
+  if (code) digits[Math.min(index + code.length, 5)]?.focus();
+}
+
+function handleAuthDesktopOtpKeydown(event) {
+  const input = event.target;
+  if (!input.matches?.("[data-auth-otp-digit]") || event.isComposing) return;
+  const digits = [...input.closest("form").querySelectorAll("[data-auth-otp-digit]")];
+  const index = Number(input.dataset.authOtpDigit);
+  if (event.key === "Backspace" && !input.value && index > 0) {
+    event.preventDefault();
+    digits[index - 1].value = "";
+    digits[index - 1].focus();
+    syncAuthDesktopOtp(input.closest("form"));
+  }
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    digits[Math.max(0, Math.min(5, index + (event.key === "ArrowLeft" ? -1 : 1)))]?.focus();
+  }
+}
+
+function handleAuthDesktopOtpPaste(event) {
+  const input = event.target;
+  if (!input.matches?.("[data-auth-otp-digit]")) return;
+  const code = normalizeEmailOtpCode(event.clipboardData?.getData("text") || "");
+  if (!code) return;
+  event.preventDefault();
+  const digits = [...input.closest("form").querySelectorAll("[data-auth-otp-digit]")];
+  const index = code.length === 6 ? 0 : Number(input.dataset.authOtpDigit);
+  for (let offset = 0; offset < code.length && index + offset < 6; offset++) digits[index + offset].value = code[offset];
+  syncAuthDesktopOtp(input.closest("form"));
+  digits[Math.min(index + code.length, 5)]?.focus();
+}
+
+function focusAuthVerificationCode(form) {
+  if (!form) return;
+  const desktop = window.matchMedia("(min-width:744px)").matches && !form.classList.contains("renvix-auth-recovery-mode");
+  (desktop ? form.querySelector("[data-auth-otp-digit]:not([disabled])") : null)?.focus();
+  if (!desktop || !form.querySelector("[data-auth-otp-digit]")) form.querySelector('input[name="code"]:not([disabled])')?.focus();
+}
+
+document.addEventListener("input", handleAuthDesktopOtpInput);
+document.addEventListener("keydown", handleAuthDesktopOtpKeydown);
+document.addEventListener("paste", handleAuthDesktopOtpPaste);
+
 function authSuiteFrame(content, pageClass = "auth-light-page") {
   const language = state.authDisplayLanguage === "en" ? "en" : "ar";
   const theme = state.authDisplayTheme === "dark" ? "dark" : "light";
   const arabic = language === "ar";
+  content = authDesktopOtpFields(content);
+  content = authDesktopPasswordRequirements(content);
+  if (content.includes('data-submit="forgot"') || content.includes('data-submit="reset-password"')) {
+    content = content.replace("</article>", '<button type="button" class="btn btn-secondary renvix-auth-return" data-link="/login">' + localizedCopy("العودة إلى تسجيل الدخول", "Back to sign in") + '</button></article>');
+  }
+  const desktopTitle = state.route === "/login" ? localizedCopy("أهلًا بعودتك", "Welcome back")
+    : state.route === "/register" ? localizedCopy("إنشاء حساب جديد", "Create a new account")
+    : content.includes('data-submit="forgot"') ? localizedCopy("نسيت كلمة المرور؟", "Forgot your password?")
+    : content.includes('data-submit="reset-password"') ? localizedCopy("إعادة تعيين كلمة المرور", "Reset your password")
+    : content.includes('data-submit="mfa-login"') ? localizedCopy("التحقق الثنائي", "Two-factor verification")
+    : content.includes('data-submit="email-otp"') ? localizedCopy("التحقق من البريد الإلكتروني", "Verify your email") : "";
+  if (desktopTitle) content = content.replace(/<h1>([\s\S]*?)<\/h1>/, (_, mobileTitle) => '<h1><span class="renvix-auth-mobile-title">' + mobileTitle + '</span><span class="renvix-auth-desktop-title">' + escapeHtml(desktopTitle) + '</span></h1>');
   const html = `<main class="${pageClass} auth-suite-page auth-renvix" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls" role="group" aria-label="${arabic ? "اللغة والمظهر" : "Language and theme"}"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="auth-display-theme" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div></main>`;
   // Keep the original mobile header; desktop uses the same controls inside the card.
   const header = html.match(/<header class="auth-suite-brandbar">[\s\S]*?<\/header>/)?.[0] || "";
-  return html.replace(/(<article class="[^"]*(?:auth-suite-panel|email-otp-panel)[^"]*">)/, (match) => match + '<div class="renvix-auth-card-header">' + header + '</div>');
+  const footer = '<footer class="renvix-auth-footer"><nav aria-label="' + localizedCopy("روابط المصادقة", "Account links") + '"><button type="button" data-link="/privacy">' + localizedCopy("الخصوصية", "Privacy") + '</button><button type="button" data-link="/terms">' + localizedCopy("الشروط", "Terms") + '</button><button type="button" data-link="/support">' + localizedCopy("المساعدة", "Help") + '</button></nav><span>© ' + new Date().getFullYear() + ' Renvix</span></footer>';
+  return html.replace(/(<article class="[^"]*(?:auth-suite-panel|email-otp-panel)[^"]*">)/, (match) => match + '<div class="renvix-auth-card-header">' + header + '</div>').replace("</article>", footer + "</article>");
 }
 
 function authModeTabs(activeMode) {
@@ -4056,8 +4168,9 @@ function authBrandIllustration(kind) {
   const shield = '<path d="m213 112 86 34v73c0 53-42 87-86 107-44-20-86-54-86-107v-73Z" fill="#d4e9e3"/><circle cx="213" cy="210" r="40" fill="white" stroke="none"/><path d="m195 211 13 13 26-30" stroke-width="5"/>';
   const connect = '<rect x="314" y="239" width="110" height="94" rx="17" fill="white"/><path d="M369 264v43m-21-22h43" stroke-width="5"/><path d="M284 343h20m0 0v-18" stroke-dasharray="5 6"/>';
   const recovery = '<path d="M171 129a113 113 0 0 1 170 35m-2-31 4 35-35-3M327 320a113 113 0 0 1-167-39m0 31-4-35 36 3" stroke-width="5"/>';
+  const workspace = '<path d="M32 369h429v12H32z" fill="#d4e9e3" stroke="none"/><path d="M64 381v27m367-27v27" stroke="#d4e9e3" stroke-width="8"/><path d="m151 307 73 1-16 52h-72z" fill="#edf7f5" stroke="currentColor"/><path d="M126 362h91" stroke-width="5"/><path d="M85 260c-18 2-31 21-35 50l-7 58h91l-8-73c-2-24-18-36-41-35" fill="currentColor" stroke="none"/><path d="m86 252 1 19c9 7 19 6 27-1l-9-21" fill="#d4e9e3" stroke="none"/><path d="M86 222c1-19 22-28 37-17l-3 15 6 16-8 4-2 16c-25 4-33-12-30-34" fill="#d4e9e3" stroke="none"/><path d="M86 241c-13-6-12-26-5-36 7-11 26-9 37-6 8-3 14 0 13 7-1 9-17 10-24 8v20l-7-3-5 11" fill="currentColor" stroke="none"/><path d="M108 276c17 12 21 35 30 50l23 9" stroke="currentColor" stroke-width="17"/><path d="m152 333 18 5" stroke="#d4e9e3" stroke-width="10"/><path d="M53 319h40c9 0 15 5 16 14l8 60H55l-13-59c-2-9 3-15 11-15" fill="#d4e9e3" stroke="none"/><path d="M57 394h71" stroke-width="6"/><path d="M429 352c-5-37 3-65 8-88M431 326l-24-33m27 17 24-37" stroke-width="3"/><path d="M437 304c-11-26-1-51 14-60 8 24 1 47-14 60M420 315c-21-4-33-19-34-39 19 2 32 16 34 39M435 324c7-23 25-34 44-31-7 21-24 31-44 31" fill="currentColor" stroke="none"/><path d="M409 345h46l-6 36h-33z" fill="white" stroke="#d4e9e3"/>';
   const artwork = kind === "login" ? dashboard : kind === "register" ? dashboard + connect : kind === "mfa" ? shield + phone : kind === "forgot" ? envelope + '<path d="M217 164a32 32 0 0 1 61-13m0-14 2 18-18-2" stroke-width="4"/>' : kind === "reset" ? lock + recovery : envelope;
-  return `<svg class="renvix-auth-illustration" viewBox="0 0 500 440" aria-hidden="true" focusable="false"><ellipse cx="250" cy="227" rx="205" ry="175" fill="#edf7f5"/><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${artwork}</g><ellipse cx="250" cy="374" rx="146" ry="8" fill="#d4e9e3"/></svg>`;
+  return `<svg class="renvix-auth-illustration" viewBox="0 0 500 440" aria-hidden="true" focusable="false"><circle cx="176" cy="204" r="153" fill="#edf7f5"/><circle cx="324" cy="249" r="141" fill="#edf7f5" opacity=".8"/><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${artwork}${workspace}</g><ellipse cx="250" cy="374" rx="146" ry="8" fill="#d4e9e3"/></svg>`;
 }
 
 function authReferenceVisual(kind) {
@@ -11020,6 +11133,7 @@ async function handleAction(target) {
   }
   if (action === "mfa-login-recovery") {
     const form = document.querySelector('[data-submit="mfa-login"]');
+    form?.classList.add("renvix-auth-recovery-mode");
     const input = form?.querySelector('input[name="code"]');
     const label = form?.querySelector('[data-mfa-code-label]');
     if (input) {
@@ -15564,7 +15678,7 @@ function render() {
   }
   if (state.route === "/verify-mfa") {
     if (!state.mfaLoginStatus) queueMicrotask(() => loadMfaLoginStatus());
-    requestAnimationFrame(() => document.querySelector('[data-submit="mfa-login"] input[name="code"]:not([disabled])')?.focus());
+    requestAnimationFrame(() => focusAuthVerificationCode(document.querySelector('[data-submit="mfa-login"]')));
   }
   syncRouteData();
 }

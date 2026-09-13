@@ -17056,6 +17056,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   :root[data-home-tablet-layout="true"] .storage-toolbar>div{width:82px;min-width:82px;justify-self:end}
 }
 .renvix-auth-card-header{display:none}
+.renvix-auth-desktop-title{display:none}
+.renvix-auth-footer{display:none}
+.renvix-auth-otp{display:none}
+.renvix-auth-password-rules,.renvix-auth-return{display:none!important}
 @media (min-width:901px) and (max-width:1180px){
   :root[data-home-tablet-layout="true"] .storage-browser>header{grid-template-columns:1fr}
   :root[data-home-tablet-layout="true"] .storage-toolbar{grid-template-columns:minmax(190px,1.4fr) repeat(3,minmax(100px,.7fr)) 82px}
