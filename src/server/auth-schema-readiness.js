@@ -2,6 +2,8 @@ import { query } from "./db.js";
 
 export const REQUIRED_AUTH_MIGRATION = "0062_platform_admin_auth_challenges.sql";
 export const REQUIRED_PASSWORD_MIGRATION = "0072_argon2id_password_hash_finalize.sql";
+export const REQUIRED_REGISTRATION_MIGRATION = "0092_registration_phone_and_commerce_platform.sql";
+export const REQUIRED_ACCOUNT_LIFECYCLE_MIGRATION = "0097_user_account_lifecycle.sql";
 
 const REQUIRED_COLUMNS = [
   "auth_email_otp_challenges.login_attempt_id",
@@ -12,7 +14,11 @@ const REQUIRED_COLUMNS = [
   "auth_trusted_devices.revoke_reason",
   "auth_trusted_devices.updated_at",
   "users.email_verified_at",
-  "users.mfa_last_verified_step"
+  "users.mfa_last_verified_step",
+  "users.account_phone_e164",
+  "users.account_status",
+  "auth_pending_registrations.phone_e164",
+  "auth_pending_registrations.commerce_platform"
 ];
 
 export async function authSchemaHealth() {
@@ -20,6 +26,8 @@ export async function authSchemaHealth() {
     `SELECT
        EXISTS (SELECT 1 FROM schema_migrations WHERE name = $1) AS migration_applied,
        EXISTS (SELECT 1 FROM schema_migrations WHERE name = $2) AS password_migration_applied,
+       EXISTS (SELECT 1 FROM schema_migrations WHERE name = $3) AS registration_migration_applied,
+       EXISTS (SELECT 1 FROM schema_migrations WHERE name = $4) AS account_lifecycle_migration_applied,
        EXISTS (
          SELECT 1 FROM information_schema.columns
           WHERE table_schema = 'public' AND table_name = 'accounts' AND column_name = 'password_hash'
@@ -59,18 +67,21 @@ export async function authSchemaHealth() {
      FROM information_schema.columns
     WHERE table_schema = 'public'
       AND (
-        (table_name = 'users' AND column_name IN ('email_verified_at', 'mfa_last_verified_step'))
+        (table_name = 'users' AND column_name IN ('email_verified_at', 'mfa_last_verified_step', 'account_phone_e164', 'account_status'))
+        OR (table_name = 'auth_pending_registrations' AND column_name IN ('phone_e164', 'commerce_platform'))
         OR (table_name = 'auth_email_otp_challenges' AND column_name IN ('login_attempt_id', 'updated_at'))
         OR (table_name = 'auth_mfa_login_challenges' AND column_name IN ('target_path', 'login_attempt_id', 'updated_at'))
         OR (table_name = 'auth_trusted_devices' AND column_name IN ('revoke_reason', 'updated_at'))
       )`,
-    [REQUIRED_AUTH_MIGRATION, REQUIRED_PASSWORD_MIGRATION]
+    [REQUIRED_AUTH_MIGRATION, REQUIRED_PASSWORD_MIGRATION, REQUIRED_REGISTRATION_MIGRATION, REQUIRED_ACCOUNT_LIFECYCLE_MIGRATION]
   );
   const row = result.rows[0] || {};
   const available = new Set(row.available_columns || []);
   const missingColumns = REQUIRED_COLUMNS.filter((column) => !available.has(column));
   const ok = row.migration_applied === true
     && row.password_migration_applied === true
+    && row.registration_migration_applied === true
+    && row.account_lifecycle_migration_applied === true
     && row.password_hash_column_ready === true
     && row.legacy_password_column_removed === true
     && row.pending_registration_table === true
@@ -83,6 +94,10 @@ export async function authSchemaHealth() {
     passwordMigration: REQUIRED_PASSWORD_MIGRATION,
     migrationApplied: row.migration_applied === true,
     passwordMigrationApplied: row.password_migration_applied === true,
+    registrationMigration: REQUIRED_REGISTRATION_MIGRATION,
+    registrationMigrationApplied: row.registration_migration_applied === true,
+    accountLifecycleMigration: REQUIRED_ACCOUNT_LIFECYCLE_MIGRATION,
+    accountLifecycleMigrationApplied: row.account_lifecycle_migration_applied === true,
     passwordHashColumnReady: row.password_hash_column_ready === true,
     legacyPasswordColumnRemoved: row.legacy_password_column_removed === true,
     pendingRegistrationTable: row.pending_registration_table === true,

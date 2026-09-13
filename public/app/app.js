@@ -13908,12 +13908,14 @@ async function handleSubmit(form, event) {
       setSubmitBusy(button, false, state.language === "en" ? "Sign in" : "تسجيل الدخول");
       if (networkFailed) return appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "login-network" });
       if (failureReason === "turnstile_failed") return appToast.error("تعذر التحقق الأمني", { description: "حدّث التحقق الأمني ثم حاول مرة أخرى.", id: "login-turnstile" });
+      if (failureReason === "auth_backend_warming") return appToast.info("جاري تجهيز خدمة الدخول", { description: "انتظر بضع ثوانٍ ثم حاول مرة أخرى.", id: "login-backend-warming" });
       if (failureReason === "rate_limited") return appToast.warning("محاولات تسجيل دخول كثيرة", { description: "انتظر قليلًا قبل المحاولة مرة أخرى.", id: "login-rate-limit" });
       if (failureReason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "login-account-blocked" });
       if (failureReason === "email_otp_unavailable") return appToast.error("تعذر إرسال رمز التحقق", { description: "خدمة التحقق عبر البريد غير متاحة حاليًا. تواصل مع مسؤول المنصة.", id: "login-otp-unavailable" });
       if (failureReason === "auth_database_error") return appToast.error("تعذر الوصول إلى بيانات الحساب", { description: "قاعدة بيانات تسجيل الدخول غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", id: "login-database-error" });
       if (failureReason === "auth_session_error") return appToast.error("تعذر تثبيت جلسة الدخول", { description: "تم التحقق من بياناتك، لكن تعذر إنشاء الجلسة الآمنة. حاول مرة أخرى بعد قليل.", id: "login-session-error" });
       if (failureReason === "auth_configuration_error") return appToast.error("إعدادات الدخول غير مكتملة", { description: "توجد مشكلة في إعدادات المصادقة على الخادم. تواصل مع مسؤول المنصة.", id: "login-configuration-error" });
+      if (failureReason === "second_factor_unavailable") return appToast.error("تعذر إكمال التحقق الإضافي", { description: "خدمة التحقق الإضافي غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.", id: "login-second-factor" });
       if (failureReason === "server_error") return appToast.error("تعذر تسجيل الدخول مؤقتًا", { description: "حدث خطأ في الخادم ولم يتم التحقق من بياناتك. حاول مرة أخرى بعد قليل.", id: "login-server-error" });
       return appToast.error("تعذر تسجيل الدخول", { description: "البريد الإلكتروني أو كلمة المرور غير صحيحة.", id: "login-error" });
     }

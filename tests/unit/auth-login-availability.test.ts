@@ -60,6 +60,28 @@ describe("credential login availability", () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
+  it("keeps existing credential login available while account lifecycle migration is rolling out", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("account_status") && !sql.includes("'active'::text")) {
+        throw Object.assign(new Error('column "account_status" does not exist'), { code: "42703" });
+      }
+      if (sql.includes("'active'::text") && sql.includes("FROM users WHERE")) {
+        return { rows: [{ accountStatus: "active" }], rowCount: 1 };
+      }
+      if (sql.includes("SELECT count(*)") && sql.includes("login_attempts")) return { rows: [{ count: 0 }] };
+      if (sql.includes("'active'::text") && sql.includes("FROM users u")) {
+        return { rows: [{ id: "user-1", tenantId: "tenant-1", email: "owner@example.test", name: "Owner", role: "owner", accountStatus: "active", credentialId: "credential-1", passwordHash: "hash", mfaEnabled: false, mfaSecret: null }] };
+      }
+      if (sql.includes("INSERT INTO login_attempts")) return { rows: [{ id: "attempt-1" }] };
+      return { rows: [], rowCount: 1 };
+    });
+
+    const result = await loginAccount({ email: "owner@example.test", password: "CorrectPassword1!", ipAddress: "127.0.0.1", userAgent: "test" });
+
+    expect(result).toMatchObject({ ok: true, status: 200, user: { id: "user-1" } });
+    expect(mocks.createSession).toHaveBeenCalled();
+  });
+
   it("prevents a blocked email from registering another account", async () => {
     mocks.query.mockResolvedValue({ rows: [{ accountStatus: "suspended" }], rowCount: 1 });
 

@@ -15,6 +15,22 @@ function isEmailOtpSchemaUnavailable(error) {
   return error?.code === "42703" || error?.code === "42P01";
 }
 
+function isAccountStatusSchemaUnavailable(error) {
+  return error?.code === "42703" && /account_status/i.test(String(error?.message || ""));
+}
+
+async function findAccountStatus(normalizedEmail) {
+  try {
+    return await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email) = $1 LIMIT 1', [normalizedEmail]);
+  } catch (error) {
+    // account_status was added after credential login originally shipped. A
+    // web process can briefly run before that additive migration during a
+    // rolling deploy, so existing active accounts must remain able to sign in.
+    if (!isAccountStatusSchemaUnavailable(error)) throw error;
+    return query("SELECT 'active'::text AS \"accountStatus\" FROM users WHERE lower(email) = $1 LIMIT 1", [normalizedEmail]);
+  }
+}
+
 function emailOtpDeliveryConfigured() {
   const pepper = process.env.EMAIL_OTP_PEPPER?.trim() || "";
   return Boolean(process.env.RESEND_API_KEY?.trim()) && pepper.length >= 24;
@@ -42,7 +58,7 @@ async function findCredentialUser(normalizedEmail) {
     if (!isEmailOtpSchemaUnavailable(error)) throw error;
     return query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
-              u.account_status AS "accountStatus",
+              'active'::text AS "accountStatus",
               false AS "emailOtpEnabled", false AS "mfaEnabled", NULL::text AS "mfaSecret",
               COALESCE(tm.role, u.role) AS role, a.id AS "credentialId", a.password_hash AS "passwordHash"
          FROM users u
@@ -63,7 +79,7 @@ export async function registerAccount({ name, companyName, email, phone, commerc
   if (!normalizedPhone) return { ok: false, status: 400, reason: "invalid_phone" };
   if (!normalizedPlatform) return { ok: false, status: 400, reason: "invalid_commerce_platform" };
   if (!isStrongPassword(password)) return { ok: false, status: 400, reason: "weak_password" };
-  const existing = await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email) = $1 LIMIT 1', [normalized]);
+  const existing = await findAccountStatus(normalized);
   if (existing.rows[0]?.accountStatus && existing.rows[0].accountStatus !== "active") {
     return { ok: false, status: 403, reason: "account_blocked" };
   }
@@ -92,7 +108,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
   try {
   const normalized = normalizeEmail(email);
   authStage = "account_status";
-  const accountAccess = await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email)=$1 LIMIT 1', [normalized]);
+  const accountAccess = await findAccountStatus(normalized);
   if (accountAccess.rows[0]?.accountStatus && accountAccess.rows[0].accountStatus !== "active") {
     return { ok: false, status: 403, reason: "account_blocked" };
   }
