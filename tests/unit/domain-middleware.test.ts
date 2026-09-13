@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { isStaticAssetPath, middlewareRequest } from "../../middleware.js";
+import { isSensitiveFilePath, isStaticAssetPath, middlewareRequest } from "../../middleware.js";
 
 const keys = [
   "NODE_ENV", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_APP_URL",
@@ -57,6 +57,33 @@ afterEach(() => {
 });
 
 describe("canonical domain middleware", () => {
+  it.each([
+    "/.git/HEAD",
+    "/.env",
+    "/.env.bak",
+    "/database.sql",
+    "/archive.tar.gz",
+    "/nested/config.yaml",
+    "/nested/.secret/file"
+  ])("returns a uniform blank 404 for the sensitive path %s", async (path) => {
+    const response = await run(`https://renvix.app${path}`);
+    expect(response.status).toBe(404);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(await response.text()).toBe("");
+    expect(isSensitiveFilePath(path)).toBe(true);
+    expect(allowAccess).not.toHaveBeenCalled();
+  });
+
+  it("keeps ACME challenges and ordinary application routes available", async () => {
+    expect(isSensitiveFilePath("/.well-known/acme-challenge/token")).toBe(false);
+    expect(isSensitiveFilePath("/pricing")).toBe(false);
+
+    const response = await run("https://renvix.app/pricing");
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it.each([
     "/_next/static/css/admin.css",
     "/_next/static/chunks/admin.js",

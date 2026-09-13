@@ -29,6 +29,27 @@ const STATIC_ASSET_PREFIXES = Object.freeze([
   "/data/"
 ]);
 
+const SENSITIVE_FILE_EXTENSION = /\.(?:env|bak|old|orig|save|sql|dump|tar|gz|zip|log|ini|ya?ml)$/i;
+
+export function isSensitiveFilePath(pathname) {
+  let path;
+  try {
+    path = decodeURIComponent(String(pathname || "/"));
+  } catch {
+    // Malformed encodings should never reach application routing.
+    return true;
+  }
+
+  const segments = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  return segments.some((segment) => {
+    const normalized = segment.toLowerCase();
+    if (normalized === ".well-known") return false;
+    return normalized.startsWith(".")
+      || normalized === ".git"
+      || SENSITIVE_FILE_EXTENSION.test(normalized);
+  });
+}
+
 export function isStaticAssetPath(pathname) {
   const path = String(pathname || "/");
   return path === "/favicon.ico"
@@ -56,6 +77,8 @@ export async function middlewareRequest(request, {
     else void recording;
     return adminHoneypotResponse();
   }
+
+  if (isSensitiveFilePath(path)) return sensitiveFileResponse();
 
   const internalBlockCheck = path === "/api/security/block-check";
   if (!internalBlockCheck) {
@@ -247,6 +270,19 @@ function wrongHostPageResponse() {
   return new NextResponse(null, {
     status: 404,
     headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" }
+  });
+}
+
+function sensitiveFileResponse() {
+  return new NextResponse(null, {
+    status: 404,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow"
+    }
   });
 }
 
