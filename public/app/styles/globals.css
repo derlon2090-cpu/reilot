@@ -16980,3 +16980,50 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .auth-platform-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
   .auth-platform-card{min-height:55px}
 }
+
+/* Complete password recovery flow and short iPad viewport containment. */
+.auth-recovery-progress{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 16px;padding:0;list-style:none}
+.auth-recovery-progress::before{position:absolute;z-index:0;top:13px;right:25%;left:25%;height:1px;background:#dce7e5;content:""}
+.auth-recovery-progress li{position:relative;min-width:0;display:flex;align-items:center;gap:8px;color:#82908d;font-size:11px;font-weight:700}
+.auth-recovery-progress b{position:relative;z-index:1;width:27px;height:27px;display:grid;place-items:center;flex:0 0 27px;border:1px solid #d8e4e1;border-radius:50%;color:#6d7e7a;background:#fff;font:800 11px "Sora",sans-serif}
+.auth-recovery-progress li.active{color:#075d54}.auth-recovery-progress li.active b{color:#fff;border-color:#087267;background:#087267}
+.auth-recovery-form .field>small{margin-top:-3px;color:#7c8d89;font-size:10px;line-height:1.55}
+.auth-reset-email-context{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:10px;margin:0 0 14px;padding:10px 12px;border:1px solid #dce8e5;border-radius:10px;background:#f7fbfa}
+.auth-reset-email-context>.line-icon{width:19px;color:#087267}.auth-reset-email-context>div{min-width:0}.auth-reset-email-context small,.auth-reset-email-context strong{display:block}.auth-reset-email-context small{color:#748681;font-size:9px}.auth-reset-email-context strong{overflow:hidden;margin-top:2px;color:#173f3a;font-size:11px;text-overflow:ellipsis;white-space:nowrap;text-align:start}
+.auth-reset-email-context button{padding:5px 7px;color:#087267;border:0;background:transparent;font:700 10px "Tajawal",sans-serif;cursor:pointer;white-space:nowrap}
+.auth-reset-code{text-align:center!important;font:800 19px "Sora",sans-serif!important;letter-spacing:8px!important}
+.auth-reset-success{display:grid;justify-items:center;gap:8px;padding:18px 0;text-align:center}.auth-reset-success h2,.auth-reset-success p{margin:0}.auth-reset-success h2{color:#0b4f48;font-size:21px}.auth-reset-success p{max-width:390px;color:#687b77;line-height:1.75}.auth-reset-success .btn{width:100%;margin-top:8px}
+:root[data-theme="dark"] .auth-recovery-progress li{color:#91a6a1}:root[data-theme="dark"] .auth-recovery-progress::before{background:#294842}:root[data-theme="dark"] .auth-recovery-progress b{color:#a9bcb8;border-color:#31514b;background:#0b2925}:root[data-theme="dark"] .auth-recovery-progress li.active{color:#73d0c3}:root[data-theme="dark"] .auth-recovery-progress li.active b{color:#fff;border-color:#168f80;background:#087267}:root[data-theme="dark"] .auth-reset-email-context{border-color:#2b4b45;background:#0b2925}:root[data-theme="dark"] .auth-reset-email-context strong,:root[data-theme="dark"] .auth-reset-success h2{color:#edf8f5}
+
+@media (min-width:821px){
+  .auth-suite-page .auth-suite-reset{height:100%!important;min-height:0!important;max-height:100%!important;align-items:stretch!important;overflow:hidden!important}
+  .auth-suite-page .auth-suite-reset>.auth-suite-visual{height:100%!important;min-height:0!important;max-height:100%!important;align-self:stretch!important;overflow:hidden!important}
+  .auth-suite-page .auth-suite-reset>.auth-suite-panel{height:100%!important;min-height:0!important;max-height:100%!important;padding-top:clamp(18px,3dvh,30px)!important;padding-bottom:18px!important;align-self:stretch!important;justify-content:flex-start!important;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:thin;scrollbar-color:#b8cfcb transparent}
+}
+@media (min-width:821px) and (max-height:760px){
+  .auth-suite-page{padding-block:8px 12px!important}
+  .auth-suite-page .auth-suite-stage{grid-template-rows:50px minmax(0,1fr)!important;gap:4px!important}
+  .auth-suite-page .auth-suite-brandbar{height:50px!important;min-height:50px!important;padding-block:0!important}
+  .auth-suite-page .auth-suite-reset>.auth-suite-panel{padding:12px 24px!important}
+  .auth-suite-page .auth-suite-reset .auth-suite-intro h1{font-size:26px!important}
+  .auth-suite-page .auth-suite-reset .auth-suite-intro p{margin-bottom:10px!important;font-size:12px!important}
+  .auth-suite-page .auth-suite-reset .auth-suite-form{gap:8px!important}
+  .auth-suite-page .auth-suite-reset .auth-suite-form .input{min-height:42px!important;height:42px!important}
+  .auth-suite-page .auth-suite-reset .auth-suite-form .auth-submit{min-height:44px!important}
+  .auth-suite-page .auth-suite-reset .auth-suite-note{margin-top:10px!important;padding:9px 12px!important}
+  .auth-suite-page .auth-suite-reset .auth-switch{margin-top:9px!important}
+}
+
+/* iPad storage header: every control remains inside the content card. */
+@media (min-width:901px) and (max-width:1700px){
+  :root[data-home-tablet-layout="true"] .storage-browser>header{display:grid!important;grid-template-columns:minmax(145px,180px) minmax(0,1fr);align-items:center!important;gap:14px!important}
+  :root[data-home-tablet-layout="true"] .storage-browser>header>div:first-child{min-width:0;margin:0!important}
+  :root[data-home-tablet-layout="true"] .storage-toolbar{width:100%;min-width:0;display:grid!important;grid-template-columns:minmax(180px,1.4fr) minmax(105px,.58fr) minmax(130px,.68fr) minmax(105px,.58fr) 82px;gap:8px;overflow:visible}
+  :root[data-home-tablet-layout="true"] .storage-toolbar>label{width:100%!important;min-width:0}
+  :root[data-home-tablet-layout="true"] .storage-toolbar :is(select,.storage-date-filter){width:100%;min-width:0;max-width:100%;padding-inline:9px}
+  :root[data-home-tablet-layout="true"] .storage-toolbar>div{width:82px;min-width:82px;justify-self:end}
+}
+@media (min-width:901px) and (max-width:1180px){
+  :root[data-home-tablet-layout="true"] .storage-browser>header{grid-template-columns:1fr}
+  :root[data-home-tablet-layout="true"] .storage-toolbar{grid-template-columns:minmax(190px,1.4fr) repeat(3,minmax(100px,.7fr)) 82px}
+}

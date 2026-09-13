@@ -4208,8 +4208,13 @@ function authPublicPage() {
 
 function forgotPublicPage() {
   const step = state.resetStep;
-  const content = step === 1 ? `<form data-submit="forgot" class="grid auth-form"><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" required></label><button class="btn btn-primary auth-submit">إرسال رابط الاستعادة</button></form>` : step === 2 ? `<form data-submit="reset-password" class="grid auth-form"><label class="field"><span>رمز التحقق</span><input class="input code-input" name="code" inputmode="numeric" maxlength="6" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" type="password" name="password" required></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" type="password" name="confirmPassword" required></label><button class="btn btn-primary auth-submit">تعيين كلمة المرور</button></form>` : `<div class="auth-success"><span class="success-mark">✓</span><p>تم تغيير كلمة المرور بنجاح.</p><button class="btn btn-primary" data-link="/login">تسجيل الدخول</button></div>`;
-  return authSuiteFrame(`<section class="reset-light-shell auth-suite-shell auth-suite-reset"><article class="card reset-light-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon auth-suite-recovery-icon">${authRecoveryIcon()}</span><h1>نسيت كلمة المرور</h1><p>${step === 1 ? localizedCopy("أدخل بريدك وسنرسل لك رمز تحقق آمنًا، ثم اختر كلمة مرور جديدة.", "Enter your email and we will send a secure verification code, then choose a new password.") : step === 2 ? localizedCopy("أدخل رمز التحقق الذي أرسلناه إلى بريدك ثم اختر كلمة مرور جديدة.", "Enter the verification code sent to your email, then choose a new password.") : localizedCopy("يمكنك الآن العودة إلى حسابك.", "You can now return to your account.")}</p></div>${content}<p class="muted auth-suite-note">${localizedCopy("إذا كان البريد موجودًا فسيصلك رمز الاستعادة خلال دقائق.", "If the address exists, the recovery code will arrive within a few minutes.")}</p><p class="auth-switch">${localizedCopy("تذكرت كلمة المرور؟", "Remembered your password?")} <button class="link-button" data-link="/login">${localizedCopy("العودة إلى تسجيل الدخول", "Back to sign in")}</button></p></article><aside class="card reset-light-visual auth-suite-visual auth-suite-reset-visual">${authReferenceVisual("reset")}</aside></section>`);
+  const progress = step < 3 ? `<ol class="auth-recovery-progress" aria-label="${localizedCopy("مراحل استعادة كلمة المرور", "Password recovery steps")}"><li class="${step >= 1 ? "active" : ""}"><b>1</b><span>${localizedCopy("البريد", "Email")}</span></li><li class="${step >= 2 ? "active" : ""}"><b>2</b><span>${localizedCopy("التحقق والتعيين", "Verify and reset")}</span></li></ol>` : "";
+  const content = step === 1
+    ? `<form data-submit="forgot" class="grid auth-form auth-suite-form auth-recovery-form" novalidate><label class="field"><span>${localizedCopy("البريد الإلكتروني", "Email address")}</span><input class="input" type="email" name="email" value="${escapeHtml(state.resetEmail)}" autocomplete="email" inputmode="email" placeholder="name@example.com" required><small>${localizedCopy("استخدم البريد المرتبط بحسابك في Renvix.", "Use the email connected to your Renvix account.")}</small></label><button class="btn btn-primary auth-submit" type="submit">${localizedCopy("إرسال رمز التحقق", "Send verification code")}</button></form>`
+    : step === 2
+      ? `<div class="auth-reset-email-context">${dashboardIcon("email")}<div><small>${localizedCopy("أرسلنا رمزًا إلى", "Code sent to")}</small><strong dir="ltr">${escapeHtml(state.resetEmail || "—")}</strong></div><button type="button" data-action="reset-change-email">${localizedCopy("تغيير أو إعادة الإرسال", "Change or resend")}</button></div><form data-submit="reset-password" class="grid auth-form auth-suite-form auth-recovery-form" novalidate><label class="field"><span>${localizedCopy("رمز التحقق", "Verification code")}</span><input class="input code-input auth-reset-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" dir="ltr" required><small>${localizedCopy("أدخل الرمز المكوّن من 6 أرقام.", "Enter the 6-digit code.")}</small></label><label class="field"><span>${localizedCopy("كلمة المرور الجديدة", "New password")}</span><input class="input" type="password" name="password" autocomplete="new-password" placeholder="${localizedCopy("8 أحرف مع رقم ورمز", "8 characters with a number and symbol")}" required></label><label class="field"><span>${localizedCopy("تأكيد كلمة المرور", "Confirm password")}</span><input class="input" type="password" name="confirmPassword" autocomplete="new-password" placeholder="${localizedCopy("أعد كتابة كلمة المرور", "Repeat your password")}" required></label><button class="btn btn-primary auth-submit" type="submit">${localizedCopy("تعيين كلمة المرور", "Set new password")}</button></form>`
+      : `<div class="auth-success auth-reset-success"><span class="success-mark">✓</span><h2>${localizedCopy("تم تحديث كلمة المرور", "Password updated")}</h2><p>${localizedCopy("يمكنك الآن تسجيل الدخول بأمان باستخدام كلمة المرور الجديدة.", "You can now sign in securely with your new password.")}</p><button class="btn btn-primary" data-link="/login">${localizedCopy("العودة إلى تسجيل الدخول", "Back to sign in")}</button></div>`;
+  return authSuiteFrame(`<section class="reset-light-shell auth-suite-shell auth-suite-reset"><article class="card reset-light-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon auth-suite-recovery-icon">${authRecoveryIcon()}</span><h1>${localizedCopy("استعادة كلمة المرور", "Reset password")}</h1><p>${step === 1 ? localizedCopy("أدخل بريدك وسنرسل لك رمز تحقق آمنًا، ثم اختر كلمة مرور جديدة.", "Enter your email and we will send a secure verification code, then choose a new password.") : step === 2 ? localizedCopy("تحقق من بريدك وأكمل الخطوة الأخيرة لاستعادة حسابك.", "Check your email and complete the final step to recover your account.") : localizedCopy("اكتملت عملية الاستعادة بنجاح.", "Your account recovery is complete.")}</p></div>${progress}${content}<p class="muted auth-suite-note">${localizedCopy("لن نكشف ما إذا كان البريد مسجلًا، حفاظًا على أمان حسابك.", "For your security, we do not reveal whether an email is registered.")}</p><p class="auth-switch">${localizedCopy("تذكرت كلمة المرور؟", "Remembered your password?")} <button class="link-button" data-link="/login">${localizedCopy("العودة إلى تسجيل الدخول", "Back to sign in")}</button></p></article><aside class="card reset-light-visual auth-suite-visual auth-suite-reset-visual">${authReferenceVisual("reset")}</aside></section>`);
 }
 
 function normalizeEmailOtpCode(value) {
@@ -11880,6 +11885,13 @@ async function handleAction(target) {
   if (action === "billing") { state.billing = target.dataset.billing; storage.set("renewpilot.billing", state.billing); render(); }
   if (action === "select-plan") navigate(`/register?plan=${target.dataset.plan}`);
   if (action === "forgot-password") navigate("/forgot-password");
+  if (action === "reset-change-email") {
+    state.resetStep = 1;
+    try { sessionStorage.setItem("renvix.passwordReset.step", "1"); } catch {}
+    render();
+    requestAnimationFrame(() => document.querySelector('form[data-submit="forgot"] input[name="email"]')?.focus());
+    return;
+  }
   if (action === "open-ticket") openModal("فتح تذكرة دعم", `<form data-submit="ticket" class="grid">${field("الموضوع", "subject")}${field("البريد", "email", "email")}<textarea class="textarea" name="body" required placeholder="وصف المشكلة"></textarea><button class="btn btn-primary">إرسال التذكرة</button></form>`);
   if (action === "open-chat") {
     openDrawer("ابدأ محادثة مع الدعم", `<div class="support-chat-intro">${dashboardIcon("chat")}<div><strong>فريق دعم Renvix</strong><p class="muted">أرسل رسالتك الآن. ستصل إلى لوحة الدعم وسنرسل الرد إلى بريدك الإلكتروني.</p></div></div><form data-submit="support-chat" class="grid support-chat-form"><label class="field"><span>الاسم الكامل</span><input class="input" name="name" minlength="2" maxlength="120" required></label><label class="field"><span>البريد الإلكتروني</span><input class="input" type="email" name="email" maxlength="254" required></label><label class="field"><span>نوع الطلب</span><select class="select" name="type"><option value="INQUIRY">استفسار عام</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="BILLING">الفوترة والباقات</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="COMPLAINT">شكوى</option><option value="OTHER">أخرى</option></select></label><label class="field"><span>عنوان المحادثة</span><input class="input" name="subject" minlength="5" maxlength="150" required></label><label class="field"><span>رسالتك</span><textarea class="textarea" name="message" minlength="10" maxlength="2000" required></textarea></label><button class="btn btn-primary" type="submit">إرسال إلى فريق الدعم</button></form>`);
@@ -16311,18 +16323,6 @@ document.addEventListener("focusin", (event) => {
   if (globalSearch) refreshDashboardQuickSearch(globalSearch);
 });
 
-document.addEventListener("dragover", (event) => {
-  const dropzone = event.target?.closest?.(".storage-dropzone");
-  if (!dropzone || storageDraggedItem) return;
-  event.preventDefault();
-  dropzone.classList.add("is-dragging");
-});
-
-document.addEventListener("dragleave", (event) => {
-  event.target?.closest?.(".storage-dropzone")?.classList.remove("is-dragging");
-});
-
-document.addEventListener("drop", (event) => {
 let storageDraggedItem = null;
 let storageMoveInFlight = false;
 
@@ -16427,6 +16427,18 @@ document.addEventListener("drop", (event) => {
   void moveStorageItemByDrop(storageDraggedItem, target);
 });
 
+document.addEventListener("dragover", (event) => {
+  const dropzone = event.target?.closest?.(".storage-dropzone");
+  if (!dropzone || storageDraggedItem) return;
+  event.preventDefault();
+  dropzone.classList.add("is-dragging");
+});
+
+document.addEventListener("dragleave", (event) => {
+  event.target?.closest?.(".storage-dropzone")?.classList.remove("is-dragging");
+});
+
+document.addEventListener("drop", (event) => {
   const dropzone = event.target?.closest?.(".storage-dropzone");
   if (!dropzone || storageDraggedItem) return;
   event.preventDefault();
