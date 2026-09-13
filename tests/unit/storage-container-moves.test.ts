@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock("../../src/server/db.js", () => ({ query: db.query, transaction: (work: (client: unknown) => unknown) => work(db) }));
-import { createStorageFolder, moveStorageItem } from "../../src/server/storage-center.js";
+import { createStorageFolder, moveStorageItem, reorderStorageItems } from "../../src/server/storage-center.js";
 
 const session = { tenantId: "tenant-a", userId: "user-a" };
 const source = "11111111-1111-4111-8111-111111111111";
@@ -59,5 +59,15 @@ describe("storage containers", () => {
   it("keeps system folders immovable", async () => {
     prepareMove("custom", false, true);
     await expect(moveStorageItem(session, "folder", source, destination)).rejects.toMatchObject({ code: "SYSTEM_FOLDER_IMMUTABLE" });
+  });
+
+  it("persists a validated order for the current tenant and rejects foreign keys", async () => {
+    db.query.mockImplementation(async (sql: string) => ({ rows: sql.includes("UNION ALL SELECT 'document:'") ? [{ key: `folder:${source}` }, { key: `document:${destination}` }] : [] }));
+    const keys = [`document:${destination}`, `folder:${source}`];
+    expect(await reorderStorageItems(session, { keys })).toEqual({ folderId: null, keys });
+    const insert = db.query.mock.calls.find(([sql]) => sql.startsWith("INSERT INTO storage_activity"));
+    expect(JSON.parse(insert?.[1][2])).toEqual({ operation: "reorder", folderId: "", keys });
+    await expect(reorderStorageItems(session, { keys: [`asset:${source}`, `document:${destination}`] })).rejects.toMatchObject({ code: "STORAGE_ORDER_CHANGED" });
+    await expect(reorderStorageItems(session, { keys: [keys[0], keys[0]] })).rejects.toMatchObject({ code: "INVALID_STORAGE_ORDER" });
   });
 });

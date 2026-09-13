@@ -9394,6 +9394,7 @@ async function handleAction(target) {
   const storageAction = target.dataset.action || "";
   if (storageAction === "storage-toggle-arrange") {
     if (storageMoveInFlight) return;
+    cancelStoragePointerDrag();
     storageArrangeMode = !storageArrangeMode;
     storageMovingItem = null;
     clearStorageDragState();
@@ -15249,6 +15250,7 @@ function storageTypeLabel(type) {
 }
 
 function storageActivityLabel(item = {}) {
+  if (item.metadata?.operation === "reorder") return "تم ترتيب العناصر";
   const labels = {
     UPLOAD_IMAGE: "تم رفع صورة", CREATE_FOLDER: "تم إنشاء مجلد", CREATE_DOCUMENT: "تم إنشاء مستند",
     UPDATE_DOCUMENT: "تم تعديل مستند", MOVE_ITEM: "تم نقل عنصر", DELETE_ITEM: "تم نقل عنصر إلى السلة",
@@ -15350,6 +15352,7 @@ function stopStorageDocumentCountdowns() {
 }
 
 function disposeStorageRoute() {
+  cancelStoragePointerDrag();
   storageArrangeMode = false;
   storageMovingItem = null;
   clearStorageDragState();
@@ -16370,6 +16373,7 @@ function bindStorageMoveControls() {
   if (!browser) return;
   browser.querySelectorAll('.storage-folder-card').forEach((card) => {
     const row = state.storageCenter?.storage?.folders?.find((folder) => folder.id === card.dataset.id);
+    card.dataset.storageKind = "folder";
     if (!row || row.isSystem) return;
     card.setAttribute("data-storage-draggable", "");
     card.dataset.storageKind = "folder";
@@ -16381,7 +16385,7 @@ function bindStorageMoveControls() {
     const row = (kind === "folder" ? data.folders : kind === "document" ? data.documents : data.assets)?.find((item) => item.id === card.dataset.id);
     card.dataset.storageSourceFolderId = (kind === "folder" ? row?.parentId : row?.folderId) || "";
     card.querySelector('.storage-move-handle')?.remove();
-    card.setAttribute("draggable", String(storageArrangeMode && !storageMoveInFlight));
+    card.setAttribute("draggable", "false");
     if (storageArrangeMode) {
       card.tabIndex = 0;
       card.setAttribute("role", "button");
@@ -16394,14 +16398,23 @@ function bindStorageMoveControls() {
     card.classList.toggle("storage-moving-selected", storageMovingItem?.id === card.dataset.id);
   });
   browser.classList.toggle("storage-arrange-active", storageArrangeMode);
+  const list = browser.querySelector('.storage-items');
+  const savedKeys = state.storageCenter?.storage?.itemOrder || [];
+  const sort = browser.querySelector('[data-action="storage-sort"]');
+  if (sort && !sort.querySelector('[value="manual"]')) sort.insertAdjacentHTML("beforeend", '<option value="manual">ترتيبي المخصص</option>');
+  if (sort && state.storageSort === "manual") sort.value = "manual";
+  if (list && savedKeys.length && (state.storageSort === "manual" || storageArrangeMode)) {
+    const rank = new Map(savedKeys.map((key, index) => [key, index]));
+    [...list.children].sort((a, b) => (rank.get(`${a.dataset.storageKind}:${a.dataset.id}`) ?? 9999) - (rank.get(`${b.dataset.storageKind}:${b.dataset.id}`) ?? 9999)).forEach((card) => list.append(card));
+  }
   const hint = browser.querySelector('.storage-drag-hint');
-  if (hint) hint.textContent = storageArrangeMode ? "اختر ملفًا أو مستندًا، أو اسحبه وأفلته فوق المجلد المطلوب." : "اضغط «تحريك الملفات والمستندات» أعلاه لتفعيل تغيير الأماكن.";
+  if (hint) hint.textContent = storageArrangeMode ? (state.storageSearch || state.storageDateFrom || (state.storageTypeFilter && state.storageTypeFilter !== "all") ? "يمكنك النقل داخل حاوية. امسح البحث والفلاتر لتفعيل إعادة الترتيب." : "اسحب فوق بطاقة لتغيير الترتيب، أو إلى وسط حاوية للنقل داخلها.") : "اضغط «تحريك الملفات والمستندات» أعلاه لتفعيل تغيير الأماكن.";
   let bar = document.querySelector(".storage-arrange-bar");
   if (!bar) {
     browser.insertAdjacentHTML("beforebegin", '<section class="storage-arrange-bar"></section>');
     bar = document.querySelector(".storage-arrange-bar");
   }
-  bar.innerHTML = `<button type="button" class="btn ${storageArrangeMode ? "btn-primary" : "btn-secondary"}" data-action="storage-toggle-arrange" aria-pressed="${storageArrangeMode}" ${storageMoveInFlight ? "disabled" : ""}>${dashboardIcon(storageArrangeMode ? "close" : "folder")}${storageArrangeMode ? "إنهاء التحريك" : "تحريك الملفات والمستندات"}</button><span role="status">${storageArrangeMode ? "اختر بطاقة أو اسحبها إلى المجلد المطلوب. Escape لإنهاء التحريك." : "فعّل التحريك لتغيير أماكن الملفات والمستندات بسهولة."}</span>`;
+  bar.innerHTML = `<button type="button" class="btn ${storageArrangeMode ? "btn-primary" : "btn-secondary"}" data-action="storage-toggle-arrange" aria-pressed="${storageArrangeMode}" ${storageMoveInFlight ? "disabled" : ""}>${dashboardIcon(storageArrangeMode ? "close" : "folder")}${storageArrangeMode ? "إنهاء التحريك" : "تحريك الملفات والمستندات"}</button><span role="status">${storageArrangeMode ? "اسحب مباشرةً: فوق مستند أو حافة بطاقة للترتيب، ووسط حاوية للنقل داخلها. لا تحتاج لضغط مطوّل." : "فعّل التحريك لتغيير أماكن الملفات والمستندات بسهولة."}</span>`;
   document.querySelector(".storage-move-mode")?.remove();
   if (!storageMovingItem) return;
   const folders = [{ id: "", name: "مركز التخزين" }, ...(state.storageCenter?.storage?.allFolders || [])];
@@ -16432,8 +16445,8 @@ function storageDropAllowed(item, target) {
     return true;
   }
   if (systemType === "images") return item.kind === "asset" && item.mimeType.startsWith("image/");
-  if (systemType === "files") return (item.kind === "asset" && !item.mimeType.startsWith("image/")) || (item.kind === "document" && item.documentType === "custom");
-  return item.kind === "document" && item.documentType === "custom";
+  if (systemType === "files") return (item.kind === "asset" && !item.mimeType.startsWith("image/")) || item.kind === "document";
+  return ["document", "asset"].includes(item.kind);
 }
 
 function storageMoveFolderOptions(kind, id) {
@@ -16478,26 +16491,136 @@ async function moveStorageItemByDrop(item, target) {
   }
 }
 
+let storagePointerDrag = null;
+let storageSuppressClickUntil = 0;
+
+function cancelStoragePointerDrag() {
+  const drag = storagePointerDrag;
+  if (!drag) return;
+  cancelAnimationFrame(drag.frame);
+  drag.ghost?.remove();
+  drag.card.classList.remove("storage-is-dragging");
+  if (drag.card.hasPointerCapture?.(drag.id)) drag.card.releasePointerCapture(drag.id);
+  document.querySelectorAll('.storage-drop-ready,.storage-reorder-target,.storage-drop-blocked').forEach((node) => node.classList.remove("storage-drop-ready", "storage-reorder-target", "storage-drop-blocked"));
+  storagePointerDrag = null;
+}
+
+function storagePointerDestination(drag) {
+  const hit = document.elementFromPoint(drag.x, drag.y);
+  const folder = storageDropTargetFor(hit);
+  const card = hit?.closest?.('.storage-items>article');
+  if (card === drag.card) return null;
+  if (folder && storageDropAllowed(drag.item, folder)) {
+    const rect = folder.getBoundingClientRect();
+    const center = !card || (drag.y > rect.top + rect.height * .25 && drag.y < rect.bottom - rect.height * .25 && drag.x > rect.left + rect.width * .2 && drag.x < rect.right - rect.width * .2);
+    if (center) return { mode: "move", target: folder };
+  }
+  if (card && card.parentElement === drag.card.parentElement && !state.storageSearch && !state.storageDateFrom && (!state.storageTypeFilter || state.storageTypeFilter === "all")) return { mode: "reorder", target: card };
+  return null;
+}
+
+async function reorderStorageCards(card, target) {
+  const list = card.parentElement;
+  if (storageMoveInFlight || target.parentElement !== list) return;
+  const previous = [...list.children];
+  const from = previous.indexOf(card), to = previous.indexOf(target);
+  if (from < 0 || to < 0 || from === to) return;
+  list.insertBefore(card, from < to ? target.nextSibling : target);
+  const keys = [...list.children].map((row) => `${row.dataset.storageKind}:${row.dataset.id}`);
+  storageMoveInFlight = true;
+  list.classList.add("storage-reorder-saving");
+  const toggle = document.querySelector('[data-action="storage-toggle-arrange"]');
+  if (toggle) toggle.disabled = true;
+  const status = document.querySelector('.storage-arrange-bar [role="status"]');
+  if (status) status.textContent = "جارٍ حفظ المكان الجديد…";
+  try {
+    await fetchJson("/api/storage/items/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderId: state.storageCurrentFolderId || null, keys }) });
+    if (state.storageCenter?.storage) state.storageCenter.storage.itemOrder = keys;
+    state.storageSort = "manual";
+    storage.set("renvix.storage.sort", "manual");
+    storageMovingItem = null;
+    toast("تم حفظ ترتيب الملفات والمستندات.");
+  } catch (error) {
+    if (list.isConnected) previous.forEach((row) => list.append(row));
+    toast(error.message || "تعذر حفظ الترتيب. أعد المحاولة.", "danger");
+  } finally {
+    storageMoveInFlight = false;
+    list.classList.remove("storage-reorder-saving");
+    bindStorageMoveControls();
+  }
+}
+
+function animateStoragePointerDrag() {
+  const drag = storagePointerDrag;
+  if (!drag?.active) return;
+  drag.ghost.style.transform = `translate3d(${drag.x + 15}px,${drag.y + 15}px,0)`;
+  document.querySelectorAll('.storage-drop-ready,.storage-reorder-target').forEach((node) => node.classList.remove("storage-drop-ready", "storage-reorder-target"));
+  drag.destination = storagePointerDestination(drag);
+  drag.destination?.target.classList.add(drag.destination.mode === "move" ? "storage-drop-ready" : "storage-reorder-target");
+  drag.ghost.querySelector('small').textContent = drag.destination ? drag.destination.mode === "move" ? "إفلات للنقل داخل الحاوية" : "إفلات لتغيير الترتيب" : "اسحب فوق بطاقة أو مكان متاح";
+  let scrollable = drag.card.parentElement;
+  while (scrollable && !(scrollable.scrollHeight > scrollable.clientHeight && /auto|scroll/.test(getComputedStyle(scrollable).overflowY))) scrollable = scrollable.parentElement;
+  if (scrollable) {
+    const rect = scrollable.getBoundingClientRect();
+    const top = Math.max(0, rect.top), bottom = Math.min(innerHeight, rect.bottom);
+    if (drag.y < top + 55) scrollable.scrollTop -= 10;
+    if (drag.y > bottom - 55) scrollable.scrollTop += 10;
+  } else if (drag.y < 55) window.scrollBy(0, -10);
+  else if (drag.y > innerHeight - 55) window.scrollBy(0, 10);
+  drag.frame = requestAnimationFrame(animateStoragePointerDrag);
+}
+
+document.addEventListener("pointerdown", (event) => {
+  if (!storageArrangeMode || storageMoveInFlight || !event.isPrimary || event.button !== 0) return;
+  const card = event.target?.closest?.('.storage-items [data-storage-draggable]');
+  if (!card) return;
+  cancelStoragePointerDrag();
+  storagePointerDrag = { id: event.pointerId, card, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false, item: { id: card.dataset.id, kind: card.dataset.storageKind, name: card.dataset.storageName || "العنصر", mimeType: card.dataset.storageMimeType || "", documentType: card.dataset.storageDocumentType || "", sourceFolderId: card.dataset.storageSourceFolderId || "" } };
+  card.setPointerCapture(event.pointerId);
+}, true);
+
+document.addEventListener("pointermove", (event) => {
+  const drag = storagePointerDrag;
+  if (!drag || drag.id !== event.pointerId) return;
+  drag.x = event.clientX; drag.y = event.clientY;
+  if (!drag.active && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) < 7) return;
+  event.preventDefault();
+  if (!drag.active) {
+    drag.active = true;
+    drag.card.classList.add("storage-is-dragging");
+    drag.ghost = document.createElement("div");
+    drag.ghost.className = "storage-drag-ghost";
+    drag.ghost.innerHTML = `<strong>${escapeHtml(drag.item.name)}</strong><small>اسحب إلى المكان الجديد</small>`;
+    document.body.append(drag.ghost);
+    animateStoragePointerDrag();
+  }
+}, { capture: true, passive: false });
+
+document.addEventListener("pointerup", (event) => {
+  const drag = storagePointerDrag;
+  if (!drag || drag.id !== event.pointerId) return;
+  if (!drag.active) { cancelStoragePointerDrag(); return; }
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  drag.x = event.clientX; drag.y = event.clientY;
+  const destination = storagePointerDestination(drag);
+  storageSuppressClickUntil = Date.now() + 500;
+  cancelStoragePointerDrag();
+  if (destination?.mode === "move") void moveStorageItemByDrop(drag.item, destination.target);
+  else if (destination?.mode === "reorder") void reorderStorageCards(drag.card, destination.target);
+  else toast("لم يتغير المكان. أفلت فوق بطاقة للترتيب أو وسط حاوية للنقل.", "warning");
+}, true);
+
+document.addEventListener("pointercancel", cancelStoragePointerDrag, true);
+window.addEventListener("blur", cancelStoragePointerDrag);
+document.addEventListener("contextmenu", (event) => {
+  if (storageArrangeMode && event.target?.closest?.('.storage-browser')) { event.preventDefault(); event.stopImmediatePropagation(); }
+}, true);
+
 document.addEventListener("dragstart", (event) => {
   const card = event.target?.closest?.("[data-storage-draggable]");
   if (!card) return;
-  if (!storageArrangeMode || storageMoveInFlight) return event.preventDefault();
-  if (event.target?.closest?.("button")) return event.preventDefault();
-  storageDraggedItem = {
-    id: card.dataset.id || "",
-    kind: card.dataset.storageKind || "",
-    name: card.dataset.storageName || "العنصر",
-    mimeType: card.dataset.storageMimeType || "",
-    documentType: card.dataset.storageDocumentType || "",
-    sourceFolderId: card.dataset.storageSourceFolderId || ""
-  };
-  if (!storageDraggedItem.id || !storageDraggedItem.kind) {
-    storageDraggedItem = null;
-    return event.preventDefault();
-  }
-  card.classList.add("storage-is-dragging");
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", storageDraggedItem.id);
+  event.preventDefault();
 });
 
 document.addEventListener("dragend", clearStorageDragState);
@@ -16513,6 +16636,7 @@ function selectStorageArrangeCard(card) {
 
 document.addEventListener("click", (event) => {
   if (!storageArrangeMode) return;
+  if (Date.now() < storageSuppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); return; }
   const card = event.target?.closest?.(".storage-browser [data-storage-draggable],.storage-browser .storage-folder-card");
   if (!card) return;
   event.preventDefault();

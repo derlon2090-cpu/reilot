@@ -27,7 +27,7 @@ describe("storage center form wiring", () => {
     expect(allowed(doc, target(""))).toBe(true);
     expect(allowed(doc, target("source"))).toBe(false);
     expect(allowed(doc, target("images", "images"))).toBe(false);
-    expect(allowed({ ...doc, documentType: "account" }, target("other"))).toBe(false);
+    expect(allowed({ ...doc, documentType: "account" }, target("other"))).toBe(true);
     expect(allowed({ ...doc, kind: "asset", mimeType: "image/png" }, target("images", "images"))).toBe(true);
     expect(allowed({ ...doc, kind: "asset", mimeType: "application/pdf" }, target("files", "files"))).toBe(true);
     expect(allowed(null, target("other"))).toBe(false);
@@ -90,10 +90,12 @@ describe("storage center form wiring", () => {
     expect(source).toContain('data-storage-drop-folder');
     expect(source).toContain('function storageDropAllowed');
     expect(source).toContain('async function moveStorageItemByDrop');
-    expect(source).toContain('event.dataTransfer.effectAllowed = "move"');
+    expect(source).toContain('card.setPointerCapture(event.pointerId)');
+    expect(source).toContain('document.addEventListener("contextmenu"');
+    expect(source).toContain('async function reorderStorageCards');
     expect(source).toContain('/move`, {');
     expect(storageService).toContain('folder.isSystem && folder.systemType !== "files"');
-    expect(storageService).toContain('destination.isSystem && destination.systemType !== "files"');
+    expect(storageService).toContain('destination?.systemType === "images"');
     expect(styles).toContain('.storage-folder-card.storage-drop-ready');
   });
 

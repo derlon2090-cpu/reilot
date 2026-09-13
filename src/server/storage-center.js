@@ -361,6 +361,11 @@ export async function getStorageCenter(session, input = {}) {
     )
   ]);
   const assets = await Promise.all(assetRows.rows.map((row) => signedAsset(row).catch(() => row)));
+  const savedOrder = await query(
+    `SELECT metadata->'keys' AS keys FROM storage_activity
+      WHERE tenant_id=$1 AND action='MOVE_ITEM' AND metadata->>'operation'='reorder'
+        AND metadata->>'folderId'=$2 ORDER BY created_at DESC,id DESC LIMIT 1`, [session.tenantId, folderId || ""]
+  );
   const recentlyOpened = [...documentRows.rows, ...assets]
     .filter((item) => item.lastOpenedAt)
     .sort((a, b) => new Date(b.lastOpenedAt) - new Date(a.lastOpenedAt)).slice(0, 6);
@@ -369,6 +374,7 @@ export async function getStorageCenter(session, input = {}) {
     allFolders: allFolderRows.rows,
     documents: documentRows.rows,
     assets,
+    itemOrder: savedOrder.rows[0]?.keys || [],
     counts: counts.rows[0] || {},
     activity: recent.rows,
     usage,
@@ -816,12 +822,12 @@ export async function moveStorageItem(session, kind, id, folderIdValue) {
         if (descendants.rows.length) throw storageError("FOLDER_MOVE_CYCLE", "لا يمكنك نقل الملف إلى نفسه أو إلى ملف موجود بداخله.", 409);
       }
     }
-    if (kind === "document" && destination && ((destination.isSystem && destination.systemType !== "files") || current.rows[0].type !== "custom")) {
+    if (kind === "document" && destination?.systemType === "images") {
       throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن نقل المستندات النصية فقط إلى مجلد الملفات أو المجلدات المخصصة.", 409);
     }
     if (kind === "asset" && destination) {
       const expectedSystemType = String(current.rows[0].mimeType || "").startsWith("image/") ? "images" : "files";
-      if (!destination.isSystem || destination.systemType !== expectedSystemType) {
+      if (destination.isSystem && destination.systemType !== expectedSystemType) {
         throw storageError("ASSET_SYSTEM_FOLDER_REQUIRED", "انقل الملف المرفوع إلى مجلد النظام المخصص له.", 409);
       }
     }
@@ -829,6 +835,30 @@ export async function moveStorageItem(session, kind, id, folderIdValue) {
     await client.query(`UPDATE ${table} SET ${column}=$3,updated_at=now() WHERE id=$1 AND tenant_id=$2`, [id, session.tenantId, folderId]);
     await client.query("INSERT INTO storage_activity(tenant_id,user_id,action,resource_type,resource_id,metadata) VALUES($1,$2,'MOVE_ITEM',$3,$4,$5::jsonb)", [session.tenantId, session.userId, kind, id, JSON.stringify({ folderId })]);
     return { id, kind, folderId };
+  });
+}
+
+export async function reorderStorageItems(session, input = {}) {
+  const folderId = input.folderId || null;
+  const keys = input.keys;
+  if (!Array.isArray(keys) || keys.length < 2 || keys.length > 400 || new Set(keys).size !== keys.length || keys.some((key) => typeof key !== "string" || !/^(folder|document|asset):/.test(key) || !UUID.test(key.split(":")[1]) || key.split(":").length !== 2)) {
+    throw storageError("INVALID_STORAGE_ORDER", "ترتيب العناصر غير صالح.");
+  }
+  return transaction(async (client) => {
+    await client.query("SELECT id FROM tenants WHERE id=$1 FOR UPDATE", [session.tenantId]);
+    if (folderId) await requireFolder(session, folderId, client);
+    const result = await client.query(
+      `SELECT 'folder:'||id AS key FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NULL AND parent_id IS NOT DISTINCT FROM $2::uuid
+       UNION ALL SELECT 'document:'||id FROM storage_documents WHERE tenant_id=$1 AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2::uuid
+       UNION ALL SELECT 'asset:'||id FROM storage_assets WHERE tenant_id=$1 AND deleted_at IS NULL AND status='ready' AND folder_id IS NOT DISTINCT FROM $2::uuid`, [session.tenantId, folderId]
+    );
+    const allowed = new Set(result.rows.map((row) => row.key));
+    if (keys.some((key) => !allowed.has(key))) throw storageError("STORAGE_ORDER_CHANGED", "تغيرت أماكن بعض العناصر. حدّث القائمة ثم أعد المحاولة.", 409);
+    await client.query(
+      `INSERT INTO storage_activity(tenant_id,user_id,action,resource_type,metadata) VALUES($1,$2,'MOVE_ITEM','folder',$3::jsonb)`,
+      [session.tenantId, session.userId, JSON.stringify({ operation: "reorder", folderId: folderId || "", keys })]
+    );
+    return { folderId, keys };
   });
 }
 
