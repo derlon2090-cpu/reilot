@@ -9392,15 +9392,24 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
 
 async function handleAction(target) {
   const storageAction = target.dataset.action || "";
+  if (storageAction === "storage-toggle-arrange") {
+    if (storageMoveInFlight) return;
+    storageArrangeMode = !storageArrangeMode;
+    storageMovingItem = null;
+    clearStorageDragState();
+    bindStorageMoveControls();
+    return;
+  }
   if (storageAction === "storage-start-move") {
     if (storageMoveInFlight) return;
     const data = state.storageCenter?.storage || {};
     const kind = target.dataset.kind;
     const row = (kind === "document" ? data.documents : kind === "folder" ? data.folders : data.assets)?.find((item) => item.id === target.dataset.id);
     if (!row) return;
+    storageArrangeMode = true;
     storageMovingItem = { id: row.id, kind, name: row.name, documentType: row.type || "", mimeType: row.mimeType || "", sourceFolderId: kind === "folder" ? row.parentId || "" : row.folderId || data.currentFolderId || "" };
     closePortal();
-    render();
+    bindStorageMoveControls();
     document.querySelector(".storage-move-mode")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     document.querySelector('.storage-move-mode [data-action="storage-place-item"]')?.focus({ preventScroll: true });
     return;
@@ -9408,7 +9417,7 @@ async function handleAction(target) {
   if (storageAction === "storage-cancel-move") {
     if (storageMoveInFlight) return;
     storageMovingItem = null;
-    return render();
+    return bindStorageMoveControls();
   }
   if (storageAction === "storage-place-item") {
     if (!storageMovingItem) return;
@@ -15341,6 +15350,7 @@ function stopStorageDocumentCountdowns() {
 }
 
 function disposeStorageRoute() {
+  storageArrangeMode = false;
   storageMovingItem = null;
   clearStorageDragState();
   syncStorageDocumentDraft();
@@ -16353,6 +16363,7 @@ document.addEventListener("focusin", (event) => {
 let storageDraggedItem = null;
 let storageMoveInFlight = false;
 let storageMovingItem = null;
+let storageArrangeMode = false;
 
 function bindStorageMoveControls() {
   const browser = document.querySelector(".storage-browser");
@@ -16360,7 +16371,6 @@ function bindStorageMoveControls() {
   browser.querySelectorAll('.storage-folder-card').forEach((card) => {
     const row = state.storageCenter?.storage?.folders?.find((folder) => folder.id === card.dataset.id);
     if (!row || row.isSystem) return;
-    card.setAttribute("draggable", "true");
     card.setAttribute("data-storage-draggable", "");
     card.dataset.storageKind = "folder";
     card.dataset.storageName = row.name;
@@ -16370,11 +16380,28 @@ function bindStorageMoveControls() {
     const kind = card.dataset.storageKind;
     const row = (kind === "folder" ? data.folders : kind === "document" ? data.documents : data.assets)?.find((item) => item.id === card.dataset.id);
     card.dataset.storageSourceFolderId = (kind === "folder" ? row?.parentId : row?.folderId) || "";
-    if (!card.querySelector('[data-action="storage-start-move"]')) {
-      card.insertAdjacentHTML("beforeend", `<button type="button" class="storage-move-handle" data-action="storage-start-move" data-kind="${escapeHtml(card.dataset.storageKind)}" data-id="${escapeHtml(card.dataset.id)}" title="تحريك وتغيير المكان" aria-label="تحريك ${escapeHtml(card.dataset.storageName)}" aria-pressed="${storageMovingItem?.id === card.dataset.id}"><span aria-hidden="true">⠿</span><span>تحريك</span></button>`);
+    card.querySelector('.storage-move-handle')?.remove();
+    card.setAttribute("draggable", String(storageArrangeMode && !storageMoveInFlight));
+    if (storageArrangeMode) {
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `اختيار ${card.dataset.storageName} للتحريك`);
+    } else {
+      card.removeAttribute("tabindex");
+      card.removeAttribute("role");
+      card.removeAttribute("aria-label");
     }
     card.classList.toggle("storage-moving-selected", storageMovingItem?.id === card.dataset.id);
   });
+  browser.classList.toggle("storage-arrange-active", storageArrangeMode);
+  const hint = browser.querySelector('.storage-drag-hint');
+  if (hint) hint.textContent = storageArrangeMode ? "اختر ملفًا أو مستندًا، أو اسحبه وأفلته فوق المجلد المطلوب." : "اضغط «تحريك الملفات والمستندات» أعلاه لتفعيل تغيير الأماكن.";
+  let bar = document.querySelector(".storage-arrange-bar");
+  if (!bar) {
+    browser.insertAdjacentHTML("beforebegin", '<section class="storage-arrange-bar"></section>');
+    bar = document.querySelector(".storage-arrange-bar");
+  }
+  bar.innerHTML = `<button type="button" class="btn ${storageArrangeMode ? "btn-primary" : "btn-secondary"}" data-action="storage-toggle-arrange" aria-pressed="${storageArrangeMode}" ${storageMoveInFlight ? "disabled" : ""}>${dashboardIcon(storageArrangeMode ? "close" : "folder")}${storageArrangeMode ? "إنهاء التحريك" : "تحريك الملفات والمستندات"}</button><span role="status">${storageArrangeMode ? "اختر بطاقة أو اسحبها إلى المجلد المطلوب. Escape لإنهاء التحريك." : "فعّل التحريك لتغيير أماكن الملفات والمستندات بسهولة."}</span>`;
   document.querySelector(".storage-move-mode")?.remove();
   if (!storageMovingItem) return;
   const folders = [{ id: "", name: "مركز التخزين" }, ...(state.storageCenter?.storage?.allFolders || [])];
@@ -16454,6 +16481,7 @@ async function moveStorageItemByDrop(item, target) {
 document.addEventListener("dragstart", (event) => {
   const card = event.target?.closest?.("[data-storage-draggable]");
   if (!card) return;
+  if (!storageArrangeMode || storageMoveInFlight) return event.preventDefault();
   if (event.target?.closest?.("button")) return event.preventDefault();
   storageDraggedItem = {
     id: card.dataset.id || "",
@@ -16473,6 +16501,41 @@ document.addEventListener("dragstart", (event) => {
 });
 
 document.addEventListener("dragend", clearStorageDragState);
+
+function selectStorageArrangeCard(card) {
+  if (storageMoveInFlight) return;
+  const destination = storageDropTargetFor(card);
+  if (storageMovingItem && storageDropAllowed(storageMovingItem, destination)) {
+    return void moveStorageItemByDrop(storageMovingItem, destination);
+  }
+  void handleAction({ dataset: { action: "storage-start-move", kind: card.dataset.storageKind, id: card.dataset.id } });
+}
+
+document.addEventListener("click", (event) => {
+  if (!storageArrangeMode) return;
+  const card = event.target?.closest?.(".storage-browser [data-storage-draggable],.storage-browser .storage-folder-card");
+  if (!card) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  selectStorageArrangeCard(card);
+}, true);
+
+document.addEventListener("keydown", (event) => {
+  if (!storageArrangeMode || storageMoveInFlight) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void handleAction({ dataset: { action: "storage-toggle-arrange" } });
+    document.querySelector('[data-action="storage-toggle-arrange"]')?.focus();
+    return;
+  }
+  const card = event.target?.matches?.('.storage-browser [data-storage-draggable]') ? event.target : null;
+  if (card && ["Enter", " "].includes(event.key)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    selectStorageArrangeCard(card);
+  }
+}, true);
 
 document.addEventListener("dragover", (event) => {
   const target = storageDropTargetFor(event.target);

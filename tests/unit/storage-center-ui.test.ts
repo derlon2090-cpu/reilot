@@ -79,6 +79,10 @@ describe("storage center form wiring", () => {
     expect(actionHandler).toContain('storageAction === "storage-start-move"');
     expect(actionHandler).toContain('storageAction === "storage-place-item"');
     expect(actionHandler).toContain('storageAction === "storage-cancel-move"');
+    expect(actionHandler).toContain('storageAction === "storage-toggle-arrange"');
+    expect(source).toContain('تحريك الملفات والمستندات');
+    expect(source).toContain('storage-arrange-bar');
+    expect(source).not.toContain('card.insertAdjacentHTML("beforeend", `<button type="button" class="storage-move-handle"');
     expect(source).toContain('bindStorageMoveControls()');
     expect(source).toContain('data-submit="storage-folder"');
     expect(source).toContain('حاوية فارغة لتنظيم العناصر');
