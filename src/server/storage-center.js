@@ -413,7 +413,10 @@ export async function createStorageFolder(session, input = {}) {
   const name = cleanText(input.name, 120);
   if (!name) throw storageError("INVALID_FOLDER_NAME", "أدخل اسم المجلد.");
   const parentId = input.parentId || null;
-  if (parentId) throw storageError("NESTED_FOLDER_NOT_ALLOWED", "لا يمكن إنشاء مجلد داخل مجلد؛ أضف مستندًا داخل المجلد الحالي.", 409);
+  if (parentId) {
+    const parent = await requireFolder(session, parentId);
+    if (parent.systemType === "images") throw storageError("IMAGE_FOLDER_CONTAINER_NOT_ALLOWED", "مجلد الصور مخصص للصور فقط.", 409);
+  }
   try {
     return await transaction(async (client) => {
       const result = await client.query(
@@ -794,13 +797,24 @@ export async function moveStorageItem(session, kind, id, folderIdValue) {
   const folderId = folderIdValue || null;
   if (!table || !UUID.test(String(id || ""))) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود.", 404);
   return transaction(async (client) => {
+    if (kind === "folder") await client.query("SELECT id FROM tenants WHERE id=$1 FOR UPDATE", [session.tenantId]);
     const destination = folderId ? await requireFolder(session, folderId, client) : null;
     const extraColumns = kind === "folder" ? ',is_system AS "isSystem"' : kind === "document" ? ",type" : ',mime_type AS "mimeType"';
     const current = await client.query(`SELECT id${extraColumns} FROM ${table} WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL FOR UPDATE`, [id, session.tenantId]);
     if (!current.rows[0]) throw storageError("ITEM_NOT_FOUND", "العنصر غير موجود.", 404);
     if (current.rows[0].isSystem) throw storageError("SYSTEM_FOLDER_IMMUTABLE", "لا يمكن نقل مجلد الصور النظامي.", 409);
-    if (kind === "folder" && folderId) {
-      throw storageError("NESTED_FOLDER_NOT_ALLOWED", "لا يمكن وضع مجلد داخل مجلد؛ المجلدات مخصصة لاحتواء المستندات النصية.", 409);
+    if (kind === "folder") {
+      // Serialize hierarchy moves for this tenant so concurrent requests cannot create cycles.
+      if (destination?.systemType === "images") throw storageError("IMAGE_FOLDER_CONTAINER_NOT_ALLOWED", "مجلد الصور مخصص للصور فقط.", 409);
+      if (folderId) {
+        const descendants = await client.query(
+          `WITH RECURSIVE tree AS (
+             SELECT id FROM storage_folders WHERE id=$1 AND tenant_id=$2
+             UNION SELECT child.id FROM storage_folders child JOIN tree ON child.parent_id=tree.id WHERE child.tenant_id=$2
+           ) SELECT id FROM tree WHERE id=$3`, [id, session.tenantId, folderId]
+        );
+        if (descendants.rows.length) throw storageError("FOLDER_MOVE_CYCLE", "لا يمكنك نقل الملف إلى نفسه أو إلى ملف موجود بداخله.", 409);
+      }
     }
     if (kind === "document" && destination && ((destination.isSystem && destination.systemType !== "files") || current.rows[0].type !== "custom")) {
       throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن نقل المستندات النصية فقط إلى مجلد الملفات أو المجلدات المخصصة.", 409);

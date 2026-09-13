@@ -77,7 +77,7 @@ try {
   await page.locator(".storage-page-heading h1", { hasText: folderName }).waitFor();
   await page.locator('[data-action="storage-create-menu"]').click();
   assert(await page.locator('#portal [data-action="storage-new-folder"]').count() === 0, "Nested folder creation is still offered inside a content folder.");
-  assert(await page.locator("#portal .storage-type-picker > button").count() === 1, "A content folder still offers actions other than creating a text document.");
+  assert(await page.locator('#portal [data-action="storage-new-container"]').count() === 1, "A content container does not offer nested container creation.");
   assert(await page.locator('#portal [data-action="storage-upload-trigger"], #portal [data-action="storage-upload-files-trigger"], #portal [data-action="storage-create-account"], #portal [data-action="storage-create-note"]').count() === 0, "A content folder still allows non-document content.");
   await page.locator('#portal [data-action="storage-create-document"]').click();
   const textDocumentForm = page.locator('form[data-submit="storage-document"]');
@@ -132,7 +132,8 @@ try {
   const restoredDocumentRow = await client.query("SELECT deleted_at AS \"deletedAt\" FROM storage_documents WHERE id=$1", [textDocumentPayload.document.id]);
   assert(restoredDocumentRow.rows[0]?.deletedAt === null, "Restored document is still marked as deleted.");
   const child = await api("/api/storage/folders", { method: "POST", body: JSON.stringify({ name: `مجلد داخلي ${suffix}`, parentId: parent.payload.folder.id }) });
-  assert(child.status === 409 && child.payload.code === "NESTED_FOLDER_NOT_ALLOWED", "The API still allows a folder to be created inside another folder.");
+  assert(child.status === 201 && child.payload.folder?.parentId === parent.payload.folder.id, "Nested container creation failed.");
+  createdFolderIds.push(child.payload.folder.id);
 
   const document = await api("/api/storage/documents", {
     method: "POST",

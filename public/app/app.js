@@ -9392,10 +9392,35 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
 
 async function handleAction(target) {
   const storageAction = target.dataset.action || "";
+  if (storageAction === "storage-start-move") {
+    if (storageMoveInFlight) return;
+    const data = state.storageCenter?.storage || {};
+    const kind = target.dataset.kind;
+    const row = (kind === "document" ? data.documents : kind === "folder" ? data.folders : data.assets)?.find((item) => item.id === target.dataset.id);
+    if (!row) return;
+    storageMovingItem = { id: row.id, kind, name: row.name, documentType: row.type || "", mimeType: row.mimeType || "", sourceFolderId: kind === "folder" ? row.parentId || "" : row.folderId || data.currentFolderId || "" };
+    closePortal();
+    render();
+    document.querySelector(".storage-move-mode")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    document.querySelector('.storage-move-mode [data-action="storage-place-item"]')?.focus({ preventScroll: true });
+    return;
+  }
+  if (storageAction === "storage-cancel-move") {
+    if (storageMoveInFlight) return;
+    storageMovingItem = null;
+    return render();
+  }
+  if (storageAction === "storage-place-item") {
+    if (!storageMovingItem) return;
+    return moveStorageItemByDrop(storageMovingItem, target);
+  }
   if (storageAction === "storage-reload") {
     state.storageCenter = null;
     render();
     return syncRouteData(true);
+  }
+  if (storageAction === "storage-new-container") {
+    return openModal("إضافة ملف جديد", `<form class="grid storage-folder-modal" data-submit="storage-folder"><label class="field"><span>اسم الملف</span><input class="input" name="name" maxlength="120" required autofocus placeholder="مثال: حسابات أبل الهند"></label><label class="field"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" maxlength="500" placeholder="ما الذي ستضيفه داخل هذا الملف؟"></textarea></label><small>حاوية فارغة لتنظيم العناصر؛ لا تحتاج إلى رفع أي شيء من جهازك.</small><button type="submit" class="btn btn-primary">${dashboardIcon("folder")} إنشاء الملف</button></form>`);
   }
   if (storageAction === "storage-new-folder") {
     return openModal("إنشاء مجلد جديد", `<form class="grid storage-folder-modal" data-submit="storage-folder"><label class="field"><span>اسم المجلد</span><input class="input" name="name" maxlength="120" required autofocus placeholder="مثال: حسابات العملاء"></label><label class="field"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" maxlength="500" placeholder="أضف وصفًا مختصرًا للمجلد"></textarea></label><button class="btn btn-primary" type="submit">${dashboardIcon("folder")} إنشاء المجلد</button></form>`);
@@ -9454,10 +9479,10 @@ async function handleAction(target) {
         ? [["storage-upload-trigger", "رفع صورة", "صورة محفوظة وقابلة لإعادة الاستخدام", "image"]]
         : currentFolder.systemType === "files"
           ? [
-              ["storage-create-document", "إنشاء مستند جديد", "اكتب ملفك واحفظه مباشرةً من دون رفعه من الجهاز", "document"],
+              ["storage-new-container", "إضافة ملف جديد", "حاوية تضيف بداخلها عناصر، مثل حسابات أبل الهند", "folder"],
               ["storage-upload-files-trigger", "رفع ملف من الجهاز", "PDF أو Word أو Excel أو ملف مضغوط", "upload"]
             ]
-          : [["storage-create-document", "مستند نصي", "عنوان ومحتوى منسق يُحفظ داخل هذا المجلد", "document"]]
+          : [["storage-new-container", "إضافة ملف فرعي", "نظّم العناصر داخل حاوية جديدة", "folder"], ["storage-create-document", "إضافة محتوى", "عنوان ومحتوى منسق يُحفظ داخل هذا الملف", "document"]]
       : [
           ["storage-new-folder", "مجلد جديد", "أنشئ مجلدًا مخصصًا للمستندات", "folder"],
           ["storage-create-document", "مستند نصي", "عنوان ومحتوى منسق", "document"],
@@ -13085,7 +13110,7 @@ async function handleSubmit(form, event) {
       await syncRouteData(true);
       toast("تم إنشاء المجلد بنجاح.");
     } catch (error) { toast(error.message || "تعذر إنشاء المجلد.", "danger"); }
-    finally { setSubmitBusy(button, false, "إنشاء المجلد"); }
+    finally { setSubmitBusy(button, false, state.storageCurrentFolderId ? "إنشاء الملف" : "إنشاء المجلد"); }
     return;
   }
   if (type === "storage-rename" || type === "storage-move") {
@@ -15316,6 +15341,8 @@ function stopStorageDocumentCountdowns() {
 }
 
 function disposeStorageRoute() {
+  storageMovingItem = null;
+  clearStorageDragState();
   syncStorageDocumentDraft();
   state.storageCenterRevision += 1;
   state.storageCenterRequestController?.abort();
@@ -15459,7 +15486,7 @@ function storageCenterPage() {
   const empty = !folders.length && !documents.length && !assets.length;
   return dashboardShell(`<section class="storage-center">
     ${storageBreadcrumbs(data)}
-    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? (isImages ? "صورك المحفوظة جاهزة لإعادة الاستخدام." : isFiles ? "أنشئ مستندًا داخل المنصة أو ارفع ملفًا جاهزًا من جهازك." : "هذا المجلد مخصص للمستندات النصية المرتبة فقط.") : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} ${currentFolder ? (isImages ? "رفع صورة" : isFiles ? "إضافة ملف" : "مستند جديد") : "إنشاء أو رفع"}</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
+    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? (isImages ? "صورك المحفوظة جاهزة لإعادة الاستخدام." : "أنشئ ملفات لتنظيم العناصر بداخلها، واضغط تحريك لتغيير أماكنها.") : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} ${currentFolder ? (isImages ? "رفع صورة" : "إضافة ملف") : "إنشاء أو رفع"}</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
     ${capacityWarning}
     <section class="storage-stats">
       <article><span>${dashboardIcon("folder")}</span><div><small>إجمالي المجلدات</small><strong>${Number(count.folders || 0).toLocaleString("ar-SA")}</strong><em>مجلدات منظمة</em></div></article>
@@ -15471,7 +15498,7 @@ function storageCenterPage() {
     ${uploadPanel}
     <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في الملفات والمجلدات والمستندات والحسابات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
       ${!empty ? `<p class="storage-drag-hint">${dashboardIcon("folder")} اسحب أي مستند أو ملف وأفلته فوق المجلد المطلوب لنقله فورًا</p>` : ""}
-      ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : currentFolder ? "document" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : currentFolder ? "أنشئ أول مستند داخل المجلد" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : currentFolder ? "اكتب عنوانًا ومحتوى منسقًا، وسيُحفظ المستند مباشرة داخل هذا المجلد." : "أنشئ مجلدًا أو مستندًا جديدًا، أو ارفع صورك لاستخدامها لاحقًا داخل Renvix."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : currentFolder ? "storage-create-document" : "storage-new-folder"}">${isImages ? "رفع صور" : currentFolder ? "إنشاء مستند" : "إنشاء مجلد"}</button>${isFiles ? `<button class="btn btn-secondary" data-action="storage-upload-files-trigger">رفع ملف من الجهاز</button>` : ""}</div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
+      ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : currentFolder ? "أضف أول ملف داخل هذه الحاوية" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : "أنشئ حاوية باسم واضح، ثم افتحها وأضف العناصر بداخلها دون رفع ملف من جهازك."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : currentFolder ? "storage-new-container" : "storage-new-folder"}">${isImages ? "رفع صور" : currentFolder ? "إضافة ملف جديد" : "إنشاء مجلد"}</button>${currentFolder && !isImages && !isFiles ? `<button class="btn btn-secondary" data-action="storage-create-document">إضافة محتوى</button>` : ""}${isFiles ? `<button class="btn btn-secondary" data-action="storage-upload-files-trigger">رفع ملف من الجهاز</button>` : ""}</div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
     </section>
     ${isImages || isFiles ? `<button class="storage-dropzone" data-action="${isImages ? "storage-upload-trigger" : "storage-upload-files-trigger"}">${dashboardIcon("cloud")}<strong>${state.storageUploading ? "جارٍ الرفع والتحقق..." : isImages ? "ارفع صورك هنا" : "ارفع ملفاتك هنا"}</strong><span>اسحب الملفات وأفلتها هنا أو اضغط للاختيار من جهازك</span><small>${isImages ? `JPG, PNG, WEBP — حتى ${formatStorageBytes(data.limits?.imageMaxBytes || 10 * 1024 * 1024)}` : `PDF, DOCX, XLSX, TXT, CSV, ZIP — حتى ${formatStorageBytes(data.limits?.fileMaxBytes || 50 * 1024 * 1024)}`}</small></button>` : ""}
     ${(data.recentlyOpened || []).length ? `<section class="card storage-recent-files"><header><h2>فتحتها مؤخرًا</h2><small>وصول سريع إلى آخر العناصر التي استخدمتها</small></header><div>${data.recentlyOpened.map((item) => `<button data-action="${item.mimeType ? "storage-preview-image" : "storage-open-document"}" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.mimeType?.startsWith("image/") ? "image" : item.type === "account" ? "key" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · ${escapeHtml(item.location || "مركز التخزين")}</small></div></button>`).join("")}</div></section>` : ""}
@@ -15547,7 +15574,7 @@ function render() {
     localizeElement(app);
     ensurePasswordToggles();
     bindQrImageState();
-    if (state.route === "/dashboard/storage") queueMicrotask(bindStorageDocumentCountdowns);
+    if (state.route === "/dashboard/storage") queueMicrotask(() => { bindStorageDocumentCountdowns(); bindStorageMoveControls(); });
     else stopStorageDocumentCountdowns();
     syncRouteData();
     syncSupportLiveConnection();
@@ -16325,6 +16352,35 @@ document.addEventListener("focusin", (event) => {
 
 let storageDraggedItem = null;
 let storageMoveInFlight = false;
+let storageMovingItem = null;
+
+function bindStorageMoveControls() {
+  const browser = document.querySelector(".storage-browser");
+  if (!browser) return;
+  browser.querySelectorAll('.storage-folder-card').forEach((card) => {
+    const row = state.storageCenter?.storage?.folders?.find((folder) => folder.id === card.dataset.id);
+    if (!row || row.isSystem) return;
+    card.setAttribute("draggable", "true");
+    card.setAttribute("data-storage-draggable", "");
+    card.dataset.storageKind = "folder";
+    card.dataset.storageName = row.name;
+  });
+  browser.querySelectorAll("[data-storage-draggable]").forEach((card) => {
+    const data = state.storageCenter?.storage || {};
+    const kind = card.dataset.storageKind;
+    const row = (kind === "folder" ? data.folders : kind === "document" ? data.documents : data.assets)?.find((item) => item.id === card.dataset.id);
+    card.dataset.storageSourceFolderId = (kind === "folder" ? row?.parentId : row?.folderId) || "";
+    if (!card.querySelector('[data-action="storage-start-move"]')) {
+      card.insertAdjacentHTML("beforeend", `<button type="button" class="storage-move-handle" data-action="storage-start-move" data-kind="${escapeHtml(card.dataset.storageKind)}" data-id="${escapeHtml(card.dataset.id)}" title="تحريك وتغيير المكان" aria-label="تحريك ${escapeHtml(card.dataset.storageName)}" aria-pressed="${storageMovingItem?.id === card.dataset.id}"><span aria-hidden="true">⠿</span><span>تحريك</span></button>`);
+    }
+    card.classList.toggle("storage-moving-selected", storageMovingItem?.id === card.dataset.id);
+  });
+  document.querySelector(".storage-move-mode")?.remove();
+  if (!storageMovingItem) return;
+  const folders = [{ id: "", name: "مركز التخزين" }, ...(state.storageCenter?.storage?.allFolders || [])];
+  const destinations = folders.filter((folder) => storageDropAllowed(storageMovingItem, { dataset: { storageDropFolder: folder.id, storageFolderSystemType: folder.systemType || "custom" } }));
+  browser.insertAdjacentHTML("beforebegin", `<section class="storage-move-mode" aria-label="وضع تحريك الملف"><header><span>${dashboardIcon("folder")}</span><div><strong>تحريك «${escapeHtml(storageMovingItem.name)}»</strong><small>اضغط على المكان الجديد، أو اسحب البطاقة وأفلتها فوق المجلد.</small></div><button type="button" data-action="storage-cancel-move" ${storageMoveInFlight ? "disabled" : ""}>إلغاء التحريك</button></header><nav aria-label="أماكن النقل">${destinations.length ? destinations.map((folder) => `<button type="button" data-action="storage-place-item" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" ${storageMoveInFlight ? "disabled" : ""}>${dashboardIcon("folder")}<span>${escapeHtml(folder.name)}</span></button>`).join("") : '<p>لا يوجد مكان آخر متوافق لهذا العنصر.</p>'}</nav><p role="status">${storageMoveInFlight ? "جارٍ نقل الملف وحفظ مكانه الجديد…" : "لن يتغير المكان إلا عند اختيار وجهة أو الإفلات عليها."}</p></section>`);
+}
 
 function storageDropTargetFor(node) {
   return node?.closest?.("[data-storage-drop-folder]") || null;
@@ -16334,8 +16390,20 @@ function storageDropAllowed(item, target) {
   if (!item || !target) return false;
   const folderId = target.dataset.storageDropFolder || "";
   if (folderId === item.sourceFolderId) return false;
-  if (!folderId) return ["document", "asset"].includes(item.kind);
+  if (!folderId) return ["folder", "document", "asset"].includes(item.kind);
   const systemType = target.dataset.storageFolderSystemType || "custom";
+  if (item.kind === "folder") {
+    if (systemType === "images") return false;
+    const folders = new Map((state.storageCenter?.storage?.allFolders || []).map((folder) => [folder.id, folder]));
+    const visited = new Set();
+    let ancestor = folderId;
+    while (ancestor) {
+      if (ancestor === item.id || visited.has(ancestor)) return false;
+      visited.add(ancestor);
+      ancestor = folders.get(ancestor)?.parentId || "";
+    }
+    return true;
+  }
   if (systemType === "images") return item.kind === "asset" && item.mimeType.startsWith("image/");
   if (systemType === "files") return (item.kind === "asset" && !item.mimeType.startsWith("image/")) || (item.kind === "document" && item.documentType === "custom");
   return item.kind === "document" && item.documentType === "custom";
@@ -16344,7 +16412,7 @@ function storageDropAllowed(item, target) {
 function storageMoveFolderOptions(kind, id) {
   const data = state.storageCenter?.storage || {};
   const row = (kind === "document" ? data.documents : kind === "asset" ? data.assets : data.folders)?.find((item) => item.id === id);
-  const item = { kind, documentType: row?.type || "", mimeType: row?.mimeType || "", sourceFolderId: data.currentFolderId || "" };
+  const item = { id, kind, documentType: row?.type || "", mimeType: row?.mimeType || "", sourceFolderId: data.currentFolderId || "" };
   const options = [{ id: "", name: "مركز التخزين" }, ...(data.allFolders || [])].filter((folder) => storageDropAllowed(item, {
     dataset: { storageDropFolder: folder.id, storageFolderSystemType: folder.systemType || "custom" }
   }));
@@ -16363,12 +16431,14 @@ async function moveStorageItemByDrop(item, target) {
   const folderId = target.dataset.storageDropFolder || null;
   storageMoveInFlight = true;
   target.classList.add("storage-drop-working");
+  document.querySelectorAll('.storage-move-mode button').forEach((button) => { button.disabled = true; });
   try {
     await fetchJson(`/api/storage/items/${encodeURIComponent(item.id)}/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind: item.kind, folderId })
     });
+    storageMovingItem = null;
     state.storageCenter = null;
     await syncRouteData(true);
     toast(`تم نقل «${item.name}» بنجاح.`);
@@ -16377,6 +16447,7 @@ async function moveStorageItemByDrop(item, target) {
   } finally {
     storageMoveInFlight = false;
     clearStorageDragState();
+    if (state.route === "/dashboard/storage") bindStorageMoveControls();
   }
 }
 
@@ -16390,7 +16461,7 @@ document.addEventListener("dragstart", (event) => {
     name: card.dataset.storageName || "العنصر",
     mimeType: card.dataset.storageMimeType || "",
     documentType: card.dataset.storageDocumentType || "",
-    sourceFolderId: state.storageCurrentFolderId || ""
+    sourceFolderId: card.dataset.storageSourceFolderId || ""
   };
   if (!storageDraggedItem.id || !storageDraggedItem.kind) {
     storageDraggedItem = null;
