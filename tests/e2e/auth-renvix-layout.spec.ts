@@ -128,9 +128,10 @@ for(const viewport of [{width:1366,height:768},{width:1024,height:768},{width:76
       await page.setViewportSize(viewport);
       const card=page.locator(".auth-suite-shell>article");
       await expect(card).toBeInViewport();
-      const metrics=await card.evaluate(node=>({top:node.getBoundingClientRect().top,bottom:node.getBoundingClientRect().bottom,viewport:innerHeight,horizontal:document.documentElement.scrollWidth-innerWidth}));
+      const metrics=await card.evaluate(node=>({top:node.getBoundingClientRect().top,bottom:node.getBoundingClientRect().bottom,viewport:innerHeight,pageHeight:document.documentElement.scrollHeight,horizontal:document.documentElement.scrollWidth-innerWidth}));
       expect(metrics.top).toBeGreaterThanOrEqual(0);
       expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewport);
+      expect(metrics.pageHeight).toBeLessThanOrEqual(metrics.viewport+1);
       expect(metrics.horizontal).toBeLessThanOrEqual(0);
     });
   }

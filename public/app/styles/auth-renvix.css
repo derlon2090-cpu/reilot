@@ -135,6 +135,9 @@
   .auth-suite-page.auth-renvix.auth-renvix .auth-platform-mark{width:27px!important;height:27px!important}
   .auth-suite-page.auth-renvix.auth-renvix .auth-register-form .field>small,.auth-suite-page.auth-renvix.auth-renvix .auth-register-required-note,.auth-suite-page.auth-renvix.auth-renvix .auth-legal{font-size:8.5px!important;line-height:1.35!important}
   .auth-suite-page.auth-renvix.auth-renvix .auth-register-form :is(.auth-register-required-note,.auth-legal){display:none!important}
+  /* Registration already carries legal consent inline. Dropping the repeated
+     footer here keeps the primary action fully visible on short laptops. */
+  .auth-suite-page.auth-renvix.auth-renvix :is(.auth-suite-shell.register,.auth-suite-shell:has(form[data-submit="reset-password"])) .renvix-auth-footer{display:none!important}
   .auth-suite-page.auth-renvix.auth-renvix .auth-turnstile-slot:empty{min-height:0!important;height:0!important;margin:0!important}
   .auth-suite-page.auth-renvix.auth-renvix .policy-check{font-size:9.5px!important}
   .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-otp{gap:7px;margin-top:-3px}
