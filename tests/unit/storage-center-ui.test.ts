@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { runInNewContext } from "node:vm";
 
 const source = readFileSync(resolve("src/app/app.js"), "utf8");
 const actionHandler = source.slice(
@@ -13,8 +14,24 @@ const submitHandler = source.slice(
 );
 const managementRoute = readFileSync(resolve("app/api/storage/management/route.js"), "utf8");
 const styles = readFileSync(resolve("src/styles/globals.css"), "utf8");
+const storageService = readFileSync(resolve("src/server/storage-center.js"), "utf8");
 
 describe("storage center form wiring", () => {
+  it("validates real drop destinations and rejects unchanged or incompatible folders", () => {
+    const implementation = source.slice(source.indexOf("function storageDropAllowed("), source.indexOf("function clearStorageDragState("));
+    const allowed = runInNewContext(`${implementation}; storageDropAllowed`);
+    const doc = { kind: "document", documentType: "custom", sourceFolderId: "source", mimeType: "" };
+    const target = (id: string, type = "custom") => ({ dataset: { storageDropFolder: id, storageFolderSystemType: type } });
+    expect(allowed(doc, target("files", "files"))).toBe(true);
+    expect(allowed(doc, target("other"))).toBe(true);
+    expect(allowed(doc, target(""))).toBe(true);
+    expect(allowed(doc, target("source"))).toBe(false);
+    expect(allowed(doc, target("images", "images"))).toBe(false);
+    expect(allowed({ ...doc, documentType: "account" }, target("other"))).toBe(false);
+    expect(allowed({ ...doc, kind: "asset", mimeType: "image/png" }, target("images", "images"))).toBe(true);
+    expect(allowed({ ...doc, kind: "asset", mimeType: "application/pdf" }, target("files", "files"))).toBe(true);
+    expect(allowed(null, target("other"))).toBe(false);
+  });
   it("routes storage traffic around the external API rewrite and rejects HTML masquerading as success", () => {
     expect(source).toContain('if (url === "/api/storage") return "/storage-api"');
     expect(source).toContain('url.startsWith("/api/storage/")');
@@ -48,6 +65,20 @@ describe("storage center form wiring", () => {
     expect(source).toContain('storageAction === "storage-retry-document"');
     expect(source).toContain("removeStorageItemFromCurrentView(kind, id)");
     expect(submitHandler).toContain("folderId: data.folderId || undefined");
+  });
+
+  it("creates documents inside the files folder and moves items with drag and drop", () => {
+    expect(actionHandler).toContain('["storage-create-document", "إنشاء مستند جديد"');
+    expect(source).toContain('isFiles ? "إضافة ملف"');
+    expect(source).toContain('data-storage-draggable');
+    expect(source).toContain('data-storage-drop-folder');
+    expect(source).toContain('function storageDropAllowed');
+    expect(source).toContain('async function moveStorageItemByDrop');
+    expect(source).toContain('event.dataTransfer.effectAllowed = "move"');
+    expect(source).toContain('/move`, {');
+    expect(storageService).toContain('folder.isSystem && folder.systemType !== "files"');
+    expect(storageService).toContain('destination.isSystem && destination.systemType !== "files"');
+    expect(styles).toContain('.storage-folder-card.storage-drop-ready');
   });
 
   it("moves documents to a visible 15-day trash flow", () => {

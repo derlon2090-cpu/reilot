@@ -457,7 +457,7 @@ export async function createStorageDocument(session, input = {}) {
   const folderId = input.folderId || null;
   if (folderId) {
     const folder = await requireFolder(session, folderId);
-    if (folder.isSystem) throw storageError("SYSTEM_FOLDER_DOCUMENT_NOT_ALLOWED", "هذا المجلد النظامي مخصص للملفات المرفوعة فقط.", 409);
+    if (folder.isSystem && folder.systemType !== "files") throw storageError("SYSTEM_FOLDER_DOCUMENT_NOT_ALLOWED", "هذا المجلد النظامي لا يقبل المستندات النصية.", 409);
     if (type !== "custom") throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن حفظ المستندات النصية فقط داخل المجلدات.", 409);
   }
   const payload = documentPayload(input, type, title);
@@ -546,7 +546,7 @@ export async function updateStorageDocument(session, documentId, input = {}) {
     const folderId = input.folderId === undefined ? row.folderId : input.folderId || null;
     if (folderId && folderId !== row.folderId) {
       const folder = await requireFolder(session, folderId, client);
-      if (folder.isSystem) throw storageError("SYSTEM_FOLDER_DOCUMENT_NOT_ALLOWED", "هذا المجلد النظامي مخصص للملفات المرفوعة فقط.", 409);
+      if (folder.isSystem && folder.systemType !== "files") throw storageError("SYSTEM_FOLDER_DOCUMENT_NOT_ALLOWED", "هذا المجلد النظامي لا يقبل المستندات النصية.", 409);
       if (row.type !== "custom") throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن حفظ المستندات النصية فقط داخل المجلدات.", 409);
     }
     let previousSecrets = {};
@@ -802,8 +802,8 @@ export async function moveStorageItem(session, kind, id, folderIdValue) {
     if (kind === "folder" && folderId) {
       throw storageError("NESTED_FOLDER_NOT_ALLOWED", "لا يمكن وضع مجلد داخل مجلد؛ المجلدات مخصصة لاحتواء المستندات النصية.", 409);
     }
-    if (kind === "document" && destination && (destination.isSystem || current.rows[0].type !== "custom")) {
-      throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن وضع المستندات النصية فقط داخل المجلدات المخصصة.", 409);
+    if (kind === "document" && destination && ((destination.isSystem && destination.systemType !== "files") || current.rows[0].type !== "custom")) {
+      throw storageError("FOLDER_TEXT_DOCUMENT_ONLY", "يمكن نقل المستندات النصية فقط إلى مجلد الملفات أو المجلدات المخصصة.", 409);
     }
     if (kind === "asset" && destination) {
       const expectedSystemType = String(current.rows[0].mimeType || "").startsWith("image/") ? "images" : "files";

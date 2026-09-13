@@ -9448,7 +9448,10 @@ async function handleAction(target) {
       ? currentFolder.systemType === "images"
         ? [["storage-upload-trigger", "رفع صورة", "صورة محفوظة وقابلة لإعادة الاستخدام", "image"]]
         : currentFolder.systemType === "files"
-          ? [["storage-upload-files-trigger", "رفع ملف", "PDF أو مستند أو ملف مضغوط", "upload"]]
+          ? [
+              ["storage-create-document", "إنشاء مستند جديد", "اكتب ملفك واحفظه مباشرةً من دون رفعه من الجهاز", "document"],
+              ["storage-upload-files-trigger", "رفع ملف من الجهاز", "PDF أو Word أو Excel أو ملف مضغوط", "upload"]
+            ]
           : [["storage-create-document", "مستند نصي", "عنوان ومحتوى منسق يُحفظ داخل هذا المجلد", "document"]]
       : [
           ["storage-new-folder", "مجلد جديد", "أنشئ مجلدًا مخصصًا للمستندات", "folder"],
@@ -9641,7 +9644,7 @@ async function handleAction(target) {
     return openModal("إعادة تسمية", `<form class="grid" data-submit="storage-rename" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>الاسم الجديد</span><input class="input" name="name" required maxlength="180" value="${escapeHtml(target.dataset.name || "")}"></label><button class="btn btn-primary">حفظ الاسم</button></form>`);
   }
   if (storageAction === "storage-move-prompt") {
-    return openModal("نقل العنصر", `<form class="grid" data-submit="storage-move" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>المجلد الجديد</span><select class="select" name="folderId">${storageFolderOptions(state.storageCenter?.storage || {}, "")}</select></label><button class="btn btn-primary">${dashboardIcon("folder")} نقل</button></form>`);
+    return openModal("نقل العنصر", `<form class="grid" data-submit="storage-move" data-kind="${escapeHtml(target.dataset.kind)}" data-id="${escapeHtml(target.dataset.id)}"><label class="field"><span>المجلد الجديد</span><select class="select" name="folderId">${storageMoveFolderOptions(target.dataset.kind, target.dataset.id)}</select></label><small>تظهر الأماكن المتوافقة فقط. يمكنك أيضًا سحب العنصر وإفلاته فوق المجلد.</small><button type="submit" class="btn btn-primary">${dashboardIcon("folder")} نقل</button></form>`);
   }
   if (storageAction === "storage-open-trash") {
     openModal("سلة المحذوفات", `<div class="storage-trash-loading"><i></i><i></i><i></i></div>`);
@@ -15227,7 +15230,8 @@ function storageFolderOptions(data, selected = "") {
 
 function storageBreadcrumbs(data) {
   const trail = Array.isArray(data?.breadcrumbs) ? data.breadcrumbs : [];
-  return `<nav class="storage-breadcrumb" aria-label="مسار المجلد"><button data-action="storage-open-folder" data-id="">مركز التخزين</button>${trail.map((item) => `<span>/</span><button data-action="storage-open-folder" data-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>`).join("")}<button class="storage-breadcrumb-trash" data-action="storage-open-trash">${dashboardIcon("delete")} سلة المحذوفات</button></nav>`;
+  const folders = new Map((data?.allFolders || []).map((item) => [item.id, item]));
+  return `<nav class="storage-breadcrumb" aria-label="مسار المجلد"><button data-action="storage-open-folder" data-id="" data-storage-drop-folder="" title="يمكن إفلات الملفات هنا">مركز التخزين</button>${trail.map((item) => { const folder = folders.get(item.id); return `<span>/</span><button data-action="storage-open-folder" data-id="${escapeHtml(item.id)}" data-storage-drop-folder="${escapeHtml(item.id)}" data-storage-folder-system-type="${escapeHtml(folder?.systemType || "custom")}" title="يمكن إفلات الملفات هنا">${escapeHtml(item.name)}</button>`; }).join("")}<button class="storage-breadcrumb-trash" data-action="storage-open-trash">${dashboardIcon("delete")} سلة المحذوفات</button></nav>`;
 }
 
 function normalizeStorageTimerDisplayMode(value) {
@@ -15433,17 +15437,17 @@ function storageCenterPage() {
   const usagePercent = Math.min(100, Math.max(0, Number(usage.percent || usage.progressPercent || 0)));
   const availableBytes = usage.isUnlimited ? null : Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0));
   const capacityWarning = usagePercent >= 95 ? `<aside class="storage-capacity-alert critical">${dashboardIcon("warning")}<div><strong>مساحتك أوشكت على الامتلاء</strong><span>تبقّى ${formatStorageBytes(availableBytes)} فقط. رقِّ الباقة لتجنب توقف الرفع.</span></div><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button></aside>` : usagePercent >= 80 ? `<aside class="storage-capacity-alert">${dashboardIcon("warning")}<div><strong>مساحتك قاربت على الامتلاء</strong><span>راجع الملفات الكبيرة أو أفرغ سلة المحذوفات.</span></div><button data-action="storage-usage-details">إدارة المساحة</button></aside>` : "";
-  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}"><span>${dashboardIcon("folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
+  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon("folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => {
     const timer = storageCountdownParts(doc.timerEndsAt, doc.timerDisplayMode);
-    return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
+    return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
   }).join("");
-  const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
+  const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card" draggable="true" data-storage-draggable data-id="${escapeHtml(asset.id)}" data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType)}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الصورة إلى مكان آخر لنقلها"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}" draggable="true" data-storage-draggable data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType || "application/octet-stream")}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الملف إلى مكان آخر لنقله"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
   const uploadPanel = state.storageUploads.length ? `<section class="card storage-upload-panel"><header><div><h2>رفع الملفات</h2><small>${state.storageUploads.filter((item) => item.status === "done" || item.status === "duplicate").length.toLocaleString("ar-SA")} من ${state.storageUploads.length.toLocaleString("ar-SA")} ملفات</small></div>${state.storageUploading ? "" : `<button data-action="storage-upload-dismiss">إغلاق</button>`}</header><div>${state.storageUploads.map((task) => `<article data-storage-upload-id="${task.id}" class="is-${task.status}"><span>${dashboardIcon(task.file?.type?.startsWith("image/") ? "image" : "document")}</span><div><strong>${escapeHtml(task.name)}</strong><small>${task.status === "duplicate" ? "هذا الملف موجود بالفعل — استُخدمت النسخة الحالية" : task.status === "failed" ? escapeHtml(task.error || "فشل الرفع") : task.status === "cancelled" ? "أُلغي الرفع" : task.status === "hashing" ? "جارٍ اكتشاف الملفات المكررة..." : task.status === "done" ? "اكتمل الرفع" : "جارٍ الرفع"}</small><em><i style="width:${task.progress}%"></i></em></div><b>${task.progress}%</b>${["uploading","hashing","queued"].includes(task.status) ? `<button data-action="storage-upload-cancel" data-id="${task.id}" aria-label="إلغاء">×</button>` : ""}</article>`).join("")}</div></section>` : "";
   const empty = !folders.length && !documents.length && !assets.length;
   return dashboardShell(`<section class="storage-center">
     ${storageBreadcrumbs(data)}
-    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? (isImages ? "صورك المحفوظة جاهزة لإعادة الاستخدام." : isFiles ? "ملفاتك المرفوعة محفوظة في مكان واحد." : "هذا المجلد مخصص للمستندات النصية المرتبة فقط.") : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} ${currentFolder ? (isImages ? "رفع صورة" : isFiles ? "رفع ملف" : "مستند جديد") : "إنشاء أو رفع"}</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
+    <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? (isImages ? "صورك المحفوظة جاهزة لإعادة الاستخدام." : isFiles ? "أنشئ مستندًا داخل المنصة أو ارفع ملفًا جاهزًا من جهازك." : "هذا المجلد مخصص للمستندات النصية المرتبة فقط.") : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} ${currentFolder ? (isImages ? "رفع صورة" : isFiles ? "إضافة ملف" : "مستند جديد") : "إنشاء أو رفع"}</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
     ${capacityWarning}
     <section class="storage-stats">
       <article><span>${dashboardIcon("folder")}</span><div><small>إجمالي المجلدات</small><strong>${Number(count.folders || 0).toLocaleString("ar-SA")}</strong><em>مجلدات منظمة</em></div></article>
@@ -15454,7 +15458,8 @@ function storageCenterPage() {
     </section>
     ${uploadPanel}
     <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في الملفات والمجلدات والمستندات والحسابات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
-      ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : currentFolder ? "document" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : currentFolder ? "أنشئ أول مستند داخل المجلد" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : currentFolder ? "اكتب عنوانًا ومحتوى منسقًا، وسيُحفظ المستند مباشرة داخل هذا المجلد." : "أنشئ مجلدًا أو مستندًا جديدًا، أو ارفع صورك لاستخدامها لاحقًا داخل Renvix."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : currentFolder ? "storage-create-document" : "storage-new-folder"}">${isImages ? "رفع صور" : currentFolder ? "مستند جديد" : "إنشاء مجلد"}</button></div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
+      ${!empty ? `<p class="storage-drag-hint">${dashboardIcon("folder")} اسحب أي مستند أو ملف وأفلته فوق المجلد المطلوب لنقله فورًا</p>` : ""}
+      ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : currentFolder ? "document" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : currentFolder ? "أنشئ أول مستند داخل المجلد" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : currentFolder ? "اكتب عنوانًا ومحتوى منسقًا، وسيُحفظ المستند مباشرة داخل هذا المجلد." : "أنشئ مجلدًا أو مستندًا جديدًا، أو ارفع صورك لاستخدامها لاحقًا داخل Renvix."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : currentFolder ? "storage-create-document" : "storage-new-folder"}">${isImages ? "رفع صور" : currentFolder ? "إنشاء مستند" : "إنشاء مجلد"}</button>${isFiles ? `<button class="btn btn-secondary" data-action="storage-upload-files-trigger">رفع ملف من الجهاز</button>` : ""}</div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
     </section>
     ${isImages || isFiles ? `<button class="storage-dropzone" data-action="${isImages ? "storage-upload-trigger" : "storage-upload-files-trigger"}">${dashboardIcon("cloud")}<strong>${state.storageUploading ? "جارٍ الرفع والتحقق..." : isImages ? "ارفع صورك هنا" : "ارفع ملفاتك هنا"}</strong><span>اسحب الملفات وأفلتها هنا أو اضغط للاختيار من جهازك</span><small>${isImages ? `JPG, PNG, WEBP — حتى ${formatStorageBytes(data.limits?.imageMaxBytes || 10 * 1024 * 1024)}` : `PDF, DOCX, XLSX, TXT, CSV, ZIP — حتى ${formatStorageBytes(data.limits?.fileMaxBytes || 50 * 1024 * 1024)}`}</small></button>` : ""}
     ${(data.recentlyOpened || []).length ? `<section class="card storage-recent-files"><header><h2>فتحتها مؤخرًا</h2><small>وصول سريع إلى آخر العناصر التي استخدمتها</small></header><div>${data.recentlyOpened.map((item) => `<button data-action="${item.mimeType ? "storage-preview-image" : "storage-open-document"}" data-id="${escapeHtml(item.id)}"><span>${dashboardIcon(item.mimeType?.startsWith("image/") ? "image" : item.type === "account" ? "key" : "document")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${formatStorageBytes(item.sizeBytes)} · ${escapeHtml(item.location || "مركز التخزين")}</small></div></button>`).join("")}</div></section>` : ""}
@@ -16308,7 +16313,7 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("dragover", (event) => {
   const dropzone = event.target?.closest?.(".storage-dropzone");
-  if (!dropzone) return;
+  if (!dropzone || storageDraggedItem) return;
   event.preventDefault();
   dropzone.classList.add("is-dragging");
 });
@@ -16318,8 +16323,112 @@ document.addEventListener("dragleave", (event) => {
 });
 
 document.addEventListener("drop", (event) => {
+let storageDraggedItem = null;
+let storageMoveInFlight = false;
+
+function storageDropTargetFor(node) {
+  return node?.closest?.("[data-storage-drop-folder]") || null;
+}
+
+function storageDropAllowed(item, target) {
+  if (!item || !target) return false;
+  const folderId = target.dataset.storageDropFolder || "";
+  if (folderId === item.sourceFolderId) return false;
+  if (!folderId) return ["document", "asset"].includes(item.kind);
+  const systemType = target.dataset.storageFolderSystemType || "custom";
+  if (systemType === "images") return item.kind === "asset" && item.mimeType.startsWith("image/");
+  if (systemType === "files") return (item.kind === "asset" && !item.mimeType.startsWith("image/")) || (item.kind === "document" && item.documentType === "custom");
+  return item.kind === "document" && item.documentType === "custom";
+}
+
+function storageMoveFolderOptions(kind, id) {
+  const data = state.storageCenter?.storage || {};
+  const row = (kind === "document" ? data.documents : kind === "asset" ? data.assets : data.folders)?.find((item) => item.id === id);
+  const item = { kind, documentType: row?.type || "", mimeType: row?.mimeType || "", sourceFolderId: data.currentFolderId || "" };
+  const options = [{ id: "", name: "مركز التخزين" }, ...(data.allFolders || [])].filter((folder) => storageDropAllowed(item, {
+    dataset: { storageDropFolder: folder.id, storageFolderSystemType: folder.systemType || "custom" }
+  }));
+  return options.length ? options.map((folder) => `<option value="${escapeHtml(folder.id)}">${escapeHtml(folder.name)}</option>`).join("") : '<option value="" disabled selected>لا توجد وجهة نقل متاحة</option>';
+}
+
+function clearStorageDragState() {
+  document.querySelectorAll(".storage-is-dragging,.storage-drop-ready,.storage-drop-blocked,.storage-drop-working").forEach((node) => {
+    node.classList.remove("storage-is-dragging", "storage-drop-ready", "storage-drop-blocked", "storage-drop-working");
+  });
+  storageDraggedItem = null;
+}
+
+async function moveStorageItemByDrop(item, target) {
+  if (!storageDropAllowed(item, target) || storageMoveInFlight) return;
+  const folderId = target.dataset.storageDropFolder || null;
+  storageMoveInFlight = true;
+  target.classList.add("storage-drop-working");
+  try {
+    await fetchJson(`/api/storage/items/${encodeURIComponent(item.id)}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: item.kind, folderId })
+    });
+    state.storageCenter = null;
+    await syncRouteData(true);
+    toast(`تم نقل «${item.name}» بنجاح.`);
+  } catch (error) {
+    toast(error.message || "تعذر نقل العنصر إلى هذا المجلد.", "danger");
+  } finally {
+    storageMoveInFlight = false;
+    clearStorageDragState();
+  }
+}
+
+document.addEventListener("dragstart", (event) => {
+  const card = event.target?.closest?.("[data-storage-draggable]");
+  if (!card) return;
+  if (event.target?.closest?.("button")) return event.preventDefault();
+  storageDraggedItem = {
+    id: card.dataset.id || "",
+    kind: card.dataset.storageKind || "",
+    name: card.dataset.storageName || "العنصر",
+    mimeType: card.dataset.storageMimeType || "",
+    documentType: card.dataset.storageDocumentType || "",
+    sourceFolderId: state.storageCurrentFolderId || ""
+  };
+  if (!storageDraggedItem.id || !storageDraggedItem.kind) {
+    storageDraggedItem = null;
+    return event.preventDefault();
+  }
+  card.classList.add("storage-is-dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", storageDraggedItem.id);
+});
+
+document.addEventListener("dragend", clearStorageDragState);
+
+document.addEventListener("dragover", (event) => {
+  const target = storageDropTargetFor(event.target);
+  if (!storageDraggedItem || !target) return;
+  event.preventDefault();
+  const allowed = storageDropAllowed(storageDraggedItem, target);
+  event.dataTransfer.dropEffect = allowed ? "move" : "none";
+  target.classList.toggle("storage-drop-ready", allowed);
+  target.classList.toggle("storage-drop-blocked", !allowed);
+});
+
+document.addEventListener("dragleave", (event) => {
+  const target = storageDropTargetFor(event.target);
+  if (!target || target.contains(event.relatedTarget)) return;
+  target.classList.remove("storage-drop-ready", "storage-drop-blocked");
+});
+
+document.addEventListener("drop", (event) => {
+  const target = storageDropTargetFor(event.target);
+  if (!storageDraggedItem || !target) return;
+  event.preventDefault();
+  event.stopPropagation();
+  void moveStorageItemByDrop(storageDraggedItem, target);
+});
+
   const dropzone = event.target?.closest?.(".storage-dropzone");
-  if (!dropzone) return;
+  if (!dropzone || storageDraggedItem) return;
   event.preventDefault();
   dropzone.classList.remove("is-dragging");
   void uploadStorageImages(event.dataTransfer?.files);
