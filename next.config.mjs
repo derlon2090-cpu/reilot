@@ -13,6 +13,7 @@ const publicApiOrigin = configuredPublicApiOrigin();
 
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   output: "standalone",
   distDir: process.env.NEXT_DIST_DIR || ".next",
   outputFileTracingIncludes: {
@@ -30,6 +31,7 @@ const nextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=()" },
       { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-XSS-Protection", value: "1; mode=block" },
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" }
     ];
     return [
