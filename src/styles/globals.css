@@ -17057,6 +17057,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 }
 .renvix-auth-card-header{display:none}
 .renvix-auth-desktop-title{display:none}
+.renvix-auth-desktop-copy{display:none}
 .renvix-auth-footer{display:none}
 .renvix-auth-otp{display:none}
 .renvix-auth-password-rules,.renvix-auth-return{display:none!important}

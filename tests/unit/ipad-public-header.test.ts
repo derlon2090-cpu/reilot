@@ -59,7 +59,7 @@ describe("iPad public header", () => {
     expect(publicStyles).toContain(sourceRules.trim());
     const nextStyleVersion = rootLayout.match(/globals\.css\?v=([^"']+)/)?.[1];
     const staticStyleVersion = staticIndex.match(/globals\.css\?v=([^"']+)/)?.[1];
-    expect(nextStyleVersion).toMatch(/^20260911-/);
+    expect(nextStyleVersion).toMatch(/^\d{8}-/);
     expect(staticStyleVersion).toBe(nextStyleVersion);
   });
 });

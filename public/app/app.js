@@ -4030,7 +4030,7 @@ function authDesktopPasswordRequirements(content) {
   if (!content.includes('data-submit="reset-password"')) return content;
   const rules = [
     ["length", localizedCopy("8 خانات على الأقل", "At least 8 characters")],
-    ["letter", localizedCopy("حرف إنجليزي واحد على الأقل", "At least one English letter")],
+    ["case", localizedCopy("حرف كبير وحرف صغير", "An uppercase and a lowercase letter")],
     ["number", localizedCopy("رقم واحد على الأقل", "At least one number")],
     ["symbol", localizedCopy("رمز خاص واحد على الأقل", "At least one special character")]
   ];
@@ -4042,7 +4042,7 @@ function handleAuthPasswordRequirementsInput(event) {
   const input = event.target;
   if (!input.matches?.('form[data-submit="reset-password"] input[name="password"]')) return;
   const value = String(input.value || "");
-  const checks = {length:value.length >= 8,letter:/[A-Za-z]/.test(value),number:/\d/.test(value),symbol:/[^A-Za-z\d]/.test(value)};
+  const checks = {length:value.length >= 8,case:/[A-Z]/.test(value) && /[a-z]/.test(value),number:/\d/.test(value),symbol:/[^A-Za-z\d]/.test(value)};
   input.form?.querySelectorAll("[data-auth-password-rule]").forEach(rule => {
     rule.classList.toggle("is-valid", Boolean(checks[rule.dataset.authPasswordRule]));
   });
@@ -4116,9 +4116,9 @@ function handleAuthDesktopOtpPaste(event) {
 
 function focusAuthVerificationCode(form) {
   if (!form) return;
-  const desktop = window.matchMedia("(min-width:744px)").matches && !form.classList.contains("renvix-auth-recovery-mode");
-  (desktop ? form.querySelector("[data-auth-otp-digit]:not([disabled])") : null)?.focus();
-  if (!desktop || !form.querySelector("[data-auth-otp-digit]")) form.querySelector('input[name="code"]:not([disabled])')?.focus();
+  const desktop = window.matchMedia("(min-width:768px)").matches && !form.classList.contains("renvix-auth-recovery-mode");
+  (desktop ? form.querySelector("[data-auth-otp-digit]:not([disabled])") : null)?.focus({ preventScroll: true });
+  if (!desktop || !form.querySelector("[data-auth-otp-digit]")) form.querySelector('input[name="code"]:not([disabled])')?.focus({ preventScroll: true });
 }
 
 document.addEventListener("input", handleAuthDesktopOtpInput);
@@ -4136,11 +4136,18 @@ function authSuiteFrame(content, pageClass = "auth-light-page") {
   }
   const desktopTitle = state.route === "/login" ? localizedCopy("أهلًا بعودتك", "Welcome back")
     : state.route === "/register" ? localizedCopy("إنشاء حساب جديد", "Create a new account")
-    : content.includes('data-submit="forgot"') ? localizedCopy("نسيت كلمة المرور؟", "Forgot your password?")
-    : content.includes('data-submit="reset-password"') ? localizedCopy("إعادة تعيين كلمة المرور", "Reset your password")
+    : content.includes('data-submit="forgot"') ? localizedCopy("استعادة كلمة المرور", "Recover your password")
+    : content.includes('data-submit="reset-password"') ? localizedCopy("تعيين كلمة مرور جديدة", "Set a new password")
     : content.includes('data-submit="mfa-login"') ? localizedCopy("التحقق الثنائي", "Two-factor verification")
     : content.includes('data-submit="email-otp"') ? localizedCopy("التحقق من البريد الإلكتروني", "Verify your email") : "";
   if (desktopTitle) content = content.replace(/<h1>([\s\S]*?)<\/h1>/, (_, mobileTitle) => '<h1><span class="renvix-auth-mobile-title">' + mobileTitle + '</span><span class="renvix-auth-desktop-title">' + escapeHtml(desktopTitle) + '</span></h1>');
+  const desktopDescription = state.route === "/login" ? localizedCopy("سجل دخولك إلى حسابك في Renvix لإدارة اشتراكاتك بسهولة.", "Sign in to Renvix to manage your subscriptions with ease.")
+    : state.route === "/register" ? localizedCopy("ابدأ رحلتك مع Renvix وأنشئ مساحة عملك خلال دقائق.", "Start your Renvix journey and create your workspace in minutes.")
+    : content.includes('data-submit="forgot"') ? localizedCopy("أدخل بريدك الإلكتروني وسنرسل لك رمزًا من 6 أرقام لإعادة تعيين كلمة المرور.", "Enter your email and we will send a 6-digit code to reset your password.")
+    : content.includes('data-submit="reset-password"') ? localizedCopy("أدخل رمز التحقق المرسل إلى بريدك الإلكتروني، ثم أنشئ كلمة مرور جديدة.", "Enter the verification code sent to your email, then create a new password.")
+    : content.includes('data-submit="mfa-login"') ? localizedCopy("أدخل رمز التحقق من تطبيق المصادقة أو وسيلة التحقق المرتبطة بحسابك.", "Enter the code from your authenticator or the verification method linked to your account.")
+    : content.includes('data-submit="email-otp"') ? localizedCopy("أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى بريدك الإلكتروني.", "Enter the 6-digit code we sent to your email.") : "";
+  if (desktopDescription) content = content.replace(/(<div class="auth-suite-intro">[\s\S]*?<p>)([\s\S]*?)(<\/p>)/, (_, start, mobileDescription, end) => start + '<span class="renvix-auth-mobile-copy">' + mobileDescription + '</span><span class="renvix-auth-desktop-copy">' + escapeHtml(desktopDescription) + '</span>' + end);
   const html = `<main class="${pageClass} auth-suite-page auth-renvix" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls" role="group" aria-label="${arabic ? "اللغة والمظهر" : "Language and theme"}"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="auth-display-theme" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div></main>`;
   // Keep the original mobile header; desktop uses the same controls inside the card.
   const header = html.match(/<header class="auth-suite-brandbar">[\s\S]*?<\/header>/)?.[0] || "";
@@ -4176,12 +4183,12 @@ function authBrandIllustration(kind) {
 function authReferenceVisual(kind) {
   if (kind === "reset" && state.resetStep === 1) kind = "forgot";
   const copy = {
-    login: ["تحكّم في اشتراكاتك، وركّز على نموّك", "Manage subscriptions. Focus on growth.", "Renvix يجمع الاشتراكات والتجديدات في مساحة عمل واضحة.", "Renvix brings subscriptions and renewals into one clear workspace."],
-    register: ["بداية منظّمة لأعمالك", "A connected start for your business", "أنشئ مساحة عملك واربط منصتك، لتبدأ الإدارة بثقة مع Renvix.", "Create your workspace and connect your platform with Renvix."],
+    login: ["منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك", "One platform to manage subscriptions and grow", "أدر الاشتراكات والعملاء والتنبيهات والتقارير من مساحة عمل واضحة وموحّدة.", "Manage subscriptions, customers, alerts, and reports from one clear workspace."],
+    register: ["منصة موحّدة لإدارة أعمالك ونمو مبيعاتك", "A unified platform for your business growth", "أنشئ مساحة عملك واربط متجرك لتبدأ إدارة الاشتراكات بثقة.", "Create your workspace and connect your store to manage subscriptions confidently."],
     signupOtp: ["حسابك يبدأ بخطوة آمنة", "A secure first step", "تحقّق من بريدك لتبدأ استخدام Renvix بثقة.", "Verify your email to get started confidently with Renvix."],
     loginOtp: ["دخول آمن إلى مساحة عملك", "Secure access to your workspace", "خطوة تحقق تحمي وصولك إلى حساب Renvix.", "One verification step protects access to your Renvix account."],
     mfa: ["طبقة إضافية من الاطمئنان", "An extra layer of confidence", "تحقّق من هويتك للحفاظ على أمان حسابك وبياناتك.", "Verify your identity to keep your account and data secure."],
-    forgot: ["استعد الوصول بكل اطمئنان", "Recover access with confidence", "خطوات واضحة وآمنة للعودة إلى مساحة عملك في Renvix.", "Clear, secure steps to return to your Renvix workspace."],
+    forgot: ["عودة سريعة وآمنة لأعمالك", "A quick, secure return to work", "رمز تحقق آمن يعيدك إلى مساحة عملك بخطوات واضحة.", "A secure verification code gets you back to your workspace in clear steps."],
     reset: ["كلمة مرور جديدة، بداية آمنة", "A new password. A secure start.", "جدّد حماية حسابك ثم عُد إلى إدارة أعمالك.", "Refresh your account security and get back to business."]
   };
   const item = copy[kind] || copy.login;
@@ -8495,18 +8502,23 @@ function clearFormErrors(form) {
 }
 
 function setFormError(form, name, message) {
-  const input = form?.elements?.namedItem(name);
+  const named = form?.elements?.namedItem(name);
+  const input = named instanceof RadioNodeList ? named[0] : named;
   if (!input || !message) return;
   input.setAttribute("aria-invalid", "true");
   const error = document.createElement("small");
   error.className = "field-error";
+  error.style.gridColumn = "1 / -1";
+  error.setAttribute("role", "alert");
   error.textContent = translatedPhrase(message);
-  input.closest(".field")?.appendChild(error);
+  const desktopOtp = input.matches('[data-auth-otp-canonical]') && window.matchMedia("(min-width:768px)").matches && !form.classList.contains("renvix-auth-recovery-mode") ? form.querySelector(".renvix-auth-otp") : null;
+  (desktopOtp || input.closest(".field,.auth-platform-picker,.policy-check,.email-otp-digits,.renvix-auth-otp") || input.parentElement)?.appendChild(error);
 }
 
 function setSubmitBusy(button, busy, label) {
   if (!button) return;
   const turnstilePending = button.closest("form")?.dataset.turnstileReady === "false";
+  button.dataset.submitting = String(busy);
   button.disabled = busy || turnstilePending;
   button.innerHTML = busy ? `<span class="button-spinner" aria-hidden="true"></span><span>${escapeHtml(label)}</span>` : escapeHtml(label);
 }
@@ -13100,6 +13112,7 @@ async function handleAIMessageSubmit(form) {
 async function handleSubmit(form, event) {
   event.preventDefault();
   const type = form.dataset.submit;
+  if (["login", "register", "mfa-login", "email-otp", "forgot", "reset-password"].includes(type) && form.querySelector('[data-submitting="true"]')) return;
   const data = Object.fromEntries(new FormData(form));
   if (type === "storage-document-timer") {
     const hours = Number(data.hours || 0);
@@ -14009,8 +14022,10 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "mfa-login") {
+    clearFormErrors(form);
     const code = String(data.code || "").trim();
     if (!/^\d{6}$/.test(code) && !/^[A-Za-z0-9-]{8,32}$/.test(code)) {
+      setFormError(form, "code", "أدخل رمز تحقق صالحًا.");
       return appToast.warning("أدخل رمز تحقق صالحًا", { description: "اكتب الرمز المكوّن من 6 أرقام أو أحد رموز الاسترداد.", id: "mfa-login-invalid-format" });
     }
     const button = form.querySelector("button[type='submit']");
@@ -14045,8 +14060,10 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "email-otp") {
+    clearFormErrors(form);
     const code = collectEmailOtpCode(form);
     if (!/^\d{6}$/.test(code)) {
+      setFormError(form, "digit0", "أدخل رمز التحقق كاملًا.");
       return appToast.warning("أدخل رمز التحقق كاملًا", {
         description: "يتكون رمز التحقق من 6 أرقام.",
         id: "email-otp-incomplete"
@@ -14104,17 +14121,20 @@ async function handleSubmit(form, event) {
     return;
   }
   if (type === "register") {
-    if (!data.name || data.name.trim().length < 3) return toast(state.language === "ar" ? "يرجى إدخال الاسم الكامل." : "Please enter your full name.", "danger");
+    clearFormErrors(form);
+    if (!data.name || data.name.trim().length < 3) { setFormError(form, "name", state.language === "ar" ? "يرجى إدخال الاسم الكامل." : "Please enter your full name."); return; }
     const normalizedPhoneDigits = String(data.phone || "")
       .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
       .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
       .replace(/\D/g, "");
-    if (!/^(?:05\d{8}|5\d{8}|9665\d{8})$/.test(normalizedPhoneDigits)) return toast(state.language === "ar" ? "أدخل رقم جوال سعودي صحيح." : "Enter a valid Saudi mobile number.", "danger");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) return toast(t("auth.invalidEmail"), "danger");
-    if (!["zid", "salla", "shopify", "wordpress"].includes(data.commercePlatform || "")) return toast(state.language === "ar" ? "اختر منصة متجرك للمتابعة." : "Choose your store platform to continue.", "danger");
-    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) return toast(t("auth.passwordMin"), "danger");
-    if (data.password !== data.confirmPassword) return toast(t("auth.passwordMismatch"), "danger");
-    if (!data.acceptPolicies) return toast("يجب الموافقة على سياسة الاستخدام وسياسة الخصوصية.", "danger");
+    if (!/^(?:05\d{8}|5\d{8}|9665\d{8})$/.test(normalizedPhoneDigits)) { setFormError(form, "phone", state.language === "ar" ? "أدخل رقم جوال سعودي صحيح." : "Enter a valid Saudi mobile number."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || "")) { setFormError(form, "email", t("auth.invalidEmail")); return; }
+    if (!["zid", "salla", "shopify", "wordpress"].includes(data.commercePlatform || "")) { setFormError(form, "commercePlatform", state.language === "ar" ? "اختر منصة متجرك للمتابعة." : "Choose your store platform to continue."); return; }
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) { setFormError(form, "password", t("auth.passwordMin")); return; }
+    if (data.password !== data.confirmPassword) { setFormError(form, "confirmPassword", t("auth.passwordMismatch")); return; }
+    if (!data.acceptPolicies) { setFormError(form, "acceptPolicies", localizedCopy("يجب الموافقة على سياسة الاستخدام وسياسة الخصوصية.", "You must accept the Terms and Privacy Policy.")); return; }
+    const button = form.querySelector("button[type='submit'],button:not([type])");
+    setSubmitBusy(button, true, localizedCopy("جارٍ إنشاء الحساب...", "Creating account..."));
     try {
       const response = await fetchWithTurnstile(form, "/api/auth/register", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       const payload = await response.json().catch(() => null);
@@ -14144,6 +14164,7 @@ async function handleSubmit(form, event) {
           database_unavailable: "The database is currently unavailable. Please try again later.",
           database_schema_missing: "The workspace could not be created. Please try again later."
         };
+        setSubmitBusy(button, false, localizedCopy("إنشاء الحساب", "Create account"));
         return toast(messages[payload?.reason] || t("common.serverError"), "danger");
       }
       if (payload?.ok === true && payload?.requiresEmailOtp === true) {
@@ -14163,9 +14184,11 @@ async function handleSubmit(form, event) {
         return;
       }
       if (!payload?.ok || !payload.user?.id || !await enterDashboardAfterSessionVerification()) {
+        setSubmitBusy(button, false, localizedCopy("إنشاء الحساب", "Create account"));
         return toast(state.language === "ar" ? "تعذر إنشاء الجلسة، حاول تسجيل الدخول." : "The session could not be created. Please sign in.", "danger");
       }
     } catch {
+      setSubmitBusy(button, false, localizedCopy("إنشاء الحساب", "Create account"));
       return toast(t("common.serverError"), "danger");
     }
     toast(t("auth.registerSuccess"));
@@ -14463,14 +14486,17 @@ async function handleSubmit(form, event) {
       setFormError(form, "confirmPassword", "كلمتا المرور غير متطابقتين.");
       return appToast.error("كلمتا المرور غير متطابقتين", { description: "أعد كتابة كلمة المرور الجديدة بشكل مطابق.", id: "reset-password-mismatch" });
     }
-    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) {
-      setFormError(form, "password", "استخدم 8 خانات على الأقل تشمل حروفًا ورقمًا ورمزًا خاصًا.");
-      return appToast.warning("كلمة المرور غير قوية", { description: "استخدم 8 خانات على الأقل تشمل حروفًا ورقمًا ورمزًا خاصًا.", id: "reset-password-weak" });
+    if (!/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(data.password || "")) {
+      setFormError(form, "password", "استخدم 8 خانات تشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا خاصًا.");
+      return appToast.warning("كلمة المرور غير قوية", { description: "استخدم 8 خانات تشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا خاصًا.", id: "reset-password-weak" });
     }
+    const button = form.querySelector("button[type='submit']");
+    setSubmitBusy(button, true, localizedCopy("جارٍ حفظ كلمة المرور...", "Saving password..."));
     try {
       let resetEmail = state.resetEmail;
       try { resetEmail ||= sessionStorage.getItem("renvix.passwordReset.email") || ""; } catch {}
       if (!resetEmail) {
+        setSubmitBusy(button, false, localizedCopy("حفظ كلمة المرور", "Save password"));
         state.resetStep = 1;
         render();
         return appToast.warning("ابدأ طلب الاستعادة من جديد", { description: "أدخل بريد حسابك أولًا لإرسال رمز تحقق جديد.", id: "reset-email-missing" });
@@ -14478,6 +14504,7 @@ async function handleSubmit(form, event) {
       const response = await fetchWithTurnstile(form, "/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resetEmail, code: data.code, password: data.password, turnstileToken: data.turnstileToken }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        setSubmitBusy(button, false, localizedCopy("حفظ كلمة المرور", "Save password"));
         if (payload.reason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "reset-account-blocked" });
         if (payload.reason === "expired") return appToast.warning("انتهت صلاحية الرمز", { description: "اطلب رمزًا جديدًا لإكمال إعادة تعيين كلمة المرور.", id: "reset-code-expired" });
         if (payload.reason === "invalid") return appToast.error("رمز التحقق غير صحيح", { description: "تحقق من الرمز المرسل إلى بريدك وحاول مرة أخرى.", id: "reset-code-invalid" });
@@ -14493,7 +14520,7 @@ async function handleSubmit(form, event) {
       } catch {}
       appToast.success("تم تغيير كلمة المرور بنجاح", { description: "يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة.", id: "reset-success" });
       render();
-    } catch { appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "reset-network" }); }
+    } catch { setSubmitBusy(button, false, localizedCopy("حفظ كلمة المرور", "Save password")); appToast.error("تعذر الاتصال بالخادم", { description: "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.", id: "reset-network" }); }
   }
   if (type === "import-preview") {
     state.importText = data.text;

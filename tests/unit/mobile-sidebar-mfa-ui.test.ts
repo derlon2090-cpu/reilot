@@ -210,13 +210,13 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(stylesSource).toContain("max-height:330px!important");
   });
 
-  it("prioritizes only the active desktop or tablet authentication artwork before first render", () => {
+  it("loads desktop auth CSS without preloading obsolete bitmap references", () => {
     for (const source of [layoutSource, staticIndexSource]) {
-      expect(source).toContain("(min-width:744px)");
-      expect(source).toContain("authReferencePreload");
-      expect(source).toContain("fetchPriority='high'");
+      expect(source).toContain("(min-width: 768px)");
+      expect(source).toContain("/app/styles/auth-renvix.css?v=");
+      expect(source).not.toContain("authReferencePreload");
       for (const asset of ["dashboard-v2.png", "mfa-v2.png", "reset-v2.png", "login-otp-v2.png", "signup-otp-v2.png"]) {
-        expect(source).toContain(asset);
+        expect(source).not.toContain(asset);
       }
     }
     expect(layoutSource).toContain('<Script type="module" src="/app/app.js?v=');
