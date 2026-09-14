@@ -64,7 +64,10 @@ describe("canonical domain middleware", () => {
     "/database.sql",
     "/archive.tar.gz",
     "/nested/config.yaml",
-    "/nested/.secret/file"
+    "/nested/.secret/file",
+    "/bot-connect.js",
+    "/uploads/WSo.PHP",
+    "/tools/adminer.php"
   ])("returns a uniform blank 404 for the sensitive path %s", async (path) => {
     const response = await run(`https://renvix.app${path}`);
     expect(response.status).toBe(404);
@@ -83,6 +86,18 @@ describe("canonical domain middleware", () => {
     const response = await run("https://renvix.app/pricing");
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
+
+  it.each(["91.92.241.196", "136.110.69.22", "146.70.134.142"])(
+    "blocks the confirmed scanner address %s at the application boundary",
+    async (sourceIp) => {
+      const response = await middlewareRequest(request("https://renvix.app/pricing", "none", {
+        "cf-connecting-ip": sourceIp
+      }), { verifyAccess: allowAccess, recordHoneypot });
+      expect(response.status).toBe(404);
+      expect(await response.text()).toBe("");
+      expect(allowAccess).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     "/_next/static/css/admin.css",

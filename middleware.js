@@ -30,6 +30,20 @@ const STATIC_ASSET_PREFIXES = Object.freeze([
 ]);
 
 const SENSITIVE_FILE_EXTENSION = /\.(?:env|bak|old|orig|save|sql|dump|tar|gz|zip|log|ini|ya?ml)$/i;
+const MALWARE_PROBE_FILE = /^(?:bot-connect|bot|c2|shell|alfa|wso|pma|phpmyadmin|adminer)\.(?:js|php|asp|aspx|sh)$/i;
+const BLOCKED_SCANNER_IPS = new Set([
+  "91.92.241.196",
+  "136.110.69.22",
+  "146.70.134.142"
+]);
+
+function requestSourceIp(request) {
+  for (const header of ["cf-connecting-ip", "x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"]) {
+    const value = String(request.headers.get(header) || "").split(",")[0].trim();
+    if (value) return value;
+  }
+  return "";
+}
 
 export function isSensitiveFilePath(pathname) {
   let path;
@@ -46,6 +60,7 @@ export function isSensitiveFilePath(pathname) {
     if (normalized === ".well-known") return false;
     return normalized.startsWith(".")
       || normalized === ".git"
+      || MALWARE_PROBE_FILE.test(normalized)
       || SENSITIVE_FILE_EXTENSION.test(normalized);
   });
 }
@@ -78,6 +93,7 @@ export async function middlewareRequest(request, {
     return adminHoneypotResponse();
   }
 
+  if (BLOCKED_SCANNER_IPS.has(requestSourceIp(request))) return sensitiveFileResponse();
   if (isSensitiveFilePath(path)) return sensitiveFileResponse();
 
   const internalBlockCheck = path === "/api/security/block-check";

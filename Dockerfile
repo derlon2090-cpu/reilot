@@ -18,13 +18,18 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/src ./src
-COPY --from=builder --chown=nextjs:nodejs /app/.next/migrate.bundle.cjs ./scripts/migrate.bundle.cjs
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/.next/migrate.bundle.cjs ./scripts/migrate.bundle.cjs
+# Application code and static assets stay root-owned/read-only. Next.js only
+# receives a dedicated writable cache directory at runtime.
+RUN chmod -R a-w /app/public /app/.next/static /app/drizzle /app/scripts /app/src \
+    && mkdir -p /app/.next/cache \
+    && chown -R nextjs:nodejs /app/.next/cache
 USER nextjs
 EXPOSE 3000
 # Apply every pending, checksummed migration under the PostgreSQL advisory

@@ -1,0 +1,8 @@
+[web-scanners]
+enabled = true
+port = http,https
+filter = web-scanners
+logpath = /var/log/nginx/access.log
+maxretry = 3
+findtime = 600
+bantime = 86400

@@ -8,3 +8,11 @@ playwright-report
 .env.*
 !.env.example
 npm-debug.log*
+*.bak
+*.old
+*.orig
+*.save
+*.dump
+*.tar
+*.tar.gz
+*.zip
