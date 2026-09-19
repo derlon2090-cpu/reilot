@@ -1,5 +1,35 @@
 # Strict origin lockdown and edge containment
 
+## Current managed production: Render and Vercel
+
+On 2026-09-19, `api.renvix.app` was switched from DNS-only to the Renvix
+Cloudflare proxy, zone TLS was raised to Full (strict), and an enabled custom
+rule blocks unused probe paths except on the honeypot host. Recheck these
+settings after every DNS or provider change. The default `reilot.onrender.com`
+hostname still accepts requests directly, bypassing the Renvix zone WAF; a
+Cloudflare header on that response belongs to Render's delivery network and
+does not prove Renvix WAF inspection. Disable the default Render subdomain in
+the service's Custom Domains settings (or set
+`serviceDetails.renderSubdomainPolicy=disabled` through Render's authenticated
+API). Confirm `reilot.onrender.com` returns Render's 404 and the canonical API
+still serves health and authentication. Render uses a verified custom domain's
+Host header for its own health checks. This repository's middleware also
+returns a blank 404 on `.onrender.com` when the Render runtime has a custom API
+hostname, but that application-level guard is not a substitute for disabling
+the alias at Render's edge.
+
+The nftables/Nginx/systemd commands below apply only to a Linux origin that
+you administer. Do not run them on the older `/opt/renewpilot` staging server
+or assume they affect managed Render/Vercel. For the managed API, use provider
+controls plus the custom-domain and bypass checks above; verify every public
+provider hostname, including Vercel aliases and IPv6, before declaring
+Cloudflare-only ingress. Vercel recommends DNS-only for its own protected hosts
+instead of stacking a reverse proxy; use Vercel-native firewall controls for
+the DNS-only `accounts` and `dash` hosts, and independently verify provider
+deployment aliases.
+
+Render reference: https://render.com/docs/custom-domains
+
 This supersedes the earlier direct-origin test procedure: after lockdown even
 administrator web requests to the public origin IP must time out. SSH/VPN
 administration is separate. No Tarpit is used. nftables native address sets

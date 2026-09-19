@@ -22,6 +22,7 @@ import { verifyCloudflareAccessRequest } from "./src/shared/cloudflare-access.js
 import { isAdminHoneypotHost, recordAdminHoneypotRequest } from "./src/shared/admin-honeypot.js";
 import { checkSecurityBlockAtBoundary, neutralSecurityBlockResponse } from "./src/shared/security-block-boundary.js";
 import { mutationOriginResponse } from "./src/shared/request-origin.js";
+import { isRenderAuthRuntime } from "./src/server/auth-backend-runtime.js";
 
 const STATIC_ASSET_PREFIXES = Object.freeze([
   "/_next/",
@@ -93,6 +94,16 @@ export async function middlewareRequest(request, {
     if (waitUntil) waitUntil(recording);
     else void recording;
     return adminHoneypotResponse();
+  }
+
+  // Render's default hostname bypasses a customer's Cloudflare zone. Once a
+  // canonical custom API host exists, do not serve app routes on that alias.
+  // Render must also disable the alias at its edge; this is defense in depth.
+  if (directRequestHost.endsWith(".onrender.com") && isRenderAuthRuntime()) {
+    const apiOrigin = configuredAuthApiOrigin();
+    if (apiOrigin && !new URL(apiOrigin).hostname.endsWith(".onrender.com")) {
+      return wrongHostPageResponse();
+    }
   }
 
   if (BLOCKED_SCANNER_IPS.has(requestSourceIp(request))) return sensitiveFileResponse();

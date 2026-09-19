@@ -6,7 +6,7 @@ const keys = [
   "NODE_ENV", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_APP_URL",
   "NEXT_PUBLIC_ADMIN_URL", "NEXT_PUBLIC_API_BASE_URL", "API_PUBLIC_URL",
   "CLOUDFLARE_ACCESS_TEAM_DOMAIN", "CLOUDFLARE_ACCESS_AUD",
-  "SECURITY_BLOCK_CHECK_SECRET", "SECURITY_BLOCK_CHECK_URL"
+  "SECURITY_BLOCK_CHECK_SECRET", "SECURITY_BLOCK_CHECK_URL", "RENDER"
 ] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const allowAccess = vi.fn(async () => ({ ok: true as const, payload: { sub: "access-user" } }));
@@ -46,6 +46,7 @@ beforeEach(() => {
   delete process.env.API_PUBLIC_URL;
   delete process.env.SECURITY_BLOCK_CHECK_SECRET;
   delete process.env.SECURITY_BLOCK_CHECK_URL;
+  delete process.env.RENDER;
 });
 
 afterEach(() => {
@@ -57,6 +58,18 @@ afterEach(() => {
 });
 
 describe("canonical domain middleware", () => {
+  it("does not serve Render's public default hostname after a custom API host is configured", async () => {
+    process.env.RENDER = "true";
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.renvix.app";
+    const direct = await middlewareRequest(request("https://reilot.onrender.com/api/auth/readiness", "none", {
+      "x-forwarded-host": "api.renvix.app"
+    }));
+    expect(direct.status).toBe(404);
+    expect(await direct.text()).toBe("");
+    const canonical = await middlewareRequest(request("https://api.renvix.app/api/auth/readiness"));
+    expect(canonical.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it.each([
     "/.git/HEAD",
     "/.env",
