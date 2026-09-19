@@ -6,8 +6,20 @@ import { platformSchemaHealth } from "../../../src/server/platform-schema-readin
 import { resendProviderHealth } from "../../../src/lib/email/resend.js";
 import { mfaChallengeSigningConfigured } from "../../../src/server/login-mfa.js";
 import { objectStorageHealth } from "../../../src/server/attachments/object-storage.js";
+import { timingSafeEqual } from "node:crypto";
 
-export async function GET() {
+export async function GET(request) {
+  const secret = String(process.env.HEALTH_CHECK_TOKEN || "");
+  const supplied = String(request?.headers.get("authorization") || "");
+  const expected = `Bearer ${secret}`;
+  const detailed = secret.length >= 32 && Buffer.byteLength(supplied) === Buffer.byteLength(expected)
+    && timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  if (!detailed) {
+    let ok = false;
+    try { ok = (await databaseHealth()).ok === true; }
+    catch (error) { console.error("public health check failed", { code: String(error?.code || "DATABASE_ERROR").slice(0, 50) }); }
+    return Response.json({ ok }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
+  }
   const policy = {
     secondFactorRequired: process.env.AUTH_SECOND_FACTOR_REQUIRED === "true",
     signupEmailOtpRequired: process.env.EMAIL_SIGNUP_OTP_REQUIRED === "true",
