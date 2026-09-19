@@ -11,6 +11,8 @@ describe("authentication database schema readiness", () => {
     vi.mocked(query).mockResolvedValue({ rows: [{
       migration_applied: true,
       password_migration_applied: true,
+      registration_migration_applied: true,
+      account_lifecycle_migration_applied: true,
       password_hash_column_ready: true,
       legacy_password_column_removed: true,
       pending_registration_table: true,
@@ -25,7 +27,11 @@ describe("authentication database schema readiness", () => {
         "auth_trusted_devices.revoke_reason",
         "auth_trusted_devices.updated_at",
         "users.email_verified_at",
-        "users.mfa_last_verified_step"
+        "users.mfa_last_verified_step",
+        "users.account_phone_e164",
+        "users.account_status",
+        "auth_pending_registrations.phone_e164",
+        "auth_pending_registrations.commerce_platform"
       ]
     }] } as never);
     await expect(authSchemaHealth()).resolves.toMatchObject({

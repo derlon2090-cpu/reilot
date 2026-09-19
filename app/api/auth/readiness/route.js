@@ -12,8 +12,9 @@ export async function GET() {
   try {
     await ensureAuthSchemaReady();
     const database = await databaseHealth();
+    if (database.ok !== true) throw new Error("database_unavailable");
     return Response.json(
-      { ok: true, service: "renvix-auth", database: "connected", latencyMs: database.latencyMs },
+      { ok: true, service: "renvix-auth" },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {

@@ -2,7 +2,7 @@
 
 تم إصلاح ثغرات مؤكدة في النسخة المحلية: عزل بيانات العملاء، خصوصية مرفقات الدعم، كشف تفاصيل الخدمات، طلبات الويب الخارجية، والتحقق من مصدر الطلبات. لم تُنشر التغييرات ولم تُطبّق قواعد جدار الحماية على السيرفر الفعلي لعدم توفر الوصول إليه. الأولوية: نشر الإصلاحات مع إعدادات الإنتاج الصحيحة، ثم نقل مرفقات الدعم القديمة وحذف روابطها العامة. نتيجة المراجعة ليست ضماناً بخلو النظام من جميع الثغرات.
 
-Status: fixes applied to the local checkout. Production deployment, database migrations, firewall installation and Cloudflare API changes have NOT been executed. No deployment or server credentials were available in this workspace.
+Status: fixes uploaded to draft PR #58 on branch `codex/security-hardening-20260919`; production deployment, database migrations, firewall installation and Cloudflare API changes have NOT been executed. No deployment or server credentials were available in this workspace.
 
 ## Scope and confirmed fixes
 
@@ -47,6 +47,7 @@ Artifacts are local under `.codex-artifacts/` (not public and excluded from Dock
 - AI frontend gateway tests: 10/10 pass, including namespace traversal rejection.
 - TypeScript check and targeted ESLint: pass.
 - `security-review-complete-tests.json`: full suite 1,284 tests, 1,281 passed, 3 failed. The same three failures appeared in an earlier audit run: `tests/integration/auth-backend-readiness-route.test.ts` (readiness mock), `tests/integration/auth-schema-readiness.test.ts` (schema fixture), and `tests/unit/mobile-sidebar-mfa-ui.test.ts` (legacy UI assertion). Their readiness/UI source modules were not modified, but a pristine-checkout baseline was not separately run. The complete suite is therefore not green; authentication schema checks were not weakened to make these fixtures pass.
+- A later full run after updating the readiness route and both schema/readiness fixtures passed 1,287 of 1,288 tests. Only the legacy `mobile-sidebar-mfa-ui.test.ts` assertion remains; it checks removed artwork implementation strings. TypeScript and the production Next.js build pass. The Worker passes a local Wrangler dry run with Node 24 but its Cloudflare Git integration check failed. The Cloudflare build log requires dashboard access and is not available from this workspace.
 - `security-review-build-configured.log`: production Next.js 15.5.25 build passes, including lint/type stages and all 191 static pages. Existing CSS/unused-code warnings remain. The first build compiled and passed lint/type stages but could not prerender without the required dashboard URL; the successful second build uses the documented public origins and no fabricated secrets.
 - A pattern scan of 832 tracked text files did not find the selected credential patterns; this does not establish that no secret exists in history or external configuration.
 
