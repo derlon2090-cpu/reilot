@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../src/server/db.js", () => ({ databaseHealth: async () => ({ ok: true }) }));
+vi.mock("../../src/server/db.js", () => ({ databaseHealth: async () => ({ ok: process.env.TEST_DB_UNHEALTHY !== "true" }) }));
 vi.mock("../../src/server/auth-schema-readiness.js", () => ({ authSchemaHealth: async () => ({ ok: true, migrationApplied: true }) }));
 vi.mock("../../src/server/platform-schema-readiness.js", () => ({ platformSchemaHealth: async () => ({ ok: true, migrationApplied: true }) }));
 vi.mock("../../src/server/evolution-client.js", () => ({
@@ -28,7 +28,7 @@ describe("authentication readiness", () => {
       EMAIL_OTP_PEPPER: "test-email-otp-pepper-that-is-long-enough"
     });
   });
-  afterEach(() => { for (const key of keys) delete process.env[key]; delete process.env.HEALTH_CHECK_TOKEN; });
+  afterEach(() => { for (const key of keys) delete process.env[key]; delete process.env.HEALTH_CHECK_TOKEN; delete process.env.TEST_DB_UNHEALTHY; });
 
   it("fails readiness when signup/fallback email delivery is unavailable", async () => {
     const response = await GET(monitoredRequest());
@@ -61,5 +61,11 @@ describe("authentication readiness", () => {
       expect(await response.json()).toEqual({ ok: true });
       expect(response.headers.get('cache-control')).toBe('no-store');
     }
+  });
+  it('preserves unhealthy status without exposing diagnostics to unauthenticated visitors', async () => {
+    process.env.TEST_DB_UNHEALTHY = "true";
+    const response = await GET(new Request('https://api.renvix.app/api/health'));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ ok: false });
   });
 });
