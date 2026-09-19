@@ -18,4 +18,16 @@ describe('external payment tenant references', () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.idempotency).not.toHaveBeenCalled();
   });
+  it('keeps valid tenant-owned references available to the payment flow', async () => {
+    mocks.query.mockResolvedValue({ rows: [{ id: 'owned' }] });
+    mocks.idempotency.mockResolvedValue(Response.json({ ok: true }));
+    const customerId = '22222222-2222-4222-8222-222222222222';
+    const subscriptionId = '33333333-3333-4333-8333-333333333333';
+    const response = await POST(new Request('https://api.renvix.app/api/v1/payments', { method: 'POST',
+      body: JSON.stringify({ external_id: 'payment2', amount: 10, status: 'SUCCEEDED', customer_id: customerId, subscription_id: subscriptionId }) }));
+    expect(response.status).toBe(200);
+    expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining('FROM customers'), [customerId, 'owned-tenant']);
+    expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining('FROM subscriptions'), [subscriptionId, 'owned-tenant']);
+    expect(mocks.idempotency).toHaveBeenCalledOnce();
+  });
 });
