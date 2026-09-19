@@ -1,5 +1,5 @@
 import { authenticateCustomApi, customApiError, publishCustomEvent, withIdempotency } from "../../../../src/server/custom-integrations.js";
-import { transaction } from "../../../../src/server/db.js";
+import { query, transaction } from "../../../../src/server/db.js";
 
 export async function POST(req) {
   const auth = await authenticateCustomApi(req, "payments:write");
@@ -9,6 +9,15 @@ export async function POST(req) {
   const amount = Number(body.amount);
   if (!body.external_id || !["PENDING","SUCCEEDED","FAILED","REFUNDED"].includes(status) || !Number.isFinite(amount) || amount < 0) {
     return customApiError({ ...auth, code: "validation_error", status: 400 });
+  }
+  for (const [value, table] of [[body.customer_id, 'customers'], [body.subscription_id, 'subscriptions']]) {
+    if (!value) continue;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value))) {
+      return customApiError({ ...auth, code: 'validation_error', status: 400 });
+    }
+    // Table names are a fixed server-owned tuple, never client input.
+    const owner = await query(`SELECT id FROM ${table} WHERE id=$1 AND tenant_id=$2 LIMIT 1`, [value, auth.tenantId]);
+    if (!owner.rows.length) return customApiError({ ...auth, code: 'resource_not_found', status: 404 });
   }
   return withIdempotency({
     req, auth, routeKey: "POST:/api/v1/payments", body,
