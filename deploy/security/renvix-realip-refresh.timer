@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Cloudflare trusted real-IP refresh
+
+[Timer]
+OnCalendar=*-*-* 03:35:00 UTC
+Persistent=true
+RandomizedDelaySec=15m
+Unit=renvix-realip-refresh.service
+
+[Install]
+WantedBy=timers.target

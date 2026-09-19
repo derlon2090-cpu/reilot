@@ -1,0 +1,10 @@
+probe-cloudflare text eol=lf
+probe-incident text eol=lf
+edge-escalate text eol=lf
+probe-edge-access text eol=lf
+ipset-probe-action text eol=lf
+validate-honeypot.sh text eol=lf
+install-probe-waf text eol=lf
+*.py text eol=lf
+*.service text eol=lf
+*.timer text eol=lf

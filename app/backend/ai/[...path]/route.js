@@ -92,6 +92,10 @@ export async function proxyAIBackendRequest(request, { params }, fetchImpl = fet
     return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
   }
   const { path = [] } = await params;
+  if (!Array.isArray(path) || !path.length || path.length > 16
+    || path.some(segment => typeof segment !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(segment))) {
+    return Response.json({ ok: false, reason: 'invalid_backend_path' }, { status: 400 });
+  }
   const safePath = path.map((segment) => encodeURIComponent(String(segment))).join("/");
   const incomingUrl = new URL(request.url);
   const target = new URL(`/api/ai/${safePath}${incomingUrl.search}`, backendOrigin());

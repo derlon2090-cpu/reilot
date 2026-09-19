@@ -10,6 +10,11 @@ export const SECURITY_SEVERITIES = Object.freeze(["INFO", "LOW", "MEDIUM", "HIGH
 export const SECURITY_RETENTION_DAYS = 90;
 const SECURITY_SEVERITY_RANK = Object.freeze({ INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 });
 
+export function incidentAlertMode(incident) {
+  if (incident?.incident_type === 'ADMIN_HONEYPOT_ACCESS') return 'digest';
+  return ['HIGH', 'CRITICAL'].includes(incident?.severity) ? 'immediate' : 'none';
+}
+
 const REDACTED = "[redacted]";
 const SENSITIVE_KEY = /(password|passwd|token|secret|cookie|authorization|otp|api[-_]?key|session)/i;
 const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
@@ -317,7 +322,9 @@ export function incidentAlertDedupeKey(incident, recipient) {
 }
 
 async function queueIncidentAlerts(client, incident) {
-  if (!["HIGH", "CRITICAL"].includes(incident.severity)) return;
+  if (incidentAlertMode(incident) !== 'immediate') return;
+  // Decoy-only reconnaissance remains visible in the incident ledger and the
+  // daily digest. It must not page operators per request or severity change.
   const recipients = await client.query(
     `SELECT DISTINCT u.email FROM admin_users au JOIN users u ON u.id=au.user_id
       WHERE au.status='active' AND au.role IN ('super_admin','security_admin') AND u.email IS NOT NULL`
@@ -349,7 +356,8 @@ function incidentNotificationReason(incident) {
 
 async function syncIncidentNotifications(client, incident) {
   if ((SECURITY_SEVERITY_RANK[incident.severity] || 0) < SECURITY_SEVERITY_RANK.MEDIUM) return null;
-  const groupingKey = `security-incident:${incident.id}`;
+  const decoyOnly = incident.incident_type === "ADMIN_HONEYPOT_ACCESS";
+  const groupingKey = decoyOnly ? `honeypot-daily:${new Date().toISOString().slice(0, 10)}` : `security-incident:${incident.id}`;
   const existing = await client.query("SELECT id,severity FROM security_notifications WHERE grouping_key=$1 FOR UPDATE", [groupingKey]);
   const previous = existing.rows[0] || null;
   const escalated = previous && (SECURITY_SEVERITY_RANK[incident.severity] || 0) > (SECURITY_SEVERITY_RANK[previous.severity] || 0);
@@ -372,7 +380,7 @@ async function syncIncidentNotifications(client, incident) {
       [incident.id, groupingKey, incident.severity === "CRITICAL" ? "إنذار أمني فوري" : "نشاط مريب تم اكتشافه",
         `${reason} — الخطورة: ${incident.severity} — الحادث: ${incident.incident_number}`, reason, incident.severity]
     );
-  if (escalated) await client.query("DELETE FROM security_notification_reads WHERE notification_id=$1", [previous.id]);
+  if (escalated && !decoyOnly) await client.query("DELETE FROM security_notification_reads WHERE notification_id=$1", [previous.id]);
   await queueIncidentAlerts(client, incident);
   return notification.rows[0] || null;
 }
@@ -520,10 +528,13 @@ export async function ingestHoneypotEvent(rawInput) {
     );
     return {
       ok: true, eventId: event.rows[0].event_id, incidentId: incident?.id || null,
+      incidentType: 'ADMIN_HONEYPOT_ACCESS',
       riskScore, severity, mitigation: mitigation.rows[0] || null,
       automaticBlockReference: automaticBlock?.reference_id || null
     };
   });
+  // The ingest route's generic queue drain remains safe: decoy incidents do
+  // not create immediate email/webhook deliveries.
   await dispatchIncidentAlertsImmediately(outcome);
   return outcome;
 }
@@ -1074,7 +1085,7 @@ function alertBodies(incident) {
 }
 
 async function dispatchIncidentAlertsImmediately(outcome) {
-  if (!outcome?.incidentId || !["HIGH", "CRITICAL"].includes(outcome.severity)) return;
+  if (!outcome?.incidentId || incidentAlertMode({ incident_type: outcome.incidentType, severity: outcome.severity }) !== 'immediate') return;
   try {
     await processSecurityAlerts({ limit: 20, incidentId: outcome.incidentId });
   } catch (error) {
@@ -1092,7 +1103,8 @@ export async function processSecurityAlerts({ limit = 20, incidentId = null } = 
          FROM security_alert_deliveries sad JOIN security_incidents si ON si.id=sad.incident_id
          LEFT JOIN LATERAL (SELECT source_ip,country,region,city_approx,asn,browser,os,device_class,requested_path FROM security_source_events x
            WHERE x.incident_id=si.id ORDER BY x.last_seen DESC LIMIT 1) se ON true
-        WHERE sad.status IN ('pending','failed') AND sad.available_at<=now() AND sad.attempts<3
+        WHERE sad.status IN ('pending','failed') AND si.incident_type <> 'ADMIN_HONEYPOT_ACCESS'
+          AND sad.available_at<=now() AND sad.attempts<3
           AND ($2::uuid IS NULL OR sad.incident_id=$2)
         ORDER BY sad.created_at FOR UPDATE OF sad SKIP LOCKED LIMIT $1`,
       [clamp(limit, 1, 50), incidentId || null]

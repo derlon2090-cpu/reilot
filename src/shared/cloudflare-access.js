@@ -84,6 +84,7 @@ export async function verifyCloudflareAccessRequest(request, env = process.env, 
       issuer: config.issuer,
       audience: config.audiences,
       algorithms: ["RS256"],
+      requiredClaims: ["exp", "iat"],
       clockTolerance: 5
     });
     return { ok: true, payload: result.payload };

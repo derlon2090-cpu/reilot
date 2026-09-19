@@ -2,6 +2,7 @@ import { query, transaction } from "./db.js";
 import { createInAppNotification } from "./in-app-notifications.js";
 import { sendSupportReplyEmail } from "./email/resend.service.js";
 import { publishSupportChange } from "./support-events.js";
+import { supportAttachmentUrl } from "./support-attachment-storage.js";
 
 export const SUPPORT_TYPES = ["INQUIRY","TECHNICAL_ISSUE","SUGGESTION","COMPLAINT","BILLING","INTEGRATION","ACCOUNT","OTHER"];
 export const SUPPORT_STATUSES = ["NEW","OPEN","IN_PROGRESS","WAITING_FOR_USER","WAITING_FOR_SUPPORT","RESOLVED","CLOSED","REOPENED"];
@@ -172,7 +173,8 @@ export async function getUserTicket(session, ticketId, includeInternal = false) 
       WHERE m.ticket_id=$1 ${includeInternal ? "" : "AND NOT m.is_internal_note"} ORDER BY m.created_at`, [ticketId]
   );
   const attachments = await query(`SELECT id,message_id AS "messageId",original_name AS "originalName",content_type AS "contentType",size_bytes AS "sizeBytes",storage_url AS "url" FROM support_ticket_attachments WHERE ticket_id=$1 ORDER BY created_at`, [ticketId]);
-  return { ...ticket.rows[0], messages: messages.rows, attachments: attachments.rows };
+  const visible = attachments.rows.filter(file => !file.messageId || messages.rows.some(message => message.id === file.messageId));
+  return { ...ticket.rows[0], messages: messages.rows, attachments: visible.map(file => ({ ...file, url: supportAttachmentUrl(ticketId, file.id) })) };
 }
 
 export async function assertUserTicketAttachmentAccess(session, ticketId, files) {
@@ -358,7 +360,7 @@ export async function getAdminTicket(ticketId) {
      FROM support_ticket_attachments WHERE ticket_id=$1 ORDER BY created_at`,
     [ticketId]
   );
-  return { ...ticket.rows[0], messages: messages.rows, attachments: attachments.rows };
+  return { ...ticket.rows[0], messages: messages.rows, attachments: attachments.rows.map(file => ({ ...file, url: supportAttachmentUrl(ticketId, file.id, true) })) };
 }
 
 export async function markAdminRead(ticketId) {

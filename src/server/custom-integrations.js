@@ -12,6 +12,7 @@ import {
   requirePlanEntitlement
 } from "./plan-entitlements.js";
 import { getTenantStorageLimitState, requestNeedsStorageCapacity } from "./tenant-storage.js";
+import { isPublicWebhookIp, pinnedWebhookRequest } from "./webhook-network.js";
 
 export const CUSTOM_SCOPES = new Set([
   "customers:read", "customers:write",
@@ -123,26 +124,8 @@ export function signWebhook({ secret, timestamp, rawBody }) {
   return crypto.createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
 }
 
-function isPrivateV4(address) {
-  const octets = address.split(".").map(Number);
-  return octets[0] === 10
-    || octets[0] === 127
-    || octets[0] === 0
-    || (octets[0] === 169 && octets[1] === 254)
-    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
-    || (octets[0] === 192 && octets[1] === 168)
-    || (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127);
-}
-
 export function isPublicIp(address) {
-  const family = net.isIP(address);
-  if (family === 4) return !isPrivateV4(address);
-  if (family === 6) {
-    const value = address.toLowerCase();
-    return value !== "::1" && value !== "::" && !value.startsWith("fc") && !value.startsWith("fd")
-      && !value.startsWith("fe8") && !value.startsWith("fe9") && !value.startsWith("fea") && !value.startsWith("feb");
-  }
-  return false;
+  return isPublicWebhookIp(address);
 }
 
 export async function validateWebhookUrl(value) {
@@ -157,7 +140,7 @@ export async function validateWebhookUrl(value) {
     return { ok: false, reason: "https_required" };
   }
   if (url.username || url.password || url.port && !/^\d+$/.test(url.port)) return { ok: false, reason: "invalid_url" };
-  const hostname = url.hostname.toLowerCase();
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (["localhost", "0.0.0.0", "metadata.google.internal"].includes(hostname) || hostname.endsWith(".local")) {
     return { ok: false, reason: "private_address" };
   }
@@ -415,9 +398,8 @@ export async function deliverCustomWebhook(delivery) {
   const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     const started = Date.now();
-    const response = await fetch(delivery.url, {
-      method: "POST",
-      redirect: "manual",
+    const response = await pinnedWebhookRequest(validUrl.url, {
+      addresses: validUrl.addresses,
       headers: {
         "content-type": "application/json",
         "x-renvix-event-id": delivery.payload.id,

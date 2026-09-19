@@ -118,6 +118,13 @@ export async function readPrivateObject(objectKey) {
   return Buffer.from(await result.Body.transformToByteArray());
 }
 
+export async function putPrivateObject({ objectKey, bytes, contentType }) {
+  await storageClient().send(new PutObjectCommand({
+    Bucket: bucketName(), Key: objectKey, Body: bytes, ContentType: contentType,
+    CacheControl: "private, no-store"
+  }));
+}
+
 export async function readPrivateObjectPrefix(objectKey, bytes = 32) {
   const length = Math.max(1, Math.min(512, Number(bytes || 32)));
   const result = await storageClient().send(new GetObjectCommand({

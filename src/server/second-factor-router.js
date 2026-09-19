@@ -1,7 +1,7 @@
 import { validateTrustedBrowser } from "./trusted-browser.js";
 
 export function secondFactorRequired() {
-  return process.env.AUTH_SECOND_FACTOR_REQUIRED === "true";
+  return process.env.NODE_ENV === "production" || process.env.AUTH_SECOND_FACTOR_REQUIRED === "true";
 }
 
 export function emailOtpFallbackEnabled() {

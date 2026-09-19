@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../../src/shared/request-origin.js";
 import { sessionCookie } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
 import {
@@ -8,6 +9,8 @@ import {
 import { readTrustedBrowserCookie, trustedBrowserCookie } from "../../../../../src/server/email-otp-v2.js";
 
 export async function POST(request) {
+  const originDenied = mutationOriginResponse(request);
+  if (originDenied) return originDenied;
   try {
     const body = await request.json().catch(() => ({}));
     const result = await verifyMfaLogin({

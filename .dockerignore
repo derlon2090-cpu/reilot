@@ -1,4 +1,12 @@
 .git
+.git.codex-disabled
+.codex-worktrees
+.codex-artifacts
+.local
+.wrangler
+.wrangler-dry-run
+.next-*
+*.log
 .next
 node_modules
 dist

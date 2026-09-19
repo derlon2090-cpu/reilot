@@ -1,0 +1,16 @@
+[honeypot-scanner]
+enabled = true
+filter = honeypot-probes
+logpath = /var/log/nginx/honeypot-probes.log
+backend = auto
+usedns = no
+maxretry = 2
+findtime = 60
+bantime = 604800
+bantime.increment = false
+ignoreip = 127.0.0.1/8 ::1
+action = honeypot-ipset
+         probe-json
+         probe-edge-access
+# Only enable after the Nginx real-IP and Cloudflare-only ingress checks pass.
+# Local ipset handles direct traffic; account Access Rule handles proxy visitors.

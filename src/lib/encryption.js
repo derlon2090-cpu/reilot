@@ -54,7 +54,8 @@ export function redactSecrets(value) {
   return Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [
       key,
-      secretKeys.has(key) ? "[REDACTED]" : redactSecrets(entry)
+      secretKeys.has(key) || /^(?:password(?:_?hash)?|mfa_?secret(?:_?encrypted)?|api_?key|secret_?access_?key|access_?token(?:_?encrypted)?|refresh_?token(?:_?encrypted)?|signing_?secret(?:_?encrypted)?|authorization)$/i.test(key)
+        ? "[REDACTED]" : redactSecrets(entry)
     ])
   );
 }

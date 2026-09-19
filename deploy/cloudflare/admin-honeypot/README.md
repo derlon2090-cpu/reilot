@@ -1,5 +1,11 @@
 # Renvix admin honeypot
 
+Optional stronger IP containment is now available with EDGE_AUTO_BLOCK and
+the internal EdgeBan Durable Object. See `../../security/HARDENED-DEPLOYMENT.md`
+for rollout and account-wide impact. The device-only behavior described below
+is the default when that explicit option is false; enabling it blocks an IP
+after two external page requests in 60 seconds for seven days across the account.
+
 This Cloudflare Worker is isolated from the real Renvix application and admin
 deployment. It serves a self-contained administrative session-check shell and sends bounded,
 signed security events to the existing ingestion service.
@@ -27,8 +33,8 @@ valid signed ID is checked against active blocks before the decoy is served.
 The first external page response also requests an automatic, device-only
 preventive block in the same database transaction as the incident. Later page
 requests carrying that signed ID receive a professional block notice and a
-support-review reference. IP blocking is never automatic because shared IPs can
-belong to unrelated users.
+support-review reference. IP blocking is optional and disabled by default
+because shared IPs can belong to unrelated users.
 After the initial bounded telemetry acknowledgement, the session-check shell
 replaces itself with that block notice so the first visit does not remain on a
 credential-like screen.

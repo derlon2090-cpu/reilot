@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../src/shared/request-origin.js";
 import { registerAccount } from "../../../../src/server/auth-actions.js";
 import { isValidEmail, normalizeAccountPhone, normalizeCommercePlatform, normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
 import { sessionCookie } from "../../../../src/server/session.js";
@@ -20,6 +21,8 @@ function registrationFailure(error) {
 }
 
 export async function POST(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return originDenied;
   try {
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {

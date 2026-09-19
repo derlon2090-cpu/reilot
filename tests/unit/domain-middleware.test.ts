@@ -272,8 +272,15 @@ describe("canonical domain middleware", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(allowAccess).toHaveBeenCalledOnce();
   });
+  it('requires Access when an alternate frontend hostname forges the forwarded admin host', async () => {
+    const response = await middlewareRequest(request('https://deployment.vercel.app/api/admin/overview', 'admin', {
+      'x-forwarded-host': 'wa-admin.renvix.app'
+    }), { verifyAccess: async () => ({ ok: false, reason: 'cloudflare_access_required', status: 403 }) });
+    expect(response.status).toBe(403);
+  });
 
   it("does not make the Render backend depend on the Vercel Cloudflare assertion", async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.renvix.app';
     const response = await middlewareRequest(request(
       "https://api.renvix.app/api/admin/overview",
       "admin",

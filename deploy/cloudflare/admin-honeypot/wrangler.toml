@@ -9,6 +9,18 @@ routes = [
 
 [vars]
 SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"
+# Set true AFTER installing CF_EDGE_BLOCK_TOKEN and trusted test IP exemptions.
+EDGE_AUTO_BLOCK = "false"
+CF_ACCOUNT_ID = "REPLACE_WITH_ACCOUNT_ID"
+TRUSTED_TEST_IPS = ""
+
+[[durable_objects.bindings]]
+name = "EDGE_BANS"
+class_name = "EdgeBan"
+
+[[migrations]]
+tag = "edge-ban-v1"
+new_sqlite_classes = ["EdgeBan"]
 
 [[unsafe.bindings]]
 name = "HONEYPOT_RATE_LIMITER"

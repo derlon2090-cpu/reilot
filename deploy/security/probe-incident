@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+[[ ${1:-} =~ ^(ban|unban)$ && ${2:-} =~ ^[0-9a-fA-F:.]+$ ]] || exit 2
+# logger delivers JSON as MESSAGE to journald/syslog; SIEM consumes MESSAGE.
+jq -nc --arg event "$1" --arg ip "$2" --arg time "$(date -u +%FT%TZ)" \
+  '{timestamp:$time,event:$event,source_ip:$ip,service:"honeypot-probes",reason:"decoy_endpoint_threshold",maxretry:2,findtime_seconds:60,bantime_seconds:604800}' \
+  | logger --tag renvix-secops

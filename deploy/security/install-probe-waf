@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+[[ $# == 1 && -f $1 ]] || { echo 'Usage: install-probe-waf EXPRESSION_FILE' >&2; exit 2; }
+source /etc/renvix-secops/cloudflare.env
+: "${CF_API_TOKEN:?}" "${CF_ZONE_ID:?}"
+base="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/rulesets"
+api() {
+  curl --silent --show-error --fail-with-body --connect-timeout 5 --max-time 20 \
+    -H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json' "$@"
+}
+expression=$(tr -d '\n' < "$1")
+[[ -n $expression ]] || exit 2
+entry_response=$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
+  -H "Authorization: Bearer $CF_API_TOKEN" "$base/phases/http_request_firewall_custom/entrypoint" \
+  -w '\n%{http_code}')
+entry_status=${entry_response##*$'\n'}
+entry=${entry_response%$'\n'*}
+if [[ $entry_status == 404 ]]; then
+  payload=$(jq -nc '{name:"Renvix custom WAF",kind:"zone",phase:"http_request_firewall_custom"}')
+  created=$(api -X POST "$base" --data "$payload")
+  jq -e '.success == true and .result.id != null' <<< "$created" >/dev/null
+  ruleset=$(jq -r '.result.id' <<< "$created")
+  entry=$created
+else
+  [[ $entry_status == 200 ]] || { echo "Cloudflare entrypoint lookup failed: $entry_status" >&2; exit 1; }
+  jq -e '.success == true' <<< "$entry" >/dev/null
+  ruleset=$(jq -r '.result.id' <<< "$entry")
+fi
+ref=renvix_probe_paths
+rule=$(jq -r --arg ref "$ref" '.result.rules[]? | select(.ref==$ref) | .id' <<< "$entry" | head -n 1)
+payload=$(jq -nc --arg expression "$expression" --arg ref "$ref" \
+  '{action:"block",expression:$expression,description:"Renvix production probe paths; honeypot excluded",enabled:true,ref:$ref}')
+if [[ -n $rule ]]; then
+  result=$(api -X PATCH "$base/$ruleset/rules/$rule" --data "$payload")
+else
+  result=$(api -X POST "$base/$ruleset/rules" --data "$payload")
+fi
+jq -e '.success == true' <<< "$result" >/dev/null
+jq -c '{success,rule_id:.result.id,ref:.result.ref,action:.result.action}' <<< "$result"

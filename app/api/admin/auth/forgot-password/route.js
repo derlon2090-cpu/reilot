@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../../src/shared/request-origin.js";
 import { z } from "zod";
 import { requestAdminPasswordReset } from "../../../../../src/server/admin-password-reset.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage } from "../../../../../src/server/security.js";
@@ -5,6 +6,8 @@ import { isValidEmail, normalizeEmail, safeErrorMessage } from "../../../../../s
 const schema = z.object({ email: z.string().trim().min(1, "يرجى إدخال البريد الإلكتروني.").refine(isValidEmail, "يرجى إدخال بريد إلكتروني صحيح.") });
 
 export async function POST(request) {
+  const originDenied = mutationOriginResponse(request);
+  if (originDenied) return originDenied;
   const parsed = schema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return Response.json({ ok: false, errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   try {

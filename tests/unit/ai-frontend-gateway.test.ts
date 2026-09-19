@@ -13,6 +13,16 @@ afterEach(() => {
 });
 
 describe("AI frontend gateway", () => {
+  it('rejects dot segments and encoded separators before contacting the backend', async () => {
+    const fetchImpl = vi.fn();
+    for (const segment of ['..', '.', '../admin', '%2e%2e', '\\admin']) {
+      const response = await proxyAIBackendRequest(new Request('https://renvix.app/backend/ai/overview'), {
+        params: Promise.resolve({ path: [segment, 'admin', 'overview'] })
+      }, fetchImpl);
+      expect(response.status).toBe(400);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
   it("validates the public origin then proxies cookies and streaming responses without forwarding Origin", async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response("event: done\ndata: {}\n\n", {
       status: 200,

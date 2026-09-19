@@ -1,8 +1,11 @@
+import { mutationOriginResponse } from "../../../../src/shared/request-origin.js";
 import { auditAdmin, getAdminContext } from "../../../../src/server/admin-auth.js";
 import { ADMIN_SESSION_COOKIE, clearAdminSessionCookie, destroySession } from "../../../../src/server/session.js";
 import { adminPageUrl } from "../../../../src/server/app-url.js";
 
 export async function POST(request) {
+  const originDenied = mutationOriginResponse(request);
+  if (originDenied) return originDenied;
   const admin = await getAdminContext(request).catch(() => null);
   if (admin) {
     await auditAdmin(request, {

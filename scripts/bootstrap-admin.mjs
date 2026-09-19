@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import pg from "pg";
 import { hashPassword } from "../src/server/password.js";
+import { databaseConnectionOptions } from "../src/server/db.js";
 
 const { Pool } = pg;
 
@@ -65,11 +66,10 @@ if (!process.env.DATABASE_URL) {
 }
 
 pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  ...databaseConnectionOptions(),
   max: 2,
   idleTimeoutMillis: 10_000,
-  connectionTimeoutMillis: 10_000,
-  ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+  connectionTimeoutMillis: 10_000
 });
 
 const email = normalizeEmail(process.env.ADMIN_BOOTSTRAP_EMAIL);

@@ -1,6 +1,7 @@
 import process from "node:process";
 import pg from "pg";
 import { loadMigrationFiles, runMigrationPlan } from "./lib/migration-runner.mjs";
+import { databaseConnectionOptions } from "../src/server/db.js";
 
 async function main() {
   const { Client } = pg;
@@ -9,8 +10,7 @@ async function main() {
 
   const migrations = await loadMigrationFiles();
   const client = new Client({
-    connectionString: databaseUrl,
-    ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+    ...databaseConnectionOptions()
   });
   await client.connect();
   try {

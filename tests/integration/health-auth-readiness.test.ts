@@ -13,9 +13,14 @@ vi.mock("../../src/lib/email/resend.js", () => ({
 import { GET } from "../../app/api/health/route.js";
 
 const keys = ["AUTH_SECOND_FACTOR_REQUIRED", "EMAIL_SIGNUP_OTP_REQUIRED", "EMAIL_OTP_FALLBACK_ENABLED", "TRUSTED_BROWSER_ENABLED", "TRUSTED_BROWSER_HOURS", "EMAIL_OTP_ENFORCE_ALL", "EMAIL_OTP_PEPPER", "RESEND_API_KEY", "DEEPSEEK_API_KEY", "EVOLUTION_API_URL", "EVOLUTION_API_KEY"];
+const monitoringToken = "test-monitoring-token-at-least-32-characters";
+function monitoredRequest() {
+  return new Request('https://api.renvix.app/api/health', { headers: { authorization: `Bearer ${monitoringToken}` } });
+}
 
 describe("authentication readiness", () => {
   beforeEach(() => {
+    process.env.HEALTH_CHECK_TOKEN = monitoringToken;
     for (const key of keys) delete process.env[key];
     Object.assign(process.env, {
       AUTH_SECOND_FACTOR_REQUIRED: "true", EMAIL_SIGNUP_OTP_REQUIRED: "true", EMAIL_OTP_FALLBACK_ENABLED: "true",
@@ -23,10 +28,10 @@ describe("authentication readiness", () => {
       EMAIL_OTP_PEPPER: "test-email-otp-pepper-that-is-long-enough"
     });
   });
-  afterEach(() => { for (const key of keys) delete process.env[key]; });
+  afterEach(() => { for (const key of keys) delete process.env[key]; delete process.env.HEALTH_CHECK_TOKEN; });
 
   it("fails readiness when signup/fallback email delivery is unavailable", async () => {
-    const response = await GET();
+    const response = await GET(monitoredRequest());
     const body = await response.json();
     expect(response.status).toBe(503);
     expect(body.checks.emailOtp).toMatchObject({ required: true, ok: false });
@@ -34,7 +39,7 @@ describe("authentication readiness", () => {
 
   it("accepts the exact unified-factor policy when Resend and pepper are configured", async () => {
     process.env.RESEND_API_KEY = "re_test";
-    const response = await GET();
+    const response = await GET(monitoredRequest());
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.checks.authPolicy).toMatchObject({ ok: true, trustedBrowserHours: 48, emailOtpEnforceAllDisabled: true });
@@ -45,9 +50,16 @@ describe("authentication readiness", () => {
 
   it("reports only the safe DeepSeek configuration status", async () => {
     process.env.DEEPSEEK_API_KEY = "server-only-test-secret";
-    const response = await GET();
+    const response = await GET(monitoredRequest());
     const body = await response.json();
     expect(body.checks.deepseek).toEqual({ configured: true, ok: true });
     expect(JSON.stringify(body)).not.toContain("server-only-test-secret");
+  });
+  it('exposes no internal checks to anonymous or incorrect-token requests', async () => {
+    for (const request of [undefined, new Request('https://api.renvix.app/api/health', { headers: { authorization: 'Bearer wrong' } })]) {
+      const response = await GET(request);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(response.headers.get('cache-control')).toBe('no-store');
+    }
   });
 });
