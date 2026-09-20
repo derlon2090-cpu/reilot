@@ -79,6 +79,25 @@ describe("admin customer actions", () => {
     expect(response.status, JSON.stringify(payload)).toBe(200);
     expect(payload.result.plan.id).toBe(planId);
     expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE platform_subscriptions") && params.includes(planId))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("$3 <> 'trial'"))).toBe(true);
+  });
+
+  it("does not expose database SQLSTATE codes as customer action reasons", async () => {
+    clientQueryMock.mockImplementation(async (sql) => {
+      if (String(sql).includes("FROM tenants")) return { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] };
+      if (String(sql).includes("FROM platform_plans")) throw Object.assign(new Error("database relation missing"), { code: "42P01" });
+      return { rows: [], rowCount: 0 };
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await call({ action: "change_plan", planId });
+      const payload = await response.json();
+      expect(response.status).toBe(500);
+      expect(payload.reason).toBe("admin_customer_action_failed");
+      expect(logged).toHaveBeenCalled();
+    } finally {
+      logged.mockRestore();
+    }
   });
 
   it("requires the exact workspace name before removing a customer", async () => {

@@ -31,6 +31,7 @@ function actionError(code, status = 409) {
   const error = new Error(code);
   error.code = code;
   error.status = status;
+  error.isActionError = true;
   return error;
 }
 
@@ -88,7 +89,7 @@ async function changePlan(client, tenant, input) {
   const updated = await client.query(
     `UPDATE platform_subscriptions
         SET plan_id=$2,
-            status=CASE WHEN status IN ('cancelled','canceled','expired','paused','past_due') THEN 'active' ELSE status END,
+            status=CASE WHEN $3 <> 'trial' OR status IN ('cancelled','canceled','expired','paused','past_due') THEN 'active' ELSE status END,
             current_period_start=CASE WHEN current_period_end<=now() THEN now() ELSE current_period_start END,
             current_period_end=CASE WHEN current_period_end<=now()
               THEN now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END
@@ -213,8 +214,8 @@ export async function POST(request, { params }) {
       headers: { "Cache-Control": "private, no-store, max-age=0" }
     });
   } catch (error) {
-    const reason = error?.code || "admin_customer_action_failed";
-    if (!error?.code) console.error("admin customer action failed", safeErrorMessage(error));
+    const reason = error?.isActionError ? error.code : "admin_customer_action_failed";
+    if (!error?.isActionError) console.error("admin customer action failed", safeErrorMessage(error));
     await auditAdmin(request, {
       admin: auth.admin,
       action: `admin.customer.${parsed.data.action}`,

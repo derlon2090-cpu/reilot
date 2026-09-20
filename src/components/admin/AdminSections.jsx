@@ -163,14 +163,22 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const messages = {
+          untrusted_request_origin: "تعذر التحقق من مصدر الطلب. حدّث صفحة الإدارة وحاول مجددًا.",
+          admin_auth_required: "انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم حاول.",
+          admin_permission_denied: "حسابك لا يملك صلاحية إدارة باقات العملاء.",
           confirmation_mismatch: "اكتب اسم مساحة العمل كما هو لتأكيد الإزالة.",
           admin_tenant_cannot_be_removed: "لا يمكن إزالة مساحة عمل مرتبطة بحساب أدمن نشط.",
           customer_removed: "هذا العميل مُزال بالفعل ولا يمكن تعديل رصيده أو باقته.",
           customer_already_suspended: "هذا العميل محظور بالفعل.",
           customer_not_suspended: "هذا العميل غير محظور.",
-          plan_not_found: "الباقة المحددة غير متاحة حاليًا."
+          plan_not_found: "الباقة المحددة غير متاحة حاليًا.",
+          subscription_not_found: "لا يوجد اشتراك منصة مرتبط بهذا العميل."
         };
-        throw new Error(messages[payload.reason] || "تعذر تنفيذ العملية. حاول مرة أخرى.");
+        throw new Error(messages[payload.reason] || payload.message || (response.status === 403
+          ? "لا تملك صلاحية تنفيذ العملية أو انتهت جلسة الإدارة. حدّث الصفحة وحاول مجددًا."
+          : response.status === 404
+            ? "خدمة إدارة العملاء غير متاحة على الخادم حاليًا. تحقق من نشر واجهة البرمجة."
+          : "تعذر تنفيذ العملية. حاول مرة أخرى."));
       }
       setSuccess(payload.message || "تم تنفيذ العملية بنجاح.");
       await onComplete?.();
