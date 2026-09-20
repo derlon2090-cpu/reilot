@@ -78,6 +78,7 @@ describe("admin customer actions", () => {
 
     expect(response.status, JSON.stringify(payload)).toBe(200);
     expect(payload.result.plan.id).toBe(planId);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("status='trial' OR current_period_end<=now()"))).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE platform_subscriptions") && params.includes(planId))).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("$3 <> 'trial'"))).toBe(true);
   });

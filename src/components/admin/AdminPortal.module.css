@@ -1247,6 +1247,16 @@
   border-bottom: 0;
 }
 
+.adminEmailLink {
+  color: #0B3F3B;
+  font-weight: 700;
+  text-decoration: none;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.adminEmailLink:hover { text-decoration: underline; }
+
 .adminCustomerActions {
   display: inline-flex;
   align-items: center;
