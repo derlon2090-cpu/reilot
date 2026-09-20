@@ -1515,6 +1515,10 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         ? payload.profile
         : payload.items ?? payload.report ?? payload;
     if (target === "dashboardOverview" && payload.profile) cacheDashboardProfile(payload.profile);
+    if (target === "billingOverview" && payload.current?.planName && state.dashboardOverview?.profile) {
+      state.dashboardOverview.profile.planName = payload.current.planName;
+      state.dashboardOverview.profile.planStatus = payload.current.status;
+    }
     if (target === "accountSettings" && payload.settings) {
       state.language = payload.settings.language === "en" ? "en" : "ar";
       state.theme = ["light", "dark", "system"].includes(payload.settings.theme) ? payload.settings.theme : "light";
