@@ -21,6 +21,16 @@ describe('mutation origin protection', () => {
     expect(mutationOriginAllowed(request({ origin: 'null', 'sec-fetch-site': 'same-origin' }), {})).toBe(true);
     expect(mutationOriginAllowed(request({ origin: 'null', 'sec-fetch-site': 'cross-site' }), {})).toBe(false);
   });
+  it('allows the canonical admin UI to mutate the canonical API through the legacy rewrite', () => {
+    const adminMutation = new Request('https://api.renvix.app/api/admin/tenants/123/actions', {
+      method: 'POST', headers: { origin: 'https://wa-admin.renvix.app' }
+    });
+    expect(mutationOriginAllowed(adminMutation, {})).toBe(true);
+    expect(mutationOriginAllowed(request({ origin: 'https://wa-admin.renvix.app' }), {})).toBe(false);
+    expect(mutationOriginAllowed(new Request('https://api.renvix.app/api/admin/tenants/123/actions', {
+      method: 'POST', headers: { origin: 'http://wa-admin.renvix.app' }
+    }), {})).toBe(false);
+  });
 });
 
 describe('webhook SSRF protection', () => {
