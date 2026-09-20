@@ -83,7 +83,7 @@ async function changePlan(client, tenant, input) {
        FROM platform_subscriptions
       WHERE tenant_id=$1
       ORDER BY CASE WHEN status IN ('active','trial') AND current_period_end>now() THEN 0 ELSE 1 END,
-               created_at DESC LIMIT 1 FOR UPDATE`,
+               updated_at DESC, created_at DESC, id DESC LIMIT 1 FOR UPDATE`,
     [tenant.id]
   );
   const subscription = subscriptionResult.rows[0];
@@ -92,7 +92,7 @@ async function changePlan(client, tenant, input) {
     `UPDATE platform_subscriptions
         SET plan_id=$2,
             status=CASE WHEN $3 <> 'trial' OR status IN ('cancelled','canceled','expired','paused','past_due') THEN 'active' ELSE status END,
-            current_period_start=CASE WHEN status='trial' OR current_period_end<=now() THEN now() ELSE current_period_start END,
+            current_period_start=CASE WHEN status='trial' OR current_period_end<=now() THEN now() ELSE LEAST(current_period_start,now()) END,
             current_period_end=CASE WHEN status='trial' OR current_period_end<=now()
               THEN now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END
               ELSE current_period_end END,

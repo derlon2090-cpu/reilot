@@ -128,7 +128,7 @@ export async function getDashboardOverview(tenantId, userId) {
            SELECT plan_id, status FROM platform_subscriptions
             WHERE tenant_id = u.tenant_id
             ORDER BY CASE WHEN status IN ('active','trial') AND current_period_end>now() THEN 0 ELSE 1 END,
-                     created_at DESC LIMIT 1
+                     updated_at DESC, created_at DESC, id DESC LIMIT 1
          ) ps ON true
          LEFT JOIN platform_plans p ON p.id = ps.plan_id
         WHERE u.id = $1 AND u.tenant_id = $2 LIMIT 1`,
