@@ -113,7 +113,9 @@ async function changePlan(client, tenant, input) {
        message_limit=EXCLUDED.message_limit,whatsapp_message_limit=EXCLUDED.whatsapp_message_limit,
        email_message_limit=EXCLUDED.email_message_limit,sms_message_limit=EXCLUDED.sms_message_limit,updated_at=now()`,
     [tenant.id, subscription.id, plan.id, periodStart, periodEnd, plan.monthly_message_limit,
-      plan.whatsapp_message_limit, plan.email_message_limit, plan.sms_message_limit]
+      plan.whatsapp_message_limit ?? -1,
+      plan.email_message_limit ?? plan.monthly_message_limit,
+      plan.sms_message_limit ?? 0]
   );
   return { plan, previousPlanId: subscription.planId, subscriptionId: subscription.id };
 }

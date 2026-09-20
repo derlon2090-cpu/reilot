@@ -82,6 +82,26 @@ describe("admin customer actions", () => {
     expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("$3 <> 'trial'"))).toBe(true);
   });
 
+  it("uses safe quota defaults when an active plan has null channel limits", async () => {
+    clientQueryMock.mockImplementation(async (sql) => {
+      const statement = String(sql);
+      if (statement.includes("FROM tenants")) return { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] };
+      if (statement.includes("FROM platform_plans")) return { rows: [{
+        id: planId, name: "Professional", slug: "professional", monthly_message_limit: 2500,
+        whatsapp_message_limit: null, email_message_limit: null, sms_message_limit: null
+      }] };
+      if (statement.includes("FROM platform_subscriptions") && statement.includes("FOR UPDATE")) {
+        return { rows: [{ id: "subscription-1", planId: "old-plan" }] };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+
+    const response = await call({ action: "change_plan", planId });
+    expect(response.status).toBe(200);
+    const usageInsert = clientQueryMock.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO message_usage_periods"));
+    expect(usageInsert?.[1].slice(5)).toEqual([2500, -1, 2500, 0]);
+  });
+
   it("does not expose database SQLSTATE codes as customer action reasons", async () => {
     clientQueryMock.mockImplementation(async (sql) => {
       if (String(sql).includes("FROM tenants")) return { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] };
