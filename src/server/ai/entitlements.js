@@ -279,6 +279,9 @@ export async function getAIEntitlementSnapshot(session, { now = new Date() } = {
          SELECT p.id,p.period_start,p.period_end,p.period_token_cap,p.max_cycles
            FROM ai_entitlement_periods p
           WHERE p.tenant_id=ps.tenant_id AND p.subscription_id=ps.id AND p.status='active'
+            AND p.plan_slug=pp.slug AND p.period_start=ps.current_period_start
+            AND p.weekly_token_limit=pp.ai_weekly_token_limit
+            AND p.period_token_cap=pp.ai_period_token_cap AND p.max_cycles=pp.ai_max_cycles
             AND p.period_start<=$2 AND p.period_end>$2
           ORDER BY p.period_start DESC LIMIT 1
        ) ep ON true
