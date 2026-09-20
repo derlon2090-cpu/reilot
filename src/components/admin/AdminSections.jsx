@@ -111,6 +111,10 @@ function StatusPill({ value }) {
   return <span className={`${styles.adminStatus} ${styles[`adminStatus_${statusTone(value)}`]}`}>{humanStatus(value)}</span>;
 }
 
+function EmailAddress({ value }) {
+  return value ? <a className={styles.adminEmailLink} href={`mailto:${value}`} dir="ltr">{value}</a> : <span className={styles.adminReadOnlyLabel}>لا يوجد بريد</span>;
+}
+
 function SimpleTable({ columns, rows, emptyTitle }) {
   if (!rows?.length) return <Empty title={emptyTitle} />;
   return <div className={styles.adminTableWrap}><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>
@@ -391,7 +395,8 @@ function Customers({ data, stats, admin, onRefresh }) {
       <div className={styles.adminActionRow}><button className={styles.adminPrimaryButton}>إضافة عميل +</button><button className={styles.adminOutlineButton}><Glyph name="mail" /> دعوة عميل</button><button className={styles.adminOutlineButton}>تصدير</button></div>
       <SearchFilters value={search} onChange={setSearch} searchPlaceholder="ابحث عن عميل أو بريد..." placeholders={["كل الباقات", "كل الحالات", "كل المصادر", "عدد المتاجر", "تاريخ الانضمام"]} />
       <SimpleTable emptyTitle="لا توجد حسابات عملاء حتى الآن" rows={rows} columns={[
-        { key: "name", label: "العميل" }, { key: "email", label: "البريد الإلكتروني" }, { key: "phone", label: "الهاتف" },
+        { key: "name", label: "العميل" }, { key: "tenantName", label: "المتجر" },
+        { key: "email", label: "البريد الإلكتروني", render: (value) => <EmailAddress value={value} /> }, { key: "phone", label: "الهاتف" },
         { key: "storeCount", label: "عدد المتاجر" }, { key: "planName", label: "الباقة الحالية" },
         { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "createdAt", label: "آخر نشاط", render: formatDate },
         { key: "actions", label: "إدارة المستخدم", render: (_value, row) => <UserActions row={row} onComplete={onRefresh} canManage={MANAGE_USER_ROLES.has(admin.role)} /> }
@@ -402,7 +407,7 @@ function Customers({ data, stats, admin, onRefresh }) {
 
 function Stores({ data, stats, admin, onRefresh }) {
   const [search, setSearch] = useState("");
-  const rows = useMemo(() => (data.stores || []).filter((row) => `${row.name} ${row.domain} ${row.ownerName}`.toLowerCase().includes(search.toLowerCase())), [data.stores, search]);
+  const rows = useMemo(() => (data.stores || []).filter((row) => `${row.name} ${row.domain} ${row.ownerName} ${row.contactEmail}`.toLowerCase().includes(search.toLowerCase())), [data.stores, search]);
   const ranked = [...(data.stores || [])].sort((a, b) => n(b.messageVolume) - n(a.messageVolume)).slice(0, 5);
   return <>
     <KpiGrid items={[
@@ -417,6 +422,7 @@ function Stores({ data, stats, admin, onRefresh }) {
         <SearchFilters value={search} onChange={setSearch} searchPlaceholder="ابحث عن متجر..." placeholders={["كل المنصات", "كل الحالات", "جميع الملاك", "كل الباقات"]} />
         <SimpleTable emptyTitle="لا توجد متاجر مسجلة حتى الآن" rows={rows} columns={[
           { key: "name", label: "المتجر" }, { key: "domain", label: "النطاق" }, { key: "ownerName", label: "المالك" },
+          { key: "contactEmail", label: "البريد الإلكتروني", render: (value) => <EmailAddress value={value} /> },
           { key: "planName", label: "الباقة" }, { key: "messageVolume", label: "حجم الرسائل", render: ar },
           { key: "sallaStatus", label: "سلة", render: (value) => <StatusPill value={value} /> }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> },
           { key: "actions", label: "إدارة العميل", render: (_value, row) => <TenantActions row={row} plans={data.plans || []} onComplete={onRefresh} canManage={MANAGE_CUSTOMER_ROLES.has(admin.role)} /> }

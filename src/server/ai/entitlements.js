@@ -131,7 +131,7 @@ async function materializeEntitlement(tenantId, now, runner) {
         (tenant_id,subscription_id,plan_slug,period_start,period_end,weekly_token_limit,period_token_cap,max_cycles,status)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active')
        ON CONFLICT(subscription_id,period_start) DO UPDATE SET
-         period_end=EXCLUDED.period_end,status='active',weekly_token_limit=EXCLUDED.weekly_token_limit,
+         plan_slug=EXCLUDED.plan_slug,period_end=EXCLUDED.period_end,status='active',weekly_token_limit=EXCLUDED.weekly_token_limit,
          period_token_cap=EXCLUDED.period_token_cap,max_cycles=EXCLUDED.max_cycles,updated_at=now()
        RETURNING id,period_start AS "periodStart",period_end AS "periodEnd"`,
       [tenantId, subscription.subscriptionId, subscription.planSlug, subscription.periodStart, subscription.periodEnd,
