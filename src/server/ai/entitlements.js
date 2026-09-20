@@ -44,7 +44,8 @@ async function activeSubscription(tenantId, now, runner) {
       FROM platform_subscriptions ps JOIN platform_plans pp ON pp.id=ps.plan_id
       WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial')
         AND ps.current_period_start <= $2::timestamptz + interval '1 minute' AND ps.current_period_end > $2::timestamptz
-      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,ps.created_at DESC LIMIT 1`,
+      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,
+               ps.updated_at DESC,ps.created_at DESC,ps.id DESC LIMIT 1`,
     [tenantId, now]
   );
   return result.rows[0] || null;
@@ -294,7 +295,8 @@ export async function getAIEntitlementSnapshot(session, { now = new Date() } = {
        ) ec ON true
       WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial')
         AND ps.current_period_start<=$2::timestamptz+interval '1 minute' AND ps.current_period_end>$2
-      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,ps.created_at DESC
+      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,
+               ps.updated_at DESC,ps.created_at DESC,ps.id DESC
       LIMIT 1`,
     values: [session.tenantId, now],
     query_timeout: 2500

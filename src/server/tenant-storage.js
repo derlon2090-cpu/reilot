@@ -65,7 +65,7 @@ function planStorageSql() {
         AND ps.status IN ('active','trial','past_due')
         AND ps.current_period_end > now()
       ORDER BY CASE ps.status WHEN 'active' THEN 0 WHEN 'trial' THEN 1 ELSE 2 END,
-               ps.created_at DESC LIMIT 1),
+               ps.updated_at DESC, ps.created_at DESC, ps.id DESC LIMIT 1),
     (SELECT storage_limit_mb FROM platform_plans WHERE slug = 'free' AND is_active = true LIMIT 1),
     1
   )`;

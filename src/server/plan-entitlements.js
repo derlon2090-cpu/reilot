@@ -42,7 +42,7 @@ async function loadPlan(runner, tenantId) {
       WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial','past_due')
         AND ps.current_period_end > now()
       ORDER BY CASE ps.status WHEN 'active' THEN 0 WHEN 'trial' THEN 1 ELSE 2 END,
-               ps.created_at DESC LIMIT 1`,
+               ps.updated_at DESC, ps.created_at DESC, ps.id DESC LIMIT 1`,
     [tenantId]
   );
   if (active.rows[0]) return active.rows[0];
