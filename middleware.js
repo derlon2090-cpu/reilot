@@ -143,8 +143,9 @@ export async function middlewareRequest(request, {
   const storageApi = path === "/storage-api" || path.startsWith("/storage-api/");
   const pageRequest = !path.startsWith("/api/") && !path.startsWith("/backend/") && !storageApi;
   const apiHost = authApiOrigin ? new URL(authApiOrigin).hostname.toLowerCase() : "";
+  const canonicalApiRequest = Boolean(apiHost) && directRequestHost === apiHost;
   const localAdminAuthBridge = hostKind === "admin" && authApi && isAdminAuthBridgeApi(path);
-  const adminSurface = hostKind === "admin" && (
+  const adminSurface = (hostKind === "admin" || (canonicalApiRequest && adminApi)) && (
     path === "/"
     || adminPage
     || adminApi
@@ -159,7 +160,10 @@ export async function middlewareRequest(request, {
         ? wrongHostPageResponse()
         : portalRedirect(request, origins.admin, path);
     }
-    if (adminApi && hostKind !== "admin" && requestHost !== apiHost) {
+    // A Vercel rewrite can preserve its frontend host in X-Forwarded-Host.
+    // The direct Host is the canonical API here, so keep the route available
+    // to the independent admin session and permission checks on Render.
+    if (adminApi && hostKind !== "admin" && requestHost !== apiHost && !canonicalApiRequest) {
       logAdminBoundaryEvent(request, "admin_api_wrong_host", requestHost, path);
       return wrongHostApiResponse();
     }
