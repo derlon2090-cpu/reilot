@@ -30,6 +30,8 @@ export default function RootLayout({ children }) {
     <html lang="ar" dir="rtl" className={alexandria.variable} suppressHydrationWarning>
       <head>
         <meta name="renvix-turnstile-site-key" content={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""} />
+        <link rel="preconnect" href="https://challenges.cloudflare.com" crossOrigin="anonymous" />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var p=location.pathname;if(p.endsWith('/'))p=p.slice(0,-1);if(!['/login','/register','/forgot-password','/reset-password'].includes(p))return;var s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';s.async=true;s.dataset.renvixTurnstile='true';document.head.appendChild(s)})();` }} />
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var theme=localStorage.getItem('renewpilot_theme')||'light';var locale=localStorage.getItem('renewpilot_locale')||'ar';var resolved=theme==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':theme;document.documentElement.dataset.theme=resolved==='dark'?'dark':'light';document.documentElement.lang=locale==='en'?'en':'ar';document.documentElement.dir=locale==='en'?'ltr':'rtl'}catch(e){document.documentElement.dataset.theme='light'}})();` }} />
         <script dangerouslySetInnerHTML={{ __html: `(function(){function sync(){try{var w=Math.max(document.documentElement.clientWidth||0,window.innerWidth||0);var touch=Number(navigator.maxTouchPoints||0)>0;var tabletUa=/iPad|Android|Tablet|SM-T|Pixel C/i.test(navigator.userAgent||'');var forced=new URLSearchParams(location.search).get('_tablet_layout')==='1';var active=(forced||touch||tabletUa)&&w>=641&&w<=1700;if(active)document.documentElement.setAttribute('data-home-tablet-layout','true');else document.documentElement.removeAttribute('data-home-tablet-layout')}catch(e){document.documentElement.removeAttribute('data-home-tablet-layout')}}sync();window.addEventListener('resize',sync,{passive:true})})();` }} />
         <script
@@ -49,10 +51,10 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="modulepreload" href="/app/app.js?v=20260914-auth-renvix-v162" crossOrigin="anonymous" />
+        <link rel="modulepreload" href="/app/app.js?v=20260921-turnstile-visible" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260914-auth-renvix-v162" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260921-turnstile-visible" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
         <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260911-brand-surfaces-v159" />
         <link rel="stylesheet" href="/app/styles/identity-system.css?v=20260911-brand-surfaces-v159" />
@@ -60,7 +62,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260914-auth-renvix-v162" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260921-turnstile-visible" strategy="afterInteractive" />
       </body>
     </html>
   );

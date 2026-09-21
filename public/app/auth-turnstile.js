@@ -116,6 +116,7 @@ export const AuthTurnstile = {
       if (retryControl) retryControl.textContent = localized(page, "Retry security verification", "إعادة التحقق الأمني");
       setReady(form, false);
       status(slot, "loading");
+      message(slot, localized(page, "Loading security verification…", "جارٍ تحميل التحقق الأمني…"), "pending");
       if (!siteKey) {
         console.error("[Renvix Turnstile]", { errorCode: "configuration" });
         status(slot, "error");
@@ -150,7 +151,7 @@ export const AuthTurnstile = {
           callback(token) {
             if (input) input.value = token;
             retryButton(slot, false);
-            message(slot, "");
+            message(slot, localized(page, "Security verification complete", "اكتمل التحقق الأمني"), "success");
             status(slot, "verified");
             setReady(form, true);
           },
