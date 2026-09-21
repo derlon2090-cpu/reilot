@@ -17,10 +17,11 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('appearance: "always"');
     expect(componentSource).toContain('size: "flexible"');
     expect(componentSource).toContain('theme: page?.dataset.authTheme');
-    expect(componentSource).toContain('retry: "never"');
-    expect(componentSource).toContain("AUTOMATIC_RETRY_DELAYS");
+    expect(componentSource).toContain('retry: "auto"');
+    expect(componentSource).not.toContain("AUTOMATIC_RETRY_DELAYS");
     expect(componentSource).toContain("retryableError(code)");
     expect(componentSource).toContain('"refresh-expired": "auto"');
+    expect(componentSource).toContain('"refresh-timeout": "auto"');
     expect(componentSource).toContain("scriptPromise = undefined");
     expect(componentSource).toContain('"error-callback"(errorCode)');
     expect(componentSource).toContain("return true");
