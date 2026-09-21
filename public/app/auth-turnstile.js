@@ -1,6 +1,5 @@
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 const widgets = new WeakMap();
-const AUTOMATIC_RETRY_DELAYS = [1500, 4000];
 let scriptPromise;
 
 function loadScript() {
@@ -83,7 +82,7 @@ function retryableError(code) {
 }
 
 function configurationError(code) {
-  return ["110100", "110110", "110200"].includes(code);
+  return ["110100", "110110", "110200", "400020", "400070"].includes(code);
 }
 
 export const AuthTurnstile = {
@@ -128,19 +127,15 @@ export const AuthTurnstile = {
         if (!slot.isConnected) continue;
         const input = form.querySelector('input[name="turnstileToken"]');
         const manualRetry = slot.querySelector("[data-turnstile-retry]");
-        let retryCount = 0;
-        let retryTimer;
         let widgetId;
-        const resetWidget = ({ manual = false } = {}) => {
-          clearTimeout(retryTimer);
-          if (manual) retryCount = 0;
+        const resetWidget = () => {
           retryButton(slot, false);
           setReady(form, false);
           status(slot, "pending");
           message(slot, localized(page, "Loading a fresh security check…", "جارٍ تحميل تحقق أمني جديد…"), "pending");
           try { api.reset(widgetId); } catch { /* a future page render creates a fresh widget */ }
         };
-        manualRetry?.addEventListener("click", () => resetWidget({ manual: true }));
+        manualRetry?.addEventListener("click", resetWidget);
         widgetId = api.render(slot.querySelector("[data-turnstile-widget]"), {
           sitekey: siteKey,
           action: slot.dataset.authTurnstile,
@@ -148,12 +143,11 @@ export const AuthTurnstile = {
           size: "flexible",
           theme: page?.dataset.authTheme === "dark" ? "dark" : "light",
           language: page?.dataset.authLanguage === "en" ? "en" : "ar",
-          retry: "never",
+          retry: "auto",
           "refresh-expired": "auto",
-          "refresh-timeout": "never",
+          "refresh-timeout": "auto",
+          "response-field": false,
           callback(token) {
-            clearTimeout(retryTimer);
-            retryCount = 0;
             if (input) input.value = token;
             retryButton(slot, false);
             message(slot, "");
@@ -170,22 +164,18 @@ export const AuthTurnstile = {
             const code = String(errorCode || "unknown");
             console.error("[Renvix Turnstile]", { errorCode: code });
             setReady(form, false);
-            if (retryableError(code) && retryCount < AUTOMATIC_RETRY_DELAYS.length) {
-              const delay = AUTOMATIC_RETRY_DELAYS[retryCount];
-              retryCount += 1;
+            if (retryableError(code)) {
               status(slot, "pending");
-              message(slot, localized(page, `Security check interrupted. Retrying (${retryCount}/${AUTOMATIC_RETRY_DELAYS.length})…`, `انقطع التحقق الأمني، وتجري إعادة المحاولة (${retryCount}/${AUTOMATIC_RETRY_DELAYS.length})…`), "pending");
-              retryTimer = setTimeout(() => {
-                if (slot.isConnected) resetWidget();
-              }, delay);
+              retryButton(slot, true);
+              message(slot, localized(page, `Security check interrupted. Cloudflare is retrying automatically (code ${code}). You can retry manually.`, `انقطع التحقق الأمني. تعيد Cloudflare المحاولة تلقائيًا (الرمز ${code}). يمكنك إعادة التحقق يدويًا.`), "pending");
             } else {
               status(slot, "error");
               retryButton(slot, !configurationError(code));
               message(
                 slot,
                 configurationError(code)
-                  ? localized(page, "Security verification is misconfigured. Please contact support.", "إعداد التحقق الأمني غير صحيح. تواصل مع الدعم.")
-                  : localized(page, "Security verification could not finish. Retry it, and disable any VPN or content blocker if the issue continues.", "تعذر إكمال التحقق الأمني. أعد التحقق، وعطّل VPN أو مانع المحتوى إذا استمرت المشكلة."),
+                  ? localized(page, `Security verification is misconfigured (code ${code}). Please contact support.`, `إعداد التحقق الأمني غير صحيح (الرمز ${code}). تواصل مع الدعم.`)
+                  : localized(page, `Security verification could not finish (code ${code}). Check your device clock, then retry.`, `تعذر إكمال التحقق الأمني (الرمز ${code}). تحقق من ساعة جهازك ثم أعد المحاولة.`),
                 "error"
               );
             }
@@ -194,10 +184,8 @@ export const AuthTurnstile = {
           "timeout-callback"() {
             setReady(form, false);
             status(slot, "pending");
-            message(slot, localized(page, "The security check timed out. A fresh check is loading.", "انتهت مهلة التحقق الأمني، ويجري تحميل تحقق جديد."), "pending");
-            setTimeout(() => {
-              if (slot.isConnected) resetWidget();
-            }, 700);
+            retryButton(slot, true);
+            message(slot, localized(page, "The security check timed out. Cloudflare is refreshing it automatically.", "انتهت مهلة التحقق الأمني. تعيد Cloudflare تحميله تلقائيًا."), "pending");
           },
           "unsupported-callback"() {
             console.error("[Renvix Turnstile]", { errorCode: "unsupported-browser" });
@@ -227,7 +215,7 @@ export const AuthTurnstile = {
     const widget = widgets.get(form);
     setReady(form, false);
     if (!widget) return;
-    widget.reset({ manual: true });
+    widget.reset();
   },
 
   hasToken(form) {
