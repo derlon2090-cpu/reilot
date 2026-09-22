@@ -59,47 +59,60 @@ describe("storage document AI formatting", () => {
     expect(result.html).toContain("FalconKey");
   });
 
-  it("rejects gaps, reordered sections, and merged accounts", () => {
+  it("rejects inferred splits and accepts only explicit blank-line boundaries", () => {
     const twoAccounts = `${content}\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: SecondSecret`;
     expect(() => validateAIStorageDocumentResult({ sections: [{ start: 1, end: 7 }] }, twoAccounts))
       .toThrow();
     expect(() => validateAIStorageDocumentResult({ sections: [{ start: 0, end: 6 }] }, twoAccounts))
       .toThrow();
-    expect(() => validateAIStorageDocumentResult({ sections: [{ start: 0, end: 7 }] }, twoAccounts))
+    expect(() => validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }, { start: 4, end: 7 }] }, twoAccounts))
       .toThrow();
-    expect(validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }, { start: 4, end: 7 }] }, twoAccounts).html)
+    expect(validateAIStorageDocumentResult({ sections: [{ start: 0, end: 7 }] }, twoAccounts).html)
+      .not.toContain("<hr data-storage-ai-separator>");
+    const withBlank = `${content}\n\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: SecondSecret`;
+    expect(validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }, { start: 4, end: 7 }] }, withBlank).html)
       .toContain("<hr data-storage-ai-separator>");
   });
 
-  it("separates fifteen adjacent accounts and keeps every credential", () => {
-    const input = Array.from({ length: 15 }, (_, index) => `حساب ${index + 1}\nالبريد: user${index + 1}@example.com\nكلمة المرور: pass-${index + 1}\nمفتاح الأمان: key-${index + 1}`).join("\n");
+  it("separates fifteen groups only where the user left a blank line", () => {
+    const input = Array.from({ length: 15 }, (_, index) => `حساب ${index + 1}\nالبريد: user${index + 1}@example.com\nكلمة المرور: pass-${index + 1}\nمفتاح الأمان: key-${index + 1}`).join("\n\n");
     const html = buildSafeStorageDocumentHtml(input);
     expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(14);
-    expect(html).toContain('15.</span> حساب 15</h3>');
+    expect(html).toContain('15.</span><span data-storage-ai-heading-text dir="auto">حساب 15</span></h3>');
     expect(html).toContain('data-storage-ai-number style="color:#087267"');
     for (let index = 1; index <= 15; index++) {
       expect(html).toContain(`user${index}@example.com`);
       expect(html).toContain(`pass-${index}`);
       expect(html).toContain(`key-${index}`);
     }
+    const withoutUserGaps = buildSafeStorageDocumentHtml(input.replace(/\n\n/g, "\n"));
+    expect(withoutUserGaps).not.toContain("<hr data-storage-ai-separator>");
+    expect((withoutUserGaps.match(/data-storage-ai-number/g) || [])).toHaveLength(1);
   });
 
-  it("keeps credentials together despite blank lines and separates completed account groups", () => {
-    const input = "حساب أول\n\nEmail: first@example.com\n\nPassword: FirstSecret\n\nSecurity Key: KeyOne\n\nحساب ثاني\n\nEmail: second@example.com\n\nPassword: SecondSecret";
+  it("keeps adjacent credentials and repeated emails together without a user blank line", () => {
+    const input = "حساب أول\nEmail: first@example.com\nPassword: FirstSecret\nSecurity Key: KeyOne\nحساب ثاني\nEmail: second@example.com\nPassword: SecondSecret";
     const html = buildSafeStorageDocumentHtml(input);
-    expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(1);
-    expect(html).toContain('1.</span> حساب أول');
-    expect(html).toContain('2.</span> حساب ثاني');
-    expect(html.indexOf("FirstSecret")).toBeLessThan(html.indexOf("<hr data-storage-ai-separator>"));
-    expect(html.indexOf("SecondSecret")).toBeGreaterThan(html.indexOf("<hr data-storage-ai-separator>"));
+    expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(0);
+    expect(html).toContain('1.</span><span data-storage-ai-heading-text dir="auto">حساب أول');
+    expect(html).not.toContain('data-storage-ai-number style="color:#087267">2.</span>');
+    expect(html).toContain("SecondSecret");
     expect(() => validateAIStorageDocumentResult({ sections: [
       { start: 0, end: 2 }, { start: 2, end: 4 }, { start: 4, end: 7 }
     ] }, input)).toThrow();
   });
 
+  it("numbers only the start of each explicitly separated text, preserving inner numbered lines", () => {
+    const html = buildSafeStorageDocumentHtml("Email: one@example.com\nPassword: first\n8. ملاحظة داخل النص\n\nEmail: two@example.com\nPassword: second");
+    expect((html.match(/data-storage-ai-number/g) || [])).toHaveLength(2);
+    expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(1);
+    expect(html).toContain("8. ملاحظة داخل النص");
+    expect(html).not.toContain("<ol>");
+  });
+
   it("uses an editable platform number when the first line was a pasted list item", () => {
     const html = buildSafeStorageDocumentHtml("4. حساب متجر\nEmail: shop@example.com\nPassword: secret");
-    expect(html).toContain('<span data-storage-ai-number style="color:#087267">1.</span> حساب متجر');
+    expect(html).toContain('<span data-storage-ai-number style="color:#087267">1.</span><span data-storage-ai-heading-text dir="auto">حساب متجر');
     expect(html).not.toContain("<hr data-storage-ai-separator>");
   });
 

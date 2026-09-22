@@ -9237,11 +9237,24 @@ function restoreStorageDocumentDraft() {
 let storageEditorSelectionRange = null;
 
 function storageEditorTextForFormatting(editor) {
-  const numbers = [...editor.querySelectorAll("[data-storage-ai-number]")];
-  const display = numbers.map((number) => number.style.display);
-  numbers.forEach((number) => { number.style.display = "none"; });
-  try { return String(editor.innerText || "").trim(); }
-  finally { numbers.forEach((number, index) => { number.style.display = display[index]; }); }
+  const blocks = new Set(["DIV", "P", "H1", "H2", "H3", "H4", "LI", "UL", "OL", "BLOCKQUOTE"]);
+  let text = "";
+  const read = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.nodeValue.replace(/\u00a0/g, " ");
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE || node.matches("[data-storage-ai-number],hr")) return;
+    if (node.tagName === "BR") { text += "\n"; return; }
+    const before = text.length;
+    node.childNodes.forEach(read);
+    if (node !== editor && blocks.has(node.tagName)) {
+      if (!String(node.textContent || "").trim() || text.length === before) text += "\n";
+      if (!text.endsWith("\n")) text += "\n";
+    }
+  };
+  read(editor);
+  return text.trim();
 }
 
 function removeStorageEditorDecoration(kind) {
