@@ -35,10 +35,29 @@ describe("storage document AI formatting", () => {
 
   it("builds a safe professional fallback that preserves fields and separates accounts", () => {
     const html = buildSafeStorageDocumentHtml("حساب نتفلكس\nالبريد: user@example.com\nالرمز: 123456\n\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: pass-9876");
-    expect(html).toContain("<h3>حساب نتفلكس</h3>");
+    expect(html).toContain('1.</span> حساب نتفلكس</h3>');
     expect(html).toContain("<strong>البريد:</strong> user@example.com");
     expect(html).toContain("<hr>");
     expect(html).toContain("pass-9876");
+  });
+
+  it("preserves password and security key values even without digits", () => {
+    expect(() => validateAIStorageDocumentResult(
+      { html: "<p>البريد: user@example.com</p><p>كلمة المرور: changed</p><p>مفتاح الأمان: FalconSecret</p>" },
+      "البريد: user@example.com\nكلمة المرور: RiverSecret\nمفتاح الأمان: FalconSecret"
+    )).toThrow("بيانات الحسابات كما هي");
+  });
+
+  it("groups fifteen adjacent accounts without mixing credentials", () => {
+    const input = Array.from({ length: 15 }, (_, index) => `حساب ${index + 1}\nالبريد: user${index + 1}@example.com\nكلمة المرور: pass-${index + 1}\nمفتاح الأمان: key-${index + 1}`).join("\n");
+    const html = buildSafeStorageDocumentHtml(input);
+    expect((html.match(/<hr>/g) || [])).toHaveLength(14);
+    expect(html).toContain('15.</span> حساب 15</h3>');
+    for (let index = 1; index <= 15; index++) {
+      expect(html).toContain(`user${index}@example.com`);
+      expect(html).toContain(`pass-${index}`);
+      expect(html).toContain(`key-${index}`);
+    }
   });
 
   it("uses the safe formatter when the server AI provider is not configured", async () => {

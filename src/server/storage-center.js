@@ -268,6 +268,7 @@ export async function getStorageCenter(session, input = {}) {
     ),
     query(
       `SELECT storage_documents.id,folder_id AS "folderId",title AS name,type,size_bytes AS "sizeBytes",is_favorite AS "isFavorite",storage_documents.created_at AS "createdAt",storage_documents.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",storage_documents.content->>'timerEndsAt' AS "timerEndsAt",storage_documents.content->>'timerDisplayMode' AS "timerDisplayMode",
+              EXISTS(SELECT 1 FROM storage_document_locks document_lock WHERE document_lock.document_id=storage_documents.id AND document_lock.tenant_id=storage_documents.tenant_id) AS "locked",
               COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location
          FROM storage_documents LEFT JOIN users owner ON owner.id=storage_documents.created_by LEFT JOIN storage_folders folder ON folder.id=storage_documents.folder_id
          WHERE storage_documents.tenant_id=$1 AND storage_documents.deleted_at IS NULL

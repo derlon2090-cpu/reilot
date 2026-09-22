@@ -57,9 +57,35 @@ function safeDocumentLineMarkup(line, firstLine = false) {
 export function buildSafeStorageDocumentHtml(content) {
   const normalized = String(content || "").replace(/\r\n?/g, "\n").trim();
   if (!normalized) return "";
-  const blocks = normalized.split(/\n\s*\n+/u).map((block) => block.trim()).filter(Boolean);
-  return blocks.map((block) => {
+  const groups = [];
+  const fieldKind = (line) => {
+    const label = String(line).split(/[:：]/u, 1)[0].trim().toLowerCase();
+    if (/^(?:البريد(?: الإلكتروني)?|الإيميل|الايميل|email|e-mail|username|اسم المستخدم)$/u.test(label)) return "identity";
+    if (/^(?:كلمة المرور|الرقم السري|password|pass|pwd)$/u.test(label)) return "password";
+    if (/^(?:مفتاح الأمان|مفتاح الامان|الرمز|الكود|رمز التحقق|security key|api key|token|code|otp)$/u.test(label)) return "key";
+    return /[:：]/u.test(line) ? "other" : "";
+  };
+  for (const block of normalized.split(/\n\s*\n+/u).map((item) => item.trim()).filter(Boolean)) {
+    let current = [];
+    let seen = new Set();
     const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      const kind = fieldKind(line);
+      const nextKind = fieldKind(lines[index + 1] || "");
+      const startsEntry = current.length > 1 && !kind && nextKind && seen.size > 0 && line.length <= 100;
+      const repeatsIdentity = kind === "identity" && seen.has("identity") && current.length > 1;
+      if (startsEntry || repeatsIdentity) {
+        groups.push(current);
+        current = [];
+        seen = new Set();
+      }
+      current.push(line);
+      if (kind) seen.add(kind);
+    }
+    if (current.length) groups.push(current);
+  }
+  return groups.map((lines, groupIndex) => {
     const markup = [];
     let listItems = [];
     const flushList = () => {
@@ -74,7 +100,9 @@ export function buildSafeStorageDocumentHtml(content) {
         return;
       }
       flushList();
-      markup.push(safeDocumentLineMarkup(line, index === 0));
+      if (index === 0 && groups.length > 1 && !fieldKind(line) && line.length <= 100) {
+        markup.push(`<h3><span style="color:#087267">${groupIndex + 1}.</span> ${escapeDocumentText(line)}</h3>`);
+      } else markup.push(safeDocumentLineMarkup(line, index === 0));
     });
     flushList();
     return markup.join("");
@@ -108,7 +136,10 @@ export function sanitizeAIStorageDocumentHtml(value) {
 }
 
 function sensitiveTokens(value) {
-  return [...new Set(String(value || "").match(/(?:https?:\/\/\S+|[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?=[a-z0-9_-]{5,}\b)(?=[a-z0-9_-]*\d)[a-z0-9_-]+\b|\b\d{4,}\b)/gi) || [])];
+  const text = String(value || "");
+  const obvious = text.match(/(?:https?:\/\/\S+|[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?=[a-z0-9_-]{5,}\b)(?=[a-z0-9_-]*\d)[a-z0-9_-]+\b|\b\d{4,}\b)/gi) || [];
+  const fieldValues = [...text.matchAll(/(?:^|\n)\s*(?:البريد(?: الإلكتروني)?|الإيميل|الايميل|email|e-mail|اسم المستخدم|username|كلمة المرور|الرقم السري|password|pass|pwd|مفتاح الأمان|مفتاح الامان|security key|api key|token|code|otp|الرمز|الكود)\s*[:：]\s*([^\n]+)/gimu)].map((match) => match[1].trim()).filter(Boolean);
+  return [...new Set([...obvious, ...fieldValues])];
 }
 
 export function validateAIStorageDocumentResult(value, originalContent) {
@@ -134,7 +165,9 @@ export function buildStorageDocumentFormatMessages(content) {
       "استخدم فقط: p, br, strong, em, u, h2, h3, ul, ol, li, blockquote, hr, span مع color فقط.",
       "لا تضف أي أيقونات أو رموز زخرفية أو emoji.",
       "إذا احتوى النص عدة حسابات، اجعل كل حساب كتلة مستقلة بعنوان واضح وافصل بين الحسابات بعنصر hr ومسافة مريحة.",
-      "اجعل كل بيان في سطر مستقل: اسم الخدمة، البريد أو اسم المستخدم، كلمة المرور، الرمز، ثم الملاحظات.",
+      "عند وجود عدة عناصر حتى لو بلغ عددها 15 أو أكثر، رقّم عناوينها بترتيبها الأصلي: 1، 2، 3. الرقم نص عادي يمكن للمستخدم تعديله أو محوه.",
+      "اجمع البيانات المتجاورة التابعة للخدمة نفسها في كتلة واحدة: اسم الخدمة، البريد أو اسم المستخدم، كلمة المرور، مفتاح الأمان أو الرمز، ثم الملاحظات. لا تنقل قيمة إلى حساب آخر.",
+      "افصل كل بيان في سطر مستقل، وأظهر تسميته بخط عريض. استخدم لونًا هادئًا للعناوين فقط واحتفظ بباقي النص واضحًا وقابلًا للتعديل.",
       "استخدم عناوين واضحة وخطًا عريضًا باعتدال، وحافظ على اتجاه النص المناسب للغة الأصلية."
     ].join("\n") },
     { role: "user", content: `رتّب النص التالي فقط مع المحافظة الحرفية على جميع بياناته:\n\n${content}` }
