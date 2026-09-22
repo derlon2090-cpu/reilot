@@ -144,9 +144,9 @@ async function materializeEntitlement(tenantId, now, runner) {
   const entitlementPeriodEnd = periodResult.rows[0].periodEnd;
   const closedPeriods = await runner.query(
     `UPDATE ai_entitlement_periods SET status='closed',updated_at=now()
-      WHERE tenant_id=$1 AND subscription_id=$2 AND id<>$3 AND status IN ('active','suspended')
+      WHERE tenant_id=$1 AND id<>$2 AND status IN ('active','suspended')
       RETURNING id`,
-    [tenantId, subscription.subscriptionId, periodId]
+    [tenantId, periodId]
   );
   if (closedPeriods.rows.length) {
     await runner.query(
@@ -178,7 +178,7 @@ async function materializeEntitlement(tenantId, now, runner) {
     planSlug: subscription.planSlug,
     periodStart: entitlementPeriodStart,
     periodEnd: entitlementPeriodEnd,
-    now,
+    now: new Date(Math.max(new Date(now).getTime(), new Date(entitlementPeriodStart).getTime())),
     subscriptionActive: true
   });
   const cycleNumber = Math.min(maxCycles, resolution.cycle?.cycleNumber || 1);
@@ -280,7 +280,8 @@ export async function getAIEntitlementSnapshot(session, { now = new Date() } = {
          SELECT p.id,p.period_start,p.period_end,p.period_token_cap,p.max_cycles
            FROM ai_entitlement_periods p
           WHERE p.tenant_id=ps.tenant_id AND p.subscription_id=ps.id AND p.status='active'
-            AND p.plan_slug=pp.slug AND p.period_start=ps.current_period_start
+            AND p.plan_slug=pp.slug
+            AND date_trunc('milliseconds',p.period_start)=date_trunc('milliseconds',ps.current_period_start)
             AND p.weekly_token_limit=pp.ai_weekly_token_limit
             AND p.period_token_cap=pp.ai_period_token_cap AND p.max_cycles=pp.ai_max_cycles
             AND p.period_start<=$2 AND p.period_end>$2

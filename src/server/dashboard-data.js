@@ -125,7 +125,8 @@ export async function getDashboardOverview(tenantId, userId) {
          FROM users u
          LEFT JOIN settings s ON s.tenant_id = u.tenant_id
          LEFT JOIN LATERAL (
-           SELECT plan_id, status FROM platform_subscriptions
+           SELECT plan_id, CASE WHEN status IN ('active','trial') AND current_period_end<=now()
+                                  THEN 'expired' ELSE status END AS status FROM platform_subscriptions
             WHERE tenant_id = u.tenant_id
             ORDER BY CASE WHEN status IN ('active','trial') AND current_period_end>now() THEN 0 ELSE 1 END,
                      updated_at DESC, created_at DESC, id DESC LIMIT 1

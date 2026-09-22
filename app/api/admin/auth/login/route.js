@@ -90,7 +90,7 @@ export async function POST(request) {
   const admin = result.rows[0];
   authStage = "password_verification";
   const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.passwordHash) : false;
-  const allowedRole = ["super_admin", "admin", "support_admin", "billing_admin", "security_admin", "viewer"].includes(admin?.adminRole);
+  const allowedRole = ["super_admin", "operations_admin", "admin", "support_admin", "billing_admin", "security_admin", "security_auditor", "read_only", "viewer"].includes(admin?.adminRole);
   const expired = Boolean(admin?.expiresAt && new Date(admin.expiresAt).getTime() <= Date.now());
   const valid = passwordValid && admin?.adminId && admin.status === "active" && !expired && allowedRole;
 
