@@ -1,10 +1,12 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { getStorageImageLibrary } from "../../../../src/server/storage-center.js";
+import { ensureStorageCenterSchema } from "../../../../src/server/storage-schema.js";
 
 export async function GET(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   try {
+    await ensureStorageCenterSchema();
     const url = new URL(request.url);
     return Response.json({ ok: true, assets: await getStorageImageLibrary(auth.session, { search: url.searchParams.get("search") || "" }) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

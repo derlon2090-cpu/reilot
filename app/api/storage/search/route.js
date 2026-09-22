@@ -1,10 +1,12 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { getStorageCenter } from "../../../../src/server/storage-center.js";
+import { ensureStorageCenterSchema } from "../../../../src/server/storage-schema.js";
 
 export async function GET(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   try {
+    await ensureStorageCenterSchema();
     const url = new URL(request.url);
     const storage = await getStorageCenter(auth.session, { search: url.searchParams.get("q") || "", sort: url.searchParams.get("sort") || "newest" });
     return Response.json({ ok: true, folders: storage.folders, documents: storage.documents, assets: storage.assets }, { headers: { "Cache-Control": "private, no-store" } });

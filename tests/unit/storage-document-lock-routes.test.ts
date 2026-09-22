@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireSession: vi.fn(), requirePassword: vi.fn(), getDocument: vi.fn(), updateDocument: vi.fn(), deleteItem: vi.fn()
+  requireSession: vi.fn(), requirePassword: vi.fn(), requireFolder: vi.fn(), getDocument: vi.fn(), updateDocument: vi.fn(), deleteItem: vi.fn()
 }));
 vi.mock("../../src/server/session.js", () => ({ requireSession: mocks.requireSession }));
 vi.mock("../../src/server/campaign-contacts.js", () => ({ sameOriginRequest: () => true }));
 vi.mock("../../src/server/storage-schema.js", () => ({ ensureStorageCenterSchema: async () => {} }));
 vi.mock("../../src/server/storage-document-locks.js", () => ({ requireStorageDocumentPassword: mocks.requirePassword }));
+vi.mock("../../src/server/storage-folder-locks.js", () => ({
+  folderPasswordsFromRequest: () => ({}), requireStorageItemFolderAccess: mocks.requireFolder, requireStorageFolderAccess: mocks.requireFolder
+}));
 vi.mock("../../src/server/storage-center.js", () => ({
   getStorageDocument: mocks.getDocument,
   updateStorageDocument: mocks.updateDocument,
@@ -22,6 +25,7 @@ describe("locked document API", () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.requireSession.mockResolvedValue({ ok: true, session: { tenantId: "tenant", userId: "user" } });
+    mocks.requireFolder.mockResolvedValue([]);
   });
 
   it("never reads document content before verifying the file password", async () => {
