@@ -863,6 +863,7 @@ state.storageView = storage.get("renvix.storage.view", "grid");
 state.storageComposeType = "";
 state.storageDocument = null;
 state.storageDocumentPasswords = new Map();
+state.storageFolderPasswords = new Map();
 state.storageAIPreviousMarkup = null;
 state.storageDocumentLoadingId = "";
 state.storageDocumentRequestController = null;
@@ -1333,6 +1334,9 @@ function resolveRenvixApiUrl(url) {
 
 async function fetchJson(url, options = {}) {
   const { timeoutMessage, timeoutMs = 0, ...fetchOptions } = options;
+  if (String(url).startsWith("/api/storage") && state.storageFolderPasswords?.size) {
+    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Folder-Passwords": JSON.stringify(Object.fromEntries(state.storageFolderPasswords)) };
+  }
   const storageDocumentMatch = String(url).match(/^\/api\/storage\/documents\/([0-9a-f-]{36})(?:\?|$)/i);
   if (storageDocumentMatch && state.storageDocumentPasswords?.has(storageDocumentMatch[1])) {
     fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Document-Password": state.storageDocumentPasswords.get(storageDocumentMatch[1]) };
@@ -1577,6 +1581,9 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     } else if (target === "aiConversations") {
       state.aiConversationsRetrying = false;
       state.aiConversationsError = error.message || "تعذر تحميل المحادثات";
+    } else if (target === "storageCenter" && error.code === "FOLDER_LOCKED") {
+      if (error.payload?.folderId) state.storageFolderPasswords.delete(error.payload.folderId);
+      state.storageCenter = { error: error.message, code: error.code, folderId: error.payload?.folderId || state.storageCurrentFolderId };
     } else {
       state[target] = target === "supportTicket"
         ? { id: state.supportSelectedId || state.query.get("ticket") || "", error: error.message || "تعذر تحميل المحادثة" }
@@ -9434,6 +9441,10 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
     state.storageDocument = payload.document;
   } catch (error) {
     if (state.storageDocumentRequestController !== controller) return;
+    if (error.code === "FOLDER_LOCKED") {
+      if (error.payload?.folderId) state.storageFolderPasswords.delete(error.payload.folderId);
+      state.storageDocument = { id, folderLocked: true, folderId: error.payload?.folderId || state.storageCurrentFolderId, error: error.message };
+    }
     if (error.code === "DOCUMENT_LOCKED") state.storageDocumentPasswords.delete(id);
     state.storageDocument = error.code === "DOCUMENT_LOCKED" ? { id, locked: true, error: error.message } : { id, error: error.message || "تعذر فتح المستند." };
   } finally {
@@ -9527,6 +9538,7 @@ async function handleAction(target) {
   }
   if (storageAction === "storage-open-folder") {
     state.storageCurrentFolderId = target.dataset.id || "";
+    if (!state.storageCurrentFolderId) state.storageFolderPasswords.clear();
     state.storageCenter = null;
     const url = new URL(location.href);
     if (state.storageCurrentFolderId) url.searchParams.set("folder", state.storageCurrentFolderId);
@@ -9745,7 +9757,13 @@ async function handleAction(target) {
     const pinAction = kind === "folder" ? `<button data-action="storage-toggle-pin" data-id="${escapeHtml(id)}" data-pinned="${target.dataset.pinned === "1" ? "0" : "1"}">${dashboardIcon("star")} ${target.dataset.pinned === "1" ? "إلغاء التثبيت" : "تثبيت أعلى القائمة"}</button>` : "";
     const locked = kind === "document" && Boolean((state.storageCenter?.storage?.documents || []).find((item) => item.id === id)?.locked);
     const lockAction = kind === "document" ? `<button data-action="storage-lock-prompt" data-id="${escapeHtml(id)}" data-locked="${locked ? "1" : "0"}">${dashboardIcon("security")} ${locked ? "تغيير أو إزالة كلمة المرور" : "حماية الملف بكلمة مرور"}</button>` : "";
-    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${pinAction}${lockAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+    const folderLocked = kind === "folder" && Boolean((state.storageCenter?.storage?.folders || []).find((item) => item.id === id)?.locked);
+    const folderLockAction = kind === "folder" ? `<button data-action="storage-folder-lock-prompt" data-id="${escapeHtml(id)}" data-locked="${folderLocked ? "1" : "0"}">${dashboardIcon("security")} ${folderLocked ? "تغيير أو إزالة كلمة مرور الملف" : "حماية الملف ومحتوياته"}</button>` : "";
+    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${pinAction}${folderLockAction}${lockAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+  }
+  if (storageAction === "storage-folder-lock-prompt") {
+    const locked = target.dataset.locked === "1";
+    return openModal("حماية الملف ومحتوياته", `<form class="grid" data-submit="storage-folder-lock" data-id="${escapeHtml(target.dataset.id)}" data-locked="${locked ? "1" : "0"}"><p>تشمل الحماية المستندات داخل الملف ومجلداته الفرعية.</p>${locked ? `<label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password"></label>` : ""}<label class="field"><span>${locked ? "كلمة المرور الجديدة" : "كلمة المرور"}</span><input class="input" name="password" type="password" minlength="8" ${locked ? "" : "required"} autocomplete="new-password"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" ${locked ? "" : "required"} autocomplete="new-password"></label><small>${locked ? "اترك الجديدة فارغة لإزالة القفل بعد إدخال الحالية." : "احتفظ بكلمة المرور؛ لا يمكن استعادتها من الخادم."}</small><button class="btn btn-primary" type="submit">حفظ الحماية</button></form>`);
   }
   if (storageAction === "storage-lock-prompt") {
     const locked = target.dataset.locked === "1";
@@ -11580,6 +11598,7 @@ async function handleAction(target) {
   if (action === "logout") {
     const finishLogout = () => {
       state.storageDocumentPasswords.clear();
+      state.storageFolderPasswords.clear();
       state.storageAIPreviousMarkup = null;
       clearCachedDashboardProfile();
       closePortal();
@@ -13225,6 +13244,39 @@ async function handleSubmit(form, event) {
     state.storageDocumentPasswords.set(id, data.password);
     closePortal();
     await openStorageDocument(id, { updateHistory: false });
+    return;
+  }
+  if (type === "storage-folder-unlock") {
+    if (!form.dataset.id || !data.password) return;
+    state.storageFolderPasswords.set(form.dataset.id, data.password);
+    state.storageCenter = null;
+    await syncRouteData(true);
+    return;
+  }
+  if (type === "storage-folder-document-unlock") {
+    if (!form.dataset.id || !form.dataset.documentId || !data.password) return;
+    state.storageFolderPasswords.set(form.dataset.id, data.password);
+    await openStorageDocument(form.dataset.documentId, { updateHistory: false });
+    return;
+  }
+  if (type === "storage-folder-lock") {
+    const id = form.dataset.id;
+    const remove = form.dataset.locked === "1" && !data.password;
+    if (!remove && data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ حفظ الحماية...");
+    try {
+      await fetchJson(`/api/storage/folders/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: data.currentPassword, password: data.password, remove })
+      });
+      state.storageFolderPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast(remove ? "تمت إزالة حماية الملف." : "تمت حماية الملف ومحتوياته.");
+    } catch (error) { toast(error.message || "تعذر حفظ حماية الملف.", "danger"); }
+    finally { setSubmitBusy(button, false); }
     return;
   }
   if (type === "storage-document-lock") {
@@ -15483,6 +15535,9 @@ function stopStorageDocumentCountdowns() {
 }
 
 function disposeStorageRoute() {
+  state.storageFolderPasswords.clear();
+  state.storageDocumentPasswords.clear();
+  state.storageAIPreviousMarkup = null;
   cancelStoragePointerDrag();
   storageArrangeMode = false;
   storageMovingItem = null;
@@ -15592,6 +15647,7 @@ function storageDocumentComposer(data) {
 function storageDocumentView(data) {
   const item = state.storageDocument;
   if (item?.loading) return dashboardShell(`<div class="storage-document-loading"><i></i><i></i><i></i></div>`);
+  if (item?.folderLocked) return dashboardShell(`<section class="storage-center storage-compose-page"><div class="card storage-document-view"><div class="empty-state"><span>${dashboardIcon("security")}</span><h2>هذا الملف محمي بكلمة مرور</h2><p>${escapeHtml(item.error || "أدخل كلمة مرور الملف لعرض المستند.")}</p><form class="grid" data-submit="storage-folder-document-unlock" data-id="${escapeHtml(item.folderId)}" data-document-id="${escapeHtml(item.id)}"><label class="field"><span>كلمة مرور الملف</span><input class="input" name="password" type="password" required autocomplete="off" autofocus></label><button class="btn btn-primary" type="submit">فتح الملف</button><button class="btn btn-secondary" type="button" data-action="storage-close-document">العودة</button></form></div></div></section>`);
   if (item?.locked && item?.error) return dashboardShell(`<section class="storage-center storage-compose-page"><div class="card storage-document-view"><div class="empty-state"><span>${dashboardIcon("security")}</span><h2>هذا الملف محمي بكلمة مرور</h2><p>${escapeHtml(item.error)}</p><form class="grid" data-submit="storage-document-unlock" data-id="${escapeHtml(item.id)}"><label class="field"><span>كلمة مرور الملف</span><input class="input" type="password" name="password" required autocomplete="off" autofocus></label><button class="btn btn-primary" type="submit">فتح الملف</button><button class="btn btn-secondary" type="button" data-action="storage-close-document">العودة إلى المجلد</button></form></div></div></section>`);
   if (item?.error) return dashboardShell(`<section class="storage-center"><div class="empty-state"><span>${dashboardIcon("warning")}</span><h2>تعذر فتح المستند</h2><p>${escapeHtml(item.error)}</p><div class="storage-document-error-actions"><button class="btn btn-primary" data-action="storage-retry-document" data-id="${escapeHtml(item.id)}">إعادة المحاولة</button><button class="btn btn-secondary" data-action="storage-close-document">العودة إلى المجلد</button></div></div></section>`);
   const isSecret = ["account", "code"].includes(item?.type);
@@ -15609,6 +15665,7 @@ function storageCenterPage() {
   if (state.storageDocument) return storageDocumentView(data || {});
   if (state.storageComposeType) return storageDocumentComposer(data || {});
   if (payload === null) return dashboardShell(`<section class="storage-center"><div class="storage-skeleton"><i></i><i></i><i></i><i></i><b></b><b></b></div></section>`);
+  if (payload?.code === "FOLDER_LOCKED") return dashboardShell(`<section class="storage-center storage-compose-page"><div class="card storage-document-view"><div class="empty-state"><span>${dashboardIcon("security")}</span><h2>هذا الملف محمي بكلمة مرور</h2><p>${escapeHtml(payload.error || "أدخل كلمة المرور لعرض المحتويات.")}</p><form class="grid" data-submit="storage-folder-unlock" data-id="${escapeHtml(payload.folderId || state.storageCurrentFolderId)}"><label class="field"><span>كلمة مرور الملف</span><input class="input" name="password" type="password" required autocomplete="off" autofocus></label><button class="btn btn-primary" type="submit">فتح الملف</button><button class="btn btn-secondary" type="button" data-action="storage-open-folder" data-id="">العودة إلى مركز التخزين</button></form></div></div></section>`);
   if (payload?.error || !data) return dashboardShell(`<section class="storage-center">${emptyState("تعذر تحميل مركز التخزين", payload?.error || "حاول مرة أخرى.", "إعادة المحاولة", "storage-reload")}</section>`);
   const usage = data.usage || {};
   const folders = Array.isArray(data.folders) ? data.folders : [];
@@ -15621,7 +15678,7 @@ function storageCenterPage() {
   const usagePercent = Math.min(100, Math.max(0, Number(usage.percent || usage.progressPercent || 0)));
   const availableBytes = usage.isUnlimited ? null : Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0));
   const capacityWarning = usagePercent >= 95 ? `<aside class="storage-capacity-alert critical">${dashboardIcon("warning")}<div><strong>مساحتك أوشكت على الامتلاء</strong><span>تبقّى ${formatStorageBytes(availableBytes)} فقط. رقِّ الباقة لتجنب توقف الرفع.</span></div><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button></aside>` : usagePercent >= 80 ? `<aside class="storage-capacity-alert">${dashboardIcon("warning")}<div><strong>مساحتك قاربت على الامتلاء</strong><span>راجع الملفات الكبيرة أو أفرغ سلة المحذوفات.</span></div><button data-action="storage-usage-details">إدارة المساحة</button></aside>` : "";
-  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon("folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
+  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon(folder.locked ? "security" : "folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}${folder.locked ? " · محمي بكلمة مرور" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => {
     const timer = storageCountdownParts(doc.timerEndsAt, doc.timerDisplayMode);
     return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.locked ? "security" : doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}${doc.locked ? " · محمي بكلمة مرور" : ""}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;

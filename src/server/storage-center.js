@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { getTenantStorageLimitState } from "./tenant-storage.js";
+import { requireStorageFolderAccess } from "./storage-folder-locks.js";
 import {
   createPrivateDownload,
   createPrivateUpload,
@@ -214,11 +215,16 @@ export async function getStorageImageLibrary(session, input = {}) {
        UNION ALL
        SELECT folder.id FROM storage_folders folder JOIN image_folders parent ON folder.parent_id=parent.id
         WHERE folder.tenant_id=$1 AND folder.deleted_at IS NULL
+     ), locked_folders AS (
+       SELECT folder_id AS id FROM storage_folder_locks WHERE tenant_id=$1
+       UNION ALL SELECT folder.id FROM storage_folders folder JOIN locked_folders parent ON folder.parent_id=parent.id
+        WHERE folder.tenant_id=$1 AND folder.deleted_at IS NULL
      )
      SELECT asset.id,asset.folder_id AS "folderId",asset.name,asset.original_name AS "originalName",asset.mime_type AS "mimeType",
             asset.size_bytes AS "sizeBytes",asset.storage_key AS "storageKey",asset.status,asset.created_at AS "createdAt",
             (SELECT count(*)::int FROM tenant_salla_template_images reference WHERE reference.tenant_id=asset.tenant_id AND reference.storage_asset_id=asset.id) AS "usedInCount"
        FROM storage_assets asset WHERE asset.tenant_id=$1 AND asset.folder_id IN (SELECT id FROM image_folders)
+        AND asset.folder_id NOT IN (SELECT id FROM locked_folders)
         AND asset.status='ready' AND asset.mime_type LIKE 'image/%' AND asset.deleted_at IS NULL AND ($3='' OR lower(asset.name) LIKE '%'||$3||'%')
       ORDER BY asset.updated_at DESC LIMIT 200`,
     [session.tenantId, imagesFolderId, search]
@@ -232,9 +238,10 @@ export async function getStorageCenter(session, input = {}) {
   const typeFilter = ["folder", "document", "image", "file", "note", "account", "code"].includes(input.type) ? input.type : "all";
   const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(String(input.dateFrom || "")) ? input.dateFrom : null;
   if (folderId) await requireFolder(session, folderId);
+  const unlockedFolderIds = folderId ? await requireStorageFolderAccess(session, folderId, input.folderPasswords || {}) : [];
   const imagesFolderId = await ensureImagesFolder(session);
   const filesFolderId = await ensureFilesFolder(session);
-  const [folderRows, allFolderRows, documentRows, assetRows, counts, recent, usage, trail, largestItems, oldItems, unusedImages, duplicateFiles] = await Promise.all([
+  const [folderRows, allFolderRows, documentRows, assetRows, counts, recent, usage, trail, largestItems, oldItems, unusedImages, duplicateFiles, folderLocks] = await Promise.all([
     query(
       `WITH RECURSIVE folder_tree AS (
          SELECT id AS root_id,id FROM storage_folders WHERE tenant_id=$1 AND deleted_at IS NULL
@@ -359,21 +366,38 @@ export async function getStorageCenter(session, input = {}) {
         GROUP BY content_hash,size_bytes HAVING count(*)>1
         ORDER BY "reclaimableBytes" DESC LIMIT 6`,
       [session.tenantId]
-    )
+    ),
+    query("SELECT folder_id AS id FROM storage_folder_locks WHERE tenant_id=$1", [session.tenantId])
   ]);
-  const assets = await Promise.all(assetRows.rows.map((row) => signedAsset(row).catch(() => row)));
+  const foldersById = new Map(allFolderRows.rows.map((row) => [row.id, row]));
+  const lockedIds = new Set(folderLocks.rows.map((row) => row.id));
+  const unlockedIds = new Set(unlockedFolderIds);
+  const visible = (folderIdToCheck) => {
+    const visited = new Set();
+    let current = folderIdToCheck;
+    while (current && !visited.has(current)) {
+      if (lockedIds.has(current) && !unlockedIds.has(current)) return false;
+      visited.add(current);
+      current = foldersById.get(current)?.parentId;
+    }
+    return true;
+  };
+  const folders = folderRows.rows.filter((row) => visible(row.parentId)).map((row) => ({ ...row, locked: lockedIds.has(row.id) }));
+  const allFolders = allFolderRows.rows.filter((row) => visible(row.parentId)).map((row) => ({ ...row, locked: lockedIds.has(row.id) }));
+  const documents = documentRows.rows.filter((row) => visible(row.folderId));
+  const assets = await Promise.all(assetRows.rows.filter((row) => visible(row.folderId)).map((row) => signedAsset(row).catch(() => row)));
   const savedOrder = await query(
     `SELECT metadata->'keys' AS keys FROM storage_activity
       WHERE tenant_id=$1 AND action='MOVE_ITEM' AND metadata->>'operation'='reorder'
         AND metadata->>'folderId'=$2 ORDER BY created_at DESC,id DESC LIMIT 1`, [session.tenantId, folderId || ""]
   );
-  const recentlyOpened = [...documentRows.rows, ...assets]
+  const recentlyOpened = [...documents, ...assets]
     .filter((item) => item.lastOpenedAt)
     .sort((a, b) => new Date(b.lastOpenedAt) - new Date(a.lastOpenedAt)).slice(0, 6);
   return {
-    folders: folderRows.rows,
-    allFolders: allFolderRows.rows,
-    documents: documentRows.rows,
+    folders,
+    allFolders,
+    documents,
     assets,
     itemOrder: savedOrder.rows[0]?.keys || [],
     counts: counts.rows[0] || {},

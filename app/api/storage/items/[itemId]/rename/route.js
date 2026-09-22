@@ -1,6 +1,8 @@
 import { requireSession } from "../../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../../src/server/campaign-contacts.js";
 import { renameStorageItem } from "../../../../../../src/server/storage-center.js";
+import { folderPasswordsFromRequest, requireStorageItemAccess } from "../../../../../../src/server/storage-folder-locks.js";
+import { ensureStorageCenterSchema } from "../../../../../../src/server/storage-schema.js";
 
 export async function PATCH(request, { params }) {
   const auth = await requireSession(request);
@@ -9,6 +11,8 @@ export async function PATCH(request, { params }) {
   try {
     const { itemId } = await params;
     const input = await request.json();
+    await ensureStorageCenterSchema();
+    await requireStorageItemAccess(auth.session, String(input.kind || ""), itemId, folderPasswordsFromRequest(request));
     return Response.json({ ok: true, item: await renameStorageItem(auth.session, String(input.kind || ""), itemId, input.name) });
   } catch (error) {
     return Response.json({ ok: false, code: error?.code || "RENAME_ITEM_FAILED", message: error?.message || "تعذر تغيير الاسم." }, { status: Number(error?.status || 500) });

@@ -3,6 +3,7 @@ import { sameOriginRequest } from "../../../../../src/server/campaign-contacts.j
 import { deleteStorageItem, getStorageDocument, updateStorageDocument } from "../../../../../src/server/storage-center.js";
 import { requireStorageDocumentPassword } from "../../../../../src/server/storage-document-locks.js";
 import { ensureStorageCenterSchema } from "../../../../../src/server/storage-schema.js";
+import { folderPasswordsFromRequest, requireStorageFolderAccess, requireStorageItemFolderAccess } from "../../../../../src/server/storage-folder-locks.js";
 
 export async function GET(request, { params }) {
   const auth = await requireSession(request);
@@ -10,10 +11,11 @@ export async function GET(request, { params }) {
   try {
     await ensureStorageCenterSchema();
     const { documentId } = await params;
+    await requireStorageItemFolderAccess(auth.session, "document", documentId, folderPasswordsFromRequest(request));
     const locked = await requireStorageDocumentPassword(auth.session, documentId, request.headers.get("x-storage-document-password"));
     return Response.json({ ok: true, document: { ...await getStorageDocument(auth.session, documentId), locked } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    return Response.json({ ok: false, code: error?.code || "DOCUMENT_NOT_FOUND", message: error?.message || "المستند غير موجود." }, { status: Number(error?.status || 500) });
+    return Response.json({ ok: false, code: error?.code || "DOCUMENT_NOT_FOUND", folderId: error?.folderId || null, message: error?.message || "المستند غير موجود." }, { status: Number(error?.status || 500) });
   }
 }
 
@@ -24,10 +26,11 @@ export async function DELETE(request, { params }) {
   try {
     await ensureStorageCenterSchema();
     const { documentId } = await params;
+    await requireStorageItemFolderAccess(auth.session, "document", documentId, folderPasswordsFromRequest(request));
     await requireStorageDocumentPassword(auth.session, documentId, request.headers.get("x-storage-document-password"));
     return Response.json({ ok: true, item: await deleteStorageItem(auth.session, "document", documentId) });
   } catch (error) {
-    return Response.json({ ok: false, code: error?.code || "DELETE_DOCUMENT_FAILED", message: error?.message || "تعذر حذف المستند." }, { status: Number(error?.status || 500) });
+    return Response.json({ ok: false, code: error?.code || "DELETE_DOCUMENT_FAILED", folderId: error?.folderId || null, message: error?.message || "تعذر حذف المستند." }, { status: Number(error?.status || 500) });
   }
 }
 
@@ -38,9 +41,12 @@ export async function PATCH(request, { params }) {
   try {
     await ensureStorageCenterSchema();
     const { documentId } = await params;
+    await requireStorageItemFolderAccess(auth.session, "document", documentId, folderPasswordsFromRequest(request));
     await requireStorageDocumentPassword(auth.session, documentId, request.headers.get("x-storage-document-password"));
-    return Response.json({ ok: true, document: await updateStorageDocument(auth.session, documentId, await request.json()) });
+    const input = await request.json();
+    if (input.folderId) await requireStorageFolderAccess(auth.session, input.folderId, folderPasswordsFromRequest(request));
+    return Response.json({ ok: true, document: await updateStorageDocument(auth.session, documentId, input) });
   } catch (error) {
-    return Response.json({ ok: false, code: error?.code || "UPDATE_DOCUMENT_FAILED", message: error?.message || "تعذر تحديث المستند." }, { status: Number(error?.status || 500) });
+    return Response.json({ ok: false, code: error?.code || "UPDATE_DOCUMENT_FAILED", folderId: error?.folderId || null, message: error?.message || "تعذر تحديث المستند." }, { status: Number(error?.status || 500) });
   }
 }

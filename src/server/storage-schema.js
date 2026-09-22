@@ -3,7 +3,7 @@ import path from "node:path";
 import { getPool } from "./db.js";
 import { runMigrationPlan } from "../../scripts/lib/migration-runner.mjs";
 
-const STORAGE_MIGRATION_NAMES = ["0094_storage_center_insights.sql", "0095_storage_document_locks.sql"];
+const STORAGE_MIGRATION_NAMES = ["0094_storage_center_insights.sql", "0095_storage_document_locks.sql", "0096_storage_folder_locks.sql"];
 let schemaReadyPromise;
 
 async function applyStorageMigration() {
