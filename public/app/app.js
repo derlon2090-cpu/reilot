@@ -2,6 +2,7 @@ import { features, knowledgeBase } from "../data/publicData.js?v=20260811-centra
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
 import { AuthTurnstile } from "./auth-turnstile.js?v=20260921-immediate-visible";
+import { formatAITokenCount } from "./ai-token-format.js?v=20260922-exact-balance";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -15216,11 +15217,7 @@ function renderAIMessage(message) {
 }
 
 function formatAITokens(value) {
-  const number = Number(value || 0);
-  const locale = state.language === "en" ? "en-US" : "ar-SA";
-  if (number >= 1_000_000) return `${(number / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${state.language === "en" ? "M" : "مليون"}`;
-  if (number >= 1_000) return `${(number / 1_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${state.language === "en" ? "K" : "ألف"}`;
-  return number.toLocaleString(locale);
+  return formatAITokenCount(value, state.language);
 }
 
 function formatAIStorageBytes(value) {

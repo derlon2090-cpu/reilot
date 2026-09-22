@@ -36,9 +36,11 @@ function safeDocumentLineMarkup(line, firstLine = false, number = null) {
   const wrap = (tag, markup) => number === null
     ? `<${tag}>${markup}</${tag}>`
     : `<${tag} data-storage-ai-heading><span data-storage-ai-number style="color:#087267">${number}.</span><span data-storage-ai-heading-text dir="auto">${markup}</span></${tag}>`;
-  const field = text.match(/^([^:：]{1,60})([:：])\s*(.+)$/u);
-  if (field) {
-    return wrap("p", `<strong>${escapeDocumentText(`${field[1].trim()}${field[2]}`)}</strong> ${escapeDocumentText(field[3].trim())}`);
+  const field = text.match(/^([^:：]{1,80})([:：])(?:\s*(.*))?$/u);
+  const label = field?.[1]?.trim();
+  if (label && !/^(?:https?|ftp|mailto)$/iu.test(label) && !/^\d+$/u.test(label)) {
+    const value = field[3]?.trim();
+    return wrap("p", `<strong>${escapeDocumentText(`${label}${field[2]}`)}</strong>${value ? ` ${escapeDocumentText(value)}` : ""}`);
   }
   if (firstLine && text.length <= 100) return wrap("h3", escapeDocumentText(text));
   return wrap("p", escapeDocumentText(text));

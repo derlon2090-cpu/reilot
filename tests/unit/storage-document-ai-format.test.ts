@@ -59,6 +59,21 @@ describe("storage document AI formatting", () => {
     expect(result.html).toContain("FalconKey");
   });
 
+  it("bolds editable labels ending with a colon, including labels without a value", () => {
+    const html = buildSafeStorageDocumentHtml("ملاحظات\nRecovery / Additional Info:\nمفتاح الأمان: <secret>\nالعميل: أحمد");
+    expect(html).toContain("<strong>Recovery / Additional Info:</strong>");
+    expect(html).toContain("<strong>مفتاح الأمان:</strong> &lt;secret&gt;");
+    expect(html).toContain("<strong>العميل:</strong> أحمد");
+    expect(html).not.toContain("<strong>ملاحظات</strong>");
+  });
+
+  it("does not mistake URL schemes or times for important labels", () => {
+    const html = buildSafeStorageDocumentHtml("روابط\nhttps://example.com\n12:30\nرابط: https://example.com");
+    expect(html).not.toContain("<strong>https:</strong>");
+    expect(html).not.toContain("<strong>12:</strong>");
+    expect(html).toContain("<strong>رابط:</strong> https://example.com");
+  });
+
   it("rejects inferred splits and accepts only explicit blank-line boundaries", () => {
     const twoAccounts = `${content}\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: SecondSecret`;
     expect(() => validateAIStorageDocumentResult({ sections: [{ start: 1, end: 7 }] }, twoAccounts))
