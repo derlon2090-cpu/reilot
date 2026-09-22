@@ -71,7 +71,8 @@ export async function getWhatsappBillingUsage(tenantId) {
 export async function getBillingOverview(tenantId) {
   const [current, plans, storage, usage, whatsapp, invoices, commerceConnections] = await Promise.all([
     query(
-      `SELECT ps.status, ps.billing_cycle AS "billingCycle",
+      `SELECT CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
+                     THEN 'expired' ELSE ps.status END AS status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
               ps.current_period_end AS "currentPeriodEnd",
               ps.trial_started_at AS "trialStartedAt", ps.trial_ends_at AS "trialEndsAt",
@@ -108,7 +109,8 @@ export async function getBillingOverview(tenantId) {
   let currentPlan = current.rows[0] || null;
   if (!currentPlan && usage?.platformSubscriptionId) {
     const created = await query(
-      `SELECT ps.status, ps.billing_cycle AS "billingCycle",
+      `SELECT CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
+                     THEN 'expired' ELSE ps.status END AS status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
               ps.current_period_end AS "currentPeriodEnd",
               ps.trial_started_at AS "trialStartedAt", ps.trial_ends_at AS "trialEndsAt",

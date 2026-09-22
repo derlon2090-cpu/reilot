@@ -2,10 +2,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auditMock, clientQueryMock, transactionMock } = vi.hoisted(() => ({
+const { auditMock, clientQueryMock, transactionMock, aiSummaryMock } = vi.hoisted(() => ({
   auditMock: vi.fn(),
   clientQueryMock: vi.fn(),
-  transactionMock: vi.fn()
+  transactionMock: vi.fn(),
+  aiSummaryMock: vi.fn()
 }));
 
 vi.mock("../../src/server/admin-auth.js", () => ({
@@ -17,6 +18,7 @@ vi.mock("../../src/server/admin-auth.js", () => ({
 }));
 
 vi.mock("../../src/server/db.js", () => ({ transaction: transactionMock }));
+vi.mock("../../src/server/ai/entitlements.js", () => ({ getAIEntitlementSummary: aiSummaryMock }));
 vi.mock("../../src/server/security.js", () => ({ safeErrorMessage: (error: Error) => error.message }));
 
 import { POST } from "../../app/api/admin/tenants/[tenantId]/actions/route.js";
@@ -42,6 +44,7 @@ describe("admin customer actions", () => {
     clientQueryMock.mockReset();
     transactionMock.mockReset();
     transactionMock.mockImplementation(async (callback) => callback({ query: clientQueryMock }));
+    aiSummaryMock.mockReset().mockResolvedValue({ planSlug: "business", entitlementState: "active" });
   });
 
   it("adds genuine wallet credit and records the administrative transaction", async () => {
@@ -68,7 +71,7 @@ describe("admin customer actions", () => {
     clientQueryMock.mockImplementation(async (sql) => {
       const statement = String(sql);
       if (statement.includes("FROM tenants")) return { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] };
-      if (statement.includes("FROM platform_plans")) return { rows: [{ id: planId, name: "الاحترافية", slug: "pro" }] };
+      if (statement.includes("FROM platform_plans")) return { rows: [{ id: planId, name: "Business", slug: "business" }] };
       if (statement.includes("FROM platform_subscriptions") && statement.includes("FOR UPDATE")) return { rows: [{ id: "subscription-1", planId: "old-plan" }] };
       return { rows: [], rowCount: 1 };
     });
@@ -78,9 +81,12 @@ describe("admin customer actions", () => {
 
     expect(response.status, JSON.stringify(payload)).toBe(200);
     expect(payload.result.plan.id).toBe(planId);
-    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("status='trial' OR current_period_end<=now()"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("current_period_start=now()"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("current_period_end=GREATEST"))).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE platform_subscriptions") && params.includes(planId))).toBe(true);
-    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("$3 <> 'trial'"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("id<>$2 AND status IN ('active','trial','past_due')"))).toBe(true);
+    expect(aiSummaryMock).toHaveBeenCalledWith({ tenantId });
+    expect(payload.aiProvisioned).toBe(true);
   });
 
   it("uses safe quota defaults when an active plan has null channel limits", async () => {

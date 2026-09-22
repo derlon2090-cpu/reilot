@@ -42,7 +42,8 @@ describe("AI token entitlement database and service contract", () => {
   });
 
   it("does not reuse an AI balance from a previous plan after an admin upgrade", () => {
-    expect(service).toContain("p.plan_slug=pp.slug AND p.period_start=ps.current_period_start");
+    expect(service).toContain("p.plan_slug=pp.slug");
+    expect(service).toContain("date_trunc('milliseconds',p.period_start)=date_trunc('milliseconds',ps.current_period_start)");
     expect(service).toContain("p.weekly_token_limit=pp.ai_weekly_token_limit");
     expect(service).toContain("p.period_token_cap=pp.ai_period_token_cap AND p.max_cycles=pp.ai_max_cycles");
     expect(usage).toContain("return snapshot || getAIEntitlementSummary(session)");

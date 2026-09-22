@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="modulepreload" href="/app/app.js?v=20260921-turnstile-visible" crossOrigin="anonymous" />
+        <link rel="modulepreload" href="/app/app.js?v=20260922-plan-entitlements" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
         <link rel="stylesheet" href="/app/styles/globals.css?v=20260921-turnstile-visible" />
@@ -62,7 +62,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260921-turnstile-visible" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260922-plan-entitlements" strategy="afterInteractive" />
       </body>
     </html>
   );

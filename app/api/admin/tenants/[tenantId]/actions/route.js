@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auditAdmin, requireAdminPermission } from "../../../../../../src/server/admin-auth.js";
 import { transaction } from "../../../../../../src/server/db.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
+import { getAIEntitlementSummary } from "../../../../../../src/server/ai/entitlements.js";
 
 const inputSchema = z.discriminatedUnion("action", [
   z.object({
@@ -91,11 +92,10 @@ async function changePlan(client, tenant, input) {
   const updated = await client.query(
     `UPDATE platform_subscriptions
         SET plan_id=$2,
-            status=CASE WHEN $3 <> 'trial' OR status IN ('cancelled','canceled','expired','paused','past_due') THEN 'active' ELSE status END,
-            current_period_start=CASE WHEN status='trial' OR current_period_end<=now() THEN now() ELSE LEAST(current_period_start,now()) END,
-            current_period_end=CASE WHEN status='trial' OR current_period_end<=now()
-              THEN now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END
-              ELSE current_period_end END,
+            status=CASE WHEN $3='trial' THEN 'trial' ELSE 'active' END,
+            current_period_start=now(),
+            current_period_end=GREATEST(current_period_end,
+              now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END),
             trial_started_at=CASE WHEN $3='trial' THEN trial_started_at ELSE NULL END,
             trial_ends_at=CASE WHEN $3='trial' THEN trial_ends_at ELSE NULL END,
             updated_at=now()
@@ -105,6 +105,11 @@ async function changePlan(client, tenant, input) {
   );
   const periodStart = updated.rows[0]?.periodStart || subscription.periodStart;
   const periodEnd = updated.rows[0]?.periodEnd || subscription.periodEnd;
+  await client.query(
+    `UPDATE platform_subscriptions SET status='cancelled',updated_at=now()
+      WHERE tenant_id=$1 AND id<>$2 AND status IN ('active','trial','past_due')`,
+    [tenant.id, subscription.id]
+  );
   await client.query(
     `INSERT INTO message_usage_periods
        (tenant_id,platform_subscription_id,plan_id,period_start,period_end,message_limit,
@@ -119,7 +124,7 @@ async function changePlan(client, tenant, input) {
       plan.email_message_limit ?? plan.monthly_message_limit,
       plan.sms_message_limit ?? 0]
   );
-  return { plan, previousPlanId: subscription.planId, subscriptionId: subscription.id };
+  return { plan, previousPlanId: subscription.planId, subscriptionId: subscription.id, periodStart, periodEnd };
 }
 
 async function setCustomerSuspension(client, tenant, suspended) {
@@ -194,6 +199,17 @@ export async function POST(request, { params }) {
       return { tenant, action: parsed.data.action, ...(await removeCustomer(client, tenant, parsed.data)) };
     });
 
+    let aiProvisioned = null;
+    if (result.action === "change_plan") {
+      try {
+        const usage = await getAIEntitlementSummary({ tenantId });
+        aiProvisioned = usage.planSlug === result.plan.slug && usage.entitlementState === "active";
+      } catch (error) {
+        aiProvisioned = false;
+        console.error("admin plan AI provisioning failed", safeErrorMessage(error));
+      }
+    }
+
     await auditAdmin(request, {
       admin: auth.admin,
       action: `admin.customer.${result.action}`,
@@ -201,20 +217,21 @@ export async function POST(request, { params }) {
       metadata: result.action === "add_credit"
         ? { amount: parsed.data.amount, balance: result.balance, transactionId: result.transactionId }
         : result.action === "change_plan"
-          ? { previousPlanId: result.previousPlanId, planId: result.plan.id, subscriptionId: result.subscriptionId }
+          ? { previousPlanId: result.previousPlanId, planId: result.plan.id, subscriptionId: result.subscriptionId,
+              periodEnd: result.periodEnd, aiProvisioned }
           : { disabledSessions: result.disabledSessions }
     });
 
     const message = result.action === "add_credit"
       ? `تمت إضافة ${Number(parsed.data.amount).toLocaleString("en-US")} ر.س إلى رصيد العميل.`
       : result.action === "change_plan"
-        ? `تم تغيير باقة العميل إلى ${result.plan?.name || "الباقة المحددة"}.`
+        ? `تم تفعيل باقة ${result.plan?.name || "الباقة المحددة"} ودورتها الجديدة للعميل.${aiProvisioned === false ? " تعذر تجهيز رصيد الذكاء فورًا؛ راجع سجل الخادم." : ""}`
         : result.action === "suspend_customer"
           ? "تم حظر العميل وإنهاء جميع جلساته فورًا."
           : result.action === "restore_customer"
             ? "تم إلغاء حظر العميل ويمكنه تسجيل الدخول مجددًا."
             : "تمت إزالة العميل من القوائم النشطة وتعطيل جلساته دون حذف سجلاته.";
-    return Response.json({ ok: true, action: result.action, result, message }, {
+    return Response.json({ ok: true, action: result.action, result, ...(aiProvisioned === null ? {} : { aiProvisioned }), message }, {
       headers: { "Cache-Control": "private, no-store, max-age=0" }
     });
   } catch (error) {

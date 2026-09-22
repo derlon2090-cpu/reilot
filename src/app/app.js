@@ -8157,8 +8157,10 @@ function billingWorkspacePage() {
   const trialEnd = current.trialEndsAt || (statusKey === "trial" ? current.currentPeriodEnd : null);
   const periodEnd = trialEnd || current.currentPeriodEnd || null;
   const days = periodEnd && Number.isFinite(new Date(periodEnd).getTime()) ? Math.max(0, Math.ceil((new Date(periodEnd).getTime() - Date.now()) / 86400000)) : null;
-  const trialActive = statusKey === "trial" && days !== null && days > 0;
-  const trialExpired = statusKey === "expired" || (statusKey === "trial" && days === 0);
+  const trialPlan = ["trial", "retired_free"].includes(String(current.planSlug || "").toLowerCase());
+  const trialActive = trialPlan && statusKey === "trial" && days !== null && days > 0;
+  const trialExpired = trialPlan && (statusKey === "expired" || (statusKey === "trial" && days === 0));
+  const paidExpired = !trialPlan && statusKey === "expired";
   const invoices = data.invoices || [];
   const tab = ["overview", "plans", "whatsapp", "email", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
   const numberOrNull = (value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
@@ -8191,7 +8193,9 @@ function billingWorkspacePage() {
     ? `<section class="billing-trial-notice"><div><strong>التجربة المجانية</strong><span>متبقي ${valueText(days)} ${days === 1 ? "يوم" : "أيام"}. جرّب Renvix قبل اختيار باقتك؛ لا توجد باقة مجانية دائمة.</span></div><button class="btn btn-primary" data-action="billing-tab" data-tab="plans">اختيار الباقة</button></section>`
     : trialExpired
       ? `<section class="billing-trial-notice expired"><div><strong>انتهت تجربتك المجانية</strong><span>اختر الباقة المناسبة لاستكمال استخدام Renvix. بياناتك محفوظة ولن تُحذف.</span></div><button class="btn btn-primary" data-action="billing-tab" data-tab="plans">عرض الباقات</button></section>`
-      : "";
+      : paidExpired
+        ? `<section class="billing-trial-notice expired"><div><strong>انتهى اشتراك ${escapeHtml(current.planName || "الباقة")}</strong><span>توقفت مزايا الباقة حتى تجديد الاشتراك أو إعادة تفعيله من الإدارة.</span></div><button class="btn btn-primary" data-link="/support">تواصل مع الدعم</button></section>`
+        : "";
   const plansPanel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>مزايا وحدود كل باقة مستخرجة مباشرة من تعريفها الفعلي في النظام.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
   let panel = "";
   if (tab === "overview") panel = `${overview}${trialNotice}${plansPanel}<section class="section">${billingInvoices(invoices)}</section>`;
@@ -15082,6 +15086,7 @@ function aiUsageCard() {
     if (state.aiOverview?.code === "AI_ENTITLEMENT_INACTIVE") {
       const entitlement = state.aiOverview.entitlement || {};
       const trialExpired = entitlement.reason === "trial_expired";
+      const paidExpired = entitlement.reason === "subscription_expired" && !trialExpired;
       const endedAt = entitlement.endsAt ? new Date(entitlement.endsAt) : null;
       const validEndDate = endedAt && Number.isFinite(endedAt.getTime());
       const endDateText = validEndDate
@@ -15090,11 +15095,17 @@ function aiUsageCard() {
       const signature = `inactive:${entitlement.reason || "subscription_inactive"}:${entitlement.endsAt || ""}`;
       const title = trialExpired
         ? (english ? "Free trial ended" : "انتهت التجربة المجانية")
+        : paidExpired
+          ? (english ? `${entitlement.planName || "Plan"} subscription expired` : `انتهى اشتراك ${entitlement.planName || "الباقة"}`)
         : (english ? "AI access is inactive" : "اشتراك الذكاء غير نشط");
       const description = trialExpired
         ? (english
           ? `Your free trial${endDateText ? ` ended on ${endDateText}` : " has ended"}. Choose a plan to reactivate the AI balance.`
           : `انتهت تجربتك المجانية${endDateText ? ` بتاريخ ${endDateText}` : ""}. اختر باقة لإعادة تفعيل رصيد الذكاء.`)
+        : paidExpired
+          ? (english
+            ? `Your ${entitlement.planName || "plan"} subscription${endDateText ? ` ended on ${endDateText}` : " has ended"}. Renew it to restore the AI balance.`
+            : `انتهى اشتراك ${entitlement.planName || "الباقة"}${endDateText ? ` بتاريخ ${endDateText}` : ""}. جدّده لاستعادة رصيد الذكاء.`)
         : (english
           ? "Choose or renew a plan to reactivate the AI balance."
           : "اختر باقة أو جدّد اشتراكك لإعادة تفعيل رصيد الذكاء.");
