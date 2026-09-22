@@ -9693,7 +9693,9 @@ async function handleAction(target) {
       syncAIQuota(payload);
       const charged = Number(payload?.quota?.charged || 0);
       const chargeText = charged > 0 ? ` وتم خصم ${formatAITokens(charged)} توكن من رصيد الشات` : "";
-      toast(`${payload.fallback ? "تم ترتيب النص بنمط ذكي وآمن" : "تم ترتيب النص وفصل البيانات باحترافية"}${chargeText}.`);
+      toast(payload.fallback
+        ? "تم ترتيب النص محليًا دون خصم من رصيد الذكاء."
+        : `تم ترتيب النص وفصل البيانات باحترافية${chargeText}.`);
     } catch (error) {
       toast(error.message || "تعذر ترتيب النص حاليًا.", "danger");
     } finally {
