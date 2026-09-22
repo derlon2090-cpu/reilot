@@ -11,11 +11,12 @@ function parseDate(value) {
   return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : date;
 }
 
-export function defaultAdminPlanPeriod(now = new Date()) {
+export function defaultAdminPlanPeriod(now = new Date(), billingCycle = "monthly") {
   const startDate = riyadhToday(now);
   const start = parseDate(startDate);
-  const nextMonthLastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 2, 0)).getUTCDate();
-  const nextAnniversary = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1,
+  const months = billingCycle === "yearly" ? 12 : 1;
+  const nextMonthLastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + months + 1, 0)).getUTCDate();
+  const nextAnniversary = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + months,
     Math.min(start.getUTCDate(), nextMonthLastDay)));
   return { startDate, endDate: new Date(nextAnniversary.getTime() - DAY_MS).toISOString().slice(0, 10) };
 }

@@ -145,7 +145,7 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
     setNote("");
     setConfirmation("");
     setPlanId(plans.find((plan) => plan.name === row.planName)?.id || plans[0]?.id || "");
-    const defaultPeriod = defaultAdminPlanPeriod();
+    const defaultPeriod = defaultAdminPlanPeriod(new Date(), row.billingCycle);
     setStartDate(defaultPeriod.startDate);
     setEndDate(defaultPeriod.endDate);
     setError("");
