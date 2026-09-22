@@ -7037,8 +7037,13 @@ function emailAIEditorContext(form, card) {
 }
 
 function syncAIQuota(payload) {
-  if (!payload?.quota || !state.aiUsage || payload.quota.remaining === null) return;
-  state.aiUsage = { ...state.aiUsage, remainingTokens: payload.quota.remaining, nextRefillAt: payload.quota.nextRefillAt || state.aiUsage.nextRefillAt };
+  if (!payload?.quota || payload.quota.remaining === null || payload.quota.remaining === undefined) return;
+  state.aiUsage = {
+    ...(state.aiUsage || {}),
+    ...(payload.quota.usage || {}),
+    remainingTokens: Number(payload.quota.remaining),
+    nextRefillAt: payload.quota.nextRefillAt || state.aiUsage?.nextRefillAt || null
+  };
   cacheAIViewState({ usage: state.aiUsage });
   refreshAIUsageCards();
 }
@@ -9231,6 +9236,36 @@ function restoreStorageDocumentDraft() {
 
 let storageEditorSelectionRange = null;
 
+function storageEditorTextForFormatting(editor) {
+  const numbers = [...editor.querySelectorAll("[data-storage-ai-number]")];
+  const display = numbers.map((number) => number.style.display);
+  numbers.forEach((number) => { number.style.display = "none"; });
+  try { return String(editor.innerText || "").trim(); }
+  finally { numbers.forEach((number, index) => { number.style.display = display[index]; }); }
+}
+
+function removeStorageEditorDecoration(kind) {
+  const editor = document.querySelector("[data-storage-editor]");
+  if (!editor || !restoreStorageEditorSelection(editor)) return false;
+  const selection = window.getSelection();
+  const anchor = selection?.anchorNode?.nodeType === Node.TEXT_NODE
+    ? selection.anchorNode.parentElement : selection?.anchorNode;
+  const block = anchor?.closest?.("h2,h3,p,li,hr");
+  const decoration = kind === "number"
+    ? anchor?.closest?.("[data-storage-ai-number]") || block?.querySelector?.("[data-storage-ai-number]")
+    : (block?.matches?.("hr[data-storage-ai-separator]") ? block : null)
+      || (block?.previousElementSibling?.matches?.("hr[data-storage-ai-separator]") ? block.previousElementSibling : null)
+      || (block?.nextElementSibling?.matches?.("hr[data-storage-ai-separator]") ? block.nextElementSibling : null);
+  if (!decoration || !editor.contains(decoration)) return false;
+  if (kind === "number" && decoration.nextSibling?.nodeType === Node.TEXT_NODE) {
+    decoration.nextSibling.textContent = decoration.nextSibling.textContent.replace(/^\s+/u, "");
+  }
+  decoration.remove();
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContent" }));
+  editor.focus({ preventScroll: true });
+  return true;
+}
+
 function captureStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
   const selection = window.getSelection?.();
   if (!editor || !selection?.rangeCount) return false;
@@ -9670,9 +9705,14 @@ async function handleAction(target) {
     applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor");
     return;
   }
+  if (storageAction === "storage-editor-remove-number" || storageAction === "storage-editor-remove-separator") {
+    const kind = storageAction.endsWith("number") ? "number" : "separator";
+    if (!removeStorageEditorDecoration(kind)) toast("ضع المؤشر على الرقم أو بجانب الخط الذي تريد حذفه.", "warning");
+    return;
+  }
   if (storageAction === "storage-editor-ai-format") {
     const editor = document.querySelector("[data-storage-editor]");
-    const content = String(editor?.innerText || "").trim();
+    const content = editor ? storageEditorTextForFormatting(editor) : "";
     if (!editor || content.length < 3) return toast("اكتب محتوى المستند أولًا ثم اطلب ترتيبه.", "warning");
     const originalMarkup = target.innerHTML;
     target.disabled = true;
@@ -9692,9 +9732,9 @@ async function handleAction(target) {
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
       syncAIQuota(payload);
       const charged = Number(payload?.quota?.charged || 0);
-      const chargeText = charged > 0 ? ` وتم خصم ${formatAITokens(charged)} توكن من رصيد الشات` : "";
+      const chargeText = charged > 0 ? ` وخصم ${formatAITokens(charged)} توكن فورًا من رصيد الذكاء` : " دون خصم مكرر";
       toast(payload.fallback
-        ? "تم ترتيب النص محليًا دون خصم من رصيد الذكاء."
+        ? `تم ترتيب النص محليًا${chargeText}.`
         : `تم ترتيب النص وفصل البيانات باحترافية${chargeText}.`);
     } catch (error) {
       toast(error.message || "تعذر ترتيب النص حاليًا.", "danger");
@@ -15557,6 +15597,10 @@ function disposeStorageRoute() {
 function bindStorageDocumentCountdowns() {
   stopStorageDocumentCountdowns();
   const editorForm = document.querySelector('form[data-submit="storage-document"]');
+  const formatButton = editorForm?.querySelector('[data-action="storage-editor-ai-format"]');
+  if (formatButton && !editorForm.querySelector('[data-action="storage-editor-remove-number"]')) {
+    formatButton.insertAdjacentHTML("beforebegin", '<button type="button" class="storage-editor-decoration-tool" data-action="storage-editor-remove-number" title="ضع المؤشر عند الرقم ثم احذفه" aria-label="حذف رقم القسم">حذف رقم</button><button type="button" class="storage-editor-decoration-tool" data-action="storage-editor-remove-separator" title="ضع المؤشر بجانب الخط ثم احذفه" aria-label="حذف خط الفصل">حذف خط</button>');
+  }
   const colorTools = editorForm?.querySelector(".storage-editor-colors");
   if (colorTools && !editorForm.querySelector('[data-action="storage-editor-timer"]')) {
     colorTools.insertAdjacentHTML("afterend", storageEditorTimerButtonMarkup(editorForm.dataset.timerEndsAt || "", editorForm.dataset.timerDisplayMode));
@@ -16107,14 +16151,14 @@ function bindQrImageState() {
 }
 
 document.addEventListener("mousedown", (event) => {
-  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"]');
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar .storage-editor-decoration-tool');
   if (!control) return;
   captureStorageEditorSelection();
   event.preventDefault();
 });
 
 document.addEventListener("pointerdown", (event) => {
-  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"]');
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar .storage-editor-decoration-tool');
   if (control) captureStorageEditorSelection();
 });
 

@@ -147,6 +147,29 @@ describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
     expect(entry.rows[0]).toMatchObject({ count: 1, actual: "4300" });
   });
 
+  it("deducts each local operation immediately without attributing it to DeepSeek", async () => {
+    const before = await getAIEntitlementSummary(session);
+    for (const index of [1, 2]) {
+      const reservation = await reserveAITokens(session, { requestedTokens: 200, minimumTokens: 200 });
+      const result = await settleAITokenReservation(session, reservation.id, {
+        provider: "renvix",
+        providerRequestId: `local-format-operation-${index}`,
+        model: "renvix-local-formatter",
+        taskType: "storage_document_format",
+        usage: { prompt_tokens: 45, completion_tokens: 55 }
+      });
+      expect(result).toMatchObject({ actualTokens: 100, costMicros: 0 });
+      const current = await getAIEntitlementSummary(session);
+      expect(current.usedTokens - before.usedTokens).toBe(index * 100);
+      expect(current.remainingTokens).toBe(before.remainingTokens - index * 100);
+    }
+    const providerRows = await query(
+      "SELECT count(*)::int AS count FROM ai_provider_usage_ledger WHERE tenant_id=$1 AND provider_request_id LIKE 'local-format-operation-%'",
+      [tenantId]
+    );
+    expect(providerRows.rows[0].count).toBe(0);
+  });
+
   it("serializes five concurrent requests so reservations cannot exceed the final 10K", async () => {
     const cycle = await query("SELECT id,allowance_tokens FROM ai_entitlement_cycles WHERE tenant_id=$1 AND status='active' LIMIT 1", [tenantId]);
     await query(
