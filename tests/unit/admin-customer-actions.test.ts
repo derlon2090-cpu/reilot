@@ -81,8 +81,8 @@ describe("admin customer actions", () => {
 
     expect(response.status, JSON.stringify(payload)).toBe(200);
     expect(payload.result.plan.id).toBe(planId);
-    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("current_period_start=now()"))).toBe(true);
-    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("current_period_end=GREATEST"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("current_period_start=COALESCE"))).toBe(true);
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("current_period_end=CASE"))).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql, params]) => String(sql).includes("UPDATE platform_subscriptions") && params.includes(planId))).toBe(true);
     expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("id<>$2 AND status IN ('active','trial','past_due')"))).toBe(true);
     expect(aiSummaryMock).toHaveBeenCalledWith({ tenantId });
@@ -107,6 +107,35 @@ describe("admin customer actions", () => {
     expect(response.status).toBe(200);
     const usageInsert = clientQueryMock.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO message_usage_periods"));
     expect(usageInsert?.[1].slice(5)).toEqual([2500, -1, 2500, 0]);
+  });
+
+  it("stores the selected Riyadh dates and includes them in the audit record", async () => {
+    clientQueryMock.mockImplementation(async (sql) => {
+      const statement = String(sql);
+      if (statement.includes("FROM tenants")) return { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] };
+      if (statement.includes("FROM platform_plans")) return { rows: [{ id: planId, name: "Business", slug: "business" }] };
+      if (statement.includes("FROM platform_subscriptions") && statement.includes("FOR UPDATE")) return { rows: [{ id: "subscription-1", planId: "old-plan" }] };
+      if (statement.includes("UPDATE platform_subscriptions") && statement.includes("RETURNING current_period_start")) {
+        return { rows: [{ periodStart: new Date("2026-09-21T21:00:00Z"), periodEnd: new Date("2026-10-22T21:00:00Z") }] };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+    const response = await call({ action: "change_plan", planId, startDate: "2026-09-22", endDate: "2026-10-22" });
+    expect(response.status).toBe(200);
+    const update = clientQueryMock.mock.calls.find(([sql]) => String(sql).includes("RETURNING current_period_start"));
+    expect(update?.[1][3].toISOString()).toBe("2026-09-21T21:00:00.000Z");
+    expect(update?.[1][4].toISOString()).toBe("2026-10-22T21:00:00.000Z");
+    expect(auditMock.mock.calls.at(-1)?.[1]?.metadata).toMatchObject({ selectedStartDate: "2026-09-22", selectedEndDate: "2026-10-22" });
+  });
+
+  it("rejects a future starting date without changing a subscription", async () => {
+    clientQueryMock.mockImplementation(async (sql) => String(sql).includes("FROM tenants")
+      ? { rows: [{ id: tenantId, name: "متجر الندى", status: "active" }] }
+      : { rows: [], rowCount: 0 });
+    const response = await call({ action: "change_plan", planId, startDate: "2099-01-01", endDate: "2099-02-01" });
+    expect(response.status).toBe(400);
+    expect((await response.json()).reason).toBe("plan_period_start_future");
+    expect(clientQueryMock.mock.calls.some(([sql]) => String(sql).includes("UPDATE platform_subscriptions"))).toBe(false);
   });
 
   it("does not expose database SQLSTATE codes as customer action reasons", async () => {

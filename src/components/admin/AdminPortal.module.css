@@ -1351,6 +1351,11 @@
 .adminPlanChangeSummary span { color: #0B3F3B; font-size: 10px; }
 .adminPlanChangeSummary strong { color: #062B28; font-size: 12px; }
 .adminPlanChangeSummary > svg { width: 19px; color: #0B3F3B; }
+.adminPlanPeriodGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.adminPlanPeriodGrid label { display: grid; gap: 7px; color: #062B28; font-size: 11px; font-weight: 800; }
+.adminPlanPeriodGrid label small { color: #0B3F3B; font-weight: 600; }
+.adminPlanPeriodGrid input { text-align: center; font-size: 13px; }
+.adminPlanPeriodNote { margin: -2px 0 0; color: #315f5b; font-size: 11px; line-height: 1.7; }
 .adminCustomerActionHint { margin: 0; padding: 9px 11px; border-radius: 9px; color: #0B3F3B; background: #F3F8F7; font-size: 10px; line-height: 1.7; }
 .adminCustomerDangerNote { align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid #f2c8c8; border-radius: 10px; color: #8f2929; background: #fff7f7; }
 .adminCustomerDangerNote > svg { width: 20px; flex: 0 0 20px; }
@@ -2700,6 +2705,7 @@
   .adminPlanChangeSummary { align-items: stretch; flex-direction: column; }
   .adminPlanChangeSummary > svg { align-self: center; transform: rotate(90deg); }
   .adminPlanChangeSummary > div:last-child { text-align: right; }
+  .adminPlanPeriodGrid { grid-template-columns: 1fr; }
 }
 .adminSupportError {
   margin: 0 0 12px;
