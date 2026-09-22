@@ -151,6 +151,7 @@ export async function GET(request) {
               COALESCE(owner.email,NULLIF(s.support_email,'')) AS "contactEmail",
               CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
                    THEN 'expired' ELSE ps.status END AS "subscriptionStatus",pp.name AS "planName",
+              ps.billing_cycle AS "billingCycle",
               ac.status AS "sallaStatus",wc.status AS "metaStatus",
               COALESCE(usage.used_messages,0)::int AS "messageVolume",
               COALESCE(ww.available_balance,0)::numeric AS "walletBalance"

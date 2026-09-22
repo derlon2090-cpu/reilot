@@ -6,6 +6,7 @@ describe("admin plan dates in Riyadh", () => {
     const now = new Date("2026-09-21T22:30:00.000Z");
     expect(riyadhToday(now)).toBe("2026-09-22");
     expect(defaultAdminPlanPeriod(now)).toEqual({ startDate: "2026-09-22", endDate: "2026-10-21" });
+    expect(defaultAdminPlanPeriod(now, "yearly")).toEqual({ startDate: "2026-09-22", endDate: "2027-09-21" });
   });
 
   it("keeps the selected ending day active until the next Riyadh midnight", () => {
