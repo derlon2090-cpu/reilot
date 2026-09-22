@@ -4,6 +4,7 @@ import { auditAdmin, requireAdminPermission } from "../../../../../../src/server
 import { transaction } from "../../../../../../src/server/db.js";
 import { safeErrorMessage } from "../../../../../../src/server/security.js";
 import { getAIEntitlementSummary } from "../../../../../../src/server/ai/entitlements.js";
+import { parseAdminPlanPeriod } from "../../../../../../src/shared/admin-plan-period.js";
 
 const inputSchema = z.discriminatedUnion("action", [
   z.object({
@@ -13,7 +14,9 @@ const inputSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("change_plan"),
-    planId: z.string().uuid()
+    planId: z.string().uuid(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional()
   }),
   z.object({
     action: z.literal("suspend_customer"),
@@ -71,6 +74,10 @@ async function addCredit(client, tenant, input, admin) {
 }
 
 async function changePlan(client, tenant, input) {
+  const hasSelectedPeriod = input.startDate !== undefined || input.endDate !== undefined;
+  if (hasSelectedPeriod && (!input.startDate || !input.endDate)) throw actionError("invalid_plan_period", 400);
+  const period = hasSelectedPeriod ? parseAdminPlanPeriod(input.startDate, input.endDate) : null;
+  if (period && !period.ok) throw actionError(period.reason, 400);
   const planResult = await client.query(
     `SELECT id,name,slug,monthly_message_limit,whatsapp_message_limit,email_message_limit,sms_message_limit
        FROM platform_plans WHERE id=$1 AND is_active=true LIMIT 1`,
@@ -93,15 +100,16 @@ async function changePlan(client, tenant, input) {
     `UPDATE platform_subscriptions
         SET plan_id=$2,
             status=CASE WHEN $3='trial' THEN 'trial' ELSE 'active' END,
-            current_period_start=now(),
-            current_period_end=GREATEST(current_period_end,
-              now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END),
-            trial_started_at=CASE WHEN $3='trial' THEN trial_started_at ELSE NULL END,
-            trial_ends_at=CASE WHEN $3='trial' THEN trial_ends_at ELSE NULL END,
+            current_period_start=COALESCE($4::timestamptz,now()),
+            current_period_end=CASE WHEN $5::timestamptz IS NOT NULL THEN $5::timestamptz
+              ELSE GREATEST(current_period_end,
+                now() + CASE WHEN billing_cycle='yearly' THEN interval '1 year' ELSE interval '1 month' END) END,
+            trial_started_at=CASE WHEN $3='trial' THEN COALESCE($4::timestamptz,now()) ELSE NULL END,
+            trial_ends_at=CASE WHEN $3='trial' THEN COALESCE($5::timestamptz,trial_ends_at) ELSE NULL END,
             updated_at=now()
       WHERE id=$1
       RETURNING current_period_start AS "periodStart",current_period_end AS "periodEnd"`,
-    [subscription.id, plan.id, plan.slug]
+    [subscription.id, plan.id, plan.slug, period?.periodStart || null, period?.periodEnd || null]
   );
   const periodStart = updated.rows[0]?.periodStart || subscription.periodStart;
   const periodEnd = updated.rows[0]?.periodEnd || subscription.periodEnd;
@@ -218,14 +226,15 @@ export async function POST(request, { params }) {
         ? { amount: parsed.data.amount, balance: result.balance, transactionId: result.transactionId }
         : result.action === "change_plan"
           ? { previousPlanId: result.previousPlanId, planId: result.plan.id, subscriptionId: result.subscriptionId,
-              periodEnd: result.periodEnd, aiProvisioned }
+              periodStart: result.periodStart, periodEnd: result.periodEnd,
+              selectedStartDate: parsed.data.startDate || null, selectedEndDate: parsed.data.endDate || null, aiProvisioned }
           : { disabledSessions: result.disabledSessions }
     });
 
     const message = result.action === "add_credit"
       ? `تمت إضافة ${Number(parsed.data.amount).toLocaleString("en-US")} ر.س إلى رصيد العميل.`
       : result.action === "change_plan"
-        ? `تم تفعيل باقة ${result.plan?.name || "الباقة المحددة"} ودورتها الجديدة للعميل.${aiProvisioned === false ? " تعذر تجهيز رصيد الذكاء فورًا؛ راجع سجل الخادم." : ""}`
+        ? `تم تفعيل باقة ${result.plan?.name || "الباقة المحددة"} للعميل${parsed.data.startDate ? ` من ${parsed.data.startDate} حتى نهاية ${parsed.data.endDate}` : " بدورة جديدة"}.${aiProvisioned === false ? " تعذر تجهيز رصيد الذكاء فورًا؛ راجع سجل الخادم." : ""}`
         : result.action === "suspend_customer"
           ? "تم حظر العميل وإنهاء جميع جلساته فورًا."
           : result.action === "restore_customer"
@@ -253,6 +262,9 @@ export async function POST(request, { params }) {
       confirmation_mismatch: "اسم مساحة العمل غير مطابق.",
       admin_tenant_cannot_be_removed: "لا يمكن إزالة مساحة عمل مرتبطة بحساب أدمن نشط.",
       plan_not_found: "الباقة المحددة غير متاحة.",
+      invalid_plan_period: "اختر تاريخ بداية ونهاية صحيحين، على أن يكون تاريخ النهاية بعد البداية.",
+      plan_period_start_future: "تاريخ البداية يجب أن يكون اليوم أو قبله لأن تغيير الباقة يُفعّل فورًا.",
+      plan_period_not_active: "تاريخ النهاية يجب أن يكون اليوم أو بعده.",
       subscription_not_found: "لا يوجد اشتراك منصة لهذا العميل.",
       wallet_unavailable: "تعذر الوصول إلى محفظة العميل."
     };

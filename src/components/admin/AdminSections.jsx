@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./AdminPortal.module.css";
 import SecurityCenter from "./SecurityCenter.jsx";
+import { defaultAdminPlanPeriod, parseAdminPlanPeriod, riyadhToday } from "../../shared/admin-plan-period.js";
 
 const ICONS = {
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8M16 3.2a4 4 0 0 1 0 7.6"/>',
@@ -130,6 +131,8 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [planId, setPlanId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -142,6 +145,9 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
     setNote("");
     setConfirmation("");
     setPlanId(plans.find((plan) => plan.name === row.planName)?.id || plans[0]?.id || "");
+    const defaultPeriod = defaultAdminPlanPeriod();
+    setStartDate(defaultPeriod.startDate);
+    setEndDate(defaultPeriod.endDate);
     setError("");
     setSuccess("");
   }
@@ -149,13 +155,21 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   async function submit(event) {
     event.preventDefault();
     if (!row.tenantId) return setError("تعذر تحديد مساحة عمل العميل.");
+    if (action === "change_plan") {
+      const period = parseAdminPlanPeriod(startDate, endDate);
+      if (!period.ok) return setError({
+        invalid_plan_period: "اختر تاريخي بداية ونهاية صحيحين، بحيث لا تسبق النهاية البداية.",
+        plan_period_start_future: "اختر اليوم أو تاريخًا سابقًا للبداية؛ تفعيل الباقة فوري.",
+        plan_period_not_active: "تاريخ النهاية يجب أن يكون اليوم أو بعده."
+      }[period.reason]);
+    }
     setBusy(true);
     setError("");
     try {
       const body = action === "add_credit"
         ? { action, amount: Number(amount), note: note.trim() }
         : action === "change_plan"
-          ? { action, planId }
+          ? { action, planId, startDate, endDate }
           : action === "restore_customer"
             ? { action }
             : { action, confirmation: confirmation.trim() };
@@ -176,6 +190,9 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
           customer_already_suspended: "هذا العميل محظور بالفعل.",
           customer_not_suspended: "هذا العميل غير محظور.",
           plan_not_found: "الباقة المحددة غير متاحة حاليًا.",
+          invalid_plan_period: "اختر تاريخي بداية ونهاية صحيحين، بحيث لا تسبق النهاية البداية.",
+          plan_period_start_future: "اختر اليوم أو تاريخًا سابقًا للبداية؛ تفعيل الباقة فوري.",
+          plan_period_not_active: "تاريخ النهاية يجب أن يكون اليوم أو بعده.",
           subscription_not_found: "لا يوجد اشتراك منصة مرتبط بهذا العميل."
         };
         throw new Error(messages[payload.reason] || payload.message || (response.status === 403
@@ -195,7 +212,7 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
 
   if (!canManage) return <span className={styles.adminReadOnlyLabel}>عرض فقط</span>;
   const submitDisabled = busy || success || (action === "add_credit" && (!Number.isFinite(Number(amount)) || Number(amount) < 1))
-    || (action === "change_plan" && !planId)
+    || (action === "change_plan" && (!planId || !startDate || !endDate || endDate < startDate))
     || (["remove_customer", "suspend_customer"].includes(action) && confirmation.trim() !== tenantName);
   return <>
     <div className={styles.adminCustomerActions} aria-label={`إدارة ${tenantName}`}>
@@ -225,6 +242,11 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
           {action === "change_plan" ? <>
             <div className={styles.adminPlanChangeSummary}><div><span>الباقة الحالية</span><strong>{row.planName || "غير محددة"}</strong></div><Glyph name="swap" /><div><span>الباقة الجديدة</span><strong>{plans.find((plan) => plan.id === planId)?.name || "اختر الباقة"}</strong></div></div>
             <label><span>اختر الباقة الجديدة</span><select autoFocus value={planId} onChange={(event) => setPlanId(event.target.value)}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} — {Number(plan.monthlyPriceSar || 0).toLocaleString("en-US")} ر.س/شهر</option>)}</select></label>
+            <div className={styles.adminPlanPeriodGrid}>
+              <label><span>تاريخ بداية الباقة</span><input type="date" dir="ltr" lang="en" max={riyadhToday()} required value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+              <label><span>تاريخ نهاية الباقة <small>شامل لهذا اليوم</small></span><input type="date" dir="ltr" lang="en" min={startDate > riyadhToday() ? startDate : riyadhToday()} required value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+            </div>
+            <p className={styles.adminPlanPeriodNote}>تسري الصلاحيات فور الحفظ، وتبقى حتى نهاية يوم الانتهاء المحدد بتوقيت الرياض. يمكنك تعديل التاريخين قبل التأكيد.</p>
             <p className={styles.adminCustomerActionHint}>يُحدّث هذا الخيار صلاحيات باقة Renvix فورًا، ولا ينشئ عملية خصم جديدة لدى مزود الدفع الخارجي.</p>
           </> : null}
           {action === "remove_customer" ? <>

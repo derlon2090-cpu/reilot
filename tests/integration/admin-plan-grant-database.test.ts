@@ -5,6 +5,7 @@ import { getBillingOverview } from "../../src/server/billing-overview.js";
 import { getAIEntitlementSnapshot } from "../../src/server/ai/entitlements.js";
 import { getPlanEntitlement } from "../../src/server/plan-entitlements.js";
 import { getTenantStorageLimitState } from "../../src/server/tenant-storage.js";
+import { riyadhToday } from "../../src/shared/admin-plan-period.js";
 
 vi.mock("../../src/server/admin-auth.js", () => ({
   requireAdminPermission: vi.fn(async () => ({ ok: true, admin: { adminId: crypto.randomUUID() } })),
@@ -17,11 +18,11 @@ const tenantId = crypto.randomUUID();
 const userId = crypto.randomUUID();
 let businessPlanId: string;
 
-function grantBusiness() {
+function grantBusiness(dates: { startDate: string; endDate: string } | null = null) {
   return POST(new Request(`http://localhost/api/admin/tenants/${tenantId}/actions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "change_plan", planId: businessPlanId })
+    body: JSON.stringify({ action: "change_plan", planId: businessPlanId, ...dates })
   }), { params: Promise.resolve({ tenantId }) });
 }
 
@@ -94,5 +95,27 @@ describe.sequential("admin plan grant reaches every entitlement", () => {
       [tenantId]
     );
     expect(active.rows).toEqual([{ status: "active", slug: "business" }]);
+  });
+
+  it("uses the chosen inclusive ending date for the subscription, storage, and AI", async () => {
+    const startDate = riyadhToday();
+    const endDate = new Date(Date.parse(`${startDate}T00:00:00Z`) + 13 * 86400000).toISOString().slice(0, 10);
+    const response = await grantBusiness({ startDate, endDate });
+    const payload = await response.json();
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    expect(payload.aiProvisioned).toBe(true);
+    const subscription = await query(
+      `SELECT current_period_start AS "periodStart",current_period_end AS "periodEnd"
+         FROM platform_subscriptions WHERE tenant_id=$1 AND status='active'`, [tenantId]
+    );
+    expect(subscription.rows).toHaveLength(1);
+    expect(new Date(subscription.rows[0].periodStart).toISOString()).toBe(`${new Date(Date.parse(`${startDate}T00:00:00Z`) - 3 * 3600000).toISOString().slice(0, 10)}T21:00:00.000Z`);
+    expect(new Date(subscription.rows[0].periodEnd).toISOString()).toBe(new Date(Date.parse(`${endDate}T00:00:00Z`) + 21 * 3600000).toISOString());
+    const [storage, ai] = await Promise.all([
+      getTenantStorageLimitState(tenantId),
+      getAIEntitlementSnapshot({ tenantId, userId })
+    ]);
+    expect(storage.limitMb).toBe(5120);
+    expect(ai).toMatchObject({ planSlug: "business", entitlementState: "active", allowanceTokens: 5_000_000 });
   });
 });
