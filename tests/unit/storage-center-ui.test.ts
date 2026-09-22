@@ -116,7 +116,11 @@ describe("storage center form wiring", () => {
     expect(source).toContain("ألوان النص");
     expect(actionHandler).toContain("payload.fallback");
     expect(actionHandler).toContain("syncAIQuota(payload)");
-    expect(actionHandler).toContain("توكن من رصيد الشات");
+    expect(actionHandler).toContain("توكن فورًا من رصيد الذكاء");
+    expect(source).toContain('data-action="storage-editor-remove-number"');
+    expect(source).toContain('data-action="storage-editor-remove-separator"');
+    expect(source).toContain("storageEditorTextForFormatting(editor)");
+    expect(styles).toContain(".storage-editor-body hr[data-storage-ai-separator]");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
   });
 

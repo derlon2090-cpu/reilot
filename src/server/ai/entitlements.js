@@ -404,6 +404,7 @@ export async function reserveAITokens(session, input = {}) {
 export async function settleAITokenReservation(session, reservationId, input = {}) {
   return transaction(async (client) => {
     const taskType = String(input.taskType || "chat").slice(0, 80);
+    const local = input.provider === "renvix";
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [String(session.tenantId)]);
     const reservationResult = await client.query(
       `SELECT r.id,r.cycle_id AS "cycleId",r.requested_tokens AS "requestedTokens",r.status,r.provider_request_id AS "providerRequestId",
@@ -426,11 +427,17 @@ export async function settleAITokenReservation(session, reservationId, input = {
     const usage = actualTokenUsage(input.usage);
     const providerRequestId = String(input.providerRequestId || reservationId).slice(0, 180);
     const idempotencyKey = String(input.idempotencyKey || `provider-request:${providerRequestId}`).slice(0, 220);
-    const duplicate = await client.query(
-      `SELECT quota_units_charged AS "actualTokens" FROM ai_provider_usage_ledger
-        WHERE tenant_id=$1 AND provider='deepseek' AND (idempotency_key=$2 OR provider_request_id=$3) LIMIT 1`,
-      [session.tenantId, idempotencyKey, providerRequestId]
-    );
+    const duplicate = local
+      ? await client.query(
+        `SELECT actual_tokens AS "actualTokens" FROM ai_token_usage_ledger
+          WHERE tenant_id=$1 AND provider_request_id=$2 LIMIT 1`,
+        [session.tenantId, providerRequestId]
+      )
+      : await client.query(
+        `SELECT quota_units_charged AS "actualTokens" FROM ai_provider_usage_ledger
+          WHERE tenant_id=$1 AND provider='deepseek' AND (idempotency_key=$2 OR provider_request_id=$3) LIMIT 1`,
+        [session.tenantId, idempotencyKey, providerRequestId]
+      );
     if (duplicate.rows[0]) {
       await client.query(
         `UPDATE ai_entitlement_cycles SET reserved_tokens=GREATEST(0,reserved_tokens-$2),updated_at=now() WHERE id=$1`,
@@ -447,7 +454,7 @@ export async function settleAITokenReservation(session, reservationId, input = {
     if (usage.actualTokens > availableAfterRelease) {
       throw entitlementError("AI_ACTUAL_USAGE_EXCEEDS_CYCLE", "تجاوز الاستخدام الفعلي سقف دورة الذكاء المحجوزة.", 409);
     }
-    const costMicros = modelCostMicros(input.model, usage);
+    const costMicros = local ? 0 : modelCostMicros(input.model, usage);
     await client.query(
       `UPDATE ai_entitlement_cycles SET used_tokens=used_tokens+$2,
          reserved_tokens=GREATEST(0,reserved_tokens-$3),updated_at=now() WHERE id=$1`,
@@ -467,7 +474,7 @@ export async function settleAITokenReservation(session, reservationId, input = {
         String(input.model || "unknown"), String(input.routingMode || "flash"), usage.inputTokens, usage.outputTokens, usage.cacheHitTokens,
         usage.cacheMissTokens, usage.actualTokens, costMicros, taskType, input.aiRunId || null]
     );
-    await client.query(
+    if (!local) await client.query(
       `INSERT INTO ai_provider_usage_ledger
         (tenant_id,user_id,subscription_id,entitlement_cycle_id,reservation_id,provider,model,modality,
          native_usage_type,native_usage_amount,input_tokens,output_tokens,cached_tokens,total_tokens,
@@ -507,7 +514,7 @@ export async function settleAITokenReservation(session, reservationId, input = {
         [input.aiRunId, usage.actualTokens, session.tenantId, runStatus]
       );
     }
-    return { idempotent: false, ...usage, costMicros };
+    return { idempotent: false, ...usage, costMicros, remainingTokens: availableAfterRelease - usage.actualTokens };
   });
 }
 

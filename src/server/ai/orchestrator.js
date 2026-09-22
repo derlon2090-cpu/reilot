@@ -201,6 +201,7 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
       let content = "";
       let blocks = [];
       let usage = {};
+      let providerUsage = { prompt_tokens: 0, completion_tokens: 0 };
       let status = "completed";
       let errorCode = null;
       let executions = [];
@@ -252,6 +253,10 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
             });
             providerMessages = loop.messages;
             usage = loop.usage || {};
+            providerUsage = {
+              prompt_tokens: Number(usage.prompt_tokens || 0),
+              completion_tokens: Number(usage.completion_tokens || 0)
+            };
             if (executions.length && loop.finalMessage?.content) {
               prefetchedContent = String(loop.finalMessage.content);
             }
@@ -299,6 +304,10 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
             reasoningEffort: route.reasoningEffort
           })) {
             if (event.type === "usage") {
+              providerUsage = {
+                prompt_tokens: providerUsage.prompt_tokens + Number(event.value?.prompt_tokens || 0),
+                completion_tokens: providerUsage.completion_tokens + Number(event.value?.completion_tokens || 0)
+              };
               usage = {
                 prompt_tokens: Number(usage.prompt_tokens || 0) + Number(event.value?.prompt_tokens || 0),
                 completion_tokens: Number(usage.completion_tokens || 0) + Number(event.value?.completion_tokens || 0),
@@ -335,19 +344,29 @@ export async function createAIStreamResponse(session, input = {}, requestSignal)
           emit("error", { code: errorCode, message });
         }
       } finally {
-        const hasProviderUsage = provider.available &&
-          (Number(usage.prompt_tokens || 0) > 0 || Number(usage.completion_tokens || 0) > 0);
-        if (hasProviderUsage) {
-          await settleAITokenReservation(session, reservation.id, {
-            providerRequestId: assistantMessage.id,
-            idempotencyKey: `ai-message:${assistantMessage.id}`,
-            model: selectedModel,
-            routingMode: route.modelTier === "pro" ? "pro" : route.thinking === "enabled" ? "flash_thinking" : "flash",
-            usage
-          }).catch(() => {});
-        } else {
-          await releaseAITokenReservation(session, reservation.id).catch(() => {});
-        }
+        const hasProviderUsage = providerUsage.prompt_tokens + providerUsage.completion_tokens > 0;
+        const shouldCharge = hasProviderUsage || (status === "completed" && Boolean(content));
+        const billableUsage = hasProviderUsage
+          ? providerUsage
+          : { prompt_tokens: estimateAITokens(prompt), completion_tokens: estimateAITokens(content) };
+        if (shouldCharge) {
+          try {
+            await settleAITokenReservation(session, reservation.id, {
+              provider: hasProviderUsage ? "deepseek" : "renvix",
+              providerRequestId: assistantMessage.id,
+              idempotencyKey: `ai-message:${assistantMessage.id}`,
+              model: hasProviderUsage ? selectedModel : "renvix-local-intelligence",
+              routingMode: route.modelTier === "pro" ? "pro" : route.thinking === "enabled" ? "flash_thinking" : "flash",
+              usage: billableUsage
+            });
+            usage = billableUsage;
+          } catch {
+            await releaseAITokenReservation(session, reservation.id).catch(() => {});
+            status = "failed";
+            errorCode = "AI_ACCOUNTING_FAILED";
+            emit("error", { code: errorCode, message: "تعذر تثبيت استهلاك رصيد الذكاء. تحقق من الرصيد ثم حاول مرة أخرى." });
+          }
+        } else await releaseAITokenReservation(session, reservation.id).catch(() => {});
         await finishAIMessage(session, assistantMessage.id, {
           content, segments: blocks, status, model: selectedModel,
           provider: provider.available ? provider.name : "renvix", inputTokens: usage.prompt_tokens || 0,
