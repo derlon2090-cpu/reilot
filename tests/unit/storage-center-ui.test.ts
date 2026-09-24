@@ -17,6 +17,18 @@ const styles = readFileSync(resolve("src/styles/globals.css"), "utf8");
 const storageService = readFileSync(resolve("src/server/storage-center.js"), "utf8");
 
 describe("storage center form wiring", () => {
+  it("encodes Unicode storage passwords into ASCII-safe request headers", () => {
+    const implementation = source.slice(source.indexOf("function encodeStoragePasswordHeader("), source.indexOf("async function fetchJson("));
+    const encode = runInNewContext(`${implementation}; encodeStoragePasswordHeader`, { TextEncoder, btoa });
+    const password = "كلمة مرور عربية 🔐";
+    const encoded = encode(password);
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(Buffer.from(encoded, "base64url").toString("utf8")).toBe(password);
+    expect(source).toContain('"X-Storage-Document-Password-B64"');
+    expect(source).toContain('"X-Storage-Folder-Passwords-B64"');
+    expect(source).not.toContain('"X-Storage-Document-Password": state.storageDocumentPasswords');
+  });
+
   it("validates real drop destinations and rejects unchanged or incompatible folders", () => {
     const implementation = source.slice(source.indexOf("function storageDropAllowed("), source.indexOf("function clearStorageDragState("));
     const allowed = runInNewContext(`${implementation}; storageDropAllowed`, { state: { storageCenter: { storage: { allFolders: [{ id: "child", parentId: "container" }, { id: "grandchild", parentId: "child" }] } } } });

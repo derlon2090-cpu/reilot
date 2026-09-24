@@ -45,4 +45,11 @@ describe("storage folder password protection", () => {
   it("ignores malformed password headers", () => {
     expect(folderPasswordsFromRequest(new Request("https://example.com", { headers: { "X-Storage-Folder-Passwords": "not-json" } }))).toEqual({});
   });
+
+  it("decodes Unicode folder passwords from the ASCII-safe header", () => {
+    const passwords = { [parentId]: "مجلد آمن 🔐 123" };
+    const encoded = Buffer.from(JSON.stringify(passwords), "utf8").toString("base64url");
+    const request = new Request("https://example.com", { headers: { "X-Storage-Folder-Passwords-B64": encoded } });
+    expect(folderPasswordsFromRequest(request)).toEqual(passwords);
+  });
 });

@@ -1,5 +1,6 @@
 import { query } from "./db.js";
 import { hashPassword, verifyPassword } from "./password.js";
+import { decodeStoragePasswordHeader } from "./storage-password-headers.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -8,8 +9,11 @@ function folderError(code, message, status, folderId) {
 }
 
 export function folderPasswordsFromRequest(request) {
-  const raw = request.headers.get("x-storage-folder-passwords") || "";
-  if (!raw || raw.length > 12_000) return {};
+  const encoded = request.headers.get("x-storage-folder-passwords-b64");
+  const raw = encoded
+    ? decodeStoragePasswordHeader(encoded, 16_384)
+    : request.headers.get("x-storage-folder-passwords") || "";
+  if (!raw || Buffer.byteLength(raw, "utf8") > 16_384) return {};
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};

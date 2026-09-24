@@ -1333,14 +1333,23 @@ function resolveRenvixApiUrl(url) {
   return url;
 }
 
+function encodeStoragePasswordHeader(value) {
+  const bytes = new TextEncoder().encode(String(value ?? ""));
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x4000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x4000));
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 async function fetchJson(url, options = {}) {
   const { timeoutMessage, timeoutMs = 0, ...fetchOptions } = options;
   if (String(url).startsWith("/api/storage") && state.storageFolderPasswords?.size) {
-    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Folder-Passwords": JSON.stringify(Object.fromEntries(state.storageFolderPasswords)) };
+    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Folder-Passwords-B64": encodeStoragePasswordHeader(JSON.stringify(Object.fromEntries(state.storageFolderPasswords))) };
   }
   const storageDocumentMatch = String(url).match(/^\/api\/storage\/documents\/([0-9a-f-]{36})(?:\?|$)/i);
   if (storageDocumentMatch && state.storageDocumentPasswords?.has(storageDocumentMatch[1])) {
-    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Document-Password": state.storageDocumentPasswords.get(storageDocumentMatch[1]) };
+    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Document-Password-B64": encodeStoragePasswordHeader(state.storageDocumentPasswords.get(storageDocumentMatch[1])) };
   }
   const requestTimeoutMs = Math.max(0, Number(timeoutMs || 0));
   const externalSignal = fetchOptions.signal;

@@ -51,10 +51,10 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="modulepreload" href="/app/app.js?v=20260924-text-box-caret" crossOrigin="anonymous" />
+        <link rel="modulepreload" href="/app/app.js?v=20260924-unicode-passwords" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260924-text-box-caret" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20260924-unicode-passwords" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
         <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260911-brand-surfaces-v159" />
         <link rel="stylesheet" href="/app/styles/identity-system.css?v=20260911-brand-surfaces-v159" />
@@ -62,7 +62,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260924-text-box-caret" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260924-unicode-passwords" strategy="afterInteractive" />
       </body>
     </html>
   );

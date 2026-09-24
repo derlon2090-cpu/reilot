@@ -44,4 +44,16 @@ describe("locked document API", () => {
     expect(response.status).toBe(423);
     expect(mocks.updateDocument).not.toHaveBeenCalled();
   });
+
+  it("passes a Unicode password decoded from the safe request header", async () => {
+    const password = "كلمة مرور عربية 🔐";
+    mocks.requirePassword.mockResolvedValue(true);
+    mocks.getDocument.mockResolvedValue({ id: documentId, title: "محمي" });
+    const request = new Request(`https://api.renvix.app/api/storage/documents/${documentId}`, {
+      headers: { "X-Storage-Document-Password-B64": Buffer.from(password, "utf8").toString("base64url") }
+    });
+    const response = await GET(request, context);
+    expect(response.status).toBe(200);
+    expect(mocks.requirePassword).toHaveBeenCalledWith(expect.anything(), documentId, password);
+  });
 });
