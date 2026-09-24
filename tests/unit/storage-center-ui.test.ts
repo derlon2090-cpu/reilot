@@ -124,6 +124,11 @@ describe("storage center form wiring", () => {
     expect(source).toContain('function toggleStorageEditorTextBox()');
     expect(source).toContain('function normalizedStorageEditorTextRange(range, editor)');
     expect(source).toContain('storageEditorSelectionBlock(textRange.startContainer, editor)');
+    expect(source).toContain('function placeStorageEditorCaretAfterBox(box, editor)');
+    expect(source).toContain('data-storage-text-flow');
+    expect(source).toContain('box.after(flow)');
+    expect(source).toContain('let seed = "\\u00a0"');
+    expect(source).toContain('caret.collapse(true)');
     expect(styles).toContain('.storage-editor-body [data-storage-text-box]');
     expect(styles).toContain('box-decoration-break:clone');
     expect(source).toContain("storageEditorTextForFormatting(editor)");

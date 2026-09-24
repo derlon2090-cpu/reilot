@@ -9333,6 +9333,31 @@ function storageEditorSelectionBlock(node, editor) {
   return editor;
 }
 
+function placeStorageEditorCaretAfterBox(box, editor) {
+  const following = box.nextSibling;
+  const flow = document.createElement("span");
+  flow.setAttribute("data-storage-text-flow", "true");
+  let seed = "\u00a0";
+  if (following) {
+    seed = "\u200b";
+    if (following.nodeType === Node.TEXT_NODE && /^\s/u.test(following.data)) {
+      seed = "\u00a0";
+      following.deleteData(0, 1);
+    }
+  }
+  const textNode = document.createTextNode(seed);
+  flow.append(textNode);
+  box.after(flow);
+  const caret = document.createRange();
+  caret.setStart(textNode, textNode.data.length);
+  caret.collapse(true);
+  const selection = window.getSelection?.();
+  selection?.removeAllRanges();
+  selection?.addRange(caret);
+  storageEditorSelectionRange = caret.cloneRange();
+  editor.focus({ preventScroll: true });
+}
+
 function toggleStorageEditorTextBox() {
   const editor = document.querySelector("[data-storage-editor]");
   if (!editor || !restoreStorageEditorSelection(editor)) return { ok: false, reason: "selection" };
@@ -9360,13 +9385,8 @@ function toggleStorageEditorTextBox() {
   box.setAttribute("data-storage-text-box", "true");
   box.append(textRange.extractContents());
   textRange.insertNode(box);
-  const nextRange = document.createRange();
-  nextRange.selectNodeContents(box);
-  selection.removeAllRanges();
-  selection.addRange(nextRange);
-  storageEditorSelectionRange = nextRange.cloneRange();
+  placeStorageEditorCaretAfterBox(box, editor);
   editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatSetBlockTextDirection" }));
-  editor.focus({ preventScroll: true });
   refreshStorageEditorToolbarState(editor);
   return { ok: true, removed: false };
 }
