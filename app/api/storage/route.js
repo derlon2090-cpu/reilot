@@ -12,7 +12,7 @@ export async function GET(request) {
   try {
     await ensureStorageCenterSchema();
   } catch (error) {
-    console.error("storage schema readiness failed", { code: error?.code || "STORAGE_SCHEMA_UNAVAILABLE" });
+    console.error("storage schema readiness failed", { code: error?.code || "STORAGE_SCHEMA_UNAVAILABLE", message: String(error?.message || "Unknown schema error").slice(0, 300) });
     return Response.json({ ok: false, code: "STORAGE_SCHEMA_UNAVAILABLE", message: "تعذر تهيئة مركز التخزين." }, { status: 503 });
   }
   const auth = await requireSession(request);
