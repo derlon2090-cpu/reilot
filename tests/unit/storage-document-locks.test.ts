@@ -39,4 +39,18 @@ describe("storage document password protection", () => {
     expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO storage_document_locks"),
       [documentId, session.tenantId, "$argon2id$new-hash", session.userId]);
   });
+
+  it("removes protection with the current password only", async () => {
+    mocks.query.mockResolvedValueOnce({ rows: [{ id: documentId, passwordHash: "$argon2id$hash" }] })
+      .mockResolvedValueOnce({ rows: [{ id: documentId, passwordHash: "$argon2id$hash" }] })
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    mocks.verifyPassword.mockResolvedValue(true);
+    await expect(setStorageDocumentPassword(session, documentId, { currentPassword: "CurrentPassword!", remove: true })).resolves.toEqual({ locked: false });
+    expect(mocks.hashPassword).not.toHaveBeenCalled();
+    expect(mocks.query).toHaveBeenLastCalledWith(
+      "DELETE FROM storage_document_locks WHERE document_id=$1 AND tenant_id=$2",
+      [documentId, session.tenantId]
+    );
+  });
 });

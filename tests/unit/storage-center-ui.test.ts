@@ -129,6 +129,10 @@ describe("storage center form wiring", () => {
     expect(actionHandler).toContain("payload.fallback");
     expect(actionHandler).toContain("syncAIQuota(payload)");
     expect(actionHandler).toContain("توكن فورًا من رصيد الذكاء");
+    expect(source).toContain('data-command="formatBlock" data-value="p"');
+    expect(source).toContain('data-command="formatBlock" data-value="h1"');
+    expect(source).toContain('data-command="formatBlock" data-value="h2"');
+    expect(source).toContain('const selectedBlockName =');
     expect(source).not.toContain('data-action="storage-editor-remove-number"');
     expect(source).not.toContain('data-action="storage-editor-remove-separator"');
     expect(source).toContain('data-action="storage-editor-box"');
@@ -151,6 +155,21 @@ describe("storage center form wiring", () => {
     expect(source).toContain("storageEditorTextForFormatting(editor)");
     expect(styles).toContain(".storage-editor-body hr[data-storage-ai-separator]");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
+  });
+
+  it("separates document password removal, change, and email recovery", () => {
+    expect(actionHandler).toContain('storageAction === "storage-lock-remove-prompt"');
+    expect(actionHandler).toContain('data-submit="storage-document-lock-remove"');
+    expect(actionHandler).toContain('storageAction === "storage-lock-change-prompt"');
+    expect(actionHandler).toContain('storageAction === "storage-lock-recovery-request"');
+    expect(actionHandler).toContain('/lock/recovery/request`');
+    expect(submitHandler).toContain('type === "storage-document-lock-remove"');
+    expect(submitHandler).toContain('JSON.stringify({ currentPassword: data.currentPassword, remove: true })');
+    expect(submitHandler).toContain('type === "storage-document-lock-recovery"');
+    expect(submitHandler).toContain('/lock/recovery/reset`');
+    expect(source).toContain('storage-document-lock-badge');
+    expect(styles).toContain('.storage-document-card-copy');
+    expect(styles).toContain('.storage-lock-management');
   });
 
   it("persists a per-document countdown and marks expired document cards in red", () => {
