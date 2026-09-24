@@ -4,6 +4,7 @@ import { deleteStorageItem, getStorageDocument, updateStorageDocument } from "..
 import { requireStorageDocumentPassword } from "../../../../../src/server/storage-document-locks.js";
 import { ensureStorageCenterSchema } from "../../../../../src/server/storage-schema.js";
 import { folderPasswordsFromRequest, requireStorageFolderAccess, requireStorageItemFolderAccess } from "../../../../../src/server/storage-folder-locks.js";
+import { storageDocumentPasswordFromRequest } from "../../../../../src/server/storage-password-headers.js";
 
 export async function GET(request, { params }) {
   const auth = await requireSession(request);
@@ -12,7 +13,7 @@ export async function GET(request, { params }) {
     await ensureStorageCenterSchema();
     const { documentId } = await params;
     await requireStorageItemFolderAccess(auth.session, "document", documentId, folderPasswordsFromRequest(request));
-    const locked = await requireStorageDocumentPassword(auth.session, documentId, request.headers.get("x-storage-document-password"));
+    const locked = await requireStorageDocumentPassword(auth.session, documentId, storageDocumentPasswordFromRequest(request));
     return Response.json({ ok: true, document: { ...await getStorageDocument(auth.session, documentId), locked } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return Response.json({ ok: false, code: error?.code || "DOCUMENT_NOT_FOUND", folderId: error?.folderId || null, message: error?.message || "المستند غير موجود." }, { status: Number(error?.status || 500) });
@@ -27,7 +28,7 @@ export async function DELETE(request, { params }) {
     await ensureStorageCenterSchema();
     const { documentId } = await params;
     await requireStorageItemFolderAccess(auth.session, "document", documentId, folderPasswordsFromRequest(request));
-    await requireStorageDocumentPassword(auth.session, documentId, request.headers.get("x-storage-document-password"));
+    await requireStorageDocumentPassword(auth.session, documentId, storageDocumentPasswordFromRequest(request));
     return Response.json({ ok: true, item: await deleteStorageItem(auth.session, "document", documentId) });
   } catch (error) {
     return Response.json({ ok: false, code: error?.code || "DELETE_DOCUMENT_FAILED", folderId: error?.folderId || null, message: error?.message || "تعذر حذف المستند." }, { status: Number(error?.status || 500) });
@@ -42,7 +43,7 @@ export async function PATCH(request, { params }) {
     await ensureStorageCenterSchema();
     const { documentId } = await params;
     await requireStorageItemFolderAccess(auth.session, "document", documentId, folderPasswordsFromRequest(request));
-    await requireStorageDocumentPassword(auth.session, documentId, request.headers.get("x-storage-document-password"));
+    await requireStorageDocumentPassword(auth.session, documentId, storageDocumentPasswordFromRequest(request));
     const input = await request.json();
     if (input.folderId) await requireStorageFolderAccess(auth.session, input.folderId, folderPasswordsFromRequest(request));
     return Response.json({ ok: true, document: await updateStorageDocument(auth.session, documentId, input) });
