@@ -17069,8 +17069,12 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   :root[data-home-tablet-layout="true"] .storage-toolbar{grid-template-columns:minmax(190px,1.4fr) repeat(3,minmax(100px,.7fr)) 82px}
 }
 .storage-editor-toolbar{flex-wrap:wrap}
-.storage-editor-toolbar .storage-editor-decoration-tool{min-width:32px;color:#087267;font-weight:800}
-.storage-editor-toolbar .storage-editor-decoration-tool:hover{color:#07514c;background:#e7f6f2}
+.storage-editor-toolbar .storage-editor-box-tool{display:flex;align-items:center;gap:5px;min-width:max-content;padding-inline:9px;color:#087267;border:1px solid #cfe5e1;background:#f5fbf9;font-weight:800}
+.storage-editor-toolbar .storage-editor-box-tool:hover{color:#07514c;border-color:#9bcfc7;background:#e7f6f2}
+.storage-editor-toolbar .storage-editor-box-tool>span{display:grid;place-items:center;width:17px;height:17px;border:1.5px solid currentColor;border-radius:4px;font-size:0}
+.storage-editor-toolbar .storage-editor-box-tool>b{font:800 10px "Tajawal",sans-serif}
+.storage-editor-body [data-storage-text-box],.storage-rich-content [data-storage-text-box]{display:inline;padding:2px 7px;border:1.5px solid #67b9ae;border-radius:6px;color:inherit;background:rgba(8,114,103,.07);box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:inherit}
+:root[data-theme="dark"] .storage-editor-body [data-storage-text-box],:root[data-theme="dark"] .storage-rich-content [data-storage-text-box]{border-color:#64b9ae;background:rgba(82,185,170,.12)}
 .storage-editor-body [data-storage-ai-heading],.storage-rich-content [data-storage-ai-heading]{display:flex;align-items:baseline;gap:8px}
 .storage-editor-body [data-storage-ai-heading-text],.storage-rich-content [data-storage-ai-heading-text]{min-width:0;overflow-wrap:anywhere}
 .storage-editor-body [data-storage-ai-number],.storage-rich-content [data-storage-ai-number]{display:inline-block;flex:none;padding:0 7px;border-radius:999px;color:#087267;background:#e8f5f1;font-weight:800;line-height:1.6}

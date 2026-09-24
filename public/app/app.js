@@ -9258,28 +9258,6 @@ function storageEditorTextForFormatting(editor) {
   return text.trim();
 }
 
-function removeStorageEditorDecoration(kind) {
-  const editor = document.querySelector("[data-storage-editor]");
-  if (!editor || !restoreStorageEditorSelection(editor)) return false;
-  const selection = window.getSelection();
-  const anchor = selection?.anchorNode?.nodeType === Node.TEXT_NODE
-    ? selection.anchorNode.parentElement : selection?.anchorNode;
-  const block = anchor?.closest?.("h2,h3,p,li,hr");
-  const decoration = kind === "number"
-    ? anchor?.closest?.("[data-storage-ai-number]") || block?.querySelector?.("[data-storage-ai-number]")
-    : (block?.matches?.("hr[data-storage-ai-separator]") ? block : null)
-      || (block?.previousElementSibling?.matches?.("hr[data-storage-ai-separator]") ? block.previousElementSibling : null)
-      || (block?.nextElementSibling?.matches?.("hr[data-storage-ai-separator]") ? block.nextElementSibling : null);
-  if (!decoration || !editor.contains(decoration)) return false;
-  if (kind === "number" && decoration.nextSibling?.nodeType === Node.TEXT_NODE) {
-    decoration.nextSibling.textContent = decoration.nextSibling.textContent.replace(/^\s+/u, "");
-  }
-  decoration.remove();
-  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContent" }));
-  editor.focus({ preventScroll: true });
-  return true;
-}
-
 function captureStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
   const selection = window.getSelection?.();
   if (!editor || !selection?.rangeCount) return false;
@@ -9313,6 +9291,58 @@ function refreshStorageEditorToolbarState(editor = document.querySelector("[data
     button.classList.toggle("is-active", active);
     if (supportsPressedState) button.setAttribute("aria-pressed", active ? "true" : "false");
   });
+  const selection = window.getSelection?.();
+  const anchor = selection?.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection?.anchorNode;
+  const textBoxActive = Boolean(anchor?.closest?.("[data-storage-text-box]") && editor?.contains(anchor));
+  const textBoxButton = toolbar.querySelector('[data-action="storage-editor-box"]');
+  textBoxButton?.classList.toggle("is-active", textBoxActive);
+  textBoxButton?.setAttribute("aria-pressed", textBoxActive ? "true" : "false");
+}
+
+function unwrapStorageEditorTextBox(box) {
+  const parent = box?.parentNode;
+  if (!parent) return false;
+  while (box.firstChild) parent.insertBefore(box.firstChild, box);
+  box.remove();
+  parent.normalize();
+  return true;
+}
+
+function toggleStorageEditorTextBox() {
+  const editor = document.querySelector("[data-storage-editor]");
+  if (!editor || !restoreStorageEditorSelection(editor)) return { ok: false, reason: "selection" };
+  const selection = window.getSelection?.();
+  if (!selection?.rangeCount) return { ok: false, reason: "selection" };
+  const range = selection.getRangeAt(0);
+  const anchor = selection.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
+  const existing = anchor?.closest?.("[data-storage-text-box]");
+  if (existing && editor.contains(existing)) {
+    const parent = existing.parentNode;
+    if (!unwrapStorageEditorTextBox(existing)) return { ok: false, reason: "selection" };
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatRemove" }));
+    editor.focus({ preventScroll: true });
+    captureStorageEditorSelection(editor);
+    refreshStorageEditorToolbarState(editor);
+    return { ok: true, removed: true, parent };
+  }
+  if (range.collapsed || !String(selection.toString() || "").trim()) return { ok: false, reason: "selection" };
+  const blockSelector = "p,div,h1,h2,h3,h4,li,blockquote";
+  const startElement = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
+  const endElement = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : range.endContainer;
+  if (startElement?.closest?.(blockSelector) !== endElement?.closest?.(blockSelector)) return { ok: false, reason: "multiple-blocks" };
+  const box = document.createElement("span");
+  box.setAttribute("data-storage-text-box", "true");
+  box.append(range.extractContents());
+  range.insertNode(box);
+  const nextRange = document.createRange();
+  nextRange.selectNodeContents(box);
+  selection.removeAllRanges();
+  selection.addRange(nextRange);
+  storageEditorSelectionRange = nextRange.cloneRange();
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatSetBlockTextDirection" }));
+  editor.focus({ preventScroll: true });
+  refreshStorageEditorToolbarState(editor);
+  return { ok: true, removed: false };
 }
 
 function normalizeStorageBoldMarkup(editor = document.querySelector("[data-storage-editor]")) {
@@ -9719,9 +9749,9 @@ async function handleAction(target) {
     applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor");
     return;
   }
-  if (storageAction === "storage-editor-remove-number" || storageAction === "storage-editor-remove-separator") {
-    const kind = storageAction.endsWith("number") ? "number" : "separator";
-    if (!removeStorageEditorDecoration(kind)) toast("ضع المؤشر على الرقم أو بجانب الخط الذي تريد حذفه.", "warning");
+  if (storageAction === "storage-editor-box") {
+    const result = toggleStorageEditorTextBox();
+    if (!result.ok) toast(result.reason === "multiple-blocks" ? "حدد النص داخل فقرة واحدة لتطبيق المربع بدقة." : "حدد النص الذي تريد وضعه داخل مربع.", "warning");
     return;
   }
   if (storageAction === "storage-editor-ai-format") {
@@ -15607,10 +15637,6 @@ function disposeStorageRoute() {
 function bindStorageDocumentCountdowns() {
   stopStorageDocumentCountdowns();
   const editorForm = document.querySelector('form[data-submit="storage-document"]');
-  const formatButton = editorForm?.querySelector('[data-action="storage-editor-ai-format"]');
-  if (formatButton && !editorForm.querySelector('[data-action="storage-editor-remove-number"]')) {
-    formatButton.insertAdjacentHTML("beforebegin", '<button type="button" class="storage-editor-decoration-tool" data-action="storage-editor-remove-number" title="ضع المؤشر عند الرقم ثم احذفه" aria-label="حذف رقم القسم">حذف رقم</button><button type="button" class="storage-editor-decoration-tool" data-action="storage-editor-remove-separator" title="ضع المؤشر بجانب الخط ثم احذفه" aria-label="حذف خط الفصل">حذف خط</button>');
-  }
   const colorTools = editorForm?.querySelector(".storage-editor-colors");
   if (colorTools && !editorForm.querySelector('[data-action="storage-editor-timer"]')) {
     colorTools.insertAdjacentHTML("afterend", storageEditorTimerButtonMarkup(editorForm.dataset.timerEndsAt || "", editorForm.dataset.timerDisplayMode));
@@ -15687,7 +15713,7 @@ function storageDocumentComposer(data) {
     <label><span>كلمة المرور</span><span class="storage-secret-input"><input class="input" name="password" type="password" autocomplete="new-password" value="${escapeHtml(editing?.password || "")}" placeholder="••••••••••••"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <label class="storage-field-wide"><span>الكود <small>اختياري</small></span><span class="storage-secret-input"><input class="input" name="code" type="password" autocomplete="off" value="${escapeHtml(editing?.code || "")}" placeholder="OTP أو PIN أو Recovery Code"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <section class="storage-custom-fields storage-field-wide"><header><div><h2>بيانات إضافية</h2><p>سمِّ كل حقل بالطريقة التي تناسبك.</p></div><button type="button" class="btn btn-secondary" data-action="storage-add-field">${dashboardIcon("add")} إضافة حقل</button></header><div data-storage-custom-fields>${existingFields}</div></section>
-  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<div class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button><button type="button" data-action="storage-editor-ai-undo" hidden title="استعادة النص قبل الترتيب">استعادة النص</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-label="${type === "note" ? "نص الملاحظة" : "محتوى المستند"}" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></div>`;
+  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<div class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><button type="button" class="storage-editor-box-tool" data-action="storage-editor-box" title="وضع مربع حول النص المحدد أو إزالته" aria-label="مربع حول النص" aria-pressed="false"><span aria-hidden="true">▢</span><b>مربع</b></button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button><button type="button" data-action="storage-editor-ai-undo" hidden title="استعادة النص قبل الترتيب">استعادة النص</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-label="${type === "note" ? "نص الملاحظة" : "محتوى المستند"}" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></div>`;
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon("document")}</div><div><h1>${title}</h1><p>احفظ معلوماتك داخل مساحة عملك الخاصة بشكل منظم وآمن.</p></div></header>
@@ -16161,14 +16187,14 @@ function bindQrImageState() {
 }
 
 document.addEventListener("mousedown", (event) => {
-  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar .storage-editor-decoration-tool');
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar [data-action="storage-editor-box"]');
   if (!control) return;
   captureStorageEditorSelection();
   event.preventDefault();
 });
 
 document.addEventListener("pointerdown", (event) => {
-  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar .storage-editor-decoration-tool');
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar [data-action="storage-editor-box"]');
   if (control) captureStorageEditorSelection();
 });
 
