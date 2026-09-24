@@ -5748,16 +5748,17 @@ function campaignStudioWhatsappPreview(cards) {
 
 function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind) {
   const firstCard = cards[0] || {};
-  const firstImage = safeStoreLogoUrl(firstCard.imageUrl);
-  const heroMedia = firstImage
-    ? `<img src="${escapeHtml(firstImage)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
+  const campaignImage = safeStoreLogoUrl(campaignStudioDraftValue("heroImageUrl")) || safeStoreLogoUrl(firstCard.imageUrl);
+  const themeColor = /^#[0-9a-f]{6}$/i.test(campaignStudioDraftValue("themeColor")) ? campaignStudioDraftValue("themeColor") : "#0b3f3b";
+  const heroMedia = campaignImage
+    ? `<img src="${escapeHtml(campaignImage)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
     : `<span>${dashboardIcon(kind === "product" ? "storeBag" : "upload")}<small>تظهر صورة الحملة هنا</small></span>`;
   const fromName = campaignStudioDraftValue("fromName", "Renvix");
-  return `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${escapeHtml(emailDesign)}">
+  return `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase" style="--campaign-email-color:${escapeHtml(themeColor)}">
     <div class="campaign-email-windowbar"><span aria-hidden="true"><i></i><i></i><i></i></span><b>Renvix Mail</b><small>البريد الوارد</small></div>
     <div class="campaign-email-message-meta"><span>${dashboardIcon("customers")}</span><div><strong data-campaign-live-from>${escapeHtml(fromName || "Renvix")}</strong><small dir="ltr">&lt;${escapeHtml(emailSender || "")}&gt;</small></div><time>10:30 ص</time>${dashboardIcon("heart")}${dashboardIcon("back")}${dashboardIcon("menu")}</div>
     <div class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt="Renvix"></div>
-    <section><div class="campaign-email-hero"><div><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p></div><div class="campaign-email-hero-media ${firstImage ? "has-image" : ""}" data-campaign-email-hero-media>${heroMedia}</div></div><h3 class="campaign-email-cards-title">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h3><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "email")}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section>
+    <section><div class="campaign-email-hero"><div><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p></div><div class="campaign-email-hero-media ${campaignImage ? "has-image" : ""}" data-campaign-email-hero-media>${heroMedia}</div></div><h3 class="campaign-email-cards-title">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h3><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "email")}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section>
     <footer><span data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</span><small>Renvix</small></footer>
   </div>`;
 }
@@ -5787,25 +5788,15 @@ function renderCampaignStudioPreviewSource(form, source = state.campaignStudioPr
   );
 }
 
-function campaignEmailDesignOptions() {
-  return [
-    { id:"luxury", name:"عرض فاخر", caption:"واجهة داكنة وبطاقات راقية", accent:"#0b3f3b" },
-    { id:"showcase", name:"معرض المنتجات", caption:"شبكة واضحة لعرض عدة منتجات", accent:"#178b77" },
-    { id:"editorial", name:"تحريري", caption:"تخطيط قصصي بمساحات مريحة", accent:"#315a70" },
-    { id:"seasonal", name:"موسمي", caption:"طابع دافئ للعروض والمناسبات", accent:"#b76b55" },
-    { id:"minimal", name:"بسيط", caption:"محتوى نظيف يركز على الرسالة", accent:"#4e6964" },
-    { id:"spotlight", name:"واجهة بارزة", caption:"عنوان قوي ومنتج رئيسي واضح", accent:"#0b3f3b" }
-  ];
-}
-
 function campaignEmailDesignThumb(design) {
   return `<i class="campaign-template-thumb design-${escapeHtml(design.id)}" style="--template-accent:${escapeHtml(design.accent)}"><span class="template-brand"></span><span class="template-hero"></span><span class="template-copy"></span><span class="template-grid"><b></b><b></b></span><span class="template-button"></span></i>`;
 }
 
-function campaignStudioEmailTemplates(selectedDesign = "showcase") {
-  const options = campaignEmailDesignOptions();
-  const selected = options.some((item) => item.id === selectedDesign) ? selectedDesign : "showcase";
-  return `<div class="campaign-studio-template-strip">${options.map((design) => `<label class="campaign-studio-template-choice"><input type="radio" name="emailDesign" value="${escapeHtml(design.id)}" ${design.id === selected ? "checked" : ""}><span>${campaignEmailDesignThumb(design)}<b>${escapeHtml(design.name)}</b><small>${escapeHtml(design.caption)}</small></span></label>`).join("")}</div>`;
+function campaignStudioEmailTemplates() {
+  const selectedColor = /^#[0-9a-f]{6}$/i.test(campaignStudioDraftValue("themeColor")) ? campaignStudioDraftValue("themeColor") : "#0b3f3b";
+  const colors = [["#0b3f3b","أخضر رينفكس"],["#087f75","تركوازي"],["#315a70","أزرق هادئ"],["#7e4637","طيني دافئ"],["#6c3e7b","بنفسجي"],["#243d39","محايد"]];
+  const presetSelected = colors.some(([value]) => value === selectedColor.toLowerCase());
+  return `<div class="campaign-email-primary-template"><input type="hidden" name="emailDesign" value="showcase"><div class="campaign-email-primary-preview">${campaignEmailDesignThumb({ id:"showcase", accent:selectedColor })}<span><b>القالب الرئيسي المعتمد</b><small>تخطيط موحّد واحترافي ومتجاوب لجميع حملات البريد.</small></span></div><fieldset class="campaign-email-theme-field"><legend>لون القالب</legend><div class="campaign-email-theme-colors">${colors.map(([value,label]) => `<label title="${label}"><input type="radio" name="themeColor" value="${value}" ${selectedColor.toLowerCase() === value ? "checked" : ""}><span style="--campaign-theme-color:${value}"></span><small>${label}</small></label>`).join("")}<label class="campaign-theme-custom"><input type="radio" name="themeColor" value="${escapeHtml(selectedColor)}" ${presetSelected ? "" : "checked"}><input type="color" name="themeColorCustom" value="${escapeHtml(selectedColor)}" data-action="campaign-theme-custom-color"><small>لون مخصص</small></label></div></fieldset></div>`;
 }
 
 function campaignStudioSocialPlatforms() {
@@ -5853,7 +5844,7 @@ function captureCampaignStudioDraft(form) {
   const socialSection = form.querySelector("[data-campaign-social-section]");
   if (form.elements.socialLinksEnabled) form.elements.socialLinksEnabled.value = socialSection?.open ? "true" : "false";
   const values = {};
-  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","htmlContentApproved","emailDesign","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
+  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","htmlContentApproved","emailDesign","themeColor","heroImageUrl","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
   state.campaignBuilderCards = campaignStudioFormCards(form);
   state.campaignBuilderDraft = { values, cards:state.campaignBuilderCards, updatedAt:new Date().toISOString() };
   return state.campaignBuilderDraft;
@@ -5880,18 +5871,22 @@ function refreshCampaignStudioPreview(form) {
       if (generatedPreview) generatedPreview.className = `campaign-generated-email-preview ${state.campaignBuilderPreviewMode}`;
       return;
     }
-    const design = String(form.elements.emailDesign?.value || "showcase");
+    const previewHost = document.querySelector("[data-campaign-studio-preview]");
+    if (previewHost && !previewHost.querySelector(".campaign-studio-email-preview")) {
+      const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
+      previewHost.innerHTML = campaignStudioEmailPreview(cards, "showcase", form.elements.fromEmail?.value || "", kind);
+    }
     const emailPreview = document.querySelector(".campaign-studio-email-preview");
     if (emailPreview) {
-      campaignEmailDesignOptions().forEach((item) => emailPreview.classList.remove(`design-${item.id}`));
-      emailPreview.classList.add(`design-${design}`);
+      emailPreview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase`;
+      emailPreview.style.setProperty("--campaign-email-color", /^#[0-9a-f]{6}$/i.test(form.elements.themeColor?.value || "") ? form.elements.themeColor.value : "#0b3f3b");
     }
     const fromNode = document.querySelector("[data-campaign-live-from]");
     if (fromNode) fromNode.textContent = form.elements.fromName?.value?.trim() || "Renvix";
     const heroMedia = document.querySelector("[data-campaign-email-hero-media]");
     if (heroMedia) {
       const firstCard = cards[0] || {};
-      const imageUrl = safeStoreLogoUrl(firstCard.imageUrl);
+      const imageUrl = safeStoreLogoUrl(form.elements.heroImageUrl?.value) || safeStoreLogoUrl(firstCard.imageUrl);
       heroMedia.classList.toggle("has-image", Boolean(imageUrl));
       heroMedia.innerHTML = imageUrl
         ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
@@ -5925,25 +5920,12 @@ function campaignStudioGeneratedHtml(form) {
   const previewText = String(form?.elements.previewText?.value || "").trim();
   const body = String(form?.elements.body?.value || "").trim();
   const footer = String(form?.elements.footer?.value || "").trim();
-  const design = String(form?.elements.emailDesign?.value || "showcase");
-  const themes = {
-    luxury:{page:"#f2f4f3",surface:"#0b302d",heading:"#ffffff",copy:"#d8e4e1",card:"#ffffff",accent:"#c3a76d"},
-    showcase:{page:"#f5f8f7",surface:"#ffffff",heading:"#0b3f3b",copy:"#526763",card:"#ffffff",accent:"#0b3f3b"},
-    editorial:{page:"#eef3f4",surface:"#ffffff",heading:"#244a5b",copy:"#526873",card:"#f8fbfb",accent:"#315a70"},
-    seasonal:{page:"#fff6f0",surface:"#fffaf6",heading:"#7e4637",copy:"#765d54",card:"#ffffff",accent:"#b76b55"},
-    minimal:{page:"#f7f8f8",surface:"#ffffff",heading:"#243d39",copy:"#667874",card:"#ffffff",accent:"#4e6964"},
-    spotlight:{page:"#eaf3f1",surface:"#e7f3f0",heading:"#0b3f3b",copy:"#486c66",card:"#ffffff",accent:"#0b3f3b"}
-  };
-  const theme = themes[design] || themes.showcase;
-  const firstImage = safeStoreLogoUrl(cards[0]?.imageUrl || "");
-  const heroMedia = firstImage
-    ? `<img src="${escapeHtml(firstImage)}" alt="${escapeHtml(cards[0]?.title || "صورة الحملة")}" width="220" style="display:block;width:100%;max-width:220px;height:auto;margin:0 auto 20px;border-radius:14px">`
-    : `<div role="img" aria-label="موضع صورة الحملة" style="margin:0 auto 20px;padding:42px 18px;border:1px solid #dce8e5;border-radius:14px;color:#78908a;background:#f7fbfa;text-align:center;font:700 13px Arial,sans-serif">تظهر صورة الحملة هنا</div>`;
+  const accent = /^#[0-9a-f]{6}$/i.test(form?.elements.themeColor?.value || "") ? form.elements.themeColor.value : "#0b3f3b";
+  const theme = { page:"#f5f8f7",surface:"#ffffff",heading:accent,copy:"#526763",card:"#ffffff",accent };
+  const heroImageUrl = safeStoreLogoUrl(form?.elements.heroImageUrl?.value);
   const rows = cards.map((card, index) => {
     const imageUrl = safeStoreLogoUrl(card.imageUrl);
-    const image = imageUrl
-      ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || `صورة البطاقة ${index + 1}`)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">`
-      : `<div role="img" aria-label="موضع صورة البطاقة ${index + 1}" style="margin:0 auto 12px;padding:28px 12px;border-radius:10px;color:#78908a;background:#eef6f4;text-align:center;font:700 12px Arial,sans-serif">صورة البطاقة</div>`;
+    const image = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || `صورة البطاقة ${index + 1}`)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : "";
     return `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${image}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title || "عنوان البطاقة")}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText || "سيظهر نص البطاقة هنا")}</p><a href="${escapeHtml(card.buttonUrl || "{{product_url}}")}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText || "زر الإجراء")}</a></td></tr>`;
   }).join("");
   const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
@@ -5951,7 +5933,7 @@ function campaignStudioGeneratedHtml(form) {
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
   }).join("");
-  return `<div dir="rtl" style="background:${theme.page};padding:24px;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText || "نص المعاينة")}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:22px 28px;color:${theme.accent};text-align:center;font:800 24px Arial,sans-serif">Renvix</td></tr><tr><td style="padding:6px 28px 28px;text-align:right">${heroMedia}<h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject || "عنوان الحملة")}</h1><p style="margin:0 0 24px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body || "سيظهر محتوى البريد هنا.")}</p><h2 style="margin:0 0 10px;color:${theme.heading};font:700 20px Arial,sans-serif">تفاصيل الحملة</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 8px;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer || "Renvix")}</p><p style="margin:0;text-align:center"><a href="{{unsubscribe_url}}" style="color:${theme.accent};font:400 11px Arial,sans-serif">إلغاء الاشتراك</a></p></td></tr></table></td></tr></table></div>`;
+  return `<div dir="rtl" style="padding:24px;background:${theme.page};font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText || "نص المعاينة")}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right">${heroImageUrl ? `<img src="${escapeHtml(heroImageUrl)}" alt="صورة الحملة" width="564" style="display:block;width:100%;max-width:564px;height:auto;margin:0 0 22px;border-radius:14px">` : ""}<h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject || "عنوان الحملة")}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body || "سيظهر محتوى البريد هنا.")}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 8px;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer || "Renvix")}</p><p style="margin:0;text-align:center"><a href="{{unsubscribe_url}}" style="color:${theme.accent};font:400 11px Arial,sans-serif">إلغاء الاشتراك</a></p></td></tr></table></td></tr></table></div>`;
 }
 
 function campaignStudioAIState() {
@@ -5965,7 +5947,7 @@ function campaignStudioAIState() {
 function campaignStudioAIResultMarkup() {
   const ai = campaignStudioAIState();
   if (ai.status === "loading") return `<div class="campaign-html-ai-progress" role="status"><i></i><span><b>جارٍ توليد تصميم البريد...</b><small>يتم إنشاء الكود وفحصه أمنيًا قبل عرضه.</small></span></div>`;
-  if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span></div>`;
+  if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-generate">إعادة المحاولة</button></div>`;
   if (ai.status !== "success" || !ai.result?.html) return "";
   const quota = ai.result.quota || {};
   return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>تمت كتابة الكود داخل المحرر</b><small>${escapeHtml(ai.result.summary || "راجع الكود ثم اعتمد التصميم لإظهاره مكان المعاينة الرئيسية.")}</small></span></div><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد التصميم</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-regenerate">${dashboardIcon("sparkles")} إعادة التوليد</button></div><small class="campaign-html-ai-quota">تم خصم ${formatAITokens(quota.charged || 0)} توكن من رصيد الذكاء.</small>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
@@ -5981,6 +5963,7 @@ function openCampaignStudioAIModal(form, mode = "generate") {
   if (!form) return;
   state.campaignStudioAIPendingForm = form;
   const ai = campaignStudioAIState();
+  if (/^#[0-9a-f]{6}$/i.test(form.elements.themeColor?.value || "")) ai.selectedColor = form.elements.themeColor.value;
   ai.mode = ["generate", "improve", "fix", "replace"].includes(mode) ? mode : "generate";
   openModal(mode === "replace" ? "استبدال كود البريد" : "توليد كود البريد بالذكاء الاصطناعي", campaignStudioAIModalMarkup(ai.mode));
 }
@@ -6012,15 +5995,15 @@ async function requestCampaignStudioAICode(form) {
     existingHtml = inspection.html;
   }
   const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const cards = campaignStudioFormCards(form);
-  const cardContext = cards.map((card, index) => `البطاقة ${index + 1}: العنوان=${card.title || "عنوان البطاقة"}؛ النص=${card.bodyText || "نص البطاقة"}؛ الزر=${card.buttonText || "زر الإجراء"}؛ الرابط=${card.buttonUrl || "{{product_url}}"}؛ الصورة=${card.imageUrl || "عنصر نائب للصورة"}`).join("\n");
-  const safePrompt = `${prompt}\n\nهذا قالب حملة بريد، ويجب أن يحافظ التصميم الناتج على جميع عناصر الحملة ويعيد ترتيبها بصريًا باحترافية حسب فكرة التصميم: ترويسة وهوية المتجر، نص المعاينة، قسم رئيسي يحتوي عنوان الحملة ونصها وصورة الحملة أو عنصرًا نائبًا واضحًا لها، عنوان قسم تفاصيل الحملة، جميع البطاقات بالترتيب مع صورة أو عنصر نائب وعنوان ونص وزر إجراء ورابط، روابط التواصل المتاحة، وتذييل يتضمن رابط {{unsubscribe_url}}. اجعل توزيع العناصر متجاوبًا ومتغيرًا حسب التصميم، ولا تحذف بطاقة أو زرًا أو معلومة من المصدر.\n\n${cardContext}\n\nالتزم بإخراج جزء HTML لمحتوى البريد فقط داخل JSON. لا تستخدم JavaScript أو script أو iframe أو form أو أحداثًا تنفيذية أو روابط غير آمنة، ولا تكتب أي شرح خارج JSON.`;
+  const orderedCards = campaignStudioFormCards(form);
+  const selectedImageUrls = [...new Set([form.elements.heroImageUrl?.value, ...orderedCards.map((card) => card.imageUrl)].map(safeStoreLogoUrl).filter(Boolean))];
+  const cardContext = orderedCards.map((card, index) => `البطاقة ${index + 1}: العنوان=${card.title || "عنوان البطاقة"}؛ النص=${card.bodyText || "نص البطاقة"}؛ الزر=${card.buttonText || "زر الإجراء"}؛ الرابط=${card.buttonUrl || "{{product_url}}"}؛ الصورة=${card.imageUrl || "عنصر نائب للصورة"}`).join("\n");
   state.campaignStudioAI = { ...ai, status: "loading", mode, prompt, result: null, error: "", beforeHtml: existingHtml };
   refreshCampaignStudioAIResult(form);
   try {
     const payload = await fetchJson("/backend/ai/email-template/generate", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ prompt: safePrompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.previewText?.value, form.elements.body?.value, cardContext, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], mode: requestMode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
+      body: JSON.stringify({ prompt: prompt.slice(0, 4000), existingHtml, currentContent: [form.elements.subject?.value, form.elements.previewText?.value, form.elements.body?.value, cardContext && `جميع البطاقات بالترتيب المعتمد:\n${cardContext}`, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, mode: requestMode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
       timeoutMs: 90000, timeoutMessage: "استغرق توليد الكود وقتًا أطول من المتوقع. حاول مرة أخرى."
     });
     syncAIQuota(payload);
@@ -6108,8 +6091,10 @@ function campaignStudioPage() {
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
     : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
-  const emailDesign = campaignStudioDraftValue("emailDesign", "showcase");
-  const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>تصميم البريد الإلكتروني</h2><p>اختر شكل وتخطيط البريد؛ الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
+  const emailDesign = "showcase";
+  const heroImageUrl = safeStoreLogoUrl(campaignStudioDraftValue("heroImageUrl"));
+  const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>قالب البريد الرئيسي</h2><p>قالب احترافي واحد معتمد لجميع الحملات؛ خصّص لون الهوية فقط.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
+  const campaignImageSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-image-section"><header><span>${dashboardIcon("upload")}</span><div><h2>صورة المتجر أو غلاف الحملة</h2><p>أضف صورة عالية الجودة تظهر في مقدمة البريد وتُتاح بأمان عند توليد الكود.</p></div></header><div class="campaign-email-image-editor ${heroImageUrl ? "has-image" : ""}" data-campaign-hero-image-wrap>${heroImageUrl ? `<img src="${escapeHtml(heroImageUrl)}" alt="صورة الحملة" data-campaign-hero-image-preview>` : `<span data-campaign-hero-image-placeholder>${dashboardIcon("storeBag")}<small>يفضّل مقاسًا أفقيًا بنسبة 16:9</small></span>`}<div><input type="hidden" name="heroImageUrl" value="${escapeHtml(heroImageUrl)}"><input type="file" accept="image/png,image/jpeg,image/webp" data-action="campaign-studio-hero-image-file" hidden><button type="button" class="btn btn-secondary" data-action="campaign-studio-hero-image-pick">${dashboardIcon("upload")} ${heroImageUrl ? "استبدال الصورة" : "إضافة صورة المتجر"}</button>${heroImageUrl ? `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-hero-image-remove">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 5 ميجابايت.</small></div></div></section>` : "";
   const approvedInspection = htmlApproved ? inspectEmailHtmlClient(currentHtml) : { ok:false };
   const preview = channel === "whatsapp"
     ? campaignStudioWhatsappPreview(cards)
@@ -6120,7 +6105,7 @@ function campaignStudioPage() {
     <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
     <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
       <section class="campaign-studio-section" open><header><span>${dashboardIcon("template")}</span><div><h2>أساسيات الحملة</h2><p>القناة والنوع محددان مسبقًا ولا يظهر أي اختيار مكرر.</p></div></header><div class="campaign-studio-basics"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required value="${escapeHtml(campaignStudioDraftValue("name"))}" placeholder="اكتب اسمًا داخليًا للحملة"><small>اسم داخلي واضح يساعدك على تمييز الحملة في القائمة والتقارير.</small></label>${channelFields}<label class="field"><span>الجمهور المستهدف</span><select class="select" name="groupId" data-action="campaign-studio-audience"><option value="" data-count="${audienceTotal}">جميع جهات الاتصال المؤهلة — ${suiteNumber(audienceTotal)}</option>${groupOptions}</select><small><b data-campaign-audience-count>${suiteNumber(audienceTotal)}</b> جهة مؤهلة عبر ${channel === "email" ? "البريد" : "واتساب"}</small></label><div class="field campaign-send-schedule"><span>جدولة الإرسال</span><div><label><input type="radio" name="sendTiming" value="now" ${campaignStudioDraftValue("sendTiming", "now") === "now" ? "checked" : ""}> إرسال فوري</label><label><input type="radio" name="sendTiming" value="later" ${campaignStudioDraftValue("sendTiming") === "later" ? "checked" : ""}> جدولة لاحقًا</label></div><div class="campaign-schedule-fields" ${campaignStudioDraftValue("sendTiming", "now") === "later" ? "" : "hidden"}><input class="input" type="date" name="startDate" value="${startDate}" min="${localStart.slice(0, 10)}"><input class="input" type="time" name="startTime" value="${startTime}"></div></div></div></section>
-      ${templatesSection}
+      ${templatesSection}${campaignImageSection}
       <section class="campaign-studio-section campaign-main-message"><header><span>${dashboardIcon("edit")}</span><div><h2>${channel === "whatsapp" ? "النص الرئيسي" : "محتوى البريد"}</h2><p>${channel === "whatsapp" ? "يظهر أعلى بطاقات الحملة ويلتزم بحدود قالب Meta." : "عنوان رئيسي ونص تمهيدي يتحدثان مباشرة في المعاينة."}</p></div></header><label class="field"><textarea class="textarea" name="body" data-campaign-preview-field="body" rows="5" maxlength="${mainBodyLimit}" required placeholder="اكتب محتوى الحملة هنا">${escapeHtml(campaignStudioDraftValue("body"))}</textarea><small><b data-count-for="body">${String(campaignStudioDraftValue("body")).length}</b>/${mainBodyLimit}</small></label>${channel === "email" ? `<label class="field"><span>Footer Text</span><input class="input" name="footer" data-campaign-preview-field="footer" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("footer"))}" placeholder="نص تذييل البريد"></label>` : ""}</section>
       <section class="campaign-studio-section campaign-card-builder"><header><span>${dashboardIcon(kind === "product" ? "storeBag" : "payments")}</span><div><h2>${kind === "product" ? (channel === "email" ? "منتجات من المتجر" : "بطاقات المنتجات") : "بطاقات مخصصة"}</h2><p>${kind === "product" ? "المنتجات الفعلية المختارة من كتالوج المتجر، ويمكن تخصيص النص والزر." : "ابدأ ببطاقتين فارغتين وأضف صورة وعنوانًا ونصًا وزرًا لكل بطاقة."}</p></div><b class="campaign-card-counter"><span data-campaign-card-count>${cards.length}</span> / 10</b></header><div class="campaign-studio-card-list" data-campaign-card-list>${cards.map((card,index) => campaignStudioCardMarkup(card,index,kind)).join("")}</div><button type="button" class="campaign-add-card" data-action="campaign-studio-card-add" data-kind="${kind}" ${cards.length >= 10 ? "disabled" : ""}>${dashboardIcon("add")} <span>${kind === "product" ? "إضافة منتج" : "إضافة بطاقة"}</span><small>الحد الأقصى 10 بطاقات</small></button></section>
       ${socialFields}${htmlBuilder}
@@ -10881,7 +10866,9 @@ async function handleAction(target) {
     const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
     const destinationLabel = channel === "email" ? "البريد المستلم" : "رقم واتساب بصيغة دولية";
     const destinationType = channel === "email" ? "email" : "tel";
-    return openModal("إرسال تجريبي", `<form data-submit="campaign-draft-test" class="grid"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="channelId" value="${escapeHtml(form.elements.whatsappChannelId?.value || "")}"><input type="hidden" name="subject" value="${escapeHtml(form.elements.subject?.value || form.elements.name?.value || "اختبار حملة")}"><textarea hidden name="body">${escapeHtml(form.elements.body?.value || "")}</textarea><label class="field"><span>${destinationLabel}</span><input class="input" type="${destinationType}" name="destination" required ${channel === "whatsapp" ? 'placeholder="9665XXXXXXXX" inputmode="tel"' : ""}></label><p class="inline-notice info">ستُرسل رسالة حقيقية عبر القناة المحددة، ولن تُضاف إلى جمهور الحملة.</p><button class="btn btn-primary" type="submit">${dashboardIcon("send")} إرسال الاختبار</button></form>`);
+    const approvedHtml = String(form.elements.htmlContent?.value || "").trim();
+    const testHtml = channel === "email" ? (inspectEmailHtmlClient(approvedHtml).ok ? inspectEmailHtmlClient(approvedHtml).html : campaignStudioGeneratedHtml(form)) : "";
+    return openModal("إرسال تجريبي", `<form data-submit="campaign-draft-test" class="grid"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="channelId" value="${escapeHtml(form.elements.whatsappChannelId?.value || "")}"><input type="hidden" name="subject" value="${escapeHtml(form.elements.subject?.value || form.elements.name?.value || "اختبار حملة")}"><textarea hidden name="body">${escapeHtml(form.elements.body?.value || "")}</textarea><textarea hidden name="html">${escapeHtml(testHtml)}</textarea><label class="field"><span>${destinationLabel}</span><input class="input" type="${destinationType}" name="destination" required ${channel === "whatsapp" ? 'placeholder="9665XXXXXXXX" inputmode="tel"' : ""}></label><p class="inline-notice info">ستُرسل رسالة حقيقية بالقالب والصور وترتيب البطاقات الظاهر في المعاينة، ولن تُضاف إلى جمهور الحملة.</p><button class="btn btn-primary" type="submit">${dashboardIcon("send")} إرسال الاختبار</button></form>`);
   }
   if (action === "campaign-product-choice") {
     const form = target.closest("form");
@@ -10931,14 +10918,28 @@ async function handleAction(target) {
     refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
   }
   if (action === "campaign-studio-image-pick") { target.closest("[data-campaign-card]")?.querySelector('[data-action="campaign-studio-image-file"]')?.click(); return; }
+  if (action === "campaign-studio-hero-image-pick") { target.closest("[data-campaign-hero-image-wrap]")?.querySelector('[data-action="campaign-studio-hero-image-file"]')?.click(); return; }
+  if (action === "campaign-studio-hero-image-remove") {
+    const form = target.closest("form[data-campaign-studio]");
+    const wrap = target.closest("[data-campaign-hero-image-wrap]");
+    const hidden = wrap?.querySelector('[name="heroImageUrl"]');
+    if (hidden) hidden.value = "";
+    wrap?.querySelector("[data-campaign-hero-image-preview]")?.remove();
+    if (!wrap?.querySelector("[data-campaign-hero-image-placeholder]")) wrap?.insertAdjacentHTML("afterbegin", `<span data-campaign-hero-image-placeholder>${dashboardIcon("storeBag")}<small>يفضّل مقاسًا أفقيًا بنسبة 16:9</small></span>`);
+    wrap?.classList.remove("has-image");
+    target.remove();
+    const picker = wrap?.querySelector('[data-action="campaign-studio-hero-image-pick"]');
+    if (picker) picker.innerHTML = `${dashboardIcon("upload")} إضافة صورة المتجر`;
+    refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
+  }
   if (action === "campaign-studio-preview-mode") {
     state.campaignBuilderPreviewMode = ["desktop","tablet","mobile"].includes(target.dataset.mode) ? target.dataset.mode : "desktop";
     document.querySelectorAll('[data-action="campaign-studio-preview-mode"]').forEach((button) => button.classList.toggle("active", button.dataset.mode === state.campaignBuilderPreviewMode));
-    const preview = document.querySelector(".campaign-studio-email-preview");
+    const preview = document.querySelector(".campaign-studio-email-preview, .campaign-studio-code-preview");
     if (preview) {
-      const form = target.closest("form[data-campaign-studio]") || document.querySelector("form[data-campaign-studio]");
-      const design = String(form?.elements.emailDesign?.value || "showcase");
-      preview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${design}`;
+      preview.className = preview.matches(".campaign-studio-code-preview")
+        ? `campaign-studio-code-preview ${state.campaignBuilderPreviewMode}`
+        : `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase`;
     }
     const generatedPreview = document.querySelector(".campaign-generated-email-preview");
     if (generatedPreview) generatedPreview.className = `campaign-generated-email-preview ${state.campaignBuilderPreviewMode}`;
@@ -14147,7 +14148,7 @@ async function handleSubmit(form, event) {
       await fetchJson("/api/campaigns/test-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel:data.channel, channelId:data.channelId || null, destination:data.destination, subject:data.subject, body:data.body })
+        body: JSON.stringify({ channel:data.channel, channelId:data.channelId || null, destination:data.destination, subject:data.subject, body:data.body, html:data.html || null })
       });
       closePortal();
       toast("تم قبول الرسالة التجريبية عبر مزود القناة بنجاح.");
@@ -14215,7 +14216,9 @@ async function handleSubmit(form, event) {
           senderName: data.fromName || null,
           senderEmail: data.fromEmail || null,
           replyTo: data.replyTo || null,
-          emailDesign: data.channel === "email" ? data.emailDesign || "showcase" : null,
+          emailDesign: data.channel === "email" ? "showcase" : null,
+          emailThemeColor: data.channel === "email" && /^#[0-9a-f]{6}$/i.test(data.themeColor || "") ? data.themeColor : null,
+          heroImageUrl: data.channel === "email" ? safeStoreLogoUrl(data.heroImageUrl) || null : null,
           cards: campaignCards,
           socialLinksEnabled,
           socialLinks,
@@ -16759,6 +16762,10 @@ document.addEventListener("input", (event) => {
   }
   const campaignStudioForm = target.closest?.("form[data-campaign-studio]");
   if (campaignStudioForm) {
+    if (target.dataset.action === "campaign-theme-custom-color") {
+      const customRadio = target.closest("label")?.querySelector('input[type="radio"][name="themeColor"]');
+      if (customRadio) { customRadio.value = target.value; customRadio.checked = true; }
+    }
     const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
     if (counter) counter.textContent = String(target.value?.length || 0);
     refreshCampaignStudioPreview(campaignStudioForm);
@@ -17428,6 +17435,34 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "salla-report-date-to") { state.sallaReportDateTo = target.value; return; }
   if (target.dataset.action === "salla-report-status") { state.sallaReportStatus = target.value || "all"; return; }
   if (target.dataset.action === "salla-report-channel") { state.sallaReportChannel = target.value || "all"; return; }
+  if (target.dataset.action === "campaign-studio-hero-image-file" && target.files?.[0]) {
+    void (async () => {
+      const form = target.closest("form[data-campaign-studio]");
+      const wrap = target.closest("[data-campaign-hero-image-wrap]");
+      try {
+        const file = target.files[0];
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
+        if (file.size > 5 * 1024 * 1024) throw new Error("يجب ألا يتجاوز حجم صورة الحملة 5 ميجابايت.");
+        wrap?.classList.add("is-uploading");
+        const formData = new FormData(); formData.append("file", file);
+        const payload = await fetchJson("/api/campaigns/assets", { method:"POST", body:formData });
+        const hidden = wrap?.querySelector('[name="heroImageUrl"]');
+        if (hidden) hidden.value = payload.imageUrl;
+        wrap?.querySelector("[data-campaign-hero-image-placeholder]")?.remove();
+        const current = wrap?.querySelector("[data-campaign-hero-image-preview]");
+        if (current) current.src = payload.imageUrl;
+        else wrap?.insertAdjacentHTML("afterbegin", `<img src="${escapeHtml(payload.imageUrl)}" alt="صورة الحملة" data-campaign-hero-image-preview>`);
+        wrap?.classList.add("has-image");
+        const picker = wrap?.querySelector('[data-action="campaign-studio-hero-image-pick"]');
+        if (picker) picker.innerHTML = `${dashboardIcon("upload")} استبدال الصورة`;
+        if (!wrap?.querySelector('[data-action="campaign-studio-hero-image-remove"]')) picker?.insertAdjacentHTML("afterend", `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-hero-image-remove">حذف الصورة</button>`);
+        refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form);
+        toast("تمت إضافة صورة الحملة إلى المعاينة.", "success");
+      } catch (error) { toast(error.message || "تعذر رفع صورة الحملة.", "danger"); }
+      finally { wrap?.classList.remove("is-uploading"); target.value = ""; }
+    })();
+    return;
+  }
   if (target.dataset.action === "campaign-studio-image-file" && target.files?.[0]) {
     void (async () => {
       const form = target.closest("form[data-campaign-studio]");

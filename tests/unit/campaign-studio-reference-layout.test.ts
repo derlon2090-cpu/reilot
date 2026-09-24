@@ -28,14 +28,15 @@ describe("campaign studio reference layout", () => {
   it("keeps the preview driven by the actual form cards, sender and social links", () => {
     expect(appSource).toContain("campaignStudioPreviewCards(cards, \"whatsapp\")");
     expect(appSource).toContain("campaignStudioPreviewCards(cards, \"email\")");
-    expect(appSource).toContain("safeStoreLogoUrl(firstCard.imageUrl)");
+    expect(appSource).toContain('safeStoreLogoUrl(form.elements.heroImageUrl?.value) || safeStoreLogoUrl(firstCard.imageUrl)');
     expect(appSource).toContain("form.elements.fromName?.value?.trim()");
     expect(appSource).toContain("campaignStudioSocialIconLinks(form)");
     expect(appSource).toContain("data-campaign-email-hero-media");
   });
 
   it("preserves the visual template when switching desktop, tablet and mobile preview modes", () => {
-    expect(appSource).toContain('preview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${design}`');
+    expect(appSource).toContain('`campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase`');
+    expect(appSource).toContain('`campaign-studio-code-preview ${state.campaignBuilderPreviewMode}`');
     expect(stylesSource).toContain("@media (max-width:1280px) and (min-width:921px)");
     expect(stylesSource).toContain("@media (max-width:920px)");
     expect(stylesSource).toContain("@media (max-width:700px)");

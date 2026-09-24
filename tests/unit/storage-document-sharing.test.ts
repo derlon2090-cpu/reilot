@@ -45,6 +45,8 @@ describe("storage document sharing", () => {
     const page = fs.readFileSync(path.join(process.cwd(), "app/[[...slug]]/page.jsx"), "utf8");
     expect(app).toContain('item.permission === "edit"');
     expect(app).toContain('data-submit="shared-storage-document"');
+    expect(app).toContain('data-action="storage-share-item"');
+    expect(app).toContain("مشاركة الملف");
     expect(app).toContain("storage-share-revoke");
     expect(page).toContain('slug[0] === "shared"');
     expect(page).toContain("index: false, follow: false");

@@ -81,7 +81,7 @@ const providerOutputSchema = z.object({
   warnings: z.array(z.string().trim().min(1).max(300)).max(20).default([]),
   summary: z.string().trim().max(500).optional().default(""),
   improvements: z.array(z.string().trim().min(1).max(300)).max(12).optional().default([])
-}).strict();
+});
 
 const suggestionsOutputSchema = z.object({
   score: z.number().min(0).max(100),
@@ -104,17 +104,63 @@ function safeOutputLimit() {
 }
 
 function jsonContent(message = {}) {
-  const content = typeof message.content === "string" ? message.content.trim() : "";
-  if (!content) throw serviceError("AI_EMAIL_INVALID_OUTPUT", "لم يُرجع الذكاء نتيجة صالحة. حاول بصياغة أوضح.", 422);
+  const raw = typeof message === "string"
+    ? message
+    : typeof message?.content === "string"
+      ? message.content
+      : Array.isArray(message?.content)
+        ? message.content.map((part) => typeof part === "string" ? part : part?.text || part?.content || "").join("")
+        : "";
+  const content = String(raw || "").trim();
+  if (!content) throw serviceError("AI_EMAIL_INVALID_OUTPUT", "لم يكتمل إنشاء التصميم. حاول مرة أخرى.", 422);
   const unfenced = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-  try { return JSON.parse(unfenced); } catch {
-    const start = unfenced.indexOf("{");
-    const end = unfenced.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try { return JSON.parse(unfenced.slice(start, end + 1)); } catch {}
-    }
-    throw serviceError("AI_EMAIL_INVALID_OUTPUT", "تعذر التحقق من النتيجة. حاول مرة أخرى.", 422);
+  const candidates = [unfenced];
+  const objectStart = unfenced.indexOf("{");
+  const objectEnd = unfenced.lastIndexOf("}");
+  if (objectStart >= 0 && objectEnd > objectStart) candidates.push(unfenced.slice(objectStart, objectEnd + 1));
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch { /* try the next safe JSON candidate */ }
   }
+  if (/<(?:table|div|section|h[1-4]|p)\b/i.test(unfenced)) {
+    return { html: unfenced, usedVariables: [], warnings: ["تمت معالجة استجابة HTML مباشرة من مزود الذكاء."] };
+  }
+  throw serviceError("AI_EMAIL_INVALID_OUTPUT", "تعذر قراءة التصميم الناتج. حاول مرة أخرى.", 422);
+}
+
+function listValue(value, max = 20) {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,\n]/) : [];
+  return values.map((item) => String(item || "").trim()).filter(Boolean).slice(0, max);
+}
+
+function emailFragment(value) {
+  let html = String(value || "").trim().replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const body = html.match(/<body\b[^>]*>([\s\S]*?)<\/body\s*>/i);
+  if (body) html = body[1].trim();
+  return html
+    .replace(/<!doctype[^>]*>/gi, "")
+    .replace(/<head\b[^>]*>[\s\S]*?<\/head\s*>/gi, "")
+    .replace(/<\/?(?:html|body)\b[^>]*>/gi, "")
+    .trim();
+}
+
+export function normalizeGeneratedEmailTemplate(value) {
+  const outer = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const candidate = outer.result && typeof outer.result === "object"
+    ? outer.result
+    : outer.data && typeof outer.data === "object"
+      ? outer.data
+      : outer.email && typeof outer.email === "object"
+        ? outer.email
+        : outer;
+  const rawHtml = typeof value === "string" ? value : candidate.html ?? candidate.htmlContent ?? candidate.code ?? candidate.content;
+  const html = emailFragment(typeof rawHtml === "string" ? rawHtml : "");
+  return {
+    html,
+    usedVariables: listValue(candidate.usedVariables ?? candidate.variables, 80),
+    warnings: listValue(candidate.warnings, 20),
+    summary: String(candidate.summary || "").trim().slice(0, 500),
+    improvements: listValue(candidate.improvements, 12)
+  };
 }
 
 function variablesIn(value) {
@@ -123,6 +169,12 @@ function variablesIn(value) {
 
 function imageSourcesIn(value) {
   return [...new Set([...String(value || "").matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]))];
+}
+
+function normalizedImageSource(value) {
+  let normalized = String(value || "").replace(/&#38;/g, "&").replace(/&quot;/gi, '"').trim();
+  for (let pass = 0; pass < 3 && /&amp;/i.test(normalized); pass += 1) normalized = normalized.replace(/&amp;/gi, "&");
+  return normalized;
 }
 
 function normalizedVariables(values = []) {
@@ -148,7 +200,7 @@ export function validateGeneratedEmailTemplate(value, {
   allowedVariables = EMAIL_TEMPLATE_ALLOWED_VARIABLES,
   requiredVariables = []
 } = {}) {
-  const parsed = providerOutputSchema.safeParse(value);
+  const parsed = providerOutputSchema.safeParse(normalizeGeneratedEmailTemplate(value));
   if (!parsed.success) throw serviceError("AI_EMAIL_INVALID_OUTPUT", "تعذر التحقق من بنية القالب الناتج.", 422);
   const inspection = inspectCustomEmailHtml(parsed.data.html, { maxLength: MAX_AI_HTML_LENGTH });
   if (!inspection.ok) throw serviceError("AI_EMAIL_UNSAFE_OUTPUT", "تم رفض الكود الناتج لأنه لا يطابق سياسة أمان البريد.", 422);
@@ -158,8 +210,8 @@ export function validateGeneratedEmailTemplate(value, {
   if (unknownVariables.length) {
     throw serviceError("AI_EMAIL_UNKNOWN_VARIABLE", `الكود الناتج يحتوي متغيرات غير معتمدة: ${unknownVariables.join(", ")}.`, 422);
   }
-  const allowedImages = new Set(allowedImageSources);
-  if (imageSourcesIn(inspection.html).some((source) => !allowedImages.has(source))) {
+  const allowedImages = new Set(allowedImageSources.map(normalizedImageSource));
+  if (imageSourcesIn(inspection.html).some((source) => !allowedImages.has(normalizedImageSource(source)))) {
     throw serviceError("AI_EMAIL_UNAPPROVED_IMAGE", "الكود الناتج يحتوي صورة غير معتمدة. استخدم صورة مرفوعة أو موجودة في القالب فقط.", 422);
   }
   const missingVariables = normalizedVariables(requiredVariables).filter((name) => !usedVariables.includes(name));
@@ -189,6 +241,7 @@ export function buildEmailTemplateCodeMessages(input, resolvedContext = null) {
   const context = resolvedContext || STATIC_CONTEXTS.get(input.templateContext?.templateType) || STATIC_CONTEXTS.get("renewal");
   const variables = normalizedVariables(context.variables || EMAIL_TEMPLATE_ALLOWED_VARIABLES);
   const color = input.selectedTemplateColor || input.templateContext?.selectedColor || "#087F75";
+  const selectedImages = [...new Set(input.selectedImageUrls || [])];
   const system = [
     "أنت مهندس قوالب بريد إلكتروني داخل Renvix.",
     "أعد JSON فقط بالمفاتيح html وusedVariables وwarnings وsummary وimprovements، دون Markdown أو شرح خارجه.",
@@ -200,7 +253,9 @@ export function buildEmailTemplateCodeMessages(input, resolvedContext = null) {
     `المتغيرات الوحيدة المسموحة: ${variables.map((item) => `{{${item}}}`).join(", ") || "لا توجد متغيرات"}.`,
     `اللون المحدد: ${color}.`,
     "لا تخترع أسعارًا أو خصومات أو مواعيد أو بيانات عملاء أو روابط.",
-    "لا تضف صورًا أو روابط صور جديدة. حافظ فقط على الصور الموجودة في الكود الحالي.",
+    selectedImages.length
+      ? `مصادر الصور الوحيدة المسموحة: ${selectedImages.join(", ")}. استخدمها عند ملاءمتها ولا تخترع روابط صور أخرى.`
+      : "لا تضف صورًا أو روابط صور جديدة. حافظ فقط على الصور الموجودة في الكود الحالي.",
     ...(input.templateContext?.templateType === "campaign_email" ? [
       "في بريد الحملات، حافظ دائمًا على هوية المتجر ونص المعاينة والقسم الرئيسي وصورة الحملة أو موضعها وعنوان الحملة ونصها وعنوان التفاصيل وجميع البطاقات بالترتيب مع صورها أو مواضعها وعناوينها ونصوصها وأزرارها وروابطها وروابط التواصل والتذييل ورابط {{unsubscribe_url}}. غيّر التصميم والتوزيع دون حذف أي عنصر من هذه العناصر."
     ] : []),
@@ -305,19 +360,14 @@ async function executeEmailAITask(session, input, options, { taskType, messages,
     await deps.attachGenerationResources(session, generationId, { reservationId: reservation.id });
     const model = provider.modelFor(route.modelTier);
     const startedAt = Date.now();
-    const response = await provider.completeStructured({ messages, signal: options.signal, maxTokens, model, thinking: route.thinking, reasoningEffort: route.reasoningEffort, responseFormat: { type: "json_object" } });
+    // Structured HTML generation needs a final JSON payload. Disabling hidden reasoning here
+    // prevents some compatible providers from exhausting the output budget before `content`.
+    const response = await provider.completeStructured({ messages, signal: options.signal, maxTokens, model, thinking: "disabled", reasoningEffort: null, responseFormat: { type: "json_object" } });
     const processingLatencyMs = Date.now() - startedAt;
     const providerUsage = response.usage || {};
     const actualTokens = Number(providerUsage.prompt_tokens || 0) + Number(providerUsage.completion_tokens || 0);
     if (actualTokens <= 0) throw serviceError("AI_PROVIDER_USAGE_MISSING", "تعذر اعتماد استهلاك الطلب من مزود الذكاء.", 502);
-    let result;
-    try { result = validate(jsonContent(response.message)); } catch (validationError) {
-      const settlement = await deps.settle(session, reservation.id, { providerRequestId: response.providerRequestId || aiRun.id, idempotencyKey: `email-template:${session.tenantId}:${session.userId}:${idempotencyKey}`, model, routingMode: route.modelTier === "pro" ? "pro" : route.thinking === "enabled" ? "flash_thinking" : "flash", usage: providerUsage, taskType, aiRunId: aiRun.id, processingLatencyMs, completeRun: false });
-      settled = true;
-      await deps.finishRun(session, aiRun.id, { status: "failed" }).catch(() => null);
-      validationError.charged = Number(settlement.actualTokens || actualTokens);
-      throw validationError;
-    }
+    const result = validate(jsonContent(response.message));
     const settlement = await deps.settle(session, reservation.id, { providerRequestId: response.providerRequestId || aiRun.id, idempotencyKey: `email-template:${session.tenantId}:${session.userId}:${idempotencyKey}`, model, routingMode: route.modelTier === "pro" ? "pro" : route.thinking === "enabled" ? "flash_thinking" : "flash", usage: providerUsage, taskType, aiRunId: aiRun.id, processingLatencyMs });
     settled = true;
     const usage = await deps.getUsage(session);
@@ -353,14 +403,14 @@ export async function generateEmailTemplateCode(session, rawInput, options = {})
   }
   const requiresExisting = ["edit", "replace", "improve", "fix"].includes(input.mode);
   if (requiresExisting && !input.existingHtml.trim()) throw serviceError("AI_EMAIL_EXISTING_HTML_REQUIRED", "هذه العملية تتطلب كود القالب الحالي.", 400);
-  let allowedImageSources = [];
+  let allowedImageSources = [...new Set(input.selectedImageUrls || [])];
   let requiredVariables = [];
   if (input.existingHtml.trim()) {
     const current = inspectCustomEmailHtml(input.existingHtml);
     if (!current.ok) throw serviceError("AI_EMAIL_EXISTING_HTML_INVALID", "الكود الحالي لا يطابق سياسة أمان البريد.", 400);
     input.existingHtml = current.html;
     if (input.existingHtml.length > MAX_AI_CONTEXT_LENGTH) throw serviceError("AI_EMAIL_CONTEXT_TOO_LARGE", "القالب صالح للحفظ، لكن حجمه أكبر من نافذة التعديل بالذكاء. حدّد قسمًا أصغر أو استخدم المحرر اليدوي.", 413);
-    allowedImageSources = imageSourcesIn(current.html);
+    allowedImageSources = [...new Set([...allowedImageSources, ...imageSourcesIn(current.html)])];
     if (input.mode !== "replace") requiredVariables = variablesIn(current.html);
   }
   const taskType = EMAIL_TEMPLATE_TASK_TYPES[input.mode];

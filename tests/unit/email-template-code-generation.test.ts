@@ -4,6 +4,7 @@ import {
   EMAIL_TEMPLATE_ALLOWED_VARIABLES,
   generateEmailTemplateCode,
   generateEmailTemplateSuggestions,
+  normalizeGeneratedEmailTemplate,
   resolveEmailTemplateContext,
   validateGeneratedEmailTemplate
 } from "../../src/server/ai/email-template-code.js";
@@ -167,6 +168,34 @@ describe("renewal email AI code generation", () => {
     expect(deps.release).not.toHaveBeenCalled();
   });
 
+  it("accepts fenced or content-part JSON and disables hidden reasoning for reliable structured output", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured = vi.fn(async () => ({
+      message: { content: [{ type: "text", text: `\`\`\`json\n${JSON.stringify(safeResult)}\n\`\`\`` }] as any },
+      usage: { prompt_tokens: 60, completion_tokens: 40, total_tokens: 100 },
+      providerRequestId: "provider-email-fenced"
+    }));
+    await expect(generateEmailTemplateCode(session, input, {
+      idempotencyKey: "email-template-fenced-0001", dependencies: deps
+    })).resolves.toMatchObject({ ok: true, html: expect.stringContaining("customer_name") });
+    expect(deps.provider.completeStructured).toHaveBeenCalledWith(expect.objectContaining({
+      thinking: "disabled", reasoningEffort: null, responseFormat: { type: "json_object" }
+    }));
+  });
+
+  it("allows only explicitly selected campaign images in generated code", async () => {
+    const imageUrl = "https://assets.renvix.app/campaign/store-cover.png";
+    const deps = dependencies();
+    deps.provider.completeStructured = vi.fn(async () => ({
+      message: { content: JSON.stringify({ ...safeResult, html: `<div dir="rtl"><img src="${imageUrl}" alt="المتجر"><p>مرحبًا {{customer_name}}</p></div>` }) },
+      usage: { prompt_tokens: 70, completion_tokens: 30, total_tokens: 100 },
+      providerRequestId: "provider-email-image"
+    }));
+    await expect(generateEmailTemplateCode(session, { ...input, templateContext: { templateType: "campaign_email", channel: "email" }, selectedImageUrls: [imageUrl] }, {
+      idempotencyKey: "email-template-image-0001", dependencies: deps
+    })).resolves.toMatchObject({ ok: true, html: expect.stringContaining(imageUrl) });
+  });
+
   it("returns a completed idempotent result without a second provider call or charge", async () => {
     const deps = dependencies({ claimGeneration: vi.fn(async () => ({ claimed: false, record: {
       status: "completed", html: safeResult.html, usedVariables: safeResult.usedVariables,
@@ -293,7 +322,7 @@ describe("renewal email AI code generation", () => {
     expect(deps.settle).not.toHaveBeenCalled();
   });
 
-  it("charges actual provider usage but rejects an invalid structured response", async () => {
+  it("rejects invalid provider output without charging the user", async () => {
     const deps = dependencies();
     deps.provider.completeStructured = vi.fn(async () => ({
       message: { content: JSON.stringify({ html: "<script>alert(1)</script>", usedVariables: [], warnings: [] }) },
@@ -302,10 +331,37 @@ describe("renewal email AI code generation", () => {
     }));
     await expect(generateEmailTemplateCode(session, input, {
       idempotencyKey: "email-template-request-0004", dependencies: deps
-    })).rejects.toMatchObject({ code: "AI_EMAIL_UNSAFE_OUTPUT", charged: 200 });
-    expect(deps.settle).toHaveBeenCalledTimes(1);
-    expect(deps.release).not.toHaveBeenCalled();
+    })).rejects.toMatchObject({ code: "AI_EMAIL_UNSAFE_OUTPUT" });
+    expect(deps.settle).not.toHaveBeenCalled();
+    expect(deps.release).toHaveBeenCalledWith(session, "reservation-1");
     expect(deps.finishRun).toHaveBeenCalledWith(session, "run-1", { status: "failed" });
+  });
+
+  it("normalizes common provider response aliases and wrapped documents", () => {
+    expect(normalizeGeneratedEmailTemplate({ result: {
+      htmlContent: '<!doctype html><html><head><title>x</title></head><body><div dir="rtl"><p>مرحبًا {{customer_name}}</p></div></body></html>',
+      variables: "customer_name",
+      warnings: "تنبيه واحد"
+    } })).toMatchObject({ html: '<div dir="rtl"><p>مرحبًا {{customer_name}}</p></div>', usedVariables: ["customer_name"], warnings: ["تنبيه واحد"] });
+  });
+
+  it("accepts direct HTML returned by a compatible provider", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured.mockResolvedValueOnce({
+      message: { content: safeResult.html },
+      usage: { prompt_tokens: 70, completion_tokens: 30, total_tokens: 100 },
+      providerRequestId: "provider-direct-html"
+    });
+    await expect(generateEmailTemplateCode(session, input, {
+      idempotencyKey: "email-template-direct-html-0001", dependencies: deps
+    })).resolves.toMatchObject({ ok: true, html: expect.stringContaining("customer_name") });
+  });
+
+  it("accepts an approved signed image URL after HTML entity encoding", () => {
+    const imageUrl = "https://assets.renvix.app/store.png?token=abc&expires=123";
+    expect(validateGeneratedEmailTemplate({ ...safeResult, html: `<div><img src="https://assets.renvix.app/store.png?token=abc&amp;expires=123"><p>مرحبًا {{customer_name}}</p></div>` }, {
+      allowedImageSources: [imageUrl]
+    }).html).toContain("store.png");
   });
 
   it("fails closed on exhausted quota before calling the provider", async () => {
