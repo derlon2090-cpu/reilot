@@ -17069,6 +17069,10 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   :root[data-home-tablet-layout="true"] .storage-toolbar{grid-template-columns:minmax(190px,1.4fr) repeat(3,minmax(100px,.7fr)) 82px}
 }
 .storage-editor-toolbar{flex-wrap:wrap}
+.storage-editor-heading-tools{display:flex;align-items:center;gap:2px;padding:2px;border:1px solid #dbe8e5;border-radius:9px;background:#f5f9f8}
+.storage-editor-toolbar .storage-editor-heading-tools button{min-width:36px;height:30px;padding-inline:7px;border-radius:6px;font:800 9px "Sora","Tajawal",sans-serif}
+.storage-editor-toolbar .storage-editor-heading-tools button:first-child{min-width:44px;font-family:"Tajawal",sans-serif}
+.storage-editor-body h1,.storage-rich-content h1{margin:18px 0 10px;font-size:1.75em;line-height:1.45}.storage-editor-body h2,.storage-rich-content h2{margin:15px 0 8px;font-size:1.4em;line-height:1.55}
 .storage-editor-toolbar .storage-editor-box-tool{display:flex;align-items:center;gap:5px;min-width:max-content;padding-inline:9px;color:#087267;border:1px solid #cfe5e1;background:#f5fbf9;font-weight:800}
 .storage-editor-toolbar .storage-editor-box-tool:hover{color:#07514c;border-color:#9bcfc7;background:#e7f6f2}
 .storage-editor-toolbar .storage-editor-box-tool>span{display:grid;place-items:center;width:17px;height:17px;border:1.5px solid currentColor;border-radius:4px;font-size:0}
@@ -17080,3 +17084,24 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .storage-editor-body [data-storage-ai-heading-text],.storage-rich-content [data-storage-ai-heading-text]{min-width:0;overflow-wrap:anywhere}
 .storage-editor-body [data-storage-ai-number],.storage-rich-content [data-storage-ai-number]{display:inline-block;flex:none;padding:0 7px;border-radius:999px;color:#087267;background:#e8f5f1;font-weight:800;line-height:1.6}
 .storage-editor-body hr[data-storage-ai-separator],.storage-rich-content hr[data-storage-ai-separator]{height:2px;margin:19px 0;border:0;border-radius:999px;background:linear-gradient(90deg,transparent,#0b8579 12%,#0b8579 88%,transparent)}
+.storage-items.grid .storage-document-card,.storage-items.grid .storage-document-card.has-timer{padding-bottom:18px}
+.storage-items.grid .storage-file-card>.storage-document-card-actions{position:static;inset:auto;width:100%;margin-top:auto}
+.storage-document-card-copy{display:grid;gap:3px;width:100%;min-width:0;margin-block:3px 0}
+.storage-document-card-copy h3{width:100%}
+.storage-document-lock-badge{position:absolute;top:12px;inset-inline-end:12px;display:inline-flex;align-items:center;gap:5px;max-width:calc(100% - 82px);overflow:hidden;padding:5px 8px;border:1px solid #c9e4df;border-radius:999px;color:#08675e;background:#edf8f5;font:800 9px "Tajawal",sans-serif;font-style:normal;line-height:1.3;text-overflow:ellipsis;white-space:nowrap}
+.storage-document-lock-badge svg{width:13px!important;height:13px!important;flex:0 0 13px}
+.storage-lock-management{display:grid;gap:18px;min-width:min(520px,80vw)}
+.storage-lock-management>header,.storage-lock-code-sent{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #d7e8e4;border-radius:12px;background:#f1f9f7}
+.storage-lock-management>header>span{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border-radius:11px;color:#087267;background:#fff}
+.storage-lock-management>header svg,.storage-lock-code-sent>svg{width:23px;height:23px}
+.storage-lock-management>header>div,.storage-lock-code-sent>div{display:grid;gap:3px}
+.storage-lock-management small,.storage-lock-code-sent small{color:#6e807c;font-size:10px;line-height:1.65}
+.storage-lock-management>div{display:grid;gap:8px}
+.storage-lock-management>div>button{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:11px;min-height:58px;padding:10px 12px;border:1px solid #dce8e5;border-radius:11px;color:#234a45;background:#fff;text-align:right;cursor:pointer}
+.storage-lock-management>div>button:hover{border-color:#7bbdb3;background:#f4fbf9}
+.storage-lock-management>div>button>svg{width:21px;color:#087267}
+.storage-lock-management>div>button>span{display:grid;gap:2px}.storage-lock-management>div>button b{font-size:12px}
+.storage-lock-warning{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #f0c7cc;border-radius:10px;color:#943844;background:#fff5f6}.storage-lock-warning svg{width:20px;flex:0 0 20px}.storage-lock-warning p{margin:0}
+.storage-lock-code-sent>svg{color:#087267}.storage-lock-code-input{text-align:center;font:800 20px "Sora",sans-serif;letter-spacing:7px}
+:root[data-theme="dark"] .storage-editor-heading-tools{border-color:#31534d;background:#143a35}:root[data-theme="dark"] .storage-document-lock-badge{color:#9adbd1;border-color:#315b54;background:#143a35}:root[data-theme="dark"] .storage-lock-management>header,:root[data-theme="dark"] .storage-lock-code-sent{border-color:#31534d;background:#143a35}:root[data-theme="dark"] .storage-lock-management>header>span,:root[data-theme="dark"] .storage-lock-management>div>button{color:var(--text);border-color:#31534d;background:#123632}
+@media(min-width:901px) and (max-width:1700px){:root[data-home-tablet-layout="true"] .storage-document-card-copy{margin:0}:root[data-home-tablet-layout="true"] .storage-document-lock-badge{top:12px;inset-inline-end:12px;max-width:calc(100% - 66px)}}

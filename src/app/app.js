@@ -2109,6 +2109,7 @@ function dashboardIcon(name) {
     customers: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
     devices: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
     security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    unlock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2M12 14v3"/>',
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
     bolt: '<path d="m13 2-9 12h7l-1 8 10-13h-7z"/>',
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
@@ -9303,6 +9304,13 @@ function refreshStorageEditorToolbarState(editor = document.querySelector("[data
   });
   const selection = window.getSelection?.();
   const anchor = selection?.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection?.anchorNode;
+  const selectedBlock = anchor?.closest?.("h1,h2,p,div");
+  const selectedBlockName = selectedBlock?.matches?.("[data-storage-editor]") ? "p" : String(selectedBlock?.tagName || "p").toLowerCase();
+  toolbar.querySelectorAll('[data-command="formatBlock"]').forEach((button) => {
+    const active = button.dataset.value === selectedBlockName;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
   const textBoxActive = Boolean(anchor?.closest?.("[data-storage-text-box]") && editor?.contains(anchor));
   const textBoxButton = toolbar.querySelector('[data-action="storage-editor-box"]');
   textBoxButton?.classList.toggle("is-active", textBoxActive);
@@ -9925,7 +9933,27 @@ async function handleAction(target) {
   }
   if (storageAction === "storage-lock-prompt") {
     const locked = target.dataset.locked === "1";
-    return openModal(locked ? "إدارة حماية الملف" : "حماية الملف", `<form class="grid" data-submit="storage-document-lock" data-id="${escapeHtml(target.dataset.id)}" data-locked="${locked ? "1" : "0"}"><p>تُطلب كلمة المرور عند فتح الملف، ولا يُرسل محتواه قبل التحقق منها.</p>${locked ? `<label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password"></label>` : ""}<label class="field"><span>${locked ? "كلمة المرور الجديدة" : "كلمة المرور"}</span><input class="input" name="password" type="password" minlength="8" autocomplete="new-password" ${locked ? "" : "required"} placeholder="8 أحرف على الأقل"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" ${locked ? "" : "required"}></label><small>${locked ? "اترك الجديدة فارغة لإزالة القفل بعد إدخال الحالية." : "احتفظ بها في مكان آمن؛ لا يمكن استعادتها من الخادم."}</small><button class="btn btn-primary" type="submit">${locked ? "حفظ التغيير أو إزالة القفل" : "تفعيل الحماية"}</button></form>`);
+    const id = escapeHtml(target.dataset.id);
+    if (locked) return openModal("إدارة حماية الملف", `<section class="storage-lock-management"><header><span>${dashboardIcon("security")}</span><div><strong>هذا الملف محمي بكلمة مرور</strong><small>اختر الإجراء المطلوب. لن يُعرض محتوى الملف أثناء إدارة الحماية.</small></div></header><div><button type="button" data-action="storage-lock-change-prompt" data-id="${id}">${dashboardIcon("edit")}<span><b>تغيير كلمة المرور</b><small>يتطلب كلمة المرور الحالية</small></span></button><button type="button" data-action="storage-lock-remove-prompt" data-id="${id}">${dashboardIcon("unlock")}<span><b>إزالة كلمة المرور</b><small>أدخل الحالية فقط لإلغاء القفل</small></span></button><button type="button" data-action="storage-lock-recovery-request" data-id="${id}">${dashboardIcon("email")}<span><b>نسيت كلمة المرور؟</b><small>إرسال رمز تحقق إلى بريدك المسجل</small></span></button></div></section>`);
+    return openModal("حماية الملف", `<form class="grid" data-submit="storage-document-lock" data-id="${id}" data-locked="0"><p>تُطلب كلمة المرور عند فتح الملف، ولا يُرسل محتواه قبل التحقق منها.</p><label class="field"><span>كلمة المرور</span><input class="input" name="password" type="password" minlength="8" autocomplete="new-password" required placeholder="8 أحرف على الأقل"></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></label><small>احتفظ بها في مكان آمن. يمكنك إعادة تعيينها لاحقًا عبر بريدك المسجل.</small><button class="btn btn-primary" type="submit">تفعيل الحماية</button></form>`);
+  }
+  if (storageAction === "storage-lock-change-prompt") {
+    return openModal("تغيير كلمة مرور الملف", `<form class="grid" data-submit="storage-document-lock-change" data-id="${escapeHtml(target.dataset.id)}"><p>أدخل كلمة المرور الحالية ثم اختر كلمة جديدة.</p><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password"></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="password" type="password" minlength="8" required autocomplete="new-password" placeholder="8 أحرف على الأقل"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" required autocomplete="new-password"></label><button class="btn btn-primary" type="submit">حفظ كلمة المرور الجديدة</button></form>`);
+  }
+  if (storageAction === "storage-lock-remove-prompt") {
+    return openModal("إزالة كلمة مرور الملف", `<form class="grid storage-lock-remove-form" data-submit="storage-document-lock-remove" data-id="${escapeHtml(target.dataset.id)}"><div class="storage-lock-warning">${dashboardIcon("warning")}<p>بعد الإزالة يمكن فتح الملف دون كلمة مرور.</p></div><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password" autofocus></label><small>لا تحتاج إلى إدخال كلمة مرور جديدة لإزالة الحماية.</small><button class="btn btn-danger" type="submit">إزالة كلمة المرور</button></form>`);
+  }
+  if (storageAction === "storage-lock-recovery-request") {
+    const id = target.dataset.id;
+    target.disabled = true;
+    try {
+      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock/recovery/request`, { method: "POST" });
+      return openModal("إعادة تعيين كلمة مرور الملف", `<form class="grid storage-lock-recovery-form" data-submit="storage-document-lock-recovery" data-id="${escapeHtml(id)}"><div class="storage-lock-code-sent">${dashboardIcon("email")}<div><strong>أرسلنا رمز تحقق من 6 أرقام</strong><small>إلى ${escapeHtml(payload.maskedEmail || "بريدك المسجل")}. الرمز صالح لمدة 10 دقائق.</small></div></div><label class="field"><span>رمز التحقق</span><input class="input storage-lock-code-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required dir="ltr" placeholder="000000"></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="password" type="password" minlength="8" required autocomplete="new-password"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" required autocomplete="new-password"></label><button class="btn btn-primary" type="submit">اعتماد كلمة المرور الجديدة</button></form>`);
+    } catch (error) {
+      target.disabled = false;
+      toast(error.message || "تعذر إرسال رمز التحقق.", "danger");
+    }
+    return;
   }
   if (storageAction === "storage-toggle-pin") {
     target.disabled = true;
@@ -13439,22 +13467,76 @@ async function handleSubmit(form, event) {
   }
   if (type === "storage-document-lock") {
     const id = form.dataset.id;
-    const locked = form.dataset.locked === "1";
-    const remove = locked && !data.password;
-    if (!remove && data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
     const button = form.querySelector('button[type="submit"]');
     setSubmitBusy(button, true, "جارٍ حفظ الحماية...");
     try {
       await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword: data.currentPassword, password: data.password, remove })
+        body: JSON.stringify({ password: data.password, remove: false })
       });
       state.storageDocumentPasswords.delete(id);
       closePortal();
       state.storageCenter = null;
       await syncRouteData(true);
-      toast(remove ? "تمت إزالة كلمة المرور." : "تم تفعيل حماية الملف.");
+      toast("تم تفعيل حماية الملف.");
     } catch (error) { toast(error.message || "تعذر حفظ كلمة المرور.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock-change") {
+    const id = form.dataset.id;
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ تغيير كلمة المرور...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: data.currentPassword, password: data.password, remove: false })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم تغيير كلمة مرور الملف.");
+    } catch (error) { toast(error.message || "تعذر تغيير كلمة المرور.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock-remove") {
+    const id = form.dataset.id;
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ إزالة كلمة المرور...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: data.currentPassword, remove: true })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تمت إزالة كلمة المرور من الملف.");
+    } catch (error) { toast(error.message || "تعذر إزالة كلمة المرور.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock-recovery") {
+    const id = form.dataset.id;
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ اعتماد كلمة المرور...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock/recovery/reset`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: data.code, password: data.password })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم اعتماد كلمة المرور الجديدة للملف.");
+    } catch (error) { toast(error.message || "تعذر إعادة تعيين كلمة مرور الملف.", "danger"); }
     finally { setSubmitBusy(button, false); }
     return;
   }
@@ -15786,7 +15868,7 @@ function storageDocumentComposer(data) {
     <label><span>كلمة المرور</span><span class="storage-secret-input"><input class="input" name="password" type="password" autocomplete="new-password" value="${escapeHtml(editing?.password || "")}" placeholder="••••••••••••"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <label class="storage-field-wide"><span>الكود <small>اختياري</small></span><span class="storage-secret-input"><input class="input" name="code" type="password" autocomplete="off" value="${escapeHtml(editing?.code || "")}" placeholder="OTP أو PIN أو Recovery Code"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <section class="storage-custom-fields storage-field-wide"><header><div><h2>بيانات إضافية</h2><p>سمِّ كل حقل بالطريقة التي تناسبك.</p></div><button type="button" class="btn btn-secondary" data-action="storage-add-field">${dashboardIcon("add")} إضافة حقل</button></header><div data-storage-custom-fields>${existingFields}</div></section>
-  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<div class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><button type="button" class="storage-editor-box-tool" data-action="storage-editor-box" title="وضع مربع حول النص المحدد أو إزالته" aria-label="مربع حول النص" aria-pressed="false"><span aria-hidden="true">▢</span><b>مربع</b></button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button><button type="button" data-action="storage-editor-ai-undo" hidden title="استعادة النص قبل الترتيب">استعادة النص</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-label="${type === "note" ? "نص الملاحظة" : "محتوى المستند"}" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></div>`;
+  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<div class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><div class="storage-editor-heading-tools" aria-label="حجم النص"><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="p" title="إرجاع إلى نص عادي" aria-label="نص عادي">نص</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان فرعي">H2</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h1" title="عنوان رئيسي">H1</button></div><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><button type="button" class="storage-editor-box-tool" data-action="storage-editor-box" title="وضع مربع حول النص المحدد أو إزالته" aria-label="مربع حول النص" aria-pressed="false"><span aria-hidden="true">▢</span><b>مربع</b></button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button><button type="button" data-action="storage-editor-ai-undo" hidden title="استعادة النص قبل الترتيب">استعادة النص</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-label="${type === "note" ? "نص الملاحظة" : "محتوى المستند"}" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></div>`;
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon("document")}</div><div><h1>${title}</h1><p>احفظ معلوماتك داخل مساحة عملك الخاصة بشكل منظم وآمن.</p></div></header>
@@ -15836,7 +15918,7 @@ function storageCenterPage() {
   const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon(folder.locked ? "security" : "folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}${folder.locked ? " · محمي بكلمة مرور" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => {
     const timer = storageCountdownParts(doc.timerEndsAt, doc.timerDisplayMode);
-    return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.locked ? "security" : doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}${doc.locked ? " · محمي بكلمة مرور" : ""}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
+    return `<article class="storage-file-card storage-document-card${doc.locked ? " is-password-protected" : ""}${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.locked ? "security" : doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div class="storage-document-card-copy"><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${doc.locked ? `<em class="storage-document-lock-badge">${dashboardIcon("security")} محمي بكلمة مرور</em>` : ""}${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
   }).join("");
   const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card" draggable="true" data-storage-draggable data-id="${escapeHtml(asset.id)}" data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType)}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الصورة إلى مكان آخر لنقلها"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}" draggable="true" data-storage-draggable data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType || "application/octet-stream")}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الملف إلى مكان آخر لنقله"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
   const uploadPanel = state.storageUploads.length ? `<section class="card storage-upload-panel"><header><div><h2>رفع الملفات</h2><small>${state.storageUploads.filter((item) => item.status === "done" || item.status === "duplicate").length.toLocaleString("ar-SA")} من ${state.storageUploads.length.toLocaleString("ar-SA")} ملفات</small></div>${state.storageUploading ? "" : `<button data-action="storage-upload-dismiss">إغلاق</button>`}</header><div>${state.storageUploads.map((task) => `<article data-storage-upload-id="${task.id}" class="is-${task.status}"><span>${dashboardIcon(task.file?.type?.startsWith("image/") ? "image" : "document")}</span><div><strong>${escapeHtml(task.name)}</strong><small>${task.status === "duplicate" ? "هذا الملف موجود بالفعل — استُخدمت النسخة الحالية" : task.status === "failed" ? escapeHtml(task.error || "فشل الرفع") : task.status === "cancelled" ? "أُلغي الرفع" : task.status === "hashing" ? "جارٍ اكتشاف الملفات المكررة..." : task.status === "done" ? "اكتمل الرفع" : "جارٍ الرفع"}</small><em><i style="width:${task.progress}%"></i></em></div><b>${task.progress}%</b>${["uploading","hashing","queued"].includes(task.status) ? `<button data-action="storage-upload-cancel" data-id="${task.id}" aria-label="إلغاء">×</button>` : ""}</article>`).join("")}</div></section>` : "";
