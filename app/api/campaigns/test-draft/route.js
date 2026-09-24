@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { sendEmail } from "../../../../src/lib/email/send-email.js";
+import { inspectCustomEmailHtml } from "../../../../src/lib/email/custom-email-html.js";
 import { sameOriginRequest } from "../../../../src/server/campaign-contacts.js";
 import { query } from "../../../../src/server/db.js";
 import { sendMetaTextMessage } from "../../../../src/server/meta-interactive-service.js";
@@ -10,7 +11,8 @@ const schema = z.object({
   channelId: z.string().uuid().nullable().optional(),
   destination: z.string().trim().min(3).max(320),
   subject: z.string().trim().min(1).max(200),
-  body: z.string().trim().min(1).max(12000)
+  body: z.string().trim().min(1).max(12000),
+  html: z.string().max(500000).optional().nullable()
 });
 
 function escapeHtml(value) {
@@ -29,11 +31,13 @@ export async function POST(request) {
     let providerMessageId = null;
     if (input.channel === "email") {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.destination)) return Response.json({ ok: false, reason: "invalid_email", message: "أدخل بريدًا إلكترونيًا صالحًا." }, { status: 400 });
+      const inspectedHtml = input.html ? inspectCustomEmailHtml(input.html) : null;
+      if (input.html && !inspectedHtml?.ok) return Response.json({ ok: false, reason: "invalid_email_html", message: "كود قالب البريد غير صالح للإرسال." }, { status: 400 });
       const sent = await sendEmail({
         to: input.destination,
         subject: `[اختبار] ${input.subject}`,
         text: input.body,
-        html: `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.9;white-space:pre-wrap">${escapeHtml(input.body)}</div>`,
+        html: inspectedHtml?.ok ? inspectedHtml.html : `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.9;white-space:pre-wrap">${escapeHtml(input.body)}</div>`,
         tags: [{ name: "category", value: "campaign_draft_test" }],
         idempotencyKey: `campaign-draft-test-${auth.session.userId}-${Date.now()}`
       });

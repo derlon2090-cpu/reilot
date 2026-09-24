@@ -54,17 +54,15 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain(".campaign-studio-email-preview.mobile");
   });
 
-  it("treats email templates as visual layouts instead of campaign copy", () => {
+  it("uses one canonical email template with color-only customization", () => {
     expect(appSource).toContain('name="emailDesign"');
-    expect(appSource).toContain('id:"luxury"');
-    expect(appSource).toContain('id:"showcase"');
-    expect(appSource).toContain('id:"editorial"');
-    expect(appSource).toContain('id:"seasonal"');
-    expect(appSource).toContain('id:"minimal"');
-    expect(appSource).toContain('id:"spotlight"');
-    expect(appSource).toContain("الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك");
-    expect(stylesSource).toContain(".campaign-template-thumb.design-luxury");
-    expect(stylesSource).toContain(".campaign-studio-email-preview.design-spotlight");
+    expect(appSource).toContain('value="showcase"');
+    expect(appSource).toContain("القالب الرئيسي المعتمد");
+    expect(appSource).toContain('name="themeColor"');
+    expect(appSource).toContain("صورة المتجر أو غلاف الحملة");
+    expect(appSource).toContain('data-action="campaign-studio-hero-image-file"');
+    expect(stylesSource).toContain(".campaign-email-primary-template");
+    expect(stylesSource).toContain("--campaign-email-color");
   });
 
   it("provides a safe AI email-code workflow with focused code controls", () => {
@@ -95,7 +93,7 @@ describe("campaign studio", () => {
     expect(appSource).not.toContain('form.elements.htmlContent.value = ""');
     expect(appSource).toContain('if (!form.checkValidity())');
     expect(appSource).toContain("campaignSubmit.form.noValidate = true");
-    expect(stylesSource).toContain("bottom:max(8px,env(safe-area-inset-bottom))");
+    expect(stylesSource).toContain("bottom:max(12px,env(safe-area-inset-bottom))");
     expect(stylesSource).toContain("pointer-events:auto");
   });
 

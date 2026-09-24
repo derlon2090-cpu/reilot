@@ -126,6 +126,34 @@ describe("renewal email AI code generation", () => {
     expect(deps.release).not.toHaveBeenCalled();
   });
 
+  it("accepts fenced or content-part JSON and disables hidden reasoning for reliable structured output", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured = vi.fn(async () => ({
+      message: { content: [{ type: "text", text: `\`\`\`json\n${JSON.stringify(safeResult)}\n\`\`\`` }] as any },
+      usage: { prompt_tokens: 60, completion_tokens: 40, total_tokens: 100 },
+      providerRequestId: "provider-email-fenced"
+    }));
+    await expect(generateEmailTemplateCode(session, input, {
+      idempotencyKey: "email-template-fenced-0001", dependencies: deps
+    })).resolves.toMatchObject({ ok: true, html: expect.stringContaining("customer_name") });
+    expect(deps.provider.completeStructured).toHaveBeenCalledWith(expect.objectContaining({
+      thinking: "disabled", reasoningEffort: null, responseFormat: { type: "json_object" }
+    }));
+  });
+
+  it("allows only explicitly selected campaign images in generated code", async () => {
+    const imageUrl = "https://assets.renvix.app/campaign/store-cover.png";
+    const deps = dependencies();
+    deps.provider.completeStructured = vi.fn(async () => ({
+      message: { content: JSON.stringify({ ...safeResult, html: `<div dir="rtl"><img src="${imageUrl}" alt="المتجر"><p>مرحبًا {{customer_name}}</p></div>` }) },
+      usage: { prompt_tokens: 70, completion_tokens: 30, total_tokens: 100 },
+      providerRequestId: "provider-email-image"
+    }));
+    await expect(generateEmailTemplateCode(session, { ...input, templateContext: { templateType: "campaign_email", channel: "email" }, selectedImageUrls: [imageUrl] }, {
+      idempotencyKey: "email-template-image-0001", dependencies: deps
+    })).resolves.toMatchObject({ ok: true, html: expect.stringContaining(imageUrl) });
+  });
+
   it("returns a completed idempotent result without a second provider call or charge", async () => {
     const deps = dependencies({ claimGeneration: vi.fn(async () => ({ claimed: false, record: {
       status: "completed", html: safeResult.html, usedVariables: safeResult.usedVariables,
