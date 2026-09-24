@@ -916,6 +916,7 @@ state.campaignBuilderDraft = null;
 state.campaignBuilderDraftTimer = null;
 state.campaignBuilderPreviewMode = "desktop";
 state.campaignStudioAI = null;
+state.campaignStudioPreviewSource = null;
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -5752,6 +5753,31 @@ function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind) {
   </div>`;
 }
 
+function campaignStudioGeneratedEmailPreview(html) {
+  return `<div class="campaign-generated-email-preview ${state.campaignBuilderPreviewMode}"><div class="campaign-generated-preview-bar"><span>${dashboardIcon("success")} التصميم البرمجي المعتمد</span><button type="button" class="btn btn-secondary" data-action="campaign-studio-restore-main">${dashboardIcon("back")} استرجاع التصميم الرئيسي</button></div><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة تصميم الحملة المعتمد" srcdoc="${escapeHtml(html)}"></iframe></div>`;
+}
+
+function renderCampaignStudioPreviewSource(form, source = state.campaignStudioPreviewSource || "main") {
+  const previewHost = document.querySelector("[data-campaign-studio-preview]");
+  if (!form || !previewHost || form.elements.channel?.value !== "email") return;
+  const editor = form.elements.htmlContent;
+  const inspection = inspectEmailHtmlClient(editor?.value || "");
+  const canUseHtml = source === "html" && editor?.dataset.approved === "true" && inspection.ok;
+  if (canUseHtml) {
+    state.campaignStudioPreviewSource = "html";
+    previewHost.innerHTML = campaignStudioGeneratedEmailPreview(inspection.html);
+    return;
+  }
+  state.campaignStudioPreviewSource = "main";
+  captureCampaignStudioDraft(form);
+  previewHost.innerHTML = campaignStudioEmailPreview(
+    campaignStudioFormCards(form),
+    String(form.elements.emailDesign?.value || "showcase"),
+    String(form.elements.fromEmail?.value || ""),
+    state.campaignBuilderKind === "product" ? "product" : "custom"
+  );
+}
+
 function campaignEmailDesignOptions() {
   return [
     { id:"luxury", name:"عرض فاخر", caption:"واجهة داكنة وبطاقات راقية", accent:"#0b3f3b" },
@@ -5818,7 +5844,7 @@ function captureCampaignStudioDraft(form) {
   const socialSection = form.querySelector("[data-campaign-social-section]");
   if (form.elements.socialLinksEnabled) form.elements.socialLinksEnabled.value = socialSection?.open ? "true" : "false";
   const values = {};
-  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","emailDesign","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
+  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","htmlContentApproved","emailDesign","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
   state.campaignBuilderCards = campaignStudioFormCards(form);
   state.campaignBuilderDraft = { values, cards:state.campaignBuilderCards, updatedAt:new Date().toISOString() };
   return state.campaignBuilderDraft;
@@ -5840,6 +5866,11 @@ function refreshCampaignStudioPreview(form) {
     if (title) title.textContent = `بطاقة ${suiteNumber(index + 1)}`;
   });
   if (channel === "email") {
+    if (state.campaignStudioPreviewSource === "html") {
+      const generatedPreview = document.querySelector(".campaign-generated-email-preview");
+      if (generatedPreview) generatedPreview.className = `campaign-generated-email-preview ${state.campaignBuilderPreviewMode}`;
+      return;
+    }
     const design = String(form.elements.emailDesign?.value || "showcase");
     const emailPreview = document.querySelector(".campaign-studio-email-preview");
     if (emailPreview) {
@@ -5895,13 +5926,23 @@ function campaignStudioGeneratedHtml(form) {
     spotlight:{page:"#eaf3f1",surface:"#e7f3f0",heading:"#0b3f3b",copy:"#486c66",card:"#ffffff",accent:"#0b3f3b"}
   };
   const theme = themes[design] || themes.showcase;
-  const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
+  const firstImage = safeStoreLogoUrl(cards[0]?.imageUrl || "");
+  const heroMedia = firstImage
+    ? `<img src="${escapeHtml(firstImage)}" alt="${escapeHtml(cards[0]?.title || "صورة الحملة")}" width="220" style="display:block;width:100%;max-width:220px;height:auto;margin:0 auto 20px;border-radius:14px">`
+    : `<div role="img" aria-label="موضع صورة الحملة" style="margin:0 auto 20px;padding:42px 18px;border:1px solid #dce8e5;border-radius:14px;color:#78908a;background:#f7fbfa;text-align:center;font:700 13px Arial,sans-serif">تظهر صورة الحملة هنا</div>`;
+  const rows = cards.map((card, index) => {
+    const imageUrl = safeStoreLogoUrl(card.imageUrl);
+    const image = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || `صورة البطاقة ${index + 1}`)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">`
+      : `<div role="img" aria-label="موضع صورة البطاقة ${index + 1}" style="margin:0 auto 12px;padding:28px 12px;border-radius:10px;color:#78908a;background:#eef6f4;text-align:center;font:700 12px Arial,sans-serif">صورة البطاقة</div>`;
+    return `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${image}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title || "عنوان البطاقة")}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText || "سيظهر نص البطاقة هنا")}</p><a href="${escapeHtml(card.buttonUrl || "{{product_url}}")}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText || "زر الإجراء")}</a></td></tr>`;
+  }).join("");
   const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
     const url = campaignStudioValidHttpUrl(form?.elements[name]?.value);
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
   }).join("");
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center" style="padding:24px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></body></html>`;
+  return `<div dir="rtl" style="background:${theme.page};padding:24px;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText || "نص المعاينة")}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${theme.page}"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:22px 28px;color:${theme.accent};text-align:center;font:800 24px Arial,sans-serif">Renvix</td></tr><tr><td style="padding:6px 28px 28px;text-align:right">${heroMedia}<h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject || "عنوان الحملة")}</h1><p style="margin:0 0 24px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body || "سيظهر محتوى البريد هنا.")}</p><h2 style="margin:0 0 10px;color:${theme.heading};font:700 20px Arial,sans-serif">تفاصيل الحملة</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 8px;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer || "Renvix")}</p><p style="margin:0;text-align:center"><a href="{{unsubscribe_url}}" style="color:${theme.accent};font:400 11px Arial,sans-serif">إلغاء الاشتراك</a></p></td></tr></table></td></tr></table></div>`;
 }
 
 function campaignStudioAIState() {
@@ -5918,7 +5959,7 @@ function campaignStudioAIResultMarkup() {
   if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span></div>`;
   if (ai.status !== "success" || !ai.result?.html) return "";
   const quota = ai.result.quota || {};
-  return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>التصميم جاهز للمراجعة</b><small>${escapeHtml(ai.result.summary || "راجع المعاينة ثم اعتمد الكود.")}</small></span></div><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة تصميم كود البريد" srcdoc="${escapeHtml(ai.result.html)}"></iframe><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد تصميم الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-replace">استبدال الكود بالكامل</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ</button></div><small class="campaign-html-ai-quota">تم خصم ${formatAITokens(quota.charged || 0)} توكن من رصيد الذكاء.</small>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
+  return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>تمت كتابة الكود داخل المحرر</b><small>${escapeHtml(ai.result.summary || "راجع الكود ثم اعتمد التصميم لإظهاره مكان المعاينة الرئيسية.")}</small></span></div><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد التصميم</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-regenerate">${dashboardIcon("sparkles")} إعادة التوليد</button></div><small class="campaign-html-ai-quota">تم خصم ${formatAITokens(quota.charged || 0)} توكن من رصيد الذكاء.</small>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
 }
 
 function campaignStudioAIModalMarkup(mode = "generate") {
@@ -5949,19 +5990,28 @@ async function requestCampaignStudioAICode(form) {
   const mode = ["generate", "improve", "fix", "replace"].includes(ai.mode) ? ai.mode : "generate";
   const selectedColor = /^#[0-9a-f]{6}$/i.test(ai.selectedColor || "") ? ai.selectedColor : "#0b3f3b";
   let existingHtml = String(form.elements.htmlContent?.value || "").trim();
-  if (mode !== "generate" && existingHtml) {
+  let requestMode = mode;
+  if (mode === "generate") {
+    const baseInspection = inspectEmailHtmlClient(campaignStudioGeneratedHtml(form));
+    if (baseInspection.ok) {
+      existingHtml = baseInspection.html;
+      requestMode = "improve";
+    }
+  } else if (existingHtml) {
     const inspection = inspectEmailHtmlClient(existingHtml);
     if (!inspection.ok) return toast("اعتمد كود HTML صالحًا قبل تحسينه أو استبداله.", "warning");
     existingHtml = inspection.html;
   }
   const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const safePrompt = `${prompt}\n\nالتزم بإخراج جزء HTML لمحتوى البريد فقط داخل JSON. لا تستخدم JavaScript أو script أو iframe أو form أو أحداثًا تنفيذية أو روابط غير آمنة، ولا تكتب أي شرح خارج JSON.`;
+  const cards = campaignStudioFormCards(form);
+  const cardContext = cards.map((card, index) => `البطاقة ${index + 1}: العنوان=${card.title || "عنوان البطاقة"}؛ النص=${card.bodyText || "نص البطاقة"}؛ الزر=${card.buttonText || "زر الإجراء"}؛ الرابط=${card.buttonUrl || "{{product_url}}"}؛ الصورة=${card.imageUrl || "عنصر نائب للصورة"}`).join("\n");
+  const safePrompt = `${prompt}\n\nهذا قالب حملة بريد، ويجب أن يحافظ التصميم الناتج على جميع عناصر الحملة ويعيد ترتيبها بصريًا باحترافية حسب فكرة التصميم: ترويسة وهوية المتجر، نص المعاينة، قسم رئيسي يحتوي عنوان الحملة ونصها وصورة الحملة أو عنصرًا نائبًا واضحًا لها، عنوان قسم تفاصيل الحملة، جميع البطاقات بالترتيب مع صورة أو عنصر نائب وعنوان ونص وزر إجراء ورابط، روابط التواصل المتاحة، وتذييل يتضمن رابط {{unsubscribe_url}}. اجعل توزيع العناصر متجاوبًا ومتغيرًا حسب التصميم، ولا تحذف بطاقة أو زرًا أو معلومة من المصدر.\n\n${cardContext}\n\nالتزم بإخراج جزء HTML لمحتوى البريد فقط داخل JSON. لا تستخدم JavaScript أو script أو iframe أو form أو أحداثًا تنفيذية أو روابط غير آمنة، ولا تكتب أي شرح خارج JSON.`;
   state.campaignStudioAI = { ...ai, status: "loading", mode, prompt, result: null, error: "", beforeHtml: existingHtml };
   refreshCampaignStudioAIResult(form);
   try {
     const payload = await fetchJson("/backend/ai/email-template/generate", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ prompt: safePrompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.body?.value, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], mode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
+      body: JSON.stringify({ prompt: safePrompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.previewText?.value, form.elements.body?.value, cardContext, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], mode: requestMode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
       timeoutMs: 90000, timeoutMessage: "استغرق توليد الكود وقتًا أطول من المتوقع. حاول مرة أخرى."
     });
     syncAIQuota(payload);
@@ -5971,7 +6021,13 @@ async function requestCampaignStudioAICode(form) {
       invalidOutput.payload = payload;
       throw invalidOutput;
     }
+    form.elements.htmlContent.value = inspection.html;
+    delete form.elements.htmlContent.dataset.approved;
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+    state.campaignStudioPreviewSource = "main";
+    form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تمت كتابة الكود كاملًا داخل المحرر. راجعه ثم اضغط اعتماد التصميم."));
     state.campaignStudioAI = { ...state.campaignStudioAI, status: "success", result: { ...payload, html: inspection.html, warnings: [...new Set([...(payload.warnings || []), ...(inspection.warnings || [])])] }, error: "" };
+    scheduleCampaignStudioDraft(form);
   } catch (error) {
     syncAIQuota(error.payload);
     state.campaignStudioAI = { ...state.campaignStudioAI, status: "error", error: error.message || "تعذر توليد الكود." };
@@ -5986,8 +6042,10 @@ function applyCampaignStudioAICode(form, replace = false) {
   if (replace && String(form.elements.htmlContent?.value || "").trim() && !window.confirm("سيتم استبدال كود الحملة الحالي بالكامل. هل تريد المتابعة؟")) return;
   form.elements.htmlContent.value = inspection.html;
   form.elements.htmlContent.dataset.approved = "true";
+  if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "true";
+  state.campaignStudioPreviewSource = "html";
   form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم اعتماد تصميم الكود وسيبقى محفوظًا عند إغلاق القسم."));
-  refreshCampaignStudioPreview(form);
+  renderCampaignStudioPreviewSource(form, "html");
   scheduleCampaignStudioDraft(form);
   refreshCampaignStudioAIResult(form);
   toast("تم اعتماد تصميم الكود داخل الحملة. احفظ الحملة لتثبيته.", "success");
@@ -6034,13 +6092,21 @@ function campaignStudioPage() {
   }).join("");
   const socialLinksEnabled = campaignStudioDraftValue("socialLinksEnabled", "false") === "true";
   const socialFields = channel === "email" ? `<details class="campaign-studio-section" data-campaign-social-section ${socialLinksEnabled ? "open" : ""}><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>مغلقة افتراضيًا. أضف روابطك، وستبقى أيقوناتها ظاهرة في المعاينة حتى بعد إغلاق القسم.</small></span></summary><input type="hidden" name="socialLinksEnabled" value="${socialLinksEnabled ? "true" : "false"}"><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
-  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span></summary><div class="campaign-html-tools"><div class="campaign-html-toolbar"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-generate">${dashboardIcon("sparkles")} توليد بالذكاء الاصطناعي</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-replace-html">استبدال الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-delete-html">حذف الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-secondary campaign-html-adopt" data-action="campaign-studio-adopt-html">${dashboardIcon("success")} اعتماد التصميم <small>اختياري</small></button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="14" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea><small data-campaign-html-status>الكود اختياري؛ اعتمد التصميم عند رغبتك باستخدامه في الحملة.</small><div data-campaign-studio-ai-result>${campaignStudioAIResultMarkup()}</div></div></details>` : "";
+  const currentHtml = String(campaignStudioDraftValue("htmlContent") || "");
+  const htmlApproved = campaignStudioDraftValue("htmlContentApproved", currentHtml ? "true" : "false") === "true";
+  if (channel === "email" && state.campaignStudioPreviewSource === null) state.campaignStudioPreviewSource = htmlApproved ? "html" : "main";
+  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span><b class="campaign-html-optional">اختياري</b></summary><div class="campaign-html-tools"><div class="campaign-html-toolbar"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-generate">${dashboardIcon("sparkles")} توليد بالذكاء الاصطناعي</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-replace-html">استبدال الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-delete-html">حذف الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-secondary campaign-html-adopt" data-action="campaign-studio-adopt-html">${dashboardIcon("success")} اعتماد التصميم</button></div><input type="hidden" name="htmlContentApproved" value="${htmlApproved ? "true" : "false"}"><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="14" spellcheck="false" ${htmlApproved ? 'data-approved="true"' : ""} placeholder="سيُكتب كود HTML المولّد كاملًا هنا">${escapeHtml(currentHtml)}</textarea><small data-campaign-html-status>${htmlApproved ? "التصميم البرمجي معتمد ويظهر في المعاينة الرئيسية." : "الكود اختياري؛ بعد التوليد راجعه ثم اعتمد التصميم."}</small><div data-campaign-studio-ai-result>${campaignStudioAIResultMarkup()}</div></div></details>` : "";
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
     : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
   const emailDesign = campaignStudioDraftValue("emailDesign", "showcase");
   const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>تصميم البريد الإلكتروني</h2><p>اختر شكل وتخطيط البريد؛ الاختيار يغيّر التصميم فقط ولا يستبدل نصوص حملتك.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
-  const preview = channel === "whatsapp" ? campaignStudioWhatsappPreview(cards) : campaignStudioEmailPreview(cards, emailDesign, emailSender, kind);
+  const approvedInspection = htmlApproved ? inspectEmailHtmlClient(currentHtml) : { ok:false };
+  const preview = channel === "whatsapp"
+    ? campaignStudioWhatsappPreview(cards)
+    : state.campaignStudioPreviewSource === "html" && approvedInspection.ok
+      ? campaignStudioGeneratedEmailPreview(approvedInspection.html)
+      : campaignStudioEmailPreview(cards, emailDesign, emailSender, kind);
   return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}" data-campaign-channel="${channel}" data-campaign-kind="${kind}">
     <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
     <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
@@ -6892,7 +6958,7 @@ function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset"
     <div class="email-design-builder-head"><div><h3>${compact ? "قوالب تصميم" : "قوالب بريد جاهزة"}</h3><p>${compact ? "اختر النمط المعتمد للبريد." : "اختر تصميمًا ثم اضغط اعتماد. لن يتغير المصدر النشط دون اعتمادك."}</p></div><span class="email-source-status ${mode === "html" ? "is-code" : "is-preset"}" data-email-source-status>${mode === "html" ? "الكود المعتمد" : `القالب المعتمد: ${escapeHtml(presets.find((item) => item.id === design)?.name || "كلاسيكي أنيق")}`}</span></div>
     <div class="email-design-workspace"><div class="email-design-presets">${presets.map((item) => `<article class="email-design-preset design-${item.id} ${mode === "preset" && item.id === design ? "is-active" : ""}" data-email-design-card="${item.id}"><div class="email-design-thumb"><i></i><b></b><span></span><em></em></div><strong>${item.name}</strong><small>${item.caption}</small><button class="btn btn-secondary" type="button" data-action="adopt-email-design" data-design="${item.id}">${mode === "preset" && item.id === design ? "معتمد ✓" : "اعتماد القالب"}</button></article>`).join("")}</div>
     ${showThemeControl ? `<div class="email-template-theme"><div><strong>تعديل لون القالب</strong><small>اختر لون الهوية أو استخدم منتقي اللون المخصص؛ يطبّق فورًا على العنوان والزر والتفاصيل البارزة.</small></div><div class="email-theme-palette">${themePalette.map((color) => `<button type="button" data-action="set-email-theme-color" data-color="${color}" class="${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار لون القالب ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" name="emailThemeColor" value="${selectedTheme}" aria-label="لون قالب بريد مخصص"><span>${dashboardIcon("edit")}</span></label></div></div>` : ""}</div>
-    <details class="email-code-designer" ${mode === "html" ? "open" : ""}><summary><span>${dashboardIcon("code")} تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div class="email-code-designer-body email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" data-email-code-sample="${escapeHtml(codeExample)}" placeholder="${escapeHtml(codeExample)}">${escapeHtml(htmlContent || "")}</textarea><small>لا يوجد حد للأسطر. يطبّق الخادم حد الحجم المهيأ ويفحص العناصر والروابط وCSS قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(htmlContent || "<p style='padding:24px'>ابدأ بكتابة كود HTML للمعاينة.</p>")}"></iframe></aside><div class="email-code-actions"><button class="btn btn-secondary" type="button" data-action="insert-email-code-sample">إضافة نموذج احترافي</button><button class="btn btn-secondary" type="button" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button class="btn btn-primary email-design-adopt" type="button" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم <small>اختياري</small></button></div><div class="email-code-validation neutral" data-email-code-validation>${mode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details>
+    <details class="email-code-designer" ${mode === "html" ? "open" : ""}><summary><span>${dashboardIcon("code")} تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div class="email-code-designer-body email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" data-email-code-sample="${escapeHtml(codeExample)}" placeholder="${escapeHtml(codeExample)}">${escapeHtml(htmlContent || "")}</textarea><small>لا يوجد حد للأسطر. يطبّق الخادم حد الحجم المهيأ ويفحص العناصر والروابط وCSS قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(htmlContent || "<p style='padding:24px'>ابدأ بكتابة كود HTML للمعاينة.</p>")}"></iframe></aside><div class="email-code-actions"><button class="btn btn-secondary" type="button" data-action="insert-email-code-sample">إضافة نموذج احترافي</button><button class="btn btn-secondary" type="button" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button class="btn btn-primary email-design-adopt" type="button" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم</button></div><div class="email-code-validation neutral" data-email-code-validation>${mode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details>
     ${templateType ? emailTemplateAIBuilderMarkup({ templateType, variables }) : ""}
   </section>`;
 }
@@ -7001,7 +7067,7 @@ function emailTemplateAIBuilderMarkup({ templateType = "renewal", variables = []
   ];
   const suggestions = Array.isArray(ai.suggestions?.suggestions) ? ai.suggestions.suggestions : [];
   return `<details class="renewal-email-tool-section renewal-email-ai-card email-ai-builder" data-email-ai-card data-template-type="${escapeHtml(templateType)}" data-allowed-variables="${escapeHtml(JSON.stringify(variables))}" open>
-    <summary class="email-ai-builder-summary">${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span></summary><div class="email-ai-builder-body">
+    <summary class="email-ai-builder-summary">${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span><b class="email-ai-optional">اختياري</b></summary><div class="email-ai-builder-body">
     <div class="renewal-email-ai-mode" role="group" aria-label="نوع مهمة الذكاء">${modes.map(([mode,label]) => `<button type="button" data-action="email-ai-mode" data-mode="${mode}" class="${ai.mode === mode ? "active" : ""}">${label}</button>`).join("")}</div>
     <div class="email-ai-quick-actions"><button type="button" data-action="email-ai-quick-prompt" data-prompt="حسّن الوضوح والتسلسل البصري مع الحفاظ على النص والمتغيرات">تحسين الوضوح</button><button type="button" data-action="email-ai-quick-prompt" data-prompt="اجعل القالب أكثر توافقًا مع الجوال وعملاء البريد">توافق الجوال</button><button type="button" data-action="email-ai-quick-prompt" data-prompt="قوّ زر الإجراء بصريًا دون اختراع عروض أو أسعار">تحسين CTA</button></div>
     <textarea class="textarea" data-email-ai-prompt maxlength="4000" placeholder="مثال: أنشئ رسالة ودية بتسلسل واضح وزر إجراء بارز.">${escapeHtml(ai.prompt || "")}</textarea>
@@ -7018,7 +7084,7 @@ function emailTemplateAIResultMarkup() {
   if (ai.status !== "success" || !ai.result?.html) return `<div class="renewal-email-ai-empty">سيظهر الكود المقترح هنا قبل تطبيقه على القالب.</div>`;
   const quota = ai.result.quota || {};
   return `<div class="renewal-email-ai-success"><div class="renewal-email-ai-success-head">${dashboardIcon("success")}<span><b>المسودة جاهزة للمراجعة</b><small>${escapeHtml(ai.result.summary || "لم يتم تغيير المحرر أو حفظ القالب بعد.")}</small></span></div>
-    <div class="renewal-email-ai-result-actions"><button type="button" class="btn btn-secondary" data-action="email-ai-preview-result">${dashboardIcon("eye")} قبل / بعد</button><button type="button" class="btn btn-secondary" data-action="email-ai-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="email-ai-apply">${dashboardIcon("success")} اعتماد التصميم <small>اختياري</small></button><button type="button" class="btn btn-ghost" data-action="email-ai-regenerate">إعادة التوليد</button>${ai.history?.length ? `<button type="button" class="btn btn-ghost" data-action="email-ai-undo">تراجع عن آخر تطبيق</button>` : ""}</div>
+    <div class="renewal-email-ai-result-actions"><button type="button" class="btn btn-secondary" data-action="email-ai-preview-result">${dashboardIcon("eye")} قبل / بعد</button><button type="button" class="btn btn-secondary" data-action="email-ai-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="email-ai-apply">${dashboardIcon("success")} اعتماد التصميم</button><button type="button" class="btn btn-ghost" data-action="email-ai-regenerate">إعادة التوليد</button>${ai.history?.length ? `<button type="button" class="btn btn-ghost" data-action="email-ai-undo">تراجع عن آخر تطبيق</button>` : ""}</div>
     <div class="renewal-email-ai-result-preview email-ai-compare ${ai.previewOpen ? "is-open" : ""}" data-email-ai-result-preview><article><b>قبل</b><iframe sandbox="" referrerpolicy="no-referrer" title="القالب الحالي" srcdoc="${escapeHtml(ai.beforeHtml || "<p>لا يوجد كود حالي.</p>")}"></iframe></article><article><b>بعد</b><iframe sandbox="" referrerpolicy="no-referrer" title="القالب المقترح" srcdoc="${escapeHtml(ai.result.html)}"></iframe></article></div>
     <details class="renewal-email-ai-code"><summary>عرض كود HTML الناتج</summary><textarea readonly dir="ltr" spellcheck="false">${escapeHtml(ai.result.html)}</textarea></details>
     ${(ai.result.warnings || []).length ? `<ul class="email-ai-warnings">${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
@@ -7507,7 +7573,7 @@ function catalogTemplateEditorPage(templateKey) {
     const emailContentMode = template.contentJson?.emailContentMode === "html" ? "html" : "preset";
     const emailHtmlContent = template.contentJson?.emailHtmlContent || "";
     const emailDraft = { ...template, storeName: "{{store_name}}", themeColor: template.themeColor || "#062B28", emailContentMode, emailHtmlContent };
-    return dashboardShell(`${pageTitle("قالب قناة إرسال بريد", backButton)}<p class="page-kicker">قالب البريد المستخدم لإرسال تفاصيل الطلب ورابط صفحة العميل.</p><section class="template-editor-v2 template-editor-v2-email catalog-email-editor"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">عنوان المرسل ثابت وموثّق.</p><label class="field"><span>المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>لون القالب</span><input class="input" type="color" name="themeColorExternal" value="${safeEmailTheme(emailDraft.themeColor)}" data-catalog-theme></label><div class="email-settings-hint">رابط معلومات الطلب يُضاف آمنًا لكل عميل ولا يُحفظ كرابط ثابت داخل القالب.</div></article><article class="card template-editor-card-v2 email-editor-v2"><form data-submit="catalog-template" class="grid">${commonFields}<input type="hidden" name="emailContentMode" value="${emailContentMode}"><label class="field"><span>موضوع البريد</span><input class="input" name="title" value="${escapeHtml(template.title || "")}" data-catalog-preview-title required></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea template-editor email-content-editor" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${emailVariables.map((item) => `<span class="chip">{{${item}}}</span>`).join("")}</div>${emailTemplateAIBuilderMarkup({ templateType: "email_delivery", variables: emailVariables })}<details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر HTML الآمن</summary><div class="email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يتم الفحص في الخادم قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم <small>اختياري</small></button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details><div class="template-meta-grid"><label class="field"><span>نص الزر</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div>${footer}</form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>سطح المكتب والجوال بنفس محتوى الإرسال.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-catalog-preview-title-output>الموضوع: ${escapeHtml(template.title || "")}</span></div><div data-catalog-email-preview>${emailTemplatePreview(emailDraft)}</div></article></aside></section>`);
+    return dashboardShell(`${pageTitle("قالب قناة إرسال بريد", backButton)}<p class="page-kicker">قالب البريد المستخدم لإرسال تفاصيل الطلب ورابط صفحة العميل.</p><section class="template-editor-v2 template-editor-v2-email catalog-email-editor"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">عنوان المرسل ثابت وموثّق.</p><label class="field"><span>المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>لون القالب</span><input class="input" type="color" name="themeColorExternal" value="${safeEmailTheme(emailDraft.themeColor)}" data-catalog-theme></label><div class="email-settings-hint">رابط معلومات الطلب يُضاف آمنًا لكل عميل ولا يُحفظ كرابط ثابت داخل القالب.</div></article><article class="card template-editor-card-v2 email-editor-v2"><form data-submit="catalog-template" class="grid">${commonFields}<input type="hidden" name="emailContentMode" value="${emailContentMode}"><label class="field"><span>موضوع البريد</span><input class="input" name="title" value="${escapeHtml(template.title || "")}" data-catalog-preview-title required></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea template-editor email-content-editor" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${emailVariables.map((item) => `<span class="chip">{{${item}}}</span>`).join("")}</div>${emailTemplateAIBuilderMarkup({ templateType: "email_delivery", variables: emailVariables })}<details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر HTML الآمن</summary><div class="email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يتم الفحص في الخادم قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details><div class="template-meta-grid"><label class="field"><span>نص الزر</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div>${footer}</form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>سطح المكتب والجوال بنفس محتوى الإرسال.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-catalog-preview-title-output>الموضوع: ${escapeHtml(template.title || "")}</span></div><div data-catalog-email-preview>${emailTemplatePreview(emailDraft)}</div></article></aside></section>`);
   }
 
   return dashboardShell(`${pageTitle("قالب تم التنفيذ — سلة", backButton)}<p class="page-kicker">الرسالة التي تُجهّز بعد تنفيذ طلب سلة، مع رابط طلب خاص وغير قابل للحذف.</p><section class="template-editor-v2 template-editor-v2-salla"><article class="card template-editor-card-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>نص الرسالة</span><textarea class="textarea template-editor-v2-body" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}","{{order_number}}","{{store_name}}"].map((item) => `<span class="chip">${item}</span>`).join("")}</div><div class="catalog-locked-link">${dashboardIcon("security")}<div><strong>رابط الطلب الخاص بالعميل</strong><small>يُنشأ تلقائيًا لكل طلب ولا يمكن حذفه أو استبداله برابط ثابت.</small></div></div><input type="hidden" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}"><input type="hidden" name="footerText" value="${escapeHtml(template.footerText || "Renvix")}">${footer}</form></article><aside class="template-preview-v2 catalog-salla-previews"><article class="card"><div class="section-head"><div><h2>معاينة الرسالة</h2><p>النص الذي يصل إلى العميل.</p></div><img class="salla-preview-logo" src="/assets/salla-logo.svg" alt="سلة"></div><div class="salla-message-preview"><p data-catalog-preview-output>${escapeHtml(template.body || "")}</p><div class="catalog-locked-link compact">🔒 رابط الطلب الخاص بالعميل</div></div></article><article class="card"><div class="section-head"><div><h2>معاينة صفحة الطلب</h2><p>تُعرض المتغيرات حتى اختيار طلب حقيقي.</p></div>${dashboardIcon("orderLink")}</div><div class="salla-order-page-preview"><div class="salla-order-brand"><img src="/assets/salla-logo.svg" alt="سلة"><strong>{{store_name}}</strong></div><h3>تفاصيل الطلب</h3><dl><div><dt>رقم الطلب</dt><dd>{{order_number}}</dd></div><div><dt>الحالة</dt><dd>تم التنفيذ</dd></div><div><dt>العميل</dt><dd>{{customer_name}}</dd></div></dl><p>لا توجد بيانات طلب حقيقي محددة للمعاينة.</p></div></article></aside></section>`);
@@ -7568,7 +7634,7 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
             <section class="renewal-email-tool-section renewal-email-colors-section"><div class="renewal-email-tool-title"><span><strong>الألوان</strong><small>لون الهوية المستخدم في العنوان والزر.</small></span></div><div class="email-theme-palette renewal-email-theme-palette">${EMAIL_THEME_PALETTE.map((color) => `<button type="button" data-action="template-theme" data-color="${color}" class="email-color ${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" value="${selectedTheme}" data-action="renewal-email-custom-color" aria-label="لون مخصص"><span>${dashboardIcon("edit")}</span></label></div></section>
             <section class="renewal-email-tool-section renewal-email-image-section"><div class="renewal-email-tool-title"><span><strong>إضافة صورة للبريد</strong><small>استخدم صورة موثوقة من هوية متجرك.</small></span></div>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}</section>
           </div>
-          <details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر كود HTML الآمن <span>${emailContentMode === "html" ? "الكود المعتمد" : "اختياري"}</span></summary><div class="email-code-workspace"><label class="field"><span>كود HTML</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" placeholder="سيظهر هنا الكود المطبق من مولّد الذكاء...">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يطبق الخادم حد الحجم وفحص الأمان عند الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم <small>اختياري</small></button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details>
+          <details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر كود HTML الآمن <span>${emailContentMode === "html" ? "الكود المعتمد" : "اختياري"}</span></summary><div class="email-code-workspace"><label class="field"><span>كود HTML</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" placeholder="سيظهر هنا الكود المطبق من مولّد الذكاء...">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يطبق الخادم حد الحجم وفحص الأمان عند الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details>
         </article>
         <div class="renewal-email-form-actions"><button class="btn btn-primary">حفظ التعديلات ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة ${dashboardIcon("eye")}</button></div>
       </div>
@@ -10742,6 +10808,7 @@ async function handleAction(target) {
     state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
     state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : target.dataset.channel === "whatsapp" ? "whatsapp" : null;
     state.campaignStudioAI = null;
+    state.campaignStudioPreviewSource = null;
     closePortal();
     if (!state.campaignBuilderChannel) return navigate("/dashboard/campaigns");
     return navigate("/dashboard/campaigns/new");
@@ -10750,6 +10817,7 @@ async function handleAction(target) {
     state.campaignBuilderKind = "custom";
     state.campaignBuilderChannel = "whatsapp";
     state.campaignStudioAI = null;
+    state.campaignStudioPreviewSource = null;
     return navigate("/dashboard/campaigns/new");
   }
   if (action === "campaign-builder-channel") {
@@ -10831,6 +10899,8 @@ async function handleAction(target) {
       const design = String(form?.elements.emailDesign?.value || "showcase");
       preview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-${design}`;
     }
+    const generatedPreview = document.querySelector(".campaign-generated-email-preview");
+    if (generatedPreview) generatedPreview.className = `campaign-generated-email-preview ${state.campaignBuilderPreviewMode}`;
     return;
   }
   if (action === "campaign-studio-delete-html") {
@@ -10841,6 +10911,8 @@ async function handleAction(target) {
     if (!window.confirm("سيتم حذف كود HTML الحالي من الحملة. هل تريد المتابعة؟")) return;
     editor.value = "";
     delete editor.dataset.approved;
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+    state.campaignStudioPreviewSource = "main";
     form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم حذف الكود؛ يمكنك توليد تصميم جديد بالذكاء الاصطناعي."));
     scheduleCampaignStudioDraft(form);
     refreshCampaignStudioPreview(form);
@@ -10855,6 +10927,11 @@ async function handleAction(target) {
     return openCampaignStudioAIModal(form, "replace");
   }
   if (action === "campaign-studio-ai-generate") {
+    const form = target.closest("form[data-campaign-studio]");
+    if (!form) return;
+    return openCampaignStudioAIModal(form, "generate");
+  }
+  if (action === "campaign-studio-ai-regenerate") {
     const form = target.closest("form[data-campaign-studio]");
     if (!form) return;
     return openCampaignStudioAIModal(form, "generate");
@@ -10885,10 +10962,24 @@ async function handleAction(target) {
     if (!inspection.ok) return toast(inspection.errors?.[0] || "كود HTML غير صالح.", "danger");
     editor.value = inspection.html;
     editor.dataset.approved = "true";
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "true";
+    state.campaignStudioPreviewSource = "html";
     form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم فحص التصميم واعتماده. احفظ الحملة لتثبيته."));
-    refreshCampaignStudioPreview(form);
+    renderCampaignStudioPreviewSource(form, "html");
     scheduleCampaignStudioDraft(form);
     return toast("تم اعتماد التصميم داخل الحملة.", "success");
+  }
+  if (action === "campaign-studio-restore-main") {
+    const form = target.closest("form[data-campaign-studio]") || document.querySelector("form[data-campaign-studio]");
+    const editor = form?.elements.htmlContent;
+    if (!form || !editor) return;
+    delete editor.dataset.approved;
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+    state.campaignStudioPreviewSource = "main";
+    form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم استرجاع التصميم الرئيسي. بقي الكود محفوظًا ويمكن اعتماده مرة أخرى."));
+    renderCampaignStudioPreviewSource(form, "main");
+    scheduleCampaignStudioDraft(form);
+    return toast("تم استرجاع التصميم الرئيسي مع الاحتفاظ بالكود.", "success");
   }
   if (action === "contact-create") {
     return openModal("إضافة جهة اتصال", `<form data-submit="contact-create" class="grid"><label class="field"><span>الاسم</span><input class="input" name="displayName" maxlength="160"></label><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" inputmode="tel" placeholder="+966 5X XXX XXXX"></label><label class="field"><span>الشركة (اختياري)</span><input class="input" name="companyName" maxlength="160"></label><label class="field"><span>الموافقة على التواصل</span><select class="select" name="consentStatus"><option value="unknown">غير محددة</option><option value="granted">موافق</option><option value="revoked">سحب الموافقة</option></select></label><button class="btn btn-primary">حفظ جهة الاتصال</button></form>`);
@@ -13976,6 +14067,7 @@ async function handleSubmit(form, event) {
     state.campaignBuilderCards = products.map(campaignStudioCardFromProduct);
     state.campaignBuilderDraft = null;
     state.campaignStudioAI = null;
+    state.campaignStudioPreviewSource = null;
     closePortal();
     return navigate("/dashboard/campaigns/new");
   }
@@ -14069,7 +14161,7 @@ async function handleSubmit(form, event) {
           cards: campaignCards,
           socialLinksEnabled,
           socialLinks,
-          htmlContent: data.channel === "email" ? String(data.htmlContent || "").trim() || null : null,
+          htmlContent: data.channel === "email" && String(data.htmlContentApproved) === "true" ? String(data.htmlContent || "").trim() || null : null,
           trackClicks: Boolean(form.elements.trackClicks?.checked),
           appendUtm: Boolean(form.elements.appendUtm?.checked),
           campaignTag: data.campaignTag || null,
@@ -14085,6 +14177,8 @@ async function handleSubmit(form, event) {
       state.campaignBuilderCards = [];
       state.campaignBuilderDraft = null;
       state.campaignBuilderKind = "custom";
+      state.campaignStudioAI = null;
+      state.campaignStudioPreviewSource = null;
       localStorage.removeItem(`renvix.campaign-studio.${data.channel}.${completedKind}`);
       if (state.route === "/dashboard/campaigns/new") await navigate("/dashboard/campaigns");
       else await syncRouteData(true);
@@ -16497,6 +16591,17 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.name === "htmlContent" && target.closest?.("form[data-campaign-studio]")) {
+    const form = target.closest("form[data-campaign-studio]");
+    if (target.dataset.approved === "true") {
+      delete target.dataset.approved;
+      if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+      state.campaignStudioPreviewSource = "main";
+      form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم تعديل الكود. راجعه واعتمد التصميم مجددًا لإظهاره في المعاينة."));
+      renderCampaignStudioPreviewSource(form, "main");
+    }
+    scheduleCampaignStudioDraft(form);
+  }
   const storageTimerForm = target.closest?.('form[data-submit="storage-document-timer"]');
   if (storageTimerForm) updateStorageTimerDialogPreview(storageTimerForm);
   if (target.matches?.("[data-storage-editor]")) normalizeStorageBoldMarkup(target);

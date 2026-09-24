@@ -106,6 +106,17 @@ describe("renewal email AI code generation", () => {
     expect(combined).toContain("LTR للإنجليزية");
   });
 
+  it("requires campaign generations to preserve every campaign section and unsubscribe link", () => {
+    const messages = buildEmailTemplateCodeMessages({
+      ...input,
+      templateContext: { templateType: "campaign_email" as const, channel: "email" as const }
+    });
+    const combined = messages.map((item) => item.content).join("\n");
+    expect(combined).toContain("جميع البطاقات بالترتيب");
+    expect(combined).toContain("{{unsubscribe_url}}");
+    expect(combined).toContain("دون حذف أي عنصر");
+  });
+
   it("reserves the estimated maximum and settles only the provider's actual usage with task metadata", async () => {
     const deps = dependencies();
     const result = await generateEmailTemplateCode(session, input, {
