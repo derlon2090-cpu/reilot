@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-[[ $# == 1 && -f $1 ]] || { echo 'Usage: install-probe-waf EXPRESSION_FILE' >&2; exit 2; }
+[[ $# -ge 1 && $# -le 2 && -f $1 ]] || { echo 'Usage: install-probe-waf SENSITIVE_EXPRESSION_FILE [ASN_EXPRESSION_FILE]' >&2; exit 2; }
 source /etc/renvix-secops/cloudflare.env
 : "${CF_API_TOKEN:?}" "${CF_ZONE_ID:?}"
 base="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/rulesets"
@@ -8,8 +8,11 @@ api() {
   curl --silent --show-error --fail-with-body --connect-timeout 5 --max-time 20 \
     -H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json' "$@"
 }
-expression=$(tr -d '\n' < "$1")
-[[ -n $expression ]] || exit 2
+sensitive_expression=$(tr -d '\n' < "$1")
+asn_expression_file=${2:-$(dirname "$1")/cloudflare-cloud-asn-expression.txt}
+[[ -f $asn_expression_file ]] || { echo "Missing ASN expression: $asn_expression_file" >&2; exit 2; }
+asn_expression=$(tr -d '\n' < "$asn_expression_file")
+[[ -n $sensitive_expression && -n $asn_expression ]] || exit 2
 entry_response=$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
   -H "Authorization: Bearer $CF_API_TOKEN" "$base/phases/http_request_firewall_custom/entrypoint" \
   -w '\n%{http_code}')
@@ -26,14 +29,24 @@ else
   jq -e '.success == true' <<< "$entry" >/dev/null
   ruleset=$(jq -r '.result.id' <<< "$entry")
 fi
-ref=renvix_probe_paths
-rule=$(jq -r --arg ref "$ref" '.result.rules[]? | select(.ref==$ref) | .id' <<< "$entry" | head -n 1)
-payload=$(jq -nc --arg expression "$expression" --arg ref "$ref" \
-  '{action:"block",expression:$expression,description:"Renvix production probe paths; honeypot excluded",enabled:true,ref:$ref}')
-if [[ -n $rule ]]; then
-  result=$(api -X PATCH "$base/$ruleset/rules/$rule" --data "$payload")
-else
-  result=$(api -X POST "$base/$ruleset/rules" --data "$payload")
-fi
-jq -e '.success == true' <<< "$result" >/dev/null
-jq -c '{success,rule_id:.result.id,ref:.result.ref,action:.result.action}' <<< "$result"
+upsert_rule() {
+  local ref=$1 action=$2 description=$3 expression=$4 rule payload result
+  rule=$(jq -r --arg ref "$ref" '.result.rules[]? | select(.ref==$ref) | .id' <<< "$entry" | head -n 1)
+  payload=$(jq -nc --arg action "$action" --arg expression "$expression" --arg description "$description" --arg ref "$ref" \
+    '{action:$action,expression:$expression,description:$description,enabled:true,ref:$ref}')
+  if [[ -n $rule ]]; then
+    result=$(api -X PATCH "$base/$ruleset/rules/$rule" --data "$payload")
+  else
+    result=$(api -X POST "$base/$ruleset/rules" --data "$payload")
+  fi
+  jq -e '.success == true' <<< "$result" >/dev/null
+  entry=$result
+  jq -c --arg ref "$ref" '.result.rules[] | select(.ref==$ref) | {id,ref,action,enabled}' <<< "$result"
+}
+
+# Ordering matters: hard-block known probe paths before challenging the wider
+# commercial-hosting ASN pool. Existing unrelated custom rules are preserved.
+upsert_rule renvix_probe_paths block \
+  'Renvix sensitive probe paths; isolated honeypot excluded' "$sensitive_expression"
+upsert_rule renvix_commercial_cloud_asn managed_challenge \
+  'Challenge commercial hosting ASNs outside explicit public endpoints' "$asn_expression"

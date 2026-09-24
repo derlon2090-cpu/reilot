@@ -62,7 +62,8 @@ tokens. Store this root-owned file with mode 0600:
 ```bash
 sudo install -d -m 0700 /etc/renvix-secops
 sudo install -m 0600 /dev/null /etc/renvix-secops/cloudflare.env
-# Edit with sudoedit; use the zone's http_request_firewall_custom entrypoint ID:
+# Edit with sudoedit. The installer discovers or creates the zone's
+# http_request_firewall_custom entrypoint:
 sudoedit /etc/renvix-secops/cloudflare.env
 ```
 
@@ -71,13 +72,26 @@ File content:
 ```bash
 CF_API_TOKEN='REPLACE_WITH_SCOPED_TOKEN'
 CF_ZONE_ID='REPLACE_WITH_ZONE_ID'
-CF_RULESET_ID='REPLACE_WITH_CUSTOM_PHASE_ENTRYPOINT_ID'
 ```
 
 Find the entrypoint via `GET
 /zones/{zone_id}/rulesets/phases/http_request_firewall_custom/entrypoint`.
 If none exists, create a zone ruleset with phase
 `http_request_firewall_custom` and kind `zone`; use its returned ID.
+Install the two idempotent custom rules (sensitive routes are blocked first;
+the listed commercial-hosting ASNs receive a managed challenge elsewhere):
+
+```bash
+sudo install -m 0750 deploy/security/install-probe-waf /usr/local/sbin/install-probe-waf
+sudo /usr/local/sbin/install-probe-waf \
+  deploy/security/cloudflare-probe-expression.txt \
+  deploy/security/cloudflare-cloud-asn-expression.txt
+```
+
+The script uses `POST .../rules` for creation and `PATCH .../rules/{rule_id}`
+for updates, so it does not replace unrelated custom rules. The production
+route rule excludes `admin.renvix.app`, where the isolated honeypot intentionally
+collects silent telemetry; remove that exception only if the honeypot is retired.
 The helper adds one rule at the beginning and preserves existing rules. Run
 only one controller for its rules. Cloudflare plan rule quotas apply; this
 per-IP approach is suitable for modest ban counts, not high-volume botnets.
