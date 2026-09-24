@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { del, put } from "@vercel/blob";
+import { deletePrivateObject, objectStorageConfigured, putPrivateObject } from "../../../../../../src/server/attachments/object-storage.js";
+import { supportAttachmentUrl } from "../../../../../../src/server/support-attachment-storage.js";
 import { requireSession } from "../../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../../src/server/campaign-contacts.js";
 import {
@@ -26,7 +27,7 @@ export async function POST(request, context) {
   if (!sameOriginRequest(request)) {
     return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
   }
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!objectStorageConfigured()) {
     return Response.json({ ok: false, message: "تخزين المرفقات غير مهيأ حاليًا." }, { status: 503 });
   }
   const { ticketId } = await context.params;
@@ -52,19 +53,15 @@ export async function POST(request, context) {
       }
       const digest = crypto.createHash("sha256").update(bytes).digest("hex");
       const path = `support/${auth.session.tenantId}/${ticketId}/${crypto.randomUUID()}.${rule.ext}`;
-      const blob = await put(path, bytes, {
-        access: "public",
-        addRandomSuffix: false,
-        contentType: normalizedType
-      });
+      await putPrivateObject({ objectKey: path, bytes, contentType: normalizedType });
       try {
         const row = await saveUserTicketAttachment(auth.session, ticketId, {
-          messageId, url: blob.url, path, originalName: safeName(file.name),
+          messageId, url: `r2:${path}`, path, originalName: safeName(file.name),
           contentType: normalizedType, sizeBytes: file.size, sha256: digest
         });
-        saved.push({ id: row.id, url: blob.url, originalName: safeName(file.name) });
+        saved.push({ id: row.id, url: supportAttachmentUrl(ticketId, row.id), originalName: safeName(file.name) });
       } catch (error) {
-        await del(blob.url).catch(() => null);
+        await deletePrivateObject(path).catch(() => null);
         throw error;
       }
     }

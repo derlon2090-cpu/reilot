@@ -67,7 +67,7 @@ export async function POST(request) {
       if (!await enforceActivityRateLimit(client, { tenantId: auth.session.tenantId, userId: auth.session.userId, action: "contact.upserted" })) {
         throw Object.assign(new Error("تم تجاوز حد إضافة جهات الاتصال. حاول بعد دقيقة."), { code: "rate_limited" });
       }
-      return upsertCampaignContact(client, { tenantId: auth.session.tenantId, userId: auth.session.userId, ...parsed.data });
+      return upsertCampaignContact(client, { ...parsed.data, tenantId: auth.session.tenantId, userId: auth.session.userId });
     });
     return Response.json({ ok: true, item }, { status: 201 });
   } catch (error) {

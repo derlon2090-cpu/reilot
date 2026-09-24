@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../../src/shared/request-origin.js";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
@@ -44,6 +45,8 @@ export function classifyAdminAuthFailure(error) {
 }
 
 export async function POST(request) {
+  const originDenied = mutationOriginResponse(request);
+  if (originDenied) return originDenied;
   const requestId = crypto.randomUUID();
   let authStage = "request_validation";
   try {

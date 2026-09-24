@@ -1,4 +1,5 @@
 import pg from "pg";
+import { databaseConnectionOptions } from "../src/server/db.js";
 
 const migration = "0062_platform_admin_auth_challenges.sql";
 const passwordMigration = "0072_argon2id_password_hash_finalize.sql";
@@ -12,8 +13,7 @@ const requiredColumns = new Set([
 
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required to verify the authentication schema");
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+  ...databaseConnectionOptions()
 });
 await client.connect();
 try {

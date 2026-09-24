@@ -1,9 +1,12 @@
+import { mutationOriginResponse } from "../../../../../src/shared/request-origin.js";
 import {
   readEmailOtpChallengeCookie,
   resendEmailOtp
 } from "../../../../../src/server/email-otp-v2.js";
 
 export async function POST(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return originDenied;
   try {
     const body = await req.json().catch(() => ({}));
     const challenge = readEmailOtpChallengeCookie(req);

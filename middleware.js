@@ -21,6 +21,7 @@ import { proxyAuthBackendRequest } from "./src/shared/auth-backend-proxy.js";
 import { verifyCloudflareAccessRequest } from "./src/shared/cloudflare-access.js";
 import { isAdminHoneypotHost, recordAdminHoneypotRequest } from "./src/shared/admin-honeypot.js";
 import { checkSecurityBlockAtBoundary, neutralSecurityBlockResponse } from "./src/shared/security-block-boundary.js";
+import { mutationOriginResponse } from "./src/shared/request-origin.js";
 import { isRenderAuthRuntime } from "./src/server/auth-backend-runtime.js";
 
 const STATIC_ASSET_PREFIXES = Object.freeze([
@@ -35,7 +36,8 @@ const MALWARE_PROBE_FILE = /^(?:bot-connect|bot|c2|shell|alfa|wso|pma|phpmyadmin
 const BLOCKED_SCANNER_IPS = new Set([
   "91.92.241.196",
   "136.110.69.22",
-  "146.70.134.142"
+  "146.70.134.142",
+  "195.178.110.72"
 ]);
 
 function requestSourceIp(request) {
@@ -106,6 +108,10 @@ export async function middlewareRequest(request, {
 
   if (BLOCKED_SCANNER_IPS.has(requestSourceIp(request))) return sensitiveFileResponse();
   if (isSensitiveFilePath(path)) return sensitiveFileResponse();
+  if (path.startsWith("/api/") || path.startsWith("/storage-api")) {
+    const originDenied = mutationOriginResponse(request);
+    if (originDenied) return originDenied;
+  }
 
   const internalBlockCheck = path === "/api/security/block-check";
   if (!internalBlockCheck) {
@@ -192,7 +198,7 @@ export async function middlewareRequest(request, {
     // independent Renvix admin session/RBAC checks and must not require the CF JWT.
     if (adminSurface
       && process.env.NODE_ENV === "production"
-      && directRequestHost === new URL(origins.admin).hostname.toLowerCase()) {
+      && directRequestHost !== apiHost) {
       const access = await verifyAccess(request, process.env);
       if (!access.ok) {
         logAdminBoundaryEvent(request, access.reason, requestHost, path);

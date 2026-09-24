@@ -30,17 +30,29 @@ function databaseUrl() {
   if (!value) throw new Error("DATABASE_URL is missing");
   return value;
 }
+export function databaseConnectionOptions(env = process.env) {
+  const url = new URL(env.DATABASE_URL || databaseUrl());
+  // pg connection-string SSL parameters override its SSL object. Remove them
+  // so the explicit verified policy (and configured CA) cannot be downgraded.
+  for (const key of ['ssl', 'sslmode', 'sslcert', 'sslkey', 'sslrootcert']) url.searchParams.delete(key);
+  return {
+    connectionString: url.toString(),
+    ssl: env.DATABASE_SSL === 'false' ? false : {
+      rejectUnauthorized: true,
+      ...(env.DATABASE_SSL_CA ? { ca: env.DATABASE_SSL_CA.replaceAll('\\n', '\n') } : {})
+    }
+  };
+}
 export function getPool() {
   if (!pool) {
     const defaultPoolSize = process.env.VERCEL ? 3 : 10;
     pool = new Pool({
-      connectionString: databaseUrl(),
+      ...databaseConnectionOptions(),
       max: Math.max(1, Number(process.env.DATABASE_POOL_SIZE || defaultPoolSize)),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 15_000,
       keepAlive: true,
-      allowExitOnIdle: Boolean(process.env.VERCEL),
-      ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+      allowExitOnIdle: Boolean(process.env.VERCEL)
     });
     pool.on("error", (error) => {
       console.error("idle database client error", String(error?.code || "DATABASE_ERROR"));

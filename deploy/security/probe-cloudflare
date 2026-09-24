@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+[[ ${1:-} =~ ^(ban|unban)$ && ${2:-} =~ ^[0-9a-fA-F:.]+$ && ${3:-} =~ ^(dynamic|permanent)$ ]] || exit 2
+# Root-owned 0600 file. Zone WAF Write token scoped to this zone only.
+source /etc/renvix-secops/cloudflare.env
+: "${CF_API_TOKEN:?}" "${CF_ZONE_ID:?}" "${CF_RULESET_ID:?}"
+ref="renvix_${3}_${2//[:.]/_}"
+base="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/rulesets/$CF_RULESET_ID"
+api() {
+  curl --silent --show-error --fail-with-body --connect-timeout 5 --max-time 20 \
+    -H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json' "$@"
+}
+rules=$(api "$base")
+jq -e '.success == true' <<< "$rules" >/dev/null
+id=$(jq -r --arg ref "$ref" '.result.rules[]? | select(.ref == $ref) | .id' <<< "$rules")
+if [[ $1 == ban ]]; then
+  payload=$(jq -nc --arg ip "$2" --arg ref "$ref" \
+    '{action:"block",expression:("ip.src eq " + $ip),description:"Renvix probe containment",enabled:true,ref:$ref,position:{before:""}}')
+  if [[ -n $id ]]; then
+    # Keep an existing owned rule enabled without creating duplicates.
+    result=$(api -X PATCH "$base/rules/$id" --data "$payload")
+  else
+    result=$(api -X POST "$base/rules" --data "$payload")
+  fi
+else
+  [[ -n $id ]] || exit 0
+  result=$(api -X DELETE "$base/rules/$id")
+fi
+jq -e '.success == true' <<< "$result" >/dev/null
+# WAF rules have no TTL. Dynamic expiry is owned by Fail2ban; permanent is manual.

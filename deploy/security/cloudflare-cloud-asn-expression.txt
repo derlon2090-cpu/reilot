@@ -1,0 +1,1 @@
+(lower(http.host) ne "admin.renvix.app" and ip.src.asnum in {14061 14618 48090 199457} and not lower(http.request.uri.path) in {"/api/v1/legit-webhook" "/health"} and not starts_with(lower(http.request.uri.path), "/.well-known/acme-challenge/"))

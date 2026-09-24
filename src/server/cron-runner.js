@@ -23,12 +23,13 @@ import { purgeExpiredStorageTrash } from "./storage-center.js";
 import { reconcileAIProviderUsage } from "./ai/provider-accounting.js";
 import { runSecurityInspector } from "./security-inspector.js";
 import { expireSecurityData, processSecurityAlerts } from "./security-center.js";
+import { processSecurityDailyDigest } from "./security-daily-digest.js";
 
 export async function runSecurityOperations() {
-  const [inspector, alerts, retention] = await Promise.all([
-    runSecurityInspector({ triggerType: "scheduled" }), processSecurityAlerts(), expireSecurityData()
+  const [inspector, alerts, retention, digest] = await Promise.all([
+    runSecurityInspector({ triggerType: "scheduled" }), processSecurityAlerts(), expireSecurityData(), processSecurityDailyDigest()
   ]);
-  return { inspector, alerts, retention };
+  return { inspector, alerts, retention, digest };
 }
 
 export async function runRenewalReminders() {

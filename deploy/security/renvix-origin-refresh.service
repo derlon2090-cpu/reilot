@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh official Cloudflare origin allowlists atomically
+After=network-online.target renvix-origin-restore.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/renvix-secops/origin.env
+ExecStart=/usr/local/sbin/origin-lockdown.py

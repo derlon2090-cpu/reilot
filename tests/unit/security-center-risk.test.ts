@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  calculateThreatScore, incidentAlertDedupeKey, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
+  calculateThreatScore, incidentAlertDedupeKey, incidentAlertMode, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
   honeypotDeviceFingerprint, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
   verifyHoneypotDeviceToken, verifySignedIngestion
 } from "../../src/server/security-center.js";
@@ -14,6 +14,11 @@ describe("security center risk and privacy policy", () => {
     const score = calculateThreatScore({ requestedPath: "/", attempts: 1, distinctPaths: 1 });
     expect(score).toBe(10);
     expect(severityForRisk(score)).toBe("LOW");
+  });
+
+  it("keeps honeypot alerts in a digest while paging for a real production incident", () => {
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'CRITICAL' })).toBe('digest');
+    expect(incidentAlertMode({ incident_type: 'ORIGIN_INTRUSION', severity: 'HIGH' })).toBe('immediate');
   });
 
   it("raises a correlated honeypot, admin login, and MFA sequence", () => {

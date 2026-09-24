@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../../src/shared/request-origin.js";
 import { z } from "zod";
 import { completeAdminPasswordReset } from "../../../../../src/server/admin-password-reset.js";
 import { isValidEmail, safeErrorMessage } from "../../../../../src/server/security.js";
@@ -10,6 +11,8 @@ const schema = z.object({
 }).refine((data) => data.password === data.confirmPassword, { path: ["confirmPassword"], message: "كلمتا المرور غير متطابقتين." });
 
 export async function POST(request) {
+  const originDenied = mutationOriginResponse(request);
+  if (originDenied) return originDenied;
   const body = await request.json().catch(() => ({}));
   const parsed = schema.safeParse(body);
   if (!parsed.success) return Response.json({ ok: false, reason: "validation_error", errors: parsed.error.flatten().fieldErrors }, { status: 400 });

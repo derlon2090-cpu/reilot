@@ -2,6 +2,7 @@ import { query } from "./db.js";
 import { randomToken, sha256 } from "./security.js";
 import { getTenantStorageLimitState, requestNeedsStorageCapacity, storageLimitResponse } from "./tenant-storage.js";
 import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
+import { mutationOriginAllowed, mutationOriginResponse } from "../shared/request-origin.js";
 
 export const SESSION_COOKIE = "renewpilot_session";
 export const ADMIN_SESSION_COOKIE = "renvix_admin_session";
@@ -47,6 +48,7 @@ export async function createSession(client, { userId, ipAddress, userAgent, maxA
 }
 
 export async function getSessionWithToken(req, { allowInactiveTenant = false, cookieName = SESSION_COOKIE } = {}) {
+  if (!mutationOriginAllowed(req)) return null;
   const rawTokens = cookieValues(req, cookieName);
   if (!rawTokens.length) return null;
   const tokenHashes = rawTokens.map((token) => sha256(token));
@@ -79,6 +81,8 @@ export async function getSession(req, options = {}) {
 }
 
 export async function requireSession(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return { ok: false, response: originDenied };
   const session = await getSession(req);
   if (!session) {
     return { ok: false, response: Response.json({ ok: false, message: "Authentication required" }, { status: 401 }) };

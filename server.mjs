@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 3000);
 const root = path.resolve(__dirname, process.env.SERVE_DIR || ".");
+if (process.env.NODE_ENV === "production") throw new Error("Static preview server is disabled in production; use next start");
+const bindHost = process.env.PREVIEW_BIND_HOST || "127.0.0.1";
+const publicRoot = existsSync(path.join(root, "public")) ? path.join(root, "public") : root;
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -21,37 +24,38 @@ const types = {
 
 function safePath(urlPath) {
   const clean = decodeURIComponent(urlPath.split("?")[0]);
-  const filePath = clean === "/" ? "index.html" : clean.replace(/^\/+/, "");
-  const resolved = path.resolve(root, filePath);
-  return resolved.startsWith(root) ? resolved : path.join(root, "index.html");
-}
-
-function publicPath(urlPath) {
-  const clean = decodeURIComponent(urlPath.split("?")[0]);
+  if (clean.includes("\\") || clean.includes("\0")) return null;
+  if (clean === "/" || clean === "/index.html") return path.join(root, "index.html");
+  if (clean.split("/").some(segment => segment.startsWith("."))) return null;
+  if (!/^\/(?:app|assets|data|references|openapi)\//.test(clean) && clean !== "/favicon.ico") {
+    // Extension-free SPA routes render only the trusted shell, never files.
+    return !path.posix.extname(clean) ? path.join(root, "index.html") : null;
+  }
   const filePath = clean.replace(/^\/+/, "");
-  const resolved = path.resolve(root, "public", filePath);
-  const publicRoot = path.resolve(root, "public");
-  return resolved.startsWith(publicRoot) ? resolved : path.join(root, "index.html");
+  const resolved = path.resolve(publicRoot, filePath);
+  const relative = path.relative(publicRoot, resolved);
+  return relative && !relative.startsWith("..") && !path.isAbsolute(relative) ? resolved : null;
 }
 
-createServer(async (req, res) => {
+const previewServer = createServer(async (req, res) => {
   try {
     const requested = safePath(req.url || "/");
-    const publicRequested = publicPath(req.url || "/");
-    const file = existsSync(requested) && !requested.endsWith(path.sep)
-      ? requested
-      : existsSync(publicRequested) && !publicRequested.endsWith(path.sep)
-        ? publicRequested
-        : path.join(root, "index.html");
+    if (!["GET", "HEAD"].includes(req.method)) { res.writeHead(405); res.end(); return; }
+    if (!requested) { res.writeHead(404, { "Cache-Control": "no-store" }); res.end(); return; }
+    const file = await realpath(requested);
+    const base = await realpath(requested === path.join(root, "index.html") ? root : publicRoot);
+    const relative = path.relative(base, file);
+    if (relative.startsWith("..") || relative.split(path.sep).some(segment => segment.startsWith("."))
+      || path.isAbsolute(relative) || !(await stat(file)).isFile()) {
+      res.writeHead(404); res.end(); return;
+    }
     const ext = path.extname(file);
     const body = await readFile(file);
-    res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream" });
-    res.end(body);
+    res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream", "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store" });
+    res.end(req.method === "HEAD" ? undefined : body);
   } catch {
-    const body = await readFile(path.join(root, "index.html"));
-    res.writeHead(200, { "Content-Type": types[".html"] });
-    res.end(body);
+    res.writeHead(404, { "Cache-Control": "no-store" }); res.end();
   }
-}).listen(port, () => {
-  console.log(`Renvix is running at http://localhost:${port}`);
+}).listen(port, bindHost, () => {
+  console.log(`Renvix preview is running at http://${bindHost}:${previewServer.address().port}`);
 });

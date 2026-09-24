@@ -23,10 +23,9 @@ async function findAccountStatus(normalizedEmail) {
   try {
     return await query('SELECT account_status AS "accountStatus" FROM users WHERE lower(email) = $1 LIMIT 1', [normalizedEmail]);
   } catch (error) {
-    // account_status was added after credential login originally shipped. A
-    // web process can briefly run before that additive migration during a
-    // rolling deploy, so existing active accounts must remain able to sign in.
-    if (!isAccountStatusSchemaUnavailable(error)) throw error;
+    // Production must never treat an unverifiable account status as active.
+    // Legacy schema fallback is restricted to development/test environments.
+    if (process.env.NODE_ENV === "production" || !isAccountStatusSchemaUnavailable(error)) throw error;
     return query("SELECT 'active'::text AS \"accountStatus\" FROM users WHERE lower(email) = $1 LIMIT 1", [normalizedEmail]);
   }
 }
@@ -52,10 +51,9 @@ async function findCredentialUser(normalizedEmail) {
       [normalizedEmail]
     );
   } catch (error) {
-    // Keep credential login available during rolling deployments where the OTP
-    // migration has not reached the database yet. OTP remains opt-in once the
-    // schema is present.
-    if (!isEmailOtpSchemaUnavailable(error)) throw error;
+    // Missing security columns must fail closed in production; never infer
+    // that an account is active or has MFA disabled from a schema failure.
+    if (process.env.NODE_ENV === "production" || !isEmailOtpSchemaUnavailable(error)) throw error;
     return query(
       `SELECT u.id, u.tenant_id AS "tenantId", u.name, u.email, u.must_change_password AS "mustChangePassword",
               'active'::text AS "accountStatus",

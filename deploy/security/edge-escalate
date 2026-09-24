@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+[[ ${1:-} =~ ^(asn|ip_range|ip)$ ]] || exit 2
+if [[ $1 == asn ]]; then
+  [[ ${2:-} =~ ^[1-9][0-9]{0,9}$ ]] || exit 2
+elif [[ $1 == ip_range ]]; then
+  [[ ${2:-} =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/24$ ]] || exit 2
+else
+  python3 -c 'import ipaddress,sys; assert ipaddress.ip_address(sys.argv[1]).version == 4' "${2:-}" || exit 2
+fi
+source /etc/renvix-secops/edge.env
+: "${CF_ACCOUNT_ID:?}" "${CF_EDGE_BLOCK_TOKEN:?}"
+payload=$(jq -nc --arg target "$1" --arg value "$2" \
+  '{mode:"block",configuration:{target:$target,value:$value},notes:"Renvix operator-approved network escalation"}')
+result=$(curl --silent --show-error --fail-with-body --connect-timeout 5 --max-time 20 \
+  -H "Authorization: Bearer $CF_EDGE_BLOCK_TOKEN" -H 'Content-Type: application/json' \
+  --data "$payload" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/firewall/access_rules/rules")
+jq -e '.success == true' <<< "$result" >/dev/null
+jq -c '{success,rule_id:.result.id,configuration:.result.configuration,mode:.result.mode}' <<< "$result"

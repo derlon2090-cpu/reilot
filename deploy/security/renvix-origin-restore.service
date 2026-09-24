@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore Cloudflare-only origin ingress before public services
+After=nftables.service
+Before=nginx.service docker.service
+ConditionPathExists=/etc/renvix-secops/origin.nft
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nft -f /etc/renvix-secops/origin.nft
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

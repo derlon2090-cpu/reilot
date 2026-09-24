@@ -45,7 +45,7 @@ export function randomToken(bytes = 32) {
 
 export function safeErrorMessage(error) {
   const message = error instanceof Error ? error.message : "Unknown error";
-  return message
+  return redactEnvironmentSecrets(message)
     .replace(/re_[A-Za-z0-9_-]+/g, "[redacted]")
     .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[database-redacted]")
     .slice(0, 500);
@@ -53,9 +53,18 @@ export function safeErrorMessage(error) {
 
 export function safeErrorStack(error) {
   const stack = error instanceof Error ? String(error.stack || error.message) : "Unknown error";
-  return stack
+  return redactEnvironmentSecrets(stack)
     .replace(/re_[A-Za-z0-9_-]+/g, "[redacted]")
     .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[database-redacted]")
     .replace(/(password|secret|token|cookie|authorization)=?[^\s,;]+/gi, "$1=[redacted]")
     .slice(0, 4000);
+}
+
+function redactEnvironmentSecrets(value) {
+  let text = String(value);
+  for (const [name, secret] of Object.entries(process.env)) {
+    if (/(?:SECRET|TOKEN|PASSWORD|API_KEY|ENCRYPTION_KEY|PRIVATE_KEY|PEPPER|DATABASE_URL|ACCESS_KEY)/i.test(name)
+      && typeof secret === 'string' && secret.length >= 8) text = text.split(secret).join('[redacted]');
+  }
+  return text.replace(/\b(?:sk-(?:proj-)?[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9]{30,})\b/g, '[redacted]');
 }

@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../src/shared/request-origin.js";
 import { transaction } from "../../../../src/server/db.js";
 import { hashPassword, verifyPassword } from "../../../../src/server/password.js";
 import { notifyPasswordChanged } from "../../../../src/server/password-reset.js";
@@ -5,6 +6,8 @@ import { isStrongPassword } from "../../../../src/server/security.js";
 import { requireSession } from "../../../../src/server/session.js";
 
 export async function POST(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return originDenied;
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   const body = await req.json().catch(() => ({}));

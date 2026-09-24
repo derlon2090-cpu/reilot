@@ -1,3 +1,4 @@
+import { mutationOriginResponse } from "../../../../../src/shared/request-origin.js";
 import { adminSessionCookie, sessionCookie } from "../../../../../src/server/session.js";
 import { safeErrorMessage } from "../../../../../src/server/security.js";
 import {
@@ -11,6 +12,8 @@ import {
 import { activeTemporaryMitigation, recordSecuritySignal } from "../../../../../src/server/security-center.js";
 
 export async function POST(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return originDenied;
   try {
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {

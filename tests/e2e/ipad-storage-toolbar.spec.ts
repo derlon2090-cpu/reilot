@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import crypto from "node:crypto";
 import path from "node:path";
 import pg from "pg";
+import { databaseConnectionOptions } from "../../src/server/db.js";
 
 const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
 const token = crypto.randomBytes(32).toString("base64url");
@@ -11,8 +12,7 @@ let client: pg.Client;
 
 test.beforeAll(async () => {
   client = new pg.Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+    ...databaseConnectionOptions()
   });
   await client.connect();
   const user = await client.query(

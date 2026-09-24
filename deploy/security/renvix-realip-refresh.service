@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh Cloudflare trusted real-IP ranges for Nginx
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/sync-cloudflare-realip.py

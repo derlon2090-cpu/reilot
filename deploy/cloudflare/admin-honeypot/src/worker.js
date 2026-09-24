@@ -1,3 +1,5 @@
+import { containHoneypotVisitor } from './edge-ban.js';
+export { EdgeBan } from './edge-ban.js';
 import {
   HONEYPOT_HTML, HONEYPOT_PIXEL_PATH, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
 } from "./page.js";
@@ -297,6 +299,11 @@ const worker = {
     const internalRoute = url.pathname === HONEYPOT_SCRIPT_PATH
       || url.pathname === HONEYPOT_PIXEL_PATH
       || url.pathname === HONEYPOT_TELEMETRY_PATH;
+    if (!internalRoute) {
+      context.waitUntil(containHoneypotVisitor(request, env).catch(error => {
+        console.error(JSON.stringify({ event: 'edge_ban_failed', message: String(error.message).slice(0, 160) }));
+      }));
+    }
     const block = identity.existing && !rateLimited && !internalRoute ? await checkDeviceBlock(env, identity.id) : null;
     if (identity.existing && !internalRoute) {
       return blockedResponse(block?.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);

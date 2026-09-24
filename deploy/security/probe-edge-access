@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+[[ ${1:-} == ban || ${1:-} == unban ]] || exit 2
+ip=$(python3 -c 'import ipaddress,sys; print(ipaddress.ip_address(sys.argv[1]))' "${2:-}")
+source /etc/renvix-secops/edge.env
+: "${CF_ACCOUNT_ID:?}" "${CF_EDGE_BLOCK_TOKEN:?}"
+target=ip
+[[ $ip == *:* ]] && target=ip6
+base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/firewall/access_rules/rules"
+notes="renvix-fail2ban:$ip"
+api() {
+  curl --silent --show-error --fail-with-body --connect-timeout 5 --max-time 20 \
+    -H "Authorization: Bearer $CF_EDGE_BLOCK_TOKEN" -H 'Content-Type: application/json' "$@"
+}
+rules=$(api -G "$base" --data-urlencode "configuration.target=$target" \
+  --data-urlencode "configuration.value=$ip" --data-urlencode 'mode=block' --data-urlencode 'per_page=50')
+jq -e '.success == true' <<< "$rules" >/dev/null
+id=$(jq -r --arg notes "$notes" --arg ip "$ip" \
+  '.result[]? | select(.notes==$notes and .configuration.value==$ip and .mode=="block") | .id' <<< "$rules" | head -n 1)
+if [[ $1 == ban && -z $id ]]; then
+  payload=$(jq -nc --arg target "$target" --arg ip "$ip" --arg notes "$notes" \
+    '{mode:"block",configuration:{target:$target,value:$ip},notes:$notes}')
+  result=$(api -X POST "$base" --data "$payload")
+  jq -e '.success == true and .result.id != null' <<< "$result" >/dev/null
+elif [[ $1 == unban && -n $id ]]; then
+  result=$(api -X DELETE "$base/$id")
+  jq -e '.success == true' <<< "$result" >/dev/null
+fi

@@ -3,11 +3,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";
 import { chromium } from "playwright";
+import { databaseConnectionOptions } from "../../src/server/db.js";
 
 const baseURL = process.env.STORAGE_E2E_BASE_URL || "http://localhost:3069";
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
+  ...databaseConnectionOptions()
 });
 const token = crypto.randomBytes(32).toString("base64url");
 const tokenHash = crypto.createHash("sha256").update(token).digest("hex");

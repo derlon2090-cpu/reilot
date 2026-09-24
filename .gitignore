@@ -8,6 +8,8 @@ playwright-report/
 .codex-artifacts/
 .wrangler/
 .wrangler-dry-run/
+__pycache__/
+*.pyc
 npm-debug.log*
 debug.log
 server.out.log

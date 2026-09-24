@@ -1,6 +1,7 @@
 import { query } from "./db.js";
 import { ADMIN_SESSION_COOKIE, getSession } from "./session.js";
 import { safeErrorMessage, sha256 } from "./security.js";
+import { mutationOriginResponse } from "../shared/request-origin.js";
 
 const ROLE_PERMISSIONS = {
   super_admin: { "*": ["*"] },
@@ -172,6 +173,8 @@ export async function auditAdmin(req, {
 }
 
 export async function requireAdminPermission(req, module, action = "read") {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return { ok: false, response: originDenied };
   const admin = await getAdminContext(req);
   if (!admin) {
     await auditAdmin(req, { action: "admin.access.denied", resource: module, status: "denied" });

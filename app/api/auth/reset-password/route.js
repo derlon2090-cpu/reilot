@@ -1,8 +1,11 @@
+import { mutationOriginResponse } from "../../../../src/shared/request-origin.js";
 import { resetPassword } from "../../../../src/server/password-reset.js";
 import { normalizeEmail, safeErrorMessage } from "../../../../src/server/security.js";
 import { TURNSTILE_ACTIONS, turnstileFailureResponse, verifyTurnstileToken } from "../../../../src/server/turnstile.js";
 
 export async function POST(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return originDenied;
   try {
     const body = await req.json();
     const turnstile = await verifyTurnstileToken({ token: body.turnstileToken, expectedAction: TURNSTILE_ACTIONS.resetPassword, request: req });

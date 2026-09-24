@@ -1,8 +1,11 @@
+import { mutationOriginResponse } from "../../../../src/shared/request-origin.js";
 import { clearSessionCookie, destroySession } from "../../../../src/server/session.js";
 import { clearChallengeCookie } from "../../../../src/server/email-otp-v2.js";
 import { clearMfaChallengeCookie } from "../../../../src/server/login-mfa.js";
 
 export async function POST(req) {
+  const originDenied = mutationOriginResponse(req);
+  if (originDenied) return originDenied;
   await destroySession(req).catch(() => undefined);
   const headers = new Headers();
   headers.append("Set-Cookie", clearSessionCookie());
