@@ -106,7 +106,13 @@ function safeOutputLimit() {
 function jsonContent(message = {}) {
   const content = typeof message.content === "string" ? message.content.trim() : "";
   if (!content) throw serviceError("AI_EMAIL_INVALID_OUTPUT", "لم يُرجع الذكاء نتيجة صالحة. حاول بصياغة أوضح.", 422);
-  try { return JSON.parse(content); } catch {
+  const unfenced = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try { return JSON.parse(unfenced); } catch {
+    const start = unfenced.indexOf("{");
+    const end = unfenced.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try { return JSON.parse(unfenced.slice(start, end + 1)); } catch {}
+    }
     throw serviceError("AI_EMAIL_INVALID_OUTPUT", "تعذر التحقق من النتيجة. حاول مرة أخرى.", 422);
   }
 }
@@ -313,11 +319,19 @@ async function executeEmailAITask(session, input, options, { taskType, messages,
     settled = true;
     const usage = await deps.getUsage(session);
     const quota = { charged: Number(settlement.actualTokens || actualTokens), remaining: Number(usage?.remainingTokens || 0), nextRefillAt: usage?.nextRefillAt || null };
-    await deps.completeGeneration(session, generationId, result, quota);
+    // The provider response has already been settled at this point. A transient
+    // bookkeeping failure must not hide a valid result or encourage a second,
+    // separately charged generation attempt.
+    await deps.completeGeneration(session, generationId, result, quota).catch((persistenceError) => {
+      console.error("ai email generation completion persistence failed", persistenceError?.code || persistenceError?.message || persistenceError);
+    });
     return { ok: true, ...result, quota, generationMode: input.mode || "suggest", aiRunId: aiRun.id, idempotent: false };
   } catch (error) {
     if (reservation && !settled) await deps.release(session, reservation.id).catch(() => null);
     if (aiRun && !settled) await deps.finishRun(session, aiRun.id, { status: "failed" }).catch(() => null);
+    if (Number(error?.charged || 0) > 0 && !error?.usage) {
+      error.usage = await deps.getUsage(session).catch(() => null);
+    }
     await deps.failGeneration(session, generationId, error, Number(error?.charged || 0)).catch(() => null);
     if (error?.code === "AI_PLAN_TOKEN_LIMIT_REACHED") throw serviceError("AI_QUOTA_EXHAUSTED", "رصيد الذكاء غير كافٍ لإكمال هذه العملية.", 429, { usage: error.usage || null });
     throw error;
