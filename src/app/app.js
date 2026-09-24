@@ -9308,6 +9308,31 @@ function unwrapStorageEditorTextBox(box) {
   return true;
 }
 
+function normalizedStorageEditorTextRange(range, editor) {
+  const segments = storageEditorRangeSegments(range, editor)
+    .map(({ node, start, end }) => {
+      while (start < end && /[\s\u200b]/u.test(node.data[start])) start += 1;
+      while (end > start && /[\s\u200b]/u.test(node.data[end - 1])) end -= 1;
+      return { node, start, end };
+    })
+    .filter(({ start, end }) => end > start);
+  if (!segments.length) return null;
+  const normalized = document.createRange();
+  normalized.setStart(segments[0].node, segments[0].start);
+  const last = segments[segments.length - 1];
+  normalized.setEnd(last.node, last.end);
+  return normalized;
+}
+
+function storageEditorSelectionBlock(node, editor) {
+  let element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+  while (element && element !== editor) {
+    if (element.matches?.("p,div,h1,h2,h3,h4,li,blockquote")) return element;
+    element = element.parentElement;
+  }
+  return editor;
+}
+
 function toggleStorageEditorTextBox() {
   const editor = document.querySelector("[data-storage-editor]");
   if (!editor || !restoreStorageEditorSelection(editor)) return { ok: false, reason: "selection" };
@@ -9326,14 +9351,15 @@ function toggleStorageEditorTextBox() {
     return { ok: true, removed: true, parent };
   }
   if (range.collapsed || !String(selection.toString() || "").trim()) return { ok: false, reason: "selection" };
-  const blockSelector = "p,div,h1,h2,h3,h4,li,blockquote";
-  const startElement = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
-  const endElement = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : range.endContainer;
-  if (startElement?.closest?.(blockSelector) !== endElement?.closest?.(blockSelector)) return { ok: false, reason: "multiple-blocks" };
+  const textRange = normalizedStorageEditorTextRange(range, editor);
+  if (!textRange) return { ok: false, reason: "selection" };
+  if (storageEditorSelectionBlock(textRange.startContainer, editor) !== storageEditorSelectionBlock(textRange.endContainer, editor)) {
+    return { ok: false, reason: "multiple-blocks" };
+  }
   const box = document.createElement("span");
   box.setAttribute("data-storage-text-box", "true");
-  box.append(range.extractContents());
-  range.insertNode(box);
+  box.append(textRange.extractContents());
+  textRange.insertNode(box);
   const nextRange = document.createRange();
   nextRange.selectNodeContents(box);
   selection.removeAllRanges();
