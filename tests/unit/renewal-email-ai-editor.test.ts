@@ -13,7 +13,8 @@ describe("renewal email AI editor contract", () => {
     expect(appSource).toContain("ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده.");
     expect(appSource).toContain("إنشاء جديد");
     expect(appSource).toContain("تعديل الكود الحالي");
-    expect(appSource).toContain("اعتماد التصميم <small>اختياري</small>");
+    expect(appSource).toContain('class="email-ai-optional">اختياري</b>');
+    expect(appSource).not.toContain("اعتماد التصميم <small>اختياري</small>");
     expect(appSource).not.toMatch(/رصيد[^\n]{0,80}(DeepSeek|provider|دولار|تكلفة)/i);
   });
 

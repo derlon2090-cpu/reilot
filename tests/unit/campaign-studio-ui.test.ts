@@ -75,10 +75,11 @@ describe("campaign studio", () => {
     expect(appSource).toContain("campaignStudioAIState");
     expect(appSource).toContain("/backend/ai/email-template/generate");
     expect(appSource).toContain('templateType: "campaign_email"');
-    expect(appSource).toContain('data-action="campaign-studio-ai-replace"');
+    expect(appSource).toContain('data-action="campaign-studio-ai-regenerate"');
     expect(appSource).toContain('data-action="campaign-studio-ai-approve"');
     expect(appSource).toContain('data-action="campaign-studio-adopt-html"');
-    expect(appSource).toContain('اعتماد التصميم <small>اختياري</small>');
+    expect(appSource).toContain('class="campaign-html-optional">اختياري</b>');
+    expect(appSource).not.toContain('اعتماد التصميم <small>اختياري</small>');
     expect(appSource).toContain('data-action="campaign-studio-delete-html"');
     expect(appSource).toContain('data-action="campaign-studio-replace-html"');
     expect(appSource).toContain('data-action="campaign-studio-copy-html"');
@@ -91,6 +92,14 @@ describe("campaign studio", () => {
     expect(appSource).toContain("refreshCampaignStudioPreview(form)");
     expect(appSource).not.toContain("data-campaign-ai-prompt");
     expect(appSource).toContain("data-campaign-html-status");
+    expect(appSource).toContain('form.elements.htmlContent.value = inspection.html');
+    expect(appSource).toContain('name="htmlContentApproved"');
+    expect(appSource).toContain('data-action="campaign-studio-restore-main"');
+    expect(appSource).toContain("استرجاع التصميم الرئيسي");
+    expect(appSource).not.toContain('title="معاينة تصميم كود البريد"');
+    expect(appSource).toContain("جميع البطاقات بالترتيب");
+    expect(appSource).toContain("{{unsubscribe_url}}");
+    expect(stylesSource).toContain(".campaign-generated-email-preview");
   });
 
   it("keeps generated code when sections close and makes campaign saving actionable", () => {
@@ -116,7 +125,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('const socialLinksEnabled = Object.keys(socialLinks).length > 0');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
-    expect(appSource).toContain('String(data.htmlContent || "").trim() || null');
+    expect(appSource).toContain('String(data.htmlContentApproved) === "true" ? String(data.htmlContent || "").trim() || null');
     expect(appSource).not.toContain('campaignStudioForm.elements.htmlContent.value = ""');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });
