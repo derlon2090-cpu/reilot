@@ -9239,6 +9239,7 @@ function restoreStorageDocumentDraft() {
   form.dataset.timerDisplayMode = draft.timerDisplayMode === "hours" ? "hours" : "days";
   editor.innerHTML = draft.body;
   normalizeStorageBoldMarkup(editor);
+  ensureStorageEditorTextFlows(editor);
   const words = String(editor.innerText || "").trim().split(/\s+/).filter(Boolean).length;
   const output = form.querySelector("[data-storage-word-count]");
   if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
@@ -9342,8 +9343,13 @@ function storageEditorSelectionBlock(node, editor) {
   return editor;
 }
 
-function placeStorageEditorCaretAfterBox(box, editor) {
-  const following = box.nextSibling;
+function storageEditorTextFlowAfterBox(box) {
+  const current = box.nextSibling;
+  if (current?.nodeType === Node.ELEMENT_NODE && current.matches?.("[data-storage-text-flow]")) {
+    if (!current.firstChild) current.append(document.createTextNode("\u00a0"));
+    return current;
+  }
+  const following = current;
   const flow = document.createElement("span");
   flow.setAttribute("data-storage-text-flow", "true");
   let seed = "\u00a0";
@@ -9357,6 +9363,16 @@ function placeStorageEditorCaretAfterBox(box, editor) {
   const textNode = document.createTextNode(seed);
   flow.append(textNode);
   box.after(flow);
+  return flow;
+}
+
+function ensureStorageEditorTextFlows(editor = document.querySelector("[data-storage-editor]")) {
+  editor?.querySelectorAll("[data-storage-text-box]").forEach((box) => storageEditorTextFlowAfterBox(box));
+}
+
+function placeStorageEditorCaretAfterBox(box, editor) {
+  const flow = storageEditorTextFlowAfterBox(box);
+  const textNode = flow.firstChild;
   const caret = document.createRange();
   caret.setStart(textNode, textNode.data.length);
   caret.collapse(true);
@@ -15692,6 +15708,7 @@ function disposeStorageRoute() {
 function bindStorageDocumentCountdowns() {
   stopStorageDocumentCountdowns();
   const editorForm = document.querySelector('form[data-submit="storage-document"]');
+  ensureStorageEditorTextFlows(editorForm?.querySelector("[data-storage-editor]"));
   const colorTools = editorForm?.querySelector(".storage-editor-colors");
   if (colorTools && !editorForm.querySelector('[data-action="storage-editor-timer"]')) {
     colorTools.insertAdjacentHTML("afterend", storageEditorTimerButtonMarkup(editorForm.dataset.timerEndsAt || "", editorForm.dataset.timerDisplayMode));
@@ -16403,6 +16420,9 @@ document.addEventListener("input", (event) => {
     return;
   }
   if (target.matches?.("[data-storage-editor]")) {
+    target.querySelectorAll("[data-storage-text-flow]").forEach((flow) => {
+      if (String(flow.textContent || "").replace(/[\s\u00a0\u200b]/gu, "")) flow.removeAttribute("data-storage-text-flow");
+    });
     const words = String(target.innerText || "").trim().split(/\s+/).filter(Boolean).length;
     const output = target.closest(".storage-editor")?.querySelector("[data-storage-word-count]");
     if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
