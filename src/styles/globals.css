@@ -15799,6 +15799,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 
 /* Email template AI workspace */
 .email-ai-builder{margin-top:14px;padding:16px;display:grid;gap:12px;border:1px solid #cfe2df;border-radius:14px;background:linear-gradient(145deg,#fbfefd,#f2faf8)}
+.email-ai-builder>summary{list-style:none}.email-ai-builder>summary::-webkit-details-marker{display:none}.email-ai-builder-summary{display:flex;align-items:center;gap:12px;cursor:pointer}.email-ai-builder-summary>svg{width:42px;height:42px;padding:11px;flex:0 0 auto;color:#075f56;border-radius:12px;background:#eaf6f3}.email-ai-builder-summary>span{display:grid;gap:4px}.email-ai-builder-summary strong{color:#082f2b;font-size:15px}.email-ai-builder-summary small{color:#71837f;font-size:10px;line-height:1.65}.email-ai-builder-body{display:grid;gap:12px;padding-top:12px;border-top:1px solid #dceae7}.email-design-adopt,.campaign-html-adopt{display:inline-flex;align-items:center;gap:6px}.email-design-adopt small,.campaign-html-adopt small{padding:2px 6px;border-radius:999px;color:inherit;background:rgba(255,255,255,.18);font-size:8px;font-weight:800}
 .email-ai-builder .renewal-email-ai-mode{grid-template-columns:repeat(5,minmax(0,1fr))}
 .email-ai-quick-actions{display:flex;flex-wrap:wrap;gap:7px}
 .email-ai-quick-actions button{min-height:31px;padding:5px 10px;border:1px solid #d8e7e4;border-radius:999px;color:#42645e;background:#fff;font:inherit;font-size:10px;font-weight:750;cursor:pointer}

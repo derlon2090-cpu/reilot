@@ -126,6 +126,36 @@ describe("renewal email AI code generation", () => {
     expect(deps.release).not.toHaveBeenCalled();
   });
 
+  it("accepts structured JSON wrapped in a provider markdown fence", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured.mockResolvedValueOnce({
+      message: { content: `\`\`\`json\n${JSON.stringify(safeResult)}\n\`\`\`` },
+      usage: { prompt_tokens: 120, completion_tokens: 80, total_tokens: 200 },
+      providerRequestId: "provider-email-fenced"
+    });
+    const result = await generateEmailTemplateCode(session, input, {
+      idempotencyKey: "email-template-fenced-0001",
+      dependencies: deps
+    });
+    expect(result.html).toContain("{{customer_name}}");
+    expect(result.quota.charged).toBe(200);
+  });
+
+  it("returns a valid settled result when completion bookkeeping fails", async () => {
+    const deps = dependencies({
+      completeGeneration: vi.fn(async () => {
+        throw Object.assign(new Error("temporary database error"), { code: "08006" });
+      })
+    });
+    const result = await generateEmailTemplateCode(session, input, {
+      idempotencyKey: "email-template-persist-0001",
+      dependencies: deps
+    });
+    expect(result.ok).toBe(true);
+    expect(result.quota).toEqual(expect.objectContaining({ charged: 200, remaining: 4800 }));
+    expect(deps.release).not.toHaveBeenCalled();
+  });
+
   it("returns a completed idempotent result without a second provider call or charge", async () => {
     const deps = dependencies({ claimGeneration: vi.fn(async () => ({ claimed: false, record: {
       status: "completed", html: safeResult.html, usedVariables: safeResult.usedVariables,

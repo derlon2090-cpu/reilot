@@ -9,11 +9,11 @@ const route = fs.readFileSync(path.join(root, "app/api/ai/email-template/generat
 
 describe("renewal email AI editor contract", () => {
   it("exposes the required AI UX without provider or secret details", () => {
-    expect(appSource).toContain("✨ توليد الكود بالذكاء الاصطناعي");
-    expect(appSource).toContain("صف ما تريد، وسيُنشئ Renvix كود HTML متوافقًا مع البريد وجاهزًا للتعديل.");
+    expect(appSource).toContain("توليد قالب برمجي (HTML)");
+    expect(appSource).toContain("ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده.");
     expect(appSource).toContain("إنشاء جديد");
     expect(appSource).toContain("تعديل الكود الحالي");
-    expect(appSource).toContain("تطبيق الكود");
+    expect(appSource).toContain("اعتماد التصميم <small>اختياري</small>");
     expect(appSource).not.toMatch(/رصيد[^\n]{0,80}(DeepSeek|provider|دولار|تكلفة)/i);
   });
 
@@ -29,7 +29,7 @@ describe("renewal email AI editor contract", () => {
   });
 
   it("uses the authenticated same-origin server endpoint and never calls DeepSeek from the browser", () => {
-    expect(appSource).toContain('/api/ai/email-template/generate');
+    expect(appSource).toContain('/backend/ai/email-template/generate');
     expect(appSource).not.toContain('api.deepseek.com');
     expect(route).toContain("requireSession");
     expect(route).toContain("sameOriginRequest");

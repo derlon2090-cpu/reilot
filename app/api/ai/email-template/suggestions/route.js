@@ -15,12 +15,20 @@ export async function POST(request) {
     return Response.json(result);
   } catch (error) {
     const status = Number(error?.status || 500);
+    const usage = error?.usage || null;
+    const charged = Number(error?.charged || 0);
+    const quota = usage || charged ? {
+      charged,
+      remaining: usage?.remainingTokens === null || usage?.remainingTokens === undefined
+        ? null
+        : Number(usage.remainingTokens),
+      nextRefillAt: usage?.nextRefillAt || null
+    } : null;
     return Response.json({
       ok: false,
       code: error?.code || "AI_EMAIL_SUGGESTIONS_FAILED",
       message: status < 500 ? String(error?.message || "تعذر تحليل القالب.") : "تعذر تحليل القالب حاليًا. حاول مرة أخرى بعد قليل.",
-      ...(error?.usage ? { quota: { charged: 0, remaining: Number(error.usage.remainingTokens || 0), nextRefillAt: error.usage.nextRefillAt || null } } : {}),
-      ...(Number(error?.charged || 0) ? { quota: { charged: Number(error.charged), remaining: null, nextRefillAt: null } } : {})
+      ...(quota ? { quota } : {})
     }, { status });
   }
 }

@@ -73,10 +73,12 @@ describe("campaign studio", () => {
     expect(existsSync(new URL("../../app/api/ai/campaign-copy/generate/route.js", import.meta.url))).toBe(false);
     expect(appSource).toContain("توليد قالب برمجي (HTML)");
     expect(appSource).toContain("campaignStudioAIState");
-    expect(appSource).toContain("/api/ai/email-template/generate");
+    expect(appSource).toContain("/backend/ai/email-template/generate");
     expect(appSource).toContain('templateType: "campaign_email"');
     expect(appSource).toContain('data-action="campaign-studio-ai-replace"');
     expect(appSource).toContain('data-action="campaign-studio-ai-approve"');
+    expect(appSource).toContain('data-action="campaign-studio-adopt-html"');
+    expect(appSource).toContain('اعتماد التصميم <small>اختياري</small>');
     expect(appSource).toContain('data-action="campaign-studio-delete-html"');
     expect(appSource).toContain('data-action="campaign-studio-replace-html"');
     expect(appSource).toContain('data-action="campaign-studio-copy-html"');
