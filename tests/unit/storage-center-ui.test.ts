@@ -138,6 +138,7 @@ describe("storage center form wiring", () => {
     expect(source).toContain('storageEditorSelectionBlock(textRange.startContainer, editor)');
     expect(source).toContain('function placeStorageEditorCaretAfterBox(box, editor)');
     expect(source).toContain('function ensureStorageEditorTextFlows(editor');
+    expect(source).toContain('box.setAttribute("dir", "auto")');
     expect(source).toContain('data-storage-text-flow');
     expect(source).toContain('box.after(flow)');
     expect(source).toContain('let seed = "\\u00a0"');
@@ -145,7 +146,8 @@ describe("storage center form wiring", () => {
     expect(source).toContain('flow.removeAttribute("data-storage-text-flow")');
     expect(styles).toContain('.storage-editor-body [data-storage-text-box]');
     expect(styles).toContain('.storage-editor-body [data-storage-text-flow]');
-    expect(styles).toContain('box-decoration-break:clone');
+    expect(styles).toContain('unicode-bidi:plaintext');
+    expect(styles).toContain('vertical-align:middle');
     expect(source).toContain("storageEditorTextForFormatting(editor)");
     expect(styles).toContain(".storage-editor-body hr[data-storage-ai-separator]");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");

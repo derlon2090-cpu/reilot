@@ -9344,6 +9344,7 @@ function storageEditorSelectionBlock(node, editor) {
 }
 
 function storageEditorTextFlowAfterBox(box) {
+  box.setAttribute("dir", "auto");
   const current = box.nextSibling;
   if (current?.nodeType === Node.ELEMENT_NODE && current.matches?.("[data-storage-text-flow]")) {
     if (!current.firstChild) current.append(document.createTextNode("\u00a0"));

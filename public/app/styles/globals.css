@@ -17073,7 +17073,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .storage-editor-toolbar .storage-editor-box-tool:hover{color:#07514c;border-color:#9bcfc7;background:#e7f6f2}
 .storage-editor-toolbar .storage-editor-box-tool>span{display:grid;place-items:center;width:17px;height:17px;border:1.5px solid currentColor;border-radius:4px;font-size:0}
 .storage-editor-toolbar .storage-editor-box-tool>b{font:800 10px "Tajawal",sans-serif}
-.storage-editor-body [data-storage-text-box],.storage-rich-content [data-storage-text-box]{display:inline;padding:2px 7px;border:1.5px solid #67b9ae;border-radius:6px;color:inherit;background:rgba(8,114,103,.07);box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:inherit}
+.storage-editor-body [data-storage-text-box],.storage-rich-content [data-storage-text-box]{display:inline-block;max-width:100%;min-height:1.9em;padding:.12em .55em .22em;vertical-align:middle;box-sizing:border-box;border:1.5px solid #67b9ae;border-radius:6px;color:inherit;background:rgba(8,114,103,.07);line-height:1.45;text-align:start;unicode-bidi:plaintext;overflow-wrap:anywhere}
 .storage-editor-body [data-storage-text-flow]{display:inline-block;min-width:.65em;color:inherit;background:transparent}
 :root[data-theme="dark"] .storage-editor-body [data-storage-text-box],:root[data-theme="dark"] .storage-rich-content [data-storage-text-box]{border-color:#64b9ae;background:rgba(82,185,170,.12)}
 .storage-editor-body [data-storage-ai-heading],.storage-rich-content [data-storage-ai-heading]{display:flex;align-items:baseline;gap:8px}
