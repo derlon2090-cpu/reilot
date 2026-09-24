@@ -75,7 +75,11 @@ describe("production migration safety", () => {
   it("ships and runs the storage migration gate before authenticating the overview request", () => {
     const route = readFileSync(resolve("app/api/storage/route.js"), "utf8");
     const config = readFileSync(resolve("next.config.mjs"), "utf8");
-    expect(config).toContain('"/api/storage": ["./drizzle/0094_storage_center_insights.sql"]');
+    expect(config).toContain('"/api/storage/**": [');
+    expect(config).toContain('"/storage-api/**": [');
+    for (const migration of ["0094_storage_center_insights", "0095_storage_document_locks", "0096_storage_folder_locks"]) {
+      expect(config).toContain(`./drizzle/${migration}.sql`);
+    }
     expect(route.indexOf("await ensureStorageCenterSchema()"))
       .toBeLessThan(route.indexOf("await requireSession(request)"));
     expect(route).toContain('code: "STORAGE_SCHEMA_UNAVAILABLE"');
