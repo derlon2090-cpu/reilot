@@ -5872,13 +5872,18 @@ function campaignStudioGeneratedHtml(form) {
   const accent = /^#[0-9a-f]{6}$/i.test(form?.elements.themeColor?.value || "") ? form.elements.themeColor.value : "#0b3f3b";
   const theme = { page:"#f5f8f7",surface:"#ffffff",heading:accent,copy:"#526763",card:"#ffffff",accent };
   const heroImageUrl = safeStoreLogoUrl(form?.elements.heroImageUrl?.value);
-  const rows = cards.map((card) => `<tr><td style="padding:16px;border:1px solid #e2ebe9;border-radius:12px;text-align:right;background:${theme.card}">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr>`).join("");
+  const cardCell = (card, width = "50%", colspan = "") => `<td ${colspan ? `colspan="${colspan}"` : `width="${width}"`} valign="top" style="padding:6px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="height:100%;border:1px solid #e2ebe9;border-radius:12px;background:${theme.card}"><tr><td style="padding:16px;text-align:right">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="240" style="display:block;width:100%;max-width:240px;height:auto;margin:0 auto 14px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr></table></td>`;
+  const rows = [];
+  for (let index = 0; index < cards.length; index += 2) {
+    const pair = cards.slice(index, index + 2);
+    rows.push(`<tr>${pair.length === 1 ? cardCell(pair[0], "100%", "2") : pair.map((card) => cardCell(card)).join("")}</tr>`);
+  }
   const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
     const url = campaignStudioValidHttpUrl(form?.elements[name]?.value);
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
   }).join("");
-  return `<div dir="rtl" style="padding:24px;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right">${heroImageUrl ? `<img src="${escapeHtml(heroImageUrl)}" alt="صورة الحملة" width="564" style="display:block;width:100%;max-width:564px;height:auto;margin:0 0 22px;border-radius:14px">` : ""}<h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-spacing:0 12px">${rows}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></div>`;
+  return `<div dir="rtl" style="padding:24px;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right">${heroImageUrl ? `<img src="${escapeHtml(heroImageUrl)}" alt="صورة الحملة" width="564" style="display:block;width:100%;max-width:564px;height:auto;margin:0 0 22px;border-radius:14px">` : ""}<h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><h2 style="margin:26px 0 10px;color:${theme.heading};font:700 20px Arial,sans-serif">تفاصيل الحملة</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;border-collapse:separate;border-spacing:0 8px">${rows.join("")}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></div>`;
 }
 
 function campaignStudioAIState() {
@@ -5892,7 +5897,7 @@ function campaignStudioAIState() {
 function campaignStudioAIResultMarkup() {
   const ai = campaignStudioAIState();
   if (ai.status === "loading") return `<div class="campaign-html-ai-progress" role="status"><i></i><span><b>جارٍ توليد تصميم البريد...</b><small>يتم إنشاء الكود وفحصه أمنيًا قبل عرضه.</small></span></div>`;
-  if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span></div>`;
+  if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-generate">إعادة المحاولة</button></div>`;
   if (ai.status !== "success" || !ai.result?.html) return "";
   const quota = ai.result.quota || {};
   return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>التصميم جاهز للمراجعة</b><small>${escapeHtml(ai.result.summary || "راجع المعاينة ثم اعتمد الكود.")}</small></span></div><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة تصميم كود البريد" srcdoc="${escapeHtml(ai.result.html)}"></iframe><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد تصميم الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-replace">استبدال الكود بالكامل</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ</button></div><small class="campaign-html-ai-quota">تم خصم ${formatAITokens(quota.charged || 0)} توكن من رصيد الذكاء.</small>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
@@ -5933,16 +5938,34 @@ async function requestCampaignStudioAICode(form) {
     existingHtml = inspection.html;
   }
   const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const safePrompt = `${prompt}\n\nالتزم بإخراج جزء HTML لمحتوى البريد فقط داخل JSON. لا تستخدم JavaScript أو script أو iframe أو form أو أحداثًا تنفيذية أو روابط غير آمنة، ولا تكتب أي شرح خارج JSON.`;
+  // The server adds the security/output contract. Keep the user's full prompt within
+  // the API limit instead of appending client text that can make a valid prompt fail.
+  const safePrompt = prompt.slice(0, 4000);
   const orderedCards = campaignStudioFormCards(form);
   const selectedImageUrls = [...new Set([form.elements.heroImageUrl?.value, ...orderedCards.map((card) => card.imageUrl)].map(safeStoreLogoUrl).filter(Boolean))];
   const cardContext = orderedCards.map((card, index) => `${index + 1}. ${card.title || "بطاقة"}: ${card.bodyText || ""} — ${card.buttonText || ""} — ${card.buttonUrl || ""}`).join("\n");
+  const campaignLayout = {
+    direction: "rtl",
+    subject: String(form.elements.subject?.value || form.elements.name?.value || "").trim(),
+    previewText: String(form.elements.previewText?.value || "").trim(),
+    body: String(form.elements.body?.value || "").trim(),
+    heroImageUrl: safeStoreLogoUrl(form.elements.heroImageUrl?.value),
+    cards: orderedCards.map((card, index) => ({
+      position: index + 1,
+      title: card.title,
+      bodyText: card.bodyText,
+      buttonText: card.buttonText,
+      buttonUrl: card.buttonUrl,
+      imageUrl: safeStoreLogoUrl(card.imageUrl)
+    })),
+    footer: String(form.elements.footer?.value || "").trim()
+  };
   state.campaignStudioAI = { ...ai, status: "loading", mode, prompt, result: null, error: "", beforeHtml: existingHtml };
   refreshCampaignStudioAIResult(form);
   try {
     const payload = await fetchJson("/api/ai/email-template/generate", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ prompt: safePrompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.body?.value, cardContext && `البطاقات بالترتيب المعتمد:\n${cardContext}`, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, mode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
+      body: JSON.stringify({ prompt: safePrompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.body?.value, cardContext && `البطاقات بالترتيب المعتمد:\n${cardContext}`, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, campaignLayout, mode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
       timeoutMs: 90000, timeoutMessage: "استغرق توليد الكود وقتًا أطول من المتوقع. حاول مرة أخرى."
     });
     syncAIQuota(payload);

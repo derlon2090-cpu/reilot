@@ -74,11 +74,12 @@ export function classifyAIRequest({
   });
 }
 
-export function classifyEmailTemplateCodeRequest({ prompt = "", existingHtml = "", mode = "generate" } = {}) {
+export function classifyEmailTemplateCodeRequest({ prompt = "", existingHtml = "", mode = "generate", campaignLayout = null } = {}) {
   const sourceLength = String(prompt || "").length + String(existingHtml || "").length;
   const editing = mode === "edit";
-  const complex = sourceLength > 9000 || /جدول|فاتورة|أعمدة|تجاوب|responsive|invoice|columns|complex/i.test(String(prompt || ""));
-  const complexityScore = Math.min(100, 18 + (editing ? 18 : 0) + (complex ? 34 : 0) + (sourceLength > 18000 ? 20 : 0));
+  const campaignCardCount = Array.isArray(campaignLayout?.cards) ? campaignLayout.cards.length : 0;
+  const complex = sourceLength > 9000 || campaignCardCount > 0 || /جدول|فاتورة|أعمدة|تجاوب|responsive|invoice|columns|complex/i.test(String(prompt || ""));
+  const complexityScore = Math.min(100, 18 + (editing ? 18 : 0) + (complex ? 34 : 0) + (campaignCardCount > 0 ? 16 : 0) + (campaignCardCount >= 5 ? 10 : 0) + (sourceLength > 18000 ? 20 : 0));
   const deepAnalysis = complexityScore >= 66;
   const thinking = complexityScore >= 45;
   return Object.freeze({

@@ -4,6 +4,7 @@ import {
   EMAIL_TEMPLATE_ALLOWED_VARIABLES,
   generateEmailTemplateCode,
   generateEmailTemplateSuggestions,
+  normalizeGeneratedEmailTemplate,
   resolveEmailTemplateContext,
   validateGeneratedEmailTemplate
 } from "../../src/server/ai/email-template-code.js";
@@ -70,6 +71,25 @@ describe("renewal email AI code generation", () => {
     expect(result.html).not.toContain("onmouseover");
     expect(result.usedVariables).toEqual(["renewal_url", "customer_name"]);
     expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("normalizes common provider response variants without rejecting a usable design", () => {
+    expect(normalizeGeneratedEmailTemplate({
+      result: { htmlContent: "<!doctype html><html><head><title>x</title></head><body><p>مرحبًا</p></body></html>", note: "extra provider field" }
+    })).toMatchObject({ html: "<p>مرحبًا</p>" });
+    expect(validateGeneratedEmailTemplate({
+      html: "<p>مرحبًا {{customer_name}}</p>",
+      usedVariables: "customer_name",
+      extra: "ignored safely"
+    } as any).usedVariables).toEqual(["customer_name"]);
+  });
+
+  it("accepts a selected signed image after safe HTML entity encoding", () => {
+    const imageUrl = "https://assets.renvix.app/image.png?token=abc&size=large";
+    const result = validateGeneratedEmailTemplate({
+      html: `<img src="${imageUrl}" alt="المتجر"><p>مرحبًا</p>`, usedVariables: [], warnings: []
+    }, { allowedImageSources: [imageUrl] });
+    expect(result.html).toContain("token=abc&amp;size=large");
   });
 
   it.each([
@@ -141,6 +161,19 @@ describe("renewal email AI code generation", () => {
     }));
   });
 
+  it("recovers a safe direct-HTML provider response instead of showing an invalid-result error", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured = vi.fn(async () => ({
+      message: { content: safeResult.html },
+      usage: { prompt_tokens: 60, completion_tokens: 40, total_tokens: 100 },
+      providerRequestId: "provider-email-direct-html"
+    }));
+    await expect(generateEmailTemplateCode(session, input, {
+      idempotencyKey: "email-template-direct-html-1", dependencies: deps
+    })).resolves.toMatchObject({ ok: true, html: expect.stringContaining("renewal_url") });
+    expect(deps.settle).toHaveBeenCalledTimes(1);
+  });
+
   it("allows only explicitly selected campaign images in generated code", async () => {
     const imageUrl = "https://assets.renvix.app/campaign/store-cover.png";
     const deps = dependencies();
@@ -152,6 +185,32 @@ describe("renewal email AI code generation", () => {
     await expect(generateEmailTemplateCode(session, { ...input, templateContext: { templateType: "campaign_email", channel: "email" }, selectedImageUrls: [imageUrl] }, {
       idempotencyKey: "email-template-image-0001", dependencies: deps
     })).resolves.toMatchObject({ ok: true, html: expect.stringContaining(imageUrl) });
+  });
+
+  it("gives campaign generation an exact fixed-hero and dynamic-card layout contract", () => {
+    const campaignInput = {
+      ...input,
+      templateContext: { templateType: "campaign_email" as const, channel: "email" as const },
+      campaignLayout: {
+        direction: "rtl" as const,
+        subject: "عروض الموسم",
+        previewText: "اختيارات هذا الأسبوع",
+        body: "اكتشف المنتجات المختارة.",
+        heroImageUrl: "https://assets.renvix.app/campaign/hero.png",
+        cards: [
+          { position: 1, title: "الأول", bodyText: "تفاصيل الأول", buttonText: "عرض", buttonUrl: "https://example.com/1", imageUrl: "" },
+          { position: 2, title: "الثاني", bodyText: "تفاصيل الثاني", buttonText: "عرض", buttonUrl: "https://example.com/2", imageUrl: "" },
+          { position: 3, title: "الثالث", bodyText: "تفاصيل الثالث", buttonText: "عرض", buttonUrl: "https://example.com/3", imageUrl: "" }
+        ],
+        footer: "شكرًا لك"
+      }
+    };
+    const combined = buildEmailTemplateCodeMessages(campaignInput).map((item) => item.content).join("\n");
+    expect(combined).toContain("بطاقة علوية رئيسية (Hero) واحدة وثابتة");
+    expect(combined).toContain("عددها الفعلي 3 بالضبط");
+    expect(combined).toContain("صفوف من عمودين");
+    expect(combined).toContain('"title":"الثالث"');
+    expect(combined).toContain("Gmail وOutlook وApple Mail");
   });
 
   it("returns a completed idempotent result without a second provider call or charge", async () => {
@@ -280,7 +339,7 @@ describe("renewal email AI code generation", () => {
     expect(deps.settle).not.toHaveBeenCalled();
   });
 
-  it("charges actual provider usage but rejects an invalid structured response", async () => {
+  it("does not charge AI balance when the provider response fails validation", async () => {
     const deps = dependencies();
     deps.provider.completeStructured = vi.fn(async () => ({
       message: { content: JSON.stringify({ html: "<script>alert(1)</script>", usedVariables: [], warnings: [] }) },
@@ -289,9 +348,9 @@ describe("renewal email AI code generation", () => {
     }));
     await expect(generateEmailTemplateCode(session, input, {
       idempotencyKey: "email-template-request-0004", dependencies: deps
-    })).rejects.toMatchObject({ code: "AI_EMAIL_UNSAFE_OUTPUT", charged: 200 });
-    expect(deps.settle).toHaveBeenCalledTimes(1);
-    expect(deps.release).not.toHaveBeenCalled();
+    })).rejects.toMatchObject({ code: "AI_EMAIL_UNSAFE_OUTPUT" });
+    expect(deps.settle).not.toHaveBeenCalled();
+    expect(deps.release).toHaveBeenCalledWith(session, "reservation-1");
     expect(deps.finishRun).toHaveBeenCalledWith(session, "run-1", { status: "failed" });
   });
 

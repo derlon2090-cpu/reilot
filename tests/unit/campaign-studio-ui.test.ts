@@ -93,8 +93,9 @@ describe("campaign studio", () => {
     expect(appSource).not.toContain('form.elements.htmlContent.value = ""');
     expect(appSource).toContain('if (!form.checkValidity())');
     expect(appSource).toContain("campaignSubmit.form.noValidate = true");
-    expect(stylesSource).toContain("bottom:max(12px,env(safe-area-inset-bottom))");
-    expect(stylesSource).toContain("pointer-events:auto");
+    expect(stylesSource).toContain(".campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:static!important");
+    expect(stylesSource).not.toContain(".campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:fixed");
+    expect(stylesSource).toContain(".campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview{position:sticky;top:76px");
   });
 
   it("keeps social links collapsed while preserving entered icons in the preview", () => {

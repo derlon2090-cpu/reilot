@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyAIRequest } from "../../src/server/ai/router.js";
+import { classifyAIRequest, classifyEmailTemplateCodeRequest } from "../../src/server/ai/router.js";
 
 describe("Renvix AI request routing", () => {
   it("routes ordinary chat to Flash without thinking or account tools", () => {
@@ -62,5 +62,12 @@ describe("Renvix AI request routing", () => {
       prompt: "حلل اشتراكات حسابي",
       accountContextEnabled: false
     }).useTools).toBe(false);
+  });
+
+  it("routes structured campaign design to the Pro model", () => {
+    expect(classifyEmailTemplateCodeRequest({
+      prompt: "صمم حملة راقية",
+      campaignLayout: { cards: [{ position: 1 }] }
+    })).toMatchObject({ modelTier: "pro", intent: "email_template_code_generation" });
   });
 });
