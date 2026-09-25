@@ -27,7 +27,7 @@ export async function GET(request) {
     `SELECT id,image_url AS "imageUrl",image_content_type AS "contentType",created_at AS "createdAt",updated_at AS "updatedAt"
        FROM tenant_salla_template_images
       WHERE tenant_id=$1 AND template_key LIKE 'campaign_asset\\_%' ESCAPE '\\'
-      ORDER BY updated_at DESC LIMIT 100`,
+      ORDER BY updated_at DESC`,
     [auth.session.tenantId]
   );
   return Response.json({
