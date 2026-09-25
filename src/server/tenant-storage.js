@@ -22,6 +22,7 @@ const TABLE_GROUPS = {
   ai_user_preferences: "محادثات ذكاء Renvix",
   storage_folders: "مركز التخزين",
   storage_documents: "مركز التخزين",
+  storage_document_shares: "مركز التخزين",
   storage_assets: "مركز التخزين",
   storage_activity: "مركز التخزين",
   whatsapp_channels: "الأجهزة",

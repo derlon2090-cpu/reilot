@@ -16,6 +16,9 @@ const authTitles = {
 
 export async function generateMetadata({ params }) {
   const { slug = [] } = await params;
+  if (slug[0] === "shared" && slug[1] === "document") {
+    return { title: "ملف مشترك | Renvix", robots: { index: false, follow: false } };
+  }
   const title = authTitles[slug[0]];
   return title ? { title, robots: { index: false, follow: false } } : {};
 }
