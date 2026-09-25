@@ -118,7 +118,8 @@ describe("renewal email AI code generation", () => {
     expect(combined).toContain("جميع البطاقات بالترتيب");
     expect(combined).toContain("{{unsubscribe_url}}");
     expect(combined).toContain("دون حذف أي عنصر");
-    expect(combined).toContain("البطاقة الأولى بعرض كامل");
+    expect(combined).toContain("بطاقتين في كل صف من أول بطاقة");
+    expect(combined).toContain("لا تجعل أي بطاقة بعرض كامل");
     expect(combined).toContain(brandLogoUrl);
     expect(combined).toContain("لا تستبدله أو تحذفه");
   });

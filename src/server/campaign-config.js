@@ -81,6 +81,12 @@ export const campaignCreateSchema = z.object({
   if (value.channel === "email" && emailThemeColor && !/^#[0-9a-f]{6}$/i.test(String(emailThemeColor))) {
     context.addIssue({ code: "custom", path: ["audienceFilter", "emailThemeColor"], message: "لون قالب البريد غير صالح." });
   }
+  for (const field of ["subjectAlignment", "bodyAlignment"]) {
+    const alignment = value.audienceFilter?.[field];
+    if (value.channel === "email" && alignment && !["right", "center", "left"].includes(String(alignment))) {
+      context.addIssue({ code: "custom", path: ["audienceFilter", field], message: "محاذاة محتوى البريد غير صالحة." });
+    }
+  }
   const heroImageUrl = value.audienceFilter?.heroImageUrl;
   if (value.channel === "email" && heroImageUrl && !campaignHttpUrlSchema.safeParse(heroImageUrl).success) {
     context.addIssue({ code: "custom", path: ["audienceFilter", "heroImageUrl"], message: "رابط صورة الحملة غير صالح." });

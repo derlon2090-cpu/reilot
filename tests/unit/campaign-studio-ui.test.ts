@@ -67,7 +67,7 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain(".campaign-studio-email-preview.mobile");
   });
 
-  it("uses one canonical email template with color-only customization", () => {
+  it("uses one canonical email template with color and text-alignment customization", () => {
     expect(appSource).toContain('name="emailDesign"');
     expect(appSource).toContain('value="showcase"');
     expect(appSource).toContain("القالب الرئيسي المعتمد");
@@ -82,6 +82,12 @@ describe("campaign studio", () => {
     expect(appSource).not.toContain('class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png"');
     expect(stylesSource).toContain(".campaign-email-primary-template");
     expect(stylesSource).toContain("--campaign-email-color");
+    expect(appSource).toContain('campaignStudioAlignmentControl("subjectAlignment"');
+    expect(appSource).toContain('campaignStudioAlignmentControl("bodyAlignment"');
+    expect(appSource).toContain('aria-label="campaign-email-subject"');
+    expect(appSource).toContain('aria-label="campaign-email-body"');
+    expect(stylesSource).toContain(".campaign-email-alignment");
+    expect(schemaSource).toContain('["subjectAlignment", "bodyAlignment"]');
   });
 
   it("restores the selected campaign mode after navigation or refresh", () => {
@@ -94,9 +100,9 @@ describe("campaign studio", () => {
   it("keeps the customer logo and canonical card order in generated email code", () => {
     expect(appSource).toContain('aria-label="campaign-brand-logo"');
     expect(appSource).toContain('campaignStudioApplyFixedLogo(payload?.html || ""');
-    expect(appSource).toContain('if (cards[0]) rows.push');
-    expect(appSource).toContain('pair.length === 1');
-    expect(stylesSource).toContain('.campaign-studio-email-preview.design-showcase .campaign-studio-preview-card:first-child');
+    expect(appSource).toContain('for (let index = 0; index < cards.length; index += 2)');
+    expect(appSource).toContain('pair.length === 1 ? \'<td width="50%"');
+    expect(stylesSource).not.toContain('.campaign-studio-email-preview.design-showcase .campaign-studio-preview-card:first-child');
   });
 
   it("provides a safe AI email-code workflow with focused code controls", () => {
