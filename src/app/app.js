@@ -863,6 +863,7 @@ state.storageDateFrom = "";
 state.storageView = storage.get("renvix.storage.view", "grid");
 state.storageComposeType = "";
 state.storageDocument = null;
+state.storageShareDocumentId = "";
 state.storageDocumentPasswords = new Map();
 state.storageFolderPasswords = new Map();
 state.storageAIPreviousMarkup = null;
@@ -9697,9 +9698,10 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
 
 async function handleAction(target) {
   const storageAction = target.dataset.action || "";
-  if (storageAction === "storage-share-document") {
-    const id = state.storageDocument?.id;
+  if (storageAction === "storage-share-document" || storageAction === "storage-share-item") {
+    const id = target.dataset.id || state.storageDocument?.id;
     if (!id) return;
+    state.storageShareDocumentId = id;
     openModal("مشاركة الملف", `<div class="loading-state">جارٍ تحميل إعدادات المشاركة...</div>`);
     try {
       const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`);
@@ -9709,7 +9711,7 @@ async function handleAction(target) {
   }
   if (storageAction === "storage-share-copy") { await copyText(target.dataset.value || "", "تم نسخ رابط الملف"); return; }
   if (storageAction === "storage-share-regenerate") {
-    const id = state.storageDocument?.id; if (!id) return;
+    const id = state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     target.disabled = true;
     try {
       const permission = document.querySelector('form[data-submit="storage-share"] input[name="permission"]:checked')?.value || "view";
@@ -9719,7 +9721,7 @@ async function handleAction(target) {
     return;
   }
   if (storageAction === "storage-share-revoke") {
-    const id = state.storageDocument?.id; if (!id) return;
+    const id = state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     target.disabled = true;
     try { await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "DELETE" }); openModal("مشاركة الملف", storageShareDialog()); toast("تم إيقاف رابط المشاركة."); }
     catch (error) { target.disabled = false; toast(error.message || "تعذر إيقاف الرابط.", "danger"); }
@@ -10032,9 +10034,11 @@ async function handleAction(target) {
     const pinAction = kind === "folder" ? `<button data-action="storage-toggle-pin" data-id="${escapeHtml(id)}" data-pinned="${target.dataset.pinned === "1" ? "0" : "1"}">${dashboardIcon("star")} ${target.dataset.pinned === "1" ? "إلغاء التثبيت" : "تثبيت أعلى القائمة"}</button>` : "";
     const locked = kind === "document" && Boolean((state.storageCenter?.storage?.documents || []).find((item) => item.id === id)?.locked);
     const lockAction = kind === "document" ? `<button data-action="storage-lock-prompt" data-id="${escapeHtml(id)}" data-locked="${locked ? "1" : "0"}">${dashboardIcon("security")} ${locked ? "تغيير أو إزالة كلمة المرور" : "حماية الملف بكلمة مرور"}</button>` : "";
+    const documentType = kind === "document" ? (state.storageCenter?.storage?.documents || []).find((item) => item.id === id)?.type : "";
+    const shareAction = kind === "document" && !["account", "code"].includes(documentType) ? `<button data-action="storage-share-item" data-id="${escapeHtml(id)}">${dashboardIcon("link")} مشاركة الملف</button>` : "";
     const folderLocked = kind === "folder" && Boolean((state.storageCenter?.storage?.folders || []).find((item) => item.id === id)?.locked);
     const folderLockAction = kind === "folder" ? `<button data-action="storage-folder-lock-prompt" data-id="${escapeHtml(id)}" data-locked="${folderLocked ? "1" : "0"}">${dashboardIcon("security")} ${folderLocked ? "تغيير أو إزالة كلمة مرور الملف" : "حماية الملف ومحتوياته"}</button>` : "";
-    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${pinAction}${folderLockAction}${lockAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${shareAction}${pinAction}${folderLockAction}${lockAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
   }
   if (storageAction === "storage-folder-lock-prompt") {
     const locked = target.dataset.locked === "1";
@@ -13506,7 +13510,7 @@ async function handleSubmit(form, event) {
   if (["login", "register", "mfa-login", "email-otp", "forgot", "reset-password"].includes(type) && form.querySelector('[data-submitting="true"]')) return;
   const data = Object.fromEntries(new FormData(form));
   if (type === "storage-share") {
-    const id = state.storageDocument?.id; if (!id) return;
+    const id = state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
     try {
       const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission: data.permission || "view" }) });
