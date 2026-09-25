@@ -93,6 +93,7 @@ describe("campaign image upload", () => {
     expect(payload.assets).toHaveLength(1);
     expect(payload.assets[0]).toMatchObject({ canDelete:true, name:"صورة حملة 1" });
     expect(queryMock).toHaveBeenCalledWith(expect.stringContaining("template_key LIKE 'campaign_asset"), ["tenant-1"]);
+    expect(queryMock.mock.calls[0][0]).not.toContain("LIMIT");
   });
 
   it("deletes a tenant-owned campaign image and its managed blob", async () => {

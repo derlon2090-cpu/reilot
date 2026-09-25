@@ -36,6 +36,8 @@ describe("campaign studio", () => {
     expect(appSource).toContain('data-action="campaign-image-library-upload"');
     expect(appSource).toContain('data-action="campaign-image-library-select"');
     expect(appSource).toContain('data-action="campaign-image-library-delete"');
+    expect(appSource).toContain('data-action="campaign-image-library-show-all"');
+    expect(appSource).toContain('index >= 6 ? " is-library-hidden"');
     expect(appSource).toContain('data-action="campaign-studio-image-remove"');
     expect(appSource).toContain("renvix.campaign-studio.${channel}.${kind}");
     expect(appSource).toContain("refreshCampaignStudioPreview");
@@ -44,6 +46,10 @@ describe("campaign studio", () => {
     expect(assetsRoute).toContain("export async function GET");
     expect(assetsRoute).toContain("export async function DELETE");
     expect(stylesSource).toContain(".campaign-image-library-grid");
+    expect(appSource).toContain('openModal("مكتبة الصور"');
+    expect(stylesSource).toContain("repeat(auto-fill,minmax(min(160px,100%),1fr))");
+    expect(stylesSource).toContain("overflow:visible");
+    expect(stylesSource).toContain(".campaign-image-library-card.is-library-hidden{display:none}");
   });
 
   it("validates cards and store ownership on the server", () => {
@@ -66,9 +72,9 @@ describe("campaign studio", () => {
     expect(appSource).toContain('value="showcase"');
     expect(appSource).toContain("القالب الرئيسي المعتمد");
     expect(appSource).toContain('name="themeColor"');
-    expect(appSource).toContain("صورة المتجر أو غلاف الحملة");
-    expect(appSource).toContain('data-action="campaign-studio-hero-image-pick"');
-    expect(appSource).toContain('data-action="campaign-studio-hero-image-remove"');
+    expect(appSource).not.toContain("صورة المتجر أو غلاف الحملة");
+    expect(appSource).not.toContain('data-action="campaign-studio-hero-image-pick"');
+    expect(appSource).not.toContain('name="heroImageUrl"');
     expect(appSource).toContain('name="brandLogoUrl"');
     expect(appSource).toMatch(/\["name"[^\n]+"brandLogoUrl"[^\n]+\]\.forEach/);
     expect(appSource).toContain('data-action="campaign-studio-logo-image-pick"');
