@@ -868,6 +868,8 @@ state.storageCenterRequestController = null;
 state.storageCenterRevision = 0;
 state.storageEditingDocument = null;
 state.storageDocumentDraft = null;
+state.sharedStorageDocument = null;
+state.sharedStorageToken = "";
 state.storageUploading = false;
 state.storageUploads = [];
 state.storageUploadRequests = new Map();
@@ -1616,6 +1618,12 @@ function syncRouteData(force = false) {
     state.publicNewsletterRequestedId = newsletterPublicId;
     state.publicNewsletter = null;
     queue("publicNewsletter", `/api/public/newsletter/${encodeURIComponent(newsletterPublicId)}`, "publicNewsletter");
+  }
+  const sharedStorageToken = state.route.match(/^\/shared\/document\/([A-Za-z0-9_-]{43})$/)?.[1];
+  if (sharedStorageToken && (force || state.sharedStorageToken !== sharedStorageToken || state.sharedStorageDocument === null)) {
+    state.sharedStorageToken = sharedStorageToken;
+    state.sharedStorageDocument = state.sharedStorageDocument?.token === sharedStorageToken ? state.sharedStorageDocument : null;
+    queue("sharedStorageDocument", `/api/public/storage-documents/${encodeURIComponent(sharedStorageToken)}`, "sharedStorageDocument");
   }
 
   if (state.route.startsWith("/dashboard") && (force || !state.cachedDashboardProfile?.name)) {
@@ -9436,6 +9444,35 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
 
 async function handleAction(target) {
   const storageAction = target.dataset.action || "";
+  if (storageAction === "storage-share-document") {
+    const id = state.storageDocument?.id;
+    if (!id) return;
+    openModal("مشاركة الملف", `<div class="loading-state">جارٍ تحميل إعدادات المشاركة...</div>`);
+    try {
+      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`);
+      openModal("مشاركة الملف", storageShareDialog(payload.share));
+    } catch (error) { openModal("مشاركة الملف", `<div class="empty-state"><strong>تعذر فتح المشاركة</strong><p>${escapeHtml(error.message || "حاول مرة أخرى.")}</p></div>`); }
+    return;
+  }
+  if (storageAction === "storage-share-copy") { await copyText(target.dataset.value || "", "تم نسخ رابط الملف"); return; }
+  if (storageAction === "storage-share-regenerate") {
+    const id = state.storageDocument?.id; if (!id) return;
+    target.disabled = true;
+    try {
+      const permission = document.querySelector('form[data-submit="storage-share"] input[name="permission"]:checked')?.value || "view";
+      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission, regenerate: true }) });
+      openModal("مشاركة الملف", storageShareDialog(payload.share)); toast("تم إنشاء رابط جديد وإيقاف الرابط السابق.");
+    } catch (error) { target.disabled = false; toast(error.message || "تعذر إنشاء رابط جديد.", "danger"); }
+    return;
+  }
+  if (storageAction === "storage-share-revoke") {
+    const id = state.storageDocument?.id; if (!id) return;
+    target.disabled = true;
+    try { await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "DELETE" }); openModal("مشاركة الملف", storageShareDialog()); toast("تم إيقاف رابط المشاركة."); }
+    catch (error) { target.disabled = false; toast(error.message || "تعذر إيقاف الرابط.", "danger"); }
+    return;
+  }
+  if (storageAction === "shared-document-reload") { state.sharedStorageDocument = null; render(); return syncRouteData(true); }
   if (storageAction === "storage-toggle-arrange") {
     if (storageMoveInFlight) return;
     cancelStoragePointerDrag();
@@ -13134,6 +13171,23 @@ async function handleSubmit(form, event) {
   const type = form.dataset.submit;
   if (["login", "register", "mfa-login", "email-otp", "forgot", "reset-password"].includes(type) && form.querySelector('[data-submitting="true"]')) return;
   const data = Object.fromEntries(new FormData(form));
+  if (type === "storage-share") {
+    const id = state.storageDocument?.id; if (!id) return;
+    const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
+    try {
+      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission: data.permission || "view" }) });
+      openModal("مشاركة الملف", storageShareDialog(payload.share)); toast(form.dataset.active === "1" ? "تم تحديث صلاحية الرابط." : "تم إنشاء رابط المشاركة.");
+    } catch (error) { toast(error.message || "تعذر حفظ إعدادات المشاركة.", "danger"); setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "shared-storage-document") {
+    const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
+    try {
+      const payload = await fetchJson(`/api/public/storage-documents/${encodeURIComponent(form.dataset.token || "")}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version }) });
+      state.sharedStorageDocument = payload; render(); toast("تم حفظ تعديلات الملف.");
+    } catch (error) { toast(error.message || "تعذر حفظ التغييرات.", "danger"); setSubmitBusy(button, false); }
+    return;
+  }
   if (type === "storage-document-timer") {
     const hours = Number(data.hours || 0);
     const minutes = Number(data.minutes || 0);
@@ -15543,10 +15597,30 @@ function storageDocumentView(data) {
   const isSecret = ["account", "code"].includes(item?.type);
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
-    <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon(isSecret ? "key" : "document")}</div><div><span>${storageTypeLabel(item.type)}</span><h1>${escapeHtml(item.title)}</h1><p>آخر تعديل ${new Date(item.updatedAt || item.createdAt).toLocaleString("ar-SA")}</p></div><div class="storage-view-actions"><button class="btn btn-primary" data-action="storage-edit-document">${dashboardIcon("edit")} تعديل</button><button class="btn btn-secondary" data-action="storage-close-document">العودة</button></div></header>
+    <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon(isSecret ? "key" : "document")}</div><div><span>${storageTypeLabel(item.type)}</span><h1>${escapeHtml(item.title)}</h1><p>آخر تعديل ${new Date(item.updatedAt || item.createdAt).toLocaleString("ar-SA")}</p></div><div class="storage-view-actions">${isSecret ? "" : `<button class="btn btn-secondary" data-action="storage-share-document">${dashboardIcon("link")} مشاركة</button>`}<button class="btn btn-primary" data-action="storage-edit-document">${dashboardIcon("edit")} تعديل</button><button class="btn btn-secondary" data-action="storage-close-document">العودة</button></div></header>
     <article class="card storage-document-view">${isSecret ? `<div class="storage-vault-read"><label><span>البريد الإلكتروني</span><span><input class="input" readonly value="${escapeHtml(item.email || "")}" dir="ltr"><button data-action="storage-copy-value" data-value="${escapeHtml(item.email || "")}">${dashboardIcon("copy")}</button></span></label><label><span>كلمة المرور</span><span><input class="input" type="password" readonly value="${escapeHtml(item.password || "")}" dir="ltr"><button data-action="toggle-password">${dashboardIcon("eye")}</button><button data-action="storage-copy-value" data-value="${escapeHtml(item.password || "")}">${dashboardIcon("copy")}</button></span></label><label><span>الكود / المفتاح</span><span><input class="input" type="password" readonly value="${escapeHtml(item.code || "")}" dir="ltr"><button data-action="toggle-password">${dashboardIcon("eye")}</button><button data-action="storage-copy-value" data-value="${escapeHtml(item.code || "")}">${dashboardIcon("copy")}</button></span></label>${(item.fields || []).map((field) => `<label><span>${escapeHtml(field.label)}</span><span><input class="input" readonly value="${escapeHtml(field.value)}"><button data-action="storage-copy-value" data-value="${escapeHtml(field.value)}">${dashboardIcon("copy")}</button></span></label>`).join("")}</div>` : `<header class="storage-document-content-head"><span>${dashboardIcon("document")}</span><div><strong>${item.type === "note" ? "نص الملاحظة" : "محتوى المستند"}</strong><small>عرض آمن للمحتوى المحفوظ داخل المجلد.</small></div></header><div class="storage-rich-content">${item.content?.body || "<p>لا يوجد محتوى.</p>"}</div>`}</article>
     <aside class="card storage-document-facts storage-item-facts"><h3>تفاصيل العنصر</h3><dl><div><dt>الحجم</dt><dd>${formatStorageBytes(item.sizeBytes)}</dd></div><div><dt>تاريخ الإنشاء</dt><dd>${new Date(item.createdAt).toLocaleString("ar-SA")}</dd></div><div><dt>صاحب المستند</dt><dd>${escapeHtml(item.owner || "مستخدم Renvix")}</dd></div><div><dt>المكان</dt><dd>${escapeHtml(item.location || "مركز التخزين")}</dd></div></dl></aside>
   </section>`);
+}
+
+function storageShareDialog(share = { active: false }) {
+  const active = share.active === true;
+  const permission = share.permission === "edit" ? "edit" : "view";
+  return `<form class="storage-share-dialog" data-submit="storage-share" data-active="${active ? "1" : "0"}">
+    <div class="storage-share-intro"><span>${dashboardIcon("link")}</span><div><strong>${active ? "الرابط الخاص نشط" : "أنشئ رابط مشاركة خاص"}</strong><small>يمكن لأي شخص يملك الرابط فتح الملف من دون تسجيل الدخول. لا ترسله إلا لمن تثق به.</small></div></div>
+    <fieldset><legend>صلاحية من يفتح الرابط</legend><label><input type="radio" name="permission" value="view" ${permission === "view" ? "checked" : ""}><span>${dashboardIcon("eye")}<b>عرض فقط</b><small>يقرأ محتوى الملف ولا يستطيع تغييره.</small></span></label><label><input type="radio" name="permission" value="edit" ${permission === "edit" ? "checked" : ""}><span>${dashboardIcon("edit")}<b>السماح بالتعديل</b><small>يستطيع تعديل العنوان والمحتوى وحفظهما.</small></span></label></fieldset>
+    ${active && share.url ? `<label class="storage-share-link"><span>رابط الملف</span><span><input class="input" readonly dir="ltr" value="${escapeHtml(share.url)}"><button type="button" class="btn btn-secondary" data-action="storage-share-copy" data-value="${escapeHtml(share.url)}">${dashboardIcon("copy")} نسخ</button></span></label>` : ""}
+    <div class="storage-share-actions">${active ? `<button type="button" class="btn btn-danger" data-action="storage-share-revoke">إيقاف الرابط</button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
+  </form>`;
+}
+
+function sharedStorageDocumentPage() {
+  const data = state.sharedStorageDocument;
+  if (data === null) return `<main class="shared-document-shell"><header>${stackedLogo()}</header><section class="shared-document-loading"><i></i><i></i><i></i></section></main>`;
+  if (data?.error || !data?.document) return `<main class="shared-document-shell"><header>${stackedLogo()}</header><section class="shared-document-error">${dashboardIcon("warning")}<h1>تعذر فتح الملف</h1><p>${escapeHtml(data?.error || "الرابط غير صالح أو أوقفه مالك الملف.")}</p><button class="btn btn-secondary" data-action="shared-document-reload">إعادة المحاولة</button></section></main>`;
+  const item = data.document;
+  const editable = item.permission === "edit";
+  return `<main class="shared-document-shell"><header><div>${stackedLogo()}<span>مساحة مشاركة آمنة</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "مسموح بالتعديل" : "عرض فقط"}</span></header><section class="shared-document-card"><div class="shared-document-owner"><span>${dashboardIcon("security")}</span><div><small>ملف مشترك بواسطة</small><strong>${escapeHtml(item.owner || "مستخدم Renvix")}</strong></div></div><form data-submit="shared-storage-document" data-token="${escapeHtml(state.sharedStorageToken)}" data-version="${escapeHtml(item.version)}"><label><span>عنوان الملف</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(item.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(item.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-rich-content shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-multiline="true"' : ""} data-shared-storage-editor>${item.body || "<p>لا يوجد محتوى.</p>"}</div>${editable ? `<footer><span>${dashboardIcon("info")} تُحفظ التغييرات عند الضغط على الزر.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس في محركات البحث</span><a href="/" data-link="/">Renvix</a></footer></main>`;
 }
 
 function storageCenterPage() {
@@ -15616,6 +15690,12 @@ function render() {
   state.query = new URLSearchParams(location.search);
   if (state.route === "/dashboard/storage" && state.storageComposeType) syncStorageDocumentDraft();
   if (!state.route.startsWith("/dashboard/support")) closeSupportLiveConnection();
+  if (state.route.startsWith("/shared/document/")) {
+    app.innerHTML = sharedStorageDocumentPage();
+    localizeElement(app);
+    syncRouteData();
+    return;
+  }
   if (state.route.startsWith("/dashboard")) {
     const pages = {
       "/dashboard": dashboardHome,
