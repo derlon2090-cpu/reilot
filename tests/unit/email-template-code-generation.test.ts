@@ -108,14 +108,19 @@ describe("renewal email AI code generation", () => {
   });
 
   it("requires campaign generations to preserve every campaign section and unsubscribe link", () => {
+    const brandLogoUrl = "https://assets.renvix.app/customer-logo.png";
     const messages = buildEmailTemplateCodeMessages({
       ...input,
+      brandLogoUrl,
       templateContext: { templateType: "campaign_email" as const, channel: "email" as const }
     });
     const combined = messages.map((item) => item.content).join("\n");
     expect(combined).toContain("جميع البطاقات بالترتيب");
     expect(combined).toContain("{{unsubscribe_url}}");
     expect(combined).toContain("دون حذف أي عنصر");
+    expect(combined).toContain("البطاقة الأولى بعرض كامل");
+    expect(combined).toContain(brandLogoUrl);
+    expect(combined).toContain("لا تستبدله أو تحذفه");
   });
 
   it("reserves the estimated maximum and settles only the provider's actual usage with task metadata", async () => {

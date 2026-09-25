@@ -85,6 +85,10 @@ export const campaignCreateSchema = z.object({
   if (value.channel === "email" && heroImageUrl && !campaignHttpUrlSchema.safeParse(heroImageUrl).success) {
     context.addIssue({ code: "custom", path: ["audienceFilter", "heroImageUrl"], message: "رابط صورة الحملة غير صالح." });
   }
+  const brandLogoUrl = value.audienceFilter?.brandLogoUrl;
+  if (value.channel === "email" && brandLogoUrl && !campaignHttpUrlSchema.safeParse(brandLogoUrl).success) {
+    context.addIssue({ code: "custom", path: ["audienceFilter", "brandLogoUrl"], message: "رابط شعار المتجر غير صالح." });
+  }
 });
 
 export function validateCampaignMessage(value) {

@@ -27,16 +27,23 @@ describe("campaign studio", () => {
     expect(campaignsRoute).toContain("cp.consent_status <> 'revoked'");
   });
 
-  it("supports up to ten cards with real editing, ordering, image upload, draft saving and live preview", () => {
+  it("supports up to ten cards with real editing, ordering, reusable image library, draft saving and live preview", () => {
     expect(appSource).toContain("الحد الأقصى 10 بطاقات");
     expect(appSource).toContain('data-action="campaign-studio-card-copy"');
     expect(appSource).toContain('data-action="campaign-studio-card-up"');
     expect(appSource).toContain('data-action="campaign-studio-card-down"');
-    expect(appSource).toContain('data-action="campaign-studio-image-file"');
+    expect(appSource).toContain('data-action="campaign-studio-image-pick"');
+    expect(appSource).toContain('data-action="campaign-image-library-upload"');
+    expect(appSource).toContain('data-action="campaign-image-library-select"');
+    expect(appSource).toContain('data-action="campaign-image-library-delete"');
+    expect(appSource).toContain('data-action="campaign-studio-image-remove"');
     expect(appSource).toContain("renvix.campaign-studio.${channel}.${kind}");
     expect(appSource).toContain("refreshCampaignStudioPreview");
     expect(assetsRoute).toContain("campaign-assets/${auth.session.tenantId}");
     expect(assetsRoute).toContain("MAX_IMAGE_BYTES = 5 * 1024 * 1024");
+    expect(assetsRoute).toContain("export async function GET");
+    expect(assetsRoute).toContain("export async function DELETE");
+    expect(stylesSource).toContain(".campaign-image-library-grid");
   });
 
   it("validates cards and store ownership on the server", () => {
@@ -60,9 +67,30 @@ describe("campaign studio", () => {
     expect(appSource).toContain("القالب الرئيسي المعتمد");
     expect(appSource).toContain('name="themeColor"');
     expect(appSource).toContain("صورة المتجر أو غلاف الحملة");
-    expect(appSource).toContain('data-action="campaign-studio-hero-image-file"');
+    expect(appSource).toContain('data-action="campaign-studio-hero-image-pick"');
+    expect(appSource).toContain('data-action="campaign-studio-hero-image-remove"');
+    expect(appSource).toContain('name="brandLogoUrl"');
+    expect(appSource).toMatch(/\["name"[^\n]+"brandLogoUrl"[^\n]+\]\.forEach/);
+    expect(appSource).toContain('data-action="campaign-studio-logo-image-pick"');
+    expect(appSource).toContain("campaignStudioApplyFixedLogo");
+    expect(appSource).not.toContain('class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png"');
     expect(stylesSource).toContain(".campaign-email-primary-template");
     expect(stylesSource).toContain("--campaign-email-color");
+  });
+
+  it("restores the selected campaign mode after navigation or refresh", () => {
+    expect(appSource).toContain('state.query.get("channel")');
+    expect(appSource).toContain('state.query.get("kind")');
+    expect(appSource).toContain('/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=custom');
+    expect(appSource).toContain('/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=product');
+  });
+
+  it("keeps the customer logo and canonical card order in generated email code", () => {
+    expect(appSource).toContain('aria-label="campaign-brand-logo"');
+    expect(appSource).toContain('campaignStudioApplyFixedLogo(payload?.html || ""');
+    expect(appSource).toContain('if (cards[0]) rows.push');
+    expect(appSource).toContain('pair.length === 1');
+    expect(stylesSource).toContain('.campaign-studio-email-preview.design-showcase .campaign-studio-preview-card:first-child');
   });
 
   it("provides a safe AI email-code workflow with focused code controls", () => {
@@ -83,7 +111,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('data-action="campaign-studio-copy-html"');
     expect(appSource).not.toContain("توليد قالب أساسي");
     expect(appSource).toContain("syncAIQuota(payload)");
-    expect(appSource).toContain("inspectEmailHtmlClient(payload?.html || \"\")");
+    expect(appSource).toContain('campaignStudioApplyFixedLogo(payload?.html || ""');
     expect(appSource).toContain("campaignStudioAIModalMarkup");
     expect(appSource).toContain('data-submit="campaign-ai-code-generate"');
     expect(appSource).toContain('name="selectedColor"');
@@ -125,7 +153,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('const socialLinksEnabled = Object.keys(socialLinks).length > 0');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
-    expect(appSource).toContain('String(data.htmlContentApproved) === "true" ? String(data.htmlContent || "").trim() || null');
+    expect(appSource).toContain('const approvedHtml = data.channel === "email" && String(data.htmlContentApproved) === "true"');
     expect(appSource).not.toContain('campaignStudioForm.elements.htmlContent.value = ""');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });
