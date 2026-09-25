@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { put } from "@vercel/blob";
+import { appBaseUrl } from "../../../../src/server/app-url.js";
+import { query } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../src/server/campaign-contacts.js";
 
@@ -10,13 +12,14 @@ const TYPES = {
   "image/webp": { ext: "webp", matches: (bytes) => bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP" }
 };
 
+function databaseImageUrl(imageId, revision) {
+  return `${appBaseUrl()}/api/public/salla-template-image/${encodeURIComponent(imageId)}?v=${encodeURIComponent(revision)}`;
+}
+
 export async function POST(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   if (!sameOriginRequest(request)) return Response.json({ ok:false, reason:"invalid_origin" }, { status:403 });
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return Response.json({ ok:false, reason:"campaign_asset_storage_not_configured", message:"تخزين صور الحملات غير مهيأ حاليًا." }, { status:503 });
-  }
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
   if (!file || typeof file.arrayBuffer !== "function") return Response.json({ ok:false, reason:"file_required", message:"اختر صورة للبطاقة." }, { status:400 });
@@ -24,10 +27,29 @@ export async function POST(request) {
   const rule = TYPES[file.type];
   const bytes = Buffer.from(await file.arrayBuffer());
   if (!rule || !rule.matches(bytes)) return Response.json({ ok:false, reason:"invalid_file_type", message:"الصيغ المدعومة هي PNG وJPG وWebP فقط." }, { status:400 });
-  const blob = await put(`campaign-assets/${auth.session.tenantId}/${crypto.randomUUID()}.${rule.ext}`, bytes, {
-    access:"public",
-    addRandomSuffix:false,
-    contentType:file.type
+
+  const imageId = crypto.randomUUID();
+  const revision = crypto.randomUUID();
+  const useBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  if (useBlobStorage) {
+    const blob = await put(`campaign-assets/${auth.session.tenantId}/${revision}.${rule.ext}`, bytes, {
+      access:"public",
+      addRandomSuffix:false,
+      contentType:file.type
+    });
+    return Response.json({ ok:true, imageUrl:blob.url, storage:"vercel_blob" }, {
+      headers: { "Cache-Control":"private, no-store, max-age=0" }
+    });
+  }
+
+  const imageUrl = databaseImageUrl(imageId, revision);
+  await query(
+    `INSERT INTO tenant_salla_template_images
+       (id,tenant_id,template_key,image_url,image_data,image_content_type,updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,now())`,
+    [imageId, auth.session.tenantId, `campaign_asset_${imageId}`, imageUrl, bytes, file.type]
+  );
+  return Response.json({ ok:true, imageUrl, storage:"database" }, {
+    headers: { "Cache-Control":"private, no-store, max-age=0" }
   });
-  return Response.json({ ok:true, imageUrl:blob.url });
 }
