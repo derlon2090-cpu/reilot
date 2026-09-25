@@ -74,8 +74,16 @@ export const campaignCreateSchema = z.object({
     context.addIssue({ code: "custom", path: ["audienceFilter", "htmlContent"], message: "حجم قالب HTML أكبر من الحد المسموح." });
   }
   const emailDesign = value.audienceFilter?.emailDesign;
-  if (value.channel === "email" && emailDesign && !["luxury", "showcase", "editorial", "seasonal", "minimal", "spotlight"].includes(emailDesign)) {
+  if (value.channel === "email" && emailDesign && emailDesign !== "showcase") {
     context.addIssue({ code: "custom", path: ["audienceFilter", "emailDesign"], message: "تصميم البريد المحدد غير صالح." });
+  }
+  const emailThemeColor = value.audienceFilter?.emailThemeColor;
+  if (value.channel === "email" && emailThemeColor && !/^#[0-9a-f]{6}$/i.test(String(emailThemeColor))) {
+    context.addIssue({ code: "custom", path: ["audienceFilter", "emailThemeColor"], message: "لون قالب البريد غير صالح." });
+  }
+  const heroImageUrl = value.audienceFilter?.heroImageUrl;
+  if (value.channel === "email" && heroImageUrl && !campaignHttpUrlSchema.safeParse(heroImageUrl).success) {
+    context.addIssue({ code: "custom", path: ["audienceFilter", "heroImageUrl"], message: "رابط صورة الحملة غير صالح." });
   }
 });
 
