@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { appBaseUrl } from "../../../../src/server/app-url.js";
 import { query } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
@@ -14,6 +14,30 @@ const TYPES = {
 
 function databaseImageUrl(imageId, revision) {
   return `${appBaseUrl()}/api/public/salla-template-image/${encodeURIComponent(imageId)}?v=${encodeURIComponent(revision)}`;
+}
+
+function isManagedBlob(url) {
+  return /^https:\/\/.+\.blob\.vercel-storage\.com\//i.test(String(url || ""));
+}
+
+export async function GET(request) {
+  const auth = await requireSession(request);
+  if (!auth.ok) return auth.response;
+  const result = await query(
+    `SELECT id,image_url AS "imageUrl",image_content_type AS "contentType",created_at AS "createdAt",updated_at AS "updatedAt"
+       FROM tenant_salla_template_images
+      WHERE tenant_id=$1 AND template_key LIKE 'campaign_asset\\_%' ESCAPE '\\'
+      ORDER BY updated_at DESC LIMIT 100`,
+    [auth.session.tenantId]
+  );
+  return Response.json({
+    ok:true,
+    assets:result.rows.map((row, index) => ({
+      ...row,
+      name:`صورة حملة ${index + 1}`,
+      canDelete:true
+    }))
+  }, { headers:{ "Cache-Control":"private, no-store, max-age=0" } });
 }
 
 export async function POST(request) {
@@ -31,25 +55,49 @@ export async function POST(request) {
   const imageId = crypto.randomUUID();
   const revision = crypto.randomUUID();
   const useBlobStorage = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  let imageUrl;
   if (useBlobStorage) {
     const blob = await put(`campaign-assets/${auth.session.tenantId}/${revision}.${rule.ext}`, bytes, {
       access:"public",
       addRandomSuffix:false,
       contentType:file.type
     });
-    return Response.json({ ok:true, imageUrl:blob.url, storage:"vercel_blob" }, {
-      headers: { "Cache-Control":"private, no-store, max-age=0" }
-    });
+    imageUrl = blob.url;
+  } else {
+    imageUrl = databaseImageUrl(imageId, revision);
   }
 
-  const imageUrl = databaseImageUrl(imageId, revision);
-  await query(
-    `INSERT INTO tenant_salla_template_images
-       (id,tenant_id,template_key,image_url,image_data,image_content_type,updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,now())`,
-    [imageId, auth.session.tenantId, `campaign_asset_${imageId}`, imageUrl, bytes, file.type]
-  );
-  return Response.json({ ok:true, imageUrl, storage:"database" }, {
+  try {
+    await query(
+      `INSERT INTO tenant_salla_template_images
+         (id,tenant_id,template_key,image_url,image_data,image_content_type,updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,now())`,
+      [imageId, auth.session.tenantId, `campaign_asset_${imageId}`, imageUrl, useBlobStorage ? null : bytes, useBlobStorage ? null : file.type]
+    );
+  } catch (error) {
+    if (useBlobStorage) await del(imageUrl).catch(() => null);
+    throw error;
+  }
+  return Response.json({ ok:true, imageId, imageUrl, storage:useBlobStorage ? "vercel_blob" : "database" }, {
     headers: { "Cache-Control":"private, no-store, max-age=0" }
   });
+}
+
+export async function DELETE(request) {
+  const auth = await requireSession(request);
+  if (!auth.ok) return auth.response;
+  if (!sameOriginRequest(request)) return Response.json({ ok:false, reason:"invalid_origin" }, { status:403 });
+  const imageId = new URL(request.url).searchParams.get("imageId") || "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(imageId)) {
+    return Response.json({ ok:false, reason:"invalid_image_id", message:"الصورة غير صالحة." }, { status:400 });
+  }
+  const deleted = await query(
+    `DELETE FROM tenant_salla_template_images
+      WHERE id=$1 AND tenant_id=$2 AND template_key LIKE 'campaign_asset\\_%' ESCAPE '\\'
+      RETURNING image_url AS "imageUrl"`,
+    [imageId, auth.session.tenantId]
+  );
+  if (!deleted.rows[0]) return Response.json({ ok:false, reason:"not_found", message:"الصورة غير موجودة." }, { status:404 });
+  if (isManagedBlob(deleted.rows[0].imageUrl)) await del(deleted.rows[0].imageUrl).catch(() => null);
+  return Response.json({ ok:true, imageId }, { headers:{ "Cache-Control":"private, no-store, max-age=0" } });
 }
