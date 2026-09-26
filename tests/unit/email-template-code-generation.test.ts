@@ -107,7 +107,7 @@ describe("renewal email AI code generation", () => {
     expect(combined).toContain("LTR للإنجليزية");
   });
 
-  it("requires campaign generations to preserve every campaign section and unsubscribe link", () => {
+  it("reserves the protected campaign-card position for deterministic app rendering", () => {
     const brandLogoUrl = "https://assets.renvix.app/customer-logo.png";
     const messages = buildEmailTemplateCodeMessages({
       ...input,
@@ -115,11 +115,10 @@ describe("renewal email AI code generation", () => {
       templateContext: { templateType: "campaign_email" as const, channel: "email" as const }
     });
     const combined = messages.map((item) => item.content).join("\n");
-    expect(combined).toContain("جميع البطاقات بالترتيب");
+    expect(combined).toContain("قسم بطاقات الحملة مكوّن محمي");
     expect(combined).toContain("{{unsubscribe_url}}");
-    expect(combined).toContain("دون حذف أي عنصر");
-    expect(combined).toContain("بطاقتين في كل صف من أول بطاقة");
-    expect(combined).toContain("لا تجعل أي بطاقة بعرض كامل");
+    expect(combined).toContain("لا تنشئ بطاقات أو منتجات");
+    expect(combined).toContain("بطاقتين في كل صف بالترتيب المعتمد");
     expect(combined).toContain(brandLogoUrl);
     expect(combined).toContain("لا تستبدله أو تحذفه");
   });

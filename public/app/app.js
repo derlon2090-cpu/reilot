@@ -5736,7 +5736,7 @@ function applyCampaignImageToWrap(wrap, imageUrl) {
   if (picker) picker.innerHTML = `${dashboardIcon("archive")} استبدال الصورة`;
   const removeAction = isLogo ? "campaign-studio-logo-image-remove" : "campaign-studio-image-remove";
   if (!wrap.querySelector(`[data-action="${removeAction}"]`)) picker?.insertAdjacentHTML("afterend", `<button type="button" class="btn btn-ghost danger-text" data-action="${removeAction}">${dashboardIcon("delete")} إزالة الصورة</button>`);
-  if (isLogo && form?.elements.htmlContent?.value) form.elements.htmlContent.value = campaignStudioApplyFixedLogo(form.elements.htmlContent.value, imageUrl, form.elements.subjectAlignment?.value, form.elements.bodyAlignment?.value);
+  if (form?.elements.htmlContent?.value) form.elements.htmlContent.value = campaignStudioApplyFixedEmailContent(form.elements.htmlContent.value, form);
   refreshCampaignStudioPreview(form);
   scheduleCampaignStudioDraft(form);
   return true;
@@ -5759,7 +5759,7 @@ function clearCampaignImageWrap(wrap) {
   wrap.querySelector(isLogo ? '[data-action="campaign-studio-logo-image-remove"]' : '[data-action="campaign-studio-image-remove"]')?.remove();
   const picker = wrap.querySelector(isLogo ? '[data-action="campaign-studio-logo-image-pick"]' : '[data-action="campaign-studio-image-pick"]');
   if (picker) picker.innerHTML = `${dashboardIcon("archive")} ${isLogo ? "اختيار شعار المتجر" : "اختيار صورة"}`;
-  if (isLogo && form?.elements.htmlContent?.value) form.elements.htmlContent.value = campaignStudioApplyFixedLogo(form.elements.htmlContent.value, "", form.elements.subjectAlignment?.value, form.elements.bodyAlignment?.value);
+  if (form?.elements.htmlContent?.value) form.elements.htmlContent.value = campaignStudioApplyFixedEmailContent(form.elements.htmlContent.value, form);
   refreshCampaignStudioPreview(form);
   scheduleCampaignStudioDraft(form);
 }
@@ -5850,6 +5850,7 @@ function renderCampaignStudioPreviewSource(form, source = state.campaignStudioPr
   const previewHost = document.querySelector("[data-campaign-studio-preview]");
   if (!form || !previewHost || form.elements.channel?.value !== "email") return;
   const editor = form.elements.htmlContent;
+  if (editor?.value) editor.value = campaignStudioApplyFixedEmailContent(editor.value, form);
   const inspection = inspectEmailHtmlClient(editor?.value || "");
   const canUseHtml = source === "html" && editor?.dataset.approved === "true" && inspection.ok;
   if (canUseHtml) {
@@ -5933,6 +5934,10 @@ function refreshCampaignStudioPreview(form) {
   if (!form) return;
   const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
   const cards = campaignStudioFormCards(form);
+  const approvedEditor = form.elements.htmlContent;
+  if (channel === "email" && approvedEditor?.value && approvedEditor.dataset.approved === "true") {
+    approvedEditor.value = campaignStudioApplyFixedEmailContent(approvedEditor.value, form);
+  }
   const previewCards = document.querySelector("[data-campaign-studio-preview-cards]");
   if (previewCards) previewCards.innerHTML = campaignStudioPreviewCards(cards, channel);
   const count = form.querySelectorAll("[data-campaign-card]").length;
@@ -5946,8 +5951,7 @@ function refreshCampaignStudioPreview(form) {
   });
   if (channel === "email") {
     if (state.campaignStudioPreviewSource === "html") {
-      const generatedPreview = document.querySelector(".campaign-generated-email-preview");
-      if (generatedPreview) generatedPreview.className = `campaign-generated-email-preview campaign-studio-email-preview ${state.campaignBuilderPreviewMode}`;
+      renderCampaignStudioPreviewSource(form, "html");
       return;
     }
     const previewHost = document.querySelector("[data-campaign-studio-preview]");
@@ -5994,10 +5998,38 @@ function scheduleCampaignStudioDraft(form) {
   }, 700);
 }
 
-function campaignStudioApplyFixedLogo(html, logoUrl, subjectAlignment = "right", bodyAlignment = "right") {
+function campaignStudioFixedCardsTable(documentNode, cards, kind = "custom", themeColor = "#0b3f3b") {
+  const accent = /^#[0-9a-f]{6}$/i.test(themeColor || "") ? themeColor : "#0b3f3b";
+  const safeCards = Array.isArray(cards) ? cards.slice(0, 10) : [];
+  if (!safeCards.length) return null;
+  const cardCell = (card, index) => {
+    const imageUrl = safeStoreLogoUrl(card.imageUrl);
+    const image = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || `صورة البطاقة ${index + 1}`)}" width="220" style="display:block;width:100%;max-width:220px;height:auto;margin:0 auto 14px;border-radius:10px">`
+      : "";
+    return `<td width="50%" valign="top" style="padding:6px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="height:100%;border:1px solid #e2ebe9;border-radius:12px;background:#ffffff"><tbody><tr><td dir="rtl" style="padding:16px;text-align:right">${image}<h3 style="margin:0 0 8px;color:${accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title || "عنوان البطاقة")}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText || "سيظهر نص البطاقة هنا")}</p><a href="${escapeHtml(card.buttonUrl || "{{product_url}}")}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${accent};color:#ffffff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText || "زر الإجراء")}</a></td></tr></tbody></table></td>`;
+  };
+  const rows = [];
+  for (let index = 0; index < safeCards.length; index += 2) {
+    const pair = safeCards.slice(index, index + 2);
+    rows.push(`<tr>${pair.map((card, offset) => cardCell(card, index + offset)).join("")}${pair.length === 1 ? '<td width="50%" aria-hidden="true" style="padding:6px"></td>' : ""}</tr>`);
+  }
+  const section = documentNode.createElement("table");
+  section.setAttribute("role", "presentation");
+  section.setAttribute("aria-label", "campaign-email-cards");
+  section.setAttribute("width", "100%");
+  section.setAttribute("cellspacing", "0");
+  section.setAttribute("cellpadding", "0");
+  section.setAttribute("style", "width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0 8px;margin:24px 0 8px");
+  section.innerHTML = `<tbody><tr><td colspan="2" dir="rtl" style="padding:0 6px 8px;text-align:right"><h2 style="margin:0;color:${accent};font:700 21px Arial,sans-serif">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h2></td></tr>${rows.join("")}</tbody>`;
+  return section;
+}
+
+function campaignStudioApplyFixedLogo(html, logoUrl, subjectAlignment = "right", bodyAlignment = "right", cards = [], kind = "custom", themeColor = "#0b3f3b") {
   const parser = new DOMParser();
   const documentNode = parser.parseFromString(`<body>${String(html || "")}</body>`, "text/html");
   documentNode.querySelectorAll('[aria-label="campaign-brand-logo"]').forEach((node) => node.remove());
+  documentNode.querySelectorAll('[aria-label="campaign-email-cards"]').forEach((node) => node.remove());
   const safeLogo = safeStoreLogoUrl(logoUrl);
   if (safeLogo) {
     const brand = documentNode.createElement("table");
@@ -6020,6 +6052,31 @@ function campaignStudioApplyFixedLogo(html, logoUrl, subjectAlignment = "right",
     bodyNode.setAttribute("aria-label", "campaign-email-body");
     bodyNode.style.textAlign = campaignStudioAlignment(bodyAlignment);
   }
+  const cardsTable = campaignStudioFixedCardsTable(documentNode, cards, kind, themeColor);
+  if (cardsTable) {
+    const anchor = bodyNode || subjectNode;
+    if (anchor?.parentNode) anchor.insertAdjacentElement("afterend", cardsTable);
+    else documentNode.body.append(cardsTable);
+  }
+  return documentNode.body.innerHTML;
+}
+
+function campaignStudioApplyFixedEmailContent(html, form) {
+  return campaignStudioApplyFixedLogo(
+    html,
+    form?.elements.brandLogoUrl?.value || "",
+    form?.elements.subjectAlignment?.value,
+    form?.elements.bodyAlignment?.value,
+    campaignStudioFormCards(form),
+    state.campaignBuilderKind === "product" ? "product" : "custom",
+    form?.elements.themeColor?.value || "#0b3f3b"
+  );
+}
+
+function campaignStudioWithoutFixedCards(html) {
+  const parser = new DOMParser();
+  const documentNode = parser.parseFromString(`<body>${String(html || "")}</body>`, "text/html");
+  documentNode.querySelectorAll('[aria-label="campaign-email-cards"]').forEach((node) => node.remove());
   return documentNode.body.innerHTML;
 }
 
@@ -6049,8 +6106,8 @@ function campaignStudioGeneratedHtml(form) {
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
   }).join("");
-  const html = `<div dir="rtl" style="padding:24px;background:${theme.page};font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText || "نص المعاينة")}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 aria-label="campaign-email-subject" style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif;text-align:${subjectAlignment}">${escapeHtml(subject || "عنوان الحملة")}</h1><p aria-label="campaign-email-body" style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif;text-align:${bodyAlignment}">${escapeHtml(body || "سيظهر محتوى البريد هنا.")}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;border-collapse:separate;border-spacing:0 8px">${rows.join("")}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 8px;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer || "")}</p><p style="margin:0;text-align:center"><a href="{{unsubscribe_url}}" style="color:${theme.accent};font:400 11px Arial,sans-serif">إلغاء الاشتراك</a></p></td></tr></table></td></tr></table></div>`;
-  return campaignStudioApplyFixedLogo(html, brandLogoUrl, subjectAlignment, bodyAlignment);
+  const html = `<div dir="rtl" style="padding:24px;background:${theme.page};font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText || "نص المعاينة")}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 aria-label="campaign-email-subject" style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif;text-align:${subjectAlignment}">${escapeHtml(subject || "عنوان الحملة")}</h1><p aria-label="campaign-email-body" style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif;text-align:${bodyAlignment}">${escapeHtml(body || "سيظهر محتوى البريد هنا.")}</p><table role="presentation" aria-label="campaign-email-cards" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;border-collapse:separate;border-spacing:0 8px">${rows.join("")}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 8px;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer || "")}</p><p style="margin:0;text-align:center"><a href="{{unsubscribe_url}}" style="color:${theme.accent};font:400 11px Arial,sans-serif">إلغاء الاشتراك</a></p></td></tr></table></td></tr></table></div>`;
+  return campaignStudioApplyFixedLogo(html, brandLogoUrl, subjectAlignment, bodyAlignment, cards, state.campaignBuilderKind === "product" ? "product" : "custom", accent);
 }
 
 function campaignStudioAIState() {
@@ -6096,7 +6153,7 @@ async function requestCampaignStudioAICode(form) {
   const promptValue = String(ai.prompt || "").trim();
   const fallbackPrompt = `صمم قالب بريد إلكتروني عربي احترافي ومتجاوب لحملة بعنوان ${form.elements.subject?.value || form.elements.name?.value || "حملة جديدة"} ومحتوى: ${form.elements.body?.value || "رسالة تسويقية واضحة"}`;
   const prompt = promptValue.length >= 3 ? promptValue : fallbackPrompt;
-  const alignmentPrompt = `اجعل محاذاة عنوان البريد ${campaignStudioAlignment(form.elements.subjectAlignment?.value)} ومحاذاة محتوى البريد ${campaignStudioAlignment(form.elements.bodyAlignment?.value)}، مع عرض جميع البطاقات بطاقتين في كل صف دون بطاقة بعرض كامل.`;
+  const alignmentPrompt = `اجعل محاذاة عنوان البريد ${campaignStudioAlignment(form.elements.subjectAlignment?.value)} ومحاذاة محتوى البريد ${campaignStudioAlignment(form.elements.bodyAlignment?.value)}. لا تنشئ قسم البطاقات ولا تحذفه؛ النظام يثبّته تلقائيًا بعد المحتوى ويعرض بطاقتين في كل صف.`;
   const mode = ["generate", "improve", "fix", "replace"].includes(ai.mode) ? ai.mode : "generate";
   const selectedColor = /^#[0-9a-f]{6}$/i.test(ai.selectedColor || "") ? ai.selectedColor : "#0b3f3b";
   let existingHtml = String(form.elements.htmlContent?.value || "").trim();
@@ -6104,28 +6161,26 @@ async function requestCampaignStudioAICode(form) {
   if (mode === "generate") {
     const baseInspection = inspectEmailHtmlClient(campaignStudioGeneratedHtml(form));
     if (baseInspection.ok) {
-      existingHtml = baseInspection.html;
+      existingHtml = campaignStudioWithoutFixedCards(baseInspection.html);
       requestMode = "improve";
     }
   } else if (existingHtml) {
-    const inspection = inspectEmailHtmlClient(existingHtml);
+    const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedEmailContent(existingHtml, form));
     if (!inspection.ok) return toast("اعتمد كود HTML صالحًا قبل تحسينه أو استبداله.", "warning");
-    existingHtml = inspection.html;
+    existingHtml = campaignStudioWithoutFixedCards(inspection.html);
   }
   const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const orderedCards = campaignStudioFormCards(form);
-  const selectedImageUrls = [...new Set([form.elements.brandLogoUrl?.value, ...orderedCards.map((card) => card.imageUrl)].map(safeStoreLogoUrl).filter(Boolean))];
-  const cardContext = orderedCards.map((card, index) => `البطاقة ${index + 1}: العنوان=${card.title || "عنوان البطاقة"}؛ النص=${card.bodyText || "نص البطاقة"}؛ الزر=${card.buttonText || "زر الإجراء"}؛ الرابط=${card.buttonUrl || "{{product_url}}"}؛ الصورة=${card.imageUrl || "عنصر نائب للصورة"}`).join("\n");
+  const selectedImageUrls = [safeStoreLogoUrl(form.elements.brandLogoUrl?.value)].filter(Boolean);
   state.campaignStudioAI = { ...ai, status: "loading", mode, prompt, result: null, error: "", beforeHtml: existingHtml };
   refreshCampaignStudioAIResult(form);
   try {
     const payload = await fetchJson("/backend/ai/email-template/generate", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ prompt: `${prompt}\n\n${alignmentPrompt}`.slice(0, 4000), existingHtml, currentContent: [form.elements.subject?.value, form.elements.previewText?.value, form.elements.body?.value, cardContext && `جميع البطاقات بالترتيب المعتمد:\n${cardContext}`, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, brandLogoUrl: safeStoreLogoUrl(form.elements.brandLogoUrl?.value), mode: requestMode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
+      body: JSON.stringify({ prompt: `${prompt}\n\n${alignmentPrompt}`.slice(0, 4000), existingHtml, currentContent: [form.elements.subject?.value, form.elements.previewText?.value, form.elements.body?.value, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, brandLogoUrl: safeStoreLogoUrl(form.elements.brandLogoUrl?.value), mode: requestMode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
       timeoutMs: 90000, timeoutMessage: "استغرق توليد الكود وقتًا أطول من المتوقع. حاول مرة أخرى."
     });
     syncAIQuota(payload);
-    const fixedHtml = campaignStudioApplyFixedLogo(payload?.html || "", form.elements.brandLogoUrl?.value || "", form.elements.subjectAlignment?.value, form.elements.bodyAlignment?.value);
+    const fixedHtml = campaignStudioApplyFixedEmailContent(payload?.html || "", form);
     const inspection = inspectEmailHtmlClient(fixedHtml);
     if (!inspection.ok) {
       const invalidOutput = new Error("تم رفض الكود الناتج لأنه لا يطابق أمان البريد. أعد المحاولة بوصف أوضح.");
@@ -6148,7 +6203,7 @@ async function requestCampaignStudioAICode(form) {
 
 function applyCampaignStudioAICode(form, replace = false) {
   const html = state.campaignStudioAI?.result?.html || "";
-  const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedLogo(html, form?.elements.brandLogoUrl?.value || "", form?.elements.subjectAlignment?.value, form?.elements.bodyAlignment?.value));
+  const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedEmailContent(html, form));
   if (!form || !inspection.ok) return toast(inspection.errors?.[0] || "الكود المقترح غير صالح.", "danger");
   if (replace && String(form.elements.htmlContent?.value || "").trim() && !window.confirm("سيتم استبدال كود الحملة الحالي بالكامل. هل تريد المتابعة؟")) return;
   form.elements.htmlContent.value = inspection.html;
@@ -6226,7 +6281,7 @@ function campaignStudioPage() {
   const brandLogoUrl = safeStoreLogoUrl(campaignStudioDraftValue("brandLogoUrl"));
   const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>قالب البريد الرئيسي</h2><p>قالب احترافي واحد معتمد لجميع الحملات؛ خصّص لون الهوية فقط.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
   const campaignLogoSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-logo-section"><header><span>${dashboardIcon("image")}</span><div><h2>شعار المتجر</h2><p>يبقى شعارك ثابتًا أعلى جميع تصاميم البريد، بما فيها الأكواد المولدة بالذكاء الاصطناعي.</p></div></header><div class="campaign-email-image-editor campaign-email-logo-editor ${brandLogoUrl ? "has-image" : ""}" data-campaign-logo-image-wrap>${brandLogoUrl ? `<img src="${escapeHtml(brandLogoUrl)}" alt="شعار المتجر" data-campaign-logo-image-preview>` : `<span data-campaign-logo-image-placeholder>${dashboardIcon("image")}<small>لن يظهر أي شعار إذا تركته فارغًا</small></span>`}<div><input type="hidden" name="brandLogoUrl" value="${escapeHtml(brandLogoUrl)}"><button type="button" class="btn btn-secondary" data-action="campaign-studio-logo-image-pick">${dashboardIcon("archive")} ${brandLogoUrl ? "استبدال الشعار" : "اختيار شعار المتجر"}</button>${brandLogoUrl ? `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-logo-image-remove">${dashboardIcon("delete")} إزالة الشعار</button>` : ""}<small>استخدم شعارًا واضحًا بخلفية شفافة أو بيضاء.</small></div></div></section>` : "";
-  const approvedInspection = htmlApproved ? inspectEmailHtmlClient(campaignStudioApplyFixedLogo(currentHtml, brandLogoUrl, subjectAlignment, bodyAlignment)) : { ok:false };
+  const approvedInspection = htmlApproved ? inspectEmailHtmlClient(campaignStudioApplyFixedLogo(currentHtml, brandLogoUrl, subjectAlignment, bodyAlignment, cards, kind, campaignStudioDraftValue("themeColor", "#0b3f3b"))) : { ok:false };
   const preview = channel === "whatsapp"
     ? campaignStudioWhatsappPreview(cards)
     : state.campaignStudioPreviewSource === "html" && approvedInspection.ok
@@ -10998,7 +11053,9 @@ async function handleAction(target) {
     const destinationLabel = channel === "email" ? "البريد المستلم" : "رقم واتساب بصيغة دولية";
     const destinationType = channel === "email" ? "email" : "tel";
     const approvedHtml = String(form.elements.htmlContent?.value || "").trim();
-    const testHtml = channel === "email" ? (inspectEmailHtmlClient(approvedHtml).ok ? inspectEmailHtmlClient(approvedHtml).html : campaignStudioGeneratedHtml(form)) : "";
+    const fixedApprovedHtml = channel === "email" && approvedHtml ? campaignStudioApplyFixedEmailContent(approvedHtml, form) : "";
+    const fixedApprovedInspection = inspectEmailHtmlClient(fixedApprovedHtml);
+    const testHtml = channel === "email" ? (fixedApprovedInspection.ok ? fixedApprovedInspection.html : campaignStudioGeneratedHtml(form)) : "";
     return openModal("إرسال تجريبي", `<form data-submit="campaign-draft-test" class="grid"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="channelId" value="${escapeHtml(form.elements.whatsappChannelId?.value || "")}"><input type="hidden" name="subject" value="${escapeHtml(form.elements.subject?.value || form.elements.name?.value || "اختبار حملة")}"><textarea hidden name="body">${escapeHtml(form.elements.body?.value || "")}</textarea><textarea hidden name="html">${escapeHtml(testHtml)}</textarea><label class="field"><span>${destinationLabel}</span><input class="input" type="${destinationType}" name="destination" required ${channel === "whatsapp" ? 'placeholder="9665XXXXXXXX" inputmode="tel"' : ""}></label><p class="inline-notice info">ستُرسل رسالة حقيقية بالقالب والصور وترتيب البطاقات الظاهر في المعاينة، ولن تُضاف إلى جمهور الحملة.</p><button class="btn btn-primary" type="submit">${dashboardIcon("send")} إرسال الاختبار</button></form>`);
   }
   if (action === "campaign-product-choice") {
@@ -11173,7 +11230,7 @@ async function handleAction(target) {
     const form = target.closest("form[data-campaign-studio]");
     const editor = form?.elements.htmlContent;
     if (!form || !editor) return;
-    const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedLogo(editor.value, form.elements.brandLogoUrl?.value || "", form.elements.subjectAlignment?.value, form.elements.bodyAlignment?.value));
+    const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedEmailContent(editor.value, form));
     if (!inspection.ok) return toast(inspection.errors?.[0] || "كود HTML غير صالح.", "danger");
     editor.value = inspection.html;
     editor.dataset.approved = "true";
@@ -14361,7 +14418,7 @@ async function handleSubmit(form, event) {
     const scheduledDate = data.sendTiming === "later" ? new Date(`${data.startDate}T${data.startTime}`) : new Date(Date.now() + 90_000);
     if (Number.isNaN(scheduledDate.getTime())) return toast("تحقق من تاريخ ووقت بدء الحملة.", "warning");
     const approvedHtml = data.channel === "email" && String(data.htmlContentApproved) === "true"
-      ? campaignStudioApplyFixedLogo(String(data.htmlContent || "").trim(), data.brandLogoUrl || "", data.subjectAlignment, data.bodyAlignment) || null
+      ? campaignStudioApplyFixedEmailContent(String(data.htmlContent || "").trim(), form) || null
       : null;
     try {
       await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
@@ -16946,12 +17003,12 @@ document.addEventListener("input", (event) => {
     }
     const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
     if (counter) counter.textContent = String(target.value?.length || 0);
-    const alignmentChanged = ["subjectAlignment", "bodyAlignment"].includes(target.name);
-    if (alignmentChanged && campaignStudioForm.elements.htmlContent?.value) {
-      campaignStudioForm.elements.htmlContent.value = campaignStudioApplyFixedLogo(campaignStudioForm.elements.htmlContent.value, campaignStudioForm.elements.brandLogoUrl?.value || "", campaignStudioForm.elements.subjectAlignment?.value, campaignStudioForm.elements.bodyAlignment?.value);
+    const fixedContentChanged = ["subjectAlignment", "bodyAlignment", "themeColor", "cardImageUrl", "cardTitle", "cardBody", "cardButtonText", "cardButtonUrl"].includes(target.name);
+    if (fixedContentChanged && campaignStudioForm.elements.htmlContent?.value) {
+      campaignStudioForm.elements.htmlContent.value = campaignStudioApplyFixedEmailContent(campaignStudioForm.elements.htmlContent.value, campaignStudioForm);
     }
     refreshCampaignStudioPreview(campaignStudioForm);
-    if (alignmentChanged && state.campaignStudioPreviewSource === "html") renderCampaignStudioPreviewSource(campaignStudioForm, "html");
+    if (fixedContentChanged && state.campaignStudioPreviewSource === "html") renderCampaignStudioPreviewSource(campaignStudioForm, "html");
     scheduleCampaignStudioDraft(campaignStudioForm);
   }
   if (target.dataset.campaignPreviewField) {

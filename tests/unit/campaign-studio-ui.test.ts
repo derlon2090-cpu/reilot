@@ -97,9 +97,13 @@ describe("campaign studio", () => {
     expect(appSource).toContain('/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=product');
   });
 
-  it("keeps the customer logo and canonical card order in generated email code", () => {
+  it("keeps the customer logo and a protected canonical card section in every generated email", () => {
     expect(appSource).toContain('aria-label="campaign-brand-logo"');
-    expect(appSource).toContain('campaignStudioApplyFixedLogo(payload?.html || ""');
+    expect(appSource).toContain('campaignStudioApplyFixedEmailContent(payload?.html || "", form)');
+    expect(appSource).toContain('aria-label="campaign-email-cards"');
+    expect(appSource).toContain("function campaignStudioFixedCardsTable");
+    expect(appSource).toContain("function campaignStudioApplyFixedEmailContent");
+    expect(appSource).toContain("campaignStudioWithoutFixedCards");
     expect(appSource).toContain('for (let index = 0; index < cards.length; index += 2)');
     expect(appSource).toContain('pair.length === 1 ? \'<td width="50%"');
     expect(stylesSource).not.toContain('.campaign-studio-email-preview.design-showcase .campaign-studio-preview-card:first-child');
@@ -123,7 +127,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('data-action="campaign-studio-copy-html"');
     expect(appSource).not.toContain("توليد قالب أساسي");
     expect(appSource).toContain("syncAIQuota(payload)");
-    expect(appSource).toContain('campaignStudioApplyFixedLogo(payload?.html || ""');
+    expect(appSource).toContain('campaignStudioApplyFixedEmailContent(payload?.html || "", form)');
     expect(appSource).toContain("campaignStudioAIModalMarkup");
     expect(appSource).toContain('data-submit="campaign-ai-code-generate"');
     expect(appSource).toContain('name="selectedColor"');
@@ -135,7 +139,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('data-action="campaign-studio-restore-main"');
     expect(appSource).toContain("استرجاع التصميم الرئيسي");
     expect(appSource).not.toContain('title="معاينة تصميم كود البريد"');
-    expect(appSource).toContain("جميع البطاقات بالترتيب");
+    expect(appSource).toContain("النظام يثبّته تلقائيًا بعد المحتوى");
     expect(appSource).toContain("{{unsubscribe_url}}");
     expect(stylesSource).toContain(".campaign-generated-email-preview");
   });
