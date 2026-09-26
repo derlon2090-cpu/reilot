@@ -4,6 +4,11 @@ For the current two-hit / seven-day policy and incident 67, use
 `INC-2026-000067.md`. The six-hit / 24-hour jail below is the earlier policy
 and is disabled in the checked-in configuration.
 
+Incidents INC-2026-000132, 134, 135, and 144 add `/api/gql`, AS202412, and
+four confirmed source addresses to the layered policy. The Cloudflare ASN
+rule uses Managed Challenge rather than a blanket block because commercial
+cloud ASNs also contain legitimate clients. Known probe paths are hard-blocked.
+
 These are Linux deployment artifacts, not an active server deployment. Never
 block AS48090 wholesale. Reserved decoy paths must not be legitimate PHP or
 WordPress application routes. Shared NAT IP bans can affect other users on the
@@ -139,6 +144,8 @@ the host. Count each request once, and never export attacker-supplied IP fields.
 sudo install -m 0644 deploy/security/probe-log.conf /etc/nginx/conf.d/00-probe-log.conf
 # Install/merge the updated server config into the existing deployment.
 # Ensure /var/log/nginx is writable by Nginx and readable by root Fail2ban.
+sudo install -m 0750 deploy/security/ipset-probe-action /usr/local/sbin/ipset-probe-action
+sudo install -m 0644 deploy/fail2ban/action.d/honeypot-ipset.conf /etc/fail2ban/action.d/
 sudo install -m 0750 deploy/security/probe-incident /usr/local/sbin/probe-incident
 sudo install -m 0644 deploy/fail2ban/filter.d/honeypot-probes.conf /etc/fail2ban/filter.d/
 sudo install -m 0644 deploy/fail2ban/action.d/probe-*.conf /etc/fail2ban/action.d/
@@ -152,6 +159,24 @@ sudo systemctl restart fail2ban
 sudo fail2ban-client status honeypot-probes
 sudo journalctl -t renvix-secops -o cat
 ```
+
+To seed the same ipset with the four already-confirmed incident sources before
+Fail2ban sees another request, install and run the validated batch loader. The
+entries receive the ipset action's seven-day safety timeout; Fail2ban can
+explicitly remove dynamically detected entries sooner according to `bantime`.
+Nginx also carries explicit denies for these incident addresses.
+
+```bash
+sudo install -m 0750 deploy/security/load-incident-blocklist /usr/local/sbin/load-incident-blocklist
+sudo /usr/local/sbin/load-incident-blocklist deploy/security/incident-scanner-ips.txt
+sudo ipset list renvix_probe4
+```
+
+The general access log excludes decoy probes. Only the minimal line required
+for Fail2ban (`IP`, server timestamp, fixed marker, status) is kept in
+`honeypot-probes.log`; request paths, headers, query values, and bodies are not
+stored there. This prevents scanner traffic from flooding the normal access
+log without disabling automated containment.
 
 Keep the old web-scanners jail off the dedicated probe log; its broader
 access.log matching and different threshold remain separate. Rotate the new

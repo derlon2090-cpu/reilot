@@ -9,8 +9,9 @@ findtime = 60
 bantime = 86400
 bantime.increment = false
 ignoreip = 127.0.0.1/8 ::1
-# Direct host-managed Nginx only. Docker needs DOCKER-USER, see runbook.
-action = iptables-allports[name=honeypot-probes, blocktype=DROP]
+# Direct host-managed Nginx only. One constant-time ipset lookup replaces one
+# iptables rule per offender. Docker needs DOCKER-USER, see runbook.
+action = honeypot-ipset
          probe-json
 # For Cloudflare-proxied origins ADD this action, after installing its helper:
 #         probe-cloudflare

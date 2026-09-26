@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+[[ $# -eq 1 && -f $1 ]] || { echo 'Usage: load-incident-blocklist IP_FILE' >&2; exit 2; }
+[[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'Must run as root' >&2; exit 1; }
+action=${IPSET_PROBE_ACTION:-/usr/local/sbin/ipset-probe-action}
+[[ -x $action ]] || { echo "Missing executable: $action" >&2; exit 1; }
+
+"$action" start
+count=0
+while IFS= read -r candidate || [[ -n $candidate ]]; do
+  candidate=${candidate%%#*}
+  candidate=${candidate//[[:space:]]/}
+  [[ -n $candidate ]] || continue
+  ip=$(python3 -c 'import ipaddress,sys; print(ipaddress.ip_address(sys.argv[1]))' "$candidate")
+  "$action" ban "$ip"
+  count=$((count + 1))
+done < "$1"
+printf 'Loaded %d validated addresses into the Renvix probe ipset.\n' "$count"
