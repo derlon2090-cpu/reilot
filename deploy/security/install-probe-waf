@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-[[ $# -ge 1 && $# -le 2 && -f $1 ]] || { echo 'Usage: install-probe-waf SENSITIVE_EXPRESSION_FILE [ASN_EXPRESSION_FILE]' >&2; exit 2; }
+[[ $# -ge 1 && $# -le 4 && -f $1 ]] || { echo 'Usage: install-probe-waf SENSITIVE_EXPRESSION_FILE [ASN_EXPRESSION_FILE] [PROTOCOL_EXPRESSION_FILE] [LATEST_INCIDENT_EXPRESSION_FILE]' >&2; exit 2; }
 source /etc/renvix-secops/cloudflare.env
 : "${CF_API_TOKEN:?}" "${CF_ZONE_ID:?}"
 base="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/rulesets"
@@ -10,9 +10,15 @@ api() {
 }
 sensitive_expression=$(tr -d '\n' < "$1")
 asn_expression_file=${2:-$(dirname "$1")/cloudflare-cloud-asn-expression.txt}
+protocol_expression_file=${3:-$(dirname "$1")/cloudflare-protocol-abuse-expression.txt}
+latest_incident_expression_file=${4:-$(dirname "$1")/cloudflare-latest-incidents-expression.txt}
 [[ -f $asn_expression_file ]] || { echo "Missing ASN expression: $asn_expression_file" >&2; exit 2; }
+[[ -f $protocol_expression_file ]] || { echo "Missing protocol expression: $protocol_expression_file" >&2; exit 2; }
+[[ -f $latest_incident_expression_file ]] || { echo "Missing incident expression: $latest_incident_expression_file" >&2; exit 2; }
 asn_expression=$(tr -d '\n' < "$asn_expression_file")
-[[ -n $sensitive_expression && -n $asn_expression ]] || exit 2
+protocol_expression=$(tr -d '\n' < "$protocol_expression_file")
+latest_incident_expression=$(tr -d '\n' < "$latest_incident_expression_file")
+[[ -n $sensitive_expression && -n $asn_expression && -n $protocol_expression && -n $latest_incident_expression ]] || exit 2
 entry_response=$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
   -H "Authorization: Bearer $CF_API_TOKEN" "$base/phases/http_request_firewall_custom/entrypoint" \
   -w '\n%{http_code}')
@@ -44,8 +50,12 @@ upsert_rule() {
   jq -c --arg ref "$ref" '.result.rules[] | select(.ref==$ref) | {id,ref,action,enabled}' <<< "$result"
 }
 
-# Ordering matters: hard-block known probe paths before challenging the wider
+# Ordering matters: reject protocol abuse and known probe paths before challenging the wider
 # commercial-hosting ASN pool. Existing unrelated custom rules are preserved.
+upsert_rule renvix_protocol_abuse block \
+  'Renvix unsupported HTTP methods' "$protocol_expression"
+upsert_rule renvix_latest_honeypot_incidents block \
+  'Block latest honeypot scanner ASNs and sensitive probe vectors' "$latest_incident_expression"
 upsert_rule renvix_probe_paths block \
   'Renvix sensitive probe paths; isolated honeypot excluded' "$sensitive_expression"
 upsert_rule renvix_commercial_cloud_asn managed_challenge \

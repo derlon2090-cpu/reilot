@@ -4,15 +4,19 @@ For the current two-hit / seven-day policy and incident 67, use
 `INC-2026-000067.md`. The six-hit / 24-hour jail below is the earlier policy
 and is disabled in the checked-in configuration.
 
-Incidents INC-2026-000132, 134, 135, and 144 add `/api/gql`, AS202412, and
-four confirmed source addresses to the layered policy. The Cloudflare ASN
-rule uses Managed Challenge rather than a blanket block because commercial
-cloud ASNs also contain legitimate clients. Known probe paths are hard-blocked.
+The latest four incident groups add the IDE/config, GraphQL/actuator,
+environment, log-extraction, and canary vectors plus eight confirmed source
+addresses. `cloudflare-latest-incidents-rule.json` is the requested single
+terminating edge rule. It deliberately blocks the listed commercial-cloud
+ASNs globally; review expected AWS, Google Cloud, and DigitalOcean client
+traffic before enabling it because this can block legitimate users.
 
-These are Linux deployment artifacts, not an active server deployment. Never
-block AS48090 wholesale. Reserved decoy paths must not be legitimate PHP or
-WordPress application routes. Shared NAT IP bans can affect other users on the
-same IP; zero collateral impact cannot be guaranteed with IP-based containment.
+These are Linux deployment artifacts, not an active server deployment. The
+exact requested WAF rule is intentionally broader than the safer managed-
+challenge policy and includes a wholesale AS48090 block. Reserved decoy paths
+must not be legitimate PHP or WordPress application routes. Shared NAT IP bans
+can affect other users on the same IP; zero collateral impact cannot be
+guaranteed with IP-based containment.
 This threshold protects decoy routes, not real login brute force; real logins
 need separate authentication-failure counters and rate limits.
 
@@ -90,16 +94,24 @@ the listed commercial-hosting ASNs receive a managed challenge elsewhere):
 sudo install -m 0750 deploy/security/install-probe-waf /usr/local/sbin/install-probe-waf
 sudo /usr/local/sbin/install-probe-waf \
   deploy/security/cloudflare-probe-expression.txt \
-  deploy/security/cloudflare-cloud-asn-expression.txt
+  deploy/security/cloudflare-cloud-asn-expression.txt \
+  deploy/security/cloudflare-protocol-abuse-expression.txt \
+  deploy/security/cloudflare-latest-incidents-expression.txt
+sudo install -m 0750 deploy/security/install-edge-rate-limits /usr/local/sbin/install-edge-rate-limits
+sudo /usr/local/sbin/install-edge-rate-limits
 ```
 
-The script uses `POST .../rules` for creation and `PATCH .../rules/{rule_id}`
+The scripts use `POST .../rules` for creation and `PATCH .../rules/{rule_id}`
 for updates, so it does not replace unrelated custom rules. The production
 route rule excludes `admin.renvix.app`, where the isolated honeypot intentionally
 collects silent telemetry; remove that exception only if the honeypot is retired.
-The helper adds one rule at the beginning and preserves existing rules. Run
-only one controller for its rules. Cloudflare plan rule quotas apply; this
-per-IP approach is suitable for modest ban counts, not high-volume botnets.
+The rate-limit helper deliberately installs one consolidated sensitive-API
+rule so it fits small plan quotas. Its defaults are 20 requests per 10 seconds
+per source IP/Cloudflare colo with a 10-second mitigation. Increase periods or
+timeouts only to values supported by the active plan; tighter limits require a
+controlled traffic baseline to avoid harming shared-NAT users. Run only one
+controller for these owned rule refs. Cloudflare plan quotas apply; per-IP WAF
+rules are suitable for modest ban counts, not high-volume botnets.
 
 ```bash
 sudo install -m 0750 deploy/security/probe-cloudflare /usr/local/sbin/probe-cloudflare
@@ -160,7 +172,17 @@ sudo fail2ban-client status honeypot-probes
 sudo journalctl -t renvix-secops -o cat
 ```
 
-To seed the same ipset with the four already-confirmed incident sources before
+To install the requested permanent `honeypot_blacklist` set and silent INPUT
+DROP (plus DOCKER-USER when present), run the idempotent host installer. It
+installs both `iptables-persistent` and `ipset-persistent`, then saves the set
+before the firewall rules so restoration can resolve the set reference:
+
+```bash
+sudo install -m 0750 deploy/security/install-honeypot-blacklist /usr/local/sbin/install-honeypot-blacklist
+sudo /usr/local/sbin/install-honeypot-blacklist
+```
+
+To seed the separate timed Fail2ban ipset with the eight confirmed sources before
 Fail2ban sees another request, install and run the validated batch loader. The
 entries receive the ipset action's seven-day safety timeout; Fail2ban can
 explicitly remove dynamically detected entries sooner according to `bantime`.
@@ -181,8 +203,10 @@ log without disabling automated containment.
 Keep the old web-scanners jail off the dedicated probe log; its broader
 access.log matching and different threshold remain separate. Rotate the new
 log using Nginx's existing logrotate policy (reopen with USR1, not copytruncate).
-For Docker mount the format file into conf.d and bind-mount the log directory
-to the host; this repository's Compose does not currently install these files.
+The repository's Compose mounts the HTTP-context security file before the
+server file and validates Nginx through an explicit allowed Host header. If a
+host Fail2ban process must consume the container log, bind-mount the Nginx log
+directory to a root-controlled host path and verify ownership before enabling.
 
 ## Verification
 

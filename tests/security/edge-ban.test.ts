@@ -13,6 +13,20 @@ function runtime() {
 }
 
 describe('honeypot edge containment', () => {
+  it('treats a deep trap as two signals and contains it immediately', async () => {
+    const api = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ success: true, result: [] }))
+      .mockResolvedValueOnce(Response.json({ success: true, result: { id: 'deep-rule' } }));
+    const ctx = runtime();
+    const object = new EdgeBan(ctx, { CF_ACCOUNT_ID: 'account1', CF_EDGE_BLOCK_TOKEN: 'secret' });
+    const request = new Request('https://internal/', {
+      method: 'POST', body: JSON.stringify({ ip: '192.0.2.90', weight: 2, reason: 'signed_deep_canary' })
+    });
+    expect((await object.fetch(request)).status).toBe(204);
+    expect(api).toHaveBeenCalledTimes(2);
+    expect(await ctx.storage.get('reason')).toBe('signed_deep_canary');
+  });
+
   it('creates explicit IPv6 account block once and persists the returned ID', async () => {
     const api = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(Response.json({ success: true, result: [] }))

@@ -103,8 +103,6 @@ export const HONEYPOT_SCRIPT = `(() => {
     fetch(endpoint, {
       method: "POST", credentials: "same-origin", cache: "no-store", keepalive: true,
       headers: { "content-type": "application/json" }, body
-    }).then(() => {
-      if (kind === "page_view") location.replace(location.pathname);
     }).catch(() => undefined);
   }
 

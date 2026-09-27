@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateThreatScore, incidentAlertDedupeKey, incidentAlertMode, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
-  honeypotDeviceFingerprint, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
+  honeypotDeviceFingerprint, isRoutineScannerTelemetryPath, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
   verifyHoneypotDeviceToken, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
@@ -21,6 +21,15 @@ describe("security center risk and privacy policy", () => {
     expect(incidentAlertMode({ incident_type: 'ORIGIN_INTRUSION', severity: 'HIGH' })).toBe('immediate');
   });
 
+  it("classifies the four latest scanner vector groups as low telemetry", () => {
+    for (const path of [
+      "/.vscode/sftp.json", "/info.php", "/api/gql", "/actuator/env",
+      "/.well-known/security.txt", "/.env.production", "/.env.live",
+      "/storage/logs/laravel.log", "/zzcanary-123.xml"
+    ]) expect(isRoutineScannerTelemetryPath(path)).toBe(true);
+    expect(isRoutineScannerTelemetryPath("/api/auth/login")).toBe(false);
+  });
+
   it("raises a correlated honeypot, admin login, and MFA sequence", () => {
     const score = calculateThreatScore({
       requestedPath: "/.env", attempts: 5, distinctPaths: 4,
@@ -32,6 +41,15 @@ describe("security center risk and privacy policy", () => {
 
   it("uses a graduated score for broad path scanning", () => {
     expect(calculateThreatScore({ requestedPath: "/", attempts: 20, distinctPaths: 1 })).toBe(45);
+  });
+
+  it("raises only verified deep-canary progression to high confidence", () => {
+    expect(severityForRisk(calculateThreatScore({
+      requestedPath: "/_internal/archive/manifest.json", trapStage: 3, canaryValidated: true
+    }))).toBe("HIGH");
+    expect(severityForRisk(calculateThreatScore({
+      requestedPath: "/_internal/archive/manifest.json", trapStage: 3, canaryValidated: false
+    }))).toBe("MEDIUM");
   });
 
   it("deduplicates repeated alerts while allowing severity escalation", () => {

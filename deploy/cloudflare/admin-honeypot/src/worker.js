@@ -3,6 +3,7 @@ export { EdgeBan } from './edge-ban.js';
 import {
   HONEYPOT_HTML, HONEYPOT_PIXEL_PATH, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
 } from "./page.js";
+import { buildDecoyArtifact, classifyTrapPath, issueDeepCanary, verifyDeepCanary } from "./trap-catalog.js";
 
 const BASE_HEADERS = Object.freeze({
   "cache-control": "no-store, max-age=0",
@@ -75,6 +76,13 @@ function scriptResponse(setCookies = []) {
 
 function pixelResponse(setCookies = []) {
   return response(TRACKING_PIXEL, 200, "image/gif", SCRIPT_CSP, {}, setCookies);
+}
+
+function artifactResponse(artifact, setCookies = []) {
+  return response(artifact.body, 200, artifact.contentType, SCRIPT_CSP, {
+    "content-disposition": "inline",
+    "x-download-options": "noopen"
+  }, setCookies);
 }
 
 function cookieValue(request, name) {
@@ -206,7 +214,7 @@ async function readTelemetry(request) {
   }
 }
 
-function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = "", autoBlockDevice = false) {
+function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = "", autoBlockDevice = false, trap = {}) {
   const url = new URL(request.url);
   const cf = request.cf || {};
   const pagePath = telemetry?.pagePath?.startsWith("/") ? telemetry.pagePath : url.pathname;
@@ -227,6 +235,10 @@ function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = ""
     request_id: crypto.randomUUID(), rate_limited: rateLimited,
     honeypot_device_id: DEVICE_ID_PATTERN.test(honeypotDeviceId) ? honeypotDeviceId : "",
     auto_block_device: autoBlockDevice === true && DEVICE_ID_PATTERN.test(honeypotDeviceId),
+    trap_stage: number(trap.stage, 0, 3),
+    trap_family: text(trap.family, 40).replace(/[^a-z0-9_]/g, ""),
+    canary_validated: trap.canaryValidated === true,
+    deep_file_access: number(trap.stage, 0, 3) >= 2,
     cloudflare_threat_score: Number.isFinite(Number(cf.threatScore)) ? Number(cf.threatScore) : null,
     ip_location: {
       latitude: Number.isFinite(Number(cf.latitude)) ? number(cf.latitude, -90, 90) : null,
@@ -263,8 +275,8 @@ async function postSigned(env, body) {
   return responseValue;
 }
 
-async function sendEvent(request, env, rateLimited, telemetry = null, honeypotDeviceId = "", autoBlockDevice = false) {
-  return postSigned(env, eventBody(request, rateLimited, telemetry, honeypotDeviceId, autoBlockDevice));
+async function sendEvent(request, env, rateLimited, telemetry = null, honeypotDeviceId = "", autoBlockDevice = false, trap = {}) {
+  return postSigned(env, eventBody(request, rateLimited, telemetry, honeypotDeviceId, autoBlockDevice, trap));
 }
 
 async function endToEndProbe(env) {
@@ -299,14 +311,26 @@ const worker = {
     const internalRoute = url.pathname === HONEYPOT_SCRIPT_PATH
       || url.pathname === HONEYPOT_PIXEL_PATH
       || url.pathname === HONEYPOT_TELEMETRY_PATH;
+    const trap = internalRoute ? classifyTrapPath("/") : classifyTrapPath(url.pathname);
+    const canary = !internalRoute && trap.stage >= 3
+      ? await verifyDeepCanary(url.searchParams.get("c"), env.HONEYPOT_INGESTION_SECRET, identity.id)
+      : { valid: false, family: "" };
+    const trapContext = {
+      stage: trap.stage,
+      family: canary.valid ? canary.family : trap.family,
+      canaryValidated: canary.valid
+    };
     if (!internalRoute) {
-      context.waitUntil(containHoneypotVisitor(request, env).catch(error => {
+      context.waitUntil(containHoneypotVisitor(request, env, {
+        weight: trap.stage >= 2 ? 2 : 1,
+        reason: canary.valid ? "signed_deep_canary" : `trap_stage_${trap.stage}`
+      }).catch(error => {
         console.error(JSON.stringify({ event: 'edge_ban_failed', message: String(error.message).slice(0, 160) }));
       }));
     }
     const block = identity.existing && !rateLimited && !internalRoute ? await checkDeviceBlock(env, identity.id) : null;
-    if (identity.existing && !internalRoute) {
-      return blockedResponse(block?.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
+    if (block?.blocked && !internalRoute) {
+      return blockedResponse(block.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
     }
     if (url.pathname === HONEYPOT_SCRIPT_PATH && request.method === "GET") return scriptResponse(identity.setCookies);
     if (url.pathname === HONEYPOT_PIXEL_PATH && request.method === "GET") return pixelResponse(identity.setCookies);
@@ -318,7 +342,18 @@ const worker = {
       return emptyResponse(204, identity.setCookies);
     }
 
-    if (!rateLimited) queueEvent(context, sendEvent(request, env, false, null, identity.id, true));
+    const autoBlockDevice = trap.stage >= 2 || canary.valid;
+    if (!rateLimited) {
+      const delivery = sendEvent(request, env, false, null, identity.id, autoBlockDevice, trapContext)
+        .finally(() => { if (autoBlockDevice) blockCache.delete(identity.id); });
+      queueEvent(context, delivery);
+    }
+    if (trap.stage > 0) {
+      const token = trap.stage < 3
+        ? await issueDeepCanary(env.HONEYPOT_INGESTION_SECRET, identity.id, trap.family)
+        : "";
+      return artifactResponse(buildDecoyArtifact(trap, token), identity.setCookies);
+    }
     return pageResponse(identity.setCookies);
   }
 };

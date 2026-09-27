@@ -55,7 +55,7 @@ describe("security containment contract", () => {
     const page = read("deploy/cloudflare/admin-honeypot/src/page.js");
     expect(worker).toContain("auto_block_device");
     expect(center).toContain("automatic_device_containment");
-    expect(center).toContain("دخول مباشر إلى نطاق الإدارة الوهمي — عزل وقائي آلي");
+    expect(center).toContain("تقدم عميق داخل ملفات الطُعم — عزل وقائي آلي");
     expect(center).toContain('securityTargetHash("device", input.honeypotDeviceId)');
     expect(page).toContain("/__renvix/pixel.gif");
     expect(page).not.toContain("<form");

@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+
+# Idempotently installs narrow API rate limits in the zone http_ratelimit
+# phase. Defaults use Cloudflare's broadly available 10-second window; plans
+# that support longer periods can override the validated environment values.
+source /etc/renvix-secops/cloudflare.env
+: "${CF_API_TOKEN:?}" "${CF_ZONE_ID:?}"
+sensitive_requests=${RENVIX_SENSITIVE_REQUESTS_PER_PERIOD:-20}
+period=${RENVIX_RATE_PERIOD_SECONDS:-10}
+mitigation=${RENVIX_RATE_MITIGATION_SECONDS:-10}
+
+[[ $sensitive_requests =~ ^[1-9][0-9]{0,5}$ ]] || { echo 'Invalid request threshold' >&2; exit 2; }
+[[ $period =~ ^(10|60|120|300|600|3600)$ ]] || { echo 'Invalid rate period' >&2; exit 2; }
+[[ $mitigation =~ ^[0-9]{1,6}$ ]] || { echo 'Invalid mitigation timeout' >&2; exit 2; }
+
+base="https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/rulesets"
+api() {
+  curl --silent --show-error --fail-with-body --connect-timeout 5 --max-time 20 \
+    -H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json' "$@"
+}
+
+entry_response=$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
+  -H "Authorization: Bearer $CF_API_TOKEN" \
+  "$base/phases/http_ratelimit/entrypoint" -w '\n%{http_code}')
+entry_status=${entry_response##*$'\n'}
+entry=${entry_response%$'\n'*}
+if [[ $entry_status == 404 ]]; then
+  payload=$(jq -nc '{name:"Renvix rate limits",kind:"zone",phase:"http_ratelimit"}')
+  entry=$(api -X POST "$base" --data "$payload")
+  jq -e '.success == true and .result.id != null' <<< "$entry" >/dev/null
+elif [[ $entry_status != 200 ]]; then
+  echo "Cloudflare rate-limit entrypoint lookup failed: $entry_status" >&2
+  exit 1
+else
+  jq -e '.success == true and .result.id != null' <<< "$entry" >/dev/null
+fi
+ruleset=$(jq -r '.result.id' <<< "$entry")
+
+upsert_rate_rule() {
+  local ref=$1 description=$2 expression=$3 requests=$4 rule payload result
+  rule=$(jq -r --arg ref "$ref" '.result.rules[]? | select(.ref==$ref) | .id' <<< "$entry" | head -n 1)
+  payload=$(jq -nc \
+    --arg ref "$ref" --arg description "$description" --arg expression "$expression" \
+    --argjson requests "$requests" --argjson period "$period" --argjson mitigation "$mitigation" \
+    '{action:"block",expression:$expression,description:$description,enabled:true,ref:$ref,
+      ratelimit:{characteristics:["cf.colo.id","ip.src"],period:$period,
+        requests_per_period:$requests,mitigation_timeout:$mitigation}}')
+  if [[ -n $rule ]]; then
+    result=$(api -X PATCH "$base/$ruleset/rules/$rule" --data "$payload")
+  else
+    result=$(api -X POST "$base/$ruleset/rules" --data "$payload")
+  fi
+  jq -e '.success == true' <<< "$result" >/dev/null
+  entry=$result
+  jq -c --arg ref "$ref" '.result.rules[] | select(.ref==$ref) | {id,ref,action,enabled,ratelimit}' <<< "$result"
+}
+
+sensitive_expression='((http.request.method eq "POST" and (starts_with(lower(http.request.uri.path), "/api/auth/") or lower(http.request.uri.path) eq "/api/admin/login" or starts_with(lower(http.request.uri.path), "/api/admin/auth/"))) or lower(http.request.uri.path) eq "/api/ai" or starts_with(lower(http.request.uri.path), "/api/ai/") or lower(http.request.uri.path) eq "/api/storage" or starts_with(lower(http.request.uri.path), "/api/storage/"))'
+
+# A single consolidated rule remains deployable on plans with the smallest
+# custom rate-limit quota. Nginx and the application retain narrower auth
+# controls behind it.
+upsert_rate_rule renvix_sensitive_api_burst 'Renvix sensitive API burst containment' "$sensitive_expression" "$sensitive_requests"

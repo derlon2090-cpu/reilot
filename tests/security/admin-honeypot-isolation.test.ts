@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import honeypotWorker from "../../deploy/cloudflare/admin-honeypot/src/worker.js";
+import { classifyTrapPath, issueDeepCanary, verifyDeepCanary } from "../../deploy/cloudflare/admin-honeypot/src/trap-catalog.js";
 
 const root = process.cwd();
 const workerSource = fs.readFileSync(path.join(root, "deploy/cloudflare/admin-honeypot/src/worker.js"), "utf8");
@@ -25,12 +26,29 @@ function runtime() {
 }
 
 describe("isolated admin honeypot", () => {
-  it("serves one self-contained decoy page for every external path and records the HTTP event", async () => {
+  it("uses an explicit four-stage trap catalog and expiring device-bound canaries", async () => {
+    expect(classifyTrapPath("/")).toMatchObject({ stage: 0, family: "surface_discovery" });
+    expect(classifyTrapPath("/.env.live")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/storage/logs/laravel.log")).toMatchObject({ stage: 2, family: "log_extraction" });
+    expect(classifyTrapPath("/_internal/archive/manifest.json")).toMatchObject({ stage: 3, family: "deep_canary" });
+    const secret = "deep-canary-test-secret-with-32-bytes";
+    const device = `hpd_${"a".repeat(32)}`;
+    const token = await issueDeepCanary(secret, device, "environment_probe", Date.UTC(2026, 8, 27));
+    await expect(verifyDeepCanary(token, secret, device, Date.UTC(2026, 8, 27)))
+      .resolves.toEqual({ valid: true, family: "environment_probe" });
+    const tampered = `${token.slice(0, -1)}${token.endsWith("0") ? "1" : "0"}`;
+    await expect(verifyDeepCanary(tampered, secret, device, Date.UTC(2026, 8, 27)))
+      .resolves.toMatchObject({ valid: false });
+    await expect(verifyDeepCanary(token, secret, device, Date.UTC(2026, 9, 2)))
+      .resolves.toMatchObject({ valid: false });
+  });
+
+  it("serves one self-contained shell for ordinary discovery paths and records the HTTP event", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const { pending, context, env } = runtime();
     try {
       let referenceBody = "";
-      for (const requestedPath of ["/", "/.env", "/admin", "/login", "/random/path"]) {
+      for (const requestedPath of ["/", "/admin", "/login", "/random/path"]) {
         const response = await honeypotWorker.fetch(new Request(`https://admin.renvix.app${requestedPath}`, {
           headers: { "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
         }), env, context);
@@ -47,7 +65,7 @@ describe("isolated admin honeypot", () => {
         expect(body).toBe(referenceBody);
       }
       await Promise.all(pending);
-      expect(fetchSpy).toHaveBeenCalledTimes(5);
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -64,7 +82,7 @@ describe("isolated admin honeypot", () => {
     expect(script).toContain('addEventListener("scroll"');
     expect(script).toContain('addEventListener("keydown"');
     expect(script).toContain('credentials: "same-origin"');
-    expect(script).toContain('location.replace(location.pathname)');
+    expect(script).not.toContain('location.replace(location.pathname)');
     expect(script).not.toContain('transmit("login_attempt"');
     expect(script).not.toContain(".value");
     expect(script).not.toMatch(/clipboard|getUserMedia|geolocation\.getCurrentPosition/i);
@@ -126,18 +144,70 @@ describe("isolated admin honeypot", () => {
     }
   });
 
-  it("requests automatic device containment only for the first external page response", async () => {
+  it("contains deep-file access but leaves shallow discovery as telemetry", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const { pending, context, env } = runtime();
     try {
-      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/portal", {
+      const shallow = await honeypotWorker.fetch(new Request("https://admin.renvix.app/portal", {
         headers: { "cf-connecting-ip": "203.0.113.11", "user-agent": "test-agent" }
       }), env, context);
-      expect(first.status).toBe(200);
+      expect(shallow.status).toBe(200);
       await Promise.all(pending);
-      const event = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
-      expect(event.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
-      expect(event.auto_block_device).toBe(true);
+      const shallowEvent = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      expect(shallowEvent.auto_block_device).toBe(false);
+      expect(shallowEvent.trap_stage).toBe(0);
+
+      fetchSpy.mockClear();
+      const deep = await honeypotWorker.fetch(new Request("https://admin.renvix.app/storage/logs/laravel.log", {
+        headers: { "cf-connecting-ip": "203.0.113.12", "user-agent": "test-agent" }
+      }), env, context);
+      expect(deep.status).toBe(200);
+      expect(deep.headers.get("content-type")).toContain("text/plain");
+      expect(await deep.text()).toContain("credentials\":\"redacted");
+      await Promise.all(pending);
+      const deepEvent = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      expect(deepEvent.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
+      expect(deepEvent.auto_block_device).toBe(true);
+      expect(deepEvent).toMatchObject({ trap_stage: 2, trap_family: "log_extraction", deep_file_access: true });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("issues and verifies a device-bound deep canary without exposing secrets", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (target) => {
+      if (String(target).endsWith("/api/security/block-check")) {
+        return Response.json({ ok: true, blocked: false });
+      }
+      return new Response(null, { status: 200 });
+    });
+    const { pending, context, env } = runtime();
+    try {
+      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/.env.production", {
+        headers: { "cf-connecting-ip": "203.0.113.40", "user-agent": "test-agent" }
+      }), env, context);
+      const cookie = String(first.headers.get("set-cookie") || "").split(";")[0];
+      const body = await first.text();
+      expect(body).toContain("DATABASE_URL=redacted://invalid");
+      expect(body).not.toMatch(/password=/i);
+      const link = body.match(/CONFIG_ARCHIVE=(\S+)/)?.[1] || "";
+      expect(link).toMatch(/^\/_internal\/archive\/manifest\.json\?c=hp1\./);
+      await Promise.all(pending);
+      fetchSpy.mockClear();
+
+      const deep = await honeypotWorker.fetch(new Request(`https://admin.renvix.app${link}`, {
+        headers: { cookie, "cf-connecting-ip": "203.0.113.40", "user-agent": "test-agent" }
+      }), env, context);
+      expect(deep.status).toBe(200);
+      expect(await deep.json()).toMatchObject({ state: "sealed", data: [] });
+      await Promise.all(pending);
+      const ingestionCall = fetchSpy.mock.calls.find(([target]) => String(target).includes("/api/security/ingest/honeypot"));
+      const event = JSON.parse(String(ingestionCall?.[1]?.body));
+      expect(event).toMatchObject({
+        trap_stage: 3, trap_family: "environment_probe", canary_validated: true,
+        deep_file_access: true, auto_block_device: true
+      });
+      expect(String(ingestionCall?.[1]?.body)).not.toContain(link.split("?c=")[1]);
     } finally {
       fetchSpy.mockRestore();
     }

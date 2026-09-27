@@ -30,14 +30,15 @@ through the existing device block scope.
 It is not a hardware serial number: clearing site data or closing an incognito
 session can cause the browser to receive a new ID. Every request carrying a
 valid signed ID is checked against active blocks before the decoy is served.
-The first external page response also requests an automatic, device-only
-preventive block in the same database transaction as the incident. Later page
-requests carrying that signed ID receive a professional block notice and a
-support-review reference. IP blocking is optional and disabled by default
-because shared IPs can belong to unrelated users.
-After the initial bounded telemetry acknowledgement, the session-check shell
-replaces itself with that block notice so the first visit does not remain on a
-credential-like screen.
+Surface discovery remains bounded telemetry. Config/runtime probes receive
+synthetic artifacts containing no secrets and a short-lived, device-bound HMAC
+canary link. Deep extraction paths request device containment; following a
+valid canary produces a high-confidence progression signal. Later requests
+carrying an actively blocked signed ID receive a professional block notice and
+a support-review reference. IP blocking is optional and disabled by default
+because shared IPs can belong to unrelated users. See
+`../../../docs/security/honeypot-defense-architecture.md` for the complete
+stage model, failure modes, rollout gates, and rollback.
 
 The hidden same-origin 1x1 pixel only confirms that the page resource was
 requested and helps issue the signed ID. It cannot enter the device, inspect
@@ -59,7 +60,8 @@ Deployment requirements:
 5. Never add real Renvix application assets, analytics, cookies, redirects, or
    the real administration hostname to this Worker.
 
-Every external page path returns the same decoy shell. The client script and
+Ordinary paths return the decoy shell; reserved config, log, archive, repository,
+and canary paths return bounded synthetic artifacts. The client script and
 telemetry endpoint are same-origin Worker routes. The signed internal probe at
 `/.well-known/renvix-security-probe` now verifies the complete Worker → API
 signature and network path without creating a security incident.

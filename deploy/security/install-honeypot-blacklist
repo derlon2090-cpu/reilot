@@ -1,0 +1,55 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ipset ipset-persistent iptables-persistent
+
+set_name=honeypot_blacklist
+ipset create "$set_name" hash:ip family inet hashsize 1024 maxelem 65536 -exist
+
+while read -r ip; do
+  ipset add "$set_name" "$ip" -exist
+done <<'EOF'
+147.182.200.94
+138.197.191.87
+142.93.0.66
+159.65.18.197
+159.65.144.72
+130.12.180.117
+34.140.132.132
+91.148.245.81
+EOF
+
+# No interface selector is used: every packet traversing INPUT is covered.
+# DROP is intentionally silent (no REJECT, TCP RST, or ICMP response).
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+  || iptables -w -I INPUT 1 -m set --match-set "$set_name" src -j DROP
+
+# Docker-published ports traverse FORWARD, not INPUT. Protect them when the
+# standard Docker iptables chain exists, without creating a fake chain.
+if iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
+  iptables -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+    || iptables -w -I DOCKER-USER 1 -m set --match-set "$set_name" src -j DROP
+fi
+
+tmp_ipset=$(mktemp /etc/ipset.conf.XXXXXX)
+trap 'rm -f "$tmp_ipset"' EXIT
+ipset save > "$tmp_ipset"
+chmod 0600 "$tmp_ipset"
+mv -f "$tmp_ipset" /etc/ipset.conf
+trap - EXIT
+
+netfilter-persistent save
+
+ipset list "$set_name"
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP
+if iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
+  iptables -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP
+fi
+echo "Persistent silent DROP installed for 8 incident sources."

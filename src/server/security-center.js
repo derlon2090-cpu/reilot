@@ -74,6 +74,18 @@ function normalizedPath(value) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+export function isRoutineScannerTelemetryPath(value) {
+  const path = normalizedPath(value).toLowerCase();
+  return /^\/\.vscode(?:\/|$)/.test(path)
+    || /^\/\.env(?:[./]|$)/.test(path)
+    || path === "/info.php"
+    || /^\/api\/gql(?:\/|$)/.test(path)
+    || /^\/actuator(?:\/|$)/.test(path)
+    || path === "/.well-known/security.txt"
+    || /^\/storage\/logs(?:\/|$)/.test(path)
+    || /^\/zzcanary-[^/]*\.xml$/.test(path);
+}
+
 function telemetryNumber(value, min, max) {
   return Math.round(clamp(value, min, max));
 }
@@ -184,7 +196,8 @@ function honeypotFingerprintConfidence(telemetry) {
 
 export function calculateThreatScore({
   requestedPath = "/", method = "GET", attempts = 1, distinctPaths = 1,
-  correlatedEventTypes = [], rateLimited = false, cloudflareThreatScore = null
+  correlatedEventTypes = [], rateLimited = false, cloudflareThreatScore = null,
+  trapStage = 0, canaryValidated = false
 } = {}) {
   const path = normalizedPath(requestedPath).toLowerCase();
   let score = 10;
@@ -206,6 +219,9 @@ export function calculateThreatScore({
   if (types.has("ADMIN_MFA_FAILED")) score += 15;
   if (types.has("ADMIN_API_ABUSE")) score += 15;
   if (types.has("RATE_LIMIT_EXCEEDED") || rateLimited) score += 15;
+  if (Number(trapStage) >= 3) score += 25;
+  else if (Number(trapStage) >= 2) score += 10;
+  if (canaryValidated === true) score += 35;
   if (Number.isFinite(Number(cloudflareThreatScore))) score += Math.round(clamp(cloudflareThreatScore, 0, 100) * 0.15);
   return clamp(score, 0, 100);
 }
@@ -313,7 +329,11 @@ function normalizeHoneypotInput(input = {}) {
     fingerprintConfidence,
     ipLocation,
     honeypotDeviceId,
-    autoBlockDevice: input.auto_block_device === true && Boolean(honeypotDeviceId)
+    autoBlockDevice: input.auto_block_device === true && Boolean(honeypotDeviceId),
+    trapStage: Math.round(clamp(input.trap_stage, 0, 3)),
+    trapFamily: cleanText(input.trap_family, 40).toLowerCase().replace(/[^a-z0-9_]/g, ""),
+    canaryValidated: input.canary_validated === true,
+    deepFileAccess: input.deep_file_access === true
   };
 }
 
@@ -404,16 +424,22 @@ export async function ingestHoneypotEvent(rawInput) {
     const attempts = Number(facts.attempts || 0) + 1;
     const distinctPaths = Number(facts.distinctPaths || 0) + (facts.pathSeen ? 0 : 1);
     const eventTypes = [...new Set([...(facts.eventTypes || []), "ADMIN_HONEYPOT_ACCESS"] )];
+    const telemetryOnly = isRoutineScannerTelemetryPath(input.requestedPath)
+      && input.trapStage < 3 && !input.canaryValidated;
     const calculatedRiskScore = calculateThreatScore({
       requestedPath: input.requestedPath, method: input.method, attempts, distinctPaths,
       correlatedEventTypes: eventTypes, rateLimited: input.rateLimited,
-      cloudflareThreatScore: input.cloudflareThreatScore
+      cloudflareThreatScore: input.cloudflareThreatScore,
+      trapStage: input.trapStage,
+      canaryValidated: input.canaryValidated
     });
-    // An external honeypot page view requests preventive containment of the
-    // signed pseudonymous ID. Keep the incident at MEDIUM (not CRITICAL) so a
-    // reviewable incident exists for the required security_blocks relation.
-    const riskScore = input.autoBlockDevice ? Math.max(calculatedRiskScore, 25) : calculatedRiskScore;
+    // Only deep-file progression requests preventive containment of the signed
+    // pseudonymous ID. Surface discovery remains telemetry-only where listed.
+    const riskScore = telemetryOnly ? 10 : input.autoBlockDevice ? Math.max(calculatedRiskScore, 25) : calculatedRiskScore;
     const severity = severityForRisk(riskScore);
+    const classification = telemetryOnly ? "LOW/TELEMETRY"
+      : input.canaryValidated ? "HIGH/DEEP_CANARY"
+        : input.trapStage >= 2 ? "DEEP_FILE_ACCESS" : "STANDARD";
     const safeEvidence = redactSecurityValue({
       requestedPath: input.requestedPath, method: input.method, country: input.country,
       asn: input.asn, deviceClass: input.deviceClass, browser: input.browser, os: input.os,
@@ -421,6 +447,11 @@ export async function ingestHoneypotEvent(rawInput) {
       clientSignal: input.telemetry?.kind || "http_request",
       honeypotDeviceId: input.honeypotDeviceId || null,
       automaticDeviceContainment: input.autoBlockDevice,
+      classification,
+      trapStage: input.trapStage,
+      trapFamily: input.trapFamily,
+      canaryValidated: input.canaryValidated,
+      deepFileAccess: input.deepFileAccess,
       interaction: input.telemetry?.interaction || null
     });
     const existingIncident = await client.query(
@@ -440,7 +471,8 @@ export async function ingestHoneypotEvent(rawInput) {
       );
       incident = updated.rows[0];
       await appendIncidentEvent(client, incident.id, nextRisk > priorRisk ? "risk_score_changed" : "repeated_attempt", {
-        previousRisk: priorRisk, riskScore: nextRisk, path: input.requestedPath, attempts
+        previousRisk: priorRisk, riskScore: nextRisk, path: input.requestedPath, attempts,
+        trapStage: input.trapStage, canaryValidated: input.canaryValidated
       }, { type: "worker" });
     } else if (riskScore >= 25) {
       const inserted = await client.query(
@@ -470,7 +502,13 @@ export async function ingestHoneypotEvent(rawInput) {
           fingerprintConfidence: input.fingerprintConfidence, ipLocation: input.ipLocation,
           honeypotDeviceId: input.honeypotDeviceId,
           requestedHost: input.requestedHost,
-          automaticDeviceContainment: input.autoBlockDevice
+          automaticDeviceContainment: input.autoBlockDevice,
+          classification,
+          trapStage: input.trapStage,
+          trapFamily: input.trapFamily,
+          canaryValidated: input.canaryValidated,
+          deepFileAccess: input.deepFileAccess,
+          realtimeNotificationsSuppressed: telemetryOnly
         })]
     );
     let automaticBlock = null;
@@ -489,8 +527,11 @@ export async function ingestHoneypotEvent(rawInput) {
             `INSERT INTO security_blocks
               (target_type,target_hash,target_label,reason,severity,blocked_by,expires_at,incident_id,metadata)
              VALUES ('device',$1,$2,$3,$4,NULL,NULL,$5,$6::jsonb) RETURNING *`,
-            [targetHash, input.honeypotDeviceId, "دخول مباشر إلى نطاق الإدارة الوهمي — عزل وقائي آلي",
-              incident.severity, incident.id, JSON.stringify({ automated: true, source: "admin_honeypot" })]
+            [targetHash, input.honeypotDeviceId, "تقدم عميق داخل ملفات الطُعم — عزل وقائي آلي",
+              incident.severity, incident.id, JSON.stringify({
+                automated: true, source: "admin_honeypot", trapStage: input.trapStage,
+                trapFamily: input.trapFamily, canaryValidated: input.canaryValidated
+              })]
           )).rows[0];
           await appendIncidentEvent(client, incident.id, "automatic_device_containment", {
             referenceId: automaticBlock.reference_id,
@@ -513,11 +554,14 @@ export async function ingestHoneypotEvent(rawInput) {
        RETURNING id`,
       [incident?.id || null, severity, riskScore, sourceKey, JSON.stringify(safeEvidence), `honeypot:${sourceKey}`]
     );
-    if (incident) await syncIncidentNotifications(client, incident);
+    if (incident && !telemetryOnly) await syncIncidentNotifications(client, incident);
     await appendLedger(client, {
       eventType: "ADMIN_HONEYPOT_ACCESS", aggregateType: "security_source_event", aggregateId: event.rows[0].event_id,
       payload: {
         findingId: finding.rows[0].id, incidentId: incident?.id || null, riskScore, severity, sourceKey,
+        classification,
+        trapStage: input.trapStage,
+        canaryValidated: input.canaryValidated,
         automaticBlockReference: automaticBlock?.reference_id || null
       }
     });
@@ -529,7 +573,9 @@ export async function ingestHoneypotEvent(rawInput) {
     return {
       ok: true, eventId: event.rows[0].event_id, incidentId: incident?.id || null,
       incidentType: 'ADMIN_HONEYPOT_ACCESS',
-      riskScore, severity, mitigation: mitigation.rows[0] || null,
+      riskScore, severity, classification,
+      realtimeNotificationsSuppressed: telemetryOnly,
+      mitigation: mitigation.rows[0] || null,
       automaticBlockReference: automaticBlock?.reference_id || null
     };
   });
