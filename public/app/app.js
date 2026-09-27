@@ -1623,7 +1623,7 @@ function syncRouteData(force = false) {
   if (sharedStorageToken && (force || state.sharedStorageToken !== sharedStorageToken || state.sharedStorageDocument === null)) {
     state.sharedStorageToken = sharedStorageToken;
     state.sharedStorageDocument = state.sharedStorageDocument?.token === sharedStorageToken ? state.sharedStorageDocument : null;
-    queue("sharedStorageDocument", `/api/public/storage-documents/${encodeURIComponent(sharedStorageToken)}`, "sharedStorageDocument");
+    queue("sharedStorageDocument", `/storage-api/public/storage-documents/${encodeURIComponent(sharedStorageToken)}`, "sharedStorageDocument");
   }
 
   if (state.route.startsWith("/dashboard") && (force || !state.cachedDashboardProfile?.name)) {
@@ -13206,7 +13206,7 @@ async function handleSubmit(form, event) {
   if (type === "shared-storage-document") {
     const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
     try {
-      const payload = await fetchJson(`/api/public/storage-documents/${encodeURIComponent(form.dataset.token || "")}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version }) });
+      const payload = await fetchJson(`/storage-api/public/storage-documents/${encodeURIComponent(form.dataset.token || "")}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version }) });
       state.sharedStorageDocument = payload; render(); toast("تم حفظ تعديلات الملف.");
     } catch (error) { toast(error.message || "تعذر حفظ التغييرات.", "danger"); setSubmitBusy(button, false); }
     return;

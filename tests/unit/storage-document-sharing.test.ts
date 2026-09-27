@@ -22,11 +22,15 @@ describe("storage document sharing", () => {
   it("keeps public access passwordless while owner controls stay authenticated", () => {
     const ownerRoute = fs.readFileSync(path.join(process.cwd(), "app/api/storage/documents/[documentId]/share/route.js"), "utf8");
     const publicRoute = fs.readFileSync(path.join(process.cwd(), "app/api/public/storage-documents/[token]/route.js"), "utf8");
+    const ownerAlias = fs.readFileSync(path.join(process.cwd(), "app/storage-api/documents/[documentId]/share/route.js"), "utf8");
+    const publicAlias = fs.readFileSync(path.join(process.cwd(), "app/storage-api/public/storage-documents/[token]/route.js"), "utf8");
     const service = fs.readFileSync(path.join(process.cwd(), "src/server/storage-document-shares.js"), "utf8");
     expect(ownerRoute).toContain("requireSession");
     expect(ownerRoute).toContain("sameOriginRequest");
     expect(publicRoute).not.toContain("requireSession");
     expect(publicRoute).toContain("sameOriginRequest");
+    expect(ownerAlias).toContain("DELETE, GET, POST");
+    expect(publicAlias).toContain("GET, PATCH");
     expect(service).toContain("d.type IN ('note','custom')");
     expect(service).not.toContain("password_encrypted");
     expect(service).not.toContain("code_encrypted");
@@ -48,5 +52,13 @@ describe("storage document sharing", () => {
     expect(app).toContain("storage-share-revoke");
     expect(page).toContain('slug[0] === "shared"');
     expect(page).toContain("index: false, follow: false");
+  });
+
+  it("keeps sharing requests on the storage API origin instead of the legacy API rewrite", () => {
+    const app = fs.readFileSync(path.join(process.cwd(), "src/app/app.js"), "utf8");
+    expect(app).toContain('if (url.startsWith("/api/storage/")) return `/storage-api/');
+    expect(app).toContain("`/storage-api/public/storage-documents/${encodeURIComponent(sharedStorageToken)}`");
+    expect(app).toContain("`/storage-api/public/storage-documents/${encodeURIComponent(form.dataset.token || \"\")}`");
+    expect(app).not.toContain("`/api/public/storage-documents/${encodeURIComponent(sharedStorageToken)}`");
   });
 });
