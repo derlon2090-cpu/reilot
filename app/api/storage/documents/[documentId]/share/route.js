@@ -7,7 +7,11 @@ function shareUrl(request, token) {
 }
 
 function failure(error, fallback) {
-  return Response.json({ ok: false, code: error?.code || "SHARE_FAILED", message: error?.message || fallback }, { status: Number(error?.status || 500) });
+  const status = Number(error?.status || 500);
+  return Response.json(
+    { ok: false, code: status >= 500 ? "SHARE_FAILED" : error?.code || "SHARE_FAILED", message: status >= 500 ? fallback : error?.message || fallback },
+    { status }
+  );
 }
 
 export async function GET(request, { params }) {

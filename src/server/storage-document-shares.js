@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { getTenantStorageLimitState } from "./tenant-storage.js";
 import { sanitizeStorageHtml, storagePayloadSize } from "./storage-center.js";
+import { ensureStorageDocumentShareSchema } from "./storage-document-share-schema.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHARE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
@@ -66,6 +67,7 @@ function publicDocument(row) {
 }
 
 export async function getStorageDocumentShare(session, documentId) {
+  await ensureStorageDocumentShareSchema();
   if (!UUID.test(String(documentId || ""))) throw shareError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   const result = await query(
     `SELECT s.permission,s.token_encrypted AS "tokenEncrypted",s.created_at AS "createdAt",s.updated_at AS "updatedAt",
@@ -83,6 +85,7 @@ export async function getStorageDocumentShare(session, documentId) {
 }
 
 export async function saveStorageDocumentShare(session, documentId, input = {}) {
+  await ensureStorageDocumentShareSchema();
   if (!UUID.test(String(documentId || ""))) throw shareError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   const permission = normalizeStorageSharePermission(input.permission);
   return transaction(async (client) => {
@@ -109,6 +112,7 @@ export async function saveStorageDocumentShare(session, documentId, input = {}) 
 }
 
 export async function revokeStorageDocumentShare(session, documentId) {
+  await ensureStorageDocumentShareSchema();
   if (!UUID.test(String(documentId || ""))) throw shareError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   const result = await query(
     `UPDATE storage_document_shares s SET revoked_at=now(),updated_at=now()
@@ -121,6 +125,7 @@ export async function revokeStorageDocumentShare(session, documentId) {
 }
 
 export async function getPublicStorageDocument(token) {
+  await ensureStorageDocumentShareSchema();
   if (!isStorageShareToken(token)) throw shareError("SHARE_NOT_FOUND", "رابط المشاركة غير صالح أو تم إيقافه.", 404);
   const result = await query(
     `SELECT d.id AS "documentId",d.title,d.type,d.content,d.created_at AS "createdAt",d.updated_at AS "updatedAt",
@@ -136,6 +141,7 @@ export async function getPublicStorageDocument(token) {
 }
 
 export async function updatePublicStorageDocument(token, input = {}) {
+  await ensureStorageDocumentShareSchema();
   if (!isStorageShareToken(token)) throw shareError("SHARE_NOT_FOUND", "رابط المشاركة غير صالح أو تم إيقافه.", 404);
   return transaction(async (client) => {
     const result = await client.query(

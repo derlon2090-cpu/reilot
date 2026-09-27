@@ -29,6 +29,8 @@ describe("storage document sharing", () => {
     expect(ownerRoute).toContain("sameOriginRequest");
     expect(publicRoute).not.toContain("requireSession");
     expect(publicRoute).toContain("sameOriginRequest");
+    expect(ownerRoute).toContain('status >= 500 ? "SHARE_FAILED"');
+    expect(publicRoute).toContain("status >= 500 ? fallback");
     expect(ownerAlias).toContain("DELETE, GET, POST");
     expect(publicAlias).toContain("GET, PATCH");
     expect(service).toContain("d.type IN ('note','custom')");
@@ -42,6 +44,17 @@ describe("storage document sharing", () => {
     expect(migration).toContain("token_encrypted jsonb NOT NULL");
     expect(migration).toContain("revoked_at timestamptz");
     expect(migration).not.toMatch(/token\s+text/i);
+  });
+
+  it("self-applies the share schema before every database access path", () => {
+    const schema = fs.readFileSync(path.join(process.cwd(), "src/server/storage-document-share-schema.js"), "utf8");
+    const service = fs.readFileSync(path.join(process.cwd(), "src/server/storage-document-shares.js"), "utf8");
+    const config = fs.readFileSync(path.join(process.cwd(), "next.config.mjs"), "utf8");
+    expect(schema).toContain('const STORAGE_SHARE_MIGRATION_NAME = "0099_storage_document_shares.sql"');
+    expect(schema).toContain("runMigrationPlan");
+    expect(schema).toContain("schemaReadyPromise = undefined");
+    expect(service.match(/await ensureStorageDocumentShareSchema\(\);/g)).toHaveLength(5);
+    expect(config.match(/\.\/drizzle\/0099_storage_document_shares\.sql/g)).toHaveLength(3);
   });
 
   it("renders permission-aware public editing and no-index metadata", () => {

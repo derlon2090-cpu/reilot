@@ -20,13 +20,16 @@ const nextConfig = {
     "/api/storage/**": [
       "./drizzle/0094_storage_center_insights.sql",
       "./drizzle/0095_storage_document_locks.sql",
-      "./drizzle/0096_storage_folder_locks.sql"
+      "./drizzle/0096_storage_folder_locks.sql",
+      "./drizzle/0099_storage_document_shares.sql"
     ],
     "/storage-api/**": [
       "./drizzle/0094_storage_center_insights.sql",
       "./drizzle/0095_storage_document_locks.sql",
-      "./drizzle/0096_storage_folder_locks.sql"
-    ]
+      "./drizzle/0096_storage_folder_locks.sql",
+      "./drizzle/0099_storage_document_shares.sql"
+    ],
+    "/api/public/storage-documents/**": ["./drizzle/0099_storage_document_shares.sql"]
   },
   async headers() {
     const developmentScriptPolicy = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
