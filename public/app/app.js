@@ -9891,11 +9891,15 @@ async function handleAction(target) {
     } catch (error) { target.disabled = false; toast(error.message || "تعذر إنشاء رابط جديد.", "danger"); }
     return;
   }
+  if (storageAction === "storage-share-delete-prompt") {
+    const id = state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
+    return openModal("حذف رابط المشاركة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيُحذف رابط المشاركة فورًا ولن يتمكن أي شخص يملكه من فتح الملف بعد ذلك. لن يُحذف الملف نفسه.</p></div>`, `<button type="button" class="btn btn-danger" data-action="storage-share-revoke">${dashboardIcon("delete")} حذف الرابط</button><button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
   if (storageAction === "storage-share-revoke") {
     const id = state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     target.disabled = true;
-    try { await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "DELETE" }); openModal("مشاركة الملف", storageShareDialog()); toast("تم إيقاف رابط المشاركة."); }
-    catch (error) { target.disabled = false; toast(error.message || "تعذر إيقاف الرابط.", "danger"); }
+    try { await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "DELETE" }); openModal("مشاركة الملف", storageShareDialog()); toast("تم حذف رابط المشاركة وإيقاف الوصول إليه."); }
+    catch (error) { target.disabled = false; toast(error.message || "تعذر حذف الرابط.", "danger"); }
     return;
   }
   if (storageAction === "shared-document-reload") { state.sharedStorageDocument = null; render(); return syncRouteData(true); }
@@ -16312,7 +16316,7 @@ function storageShareDialog(share = { active: false }) {
     <div class="storage-share-intro"><span>${dashboardIcon("link")}</span><div><strong>${active ? "الرابط الخاص نشط" : "أنشئ رابط مشاركة خاص"}</strong><small>يمكن لأي شخص يملك الرابط فتح الملف من دون تسجيل الدخول. لا ترسله إلا لمن تثق به.</small></div></div>
     <fieldset><legend>صلاحية من يفتح الرابط</legend><label><input type="radio" name="permission" value="view" ${permission === "view" ? "checked" : ""}><span>${dashboardIcon("eye")}<b>عرض فقط</b><small>يقرأ محتوى الملف ولا يستطيع تغييره.</small></span></label><label><input type="radio" name="permission" value="edit" ${permission === "edit" ? "checked" : ""}><span>${dashboardIcon("edit")}<b>السماح بالتعديل</b><small>يستطيع تعديل العنوان والمحتوى وحفظهما.</small></span></label></fieldset>
     ${active && share.url ? `<label class="storage-share-link"><span>رابط الملف</span><span><input class="input" readonly dir="ltr" value="${escapeHtml(share.url)}"><button type="button" class="btn btn-secondary" data-action="storage-share-copy" data-value="${escapeHtml(share.url)}">${dashboardIcon("copy")} نسخ</button></span></label>` : ""}
-    <div class="storage-share-actions">${active ? `<button type="button" class="btn btn-danger" data-action="storage-share-revoke">إيقاف الرابط</button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
+    <div class="storage-share-actions">${active ? `<button type="button" class="btn btn-danger" data-action="storage-share-delete-prompt">${dashboardIcon("delete")} حذف رابط المشاركة</button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
   </form>`;
 }
 

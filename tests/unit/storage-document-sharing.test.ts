@@ -27,6 +27,7 @@ describe("storage document sharing", () => {
     const service = fs.readFileSync(path.join(process.cwd(), "src/server/storage-document-shares.js"), "utf8");
     expect(ownerRoute).toContain("requireSession");
     expect(ownerRoute).toContain("sameOriginRequest");
+    expect(ownerRoute).toContain("appBaseUrl()");
     expect(publicRoute).not.toContain("requireSession");
     expect(publicRoute).toContain("sameOriginRequest");
     expect(ownerRoute).toContain('status >= 500 ? "SHARE_FAILED"');
@@ -64,7 +65,9 @@ describe("storage document sharing", () => {
     expect(app).toContain('data-submit="shared-storage-document"');
     expect(app).toContain('data-action="storage-share-item"');
     expect(app).toContain("مشاركة الملف");
-    expect(app).toContain("storage-share-revoke");
+    expect(app).toContain("storage-share-delete-prompt");
+    expect(app).toContain("حذف رابط المشاركة");
+    expect(app).toContain("لن يُحذف الملف نفسه");
     expect(page).toContain('slug[0] === "shared"');
     expect(page).toContain("index: false, follow: false");
   });

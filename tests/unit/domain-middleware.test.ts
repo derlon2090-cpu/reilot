@@ -178,6 +178,17 @@ describe("canonical domain middleware", () => {
     }
   });
 
+  it("redirects legacy public-site share links to the dashboard host and keeps them public", async () => {
+    const token = "A".repeat(43);
+    const legacy = await run(`https://renvix.app/shared/document/${token}`);
+    expect(legacy.status).toBe(307);
+    expect(legacy.headers.get("location")).toBe(`https://dash.renvix.app/shared/document/${token}`);
+
+    const canonical = await run(`https://dash.renvix.app/shared/document/${token}`);
+    expect(canonical.headers.get("x-middleware-next")).toBe("1");
+    expect(canonical.headers.get("location")).toBeNull();
+  });
+
   it("does not expose storage API aliases from another canonical host", async () => {
     for (const host of ["renvix.app", "accounts.renvix.app", "wa-admin.renvix.app"]) {
       const response = await run(`https://${host}/storage-api/trash`, "customer");

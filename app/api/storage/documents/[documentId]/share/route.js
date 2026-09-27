@@ -1,9 +1,10 @@
 import { requireSession } from "../../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../../src/server/campaign-contacts.js";
 import { getStorageDocumentShare, revokeStorageDocumentShare, saveStorageDocumentShare } from "../../../../../../src/server/storage-document-shares.js";
+import { appBaseUrl } from "../../../../../../src/server/app-url.js";
 
-function shareUrl(request, token) {
-  return new URL(`/shared/document/${encodeURIComponent(token)}`, request.url).toString();
+function shareUrl(_request, token) {
+  return new URL(`/shared/document/${encodeURIComponent(token)}`, appBaseUrl()).toString();
 }
 
 function failure(error, fallback) {
