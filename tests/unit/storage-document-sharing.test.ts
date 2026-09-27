@@ -61,6 +61,7 @@ describe("storage document sharing", () => {
   it("renders permission-aware public editing and no-index metadata", () => {
     const app = fs.readFileSync(path.join(process.cwd(), "src/app/app.js"), "utf8");
     const page = fs.readFileSync(path.join(process.cwd(), "app/[[...slug]]/page.jsx"), "utf8");
+    const layout = fs.readFileSync(path.join(process.cwd(), "app/layout.jsx"), "utf8");
     expect(app).toContain('item.permission === "edit"');
     expect(app).toContain('data-submit="shared-storage-document"');
     expect(app).toContain('data-action="storage-share-item"');
@@ -68,6 +69,7 @@ describe("storage document sharing", () => {
     expect(app).toContain("storage-share-delete-prompt");
     expect(app).toContain("حذف رابط المشاركة");
     expect(app).toContain("لن يُحذف الملف نفسه");
+    expect(layout.match(/app\.js\?v=20260927-storage-share-v3/g)).toHaveLength(2);
     expect(page).toContain('slug[0] === "shared"');
     expect(page).toContain("index: false, follow: false");
   });
