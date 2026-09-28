@@ -86,6 +86,19 @@ describe("storage center form wiring", () => {
     expect(submitHandler).toContain("folderId: data.folderId || undefined");
   });
 
+  it("searches document content, encrypted email fields, and original file names", () => {
+    const encryptedSearch = storageService.slice(storageService.indexOf("async function findEncryptedStorageDocumentMatches"), storageService.indexOf("export async function getStorageImageLibrary"));
+    expect(encryptedSearch).toContain("decryptStorageValue(row.emailEncrypted)");
+    expect(storageService).toContain("storage_documents.content->>'body'");
+    expect(storageService).toContain("storage_documents.content->>'description'");
+    expect(storageService).toContain("lower(storage_assets.original_name)");
+    expect(storageService).toContain("البريد أو البيانات الإضافية");
+    expect(encryptedSearch).not.toContain("passwordEncrypted");
+    expect(encryptedSearch).not.toContain("codeEncrypted");
+    expect(source).toContain("مطابقة في ${escapeHtml(doc.matchContext)}");
+    expect(source).toContain("ابحث بكلمة أو بريد داخل كل الملفات");
+  });
+
   it("creates containers inside files and offers an explicit click-to-move mode", () => {
     expect(actionHandler).toContain('["storage-new-container", "إضافة ملف جديد"');
     expect(actionHandler).toContain('storageAction === "storage-start-move"');

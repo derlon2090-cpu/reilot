@@ -206,6 +206,33 @@ async function signedAsset(row) {
   return { ...row, previewUrl: preview.url, previewExpiresAt: preview.expiresAt };
 }
 
+async function findEncryptedStorageDocumentMatches(session, queryText) {
+  if (!queryText) return [];
+  const result = await query(
+    `SELECT document.id,account.email_encrypted AS "emailEncrypted",
+            COALESCE(jsonb_agg(jsonb_build_object('value',field.value_encrypted))
+              FILTER (WHERE field.id IS NOT NULL),'[]'::jsonb) AS fields
+       FROM storage_documents document
+       LEFT JOIN storage_account_entries account ON account.document_id=document.id
+       LEFT JOIN storage_document_fields field ON field.document_id=document.id
+      WHERE document.tenant_id=$1 AND document.deleted_at IS NULL
+        AND (account.email_encrypted IS NOT NULL OR field.id IS NOT NULL)
+      GROUP BY document.id,account.email_encrypted
+      ORDER BY document.updated_at DESC LIMIT 5000`,
+    [session.tenantId]
+  );
+  return result.rows.filter((row) => {
+    try {
+      if (decryptStorageValue(row.emailEncrypted).toLocaleLowerCase().includes(queryText)) return true;
+      return (Array.isArray(row.fields) ? row.fields : []).some((field) =>
+        decryptStorageValue(field?.value).toLocaleLowerCase().includes(queryText)
+      );
+    } catch {
+      return false;
+    }
+  }).map((row) => row.id);
+}
+
 export async function getStorageImageLibrary(session, input = {}) {
   const imagesFolderId = await ensureImagesFolder(session);
   const search = cleanText(input.search, 100).toLowerCase();
@@ -241,6 +268,10 @@ export async function getStorageCenter(session, input = {}) {
   const unlockedFolderIds = folderId ? await requireStorageFolderAccess(session, folderId, input.folderPasswords || {}) : [];
   const imagesFolderId = await ensureImagesFolder(session);
   const filesFolderId = await ensureFilesFolder(session);
+  // Email addresses and custom values remain encrypted at rest. Search them in
+  // application memory so a useful tenant-scoped search never requires a
+  // plaintext database index or exposes secret password/code material.
+  const encryptedMatchIds = await findEncryptedStorageDocumentMatches(session, queryText);
   const [folderRows, allFolderRows, documentRows, assetRows, counts, recent, usage, trail, largestItems, oldItems, unusedImages, duplicateFiles, folderLocks] = await Promise.all([
     query(
       `WITH RECURSIVE folder_tree AS (
@@ -264,7 +295,7 @@ export async function getStorageCenter(session, input = {}) {
               +(SELECT count(*)::int FROM storage_assets a WHERE a.folder_id=f.id AND a.tenant_id=f.tenant_id AND a.deleted_at IS NULL AND a.status='ready') AS "itemCount"
          FROM storage_folders f LEFT JOIN folder_sizes ON folder_sizes.root_id=f.id LEFT JOIN asset_sizes ON asset_sizes.root_id=f.id
         WHERE f.tenant_id=$1 AND f.deleted_at IS NULL AND ($3<>'' OR f.parent_id IS NOT DISTINCT FROM $2::uuid)
-          AND ($3='' OR lower(f.name) LIKE '%'||$3||'%') AND $4 IN ('all','folder') AND ($5::date IS NULL OR f.created_at >= $5::date)
+          AND ($3='' OR lower(f.name) LIKE '%'||$3||'%' OR lower(COALESCE(f.description,'')) LIKE '%'||$3||'%') AND $4 IN ('all','folder') AND ($5::date IS NULL OR f.created_at >= $5::date)
         ORDER BY f.is_system DESC,${folderSortSql(input.sort)}`,
       [session.tenantId, folderId, queryText, typeFilter, dateFrom]
     ),
@@ -276,17 +307,23 @@ export async function getStorageCenter(session, input = {}) {
     query(
       `SELECT storage_documents.id,folder_id AS "folderId",title AS name,type,size_bytes AS "sizeBytes",is_favorite AS "isFavorite",storage_documents.created_at AS "createdAt",storage_documents.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",storage_documents.content->>'timerEndsAt' AS "timerEndsAt",storage_documents.content->>'timerDisplayMode' AS "timerDisplayMode",
               EXISTS(SELECT 1 FROM storage_document_locks document_lock WHERE document_lock.document_id=storage_documents.id AND document_lock.tenant_id=storage_documents.tenant_id) AS "locked",
-              COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location
+              COALESCE(owner.name,owner.email,'مستخدم Renvix') AS owner,COALESCE(folder.name,'مركز التخزين') AS location,
+              CASE WHEN $3='' THEN NULL
+                WHEN lower(storage_documents.title) LIKE '%'||$3||'%' THEN 'العنوان'
+                WHEN lower(COALESCE(storage_documents.content->>'body','')) LIKE '%'||$3||'%' THEN 'محتوى المستند'
+                WHEN lower(COALESCE(storage_documents.content->>'description','')) LIKE '%'||$3||'%' THEN 'الوصف'
+                WHEN storage_documents.id=ANY($6::uuid[]) THEN 'البريد أو البيانات الإضافية'
+                ELSE 'اسم حقل' END AS "matchContext"
          FROM storage_documents LEFT JOIN users owner ON owner.id=storage_documents.created_by LEFT JOIN storage_folders folder ON folder.id=storage_documents.folder_id
          WHERE storage_documents.tenant_id=$1 AND storage_documents.deleted_at IS NULL
           AND ($3<>'' OR (($2::uuid IS NULL AND storage_documents.folder_id IS NULL) OR storage_documents.folder_id=$2))
-          AND ($3='' OR lower(storage_documents.title) LIKE '%'||$3||'%' OR EXISTS(
+          AND ($3='' OR lower(storage_documents.title) LIKE '%'||$3||'%' OR lower(COALESCE(storage_documents.content->>'body','')) LIKE '%'||$3||'%' OR lower(COALESCE(storage_documents.content->>'description','')) LIKE '%'||$3||'%' OR storage_documents.id=ANY($6::uuid[]) OR EXISTS(
             SELECT 1 FROM storage_document_fields field WHERE field.document_id=storage_documents.id AND lower(field.label) LIKE '%'||$3||'%'
           ) OR EXISTS(
             SELECT 1 FROM storage_account_entries account WHERE account.document_id=storage_documents.id AND lower(account.account_name) LIKE '%'||$3||'%'
           )) AND ($4 IN ('all','document') OR storage_documents.type=$4) AND ($5::date IS NULL OR storage_documents.created_at >= $5::date)
         ORDER BY ${documentSortSql(input.sort)} LIMIT 100`,
-      [session.tenantId, folderId, queryText, typeFilter, dateFrom]
+      [session.tenantId, folderId, queryText, typeFilter, dateFrom, encryptedMatchIds]
     ),
     query(
       `SELECT storage_assets.id,folder_id AS "folderId",storage_assets.name,original_name AS "originalName",mime_type AS "mimeType",extension,size_bytes AS "sizeBytes",storage_key AS "storageKey",width,height,status,storage_assets.created_at AS "createdAt",storage_assets.updated_at AS "updatedAt",last_opened_at AS "lastOpenedAt",
@@ -295,7 +332,7 @@ export async function getStorageCenter(session, input = {}) {
          FROM storage_assets LEFT JOIN users owner ON owner.id=storage_assets.created_by LEFT JOIN storage_folders folder ON folder.id=storage_assets.folder_id
          WHERE storage_assets.tenant_id=$1 AND storage_assets.deleted_at IS NULL AND storage_assets.status='ready'
           AND ($3<>'' OR (($2::uuid IS NULL AND storage_assets.folder_id IS NULL) OR storage_assets.folder_id=$2))
-          AND ($3='' OR lower(storage_assets.name) LIKE '%'||$3||'%')
+          AND ($3='' OR lower(storage_assets.name) LIKE '%'||$3||'%' OR lower(storage_assets.original_name) LIKE '%'||$3||'%')
           AND ($4='all' OR ($4='image' AND storage_assets.mime_type LIKE 'image/%') OR ($4='file' AND storage_assets.mime_type NOT LIKE 'image/%'))
           AND ($5::date IS NULL OR storage_assets.created_at >= $5::date)
         ORDER BY ${sortSql(input.sort)} LIMIT 100`,

@@ -9521,7 +9521,11 @@ function storageEditorTextForFormatting(editor) {
   return text.trim();
 }
 
-function captureStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
+function activeStorageEditor(editor = null) {
+  return editor || document.querySelector("[data-storage-editor],[data-shared-storage-editor]");
+}
+
+function captureStorageEditorSelection(editor = activeStorageEditor()) {
   const selection = window.getSelection?.();
   if (!editor || !selection?.rangeCount) return false;
   const range = selection.getRangeAt(0);
@@ -9531,7 +9535,7 @@ function captureStorageEditorSelection(editor = document.querySelector("[data-st
   return true;
 }
 
-function restoreStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
+function restoreStorageEditorSelection(editor = activeStorageEditor()) {
   if (!editor) return false;
   editor.focus({ preventScroll: true });
   const range = storageEditorSelectionRange;
@@ -9543,7 +9547,7 @@ function restoreStorageEditorSelection(editor = document.querySelector("[data-st
   return true;
 }
 
-function refreshStorageEditorToolbarState(editor = document.querySelector("[data-storage-editor]")) {
+function refreshStorageEditorToolbarState(editor = activeStorageEditor()) {
   const toolbar = editor?.closest(".storage-editor")?.querySelector(".storage-editor-toolbar");
   if (!toolbar) return;
   toolbar.querySelectorAll('[data-action="storage-editor-command"]').forEach((button) => {
@@ -9645,7 +9649,10 @@ function placeStorageEditorCaretAfterBox(box, editor) {
 }
 
 function toggleStorageEditorTextBox() {
-  const editor = document.querySelector("[data-storage-editor]");
+  return toggleStorageEditorTextBoxFor(activeStorageEditor());
+}
+
+function toggleStorageEditorTextBoxFor(editor) {
   if (!editor || !restoreStorageEditorSelection(editor)) return { ok: false, reason: "selection" };
   const selection = window.getSelection?.();
   if (!selection?.rangeCount) return { ok: false, reason: "selection" };
@@ -9677,7 +9684,7 @@ function toggleStorageEditorTextBox() {
   return { ok: true, removed: false };
 }
 
-function normalizeStorageBoldMarkup(editor = document.querySelector("[data-storage-editor]")) {
+function normalizeStorageBoldMarkup(editor = activeStorageEditor()) {
   if (!editor) return;
   editor.querySelectorAll("b,strong").forEach((node) => node.setAttribute("data-storage-bold", "true"));
   editor.querySelectorAll("span[style]").forEach((node) => {
@@ -9751,8 +9758,7 @@ function applyStorageEditorBold(editor) {
   return true;
 }
 
-function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection") {
-  const editor = document.querySelector("[data-storage-editor]");
+function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection", editor = activeStorageEditor()) {
   if (!editor) return false;
   restoreStorageEditorSelection(editor);
   const applied = command === "bold"
@@ -10106,13 +10112,15 @@ async function handleAction(target) {
     return;
   }
   if (storageAction === "storage-editor-command") {
+    const editor = target.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]");
     const command = target.dataset.command;
     const inputTypes = { bold: "formatBold", italic: "formatItalic", underline: "formatUnderline", insertUnorderedList: "insertUnorderedList", undo: "historyUndo", redo: "historyRedo" };
-    applyStorageEditorCommand(command, target.dataset.value || null, inputTypes[command] || "formatBlock");
+    applyStorageEditorCommand(command, target.dataset.value || null, inputTypes[command] || "formatBlock", editor);
     return;
   }
   if (storageAction === "storage-editor-color") {
-    applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor");
+    const editor = target.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]");
+    applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor", editor);
     return;
   }
   if (storageAction === "storage-editor-box") {
@@ -10169,10 +10177,10 @@ async function handleAction(target) {
     return;
   }
   if (storageAction === "storage-editor-link") {
-    const editor = document.querySelector("[data-storage-editor]");
+    const editor = target.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]");
     captureStorageEditorSelection(editor);
     const href = window.prompt("أدخل رابطًا يبدأ بـ https://");
-    if (href && /^https:\/\//i.test(href)) applyStorageEditorCommand("createLink", href, "createLink");
+    if (href && /^https:\/\//i.test(href)) applyStorageEditorCommand("createLink", href, "createLink", editor);
     return;
   }
   if (storageAction === "storage-copy-field") {
@@ -16316,8 +16324,24 @@ function storageShareDialog(share = { active: false }) {
     <div class="storage-share-intro"><span>${dashboardIcon("link")}</span><div><strong>${active ? "الرابط الخاص نشط" : "أنشئ رابط مشاركة خاص"}</strong><small>يمكن لأي شخص يملك الرابط فتح الملف من دون تسجيل الدخول. لا ترسله إلا لمن تثق به.</small></div></div>
     <fieldset><legend>صلاحية من يفتح الرابط</legend><label><input type="radio" name="permission" value="view" ${permission === "view" ? "checked" : ""}><span>${dashboardIcon("eye")}<b>عرض فقط</b><small>يقرأ محتوى الملف ولا يستطيع تغييره.</small></span></label><label><input type="radio" name="permission" value="edit" ${permission === "edit" ? "checked" : ""}><span>${dashboardIcon("edit")}<b>السماح بالتعديل</b><small>يستطيع تعديل العنوان والمحتوى وحفظهما.</small></span></label></fieldset>
     ${active && share.url ? `<label class="storage-share-link"><span>رابط الملف</span><span><input class="input" readonly dir="ltr" value="${escapeHtml(share.url)}"><button type="button" class="btn btn-secondary" data-action="storage-share-copy" data-value="${escapeHtml(share.url)}">${dashboardIcon("copy")} نسخ</button></span></label>` : ""}
-    <div class="storage-share-actions">${active ? `<button type="button" class="btn btn-danger" data-action="storage-share-delete-prompt">${dashboardIcon("delete")} حذف رابط المشاركة</button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
+    <div class="storage-share-actions">${active ? `<button type="button" class="btn storage-share-delete" data-action="storage-share-delete-prompt">${dashboardIcon("delete")}<span>إزالة الرابط</span></button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
   </form>`;
+}
+
+function sharedStorageEditorToolbar() {
+  const colors = [["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]];
+  return `<div class="storage-editor-toolbar shared-document-toolbar" role="toolbar" aria-label="أدوات تنسيق المستند">
+    <button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع" aria-label="تراجع">↶</button>
+    <button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة" aria-label="إعادة">↷</button>
+    <button type="button" data-action="storage-editor-command" data-command="bold" title="عريض" aria-label="عريض"><b>B</b></button>
+    <button type="button" data-action="storage-editor-command" data-command="italic" title="مائل" aria-label="مائل"><i>I</i></button>
+    <button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط" aria-label="تحته خط"><u>U</u></button>
+    <div class="storage-editor-heading-tools" aria-label="حجم النص"><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="p">نص</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2">H2</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h1">H1</button></div>
+    <button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة" aria-label="قائمة">${dashboardIcon("listView")}</button>
+    <button type="button" data-action="storage-editor-link" title="إضافة رابط" aria-label="إضافة رابط">${dashboardIcon("link")}</button>
+    <button type="button" class="storage-editor-box-tool" data-action="storage-editor-box" title="مربع حول النص" aria-pressed="false"><span aria-hidden="true">▢</span><b>مربع</b></button>
+    <div class="storage-editor-colors" aria-label="ألوان النص">${colors.map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div>
+  </div>`;
 }
 
 function sharedStorageDocumentPage() {
@@ -16326,7 +16350,7 @@ function sharedStorageDocumentPage() {
   if (data?.error || !data?.document) return `<main class="shared-document-shell"><header>${stackedLogo()}</header><section class="shared-document-error">${dashboardIcon("warning")}<h1>تعذر فتح الملف</h1><p>${escapeHtml(data?.error || "الرابط غير صالح أو أوقفه مالك الملف.")}</p><button class="btn btn-secondary" data-action="shared-document-reload">إعادة المحاولة</button></section></main>`;
   const item = data.document;
   const editable = item.permission === "edit";
-  return `<main class="shared-document-shell"><header><div>${stackedLogo()}<span>مساحة مشاركة آمنة</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "مسموح بالتعديل" : "عرض فقط"}</span></header><section class="shared-document-card"><div class="shared-document-owner"><span>${dashboardIcon("security")}</span><div><small>ملف مشترك بواسطة</small><strong>${escapeHtml(item.owner || "مستخدم Renvix")}</strong></div></div><form data-submit="shared-storage-document" data-token="${escapeHtml(state.sharedStorageToken)}" data-version="${escapeHtml(item.version)}"><label><span>عنوان الملف</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(item.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(item.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-rich-content shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-multiline="true"' : ""} data-shared-storage-editor>${item.body || "<p>لا يوجد محتوى.</p>"}</div>${editable ? `<footer><span>${dashboardIcon("info")} تُحفظ التغييرات عند الضغط على الزر.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس في محركات البحث</span><a href="/" data-link="/">Renvix</a></footer></main>`;
+  return `<main class="shared-document-shell"><header><div>${stackedLogo()}<span>مساحة مشاركة آمنة</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "مسموح بالتعديل" : "عرض فقط"}</span></header><section class="shared-document-card"><div class="shared-document-owner"><span>${dashboardIcon("security")}</span><div><small>ملف مشترك بواسطة</small><strong>${escapeHtml(item.owner || "مستخدم Renvix")}</strong></div><em>${dashboardIcon("success")} اتصال آمن</em></div><form data-submit="shared-storage-document" data-token="${escapeHtml(state.sharedStorageToken)}" data-version="${escapeHtml(item.version)}"><label><span>عنوان الملف</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(item.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(item.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-editor shared-document-editor-wrap">${editable ? sharedStorageEditorToolbar() : ""}<div class="storage-rich-content storage-editor-body shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-label="محتوى الملف المشترك" aria-multiline="true"' : ""} data-shared-storage-editor>${item.body || "<p>لا يوجد محتوى.</p>"}</div></div>${editable ? `<footer><span>${dashboardIcon("info")} راجع التغييرات ثم احفظها؛ سيظهر التأكيد فور اكتمال الحفظ.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس في محركات البحث</span><a href="/" data-link="/">Renvix</a></footer></main>`;
 }
 
 function storageCenterPage() {
@@ -16351,7 +16375,7 @@ function storageCenterPage() {
   const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon(folder.locked ? "security" : "folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}${folder.locked ? " · محمي بكلمة مرور" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => {
     const timer = storageCountdownParts(doc.timerEndsAt, doc.timerDisplayMode);
-    return `<article class="storage-file-card storage-document-card${doc.locked ? " is-password-protected" : ""}${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.locked ? "security" : doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div class="storage-document-card-copy"><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${doc.locked ? `<em class="storage-document-lock-badge">${dashboardIcon("security")} محمي بكلمة مرور</em>` : ""}${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
+    return `<article class="storage-file-card storage-document-card${doc.locked ? " is-password-protected" : ""}${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.locked ? "security" : doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div class="storage-document-card-copy"><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small>${state.storageSearch && doc.matchContext ? `<em class="storage-search-match">${dashboardIcon("search")} مطابقة في ${escapeHtml(doc.matchContext)}</em>` : ""}</div>${doc.locked ? `<em class="storage-document-lock-badge">${dashboardIcon("security")} محمي بكلمة مرور</em>` : ""}${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} فتح النتيجة</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
   }).join("");
   const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card" draggable="true" data-storage-draggable data-id="${escapeHtml(asset.id)}" data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType)}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الصورة إلى مكان آخر لنقلها"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}" draggable="true" data-storage-draggable data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType || "application/octet-stream")}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الملف إلى مكان آخر لنقله"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
   const uploadPanel = state.storageUploads.length ? `<section class="card storage-upload-panel"><header><div><h2>رفع الملفات</h2><small>${state.storageUploads.filter((item) => item.status === "done" || item.status === "duplicate").length.toLocaleString("ar-SA")} من ${state.storageUploads.length.toLocaleString("ar-SA")} ملفات</small></div>${state.storageUploading ? "" : `<button data-action="storage-upload-dismiss">إغلاق</button>`}</header><div>${state.storageUploads.map((task) => `<article data-storage-upload-id="${task.id}" class="is-${task.status}"><span>${dashboardIcon(task.file?.type?.startsWith("image/") ? "image" : "document")}</span><div><strong>${escapeHtml(task.name)}</strong><small>${task.status === "duplicate" ? "هذا الملف موجود بالفعل — استُخدمت النسخة الحالية" : task.status === "failed" ? escapeHtml(task.error || "فشل الرفع") : task.status === "cancelled" ? "أُلغي الرفع" : task.status === "hashing" ? "جارٍ اكتشاف الملفات المكررة..." : task.status === "done" ? "اكتمل الرفع" : "جارٍ الرفع"}</small><em><i style="width:${task.progress}%"></i></em></div><b>${task.progress}%</b>${["uploading","hashing","queued"].includes(task.status) ? `<button data-action="storage-upload-cancel" data-id="${task.id}" aria-label="إلغاء">×</button>` : ""}</article>`).join("")}</div></section>` : "";
@@ -16368,7 +16392,7 @@ function storageCenterPage() {
       <article class="storage-space-stat" data-action="storage-usage-details" role="button" tabindex="0"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين</small><strong><b dir="ltr">${formatStorageBytes(usage.usedBytes)}</b> <i>من <span dir="ltr">${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</span></i></strong><div class="storage-stat-progress"><b style="width:${Number(usage.progressPercent || 0)}%"></b></div><em>${usagePercent.toLocaleString("ar-SA")}% مستخدم · ${availableBytes === null ? "مساحة غير محدودة" : `<span dir="ltr">${formatStorageBytes(availableBytes)}</span> متاحة`}</em></div><button data-action="${usagePercent >= 80 ? "storage-cleanup-review" : "storage-usage-details"}">${usagePercent >= 80 ? "إخلاء مساحة" : "إدارة المساحة"}</button></article>
     </section>
     ${uploadPanel}
-    <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في الملفات والمجلدات والمستندات والحسابات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
+    <section class="card storage-browser"><header><div><h2>${state.storageSearch ? `نتائج البحث عن «${escapeHtml(state.storageSearch)}»` : isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${state.storageSearch ? `${(folders.length + documents.length + assets.length).toLocaleString("ar-SA")} نتيجة في العناوين والمحتوى والبريد وأسماء الملفات` : isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث بكلمة أو بريد داخل كل الملفات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
       ${!empty ? `<p class="storage-drag-hint">${dashboardIcon("folder")} اسحب أي مستند أو ملف وأفلته فوق المجلد المطلوب لنقله فورًا</p>` : ""}
       ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : currentFolder ? "أضف أول ملف داخل هذه الحاوية" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : "أنشئ حاوية باسم واضح، ثم افتحها وأضف العناصر بداخلها دون رفع ملف من جهازك."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : currentFolder ? "storage-new-container" : "storage-new-folder"}">${isImages ? "رفع صور" : currentFolder ? "إضافة ملف جديد" : "إنشاء مجلد"}</button>${currentFolder && !isImages && !isFiles ? `<button class="btn btn-secondary" data-action="storage-create-document">إضافة محتوى</button>` : ""}${isFiles ? `<button class="btn btn-secondary" data-action="storage-upload-files-trigger">رفع ملف من الجهاز</button>` : ""}</div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
     </section>
@@ -16783,17 +16807,17 @@ function bindQrImageState() {
 document.addEventListener("mousedown", (event) => {
   const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar [data-action="storage-editor-box"]');
   if (!control) return;
-  captureStorageEditorSelection();
+  captureStorageEditorSelection(control.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]"));
   event.preventDefault();
 });
 
 document.addEventListener("pointerdown", (event) => {
   const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar [data-action="storage-editor-box"]');
-  if (control) captureStorageEditorSelection();
+  if (control) captureStorageEditorSelection(control.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]"));
 });
 
 document.addEventListener("selectionchange", () => {
-  const editor = document.querySelector("[data-storage-editor]");
+  const editor = activeStorageEditor();
   if (captureStorageEditorSelection(editor)) refreshStorageEditorToolbarState(editor);
 });
 
