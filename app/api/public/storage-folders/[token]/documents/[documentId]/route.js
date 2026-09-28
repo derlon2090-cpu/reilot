@@ -9,6 +9,11 @@ function failure(error, fallback) {
   );
 }
 
+function visitorKey(request) {
+  const ip = String(request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown").split(",")[0].trim();
+  return `${ip}|${request.headers.get("user-agent") || "unknown"}`;
+}
+
 export async function GET(_request, { params }) {
   try {
     const { token, documentId } = await params;
@@ -16,10 +21,19 @@ export async function GET(_request, { params }) {
   } catch (error) { return failure(error, "تعذر فتح المستند المشترك."); }
 }
 
+export async function POST(request, { params }) {
+  if (!sameOriginRequest(request)) return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
+  try {
+    const { token, documentId } = await params;
+    const input = await request.json();
+    return Response.json({ ok: true, document: await getPublicStorageFolderDocument(token, documentId, { password: input.password, visitor: visitorKey(request) }) }, { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } });
+  } catch (error) { return failure(error, "تعذر فتح المستند المشترك."); }
+}
+
 export async function PATCH(request, { params }) {
   if (!sameOriginRequest(request)) return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
   try {
     const { token, documentId } = await params;
-    return Response.json({ ok: true, document: await updatePublicStorageFolderDocument(token, documentId, await request.json()) }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ok: true, document: await updatePublicStorageFolderDocument(token, documentId, await request.json(), { visitor: visitorKey(request) }) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return failure(error, "تعذر حفظ المستند المشترك."); }
 }

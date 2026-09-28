@@ -17,24 +17,31 @@ describe("storage folder sharing", () => {
   it("self-heals the folder share schema and includes it in traced deployments", () => {
     const schema = read("src/server/storage-folder-share-schema.js");
     const config = read("next.config.mjs");
-    expect(schema).toContain('const STORAGE_FOLDER_SHARE_MIGRATION_NAME = "0100_storage_folder_shares.sql"');
+    const attempts = read("drizzle/0101_storage_folder_share_unlock_attempts.sql");
+    expect(schema).toContain('"0100_storage_folder_shares.sql", "0101_storage_folder_share_unlock_attempts.sql"');
     expect(schema).toContain("runMigrationPlan");
     expect(schema).toContain("schemaReadyPromise = undefined");
     expect(config.match(/\.\/drizzle\/0100_storage_folder_shares\.sql/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(config.match(/\.\/drizzle\/0101_storage_folder_share_unlock_attempts\.sql/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(attempts).toContain("visitor_hash text NOT NULL");
+    expect(attempts).toContain("ON DELETE CASCADE");
   });
 
-  it("excludes secrets and locked content from the public tree", () => {
+  it("excludes secrets while requiring passwords for locked documents", () => {
     const service = read("src/server/storage-folder-shares.js");
     expect(service).toContain("document.type IN ('note','custom')");
     expect(service).toContain("storage_document_locks");
     expect(service).toContain("storage_folder_locks");
     expect(service).not.toContain("password_encrypted");
     expect(service).not.toContain("code_encrypted");
+    expect(service).toContain("requirePublicDocumentPassword");
+    expect(service).toContain("DOCUMENT_LOCK_RATE_LIMIT");
+    expect(service).toContain('AS locked');
     expect(service).toContain("FOR UPDATE OF share,folder");
     expect(service).toContain("DOCUMENT_VERSION_CONFLICT");
   });
 
-  it("provides authenticated owner controls and passwordless public aliases", () => {
+  it("provides authenticated owner controls and protected public aliases", () => {
     const owner = read("app/api/storage/folders/[folderId]/share/route.js");
     const publicList = read("app/api/public/storage-folders/[token]/route.js");
     const publicDocument = read("app/api/public/storage-folders/[token]/documents/[documentId]/route.js");
@@ -47,7 +54,8 @@ describe("storage folder sharing", () => {
     expect(publicDocument).toContain("sameOriginRequest");
     expect(publicDocument).toContain("updatePublicStorageFolderDocument");
     expect(ownerAlias).toContain("DELETE, GET, POST");
-    expect(publicAlias).toContain("GET, PATCH");
+    expect(publicDocument).toContain("export async function POST");
+    expect(publicAlias).toContain("GET, PATCH, POST");
   });
 
   it("renders a searchable folder browser with on-demand document editing", () => {
@@ -59,6 +67,8 @@ describe("storage folder sharing", () => {
     expect(app).toContain('data-action="shared-folder-search"');
     expect(app).toContain('data-submit="shared-storage-folder-document"');
     expect(app).toContain("openSharedFolderDocument");
+    expect(app).toContain('data-submit="shared-storage-folder-unlock"');
+    expect(app).toContain("sharedStorageFolderPasswords");
     expect(styles).toContain(".shared-folder-browser");
     expect(styles).toContain(".shared-folder-privacy-note");
     expect(middleware).toContain("sharedFolderPage");

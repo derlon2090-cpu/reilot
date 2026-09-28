@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="modulepreload" href="/app/app.js?v=20260928-storage-folder-share-v5" crossOrigin="anonymous" />
+        <link rel="modulepreload" href="/app/app.js?v=20260928-storage-folder-lock-v6" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
         <link rel="stylesheet" href="/app/styles/globals.css?v=20260925-campaign-sharing-v1" />
@@ -62,7 +62,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260928-storage-folder-share-v5" strategy="afterInteractive" />
+        <Script type="module" src="/app/app.js?v=20260928-storage-folder-lock-v6" strategy="afterInteractive" />
       </body>
     </html>
   );

@@ -881,6 +881,7 @@ state.sharedStorageFolder = null;
 state.sharedStorageFolderToken = "";
 state.sharedStorageFolderDocument = null;
 state.sharedStorageFolderDocumentId = "";
+state.sharedStorageFolderPasswords = new Map();
 state.storageUploading = false;
 state.storageUploads = [];
 state.storageUploadRequests = new Map();
@@ -1667,6 +1668,7 @@ function syncRouteData(force = false) {
     state.sharedStorageFolder = null;
     state.sharedStorageFolderDocument = null;
     state.sharedStorageFolderDocumentId = "";
+    state.sharedStorageFolderPasswords.clear();
     queue("sharedStorageFolder", `/storage-api/public/storage-folders/${encodeURIComponent(sharedStorageFolderToken)}`, "sharedStorageFolder");
   }
 
@@ -9892,17 +9894,29 @@ function storageShareEndpoint(kind, id) {
   return `/api/storage/${resource}/${encodeURIComponent(id)}/share`;
 }
 
-async function openSharedFolderDocument(documentId) {
+async function openSharedFolderDocument(documentId, { password = "" } = {}) {
   const id = String(documentId || "").trim();
   if (!id || !state.sharedStorageFolderToken) return;
+  const listed = state.sharedStorageFolder?.folder?.documents?.find((item) => item.id === id);
+  const savedPassword = password || state.sharedStorageFolderPasswords.get(id) || "";
+  if (listed?.locked && !savedPassword) {
+    state.sharedStorageFolderDocumentId = id;
+    state.sharedStorageFolderDocument = { id, locked: true, title: listed.title };
+    return render();
+  }
   state.sharedStorageFolderDocumentId = id;
   state.sharedStorageFolderDocument = { id, loading: true };
   render();
   try {
-    const payload = await fetchJson(`/storage-api/public/storage-folders/${encodeURIComponent(state.sharedStorageFolderToken)}/documents/${encodeURIComponent(id)}`);
+    const endpoint = `/storage-api/public/storage-folders/${encodeURIComponent(state.sharedStorageFolderToken)}/documents/${encodeURIComponent(id)}`;
+    const payload = await fetchJson(endpoint, savedPassword ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: savedPassword }) } : undefined);
+    if (savedPassword) state.sharedStorageFolderPasswords.set(id, savedPassword);
     if (state.sharedStorageFolderDocumentId === id) state.sharedStorageFolderDocument = payload.document;
   } catch (error) {
-    if (state.sharedStorageFolderDocumentId === id) state.sharedStorageFolderDocument = { id, error: error.message || "تعذر فتح المستند." };
+    if (error.code === "DOCUMENT_LOCKED") state.sharedStorageFolderPasswords.delete(id);
+    if (state.sharedStorageFolderDocumentId === id) state.sharedStorageFolderDocument = error.code === "DOCUMENT_LOCKED"
+      ? { id, locked: true, title: listed?.title || "مستند محمي", error: password ? error.message : "" }
+      : { id, error: error.message || "تعذر فتح المستند." };
   }
   render();
 }
@@ -13817,14 +13831,29 @@ async function handleSubmit(form, event) {
     const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
     try {
       const documentId = form.dataset.documentId || "";
-      const payload = await fetchJson(`/storage-api/public/storage-folders/${encodeURIComponent(form.dataset.token || "")}/documents/${encodeURIComponent(documentId)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version }) });
+      const payload = await fetchJson(`/storage-api/public/storage-folders/${encodeURIComponent(form.dataset.token || "")}/documents/${encodeURIComponent(documentId)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version, password: state.sharedStorageFolderPasswords.get(documentId) || "" }) });
       state.sharedStorageFolderDocument = payload.document;
       if (state.sharedStorageFolder?.folder?.documents) {
         const listed = state.sharedStorageFolder.folder.documents.find((item) => item.id === payload.document.id);
         if (listed) Object.assign(listed, { title: payload.document.title, updatedAt: payload.document.updatedAt });
       }
       render(); toast("تم حفظ تعديلات المستند داخل المجلد.");
-    } catch (error) { toast(error.message || "تعذر حفظ التغييرات.", "danger"); setSubmitBusy(button, false); }
+    } catch (error) {
+      if (error.code === "DOCUMENT_LOCKED") {
+        const documentId = form.dataset.documentId || "";
+        state.sharedStorageFolderPasswords.delete(documentId);
+        state.sharedStorageFolderDocument = { id: documentId, locked: true, title: data.title, error: error.message };
+        render();
+      } else setSubmitBusy(button, false);
+      toast(error.message || "تعذر حفظ التغييرات.", "danger");
+    }
+    return;
+  }
+  if (type === "shared-storage-folder-unlock") {
+    const documentId = form.dataset.documentId || "";
+    if (!documentId || !data.password) return;
+    const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ التحقق...");
+    await openSharedFolderDocument(documentId, { password: data.password });
     return;
   }
   if (type === "storage-document-timer") {
@@ -16429,12 +16458,13 @@ function sharedStorageFolderPage() {
   };
   const editable = folder.permission === "edit";
   const selected = state.sharedStorageFolderDocument;
-  const list = documents.map((item) => `<button type="button" class="${item.id === state.sharedStorageFolderDocumentId ? "active" : ""}" data-action="shared-folder-open-document" data-id="${escapeHtml(item.id)}" data-shared-folder-document data-search-text="${escapeHtml(`${item.title} ${folderPath(item.folderId)}`.toLocaleLowerCase())}"><span>${dashboardIcon("document")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(folderPath(item.folderId))}</small></div>${dashboardIcon("chevron")}</button>`).join("");
+  const list = documents.map((item) => `<button type="button" class="${item.id === state.sharedStorageFolderDocumentId ? "active" : ""}${item.locked ? " is-locked" : ""}" data-action="shared-folder-open-document" data-id="${escapeHtml(item.id)}" data-shared-folder-document data-search-text="${escapeHtml(`${item.title} ${folderPath(item.folderId)}`.toLocaleLowerCase())}"><span>${dashboardIcon(item.locked ? "security" : "document")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(folderPath(item.folderId))}${item.locked ? " · محمي بكلمة مرور" : ""}</small></div>${dashboardIcon("chevron")}</button>`).join("");
   let workspace = `<section class="shared-folder-welcome">${dashboardIcon("folder")}<h2>${documents.length ? "اختر مستندًا لفتحه" : "لا توجد مستندات قابلة للمشاركة"}</h2><p>${documents.length ? "تصفّح المستندات من القائمة؛ ستبقى بنية المجلد واضحة أثناء القراءة والتعديل." : "قد يحتوي المجلد على بيانات سرية أو عناصر محمية استُبعدت تلقائيًا."}</p></section>`;
   if (selected?.loading) workspace = `<section class="shared-folder-document-loading"><i></i><i></i><i></i></section>`;
+  else if (selected?.locked) workspace = `<section class="shared-folder-welcome shared-folder-unlock">${dashboardIcon("security")}<h2>${escapeHtml(selected.title || "مستند محمي")}</h2><p>هذا المستند ظاهر ضمن المجلد المشترك، لكن محتواه محمي بكلمة المرور التي وضعها المالك.</p><form data-submit="shared-storage-folder-unlock" data-document-id="${escapeHtml(selected.id)}"><label class="field"><span>كلمة مرور المستند</span><input class="input" name="password" type="password" required autocomplete="off" autofocus placeholder="أدخل كلمة المرور للمتابعة"></label>${selected.error ? `<small class="shared-folder-unlock-error">${escapeHtml(selected.error)}</small>` : ""}<button class="btn btn-primary" type="submit">${dashboardIcon("unlock")} فتح المستند</button></form></section>`;
   else if (selected?.error) workspace = `<section class="shared-folder-welcome is-error">${dashboardIcon("warning")}<h2>تعذر فتح المستند</h2><p>${escapeHtml(selected.error)}</p><button class="btn btn-secondary" data-action="shared-folder-open-document" data-id="${escapeHtml(state.sharedStorageFolderDocumentId)}">إعادة المحاولة</button></section>`;
   else if (selected?.id) workspace = `<form class="shared-folder-document-form" data-submit="shared-storage-folder-document" data-token="${escapeHtml(state.sharedStorageFolderToken)}" data-document-id="${escapeHtml(selected.id)}" data-version="${escapeHtml(selected.version)}"><label><span>عنوان المستند</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(selected.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(selected.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-editor shared-document-editor-wrap">${editable ? sharedStorageEditorToolbar() : ""}<div class="storage-rich-content storage-editor-body shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-label="محتوى المستند المشترك" aria-multiline="true"' : ""} data-shared-storage-editor>${selected.body || "<p>لا يوجد محتوى.</p>"}</div></div>${editable ? `<footer><span>${dashboardIcon("info")} صلاحية التعديل تشمل المستندات النصية الظاهرة في هذا المجلد.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form>`;
-  return `<main class="shared-document-shell shared-folder-shell"><header><div>${stackedLogo()}<span>مجلد مشترك آمن</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "عرض وتعديل" : "عرض فقط"}</span></header><section class="shared-folder-hero"><span>${dashboardIcon("folder")}</span><div><small>مجلد مشترك بواسطة ${escapeHtml(folder.owner || "مستخدم Renvix")}</small><h1>${escapeHtml(folder.name)}</h1><p>${escapeHtml(folder.description || "مجموعة مستندات منظمة داخل مساحة مشاركة خاصة.")}</p></div><strong>${documents.length.toLocaleString("ar-SA")} مستند</strong></section>${folder.hiddenItems ? `<aside class="shared-folder-privacy-note">${dashboardIcon("security")} استُبعد ${Number(folder.hiddenItems).toLocaleString("ar-SA")} عنصر سري أو محمي تلقائيًا من الرابط العام.</aside>` : ""}<section class="shared-folder-browser"><aside><header><div><strong>محتويات المجلد</strong><small>المجلدات الفرعية مضمّنة</small></div></header><label>${dashboardIcon("search")}<input data-action="shared-folder-search" placeholder="ابحث داخل القائمة..."></label><nav>${list || `<p>لا توجد مستندات نصية متاحة.</p>`}</nav><p data-shared-folder-search-empty hidden>لا توجد نتيجة مطابقة.</p></aside><article>${workspace}</article></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس، والعناصر السرية لا تظهر فيه</span><a href="/" data-link="/">Renvix</a></footer></main>`;
+  return `<main class="shared-document-shell shared-folder-shell"><header><div>${stackedLogo()}<span>مجلد مشترك آمن</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "عرض وتعديل" : "عرض فقط"}</span></header><section class="shared-folder-hero"><span>${dashboardIcon("folder")}</span><div><small>مجلد مشترك بواسطة ${escapeHtml(folder.owner || "مستخدم Renvix")}</small><h1>${escapeHtml(folder.name)}</h1><p>${escapeHtml(folder.description || "مجموعة مستندات منظمة داخل مساحة مشاركة خاصة.")}</p></div><strong>${documents.length.toLocaleString("ar-SA")} مستند</strong></section>${folder.hiddenItems ? `<aside class="shared-folder-privacy-note">${dashboardIcon("security")} استُبعد ${Number(folder.hiddenItems).toLocaleString("ar-SA")} عنصر غير قابل للمشاركة تلقائيًا، بينما تظهر المستندات المحمية بقفل وتتطلب كلمة مرورها.</aside>` : ""}<section class="shared-folder-browser"><aside><header><div><strong>محتويات المجلد</strong><small>المجلدات الفرعية مضمّنة</small></div></header><label>${dashboardIcon("search")}<input data-action="shared-folder-search" placeholder="ابحث داخل القائمة..."></label><nav>${list || `<p>لا توجد مستندات نصية متاحة.</p>`}</nav><p data-shared-folder-search-empty hidden>لا توجد نتيجة مطابقة.</p></aside><article>${workspace}</article></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس، والمستندات المحمية لا تُفتح إلا بكلمة مرورها</span><a href="/" data-link="/">Renvix</a></footer></main>`;
 }
 
 function storageCenterPage() {

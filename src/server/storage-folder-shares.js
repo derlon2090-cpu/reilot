@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { getTenantStorageLimitState } from "./tenant-storage.js";
 import { sanitizeStorageHtml, storagePayloadSize } from "./storage-center.js";
+import { verifyPassword } from "./password.js";
 import {
   decryptStorageShareToken,
   encryptStorageShareToken,
@@ -19,6 +20,34 @@ function folderShareError(code, message, status = 400) {
 
 function cleanTitle(value) {
   return String(value || "").trim().replace(/[\u0000-\u001f]/g, " ").slice(0, 180);
+}
+
+function publicVisitorHash(token, visitor) {
+  return crypto.createHash("sha256").update(`${hashStorageShareToken(token)}:${String(visitor || "unknown").slice(0, 1024)}`).digest("hex");
+}
+
+async function requirePublicDocumentPassword(token, share, row, password, visitor, runner = { query }) {
+  if (!row.passwordHash) return false;
+  const visitorHash = publicVisitorHash(token, visitor);
+  const recent = await runner.query(
+    `SELECT count(*)::int AS count FROM storage_folder_share_unlock_attempts
+      WHERE share_id=$1 AND document_id=$2 AND visitor_hash=$3 AND attempted_at>now()-interval '15 minutes'`,
+    [share.shareId, row.documentId, visitorHash]
+  );
+  if (Number(recent.rows[0]?.count || 0) >= 8) throw folderShareError("DOCUMENT_LOCK_RATE_LIMIT", "محاولات كثيرة. أعد المحاولة بعد 15 دقيقة.", 429);
+  if (!await verifyPassword(String(password || ""), row.passwordHash)) {
+    if (password) await runner.query(
+      `INSERT INTO storage_folder_share_unlock_attempts(share_id,document_id,visitor_hash) VALUES($1,$2,$3)`,
+      [share.shareId, row.documentId, visitorHash]
+    );
+    throw folderShareError("DOCUMENT_LOCKED", password ? "كلمة مرور المستند غير صحيحة." : "هذا المستند محمي بكلمة مرور.", 423);
+  }
+  await runner.query(
+    "DELETE FROM storage_folder_share_unlock_attempts WHERE share_id=$1 AND document_id=$2 AND visitor_hash=$3",
+    [share.shareId, row.documentId, visitorHash]
+  );
+  void query("DELETE FROM storage_folder_share_unlock_attempts WHERE attempted_at<now()-interval '1 day'").catch(() => {});
+  return true;
 }
 
 function publicDocument(row) {
@@ -108,7 +137,7 @@ export async function revokeStorageFolderShare(session, folderId) {
 async function publicFolderShare(token, runner = { query }, { lock = false } = {}) {
   if (!isStorageShareToken(token)) throw folderShareError("SHARE_NOT_FOUND", "رابط المشاركة غير صالح أو تم إيقافه.", 404);
   const result = await runner.query(
-    `SELECT share.folder_id AS "folderId",share.tenant_id AS "tenantId",share.permission,
+    `SELECT share.id AS "shareId",share.folder_id AS "folderId",share.tenant_id AS "tenantId",share.permission,
             folder.name,folder.description,folder.created_at AS "createdAt",folder.updated_at AS "updatedAt",
             COALESCE(NULLIF(owner.name,''),'مستخدم Renvix') AS owner
        FROM storage_folder_shares share JOIN storage_folders folder ON folder.id=share.folder_id
@@ -147,11 +176,11 @@ export async function getPublicStorageFolder(token) {
             AND NOT EXISTS(SELECT 1 FROM storage_folder_locks lock WHERE lock.folder_id=child.id AND lock.tenant_id=$2)
        )
        SELECT document.id,document.folder_id AS "folderId",document.title,document.type,
-              document.created_at AS "createdAt",document.updated_at AS "updatedAt"
+              document.created_at AS "createdAt",document.updated_at AS "updatedAt",
+              EXISTS(SELECT 1 FROM storage_document_locks lock WHERE lock.document_id=document.id AND lock.tenant_id=$2) AS locked
          FROM storage_documents document
         WHERE document.tenant_id=$2 AND document.folder_id IN (SELECT id FROM tree) AND document.deleted_at IS NULL
           AND document.type IN ('note','custom')
-          AND NOT EXISTS(SELECT 1 FROM storage_document_locks lock WHERE lock.document_id=document.id AND lock.tenant_id=$2)
         ORDER BY document.updated_at DESC LIMIT 500`,
       [share.folderId, share.tenantId]
     ),
@@ -163,7 +192,7 @@ export async function getPublicStorageFolder(token) {
        )
        SELECT
          (SELECT count(*)::int FROM storage_documents document WHERE document.tenant_id=$2 AND document.folder_id IN (SELECT id FROM tree)
-           AND document.deleted_at IS NULL AND (document.type NOT IN ('note','custom') OR EXISTS(SELECT 1 FROM storage_document_locks lock WHERE lock.document_id=document.id AND lock.tenant_id=$2)))
+           AND document.deleted_at IS NULL AND document.type NOT IN ('note','custom'))
          +(SELECT count(*)::int FROM storage_assets asset WHERE asset.tenant_id=$2 AND asset.folder_id IN (SELECT id FROM tree) AND asset.deleted_at IS NULL) AS count`,
       [share.folderId, share.tenantId]
     )
@@ -183,7 +212,7 @@ export async function getPublicStorageFolder(token) {
   };
 }
 
-async function publicFolderDocument(token, documentId, runner = { query }, { lock = false } = {}) {
+async function publicFolderDocument(token, documentId, runner = { query }, { lock = false, password = "", visitor = "" } = {}) {
   if (!UUID.test(String(documentId || ""))) throw folderShareError("DOCUMENT_NOT_FOUND", "المستند غير موجود داخل هذا المجلد.", 404);
   const share = await publicFolderShare(token, runner, { lock });
   const result = await runner.query(
@@ -196,29 +225,31 @@ async function publicFolderDocument(token, documentId, runner = { query }, { loc
      )
      SELECT document.id AS "documentId",document.folder_id AS "folderId",document.title,document.type,document.content,
             document.size_bytes AS "sizeBytes",document.created_at AS "createdAt",document.updated_at AS "updatedAt",
-            $4::text AS permission,COALESCE(NULLIF(owner.name,''),'مستخدم Renvix') AS owner
+            $4::text AS permission,COALESCE(NULLIF(owner.name,''),'مستخدم Renvix') AS owner,
+            document_lock.password_hash AS "passwordHash"
        FROM storage_documents document LEFT JOIN users owner ON owner.id=document.created_by
+       LEFT JOIN storage_document_locks document_lock ON document_lock.document_id=document.id AND document_lock.tenant_id=$3
       WHERE document.id=$1 AND document.tenant_id=$3 AND document.folder_id IN (SELECT id FROM tree)
         AND document.deleted_at IS NULL AND document.type IN ('note','custom')
-        AND NOT EXISTS(SELECT 1 FROM storage_document_locks document_lock WHERE document_lock.document_id=document.id AND document_lock.tenant_id=$3)
       ${lock ? "FOR UPDATE OF document" : ""}`,
     [documentId, share.folderId, share.tenantId, share.permission]
   );
   if (!result.rows[0]) throw folderShareError("DOCUMENT_NOT_FOUND", "المستند غير موجود داخل هذا المجلد أو غير قابل للمشاركة.", 404);
+  await requirePublicDocumentPassword(token, share, result.rows[0], password, visitor, runner);
   return { share, row: result.rows[0] };
 }
 
-export async function getPublicStorageFolderDocument(token, documentId) {
+export async function getPublicStorageFolderDocument(token, documentId, access = {}) {
   await ensureStorageFolderShareSchema();
-  const { row } = await publicFolderDocument(token, documentId);
+  const { row } = await publicFolderDocument(token, documentId, { query }, access);
   return publicDocument(row);
 }
 
-export async function updatePublicStorageFolderDocument(token, documentId, input = {}) {
+export async function updatePublicStorageFolderDocument(token, documentId, input = {}, access = {}) {
   await ensureStorageFolderShareSchema();
   if (!isStorageShareToken(token)) throw folderShareError("SHARE_NOT_FOUND", "رابط المشاركة غير صالح أو تم إيقافه.", 404);
   return transaction(async (client) => {
-    const { share, row } = await publicFolderDocument(token, documentId, client, { lock: true });
+    const { share, row } = await publicFolderDocument(token, documentId, client, { lock: true, password: input.password, visitor: access.visitor });
     if (share.permission !== "edit") throw folderShareError("SHARE_READ_ONLY", "هذا الرابط مخصص للعرض فقط.", 403);
     const submittedVersion = new Date(String(input.version || "")).getTime();
     if (!Number.isFinite(submittedVersion) || submittedVersion !== new Date(row.updatedAt).getTime()) {
