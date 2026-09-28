@@ -137,6 +137,7 @@ export async function middlewareRequest(request, {
   const authPage = isAuthPath(canonicalAuth) || path.startsWith("/auth/");
   const authApi = path.startsWith("/api/auth/");
   const sharedDocumentPage = /^\/shared\/document\/[A-Za-z0-9_-]{43}$/.test(path);
+  const sharedFolderPage = /^\/shared\/folder\/[A-Za-z0-9_-]{43}$/.test(path);
   // Storage API aliases deliberately live outside `/api` so Vercel's legacy
   // blanket `/api/:path*` rewrite cannot send them to the retired backend.
   // Treat them as API requests here as well; otherwise the app-host canonical
@@ -174,7 +175,7 @@ export async function middlewareRequest(request, {
     }
     // Shared documents use the dashboard-owned storage API. Keep both newly
     // generated and previously issued links on the app host.
-    if (sharedDocumentPage && hostKind !== "app" && hostKind !== "unknown") {
+    if ((sharedDocumentPage || sharedFolderPage) && hostKind !== "app" && hostKind !== "unknown") {
       return portalRedirect(request, origins.app, path);
     }
     if (authPage && !(hostKind === "admin" && isAdminVerificationPagePath(path)) && hostKind !== "auth") {
@@ -217,7 +218,7 @@ export async function middlewareRequest(request, {
     }
     if (hostKind === "auth" && path === "/") return portalRedirect(request, origins.auth, "/login");
     if (hostKind === "admin" && path === "/") return portalRedirect(request, origins.admin, "/admin");
-    if (pageRequest && hostKind === "app" && !dashboardPage && !sharedDocumentPage) return portalRedirect(request, origins.site, path);
+    if (pageRequest && hostKind === "app" && !dashboardPage && !sharedDocumentPage && !sharedFolderPage) return portalRedirect(request, origins.site, path);
     if (pageRequest && hostKind === "auth" && !authPage) return portalRedirect(request, origins.site, path);
     if (pageRequest && hostKind === "admin" && !adminPage && !isAdminVerificationPagePath(path)) {
       return portalRedirect(request, origins.site, path);

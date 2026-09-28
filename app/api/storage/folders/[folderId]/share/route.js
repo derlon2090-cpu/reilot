@@ -1,0 +1,42 @@
+import { requireSession } from "../../../../../../src/server/session.js";
+import { sameOriginRequest } from "../../../../../../src/server/campaign-contacts.js";
+import { getStorageFolderShare, revokeStorageFolderShare, saveStorageFolderShare } from "../../../../../../src/server/storage-folder-shares.js";
+import { appBaseUrl } from "../../../../../../src/server/app-url.js";
+
+function shareUrl(token) {
+  return new URL(`/shared/folder/${encodeURIComponent(token)}`, appBaseUrl()).toString();
+}
+
+function failure(error, fallback) {
+  const status = Number(error?.status || 500);
+  return Response.json(
+    { ok: false, code: status >= 500 ? "SHARE_FAILED" : error?.code || "SHARE_FAILED", message: status >= 500 ? fallback : error?.message || fallback },
+    { status }
+  );
+}
+
+export async function GET(request, { params }) {
+  const auth = await requireSession(request); if (!auth.ok) return auth.response;
+  try {
+    const { folderId } = await params;
+    const share = await getStorageFolderShare(auth.session, folderId);
+    return Response.json({ ok: true, share: share.active ? { ...share, url: shareUrl(share.token), token: undefined } : share }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) { return failure(error, "تعذر تحميل إعدادات مشاركة المجلد."); }
+}
+
+export async function POST(request, { params }) {
+  const auth = await requireSession(request); if (!auth.ok) return auth.response;
+  if (!sameOriginRequest(request)) return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
+  try {
+    const { folderId } = await params;
+    const share = await saveStorageFolderShare(auth.session, folderId, await request.json());
+    return Response.json({ ok: true, share: { ...share, url: shareUrl(share.token), token: undefined } });
+  } catch (error) { return failure(error, "تعذر حفظ إعدادات مشاركة المجلد."); }
+}
+
+export async function DELETE(request, { params }) {
+  const auth = await requireSession(request); if (!auth.ok) return auth.response;
+  if (!sameOriginRequest(request)) return Response.json({ ok: false, message: "طلب غير صالح." }, { status: 403 });
+  try { const { folderId } = await params; return Response.json({ ok: true, share: await revokeStorageFolderShare(auth.session, folderId) }); }
+  catch (error) { return failure(error, "تعذر إيقاف رابط مشاركة المجلد."); }
+}

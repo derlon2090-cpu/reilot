@@ -18,14 +18,14 @@ function shareKey() {
   return crypto.createHash("sha256").update(`renvix-storage-share:${secret}`).digest();
 }
 
-function encryptToken(token) {
+export function encryptStorageShareToken(token) {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", shareKey(), iv);
   const data = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
   return { v: 1, iv: iv.toString("base64"), tag: cipher.getAuthTag().toString("base64"), data: data.toString("base64") };
 }
 
-function decryptToken(envelope) {
+export function decryptStorageShareToken(envelope) {
   try {
     const decipher = crypto.createDecipheriv("aes-256-gcm", shareKey(), Buffer.from(envelope.iv, "base64"));
     decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
@@ -81,7 +81,7 @@ export async function getStorageDocumentShare(session, documentId) {
   if (!row) throw shareError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   if (!SHAREABLE_TYPES.has(row.type)) throw shareError("DOCUMENT_NOT_SHAREABLE", "لا يمكن مشاركة بيانات الحسابات أو الأكواد السرية برابط عام.", 403);
   if (!row.permission) return { active: false, shareable: true };
-  return { active: true, permission: row.permission, token: decryptToken(row.tokenEncrypted), createdAt: row.createdAt, updatedAt: row.updatedAt };
+  return { active: true, permission: row.permission, token: decryptStorageShareToken(row.tokenEncrypted), createdAt: row.createdAt, updatedAt: row.updatedAt };
 }
 
 export async function saveStorageDocumentShare(session, documentId, input = {}) {
@@ -98,8 +98,8 @@ export async function saveStorageDocumentShare(session, documentId, input = {}) 
     if (!SHAREABLE_TYPES.has(row.type)) throw shareError("DOCUMENT_NOT_SHAREABLE", "لا يمكن مشاركة بيانات الحسابات أو الأكواد السرية برابط عام.", 403);
     const current = await client.query("SELECT id,token_encrypted AS \"tokenEncrypted\" FROM storage_document_shares WHERE document_id=$1 FOR UPDATE", [documentId]);
     const regenerate = input.regenerate === true || !current.rows[0];
-    const token = regenerate ? crypto.randomBytes(32).toString("base64url") : decryptToken(current.rows[0].tokenEncrypted);
-    const encrypted = encryptToken(token);
+    const token = regenerate ? crypto.randomBytes(32).toString("base64url") : decryptStorageShareToken(current.rows[0].tokenEncrypted);
+    const encrypted = encryptStorageShareToken(token);
     await client.query(
       `INSERT INTO storage_document_shares(tenant_id,document_id,token_hash,token_encrypted,permission,created_by,revoked_at)
        VALUES($1,$2,$3,$4::jsonb,$5,$6,NULL)

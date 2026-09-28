@@ -73,7 +73,7 @@ describe("storage document sharing", () => {
     expect(app).toContain('class="storage-editor shared-document-editor-wrap"');
     expect(app).toContain('[data-storage-editor],[data-shared-storage-editor]');
     expect(app).toContain('class="btn storage-share-delete"');
-    expect(layout.match(/app\.js\?v=20260928-storage-share-editor-search-v4/g)).toHaveLength(2);
+    expect(layout.match(/app\.js\?v=20260928-storage-folder-share-v5/g)).toHaveLength(2);
     expect(page).toContain('slug[0] === "shared"');
     expect(page).toContain("index: false, follow: false");
   });
