@@ -17,7 +17,24 @@ const nextConfig = {
   output: "standalone",
   distDir: process.env.NEXT_DIST_DIR || ".next",
   outputFileTracingIncludes: {
-    "/api/storage": ["./drizzle/0094_storage_center_insights.sql"]
+    "/api/storage/**": [
+      "./drizzle/0094_storage_center_insights.sql",
+      "./drizzle/0095_storage_document_locks.sql",
+      "./drizzle/0096_storage_folder_locks.sql",
+      "./drizzle/0099_storage_document_shares.sql",
+      "./drizzle/0100_storage_folder_shares.sql",
+      "./drizzle/0101_storage_folder_share_unlock_attempts.sql"
+    ],
+    "/storage-api/**": [
+      "./drizzle/0094_storage_center_insights.sql",
+      "./drizzle/0095_storage_document_locks.sql",
+      "./drizzle/0096_storage_folder_locks.sql",
+      "./drizzle/0099_storage_document_shares.sql",
+      "./drizzle/0100_storage_folder_shares.sql",
+      "./drizzle/0101_storage_folder_share_unlock_attempts.sql"
+    ],
+    "/api/public/storage-documents/**": ["./drizzle/0099_storage_document_shares.sql"],
+    "/api/public/storage-folders/**": ["./drizzle/0100_storage_folder_shares.sql", "./drizzle/0101_storage_folder_share_unlock_attempts.sql"]
   },
   async headers() {
     const developmentScriptPolicy = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";

@@ -1,7 +1,8 @@
 import { features, knowledgeBase } from "../data/publicData.js?v=20260811-central-plan-catalog-v1";
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
-import { AuthTurnstile } from "./auth-turnstile.js?v=20260813-auth-routing-v110";
+import { AuthTurnstile } from "./auth-turnstile.js?v=20260921-immediate-visible";
+import { formatAITokenCount } from "./ai-token-format.js?v=20260922-exact-balance";
 
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
@@ -862,6 +863,12 @@ state.storageDateFrom = "";
 state.storageView = storage.get("renvix.storage.view", "grid");
 state.storageComposeType = "";
 state.storageDocument = null;
+state.storageShareDocumentId = "";
+state.storageShareKind = "document";
+state.storageShareItemId = "";
+state.storageDocumentPasswords = new Map();
+state.storageFolderPasswords = new Map();
+state.storageAIPreviousMarkup = null;
 state.storageDocumentLoadingId = "";
 state.storageDocumentRequestController = null;
 state.storageCenterRequestController = null;
@@ -870,6 +877,11 @@ state.storageEditingDocument = null;
 state.storageDocumentDraft = null;
 state.sharedStorageDocument = null;
 state.sharedStorageToken = "";
+state.sharedStorageFolder = null;
+state.sharedStorageFolderToken = "";
+state.sharedStorageFolderDocument = null;
+state.sharedStorageFolderDocumentId = "";
+state.sharedStorageFolderPasswords = new Map();
 state.storageUploading = false;
 state.storageUploads = [];
 state.storageUploadRequests = new Map();
@@ -913,7 +925,9 @@ state.campaignBuilderCards = [];
 state.campaignBuilderDraft = null;
 state.campaignBuilderDraftTimer = null;
 state.campaignBuilderPreviewMode = "desktop";
+state.campaignImagePickerTarget = "";
 state.campaignStudioAI = null;
+state.campaignStudioPreviewSource = null;
 state.reportChannelFilter = "all";
 state.customerSelection = [];
 state.contactsOverview = null;
@@ -1331,8 +1345,24 @@ function resolveRenvixApiUrl(url) {
   return url;
 }
 
+function encodeStoragePasswordHeader(value) {
+  const bytes = new TextEncoder().encode(String(value ?? ""));
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x4000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x4000));
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 async function fetchJson(url, options = {}) {
   const { timeoutMessage, timeoutMs = 0, ...fetchOptions } = options;
+  if (String(url).startsWith("/api/storage") && state.storageFolderPasswords?.size) {
+    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Folder-Passwords-B64": encodeStoragePasswordHeader(JSON.stringify(Object.fromEntries(state.storageFolderPasswords))) };
+  }
+  const storageDocumentMatch = String(url).match(/^\/api\/storage\/documents\/([0-9a-f-]{36})(?:\?|$)/i);
+  if (storageDocumentMatch && state.storageDocumentPasswords?.has(storageDocumentMatch[1])) {
+    fetchOptions.headers = { ...fetchOptions.headers, "X-Storage-Document-Password-B64": encodeStoragePasswordHeader(state.storageDocumentPasswords.get(storageDocumentMatch[1])) };
+  }
   const requestTimeoutMs = Math.max(0, Number(timeoutMs || 0));
   const externalSignal = fetchOptions.signal;
   const timeoutController = requestTimeoutMs > 0 && typeof AbortController !== "undefined"
@@ -1517,6 +1547,10 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
         ? payload.profile
         : payload.items ?? payload.report ?? payload;
     if (target === "dashboardOverview" && payload.profile) cacheDashboardProfile(payload.profile);
+    if (target === "billingOverview" && payload.current?.planName && state.dashboardOverview?.profile) {
+      state.dashboardOverview.profile.planName = payload.current.planName;
+      state.dashboardOverview.profile.planStatus = payload.current.status;
+    }
     if (target === "accountSettings" && payload.settings) {
       state.language = payload.settings.language === "en" ? "en" : "ar";
       state.theme = ["light", "dark", "system"].includes(payload.settings.theme) ? payload.settings.theme : "light";
@@ -1569,6 +1603,9 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     } else if (target === "aiConversations") {
       state.aiConversationsRetrying = false;
       state.aiConversationsError = error.message || "تعذر تحميل المحادثات";
+    } else if (target === "storageCenter" && error.code === "FOLDER_LOCKED") {
+      if (error.payload?.folderId) state.storageFolderPasswords.delete(error.payload.folderId);
+      state.storageCenter = { error: error.message, code: error.code, folderId: error.payload?.folderId || state.storageCurrentFolderId };
     } else {
       state[target] = target === "supportTicket"
         ? { id: state.supportSelectedId || state.query.get("ticket") || "", error: error.message || "تعذر تحميل المحادثة" }
@@ -1624,6 +1661,15 @@ function syncRouteData(force = false) {
     state.sharedStorageToken = sharedStorageToken;
     state.sharedStorageDocument = state.sharedStorageDocument?.token === sharedStorageToken ? state.sharedStorageDocument : null;
     queue("sharedStorageDocument", `/storage-api/public/storage-documents/${encodeURIComponent(sharedStorageToken)}`, "sharedStorageDocument");
+  }
+  const sharedStorageFolderToken = state.route.match(/^\/shared\/folder\/([A-Za-z0-9_-]{43})$/)?.[1];
+  if (sharedStorageFolderToken && (force || state.sharedStorageFolderToken !== sharedStorageFolderToken || state.sharedStorageFolder === null)) {
+    state.sharedStorageFolderToken = sharedStorageFolderToken;
+    state.sharedStorageFolder = null;
+    state.sharedStorageFolderDocument = null;
+    state.sharedStorageFolderDocumentId = "";
+    state.sharedStorageFolderPasswords.clear();
+    queue("sharedStorageFolder", `/storage-api/public/storage-folders/${encodeURIComponent(sharedStorageFolderToken)}`, "sharedStorageFolder");
   }
 
   if (state.route.startsWith("/dashboard") && (force || !state.cachedDashboardProfile?.name)) {
@@ -1701,8 +1747,8 @@ function syncRouteData(force = false) {
     if (force || state.orderLinkSubscriptions === null) queue("orderLinkSubscriptions", "/api/order-link/subscriptions", "orderLinkSubscriptions");
     if (force || state.orderLinks === null) queue("orderLinks", "/api/order-link/list", "orderLinks");
   }
-  if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) queue("billing", "/api/billing", "billingOverview");
-  if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) queue("settings", "/api/settings", "accountSettings");
+  if (state.route === "/dashboard/billing" && (force || state.billingOverview === null)) queue("billing", "/api/billing", "billingOverview", { cache: "no-store" });
+  if (state.route === "/dashboard/settings" && (force || state.accountSettings === null)) queue("settings", "/api/settings", "accountSettings", { cache: "no-store" });
   if (state.route === "/dashboard/storage" && (force || state.storageCenter === null)) {
     const params = new URLSearchParams();
     const folderId = state.query.get("folder") || state.storageCurrentFolderId;
@@ -2090,6 +2136,7 @@ function dashboardIcon(name) {
     customers: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
     devices: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
     security: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    unlock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2M12 14v3"/>',
     reports: '<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>',
     bolt: '<path d="m13 2-9 12h7l-1 8 10-13h-7z"/>',
     template: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
@@ -3502,7 +3549,7 @@ function marketingSupportPage() {
     ? visibleFaqs.map(([question, answer]) => `<details><summary>${question}</summary><p>${answer}</p></details>`).join("")
     : `<p class="support-empty">لا توجد أسئلة مطابقة لعبارة البحث.</p>`;
   return publicShell(`<main class="marketing-v3 marketing-support-v3"><section class="marketing-v3-section"><div class="container">${marketingSectionHeading(localizedCopy("الدعم", "Support"), localizedCopy("كل ما تحتاجه للحصول على المساعدة والموارد للنجاح مع Renvix.", "Everything you need to succeed with Renvix."))}
-      <section class="support-v3-search" data-reveal><i></i><i></i><h1>${localizedCopy("كيف نقدر نساعدك اليوم؟", "How can we help today?")}</h1><p>${localizedCopy("ابحث في مركز المساعدة عن إجابات سريعة وشروحات مفصلة لكل ما تحتاجه.", "Search for quick answers and detailed guides.")}</p><label>${dashboardIcon("search")}<input data-action="support-search" value="${escapeHtml(state.search)}" autocomplete="off" placeholder="${localizedCopy("ابحث عن موضوع أو سؤال...", "Search for a topic or question...")}"></label><div class="support-search-results" data-support-search-results hidden><div>${guides.map((guide) => `<button data-link="/blog/${guide.slug}" aria-label="${state.language === "en" ? guideLabelsEn[guide.slug] : `اقرأ دليل ${guide.title}`}" data-support-search-item data-search-text="${escapeHtml(`${guide.title} ${guide.summary} ${guide.steps.join(" ")}`.toLowerCase())}" hidden><span>${dashboardIcon(guide.icon)}</span><b>${guide.title}</b><small>${guide.summary}</small>${dashboardIcon("arrowLeft")}</button>`).join("")}</div><p data-support-search-status></p></div></section>
+      <section class="support-v3-search" data-reveal><i></i><i></i><h1>${localizedCopy("كيف نقدر نساعدك اليوم؟", "How can we help today?")}</h1><p>${localizedCopy("ابحث في مركز المساعدة عن إجابات سريعة وشروحات مفصلة لكل ما تحتاجه.", "Search for quick answers and detailed guides.")}</p><label>${dashboardIcon("search")}<input data-action="support-search" value="${escapeHtml(state.search)}" autocomplete="off" placeholder="${localizedCopy("ابحث عن موضوع أو سؤال...", "Search for a topic or question...")}"></label><div class="support-search-results" data-support-search-results hidden><div>${guides.map((guide) => `<button data-link="/blog/${guide.slug}" data-support-search-item data-search-text="${escapeHtml(`${guide.title} ${guide.summary} ${guide.steps.join(" ")}`.toLowerCase())}" hidden><span>${dashboardIcon(guide.icon)}</span><b>${guide.title}</b><small>${guide.summary}</small>${dashboardIcon("arrowLeft")}</button>`).join("")}</div><p data-support-search-status></p></div></section>
       <section class="support-v3-categories"><h2>${localizedCopy("تصفح حسب الفئة", "Browse by category")}</h2><div>${guides.map((guide) => `<button data-link="/blog/${guide.slug}" data-reveal><span>${dashboardIcon(guide.icon)}</span><strong>${guide.title}</strong><small>${guide.summary}</small></button>`).join("")}</div></section>
       <section class="support-v3-lower"><article class="support-v3-faq" id="faq" data-reveal><h2>${localizedCopy("المقالات الشائعة", "Popular articles")}</h2>${faqItems}<button data-link="/blog">${localizedCopy("عرض جميع المقالات", "View all articles")}${dashboardIcon("arrowLeft")}</button></article><article class="support-v3-contact" data-reveal><h2>${localizedCopy("تواصل معنا", "Contact us")}</h2><p>${localizedCopy("فريق الدعم جاهز لمساعدتك في أي وقت عبر القنوات التالية.", "Our support team is ready to help through these channels.")}</p><div>${cards.slice(0, 3).map(([title, body, label, action, mark]) => `<section><span>${dashboardIcon(mark)}</span><h3>${title}</h3><p>${body}</p>${action === "blog" ? `<button data-link="/blog">${label}</button>` : action === "faq" ? `<a href="#faq">${label}</a>` : `<button data-action="${action}">${label}</button>`}</section>`).join("")}</div></article></section>
     </div></section></main>`);
@@ -5683,6 +5730,77 @@ function campaignStudioCards(kind) {
   return state.campaignBuilderCards;
 }
 
+function campaignImageTargetWrap() {
+  return state.campaignImagePickerTarget
+    ? document.querySelector(`[data-campaign-image-target="${CSS.escape(state.campaignImagePickerTarget)}"]`)
+    : null;
+}
+
+function applyCampaignImageToWrap(wrap, imageUrl) {
+  if (!wrap || !safeStoreLogoUrl(imageUrl)) return false;
+  const form = wrap.closest("form[data-campaign-studio]");
+  const isLogo = wrap.matches("[data-campaign-logo-image-wrap]");
+  const hidden = wrap.querySelector(isLogo ? '[name="brandLogoUrl"]' : '[name="cardImageUrl"]');
+  if (hidden) hidden.value = imageUrl;
+  wrap.querySelector(isLogo ? "[data-campaign-logo-image-placeholder]" : "[data-campaign-card-image-placeholder]")?.remove();
+  const previewSelector = isLogo ? "[data-campaign-logo-image-preview]" : "[data-campaign-card-image-preview]";
+  const current = wrap.querySelector(previewSelector);
+  if (current) current.src = imageUrl;
+  else wrap.insertAdjacentHTML("afterbegin", `<img src="${escapeHtml(imageUrl)}" alt="${isLogo ? "شعار المتجر" : "صورة البطاقة"}" ${isLogo ? "data-campaign-logo-image-preview" : "data-campaign-card-image-preview"}>`);
+  wrap.classList.add("has-image");
+  const picker = wrap.querySelector(isLogo ? '[data-action="campaign-studio-logo-image-pick"]' : '[data-action="campaign-studio-image-pick"]');
+  if (picker) picker.innerHTML = `${dashboardIcon("archive")} استبدال الصورة`;
+  const removeAction = isLogo ? "campaign-studio-logo-image-remove" : "campaign-studio-image-remove";
+  if (!wrap.querySelector(`[data-action="${removeAction}"]`)) picker?.insertAdjacentHTML("afterend", `<button type="button" class="btn btn-ghost danger-text" data-action="${removeAction}">${dashboardIcon("delete")} إزالة الصورة</button>`);
+  if (form?.elements.htmlContent?.value) form.elements.htmlContent.value = campaignStudioApplyFixedEmailContent(form.elements.htmlContent.value, form);
+  refreshCampaignStudioPreview(form);
+  scheduleCampaignStudioDraft(form);
+  return true;
+}
+
+function clearCampaignImageWrap(wrap) {
+  if (!wrap) return;
+  const form = wrap.closest("form[data-campaign-studio]");
+  const isLogo = wrap.matches("[data-campaign-logo-image-wrap]");
+  const hidden = wrap.querySelector(isLogo ? '[name="brandLogoUrl"]' : '[name="cardImageUrl"]');
+  if (hidden) hidden.value = "";
+  wrap.querySelector(isLogo ? "[data-campaign-logo-image-preview]" : "[data-campaign-card-image-preview]")?.remove();
+  const placeholderSelector = isLogo ? "[data-campaign-logo-image-placeholder]" : "[data-campaign-card-image-placeholder]";
+  if (!wrap.querySelector(placeholderSelector)) {
+    wrap.insertAdjacentHTML("afterbegin", isLogo
+      ? `<span data-campaign-logo-image-placeholder>${dashboardIcon("image")}<small>لن يظهر شعار إذا تركته فارغًا</small></span>`
+      : `<span data-campaign-card-image-placeholder>${dashboardIcon("upload")}<small>اختر صورة من مكتبة الحملات</small></span>`);
+  }
+  wrap.classList.remove("has-image");
+  wrap.querySelector(isLogo ? '[data-action="campaign-studio-logo-image-remove"]' : '[data-action="campaign-studio-image-remove"]')?.remove();
+  const picker = wrap.querySelector(isLogo ? '[data-action="campaign-studio-logo-image-pick"]' : '[data-action="campaign-studio-image-pick"]');
+  if (picker) picker.innerHTML = `${dashboardIcon("archive")} ${isLogo ? "اختيار شعار المتجر" : "اختيار صورة"}`;
+  if (form?.elements.htmlContent?.value) form.elements.htmlContent.value = campaignStudioApplyFixedEmailContent(form.elements.htmlContent.value, form);
+  refreshCampaignStudioPreview(form);
+  scheduleCampaignStudioDraft(form);
+}
+
+async function openCampaignImageLibrary(wrap) {
+  if (!wrap) return;
+  const targetId = crypto.randomUUID();
+  document.querySelectorAll("[data-campaign-image-target]").forEach((node) => node.removeAttribute("data-campaign-image-target"));
+  wrap.dataset.campaignImageTarget = targetId;
+  state.campaignImagePickerTarget = targetId;
+  openModal("مكتبة الصور", `<div class="storage-picker-loading"><i></i><i></i><i></i></div>`);
+  try {
+    const payload = await fetchJson("/api/campaigns/assets");
+    const assets = Array.isArray(payload.assets) ? payload.assets : [];
+    const cards = assets.map((asset, index) => `<article class="campaign-image-library-card${index >= 6 ? " is-library-hidden" : ""}" data-campaign-library-asset="${escapeHtml(asset.id)}">
+      <button type="button" data-action="campaign-image-library-select" data-url="${escapeHtml(asset.imageUrl)}"><span><img src="${escapeHtml(asset.imageUrl)}" alt="${escapeHtml(asset.name || "صورة حملة")}"></span><strong>${escapeHtml(asset.name || "صورة حملة")}</strong><small>${asset.createdAt ? new Date(asset.createdAt).toLocaleDateString("ar-SA") : "محفوظة"}</small></button>
+      <button type="button" class="campaign-image-library-delete" data-action="campaign-image-library-delete" data-id="${escapeHtml(asset.id)}" data-url="${escapeHtml(asset.imageUrl)}" title="حذف الصورة من المكتبة" aria-label="حذف الصورة من المكتبة">${dashboardIcon("delete")}</button>
+    </article>`).join("");
+    const showAll = assets.length > 6 ? `<button type="button" class="btn btn-secondary campaign-image-library-show-all" data-action="campaign-image-library-show-all">${dashboardIcon("archive")} عرض الكل <span>+${suiteNumber(assets.length - 6)}</span></button>` : "";
+    openModal("مكتبة الصور", `<div class="campaign-image-library"><header><div><strong>اختر من مكتبة الصور</strong><small>تظهر أول 6 صور، ويمكن عرض بقية المكتبة بضغطة واحدة.</small></div><input type="file" accept="image/png,image/jpeg,image/webp" data-action="campaign-image-library-file" hidden><button type="button" class="btn btn-primary" data-action="campaign-image-library-upload">${dashboardIcon("upload")} رفع صورة جديدة</button></header>${assets.length ? `<div class="campaign-image-library-grid">${cards}</div>${showAll}` : `<section class="campaign-image-library-empty">${dashboardIcon("image")}<strong>لا توجد صور محفوظة بعد</strong><p>ارفع أول صورة وستُحفظ تلقائيًا في مكتبة الصور.</p><button type="button" class="btn btn-primary" data-action="campaign-image-library-upload">${dashboardIcon("upload")} رفع صورة جديدة</button></section>`}<footer>PNG أو JPG أو WebP، بحد أقصى 5 ميجابايت.</footer></div>`);
+  } catch (error) {
+    openModal("مكتبة الصور", `<div class="storage-empty-trash">${dashboardIcon("warning")}<strong>تعذر تحميل مكتبة الصور</strong><p>${escapeHtml(error.message || "حاول مرة أخرى.")}</p></div>`);
+  }
+}
+
 function campaignStudioCardMarkup(card, index, kind) {
   const product = kind === "product";
   const imageUrl = safeStoreLogoUrl(card.imageUrl);
@@ -5690,7 +5808,7 @@ function campaignStudioCardMarkup(card, index, kind) {
   return `<article class="campaign-studio-card-editor" data-campaign-card data-card-index="${index}">
     <header><button type="button" class="campaign-card-drag" aria-label="سحب البطاقة">${dashboardIcon("drag")}</button><strong>بطاقة ${suiteNumber(index + 1)}</strong><span class="campaign-card-source">${product ? "منتج من المتجر" : "بطاقة مخصصة"}</span><button type="button" class="campaign-card-remove" data-action="campaign-studio-card-remove" title="حذف البطاقة">${dashboardIcon("close")} حذف</button></header>
     <div class="campaign-studio-card-fields">
-      <div class="campaign-studio-image-field ${imageUrl ? "has-image" : ""}" data-campaign-card-image-wrap>${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || "صورة البطاقة")}" data-campaign-card-image-preview>` : `<span data-campaign-card-image-placeholder>${dashboardIcon(product ? "storeBag" : "upload")}<small>${product ? "صورة المنتج الفعلية" : "ارفع صورة البطاقة"}</small></span>`}<input type="hidden" name="cardImageUrl" value="${escapeHtml(card.imageUrl || "")}">${product ? "" : `<input type="file" accept="image/png,image/jpeg,image/webp" data-action="campaign-studio-image-file" hidden><button type="button" class="btn btn-ghost" data-action="campaign-studio-image-pick">${dashboardIcon("upload")} رفع صورة</button>`}</div>
+      <div class="campaign-studio-image-field ${imageUrl ? "has-image" : ""}" data-campaign-card-image-wrap>${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || "صورة البطاقة")}" data-campaign-card-image-preview>` : `<span data-campaign-card-image-placeholder>${dashboardIcon(product ? "storeBag" : "upload")}<small>${product ? "صورة المنتج الفعلية" : "اختر صورة من المكتبة"}</small></span>`}<input type="hidden" name="cardImageUrl" value="${escapeHtml(card.imageUrl || "")}">${product ? "" : `<button type="button" class="btn btn-ghost" data-action="campaign-studio-image-pick">${dashboardIcon("archive")} ${imageUrl ? "استبدال الصورة" : "اختيار صورة"}</button>${imageUrl ? `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-image-remove">${dashboardIcon("delete")} إزالة الصورة</button>` : ""}`}</div>
       <div class="campaign-studio-card-copy"><label class="field"><span>${product ? "اسم المنتج" : "عنوان اختياري"}</span><input class="input" name="cardTitle" maxlength="60" value="${escapeHtml(card.title || "")}" ${product ? "readonly" : ""}><small><b data-count-for="cardTitle">${String(card.title || "").length}</b>/60</small></label><label class="field"><span>نص البطاقة</span><textarea class="textarea" name="cardBody" rows="2" maxlength="200" required placeholder="اكتب نص البطاقة">${escapeHtml(card.bodyText || "")}</textarea><small><b data-count-for="cardBody">${String(card.bodyText || "").length}</b>/200</small></label></div>
       <label class="field"><span>نص الزر</span><input class="input" name="cardButtonText" maxlength="25" required value="${escapeHtml(card.buttonText || "")}" placeholder="نص الزر"><small><b data-count-for="cardButtonText">${String(card.buttonText || "").length}</b>/25</small></label>
       <label class="field"><span>رابط الزر</span><input class="input" name="cardButtonUrl" type="url" dir="ltr" required value="${escapeHtml(card.buttonUrl || "")}" placeholder="https://"><input type="hidden" name="cardProductId" value="${escapeHtml(card.productId || "")}"><input type="hidden" name="cardSourceType" value="${escapeHtml(card.sourceType || (product ? "store_product" : "custom"))}"></label>
@@ -5716,25 +5834,54 @@ function campaignStudioWhatsappPreview(cards) {
   </div>`;
 }
 
+function campaignStudioAlignment(value) {
+  return ["right", "center", "left"].includes(value) ? value : "right";
+}
+
+function campaignStudioAlignmentControl(name, label, value) {
+  const selected = campaignStudioAlignment(value);
+  return `<fieldset class="campaign-email-alignment" data-campaign-alignment-control><legend>${escapeHtml(label)}</legend><div>${[["right","يمين"],["center","توسيط"],["left","يسار"]].map(([alignment, text]) => `<label><input type="radio" name="${name}" value="${alignment}" ${selected === alignment ? "checked" : ""}><span>${text}</span></label>`).join("")}</div></fieldset>`;
+}
+
 function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind) {
-  const firstCard = cards[0] || {};
-  const campaignImage = safeStoreLogoUrl(campaignStudioDraftValue("heroImageUrl")) || safeStoreLogoUrl(firstCard.imageUrl);
+  const brandLogoUrl = safeStoreLogoUrl(campaignStudioDraftValue("brandLogoUrl"));
   const themeColor = /^#[0-9a-f]{6}$/i.test(campaignStudioDraftValue("themeColor")) ? campaignStudioDraftValue("themeColor") : "#0b3f3b";
-  const heroMedia = campaignImage
-    ? `<img src="${escapeHtml(campaignImage)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
-    : `<span>${dashboardIcon(kind === "product" ? "storeBag" : "upload")}<small>تظهر صورة الحملة هنا</small></span>`;
+  const subjectAlignment = campaignStudioAlignment(campaignStudioDraftValue("subjectAlignment"));
+  const bodyAlignment = campaignStudioAlignment(campaignStudioDraftValue("bodyAlignment"));
   const fromName = campaignStudioDraftValue("fromName", "Renvix");
   return `<div class="campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase" style="--campaign-email-color:${escapeHtml(themeColor)}">
     <div class="campaign-email-windowbar"><span aria-hidden="true"><i></i><i></i><i></i></span><b>Renvix Mail</b><small>البريد الوارد</small></div>
     <div class="campaign-email-message-meta"><span>${dashboardIcon("customers")}</span><div><strong data-campaign-live-from>${escapeHtml(fromName || "Renvix")}</strong><small dir="ltr">&lt;${escapeHtml(emailSender || "")}&gt;</small></div><time>10:30 ص</time>${dashboardIcon("heart")}${dashboardIcon("back")}${dashboardIcon("menu")}</div>
-    <div class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt="Renvix"></div>
-    <section><div class="campaign-email-hero"><div><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading data-campaign-live-subject>${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body>${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p></div><div class="campaign-email-hero-media ${campaignImage ? "has-image" : ""}" data-campaign-email-hero-media>${heroMedia}</div></div><h3 class="campaign-email-cards-title">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h3><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "email")}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section>
-    <footer><span data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</span><small>Renvix</small></footer>
+    ${brandLogoUrl ? `<div class="campaign-email-brand" data-campaign-email-brand><img src="${escapeHtml(brandLogoUrl)}" alt="شعار المتجر"></div>` : ""}
+    <section><div class="campaign-email-hero"><div><small data-campaign-live-preheader>${escapeHtml(campaignStudioDraftValue("previewText", "نص المعاينة"))}</small><h2 data-campaign-live-heading data-campaign-live-subject style="text-align:${subjectAlignment}">${escapeHtml(campaignStudioDraftValue("subject", "عنوان الحملة"))}</h2><p data-campaign-live-body style="text-align:${bodyAlignment}">${escapeHtml(campaignStudioDraftValue("body", "سيظهر محتوى البريد هنا."))}</p></div></div><h3 class="campaign-email-cards-title">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h3><div data-campaign-studio-preview-cards>${campaignStudioPreviewCards(cards, "email")}</div><div class="campaign-email-social ${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {}).length ? "" : "is-empty"}" data-campaign-social-preview>${campaignStudioSocialIconLinks(state.campaignBuilderDraft?.values || {})}</div></section>
+    <footer><span data-campaign-live-footer>${escapeHtml(campaignStudioDraftValue("footer", "رابط إلغاء الاشتراك يُضاف تلقائيًا عند الإرسال."))}</span></footer>
   </div>`;
 }
 
-function campaignStudioCustomHtmlPreview(html) {
-  return `<div class="campaign-studio-code-preview ${state.campaignBuilderPreviewMode}"><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة كود البريد المعتمد" srcdoc="${escapeHtml(html)}"></iframe></div>`;
+function campaignStudioGeneratedEmailPreview(html) {
+  return `<div class="campaign-generated-email-preview campaign-studio-email-preview ${state.campaignBuilderPreviewMode}"><div class="campaign-email-windowbar"><span aria-hidden="true"><i></i><i></i><i></i></span><b>معاينة البريد</b><small>البريد الوارد</small></div><div class="campaign-email-message-meta"><span>${dashboardIcon("customers")}</span><div><strong>المتجر</strong><small>رسالة حملة بريدية</small></div><time>10:30 ص</time>${dashboardIcon("heart")}${dashboardIcon("back")}${dashboardIcon("menu")}</div><div class="campaign-generated-preview-bar"><span>${dashboardIcon("success")} التصميم البرمجي المعتمد</span><button type="button" class="btn btn-secondary" data-action="campaign-studio-restore-main">${dashboardIcon("back")} استرجاع التصميم الرئيسي</button></div><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة تصميم الحملة المعتمد" srcdoc="${escapeHtml(html)}"></iframe></div>`;
+}
+
+function renderCampaignStudioPreviewSource(form, source = state.campaignStudioPreviewSource || "main") {
+  const previewHost = document.querySelector("[data-campaign-studio-preview]");
+  if (!form || !previewHost || form.elements.channel?.value !== "email") return;
+  const editor = form.elements.htmlContent;
+  if (editor?.value) editor.value = campaignStudioApplyFixedEmailContent(editor.value, form);
+  const inspection = inspectEmailHtmlClient(editor?.value || "");
+  const canUseHtml = source === "html" && editor?.dataset.approved === "true" && inspection.ok;
+  if (canUseHtml) {
+    state.campaignStudioPreviewSource = "html";
+    previewHost.innerHTML = campaignStudioGeneratedEmailPreview(inspection.html);
+    return;
+  }
+  state.campaignStudioPreviewSource = "main";
+  captureCampaignStudioDraft(form);
+  previewHost.innerHTML = campaignStudioEmailPreview(
+    campaignStudioFormCards(form),
+    String(form.elements.emailDesign?.value || "showcase"),
+    String(form.elements.fromEmail?.value || ""),
+    state.campaignBuilderKind === "product" ? "product" : "custom"
+  );
 }
 
 function campaignEmailDesignThumb(design) {
@@ -5793,7 +5940,7 @@ function captureCampaignStudioDraft(form) {
   const socialSection = form.querySelector("[data-campaign-social-section]");
   if (form.elements.socialLinksEnabled) form.elements.socialLinksEnabled.value = socialSection?.open ? "true" : "false";
   const values = {};
-  ["name","fromName","fromEmail","replyTo","subject","previewText","body","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","emailDesign","themeColor","heroImageUrl","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
+  ["name","fromName","fromEmail","replyTo","subject","subjectAlignment","previewText","body","bodyAlignment","footer","whatsappChannelId","metaTemplateId","groupId","startDate","startTime","sendTiming","htmlContent","htmlContentApproved","emailDesign","themeColor","brandLogoUrl","socialLinksEnabled","instagram","x","linkedin","youtube","snapchat","facebook"].forEach((name) => { if (form.elements[name]) values[name] = form.elements[name].value; });
   state.campaignBuilderCards = campaignStudioFormCards(form);
   state.campaignBuilderDraft = { values, cards:state.campaignBuilderCards, updatedAt:new Date().toISOString() };
   return state.campaignBuilderDraft;
@@ -5803,6 +5950,10 @@ function refreshCampaignStudioPreview(form) {
   if (!form) return;
   const channel = form.elements.channel?.value === "email" ? "email" : "whatsapp";
   const cards = campaignStudioFormCards(form);
+  const approvedEditor = form.elements.htmlContent;
+  if (channel === "email" && approvedEditor?.value && approvedEditor.dataset.approved === "true") {
+    approvedEditor.value = campaignStudioApplyFixedEmailContent(approvedEditor.value, form);
+  }
   const previewCards = document.querySelector("[data-campaign-studio-preview-cards]");
   if (previewCards) previewCards.innerHTML = campaignStudioPreviewCards(cards, channel);
   const count = form.querySelectorAll("[data-campaign-card]").length;
@@ -5815,12 +5966,11 @@ function refreshCampaignStudioPreview(form) {
     if (title) title.textContent = `بطاقة ${suiteNumber(index + 1)}`;
   });
   if (channel === "email") {
-    const previewHost = document.querySelector("[data-campaign-studio-preview]");
-    const customInspection = inspectEmailHtmlClient(form.elements.htmlContent?.value || "");
-    if (previewHost && customInspection.ok) {
-      previewHost.innerHTML = campaignStudioCustomHtmlPreview(customInspection.html);
+    if (state.campaignStudioPreviewSource === "html") {
+      renderCampaignStudioPreviewSource(form, "html");
       return;
     }
+    const previewHost = document.querySelector("[data-campaign-studio-preview]");
     if (previewHost && !previewHost.querySelector(".campaign-studio-email-preview")) {
       const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
       previewHost.innerHTML = campaignStudioEmailPreview(cards, "showcase", form.elements.fromEmail?.value || "", kind);
@@ -5829,18 +5979,19 @@ function refreshCampaignStudioPreview(form) {
     if (emailPreview) {
       emailPreview.className = `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase`;
       emailPreview.style.setProperty("--campaign-email-color", /^#[0-9a-f]{6}$/i.test(form.elements.themeColor?.value || "") ? form.elements.themeColor.value : "#0b3f3b");
+      const subjectNode = emailPreview.querySelector("[data-campaign-live-subject]");
+      const bodyNode = emailPreview.querySelector("[data-campaign-live-body]");
+      if (subjectNode) subjectNode.style.textAlign = campaignStudioAlignment(form.elements.subjectAlignment?.value);
+      if (bodyNode) bodyNode.style.textAlign = campaignStudioAlignment(form.elements.bodyAlignment?.value);
     }
     const fromNode = document.querySelector("[data-campaign-live-from]");
     if (fromNode) fromNode.textContent = form.elements.fromName?.value?.trim() || "Renvix";
-    const heroMedia = document.querySelector("[data-campaign-email-hero-media]");
-    if (heroMedia) {
-      const firstCard = cards[0] || {};
-      const imageUrl = safeStoreLogoUrl(form.elements.heroImageUrl?.value) || safeStoreLogoUrl(firstCard.imageUrl);
-      heroMedia.classList.toggle("has-image", Boolean(imageUrl));
-      heroMedia.innerHTML = imageUrl
-        ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(firstCard.title || "صورة الحملة")}">`
-        : `<span>${dashboardIcon(firstCard.sourceType === "store_product" ? "storeBag" : "upload")}<small>تظهر صورة الحملة هنا</small></span>`;
-    }
+    const brandLogoUrl = safeStoreLogoUrl(form.elements.brandLogoUrl?.value);
+    const currentBrand = emailPreview?.querySelector("[data-campaign-email-brand]");
+    if (brandLogoUrl) {
+      if (currentBrand) currentBrand.innerHTML = `<img src="${escapeHtml(brandLogoUrl)}" alt="شعار المتجر">`;
+      else emailPreview?.querySelector(".campaign-email-message-meta")?.insertAdjacentHTML("afterend", `<div class="campaign-email-brand" data-campaign-email-brand><img src="${escapeHtml(brandLogoUrl)}" alt="شعار المتجر"></div>`);
+    } else currentBrand?.remove();
     const socialPreview = document.querySelector("[data-campaign-social-preview]");
     if (socialPreview) {
       socialPreview.innerHTML = campaignStudioSocialIconLinks(form);
@@ -5863,6 +6014,88 @@ function scheduleCampaignStudioDraft(form) {
   }, 700);
 }
 
+function campaignStudioFixedCardsTable(documentNode, cards, kind = "custom", themeColor = "#0b3f3b") {
+  const accent = /^#[0-9a-f]{6}$/i.test(themeColor || "") ? themeColor : "#0b3f3b";
+  const safeCards = Array.isArray(cards) ? cards.slice(0, 10) : [];
+  if (!safeCards.length) return null;
+  const cardCell = (card, index) => {
+    const imageUrl = safeStoreLogoUrl(card.imageUrl);
+    const image = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || `صورة البطاقة ${index + 1}`)}" width="220" style="display:block;width:100%;max-width:220px;height:auto;margin:0 auto 14px;border-radius:10px">`
+      : "";
+    return `<td width="50%" valign="top" style="padding:6px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="height:100%;border:1px solid #e2ebe9;border-radius:12px;background:#ffffff"><tbody><tr><td dir="rtl" style="padding:16px;text-align:right">${image}<h3 style="margin:0 0 8px;color:${accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title || "عنوان البطاقة")}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText || "سيظهر نص البطاقة هنا")}</p><a href="${escapeHtml(card.buttonUrl || "{{product_url}}")}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${accent};color:#ffffff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText || "زر الإجراء")}</a></td></tr></tbody></table></td>`;
+  };
+  const rows = [];
+  for (let index = 0; index < safeCards.length; index += 2) {
+    const pair = safeCards.slice(index, index + 2);
+    rows.push(`<tr>${pair.map((card, offset) => cardCell(card, index + offset)).join("")}${pair.length === 1 ? '<td width="50%" aria-hidden="true" style="padding:6px"></td>' : ""}</tr>`);
+  }
+  const section = documentNode.createElement("table");
+  section.setAttribute("role", "presentation");
+  section.setAttribute("aria-label", "campaign-email-cards");
+  section.setAttribute("width", "100%");
+  section.setAttribute("cellspacing", "0");
+  section.setAttribute("cellpadding", "0");
+  section.setAttribute("style", "width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0 8px;margin:24px 0 8px");
+  section.innerHTML = `<tbody><tr><td colspan="2" dir="rtl" style="padding:0 6px 8px;text-align:right"><h2 style="margin:0;color:${accent};font:700 21px Arial,sans-serif">${kind === "product" ? "منتجات مختارة لك" : "تفاصيل الحملة"}</h2></td></tr>${rows.join("")}</tbody>`;
+  return section;
+}
+
+function campaignStudioApplyFixedLogo(html, logoUrl, subjectAlignment = "right", bodyAlignment = "right", cards = [], kind = "custom", themeColor = "#0b3f3b") {
+  const parser = new DOMParser();
+  const documentNode = parser.parseFromString(`<body>${String(html || "")}</body>`, "text/html");
+  documentNode.querySelectorAll('[aria-label="campaign-brand-logo"]').forEach((node) => node.remove());
+  documentNode.querySelectorAll('[aria-label="campaign-email-cards"]').forEach((node) => node.remove());
+  const safeLogo = safeStoreLogoUrl(logoUrl);
+  if (safeLogo) {
+    const brand = documentNode.createElement("table");
+    brand.setAttribute("role", "presentation");
+    brand.setAttribute("aria-label", "campaign-brand-logo");
+    brand.setAttribute("width", "100%");
+    brand.setAttribute("cellspacing", "0");
+    brand.setAttribute("cellpadding", "0");
+    brand.setAttribute("style", "width:100%;background:#ffffff");
+    brand.innerHTML = `<tbody><tr><td align="center" style="padding:22px 20px"><img src="${escapeHtml(safeLogo)}" alt="شعار المتجر" width="220" style="display:block;width:auto;max-width:220px;max-height:86px;height:auto;margin:0 auto"></td></tr></tbody>`;
+    documentNode.body.prepend(brand);
+  }
+  const subjectNode = documentNode.querySelector('[aria-label="campaign-email-subject"],h1,h2');
+  const bodyNode = documentNode.querySelector('[aria-label="campaign-email-body"]') || subjectNode?.parentElement?.querySelector("p") || documentNode.querySelector("p");
+  if (subjectNode) {
+    subjectNode.setAttribute("aria-label", "campaign-email-subject");
+    subjectNode.style.textAlign = campaignStudioAlignment(subjectAlignment);
+  }
+  if (bodyNode) {
+    bodyNode.setAttribute("aria-label", "campaign-email-body");
+    bodyNode.style.textAlign = campaignStudioAlignment(bodyAlignment);
+  }
+  const cardsTable = campaignStudioFixedCardsTable(documentNode, cards, kind, themeColor);
+  if (cardsTable) {
+    const anchor = bodyNode || subjectNode;
+    if (anchor?.parentNode) anchor.insertAdjacentElement("afterend", cardsTable);
+    else documentNode.body.append(cardsTable);
+  }
+  return documentNode.body.innerHTML;
+}
+
+function campaignStudioApplyFixedEmailContent(html, form) {
+  return campaignStudioApplyFixedLogo(
+    html,
+    form?.elements.brandLogoUrl?.value || "",
+    form?.elements.subjectAlignment?.value,
+    form?.elements.bodyAlignment?.value,
+    campaignStudioFormCards(form),
+    state.campaignBuilderKind === "product" ? "product" : "custom",
+    form?.elements.themeColor?.value || "#0b3f3b"
+  );
+}
+
+function campaignStudioWithoutFixedCards(html) {
+  const parser = new DOMParser();
+  const documentNode = parser.parseFromString(`<body>${String(html || "")}</body>`, "text/html");
+  documentNode.querySelectorAll('[aria-label="campaign-email-cards"]').forEach((node) => node.remove());
+  return documentNode.body.innerHTML;
+}
+
 function campaignStudioGeneratedHtml(form) {
   const cards = campaignStudioFormCards(form);
   const subject = String(form?.elements.subject?.value || form?.elements.name?.value || "").trim();
@@ -5871,19 +6104,26 @@ function campaignStudioGeneratedHtml(form) {
   const footer = String(form?.elements.footer?.value || "").trim();
   const accent = /^#[0-9a-f]{6}$/i.test(form?.elements.themeColor?.value || "") ? form.elements.themeColor.value : "#0b3f3b";
   const theme = { page:"#f5f8f7",surface:"#ffffff",heading:accent,copy:"#526763",card:"#ffffff",accent };
-  const heroImageUrl = safeStoreLogoUrl(form?.elements.heroImageUrl?.value);
-  const cardCell = (card, width = "50%", colspan = "") => `<td ${colspan ? `colspan="${colspan}"` : `width="${width}"`} valign="top" style="padding:6px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="height:100%;border:1px solid #e2ebe9;border-radius:12px;background:${theme.card}"><tr><td style="padding:16px;text-align:right">${card.imageUrl ? `<img src="${escapeHtml(card.imageUrl)}" alt="${escapeHtml(card.title)}" width="240" style="display:block;width:100%;max-width:240px;height:auto;margin:0 auto 14px;border-radius:10px">` : ""}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title)}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText)}</p><a href="${escapeHtml(card.buttonUrl)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText)}</a></td></tr></table></td>`;
+  const brandLogoUrl = safeStoreLogoUrl(form?.elements.brandLogoUrl?.value);
+  const subjectAlignment = campaignStudioAlignment(form?.elements.subjectAlignment?.value);
+  const bodyAlignment = campaignStudioAlignment(form?.elements.bodyAlignment?.value);
+  const cardCell = (card, index, width = "50%", colspan = "") => {
+    const imageUrl = safeStoreLogoUrl(card.imageUrl);
+    const image = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.title || `صورة البطاقة ${index + 1}`)}" width="180" style="display:block;width:100%;max-width:180px;height:auto;margin:0 auto 12px;border-radius:10px">` : "";
+    return `<td ${colspan ? `colspan="${colspan}"` : `width="${width}"`} valign="top" style="padding:6px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="height:100%;border:1px solid #e2ebe9;border-radius:12px;background:${theme.card}"><tr><td style="padding:16px;text-align:right">${image}<h3 style="margin:0 0 8px;color:${theme.accent};font:700 18px Arial,sans-serif">${escapeHtml(card.title || "عنوان البطاقة")}</h3><p style="margin:0 0 14px;color:#526763;font:400 14px/1.8 Arial,sans-serif">${escapeHtml(card.bodyText || "سيظهر نص البطاقة هنا")}</p><a href="${escapeHtml(card.buttonUrl || "{{product_url}}")}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:${theme.accent};color:#fff;text-decoration:none;font:700 13px Arial,sans-serif">${escapeHtml(card.buttonText || "زر الإجراء")}</a></td></tr></table></td>`;
+  };
   const rows = [];
   for (let index = 0; index < cards.length; index += 2) {
     const pair = cards.slice(index, index + 2);
-    rows.push(`<tr>${pair.length === 1 ? cardCell(pair[0], "100%", "2") : pair.map((card) => cardCell(card)).join("")}</tr>`);
+    rows.push(`<tr>${pair.map((card, offset) => cardCell(card, index + offset)).join("")}${pair.length === 1 ? '<td width="50%" aria-hidden="true" style="padding:6px"></td>' : ""}</tr>`);
   }
   const socialLinks = campaignStudioSocialPlatforms().map(([name,label]) => {
     const url = campaignStudioValidHttpUrl(form?.elements[name]?.value);
     const initials = {instagram:"◎",x:"X",linkedin:"in",youtube:"▶",snapchat:"◉",facebook:"f"}[name];
     return url ? `<a href="${escapeHtml(url)}" aria-label="${label}" style="display:inline-block;width:32px;height:32px;margin:0 4px;border:1px solid #dce8e5;border-radius:50%;color:${theme.accent};font:700 13px/32px Arial,sans-serif;text-align:center;text-decoration:none">${initials}</a>` : "";
   }).join("");
-  return `<div dir="rtl" style="padding:24px;background:${theme.page}"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right">${heroImageUrl ? `<img src="${escapeHtml(heroImageUrl)}" alt="صورة الحملة" width="564" style="display:block;width:100%;max-width:564px;height:auto;margin:0 0 22px;border-radius:14px">` : ""}<h1 style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif">${escapeHtml(subject)}</h1><p style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif">${escapeHtml(body)}</p><h2 style="margin:26px 0 10px;color:${theme.heading};font:700 20px Arial,sans-serif">تفاصيل الحملة</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;border-collapse:separate;border-spacing:0 8px">${rows.join("")}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 0;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer)}</p></td></tr></table></td></tr></table></div>`;
+  const html = `<div dir="rtl" style="padding:24px;background:${theme.page};font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText || "نص المعاينة")}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${theme.surface};border:1px solid #e2ebe9;border-radius:16px"><tr><td style="padding:28px;text-align:right"><h1 aria-label="campaign-email-subject" style="margin:0 0 12px;color:${theme.heading};font:700 26px Arial,sans-serif;text-align:${subjectAlignment}">${escapeHtml(subject || "عنوان الحملة")}</h1><p aria-label="campaign-email-body" style="margin:0 0 20px;color:${theme.copy};font:400 15px/1.9 Arial,sans-serif;text-align:${bodyAlignment}">${escapeHtml(body || "سيظهر محتوى البريد هنا.")}</p><table role="presentation" aria-label="campaign-email-cards" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;border-collapse:separate;border-spacing:0 8px">${rows.join("")}</table>${socialLinks ? `<div style="padding:22px 0 6px;text-align:center">${socialLinks}</div>` : ""}<p style="margin:24px 0 8px;color:#7b8e8a;font:400 12px/1.7 Arial,sans-serif;text-align:center">${escapeHtml(footer || "")}</p><p style="margin:0;text-align:center"><a href="{{unsubscribe_url}}" style="color:${theme.accent};font:400 11px Arial,sans-serif">إلغاء الاشتراك</a></p></td></tr></table></td></tr></table></div>`;
+  return campaignStudioApplyFixedLogo(html, brandLogoUrl, subjectAlignment, bodyAlignment, cards, state.campaignBuilderKind === "product" ? "product" : "custom", accent);
 }
 
 function campaignStudioAIState() {
@@ -5900,7 +6140,7 @@ function campaignStudioAIResultMarkup() {
   if (ai.status === "error") return `<div class="campaign-html-ai-error" role="alert">${dashboardIcon("warning")}<span><b>تعذر توليد الكود</b><small>${escapeHtml(ai.error || "حاول مرة أخرى بعد قليل.")}</small></span><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-generate">إعادة المحاولة</button></div>`;
   if (ai.status !== "success" || !ai.result?.html) return "";
   const quota = ai.result.quota || {};
-  return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>التصميم جاهز للمراجعة</b><small>${escapeHtml(ai.result.summary || "راجع المعاينة ثم اعتمد الكود.")}</small></span></div><iframe sandbox="" referrerpolicy="no-referrer" title="معاينة تصميم كود البريد" srcdoc="${escapeHtml(ai.result.html)}"></iframe><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد تصميم الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-replace">استبدال الكود بالكامل</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ</button></div><small class="campaign-html-ai-quota">تم خصم ${formatAITokens(quota.charged || 0)} توكن من رصيد الذكاء.</small>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
+  return `<div class="campaign-html-ai-success"><div class="campaign-html-ai-success-head">${dashboardIcon("success")}<span><b>تمت كتابة الكود داخل المحرر</b><small>${escapeHtml(ai.result.summary || "راجع الكود ثم اعتمد التصميم لإظهاره مكان المعاينة الرئيسية.")}</small></span></div><div class="campaign-html-ai-result-actions"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-approve">${dashboardIcon("success")} اعتماد التصميم</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-ai-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-ai-regenerate">${dashboardIcon("sparkles")} إعادة التوليد</button></div><small class="campaign-html-ai-quota">تم خصم ${formatAITokens(quota.charged || 0)} توكن من رصيد الذكاء.</small>${(ai.result.warnings || []).length ? `<ul>${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}</div>`;
 }
 
 function campaignStudioAIModalMarkup(mode = "generate") {
@@ -5929,53 +6169,47 @@ async function requestCampaignStudioAICode(form) {
   const promptValue = String(ai.prompt || "").trim();
   const fallbackPrompt = `صمم قالب بريد إلكتروني عربي احترافي ومتجاوب لحملة بعنوان ${form.elements.subject?.value || form.elements.name?.value || "حملة جديدة"} ومحتوى: ${form.elements.body?.value || "رسالة تسويقية واضحة"}`;
   const prompt = promptValue.length >= 3 ? promptValue : fallbackPrompt;
+  const alignmentPrompt = `اجعل محاذاة عنوان البريد ${campaignStudioAlignment(form.elements.subjectAlignment?.value)} ومحاذاة محتوى البريد ${campaignStudioAlignment(form.elements.bodyAlignment?.value)}. لا تنشئ قسم البطاقات ولا تحذفه؛ النظام يثبّته تلقائيًا بعد المحتوى ويعرض بطاقتين في كل صف.`;
   const mode = ["generate", "improve", "fix", "replace"].includes(ai.mode) ? ai.mode : "generate";
   const selectedColor = /^#[0-9a-f]{6}$/i.test(ai.selectedColor || "") ? ai.selectedColor : "#0b3f3b";
   let existingHtml = String(form.elements.htmlContent?.value || "").trim();
-  if (mode !== "generate" && existingHtml) {
-    const inspection = inspectEmailHtmlClient(existingHtml);
+  let requestMode = mode;
+  if (mode === "generate") {
+    const baseInspection = inspectEmailHtmlClient(campaignStudioGeneratedHtml(form));
+    if (baseInspection.ok) {
+      existingHtml = campaignStudioWithoutFixedCards(baseInspection.html);
+      requestMode = "improve";
+    }
+  } else if (existingHtml) {
+    const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedEmailContent(existingHtml, form));
     if (!inspection.ok) return toast("اعتمد كود HTML صالحًا قبل تحسينه أو استبداله.", "warning");
-    existingHtml = inspection.html;
+    existingHtml = campaignStudioWithoutFixedCards(inspection.html);
   }
   const idempotencyKey = globalThis.crypto?.randomUUID?.() || `campaign_ai_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  // The server adds the security/output contract. Keep the user's full prompt within
-  // the API limit instead of appending client text that can make a valid prompt fail.
-  const safePrompt = prompt.slice(0, 4000);
-  const orderedCards = campaignStudioFormCards(form);
-  const selectedImageUrls = [...new Set([form.elements.heroImageUrl?.value, ...orderedCards.map((card) => card.imageUrl)].map(safeStoreLogoUrl).filter(Boolean))];
-  const cardContext = orderedCards.map((card, index) => `${index + 1}. ${card.title || "بطاقة"}: ${card.bodyText || ""} — ${card.buttonText || ""} — ${card.buttonUrl || ""}`).join("\n");
-  const campaignLayout = {
-    direction: "rtl",
-    subject: String(form.elements.subject?.value || form.elements.name?.value || "").trim(),
-    previewText: String(form.elements.previewText?.value || "").trim(),
-    body: String(form.elements.body?.value || "").trim(),
-    heroImageUrl: safeStoreLogoUrl(form.elements.heroImageUrl?.value),
-    cards: orderedCards.map((card, index) => ({
-      position: index + 1,
-      title: card.title,
-      bodyText: card.bodyText,
-      buttonText: card.buttonText,
-      buttonUrl: card.buttonUrl,
-      imageUrl: safeStoreLogoUrl(card.imageUrl)
-    })),
-    footer: String(form.elements.footer?.value || "").trim()
-  };
+  const selectedImageUrls = [safeStoreLogoUrl(form.elements.brandLogoUrl?.value)].filter(Boolean);
   state.campaignStudioAI = { ...ai, status: "loading", mode, prompt, result: null, error: "", beforeHtml: existingHtml };
   refreshCampaignStudioAIResult(form);
   try {
-    const payload = await fetchJson("/api/ai/email-template/generate", {
+    const payload = await fetchJson("/backend/ai/email-template/generate", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ prompt: safePrompt, existingHtml, currentContent: [form.elements.subject?.value, form.elements.body?.value, cardContext && `البطاقات بالترتيب المعتمد:\n${cardContext}`, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, campaignLayout, mode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
+      body: JSON.stringify({ prompt: `${prompt}\n\n${alignmentPrompt}`.slice(0, 4000), existingHtml, currentContent: [form.elements.subject?.value, form.elements.previewText?.value, form.elements.body?.value, form.elements.footer?.value].filter(Boolean).join("\n\n").slice(0, 20000), allowedVariables: ["customer_name", "customer_email", "store_name", "product_name", "product_url", "unsubscribe_url"], selectedImageUrls, brandLogoUrl: safeStoreLogoUrl(form.elements.brandLogoUrl?.value), mode: requestMode, selectedTemplateColor: selectedColor, templateContext: { templateType: "campaign_email", channel: "email", selectedColor } }),
       timeoutMs: 90000, timeoutMessage: "استغرق توليد الكود وقتًا أطول من المتوقع. حاول مرة أخرى."
     });
     syncAIQuota(payload);
-    const inspection = inspectEmailHtmlClient(payload?.html || "");
+    const fixedHtml = campaignStudioApplyFixedEmailContent(payload?.html || "", form);
+    const inspection = inspectEmailHtmlClient(fixedHtml);
     if (!inspection.ok) {
       const invalidOutput = new Error("تم رفض الكود الناتج لأنه لا يطابق أمان البريد. أعد المحاولة بوصف أوضح.");
       invalidOutput.payload = payload;
       throw invalidOutput;
     }
+    form.elements.htmlContent.value = inspection.html;
+    delete form.elements.htmlContent.dataset.approved;
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+    state.campaignStudioPreviewSource = "main";
+    form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تمت كتابة الكود كاملًا داخل المحرر. راجعه ثم اضغط اعتماد التصميم."));
     state.campaignStudioAI = { ...state.campaignStudioAI, status: "success", result: { ...payload, html: inspection.html, warnings: [...new Set([...(payload.warnings || []), ...(inspection.warnings || [])])] }, error: "" };
+    scheduleCampaignStudioDraft(form);
   } catch (error) {
     syncAIQuota(error.payload);
     state.campaignStudioAI = { ...state.campaignStudioAI, status: "error", error: error.message || "تعذر توليد الكود." };
@@ -5985,13 +6219,15 @@ async function requestCampaignStudioAICode(form) {
 
 function applyCampaignStudioAICode(form, replace = false) {
   const html = state.campaignStudioAI?.result?.html || "";
-  const inspection = inspectEmailHtmlClient(html);
+  const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedEmailContent(html, form));
   if (!form || !inspection.ok) return toast(inspection.errors?.[0] || "الكود المقترح غير صالح.", "danger");
   if (replace && String(form.elements.htmlContent?.value || "").trim() && !window.confirm("سيتم استبدال كود الحملة الحالي بالكامل. هل تريد المتابعة؟")) return;
   form.elements.htmlContent.value = inspection.html;
   form.elements.htmlContent.dataset.approved = "true";
+  if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "true";
+  state.campaignStudioPreviewSource = "html";
   form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم اعتماد تصميم الكود وسيبقى محفوظًا عند إغلاق القسم."));
-  refreshCampaignStudioPreview(form);
+  renderCampaignStudioPreviewSource(form, "html");
   scheduleCampaignStudioDraft(form);
   refreshCampaignStudioAIResult(form);
   toast("تم اعتماد تصميم الكود داخل الحملة. احفظ الحملة لتثبيته.", "success");
@@ -6002,13 +6238,17 @@ function campaignStudioDraftValue(name, fallback = "") {
 }
 
 function campaignStudioPage() {
+  const requestedChannel = state.query.get("channel");
+  const requestedKind = state.query.get("kind");
+  if (!state.campaignBuilderChannel && ["email", "whatsapp"].includes(requestedChannel)) state.campaignBuilderChannel = requestedChannel;
+  if (["custom", "product"].includes(requestedKind)) state.campaignBuilderKind = requestedKind;
   const channel = state.campaignBuilderChannel === "email" ? "email" : state.campaignBuilderChannel === "whatsapp" ? "whatsapp" : null;
   const kind = state.campaignBuilderKind === "product" ? "product" : "custom";
   if (channel && !state.campaignBuilderDraft) {
     const savedDraft = storage.get(`renvix.campaign-studio.${channel}.${kind}`, null);
     if (savedDraft?.values && Array.isArray(savedDraft.cards)) {
       state.campaignBuilderDraft = savedDraft;
-      if (kind === "custom") state.campaignBuilderCards = savedDraft.cards.slice(0, 10);
+      state.campaignBuilderCards = savedDraft.cards.slice(0, 10);
     }
   }
   const options = state.campaignsOverview?.createOptions || {};
@@ -6017,7 +6257,13 @@ function campaignStudioPage() {
   const metaTemplates = (options.metaTemplates || []).filter((item) => devices.some((device) => device.id === item.channelId));
   const emailSender = options.email?.connected ? options.email.sender : null;
   const channelReady = channel === "whatsapp" ? devices.length > 0 : channel === "email" ? Boolean(emailSender) : false;
-  const products = state.campaignBuilderProducts || [];
+  let products = state.campaignBuilderProducts || [];
+  if (kind === "product" && !products.length && state.campaignBuilderCards.length) {
+    const productIds = new Set(state.campaignBuilderCards.map((card) => String(card.productId || "")).filter(Boolean));
+    products = (options.products || []).filter((item) => productIds.has(String(item.id))).slice(0, 10);
+    state.campaignBuilderProducts = products;
+    state.campaignBuilderProduct = products[0] || null;
+  }
   if (!channel || !channelReady || (kind === "product" && !products.length)) {
     const message = !channel ? "اختر قناة الإرسال من بطاقة إنشاء الحملة أولًا." : !channelReady ? (channel === "whatsapp" ? "يجب ربط قناة واتساب الرسمية أولًا قبل إنشاء الحملة." : "يجب إعداد قناة البريد الموثقة أولًا قبل إنشاء الحملة.") : "اختر منتجًا فعليًا من كتالوج متجرك أولًا.";
     return dashboardShell(`<section class="suite-page campaign-builder-guard">${pageTitle("إنشاء حملة")}<div class="suite-card suite-mini-empty"><span>${dashboardIcon("campaigns")}</span><strong>تعذر فتح المحرر</strong><p>${message}</p><button class="btn btn-primary" data-action="campaign-builder-exit">العودة إلى الحملات</button></div></section>`);
@@ -6037,23 +6283,32 @@ function campaignStudioPage() {
     return `<option value="${escapeHtml(group.id)}" data-count="${count}" ${campaignStudioDraftValue("groupId") === group.id ? "selected" : ""}>${escapeHtml(group.name)} — ${suiteNumber(count)}</option>`;
   }).join("");
   const socialLinksEnabled = campaignStudioDraftValue("socialLinksEnabled", "false") === "true";
+  const subjectAlignment = campaignStudioAlignment(campaignStudioDraftValue("subjectAlignment"));
+  const bodyAlignment = campaignStudioAlignment(campaignStudioDraftValue("bodyAlignment"));
   const socialFields = channel === "email" ? `<details class="campaign-studio-section" data-campaign-social-section ${socialLinksEnabled ? "open" : ""}><summary>${dashboardIcon("link")}<span><strong>روابط التواصل الاجتماعي</strong><small>مغلقة افتراضيًا. أضف روابطك، وستبقى أيقوناتها ظاهرة في المعاينة حتى بعد إغلاق القسم.</small></span></summary><input type="hidden" name="socialLinksEnabled" value="${socialLinksEnabled ? "true" : "false"}"><div class="campaign-social-grid">${campaignStudioSocialPlatforms().map(([name,label]) => `<label class="field"><span>${dashboardIcon(name)} ${label}</span><input class="input" type="url" name="${name}" dir="ltr" value="${escapeHtml(campaignStudioDraftValue(name))}" placeholder="https://"></label>`).join("")}</div></details>` : "";
-  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span></summary><div class="campaign-html-tools"><div class="campaign-html-toolbar"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-generate">${dashboardIcon("sparkles")} توليد بالذكاء الاصطناعي</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-replace-html">استبدال الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-delete-html">حذف الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button></div><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="14" spellcheck="false" placeholder="سيظهر كود HTML المولّد هنا">${escapeHtml(campaignStudioDraftValue("htmlContent"))}</textarea><small data-campaign-html-status>الكود اختياري؛ اعتمد تصميم الذكاء الاصطناعي قبل الحفظ.</small><div data-campaign-studio-ai-result>${campaignStudioAIResultMarkup()}</div></div></details>` : "";
+  const currentHtml = String(campaignStudioDraftValue("htmlContent") || "");
+  const htmlApproved = campaignStudioDraftValue("htmlContentApproved", currentHtml ? "true" : "false") === "true";
+  if (channel === "email" && state.campaignStudioPreviewSource === null) state.campaignStudioPreviewSource = htmlApproved ? "html" : "main";
+  const htmlBuilder = channel === "email" ? `<details class="campaign-studio-section"><summary>${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span><b class="campaign-html-optional">اختياري</b></summary><div class="campaign-html-tools"><div class="campaign-html-toolbar"><button type="button" class="btn btn-primary" data-action="campaign-studio-ai-generate">${dashboardIcon("sparkles")} توليد بالذكاء الاصطناعي</button><button type="button" class="btn btn-secondary" data-action="campaign-studio-replace-html">استبدال الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-delete-html">حذف الكود</button><button type="button" class="btn btn-ghost" data-action="campaign-studio-copy-html">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-secondary campaign-html-adopt" data-action="campaign-studio-adopt-html">${dashboardIcon("success")} اعتماد التصميم</button></div><input type="hidden" name="htmlContentApproved" value="${htmlApproved ? "true" : "false"}"><textarea class="textarea campaign-html-code" name="htmlContent" dir="ltr" rows="14" spellcheck="false" ${htmlApproved ? 'data-approved="true"' : ""} placeholder="سيُكتب كود HTML المولّد كاملًا هنا">${escapeHtml(currentHtml)}</textarea><small data-campaign-html-status>${htmlApproved ? "التصميم البرمجي معتمد ويظهر في المعاينة الرئيسية." : "الكود اختياري؛ بعد التوليد راجعه ثم اعتمد التصميم."}</small><div data-campaign-studio-ai-result>${campaignStudioAIResultMarkup()}</div></div></details>` : "";
   const channelFields = channel === "whatsapp"
     ? `<label class="field"><span>قناة واتساب الرسمية</span><select class="select" name="whatsappChannelId" required>${devices.map((item) => `<option value="${escapeHtml(item.id)}" ${campaignStudioDraftValue("whatsappChannelId", devices.length === 1 ? devices[0].id : "") === item.id ? "selected" : ""}>${escapeHtml(item.name)}${item.phoneNumber ? ` — ${escapeHtml(item.phoneNumber)}` : ""}</option>`).join("")}</select></label><label class="field"><span>اسم القالب المتوافق مع Meta</span><select class="select" name="metaTemplateId" data-action="campaign-template" required><option value="">اختر قالبًا معتمدًا فعليًا</option>${metaTemplates.map((item) => `<option value="${escapeHtml(item.id)}" data-channel-id="${escapeHtml(item.channelId || "")}" data-template-body="${escapeHtml(campaignMetaTemplateBody(item))}" ${campaignStudioDraftValue("metaTemplateId") === item.id ? "selected" : ""}>${escapeHtml(item.name)} — ${escapeHtml(item.language || "ar")}</option>`).join("")}</select>${metaTemplates.length ? `<small>القوالب المعتمدة والمزامنة من Meta فقط.</small>` : `<small class="field-warning">لا توجد قوالب Meta معتمدة متاحة.</small>`}</label>`
-    : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label><label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
+    : `<label class="field"><span>اسم المرسل</span><input class="input" name="fromName" required maxlength="120" value="${escapeHtml(campaignStudioDraftValue("fromName"))}" placeholder="اسم نشاطك التجاري"></label><label class="field"><span>عنوان المرسل الموثق</span><input class="input" name="fromEmail" value="${escapeHtml(emailSender || "")}" readonly dir="ltr"></label><label class="field"><span>الرد على (اختياري)</span><input class="input" name="replyTo" type="email" dir="ltr" value="${escapeHtml(campaignStudioDraftValue("replyTo"))}" placeholder="support@domain.com"></label><label class="field"><span>عنوان البريد Subject</span><input class="input" name="subject" data-campaign-preview-field="subject" required maxlength="200" value="${escapeHtml(campaignStudioDraftValue("subject"))}" placeholder="اكتب عنوان البريد"></label>${campaignStudioAlignmentControl("subjectAlignment", "محاذاة عنوان البريد", subjectAlignment)}<label class="field ref-span-2"><span>Preview text</span><input class="input" name="previewText" data-campaign-preview-field="preheader" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("previewText"))}" placeholder="النص القصير الظاهر بجانب العنوان"></label>`;
   const emailDesign = "showcase";
-  const heroImageUrl = safeStoreLogoUrl(campaignStudioDraftValue("heroImageUrl"));
+  const brandLogoUrl = safeStoreLogoUrl(campaignStudioDraftValue("brandLogoUrl"));
   const templatesSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-templates"><header><span>${dashboardIcon("template")}</span><div><h2>قالب البريد الرئيسي</h2><p>قالب احترافي واحد معتمد لجميع الحملات؛ خصّص لون الهوية فقط.</p></div></header>${campaignStudioEmailTemplates(emailDesign)}</section>` : "";
-  const campaignImageSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-image-section"><header><span>${dashboardIcon("upload")}</span><div><h2>صورة المتجر أو غلاف الحملة</h2><p>أضف صورة عالية الجودة تظهر في مقدمة البريد وتُتاح بأمان عند توليد الكود.</p></div></header><div class="campaign-email-image-editor ${heroImageUrl ? "has-image" : ""}" data-campaign-hero-image-wrap>${heroImageUrl ? `<img src="${escapeHtml(heroImageUrl)}" alt="صورة الحملة" data-campaign-hero-image-preview>` : `<span data-campaign-hero-image-placeholder>${dashboardIcon("storeBag")}<small>يفضّل مقاسًا أفقيًا بنسبة 16:9</small></span>`}<div><input type="hidden" name="heroImageUrl" value="${escapeHtml(heroImageUrl)}"><input type="file" accept="image/png,image/jpeg,image/webp" data-action="campaign-studio-hero-image-file" hidden><button type="button" class="btn btn-secondary" data-action="campaign-studio-hero-image-pick">${dashboardIcon("upload")} ${heroImageUrl ? "استبدال الصورة" : "إضافة صورة المتجر"}</button>${heroImageUrl ? `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-hero-image-remove">حذف الصورة</button>` : ""}<small>PNG أو JPG أو WebP، بحد أقصى 5 ميجابايت.</small></div></div></section>` : "";
-  const draftedHtml = channel === "email" ? inspectEmailHtmlClient(campaignStudioDraftValue("htmlContent")) : null;
-  const preview = channel === "whatsapp" ? campaignStudioWhatsappPreview(cards) : draftedHtml?.ok ? campaignStudioCustomHtmlPreview(draftedHtml.html) : campaignStudioEmailPreview(cards, emailDesign, emailSender, kind);
+  const campaignLogoSection = channel === "email" ? `<section class="campaign-studio-section campaign-email-logo-section"><header><span>${dashboardIcon("image")}</span><div><h2>شعار المتجر</h2><p>يبقى شعارك ثابتًا أعلى جميع تصاميم البريد، بما فيها الأكواد المولدة بالذكاء الاصطناعي.</p></div></header><div class="campaign-email-image-editor campaign-email-logo-editor ${brandLogoUrl ? "has-image" : ""}" data-campaign-logo-image-wrap>${brandLogoUrl ? `<img src="${escapeHtml(brandLogoUrl)}" alt="شعار المتجر" data-campaign-logo-image-preview>` : `<span data-campaign-logo-image-placeholder>${dashboardIcon("image")}<small>لن يظهر أي شعار إذا تركته فارغًا</small></span>`}<div><input type="hidden" name="brandLogoUrl" value="${escapeHtml(brandLogoUrl)}"><button type="button" class="btn btn-secondary" data-action="campaign-studio-logo-image-pick">${dashboardIcon("archive")} ${brandLogoUrl ? "استبدال الشعار" : "اختيار شعار المتجر"}</button>${brandLogoUrl ? `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-logo-image-remove">${dashboardIcon("delete")} إزالة الشعار</button>` : ""}<small>استخدم شعارًا واضحًا بخلفية شفافة أو بيضاء.</small></div></div></section>` : "";
+  const approvedInspection = htmlApproved ? inspectEmailHtmlClient(campaignStudioApplyFixedLogo(currentHtml, brandLogoUrl, subjectAlignment, bodyAlignment, cards, kind, campaignStudioDraftValue("themeColor", "#0b3f3b"))) : { ok:false };
+  const preview = channel === "whatsapp"
+    ? campaignStudioWhatsappPreview(cards)
+    : state.campaignStudioPreviewSource === "html" && approvedInspection.ok
+      ? campaignStudioGeneratedEmailPreview(approvedInspection.html)
+      : campaignStudioEmailPreview(cards, emailDesign, emailSender, kind);
   return dashboardShell(`<section class="suite-page campaign-studio is-${channel} is-${kind}" data-campaign-channel="${channel}" data-campaign-kind="${kind}">
     <header class="campaign-studio-heading"><div><button class="btn btn-ghost" data-action="campaign-builder-exit">${dashboardIcon("back")} العودة إلى الحملات</button><div class="campaign-studio-title-line"><h1>${title}</h1>${channel === "whatsapp" ? `<span class="campaign-meta-badge">∞ الرسمية من Meta</span>` : `<span class="campaign-email-badge">${dashboardIcon("email")} قناة بريد موثقة</span>`}</div><p>${subtitle}</p><span class="campaign-mode-badge">${dashboardIcon(kind === "product" ? "storeBag" : "payments")} ${modeLabel}</span></div><span class="campaign-draft-state" data-campaign-draft-status>${dashboardIcon("security")} الحفظ التلقائي جاهز</span></header>
     <div class="campaign-studio-layout"><main class="campaign-studio-workspace"><form data-submit="campaign-create" data-campaign-studio class="campaign-studio-form"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="description" value="${escapeHtml(`${modeLabel} عبر ${channel === "email" ? "البريد الإلكتروني" : "واتساب"}`)}"><input type="hidden" name="endTime" value="23:00"><input type="hidden" name="minDelaySeconds" value="20"><input type="hidden" name="maxDelaySeconds" value="120">${[0,1,2,3,4,5,6].map((day) => `<input type="hidden" name="allowedDays" value="${day}">`).join("")}
       <section class="campaign-studio-section" open><header><span>${dashboardIcon("template")}</span><div><h2>أساسيات الحملة</h2><p>القناة والنوع محددان مسبقًا ولا يظهر أي اختيار مكرر.</p></div></header><div class="campaign-studio-basics"><label class="field"><span>اسم الحملة</span><input class="input" name="name" maxlength="160" required value="${escapeHtml(campaignStudioDraftValue("name"))}" placeholder="اكتب اسمًا داخليًا للحملة"><small>اسم داخلي واضح يساعدك على تمييز الحملة في القائمة والتقارير.</small></label>${channelFields}<label class="field"><span>الجمهور المستهدف</span><select class="select" name="groupId" data-action="campaign-studio-audience"><option value="" data-count="${audienceTotal}">جميع جهات الاتصال المؤهلة — ${suiteNumber(audienceTotal)}</option>${groupOptions}</select><small><b data-campaign-audience-count>${suiteNumber(audienceTotal)}</b> جهة مؤهلة عبر ${channel === "email" ? "البريد" : "واتساب"}</small></label><div class="field campaign-send-schedule"><span>جدولة الإرسال</span><div><label><input type="radio" name="sendTiming" value="now" ${campaignStudioDraftValue("sendTiming", "now") === "now" ? "checked" : ""}> إرسال فوري</label><label><input type="radio" name="sendTiming" value="later" ${campaignStudioDraftValue("sendTiming") === "later" ? "checked" : ""}> جدولة لاحقًا</label></div><div class="campaign-schedule-fields" ${campaignStudioDraftValue("sendTiming", "now") === "later" ? "" : "hidden"}><input class="input" type="date" name="startDate" value="${startDate}" min="${localStart.slice(0, 10)}"><input class="input" type="time" name="startTime" value="${startTime}"></div></div></div></section>
-      ${templatesSection}${campaignImageSection}
-      <section class="campaign-studio-section campaign-main-message"><header><span>${dashboardIcon("edit")}</span><div><h2>${channel === "whatsapp" ? "النص الرئيسي" : "محتوى البريد"}</h2><p>${channel === "whatsapp" ? "يظهر أعلى بطاقات الحملة ويلتزم بحدود قالب Meta." : "عنوان رئيسي ونص تمهيدي يتحدثان مباشرة في المعاينة."}</p></div></header><label class="field"><textarea class="textarea" name="body" data-campaign-preview-field="body" rows="5" maxlength="${mainBodyLimit}" required placeholder="اكتب محتوى الحملة هنا">${escapeHtml(campaignStudioDraftValue("body"))}</textarea><small><b data-count-for="body">${String(campaignStudioDraftValue("body")).length}</b>/${mainBodyLimit}</small></label>${channel === "email" ? `<label class="field"><span>Footer Text</span><input class="input" name="footer" data-campaign-preview-field="footer" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("footer"))}" placeholder="نص تذييل البريد"></label>` : ""}</section>
+      ${templatesSection}${campaignLogoSection}
+      <section class="campaign-studio-section campaign-main-message"><header><span>${dashboardIcon("edit")}</span><div><h2>${channel === "whatsapp" ? "النص الرئيسي" : "محتوى البريد"}</h2><p>${channel === "whatsapp" ? "يظهر أعلى بطاقات الحملة ويلتزم بحدود قالب Meta." : "عنوان رئيسي ونص تمهيدي يتحدثان مباشرة في المعاينة."}</p></div></header><label class="field"><textarea class="textarea" name="body" data-campaign-preview-field="body" rows="5" maxlength="${mainBodyLimit}" required placeholder="اكتب محتوى الحملة هنا">${escapeHtml(campaignStudioDraftValue("body"))}</textarea><small><b data-count-for="body">${String(campaignStudioDraftValue("body")).length}</b>/${mainBodyLimit}</small></label>${channel === "email" ? `${campaignStudioAlignmentControl("bodyAlignment", "محاذاة محتوى البريد", bodyAlignment)}<label class="field"><span>Footer Text</span><input class="input" name="footer" data-campaign-preview-field="footer" maxlength="240" value="${escapeHtml(campaignStudioDraftValue("footer"))}" placeholder="نص تذييل البريد"></label>` : ""}</section>
       <section class="campaign-studio-section campaign-card-builder"><header><span>${dashboardIcon(kind === "product" ? "storeBag" : "payments")}</span><div><h2>${kind === "product" ? (channel === "email" ? "منتجات من المتجر" : "بطاقات المنتجات") : "بطاقات مخصصة"}</h2><p>${kind === "product" ? "المنتجات الفعلية المختارة من كتالوج المتجر، ويمكن تخصيص النص والزر." : "ابدأ ببطاقتين فارغتين وأضف صورة وعنوانًا ونصًا وزرًا لكل بطاقة."}</p></div><b class="campaign-card-counter"><span data-campaign-card-count>${cards.length}</span> / 10</b></header><div class="campaign-studio-card-list" data-campaign-card-list>${cards.map((card,index) => campaignStudioCardMarkup(card,index,kind)).join("")}</div><button type="button" class="campaign-add-card" data-action="campaign-studio-card-add" data-kind="${kind}" ${cards.length >= 10 ? "disabled" : ""}>${dashboardIcon("add")} <span>${kind === "product" ? "إضافة منتج" : "إضافة بطاقة"}</span><small>الحد الأقصى 10 بطاقات</small></button></section>
       ${socialFields}${htmlBuilder}
       <details class="campaign-studio-section campaign-optional-settings"><summary>${dashboardIcon("settings")}<span><strong>إعدادات اختيارية</strong><small>التفعيل والتتبع ووسوم الحملة والملاحظات الداخلية.</small></span></summary><div class="campaign-option-grid"><label><input type="checkbox" name="isEnabled"> تفعيل الحملة بعد الحفظ</label><label><input type="checkbox" name="trackClicks" checked> تفعيل تتبع النقرات</label><label><input type="checkbox" name="appendUtm"> إضافة UTM للروابط</label><label class="field"><span>وسم الحملة</span><input class="input" name="campaignTag" maxlength="80"></label><label class="field"><span>ملاحظات داخلية</span><input class="input" name="internalNotes" maxlength="240"></label></div></details>
@@ -6899,7 +7154,7 @@ function emailDesignBuilder({ selectedDesign = "classic", contentMode = "preset"
     <div class="email-design-builder-head"><div><h3>${compact ? "قوالب تصميم" : "قوالب بريد جاهزة"}</h3><p>${compact ? "اختر النمط المعتمد للبريد." : "اختر تصميمًا ثم اضغط اعتماد. لن يتغير المصدر النشط دون اعتمادك."}</p></div><span class="email-source-status ${mode === "html" ? "is-code" : "is-preset"}" data-email-source-status>${mode === "html" ? "الكود المعتمد" : `القالب المعتمد: ${escapeHtml(presets.find((item) => item.id === design)?.name || "كلاسيكي أنيق")}`}</span></div>
     <div class="email-design-workspace"><div class="email-design-presets">${presets.map((item) => `<article class="email-design-preset design-${item.id} ${mode === "preset" && item.id === design ? "is-active" : ""}" data-email-design-card="${item.id}"><div class="email-design-thumb"><i></i><b></b><span></span><em></em></div><strong>${item.name}</strong><small>${item.caption}</small><button class="btn btn-secondary" type="button" data-action="adopt-email-design" data-design="${item.id}">${mode === "preset" && item.id === design ? "معتمد ✓" : "اعتماد القالب"}</button></article>`).join("")}</div>
     ${showThemeControl ? `<div class="email-template-theme"><div><strong>تعديل لون القالب</strong><small>اختر لون الهوية أو استخدم منتقي اللون المخصص؛ يطبّق فورًا على العنوان والزر والتفاصيل البارزة.</small></div><div class="email-theme-palette">${themePalette.map((color) => `<button type="button" data-action="set-email-theme-color" data-color="${color}" class="${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار لون القالب ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" name="emailThemeColor" value="${selectedTheme}" aria-label="لون قالب بريد مخصص"><span>${dashboardIcon("edit")}</span></label></div></div>` : ""}</div>
-    <details class="email-code-designer" ${mode === "html" ? "open" : ""}><summary><span>${dashboardIcon("code")} تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div class="email-code-designer-body email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" data-email-code-sample="${escapeHtml(codeExample)}" placeholder="${escapeHtml(codeExample)}">${escapeHtml(htmlContent || "")}</textarea><small>لا يوجد حد للأسطر. يطبّق الخادم حد الحجم المهيأ ويفحص العناصر والروابط وCSS قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(htmlContent || "<p style='padding:24px'>ابدأ بكتابة كود HTML للمعاينة.</p>")}"></iframe></aside><div class="email-code-actions"><button class="btn btn-primary" type="button" data-action="adopt-email-html">فحص واعتماد الكود</button><button class="btn btn-secondary" type="button" data-action="insert-email-code-sample">إضافة نموذج احترافي</button><button class="btn btn-secondary" type="button" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button></div><div class="email-code-validation neutral" data-email-code-validation>${mode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط فحص واعتماد الكود."}</div></div></details>
+    <details class="email-code-designer" ${mode === "html" ? "open" : ""}><summary><span>${dashboardIcon("code")} تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div class="email-code-designer-body email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" data-email-code-sample="${escapeHtml(codeExample)}" placeholder="${escapeHtml(codeExample)}">${escapeHtml(htmlContent || "")}</textarea><small>لا يوجد حد للأسطر. يطبّق الخادم حد الحجم المهيأ ويفحص العناصر والروابط وCSS قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(htmlContent || "<p style='padding:24px'>ابدأ بكتابة كود HTML للمعاينة.</p>")}"></iframe></aside><div class="email-code-actions"><button class="btn btn-secondary" type="button" data-action="insert-email-code-sample">إضافة نموذج احترافي</button><button class="btn btn-secondary" type="button" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button class="btn btn-primary email-design-adopt" type="button" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم</button></div><div class="email-code-validation neutral" data-email-code-validation>${mode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details>
     ${templateType ? emailTemplateAIBuilderMarkup({ templateType, variables }) : ""}
   </section>`;
 }
@@ -7007,15 +7262,15 @@ function emailTemplateAIBuilderMarkup({ templateType = "renewal", variables = []
     ["fix", "إصلاح الكود"], ["replace", "استبدال كامل"]
   ];
   const suggestions = Array.isArray(ai.suggestions?.suggestions) ? ai.suggestions.suggestions : [];
-  return `<section class="renewal-email-tool-section renewal-email-ai-card email-ai-builder" data-email-ai-card data-template-type="${escapeHtml(templateType)}" data-allowed-variables="${escapeHtml(JSON.stringify(variables))}">
-    <div class="renewal-email-tool-title"><span><strong>✨ توليد الكود بالذكاء الاصطناعي</strong><small>صف ما تريد، وسيُنشئ Renvix كود HTML متوافقًا مع البريد وجاهزًا للتعديل. راجع المسودة ثم وافق عليها قبل نقلها إلى المحرر.</small></span></div>
+  return `<details class="renewal-email-tool-section renewal-email-ai-card email-ai-builder" data-email-ai-card data-template-type="${escapeHtml(templateType)}" data-allowed-variables="${escapeHtml(JSON.stringify(variables))}" open>
+    <summary class="email-ai-builder-summary">${dashboardIcon("code")}<span><strong>توليد قالب برمجي (HTML)</strong><small>ولّد كودًا آمنًا بالذكاء الاصطناعي، راجعه ثم اعتمده. إغلاق القسم لا يحذف الكود.</small></span><b class="email-ai-optional">اختياري</b></summary><div class="email-ai-builder-body">
     <div class="renewal-email-ai-mode" role="group" aria-label="نوع مهمة الذكاء">${modes.map(([mode,label]) => `<button type="button" data-action="email-ai-mode" data-mode="${mode}" class="${ai.mode === mode ? "active" : ""}">${label}</button>`).join("")}</div>
     <div class="email-ai-quick-actions"><button type="button" data-action="email-ai-quick-prompt" data-prompt="حسّن الوضوح والتسلسل البصري مع الحفاظ على النص والمتغيرات">تحسين الوضوح</button><button type="button" data-action="email-ai-quick-prompt" data-prompt="اجعل القالب أكثر توافقًا مع الجوال وعملاء البريد">توافق الجوال</button><button type="button" data-action="email-ai-quick-prompt" data-prompt="قوّ زر الإجراء بصريًا دون اختراع عروض أو أسعار">تحسين CTA</button></div>
     <textarea class="textarea" data-email-ai-prompt maxlength="4000" placeholder="مثال: أنشئ رسالة ودية بتسلسل واضح وزر إجراء بارز.">${escapeHtml(ai.prompt || "")}</textarea>
     <div class="renewal-email-ai-controls"><span data-email-ai-balance>${emailTemplateAIBalanceMarkup()}</span><div><button type="button" class="btn btn-secondary" data-action="email-ai-suggest">اقتراحات ذكية</button><button type="button" class="btn btn-primary" data-action="email-ai-generate">✨ إنشاء مسودة</button></div></div>
     ${ai.suggestions ? `<div class="email-ai-suggestions"><header><strong>تقييم القالب ${Number(ai.suggestions.score || 0)}/100</strong><small>${escapeHtml(ai.suggestions.summary || "")}</small></header>${suggestions.map((item) => `<button type="button" data-action="email-ai-use-suggestion" data-prompt="${escapeHtml(item.prompt)}"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.description)}</span></button>`).join("")}</div>` : ""}
     <div data-email-ai-result>${emailTemplateAIResultMarkup()}</div>
-  </section>`;
+  </div></details>`;
 }
 
 function emailTemplateAIResultMarkup() {
@@ -7025,7 +7280,7 @@ function emailTemplateAIResultMarkup() {
   if (ai.status !== "success" || !ai.result?.html) return `<div class="renewal-email-ai-empty">سيظهر الكود المقترح هنا قبل تطبيقه على القالب.</div>`;
   const quota = ai.result.quota || {};
   return `<div class="renewal-email-ai-success"><div class="renewal-email-ai-success-head">${dashboardIcon("success")}<span><b>المسودة جاهزة للمراجعة</b><small>${escapeHtml(ai.result.summary || "لم يتم تغيير المحرر أو حفظ القالب بعد.")}</small></span></div>
-    <div class="renewal-email-ai-result-actions"><button type="button" class="btn btn-primary" data-action="email-ai-apply">تطبيق الكود بعد المراجعة</button><button type="button" class="btn btn-secondary" data-action="email-ai-preview-result">${dashboardIcon("eye")} قبل / بعد</button><button type="button" class="btn btn-secondary" data-action="email-ai-copy">${dashboardIcon("copy")} نسخ</button><button type="button" class="btn btn-ghost" data-action="email-ai-regenerate">إعادة التوليد</button>${ai.history?.length ? `<button type="button" class="btn btn-ghost" data-action="email-ai-undo">تراجع عن آخر تطبيق</button>` : ""}</div>
+    <div class="renewal-email-ai-result-actions"><button type="button" class="btn btn-secondary" data-action="email-ai-preview-result">${dashboardIcon("eye")} قبل / بعد</button><button type="button" class="btn btn-secondary" data-action="email-ai-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="email-ai-apply">${dashboardIcon("success")} اعتماد التصميم</button><button type="button" class="btn btn-ghost" data-action="email-ai-regenerate">إعادة التوليد</button>${ai.history?.length ? `<button type="button" class="btn btn-ghost" data-action="email-ai-undo">تراجع عن آخر تطبيق</button>` : ""}</div>
     <div class="renewal-email-ai-result-preview email-ai-compare ${ai.previewOpen ? "is-open" : ""}" data-email-ai-result-preview><article><b>قبل</b><iframe sandbox="" referrerpolicy="no-referrer" title="القالب الحالي" srcdoc="${escapeHtml(ai.beforeHtml || "<p>لا يوجد كود حالي.</p>")}"></iframe></article><article><b>بعد</b><iframe sandbox="" referrerpolicy="no-referrer" title="القالب المقترح" srcdoc="${escapeHtml(ai.result.html)}"></iframe></article></div>
     <details class="renewal-email-ai-code"><summary>عرض كود HTML الناتج</summary><textarea readonly dir="ltr" spellcheck="false">${escapeHtml(ai.result.html)}</textarea></details>
     ${(ai.result.warnings || []).length ? `<ul class="email-ai-warnings">${ai.result.warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
@@ -7055,8 +7310,19 @@ function emailAIEditorContext(form, card) {
 }
 
 function syncAIQuota(payload) {
-  if (!payload?.quota || !state.aiUsage || payload.quota.remaining === null) return;
-  state.aiUsage = { ...state.aiUsage, remainingTokens: payload.quota.remaining, nextRefillAt: payload.quota.nextRefillAt || state.aiUsage.nextRefillAt };
+  if (!payload?.quota) return;
+  const charged = Math.max(0, Number(payload.quota.charged || 0));
+  const reportedRemaining = payload.quota.remaining;
+  const remainingTokens = reportedRemaining === null || reportedRemaining === undefined
+    ? Math.max(0, Number(state.aiUsage?.remainingTokens || 0) - charged)
+    : Number(reportedRemaining);
+  if (!Number.isFinite(remainingTokens)) return;
+  state.aiUsage = {
+    ...(state.aiUsage || {}),
+    ...(payload.quota.usage || {}),
+    remainingTokens,
+    nextRefillAt: payload.quota.nextRefillAt || state.aiUsage?.nextRefillAt || null
+  };
   cacheAIViewState({ usage: state.aiUsage });
   refreshAIUsageCards();
 }
@@ -7080,7 +7346,7 @@ async function requestEmailAIDraft(form, card, { replaceConfirmed = false } = {}
   state.emailTemplateAI = { ...state.emailTemplateAI, status: "loading", mode, prompt, result: null, error: "", previewOpen: false, beforeHtml: existingHtml, idempotencyKey, pendingReplace: false };
   refreshEmailTemplateAIResult(card);
   try {
-    const payload = await fetchJson("/api/ai/email-template/generate", {
+    const payload = await fetchJson("/backend/ai/email-template/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
       body: JSON.stringify({
@@ -7110,7 +7376,7 @@ async function requestEmailAISuggestions(form, card) {
   const button = card.querySelector('[data-action="email-ai-suggest"]');
   if (button) { button.disabled = true; button.textContent = "جارٍ التحليل..."; }
   try {
-    const payload = await fetchJson("/api/ai/email-template/suggestions", {
+    const payload = await fetchJson("/backend/ai/email-template/suggestions", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
       body: JSON.stringify({ existingHtml: inspection.html, currentContent: context.currentContent, templateContext: { templateType: context.templateType, channel: "email", selectedColor: context.selectedColor } }),
       timeoutMs: 90000
@@ -7118,7 +7384,7 @@ async function requestEmailAISuggestions(form, card) {
     state.emailTemplateAI = { ...state.emailTemplateAI, suggestions: payload };
     syncAIQuota(payload);
     card.outerHTML = emailTemplateAIBuilderMarkup({ templateType: context.templateType, variables: context.variables });
-  } catch (error) { toast(error.message || "تعذر تحليل القالب.", "danger"); }
+  } catch (error) { syncAIQuota(error.payload); toast(error.message || "تعذر تحليل القالب.", "danger"); }
   finally { if (button?.isConnected) { button.disabled = false; button.textContent = "اقتراحات ذكية"; } }
 }
 
@@ -7503,7 +7769,7 @@ function catalogTemplateEditorPage(templateKey) {
     const emailContentMode = template.contentJson?.emailContentMode === "html" ? "html" : "preset";
     const emailHtmlContent = template.contentJson?.emailHtmlContent || "";
     const emailDraft = { ...template, storeName: "{{store_name}}", themeColor: template.themeColor || "#062B28", emailContentMode, emailHtmlContent };
-    return dashboardShell(`${pageTitle("قالب قناة إرسال بريد", backButton)}<p class="page-kicker">قالب البريد المستخدم لإرسال تفاصيل الطلب ورابط صفحة العميل.</p><section class="template-editor-v2 template-editor-v2-email catalog-email-editor"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">عنوان المرسل ثابت وموثّق.</p><label class="field"><span>المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>لون القالب</span><input class="input" type="color" name="themeColorExternal" value="${safeEmailTheme(emailDraft.themeColor)}" data-catalog-theme></label><div class="email-settings-hint">رابط معلومات الطلب يُضاف آمنًا لكل عميل ولا يُحفظ كرابط ثابت داخل القالب.</div></article><article class="card template-editor-card-v2 email-editor-v2"><form data-submit="catalog-template" class="grid">${commonFields}<input type="hidden" name="emailContentMode" value="${emailContentMode}"><label class="field"><span>موضوع البريد</span><input class="input" name="title" value="${escapeHtml(template.title || "")}" data-catalog-preview-title required></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea template-editor email-content-editor" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${emailVariables.map((item) => `<span class="chip">{{${item}}}</span>`).join("")}</div>${emailTemplateAIBuilderMarkup({ templateType: "email_delivery", variables: emailVariables })}<details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر HTML الآمن</summary><div class="email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يتم الفحص في الخادم قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-primary" data-action="adopt-email-html">فحص واعتماد الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "لن يستخدم الكود حتى يتم فحصه واعتماده."}</div></div></details><div class="template-meta-grid"><label class="field"><span>نص الزر</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div>${footer}</form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>سطح المكتب والجوال بنفس محتوى الإرسال.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-catalog-preview-title-output>الموضوع: ${escapeHtml(template.title || "")}</span></div><div data-catalog-email-preview>${emailTemplatePreview(emailDraft)}</div></article></aside></section>`);
+    return dashboardShell(`${pageTitle("قالب قناة إرسال بريد", backButton)}<p class="page-kicker">قالب البريد المستخدم لإرسال تفاصيل الطلب ورابط صفحة العميل.</p><section class="template-editor-v2 template-editor-v2-email catalog-email-editor"><article class="card email-settings-v2"><h2>إعدادات الهوية</h2><p class="muted">عنوان المرسل ثابت وموثّق.</p><label class="field"><span>المرسل</span><input class="input" value="Renvix &lt;noreply@notify.renvix.app&gt;" readonly></label><label class="field"><span>لون القالب</span><input class="input" type="color" name="themeColorExternal" value="${safeEmailTheme(emailDraft.themeColor)}" data-catalog-theme></label><div class="email-settings-hint">رابط معلومات الطلب يُضاف آمنًا لكل عميل ولا يُحفظ كرابط ثابت داخل القالب.</div></article><article class="card template-editor-card-v2 email-editor-v2"><form data-submit="catalog-template" class="grid">${commonFields}<input type="hidden" name="emailContentMode" value="${emailContentMode}"><label class="field"><span>موضوع البريد</span><input class="input" name="title" value="${escapeHtml(template.title || "")}" data-catalog-preview-title required></label><label class="field"><span>محتوى الرسالة</span><textarea class="textarea template-editor email-content-editor" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${emailVariables.map((item) => `<span class="chip">{{${item}}}</span>`).join("")}</div>${emailTemplateAIBuilderMarkup({ templateType: "email_delivery", variables: emailVariables })}<details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر HTML الآمن</summary><div class="email-code-workspace"><label class="field"><span>كود محتوى البريد</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يتم الفحص في الخادم قبل الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details><div class="template-meta-grid"><label class="field"><span>نص الزر</span><input class="input" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}" data-catalog-preview-button required></label><label class="field"><span>النص الختامي</span><input class="input" name="footerText" value="${escapeHtml(template.footerText || "")}" data-catalog-preview-footer></label></div>${footer}</form></article><aside class="template-preview-v2 email-preview-v2"><article class="card"><div class="section-head"><div><h2>معاينة البريد</h2><p>سطح المكتب والجوال بنفس محتوى الإرسال.</p></div>${dashboardIcon("email")}</div><div class="email-header-preview"><b>Renvix &lt;noreply@notify.renvix.app&gt;</b><span>إلى: {{customer_email}}</span><span data-catalog-preview-title-output>الموضوع: ${escapeHtml(template.title || "")}</span></div><div data-catalog-email-preview>${emailTemplatePreview(emailDraft)}</div></article></aside></section>`);
   }
 
   return dashboardShell(`${pageTitle("قالب تم التنفيذ — سلة", backButton)}<p class="page-kicker">الرسالة التي تُجهّز بعد تنفيذ طلب سلة، مع رابط طلب خاص وغير قابل للحذف.</p><section class="template-editor-v2 template-editor-v2-salla"><article class="card template-editor-card-v2"><form data-submit="catalog-template" class="grid">${commonFields}<label class="field"><span>نص الرسالة</span><textarea class="textarea template-editor-v2-body" name="body" data-catalog-preview-body required>${escapeHtml(template.body || "")}</textarea></label><div class="variables-row"><span>المتغيرات المتاحة</span>${["{{customer_name}}","{{order_number}}","{{store_name}}"].map((item) => `<span class="chip">${item}</span>`).join("")}</div><div class="catalog-locked-link">${dashboardIcon("security")}<div><strong>رابط الطلب الخاص بالعميل</strong><small>يُنشأ تلقائيًا لكل طلب ولا يمكن حذفه أو استبداله برابط ثابت.</small></div></div><input type="hidden" name="buttonLabel" value="${escapeHtml(template.buttonLabel || "عرض معلومات الطلب")}"><input type="hidden" name="footerText" value="${escapeHtml(template.footerText || "Renvix")}">${footer}</form></article><aside class="template-preview-v2 catalog-salla-previews"><article class="card"><div class="section-head"><div><h2>معاينة الرسالة</h2><p>النص الذي يصل إلى العميل.</p></div><img class="salla-preview-logo" src="/assets/salla-logo.svg" alt="سلة"></div><div class="salla-message-preview"><p data-catalog-preview-output>${escapeHtml(template.body || "")}</p><div class="catalog-locked-link compact">🔒 رابط الطلب الخاص بالعميل</div></div></article><article class="card"><div class="section-head"><div><h2>معاينة صفحة الطلب</h2><p>تُعرض المتغيرات حتى اختيار طلب حقيقي.</p></div>${dashboardIcon("orderLink")}</div><div class="salla-order-page-preview"><div class="salla-order-brand"><img src="/assets/salla-logo.svg" alt="سلة"><strong>{{store_name}}</strong></div><h3>تفاصيل الطلب</h3><dl><div><dt>رقم الطلب</dt><dd>{{order_number}}</dd></div><div><dt>الحالة</dt><dd>تم التنفيذ</dd></div><div><dt>العميل</dt><dd>{{customer_name}}</dd></div></dl><p>لا توجد بيانات طلب حقيقي محددة للمعاينة.</p></div></article></aside></section>`);
@@ -7564,7 +7830,7 @@ function renewalTemplateEditorPageV2(forcedChannel = "") {
             <section class="renewal-email-tool-section renewal-email-colors-section"><div class="renewal-email-tool-title"><span><strong>الألوان</strong><small>لون الهوية المستخدم في العنوان والزر.</small></span></div><div class="email-theme-palette renewal-email-theme-palette">${EMAIL_THEME_PALETTE.map((color) => `<button type="button" data-action="template-theme" data-color="${color}" class="email-color ${selectedTheme === color ? "active" : ""}" style="--email-palette:${color}" aria-label="اختيار اللون ${color}"></button>`).join("")}<label title="لون مخصص"><input type="color" value="${selectedTheme}" data-action="renewal-email-custom-color" aria-label="لون مخصص"><span>${dashboardIcon("edit")}</span></label></div></section>
             <section class="renewal-email-tool-section renewal-email-image-section"><div class="renewal-email-tool-title"><span><strong>إضافة صورة للبريد</strong><small>استخدم صورة موثوقة من هوية متجرك.</small></span></div>${storeLogoEditor(state.orderLinkProfile?.logoUrl)}</section>
           </div>
-          <details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر كود HTML الآمن <span>${emailContentMode === "html" ? "الكود المعتمد" : "اختياري"}</span></summary><div class="email-code-workspace"><label class="field"><span>كود HTML</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" placeholder="سيظهر هنا الكود المطبق من مولّد الذكاء...">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يطبق الخادم حد الحجم وفحص الأمان عند الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-primary" data-action="adopt-email-html">فحص واعتماد الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "لن يستخدم الكود حتى يتم فحصه واعتماده."}</div></div></details>
+          <details class="renewal-email-code-editor" ${emailContentMode === "html" ? "open" : ""}><summary>${dashboardIcon("code")} محرر كود HTML الآمن <span>${emailContentMode === "html" ? "الكود المعتمد" : "اختياري"}</span></summary><div class="email-code-workspace"><label class="field"><span>كود HTML</span><textarea class="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellcheck="false" placeholder="سيظهر هنا الكود المطبق من مولّد الذكاء...">${escapeHtml(emailHtmlContent)}</textarea><small>لا يوجد حد للأسطر؛ يطبق الخادم حد الحجم وفحص الأمان عند الحفظ.</small></label><aside class="email-code-live-preview"><strong>معاينة مباشرة</strong><iframe sandbox="" referrerpolicy="no-referrer" data-email-code-live-preview title="معاينة كود البريد" srcdoc="${escapeHtml(emailHtmlContent || "<p style='padding:24px'>ابدأ بكتابة الكود.</p>")}"></iframe></aside><div class="renewal-email-code-actions"><button type="button" class="btn btn-secondary" data-action="email-code-preview">${dashboardIcon("eye")} معاينة الكود</button><button type="button" class="btn btn-secondary" data-action="email-code-copy">${dashboardIcon("copy")} نسخ الكود</button><button type="button" class="btn btn-primary email-design-adopt" data-action="adopt-email-html">${dashboardIcon("success")} اعتماد التصميم</button></div><div class="email-code-validation neutral" data-email-code-validation>${emailContentMode === "html" ? "هذا الكود هو المصدر المعتمد للمعاينة والإرسال." : "الكود اختياري ولن يُستخدم حتى تضغط اعتماد التصميم."}</div></div></details>
         </article>
         <div class="renewal-email-form-actions"><button class="btn btn-primary">حفظ التعديلات ${dashboardIcon("save")}</button><button type="button" class="btn btn-secondary" data-action="preview-email-template">معاينة ${dashboardIcon("eye")}</button></div>
       </div>
@@ -8188,8 +8454,10 @@ function billingWorkspacePage() {
   const trialEnd = current.trialEndsAt || (statusKey === "trial" ? current.currentPeriodEnd : null);
   const periodEnd = trialEnd || current.currentPeriodEnd || null;
   const days = periodEnd && Number.isFinite(new Date(periodEnd).getTime()) ? Math.max(0, Math.ceil((new Date(periodEnd).getTime() - Date.now()) / 86400000)) : null;
-  const trialActive = statusKey === "trial" && days !== null && days > 0;
-  const trialExpired = statusKey === "expired" || (statusKey === "trial" && days === 0);
+  const trialPlan = ["trial", "retired_free"].includes(String(current.planSlug || "").toLowerCase());
+  const trialActive = trialPlan && statusKey === "trial" && days !== null && days > 0;
+  const trialExpired = trialPlan && (statusKey === "expired" || (statusKey === "trial" && days === 0));
+  const paidExpired = !trialPlan && statusKey === "expired";
   const invoices = data.invoices || [];
   const tab = ["overview", "plans", "whatsapp", "email", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
   const numberOrNull = (value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
@@ -8216,13 +8484,15 @@ function billingWorkspacePage() {
     <article class="card billing-stat"><span>${dashboardIcon("email")}</span><div><small>رصيد رسائل البريد</small><strong>${valueText(emailRemaining)}</strong><em>${emailRemaining === null ? "—" : "رسالة متبقية"}</em></div></article>
     <article class="card billing-stat"><span>${dashboardIcon("email")}</span><div><small>استخدام البريد هذا الشهر</small><strong>${emailPercentage === null ? "—" : `${valueText(emailPercentage)}%`}</strong><em>${consumedEmail === null || emailLimit === null ? "—" : `${valueText(consumedEmail)} من ${valueText(emailLimit)} رسالة`}</em></div></article>
     <article class="card billing-stat whatsapp"><span>${dashboardIcon("whatsapp")}</span><div><small>استخدام واتساب هذا الشهر</small><strong>${valueText(whatsappMessages)}</strong><em>${whatsappMessages === null ? "—" : "رسالة مسجلة"}</em></div></article>
-    <article class="card billing-stat"><span>${dashboardIcon("billing")}</span><div><small>مساحة التخزين</small><strong>${storageUsed === null ? "—" : storageAmountLabel(storageUsed)}</strong><em>${storageLimit === null ? "—" : `من ${storageAmountLabel(storageLimit)}${storageLimit < 0 || storagePercent === null ? "" : ` · ${valueText(storagePercent)}%`}`}</em></div></article>
+    <article class="card billing-stat"><span>${dashboardIcon("billing")}</span><div><small>حد مساحة التخزين</small><strong>${storageLimit === null ? "—" : storageAmountLabel(storageLimit)}</strong><em>${storageUsed === null ? "—" : `المستخدم ${storageAmountLabel(storageUsed)}${storageLimit < 0 || storagePercent === null ? "" : ` · ${valueText(storagePercent)}%`}`}</em></div></article>
   </section>`;
   const trialNotice = trialActive
     ? `<section class="billing-trial-notice"><div><strong>التجربة المجانية</strong><span>متبقي ${valueText(days)} ${days === 1 ? "يوم" : "أيام"}. جرّب Renvix قبل اختيار باقتك؛ لا توجد باقة مجانية دائمة.</span></div><button class="btn btn-primary" data-action="billing-tab" data-tab="plans">اختيار الباقة</button></section>`
     : trialExpired
       ? `<section class="billing-trial-notice expired"><div><strong>انتهت تجربتك المجانية</strong><span>اختر الباقة المناسبة لاستكمال استخدام Renvix. بياناتك محفوظة ولن تُحذف.</span></div><button class="btn btn-primary" data-action="billing-tab" data-tab="plans">عرض الباقات</button></section>`
-      : "";
+      : paidExpired
+        ? `<section class="billing-trial-notice expired"><div><strong>انتهى اشتراك ${escapeHtml(current.planName || "الباقة")}</strong><span>توقفت مزايا الباقة حتى تجديد الاشتراك أو إعادة تفعيله من الإدارة.</span></div><button class="btn btn-primary" data-link="/support">تواصل مع الدعم</button></section>`
+        : "";
   const plansPanel = `<article class="card plan-catalog billing-tab-panel"><div class="section-head"><div><h2>اختر الباقة المناسبة لاحتياجاتك</h2><p>مزايا وحدود كل باقة مستخرجة مباشرة من تعريفها الفعلي في النظام.</p></div></div>${billingPlanCatalog(plans, current)}</article>`;
   let panel = "";
   if (tab === "overview") panel = `${overview}${trialNotice}${plansPanel}<section class="section">${billingInvoices(invoices)}</section>`;
@@ -8290,7 +8560,7 @@ function settingsReferencePage() {
       <article class="suite-card settings-ref-card account"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><h2>إعدادات الحساب</h2><p>معلوماتك الشخصية وبيانات التواصل.</p></div></div><div class="settings-ref-account"><div class="settings-ref-avatar-wrap">${avatar}<input type="file" accept="image/png,image/jpeg,image/webp" data-action="avatar-file" hidden><button class="btn btn-secondary" data-action="choose-avatar">${dashboardIcon("upload")} تغيير الصورة</button><small>PNG, JPG حتى 2MB</small></div><form data-submit="profile-settings" class="settings-ref-profile" data-original-name="${escapeHtml(fullName)}" data-original-store="${escapeHtml(remote.storeName || "")}" data-original-phone="${escapeHtml(remote.phone || "")}"><div class="settings-ref-two"><label class="field"><span>الاسم الظاهر</span><input class="input" value="${escapeHtml(String(fullName).split(" ")[0] || fullName)}" readonly></label><label class="field"><span>الاسم الكامل</span><input class="input" name="fullName" value="${escapeHtml(fullName)}" required></label></div><label class="field"><span>البريد الإلكتروني</span><input class="input" value="${escapeHtml(remote.email || "")}" readonly dir="ltr"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" value="${escapeHtml(remote.phone || "")}" dir="ltr"></label><input type="hidden" name="storeName" value="${escapeHtml(remote.storeName || "")}"><button class="btn btn-primary profile-save-button">حفظ التعديلات</button></form></div></article>
       <article class="suite-card settings-ref-card security"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("security")}</span><div><h2>أمان الحساب</h2><p>تغيير كلمة المرور والتحقق الثنائي.</p></div></div><div class="settings-ref-mfa"><div><strong>تفعيل التحقق الثنائي</strong><p>عزز أمان حسابك بطبقة حماية إضافية عند تسجيل الدخول.</p></div><label class="switch-control"><input type="checkbox" data-action="mfa-toggle" ${remote.mfaEnabled ? "checked" : ""}><span></span></label></div><form data-submit="password" class="settings-ref-password"><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="newPassword" type="password" minlength="10" required></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="10" required></label><button class="btn btn-primary">تغيير كلمة المرور</button></form></article>
       <article class="suite-card settings-ref-card newsletter"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("email")}</span><div><h2>النشرة البريدية</h2><p>رابط اشتراك مخصص لحسابك؛ كل مشترك جديد يُضاف تلقائيًا إلى عملائك.</p></div><span class="newsletter-live-badge"><i></i> مفعّلة</span></div><div class="newsletter-link"><input class="input" value="${escapeHtml(newsletterUrl)}" readonly dir="ltr" aria-label="رابط النشرة المخصص"><button class="btn btn-secondary" data-action="copy-value" data-value="${escapeHtml(newsletterUrl)}" ${newsletterUrl ? "" : "disabled"}>${dashboardIcon("copy")} نسخ الرابط</button><button class="btn btn-primary" data-link="/dashboard/customers">${dashboardIcon("customers")} العملاء</button></div><div class="newsletter-link-note">${dashboardIcon("security")} الرابط مرتبط بحسابك، ويُمنع تكرار البريد نفسه تلقائيًا.</div><div class="store-customer-sync"><span class="suite-icon-tile">${dashboardIcon("customers")}</span><div><strong>حفظ عملاء المتجر تلقائيًا</strong><p>عند تسجيل العميل دخوله إلى متجر سلة، تُنشأ بياناته أو تُحدّث في قسم العملاء دون تكرار.</p><small>${remote.storeCustomerSyncAvailable ? (remote.storeCustomerSyncEnabled ? "المزامنة مفعّلة وتستقبل تسجيلات الدخول الجديدة." : "المزامنة متوقفة؛ لن تُحفظ تسجيلات الدخول الجديدة.") : "اربط متجر سلة أولًا لتتمكن من تشغيل هذه الميزة."}</small></div><label class="switch-control" title="${remote.storeCustomerSyncAvailable ? "تشغيل أو إيقاف حفظ عملاء المتجر" : "اربط متجر سلة أولًا"}"><input type="checkbox" data-action="store-customer-sync-toggle" ${remote.storeCustomerSyncEnabled ? "checked" : ""} ${remote.storeCustomerSyncAvailable ? "" : "disabled"} aria-label="حفظ عملاء المتجر تلقائيًا"><span></span></label>${remote.storeCustomerSyncAvailable ? "" : `<button class="btn btn-secondary" data-link="/dashboard/apps">ربط سلة</button>`}</div></article>
-      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>حد التخزين في الباقة</h2><p>ملخص حد باقتك فقط؛ إدارة الملفات وإخلاء المساحة تتم من مركز التخزين.</p></div></div><div class="settings-storage-number"><strong>${usedStorage}</strong><span>من ${limitStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-actions single"><button class="btn btn-primary" data-link="/dashboard/storage">${dashboardIcon("archive")} إدارة التخزين</button></div></article>
+      <article class="suite-card settings-ref-card storage ${storage.isLimitReached ? "is-limit-reached" : ""}"><div class="settings-ref-title"><span class="suite-icon-tile">${dashboardIcon("billing")}</span><div><h2>حد التخزين في الباقة</h2><p>ملخص حد باقتك فقط؛ إدارة الملفات وإخلاء المساحة تتم من مركز التخزين.</p></div></div><div class="settings-storage-number"><strong>${limitStorage}</strong><span>المستخدم ${usedStorage}</span><em>${formatStoragePercent(storagePercent)}</em></div><div class="storage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${storageProgress}"><i style="width:${storageProgress}%"></i></div><small class="settings-storage-caption">${storage.isOverLimit ? `تجاوزت حد الباقة بـ ${storageAmountLabel(Math.max(0, Number(storage.usedMb || 0) - Number(storage.limitMb || 0)))}` : `${formatStoragePercent(storagePercent)} من المساحة مستخدم`}</small><div class="settings-storage-actions single"><button class="btn btn-primary" data-link="/dashboard/storage">${dashboardIcon("archive")} إدارة التخزين</button></div></article>
     </div>
   </section>`);
 }
@@ -9238,6 +9508,7 @@ function restoreStorageDocumentDraft() {
   form.dataset.timerDisplayMode = draft.timerDisplayMode === "hours" ? "hours" : "days";
   editor.innerHTML = draft.body;
   normalizeStorageBoldMarkup(editor);
+  ensureStorageEditorTextFlows(editor);
   const words = String(editor.innerText || "").trim().split(/\s+/).filter(Boolean).length;
   const output = form.querySelector("[data-storage-word-count]");
   if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
@@ -9245,7 +9516,32 @@ function restoreStorageDocumentDraft() {
 
 let storageEditorSelectionRange = null;
 
-function captureStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
+function storageEditorTextForFormatting(editor) {
+  const blocks = new Set(["DIV", "P", "H1", "H2", "H3", "H4", "LI", "UL", "OL", "BLOCKQUOTE"]);
+  let text = "";
+  const read = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.nodeValue.replace(/\u00a0/g, " ");
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE || node.matches("[data-storage-ai-number],hr")) return;
+    if (node.tagName === "BR") { text += "\n"; return; }
+    const before = text.length;
+    node.childNodes.forEach(read);
+    if (node !== editor && blocks.has(node.tagName)) {
+      if (!String(node.textContent || "").trim() || text.length === before) text += "\n";
+      if (!text.endsWith("\n")) text += "\n";
+    }
+  };
+  read(editor);
+  return text.trim();
+}
+
+function activeStorageEditor(editor = null) {
+  return editor || document.querySelector("[data-storage-editor],[data-shared-storage-editor]");
+}
+
+function captureStorageEditorSelection(editor = activeStorageEditor()) {
   const selection = window.getSelection?.();
   if (!editor || !selection?.rangeCount) return false;
   const range = selection.getRangeAt(0);
@@ -9255,7 +9551,7 @@ function captureStorageEditorSelection(editor = document.querySelector("[data-st
   return true;
 }
 
-function restoreStorageEditorSelection(editor = document.querySelector("[data-storage-editor]")) {
+function restoreStorageEditorSelection(editor = activeStorageEditor()) {
   if (!editor) return false;
   editor.focus({ preventScroll: true });
   const range = storageEditorSelectionRange;
@@ -9267,7 +9563,7 @@ function restoreStorageEditorSelection(editor = document.querySelector("[data-st
   return true;
 }
 
-function refreshStorageEditorToolbarState(editor = document.querySelector("[data-storage-editor]")) {
+function refreshStorageEditorToolbarState(editor = activeStorageEditor()) {
   const toolbar = editor?.closest(".storage-editor")?.querySelector(".storage-editor-toolbar");
   if (!toolbar) return;
   toolbar.querySelectorAll('[data-action="storage-editor-command"]').forEach((button) => {
@@ -9278,9 +9574,133 @@ function refreshStorageEditorToolbarState(editor = document.querySelector("[data
     button.classList.toggle("is-active", active);
     if (supportsPressedState) button.setAttribute("aria-pressed", active ? "true" : "false");
   });
+  const selection = window.getSelection?.();
+  const anchor = selection?.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection?.anchorNode;
+  const selectedBlock = anchor?.closest?.("h1,h2,p,div");
+  const selectedBlockName = selectedBlock?.matches?.("[data-storage-editor]") ? "p" : String(selectedBlock?.tagName || "p").toLowerCase();
+  toolbar.querySelectorAll('[data-command="formatBlock"]').forEach((button) => {
+    const active = button.dataset.value === selectedBlockName;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  const textBoxActive = Boolean(anchor?.closest?.("[data-storage-text-box]") && editor?.contains(anchor));
+  const textBoxButton = toolbar.querySelector('[data-action="storage-editor-box"]');
+  textBoxButton?.classList.toggle("is-active", textBoxActive);
+  textBoxButton?.setAttribute("aria-pressed", textBoxActive ? "true" : "false");
 }
 
-function normalizeStorageBoldMarkup(editor = document.querySelector("[data-storage-editor]")) {
+function unwrapStorageEditorTextBox(box) {
+  const parent = box?.parentNode;
+  if (!parent) return false;
+  while (box.firstChild) parent.insertBefore(box.firstChild, box);
+  box.remove();
+  parent.normalize();
+  return true;
+}
+
+function normalizedStorageEditorTextRange(range, editor) {
+  const segments = storageEditorRangeSegments(range, editor)
+    .map(({ node, start, end }) => {
+      while (start < end && /[\s\u200b]/u.test(node.data[start])) start += 1;
+      while (end > start && /[\s\u200b]/u.test(node.data[end - 1])) end -= 1;
+      return { node, start, end };
+    })
+    .filter(({ start, end }) => end > start);
+  if (!segments.length) return null;
+  const normalized = document.createRange();
+  normalized.setStart(segments[0].node, segments[0].start);
+  const last = segments[segments.length - 1];
+  normalized.setEnd(last.node, last.end);
+  return normalized;
+}
+
+function storageEditorSelectionBlock(node, editor) {
+  let element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+  while (element && element !== editor) {
+    if (element.matches?.("p,div,h1,h2,h3,h4,li,blockquote")) return element;
+    element = element.parentElement;
+  }
+  return editor;
+}
+
+function storageEditorTextFlowAfterBox(box) {
+  box.setAttribute("dir", "auto");
+  const current = box.nextSibling;
+  if (current?.nodeType === Node.ELEMENT_NODE && current.matches?.("[data-storage-text-flow]")) {
+    if (!current.firstChild) current.append(document.createTextNode("\u00a0"));
+    return current;
+  }
+  const following = current;
+  const flow = document.createElement("span");
+  flow.setAttribute("data-storage-text-flow", "true");
+  let seed = "\u00a0";
+  if (following) {
+    seed = "\u200b";
+    if (following.nodeType === Node.TEXT_NODE && /^\s/u.test(following.data)) {
+      seed = "\u00a0";
+      following.deleteData(0, 1);
+    }
+  }
+  const textNode = document.createTextNode(seed);
+  flow.append(textNode);
+  box.after(flow);
+  return flow;
+}
+
+function ensureStorageEditorTextFlows(editor = document.querySelector("[data-storage-editor]")) {
+  editor?.querySelectorAll("[data-storage-text-box]").forEach((box) => storageEditorTextFlowAfterBox(box));
+}
+
+function placeStorageEditorCaretAfterBox(box, editor) {
+  const flow = storageEditorTextFlowAfterBox(box);
+  const textNode = flow.firstChild;
+  const caret = document.createRange();
+  caret.setStart(textNode, textNode.data.length);
+  caret.collapse(true);
+  const selection = window.getSelection?.();
+  selection?.removeAllRanges();
+  selection?.addRange(caret);
+  storageEditorSelectionRange = caret.cloneRange();
+  editor.focus({ preventScroll: true });
+}
+
+function toggleStorageEditorTextBox() {
+  return toggleStorageEditorTextBoxFor(activeStorageEditor());
+}
+
+function toggleStorageEditorTextBoxFor(editor) {
+  if (!editor || !restoreStorageEditorSelection(editor)) return { ok: false, reason: "selection" };
+  const selection = window.getSelection?.();
+  if (!selection?.rangeCount) return { ok: false, reason: "selection" };
+  const range = selection.getRangeAt(0);
+  const anchor = selection.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
+  const existing = anchor?.closest?.("[data-storage-text-box]");
+  if (existing && editor.contains(existing)) {
+    const parent = existing.parentNode;
+    if (!unwrapStorageEditorTextBox(existing)) return { ok: false, reason: "selection" };
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatRemove" }));
+    editor.focus({ preventScroll: true });
+    captureStorageEditorSelection(editor);
+    refreshStorageEditorToolbarState(editor);
+    return { ok: true, removed: true, parent };
+  }
+  if (range.collapsed || !String(selection.toString() || "").trim()) return { ok: false, reason: "selection" };
+  const textRange = normalizedStorageEditorTextRange(range, editor);
+  if (!textRange) return { ok: false, reason: "selection" };
+  if (storageEditorSelectionBlock(textRange.startContainer, editor) !== storageEditorSelectionBlock(textRange.endContainer, editor)) {
+    return { ok: false, reason: "multiple-blocks" };
+  }
+  const box = document.createElement("span");
+  box.setAttribute("data-storage-text-box", "true");
+  box.append(textRange.extractContents());
+  textRange.insertNode(box);
+  placeStorageEditorCaretAfterBox(box, editor);
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "formatSetBlockTextDirection" }));
+  refreshStorageEditorToolbarState(editor);
+  return { ok: true, removed: false };
+}
+
+function normalizeStorageBoldMarkup(editor = activeStorageEditor()) {
   if (!editor) return;
   editor.querySelectorAll("b,strong").forEach((node) => node.setAttribute("data-storage-bold", "true"));
   editor.querySelectorAll("span[style]").forEach((node) => {
@@ -9354,8 +9774,7 @@ function applyStorageEditorBold(editor) {
   return true;
 }
 
-function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection") {
-  const editor = document.querySelector("[data-storage-editor]");
+function applyStorageEditorCommand(command, value = null, inputType = "formatSetBlockTextDirection", editor = activeStorageEditor()) {
   if (!editor) return false;
   restoreStorageEditorSelection(editor);
   const applied = command === "bold"
@@ -9455,7 +9874,12 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
     state.storageDocument = payload.document;
   } catch (error) {
     if (state.storageDocumentRequestController !== controller) return;
-    state.storageDocument = { id, error: error.message || "تعذر فتح المستند." };
+    if (error.code === "FOLDER_LOCKED") {
+      if (error.payload?.folderId) state.storageFolderPasswords.delete(error.payload.folderId);
+      state.storageDocument = { id, folderLocked: true, folderId: error.payload?.folderId || state.storageCurrentFolderId, error: error.message };
+    }
+    if (error.code === "DOCUMENT_LOCKED") state.storageDocumentPasswords.delete(id);
+    state.storageDocument = error.code === "DOCUMENT_LOCKED" ? { id, locked: true, error: error.message } : { id, error: error.message || "تعذر فتح المستند." };
   } finally {
     if (state.storageDocumentRequestController === controller) {
       state.storageDocumentRequestController = null;
@@ -9465,37 +9889,82 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
   render();
 }
 
+function storageShareEndpoint(kind, id) {
+  const resource = kind === "folder" ? "folders" : "documents";
+  return `/api/storage/${resource}/${encodeURIComponent(id)}/share`;
+}
+
+async function openSharedFolderDocument(documentId, { password = "" } = {}) {
+  const id = String(documentId || "").trim();
+  if (!id || !state.sharedStorageFolderToken) return;
+  const listed = state.sharedStorageFolder?.folder?.documents?.find((item) => item.id === id);
+  const savedPassword = password || state.sharedStorageFolderPasswords.get(id) || "";
+  if (listed?.locked && !savedPassword) {
+    state.sharedStorageFolderDocumentId = id;
+    state.sharedStorageFolderDocument = { id, locked: true, title: listed.title };
+    return render();
+  }
+  state.sharedStorageFolderDocumentId = id;
+  state.sharedStorageFolderDocument = { id, loading: true };
+  render();
+  try {
+    const endpoint = `/storage-api/public/storage-folders/${encodeURIComponent(state.sharedStorageFolderToken)}/documents/${encodeURIComponent(id)}`;
+    const payload = await fetchJson(endpoint, savedPassword ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: savedPassword }) } : undefined);
+    if (savedPassword) state.sharedStorageFolderPasswords.set(id, savedPassword);
+    if (state.sharedStorageFolderDocumentId === id) state.sharedStorageFolderDocument = payload.document;
+  } catch (error) {
+    if (error.code === "DOCUMENT_LOCKED") state.sharedStorageFolderPasswords.delete(id);
+    if (state.sharedStorageFolderDocumentId === id) state.sharedStorageFolderDocument = error.code === "DOCUMENT_LOCKED"
+      ? { id, locked: true, title: listed?.title || "مستند محمي", error: password ? error.message : "" }
+      : { id, error: error.message || "تعذر فتح المستند." };
+  }
+  render();
+}
+
 async function handleAction(target) {
   const storageAction = target.dataset.action || "";
-  if (storageAction === "storage-share-document") {
-    const id = state.storageDocument?.id;
+  if (["storage-share-document", "storage-share-item", "storage-share-folder"].includes(storageAction)) {
+    const id = target.dataset.id || state.storageDocument?.id;
     if (!id) return;
-    openModal("مشاركة الملف", `<div class="loading-state">جارٍ تحميل إعدادات المشاركة...</div>`);
+    const kind = storageAction === "storage-share-folder" ? "folder" : "document";
+    state.storageShareDocumentId = id;
+    state.storageShareKind = kind;
+    state.storageShareItemId = id;
+    openModal(kind === "folder" ? "مشاركة المجلد بالكامل" : "مشاركة الملف", `<div class="loading-state">جارٍ تحميل إعدادات المشاركة...</div>`);
     try {
-      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`);
-      openModal("مشاركة الملف", storageShareDialog(payload.share));
-    } catch (error) { openModal("مشاركة الملف", `<div class="empty-state"><strong>تعذر فتح المشاركة</strong><p>${escapeHtml(error.message || "حاول مرة أخرى.")}</p></div>`); }
+      const payload = await fetchJson(storageShareEndpoint(kind, id));
+      openModal(kind === "folder" ? "مشاركة المجلد بالكامل" : "مشاركة الملف", storageShareDialog(payload.share, { kind }));
+    } catch (error) { openModal(kind === "folder" ? "مشاركة المجلد بالكامل" : "مشاركة الملف", `<div class="empty-state"><strong>تعذر فتح المشاركة</strong><p>${escapeHtml(error.message || "حاول مرة أخرى.")}</p></div>`); }
     return;
   }
   if (storageAction === "storage-share-copy") { await copyText(target.dataset.value || "", "تم نسخ رابط الملف"); return; }
   if (storageAction === "storage-share-regenerate") {
-    const id = state.storageDocument?.id; if (!id) return;
+    const kind = state.storageShareKind || "document";
+    const id = state.storageShareItemId || state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     target.disabled = true;
     try {
       const permission = document.querySelector('form[data-submit="storage-share"] input[name="permission"]:checked')?.value || "view";
-      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission, regenerate: true }) });
-      openModal("مشاركة الملف", storageShareDialog(payload.share)); toast("تم إنشاء رابط جديد وإيقاف الرابط السابق.");
+      const payload = await fetchJson(storageShareEndpoint(kind, id), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission, regenerate: true }) });
+      openModal(kind === "folder" ? "مشاركة المجلد بالكامل" : "مشاركة الملف", storageShareDialog(payload.share, { kind })); toast("تم إنشاء رابط جديد وإيقاف الرابط السابق.");
     } catch (error) { target.disabled = false; toast(error.message || "تعذر إنشاء رابط جديد.", "danger"); }
     return;
   }
+  if (storageAction === "storage-share-delete-prompt") {
+    const id = state.storageShareItemId || state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
+    const preservation = state.storageShareKind === "folder" ? "لن يُحذف المجلد أو أي مستند بداخله." : "لن يُحذف الملف نفسه.";
+    return openModal("حذف رابط المشاركة", `<div class="suite-confirm-danger">${dashboardIcon("warning")}<p>سيُحذف رابط المشاركة فورًا ولن يتمكن أي شخص يملكه من فتحه بعد ذلك. ${preservation}</p></div>`, `<button type="button" class="btn btn-danger" data-action="storage-share-revoke">${dashboardIcon("delete")} حذف الرابط</button><button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>`);
+  }
   if (storageAction === "storage-share-revoke") {
-    const id = state.storageDocument?.id; if (!id) return;
+    const kind = state.storageShareKind || "document";
+    const id = state.storageShareItemId || state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     target.disabled = true;
-    try { await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "DELETE" }); openModal("مشاركة الملف", storageShareDialog()); toast("تم إيقاف رابط المشاركة."); }
-    catch (error) { target.disabled = false; toast(error.message || "تعذر إيقاف الرابط.", "danger"); }
+    try { await fetchJson(storageShareEndpoint(kind, id), { method: "DELETE" }); openModal(kind === "folder" ? "مشاركة المجلد بالكامل" : "مشاركة الملف", storageShareDialog(undefined, { kind })); toast("تم حذف رابط المشاركة وإيقاف الوصول إليه."); }
+    catch (error) { target.disabled = false; toast(error.message || "تعذر حذف الرابط.", "danger"); }
     return;
   }
   if (storageAction === "shared-document-reload") { state.sharedStorageDocument = null; render(); return syncRouteData(true); }
+  if (storageAction === "shared-folder-reload") { state.sharedStorageFolder = null; state.sharedStorageFolderDocument = null; render(); return syncRouteData(true); }
+  if (storageAction === "shared-folder-open-document") return openSharedFolderDocument(target.dataset.id);
   if (storageAction === "storage-toggle-arrange") {
     if (storageMoveInFlight) return;
     cancelStoragePointerDrag();
@@ -9549,6 +10018,9 @@ async function handleAction(target) {
     return render();
   }
   if (storageAction === "storage-close-document") {
+    if (state.storageDocument?.id) state.storageDocumentPasswords.delete(state.storageDocument.id);
+    if (state.storageEditingDocument?.id) state.storageDocumentPasswords.delete(state.storageEditingDocument.id);
+    state.storageAIPreviousMarkup = null;
     state.storageDocumentRequestController?.abort();
     state.storageDocumentRequestController = null;
     state.storageDocumentLoadingId = "";
@@ -9573,6 +10045,7 @@ async function handleAction(target) {
   }
   if (storageAction === "storage-open-folder") {
     state.storageCurrentFolderId = target.dataset.id || "";
+    if (!state.storageCurrentFolderId) state.storageFolderPasswords.clear();
     state.storageCenter = null;
     const url = new URL(location.href);
     if (state.storageCurrentFolderId) url.searchParams.set("folder", state.storageCurrentFolderId);
@@ -9695,18 +10168,25 @@ async function handleAction(target) {
     return;
   }
   if (storageAction === "storage-editor-command") {
+    const editor = target.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]");
     const command = target.dataset.command;
     const inputTypes = { bold: "formatBold", italic: "formatItalic", underline: "formatUnderline", insertUnorderedList: "insertUnorderedList", undo: "historyUndo", redo: "historyRedo" };
-    applyStorageEditorCommand(command, target.dataset.value || null, inputTypes[command] || "formatBlock");
+    applyStorageEditorCommand(command, target.dataset.value || null, inputTypes[command] || "formatBlock", editor);
     return;
   }
   if (storageAction === "storage-editor-color") {
-    applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor");
+    const editor = target.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]");
+    applyStorageEditorCommand("foreColor", target.dataset.value || "#173d39", "formatForeColor", editor);
+    return;
+  }
+  if (storageAction === "storage-editor-box") {
+    const result = toggleStorageEditorTextBox();
+    if (!result.ok) toast(result.reason === "multiple-blocks" ? "حدد النص داخل فقرة واحدة لتطبيق المربع بدقة." : "حدد النص الذي تريد وضعه داخل مربع.", "warning");
     return;
   }
   if (storageAction === "storage-editor-ai-format") {
     const editor = document.querySelector("[data-storage-editor]");
-    const content = String(editor?.innerText || "").trim();
+    const content = editor ? storageEditorTextForFormatting(editor) : "";
     if (!editor || content.length < 3) return toast("اكتب محتوى المستند أولًا ثم اطلب ترتيبه.", "warning");
     const originalMarkup = target.innerHTML;
     target.disabled = true;
@@ -9720,12 +10200,16 @@ async function handleAction(target) {
         timeoutMs: 45_000,
         timeoutMessage: "استغرق ترتيب النص وقتًا أطول من المتوقع. حاول مرة أخرى."
       });
+      state.storageAIPreviousMarkup = editor.innerHTML;
       editor.innerHTML = payload.html;
+      document.querySelector('[data-action="storage-editor-ai-undo"]')?.removeAttribute("hidden");
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
       syncAIQuota(payload);
       const charged = Number(payload?.quota?.charged || 0);
-      const chargeText = charged > 0 ? ` وتم خصم ${formatAITokens(charged)} توكن من رصيد الشات` : "";
-      toast(`${payload.fallback ? "تم ترتيب النص بنمط ذكي وآمن" : "تم ترتيب النص وفصل البيانات باحترافية"}${chargeText}.`);
+      const chargeText = charged > 0 ? ` وخصم ${formatAITokens(charged)} توكن فورًا من رصيد الذكاء` : " دون خصم مكرر";
+      toast(payload.fallback
+        ? `تم ترتيب النص محليًا${chargeText}.`
+        : `تم ترتيب النص وفصل البيانات باحترافية${chargeText}.`);
     } catch (error) {
       toast(error.message || "تعذر ترتيب النص حاليًا.", "danger");
     } finally {
@@ -9737,11 +10221,22 @@ async function handleAction(target) {
     }
     return;
   }
-  if (storageAction === "storage-editor-link") {
+  if (storageAction === "storage-editor-ai-undo") {
     const editor = document.querySelector("[data-storage-editor]");
+    if (editor && state.storageAIPreviousMarkup !== null) {
+      editor.innerHTML = state.storageAIPreviousMarkup;
+      state.storageAIPreviousMarkup = null;
+      target.hidden = true;
+      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
+      toast("أُعيد النص إلى ما قبل الترتيب.");
+    }
+    return;
+  }
+  if (storageAction === "storage-editor-link") {
+    const editor = target.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]");
     captureStorageEditorSelection(editor);
     const href = window.prompt("أدخل رابطًا يبدأ بـ https://");
-    if (href && /^https:\/\//i.test(href)) applyStorageEditorCommand("createLink", href, "createLink");
+    if (href && /^https:\/\//i.test(href)) applyStorageEditorCommand("createLink", href, "createLink", editor);
     return;
   }
   if (storageAction === "storage-copy-field") {
@@ -9776,7 +10271,42 @@ async function handleAction(target) {
     const name = target.dataset.name || "العنصر";
     const usedIn = Math.max(0, Number(target.dataset.usedIn || 0));
     const pinAction = kind === "folder" ? `<button data-action="storage-toggle-pin" data-id="${escapeHtml(id)}" data-pinned="${target.dataset.pinned === "1" ? "0" : "1"}">${dashboardIcon("star")} ${target.dataset.pinned === "1" ? "إلغاء التثبيت" : "تثبيت أعلى القائمة"}</button>` : "";
-    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${pinAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+    const locked = kind === "document" && Boolean((state.storageCenter?.storage?.documents || []).find((item) => item.id === id)?.locked);
+    const lockAction = kind === "document" ? `<button data-action="storage-lock-prompt" data-id="${escapeHtml(id)}" data-locked="${locked ? "1" : "0"}">${dashboardIcon("security")} ${locked ? "تغيير أو إزالة كلمة المرور" : "حماية الملف بكلمة مرور"}</button>` : "";
+    const documentType = kind === "document" ? (state.storageCenter?.storage?.documents || []).find((item) => item.id === id)?.type : "";
+    const shareAction = kind === "document" && !["account", "code"].includes(documentType) ? `<button data-action="storage-share-item" data-id="${escapeHtml(id)}">${dashboardIcon("link")} مشاركة الملف</button>` : "";
+    const folderLocked = kind === "folder" && Boolean((state.storageCenter?.storage?.folders || []).find((item) => item.id === id)?.locked);
+    const folderLockAction = kind === "folder" ? `<button data-action="storage-folder-lock-prompt" data-id="${escapeHtml(id)}" data-locked="${folderLocked ? "1" : "0"}">${dashboardIcon("security")} ${folderLocked ? "تغيير أو إزالة كلمة مرور الملف" : "حماية الملف ومحتوياته"}</button>` : "";
+    const folderShareAction = kind === "folder" && !folderLocked ? `<button data-action="storage-share-folder" data-id="${escapeHtml(id)}">${dashboardIcon("link")} مشاركة المجلد بالكامل</button>` : "";
+    return openModal("إدارة العنصر", `<div class="storage-item-actions"><strong>${escapeHtml(name)}</strong>${usedIn ? `<small>هذه الصورة مستخدمة حاليًا في ${usedIn.toLocaleString("ar-SA")} قالب.</small>` : ""}${shareAction}${folderShareAction}${pinAction}${folderLockAction}${lockAction}<button data-action="storage-rename-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">${dashboardIcon("edit")} إعادة تسمية</button><button data-action="storage-move-prompt" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${dashboardIcon("folder")} نقل إلى مجلد</button><button class="danger" data-action="storage-delete-item" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}" data-used-in="${usedIn}">${dashboardIcon("delete")} نقل إلى سلة المحذوفات</button></div>`);
+  }
+  if (storageAction === "storage-folder-lock-prompt") {
+    const locked = target.dataset.locked === "1";
+    return openModal("حماية الملف ومحتوياته", `<form class="grid" data-submit="storage-folder-lock" data-id="${escapeHtml(target.dataset.id)}" data-locked="${locked ? "1" : "0"}"><p>تشمل الحماية المستندات داخل الملف ومجلداته الفرعية.</p>${locked ? `<label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password"></label>` : ""}<label class="field"><span>${locked ? "كلمة المرور الجديدة" : "كلمة المرور"}</span><input class="input" name="password" type="password" minlength="8" ${locked ? "" : "required"} autocomplete="new-password"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" ${locked ? "" : "required"} autocomplete="new-password"></label><small>${locked ? "اترك الجديدة فارغة لإزالة القفل بعد إدخال الحالية." : "احتفظ بكلمة المرور؛ لا يمكن استعادتها من الخادم."}</small><button class="btn btn-primary" type="submit">حفظ الحماية</button></form>`);
+  }
+  if (storageAction === "storage-lock-prompt") {
+    const locked = target.dataset.locked === "1";
+    const id = escapeHtml(target.dataset.id);
+    if (locked) return openModal("إدارة حماية الملف", `<section class="storage-lock-management"><header><span>${dashboardIcon("security")}</span><div><strong>هذا الملف محمي بكلمة مرور</strong><small>اختر الإجراء المطلوب. لن يُعرض محتوى الملف أثناء إدارة الحماية.</small></div></header><div><button type="button" data-action="storage-lock-change-prompt" data-id="${id}">${dashboardIcon("edit")}<span><b>تغيير كلمة المرور</b><small>يتطلب كلمة المرور الحالية</small></span></button><button type="button" data-action="storage-lock-remove-prompt" data-id="${id}">${dashboardIcon("unlock")}<span><b>إزالة كلمة المرور</b><small>أدخل الحالية فقط لإلغاء القفل</small></span></button><button type="button" data-action="storage-lock-recovery-request" data-id="${id}">${dashboardIcon("email")}<span><b>نسيت كلمة المرور؟</b><small>إرسال رمز تحقق إلى بريدك المسجل</small></span></button></div></section>`);
+    return openModal("حماية الملف", `<form class="grid" data-submit="storage-document-lock" data-id="${id}" data-locked="0"><p>تُطلب كلمة المرور عند فتح الملف، ولا يُرسل محتواه قبل التحقق منها.</p><label class="field"><span>كلمة المرور</span><input class="input" name="password" type="password" minlength="8" autocomplete="new-password" required placeholder="8 أحرف على الأقل"></label><label class="field"><span>تأكيد كلمة المرور</span><input class="input" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></label><small>احتفظ بها في مكان آمن. يمكنك إعادة تعيينها لاحقًا عبر بريدك المسجل.</small><button class="btn btn-primary" type="submit">تفعيل الحماية</button></form>`);
+  }
+  if (storageAction === "storage-lock-change-prompt") {
+    return openModal("تغيير كلمة مرور الملف", `<form class="grid" data-submit="storage-document-lock-change" data-id="${escapeHtml(target.dataset.id)}"><p>أدخل كلمة المرور الحالية ثم اختر كلمة جديدة.</p><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password"></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="password" type="password" minlength="8" required autocomplete="new-password" placeholder="8 أحرف على الأقل"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" required autocomplete="new-password"></label><button class="btn btn-primary" type="submit">حفظ كلمة المرور الجديدة</button></form>`);
+  }
+  if (storageAction === "storage-lock-remove-prompt") {
+    return openModal("إزالة كلمة مرور الملف", `<form class="grid storage-lock-remove-form" data-submit="storage-document-lock-remove" data-id="${escapeHtml(target.dataset.id)}"><div class="storage-lock-warning">${dashboardIcon("warning")}<p>بعد الإزالة يمكن فتح الملف دون كلمة مرور.</p></div><label class="field"><span>كلمة المرور الحالية</span><input class="input" name="currentPassword" type="password" required autocomplete="current-password" autofocus></label><small>لا تحتاج إلى إدخال كلمة مرور جديدة لإزالة الحماية.</small><button class="btn btn-danger" type="submit">إزالة كلمة المرور</button></form>`);
+  }
+  if (storageAction === "storage-lock-recovery-request") {
+    const id = target.dataset.id;
+    target.disabled = true;
+    try {
+      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock/recovery/request`, { method: "POST" });
+      return openModal("إعادة تعيين كلمة مرور الملف", `<form class="grid storage-lock-recovery-form" data-submit="storage-document-lock-recovery" data-id="${escapeHtml(id)}"><div class="storage-lock-code-sent">${dashboardIcon("email")}<div><strong>أرسلنا رمز تحقق من 6 أرقام</strong><small>إلى ${escapeHtml(payload.maskedEmail || "بريدك المسجل")}. الرمز صالح لمدة 10 دقائق.</small></div></div><label class="field"><span>رمز التحقق</span><input class="input storage-lock-code-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required dir="ltr" placeholder="000000"></label><label class="field"><span>كلمة المرور الجديدة</span><input class="input" name="password" type="password" minlength="8" required autocomplete="new-password"></label><label class="field"><span>تأكيد كلمة المرور الجديدة</span><input class="input" name="confirmPassword" type="password" minlength="8" required autocomplete="new-password"></label><button class="btn btn-primary" type="submit">اعتماد كلمة المرور الجديدة</button></form>`);
+    } catch (error) {
+      target.disabled = false;
+      toast(error.message || "تعذر إرسال رمز التحقق.", "danger");
+    }
+    return;
   }
   if (storageAction === "storage-toggle-pin") {
     target.disabled = true;
@@ -10435,7 +10965,7 @@ async function handleAction(target) {
     state.campaignBuilderKind = "custom";
     state.campaignBuilderCards = [];
     state.campaignBuilderDraft = { values: { metaTemplateId: item.id, whatsappChannelId: item.integrationId || "", body: metaTemplateBody(item) }, cards: [] };
-    return navigate("/dashboard/campaigns/new");
+    return navigate("/dashboard/campaigns/new?channel=whatsapp&kind=custom");
   }
   if (action === "meta-template-create") {
     const integrations = Array.isArray(state.metaTemplates?.integrations) ? state.metaTemplates.integrations : [];
@@ -10537,7 +11067,7 @@ async function handleAction(target) {
     state.campaignBuilderProducts = [];
     state.campaignBuilderCards = [];
     state.campaignBuilderDraft = null;
-    return navigate("/dashboard/campaigns/new");
+    return navigate(`/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=custom`);
   }
   if (action === "campaign-builder-exit") {
     state.productCampaignChannel = null;
@@ -10559,15 +11089,17 @@ async function handleAction(target) {
     state.campaignBuilderKind = target.dataset.kind === "product" ? "product" : "custom";
     state.campaignBuilderChannel = target.dataset.channel === "email" ? "email" : target.dataset.channel === "whatsapp" ? "whatsapp" : null;
     state.campaignStudioAI = null;
+    state.campaignStudioPreviewSource = null;
     closePortal();
     if (!state.campaignBuilderChannel) return navigate("/dashboard/campaigns");
-    return navigate("/dashboard/campaigns/new");
+    return navigate(`/dashboard/campaigns/new?channel=${encodeURIComponent(state.campaignBuilderChannel)}&kind=${encodeURIComponent(state.campaignBuilderKind)}`);
   }
   if (action === "campaign-create-whatsapp") {
     state.campaignBuilderKind = "custom";
     state.campaignBuilderChannel = "whatsapp";
     state.campaignStudioAI = null;
-    return navigate("/dashboard/campaigns/new");
+    state.campaignStudioPreviewSource = null;
+    return navigate("/dashboard/campaigns/new?channel=whatsapp&kind=custom");
   }
   if (action === "campaign-builder-channel") {
     return;
@@ -10590,7 +11122,9 @@ async function handleAction(target) {
     const destinationLabel = channel === "email" ? "البريد المستلم" : "رقم واتساب بصيغة دولية";
     const destinationType = channel === "email" ? "email" : "tel";
     const approvedHtml = String(form.elements.htmlContent?.value || "").trim();
-    const testHtml = channel === "email" ? (inspectEmailHtmlClient(approvedHtml).ok ? inspectEmailHtmlClient(approvedHtml).html : campaignStudioGeneratedHtml(form)) : "";
+    const fixedApprovedHtml = channel === "email" && approvedHtml ? campaignStudioApplyFixedEmailContent(approvedHtml, form) : "";
+    const fixedApprovedInspection = inspectEmailHtmlClient(fixedApprovedHtml);
+    const testHtml = channel === "email" ? (fixedApprovedInspection.ok ? fixedApprovedInspection.html : campaignStudioGeneratedHtml(form)) : "";
     return openModal("إرسال تجريبي", `<form data-submit="campaign-draft-test" class="grid"><input type="hidden" name="channel" value="${channel}"><input type="hidden" name="channelId" value="${escapeHtml(form.elements.whatsappChannelId?.value || "")}"><input type="hidden" name="subject" value="${escapeHtml(form.elements.subject?.value || form.elements.name?.value || "اختبار حملة")}"><textarea hidden name="body">${escapeHtml(form.elements.body?.value || "")}</textarea><textarea hidden name="html">${escapeHtml(testHtml)}</textarea><label class="field"><span>${destinationLabel}</span><input class="input" type="${destinationType}" name="destination" required ${channel === "whatsapp" ? 'placeholder="9665XXXXXXXX" inputmode="tel"' : ""}></label><p class="inline-notice info">ستُرسل رسالة حقيقية بالقالب والصور وترتيب البطاقات الظاهر في المعاينة، ولن تُضاف إلى جمهور الحملة.</p><button class="btn btn-primary" type="submit">${dashboardIcon("send")} إرسال الاختبار</button></form>`);
   }
   if (action === "campaign-product-choice") {
@@ -10640,20 +11174,62 @@ async function handleAction(target) {
     if (action.endsWith("down") && card.nextElementSibling) card.parentElement.insertBefore(card.nextElementSibling, card);
     refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
   }
-  if (action === "campaign-studio-image-pick") { target.closest("[data-campaign-card]")?.querySelector('[data-action="campaign-studio-image-file"]')?.click(); return; }
-  if (action === "campaign-studio-hero-image-pick") { target.closest("[data-campaign-hero-image-wrap]")?.querySelector('[data-action="campaign-studio-hero-image-file"]')?.click(); return; }
-  if (action === "campaign-studio-hero-image-remove") {
-    const form = target.closest("form[data-campaign-studio]");
-    const wrap = target.closest("[data-campaign-hero-image-wrap]");
-    const hidden = wrap?.querySelector('[name="heroImageUrl"]');
-    if (hidden) hidden.value = "";
-    wrap?.querySelector("[data-campaign-hero-image-preview]")?.remove();
-    if (!wrap?.querySelector("[data-campaign-hero-image-placeholder]")) wrap?.insertAdjacentHTML("afterbegin", `<span data-campaign-hero-image-placeholder>${dashboardIcon("storeBag")}<small>يفضّل مقاسًا أفقيًا بنسبة 16:9</small></span>`);
-    wrap?.classList.remove("has-image");
+  if (action === "campaign-studio-image-pick") { return openCampaignImageLibrary(target.closest("[data-campaign-card-image-wrap]")); }
+  if (action === "campaign-studio-logo-image-pick") { return openCampaignImageLibrary(target.closest("[data-campaign-logo-image-wrap]")); }
+  if (action === "campaign-image-library-upload") {
+    target.closest(".campaign-image-library")?.querySelector('[data-action="campaign-image-library-file"]')?.click();
+    return;
+  }
+  if (action === "campaign-image-library-show-all") {
+    const library = target.closest(".campaign-image-library");
+    library?.querySelectorAll(".campaign-image-library-card.is-library-hidden").forEach((card) => card.classList.remove("is-library-hidden"));
     target.remove();
-    const picker = wrap?.querySelector('[data-action="campaign-studio-hero-image-pick"]');
-    if (picker) picker.innerHTML = `${dashboardIcon("upload")} إضافة صورة المتجر`;
-    refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form); return;
+    return;
+  }
+  if (action === "campaign-image-library-select") {
+    const wrap = campaignImageTargetWrap();
+    if (!applyCampaignImageToWrap(wrap, target.dataset.url || "")) return toast("تعذر اختيار الصورة.", "danger");
+    closePortal();
+    toast("تم اختيار الصورة من مكتبة الحملات.", "success");
+    return;
+  }
+  if (action === "campaign-image-library-delete") {
+    const imageId = target.dataset.id || "";
+    const imageUrl = target.dataset.url || "";
+    const library = target.closest(".campaign-image-library");
+    if (!imageId || !window.confirm("هل تريد حذف هذه الصورة نهائيًا من مكتبة الحملات؟ ستُزال أيضًا من أي بطاقة مفتوحة تستخدمها الآن.")) return;
+    target.disabled = true;
+    try {
+      await fetchJson(`/api/campaigns/assets?imageId=${encodeURIComponent(imageId)}`, { method:"DELETE" });
+      document.querySelectorAll('form[data-campaign-studio] [name="brandLogoUrl"], form[data-campaign-studio] [name="cardImageUrl"]').forEach((input) => {
+        if (input.value === imageUrl) clearCampaignImageWrap(input.closest("[data-campaign-logo-image-wrap],[data-campaign-card-image-wrap]"));
+      });
+      target.closest("[data-campaign-library-asset]")?.remove();
+      library?.querySelector(".campaign-image-library-card.is-library-hidden")?.classList.remove("is-library-hidden");
+      const hiddenCount = library?.querySelectorAll(".campaign-image-library-card.is-library-hidden").length || 0;
+      const showAllButton = library?.querySelector('[data-action="campaign-image-library-show-all"]');
+      if (showAllButton && hiddenCount) showAllButton.querySelector("span").textContent = `+${suiteNumber(hiddenCount)}`;
+      else showAllButton?.remove();
+      if (!document.querySelector("[data-campaign-library-asset]")) {
+        document.querySelector(".campaign-image-library-grid")?.replaceWith(Object.assign(document.createElement("section"), {
+          className:"campaign-image-library-empty",
+          innerHTML:`${dashboardIcon("image")}<strong>لا توجد صور محفوظة بعد</strong><p>ارفع أول صورة وستُحفظ تلقائيًا في مكتبة الصور.</p><button type="button" class="btn btn-primary" data-action="campaign-image-library-upload">${dashboardIcon("upload")} رفع صورة جديدة</button>`
+        }));
+      }
+      toast("تم حذف الصورة من مكتبة الحملات.", "success");
+    } catch (error) {
+      target.disabled = false;
+      toast(error.message || "تعذر حذف الصورة.", "danger");
+    }
+    return;
+  }
+  if (action === "campaign-studio-image-remove") {
+    clearCampaignImageWrap(target.closest("[data-campaign-card-image-wrap]"));
+    return;
+  }
+  if (action === "campaign-studio-logo-image-remove") {
+    clearCampaignImageWrap(target.closest("[data-campaign-logo-image-wrap]"));
+    return;
   }
   if (action === "campaign-studio-preview-mode") {
     state.campaignBuilderPreviewMode = ["desktop","tablet","mobile"].includes(target.dataset.mode) ? target.dataset.mode : "desktop";
@@ -10664,6 +11240,8 @@ async function handleAction(target) {
         ? `campaign-studio-code-preview ${state.campaignBuilderPreviewMode}`
         : `campaign-studio-email-preview ${state.campaignBuilderPreviewMode} design-showcase`;
     }
+    const generatedPreview = document.querySelector(".campaign-generated-email-preview");
+    if (generatedPreview) generatedPreview.className = `campaign-generated-email-preview campaign-studio-email-preview ${state.campaignBuilderPreviewMode}`;
     return;
   }
   if (action === "campaign-studio-delete-html") {
@@ -10674,6 +11252,8 @@ async function handleAction(target) {
     if (!window.confirm("سيتم حذف كود HTML الحالي من الحملة. هل تريد المتابعة؟")) return;
     editor.value = "";
     delete editor.dataset.approved;
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+    state.campaignStudioPreviewSource = "main";
     form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم حذف الكود؛ يمكنك توليد تصميم جديد بالذكاء الاصطناعي."));
     scheduleCampaignStudioDraft(form);
     refreshCampaignStudioPreview(form);
@@ -10688,6 +11268,11 @@ async function handleAction(target) {
     return openCampaignStudioAIModal(form, "replace");
   }
   if (action === "campaign-studio-ai-generate") {
+    const form = target.closest("form[data-campaign-studio]");
+    if (!form) return;
+    return openCampaignStudioAIModal(form, "generate");
+  }
+  if (action === "campaign-studio-ai-regenerate") {
     const form = target.closest("form[data-campaign-studio]");
     if (!form) return;
     return openCampaignStudioAIModal(form, "generate");
@@ -10709,6 +11294,33 @@ async function handleAction(target) {
     const value = String(form?.elements.htmlContent?.value || "");
     if (!value) return toast("ولّد كود HTML أولًا.", "warning");
     navigator.clipboard.writeText(value).then(() => toast("تم نسخ كود HTML.")).catch(() => toast("تعذر نسخ الكود.", "danger")); return;
+  }
+  if (action === "campaign-studio-adopt-html") {
+    const form = target.closest("form[data-campaign-studio]");
+    const editor = form?.elements.htmlContent;
+    if (!form || !editor) return;
+    const inspection = inspectEmailHtmlClient(campaignStudioApplyFixedEmailContent(editor.value, form));
+    if (!inspection.ok) return toast(inspection.errors?.[0] || "كود HTML غير صالح.", "danger");
+    editor.value = inspection.html;
+    editor.dataset.approved = "true";
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "true";
+    state.campaignStudioPreviewSource = "html";
+    form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم فحص التصميم واعتماده. احفظ الحملة لتثبيته."));
+    renderCampaignStudioPreviewSource(form, "html");
+    scheduleCampaignStudioDraft(form);
+    return toast("تم اعتماد التصميم داخل الحملة.", "success");
+  }
+  if (action === "campaign-studio-restore-main") {
+    const form = target.closest("form[data-campaign-studio]") || document.querySelector("form[data-campaign-studio]");
+    const editor = form?.elements.htmlContent;
+    if (!form || !editor) return;
+    delete editor.dataset.approved;
+    if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+    state.campaignStudioPreviewSource = "main";
+    form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم استرجاع التصميم الرئيسي. بقي الكود محفوظًا ويمكن اعتماده مرة أخرى."));
+    renderCampaignStudioPreviewSource(form, "main");
+    scheduleCampaignStudioDraft(form);
+    return toast("تم استرجاع التصميم الرئيسي مع الاحتفاظ بالكود.", "success");
   }
   if (action === "contact-create") {
     return openModal("إضافة جهة اتصال", `<form data-submit="contact-create" class="grid"><label class="field"><span>الاسم</span><input class="input" name="displayName" maxlength="160"></label><label class="field"><span>البريد الإلكتروني</span><input class="input" name="email" type="email"></label><label class="field"><span>رقم الجوال</span><input class="input" name="phone" inputmode="tel" placeholder="+966 5X XXX XXXX"></label><label class="field"><span>الشركة (اختياري)</span><input class="input" name="companyName" maxlength="160"></label><label class="field"><span>الموافقة على التواصل</span><select class="select" name="consentStatus"><option value="unknown">غير محددة</option><option value="granted">موافق</option><option value="revoked">سحب الموافقة</option></select></label><button class="btn btn-primary">حفظ جهة الاتصال</button></form>`);
@@ -11013,7 +11625,7 @@ async function handleAction(target) {
     const validationNode = form.querySelector("[data-email-code-validation]");
     if (validationNode) {
       validationNode.className = "email-code-validation neutral";
-      validationNode.textContent = "تمت إضافة النموذج. راجعه ثم اضغط فحص واعتماد الكود.";
+      validationNode.textContent = "تمت إضافة النموذج. راجعه ثم اضغط اعتماد التصميم إذا أردت استخدامه.";
     }
     return;
   }
@@ -11622,6 +12234,9 @@ async function handleAction(target) {
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
   if (action === "logout") {
     const finishLogout = () => {
+      state.storageDocumentPasswords.clear();
+      state.storageFolderPasswords.clear();
+      state.storageAIPreviousMarkup = null;
       clearCachedDashboardProfile();
       closePortal();
       appToast.info("تم تسجيل الخروج", { description: "تم إنهاء جلستك بأمان.", id: "logout-success" });
@@ -13195,11 +13810,12 @@ async function handleSubmit(form, event) {
   if (["login", "register", "mfa-login", "email-otp", "forgot", "reset-password"].includes(type) && form.querySelector('[data-submitting="true"]')) return;
   const data = Object.fromEntries(new FormData(form));
   if (type === "storage-share") {
-    const id = state.storageDocument?.id; if (!id) return;
+    const kind = form.dataset.kind === "folder" ? "folder" : state.storageShareKind || "document";
+    const id = state.storageShareItemId || state.storageShareDocumentId || state.storageDocument?.id; if (!id) return;
     const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
     try {
-      const payload = await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission: data.permission || "view" }) });
-      openModal("مشاركة الملف", storageShareDialog(payload.share)); toast(form.dataset.active === "1" ? "تم تحديث صلاحية الرابط." : "تم إنشاء رابط المشاركة.");
+      const payload = await fetchJson(storageShareEndpoint(kind, id), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission: data.permission || "view" }) });
+      openModal(kind === "folder" ? "مشاركة المجلد بالكامل" : "مشاركة الملف", storageShareDialog(payload.share, { kind })); toast(form.dataset.active === "1" ? "تم تحديث صلاحية الرابط." : "تم إنشاء رابط المشاركة.");
     } catch (error) { toast(error.message || "تعذر حفظ إعدادات المشاركة.", "danger"); setSubmitBusy(button, false); }
     return;
   }
@@ -13209,6 +13825,35 @@ async function handleSubmit(form, event) {
       const payload = await fetchJson(`/storage-api/public/storage-documents/${encodeURIComponent(form.dataset.token || "")}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version }) });
       state.sharedStorageDocument = payload; render(); toast("تم حفظ تعديلات الملف.");
     } catch (error) { toast(error.message || "تعذر حفظ التغييرات.", "danger"); setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "shared-storage-folder-document") {
+    const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ الحفظ...");
+    try {
+      const documentId = form.dataset.documentId || "";
+      const payload = await fetchJson(`/storage-api/public/storage-folders/${encodeURIComponent(form.dataset.token || "")}/documents/${encodeURIComponent(documentId)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: data.title, body: form.querySelector("[data-shared-storage-editor]")?.innerHTML || "", version: form.dataset.version, password: state.sharedStorageFolderPasswords.get(documentId) || "" }) });
+      state.sharedStorageFolderDocument = payload.document;
+      if (state.sharedStorageFolder?.folder?.documents) {
+        const listed = state.sharedStorageFolder.folder.documents.find((item) => item.id === payload.document.id);
+        if (listed) Object.assign(listed, { title: payload.document.title, updatedAt: payload.document.updatedAt });
+      }
+      render(); toast("تم حفظ تعديلات المستند داخل المجلد.");
+    } catch (error) {
+      if (error.code === "DOCUMENT_LOCKED") {
+        const documentId = form.dataset.documentId || "";
+        state.sharedStorageFolderPasswords.delete(documentId);
+        state.sharedStorageFolderDocument = { id: documentId, locked: true, title: data.title, error: error.message };
+        render();
+      } else setSubmitBusy(button, false);
+      toast(error.message || "تعذر حفظ التغييرات.", "danger");
+    }
+    return;
+  }
+  if (type === "shared-storage-folder-unlock") {
+    const documentId = form.dataset.documentId || "";
+    if (!documentId || !data.password) return;
+    const button = form.querySelector('button[type="submit"]'); setSubmitBusy(button, true, "جارٍ التحقق...");
+    await openSharedFolderDocument(documentId, { password: data.password });
     return;
   }
   if (type === "storage-document-timer") {
@@ -13274,6 +13919,122 @@ async function handleSubmit(form, event) {
       });
       closePortal(); state.storageCenter = null; await syncRouteData(true); toast(isMove ? "تم نقل العنصر." : "تم تغيير الاسم.");
     } catch (error) { toast(error.message || (isMove ? "تعذر نقل العنصر." : "تعذر تغيير الاسم."), "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-unlock") {
+    const id = form.dataset.id;
+    if (!id || !data.password) return;
+    state.storageDocumentPasswords.set(id, data.password);
+    closePortal();
+    await openStorageDocument(id, { updateHistory: false });
+    return;
+  }
+  if (type === "storage-folder-unlock") {
+    if (!form.dataset.id || !data.password) return;
+    state.storageFolderPasswords.set(form.dataset.id, data.password);
+    state.storageCenter = null;
+    await syncRouteData(true);
+    return;
+  }
+  if (type === "storage-folder-document-unlock") {
+    if (!form.dataset.id || !form.dataset.documentId || !data.password) return;
+    state.storageFolderPasswords.set(form.dataset.id, data.password);
+    await openStorageDocument(form.dataset.documentId, { updateHistory: false });
+    return;
+  }
+  if (type === "storage-folder-lock") {
+    const id = form.dataset.id;
+    const remove = form.dataset.locked === "1" && !data.password;
+    if (!remove && data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ حفظ الحماية...");
+    try {
+      await fetchJson(`/api/storage/folders/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: data.currentPassword, password: data.password, remove })
+      });
+      state.storageFolderPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast(remove ? "تمت إزالة حماية الملف." : "تمت حماية الملف ومحتوياته.");
+    } catch (error) { toast(error.message || "تعذر حفظ حماية الملف.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock") {
+    const id = form.dataset.id;
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ حفظ الحماية...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: data.password, remove: false })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم تفعيل حماية الملف.");
+    } catch (error) { toast(error.message || "تعذر حفظ كلمة المرور.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock-change") {
+    const id = form.dataset.id;
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ تغيير كلمة المرور...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: data.currentPassword, password: data.password, remove: false })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم تغيير كلمة مرور الملف.");
+    } catch (error) { toast(error.message || "تعذر تغيير كلمة المرور.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock-remove") {
+    const id = form.dataset.id;
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ إزالة كلمة المرور...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: data.currentPassword, remove: true })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تمت إزالة كلمة المرور من الملف.");
+    } catch (error) { toast(error.message || "تعذر إزالة كلمة المرور.", "danger"); }
+    finally { setSubmitBusy(button, false); }
+    return;
+  }
+  if (type === "storage-document-lock-recovery") {
+    const id = form.dataset.id;
+    if (data.password !== data.confirmPassword) return toast("تأكيد كلمة المرور لا يطابق الكلمة الجديدة.", "warning");
+    const button = form.querySelector('button[type="submit"]');
+    setSubmitBusy(button, true, "جارٍ اعتماد كلمة المرور...");
+    try {
+      await fetchJson(`/api/storage/documents/${encodeURIComponent(id)}/lock/recovery/reset`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: data.code, password: data.password })
+      });
+      state.storageDocumentPasswords.delete(id);
+      closePortal();
+      state.storageCenter = null;
+      await syncRouteData(true);
+      toast("تم اعتماد كلمة المرور الجديدة للملف.");
+    } catch (error) { toast(error.message || "تعذر إعادة تعيين كلمة مرور الملف.", "danger"); }
     finally { setSubmitBusy(button, false); }
     return;
   }
@@ -13694,8 +14455,9 @@ async function handleSubmit(form, event) {
     state.campaignBuilderCards = products.map(campaignStudioCardFromProduct);
     state.campaignBuilderDraft = null;
     state.campaignStudioAI = null;
+    state.campaignStudioPreviewSource = null;
     closePortal();
-    return navigate("/dashboard/campaigns/new");
+    return navigate(`/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=product`);
   }
   if (type === "campaign-product-append") {
     const selectedIds = [...new FormData(form).getAll("productIds")].map(String);
@@ -13754,6 +14516,9 @@ async function handleSubmit(form, event) {
     if (maxDelaySeconds < minDelaySeconds) return toast("أقصى وقت بين الرسائل يجب أن يكون أكبر من أقل وقت أو مساويًا له.", "warning");
     const scheduledDate = data.sendTiming === "later" ? new Date(`${data.startDate}T${data.startTime}`) : new Date(Date.now() + 90_000);
     if (Number.isNaN(scheduledDate.getTime())) return toast("تحقق من تاريخ ووقت بدء الحملة.", "warning");
+    const approvedHtml = data.channel === "email" && String(data.htmlContentApproved) === "true"
+      ? campaignStudioApplyFixedEmailContent(String(data.htmlContent || "").trim(), form) || null
+      : null;
     try {
       await fetchJson("/api/campaigns", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         name:data.name,channel:data.channel,description:data.description||null,subject:data.subject||null,body:data.body,
@@ -13785,11 +14550,13 @@ async function handleSubmit(form, event) {
           replyTo: data.replyTo || null,
           emailDesign: data.channel === "email" ? "showcase" : null,
           emailThemeColor: data.channel === "email" && /^#[0-9a-f]{6}$/i.test(data.themeColor || "") ? data.themeColor : null,
-          heroImageUrl: data.channel === "email" ? safeStoreLogoUrl(data.heroImageUrl) || null : null,
+          subjectAlignment: data.channel === "email" ? campaignStudioAlignment(data.subjectAlignment) : null,
+          bodyAlignment: data.channel === "email" ? campaignStudioAlignment(data.bodyAlignment) : null,
+          brandLogoUrl: data.channel === "email" ? safeStoreLogoUrl(data.brandLogoUrl) || null : null,
           cards: campaignCards,
           socialLinksEnabled,
           socialLinks,
-          htmlContent: data.channel === "email" ? String(data.htmlContent || "").trim() || null : null,
+          htmlContent: approvedHtml,
           trackClicks: Boolean(form.elements.trackClicks?.checked),
           appendUtm: Boolean(form.elements.appendUtm?.checked),
           campaignTag: data.campaignTag || null,
@@ -13805,6 +14572,8 @@ async function handleSubmit(form, event) {
       state.campaignBuilderCards = [];
       state.campaignBuilderDraft = null;
       state.campaignBuilderKind = "custom";
+      state.campaignStudioAI = null;
+      state.campaignStudioPreviewSource = null;
       localStorage.removeItem(`renvix.campaign-studio.${data.channel}.${completedKind}`);
       if (state.route === "/dashboard/campaigns/new") await navigate("/dashboard/campaigns");
       else await syncRouteData(true);
@@ -15140,11 +15909,7 @@ function renderAIMessage(message) {
 }
 
 function formatAITokens(value) {
-  const number = Number(value || 0);
-  const locale = state.language === "en" ? "en-US" : "ar-SA";
-  if (number >= 1_000_000) return `${(number / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${state.language === "en" ? "M" : "مليون"}`;
-  if (number >= 1_000) return `${(number / 1_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${state.language === "en" ? "K" : "ألف"}`;
-  return number.toLocaleString(locale);
+  return formatAITokenCount(value, state.language);
 }
 
 function formatAIStorageBytes(value) {
@@ -15177,6 +15942,7 @@ function aiUsageCard() {
     if (state.aiOverview?.code === "AI_ENTITLEMENT_INACTIVE") {
       const entitlement = state.aiOverview.entitlement || {};
       const trialExpired = entitlement.reason === "trial_expired";
+      const paidExpired = entitlement.reason === "subscription_expired" && !trialExpired;
       const endedAt = entitlement.endsAt ? new Date(entitlement.endsAt) : null;
       const validEndDate = endedAt && Number.isFinite(endedAt.getTime());
       const endDateText = validEndDate
@@ -15185,11 +15951,17 @@ function aiUsageCard() {
       const signature = `inactive:${entitlement.reason || "subscription_inactive"}:${entitlement.endsAt || ""}`;
       const title = trialExpired
         ? (english ? "Free trial ended" : "انتهت التجربة المجانية")
+        : paidExpired
+          ? (english ? `${entitlement.planName || "Plan"} subscription expired` : `انتهى اشتراك ${entitlement.planName || "الباقة"}`)
         : (english ? "AI access is inactive" : "اشتراك الذكاء غير نشط");
       const description = trialExpired
         ? (english
           ? `Your free trial${endDateText ? ` ended on ${endDateText}` : " has ended"}. Choose a plan to reactivate the AI balance.`
           : `انتهت تجربتك المجانية${endDateText ? ` بتاريخ ${endDateText}` : ""}. اختر باقة لإعادة تفعيل رصيد الذكاء.`)
+        : paidExpired
+          ? (english
+            ? `Your ${entitlement.planName || "plan"} subscription${endDateText ? ` ended on ${endDateText}` : " has ended"}. Renew it to restore the AI balance.`
+            : `انتهى اشتراك ${entitlement.planName || "الباقة"}${endDateText ? ` بتاريخ ${endDateText}` : ""}. جدّده لاستعادة رصيد الذكاء.`)
         : (english
           ? "Choose or renew a plan to reactivate the AI balance."
           : "اختر باقة أو جدّد اشتراكك لإعادة تفعيل رصيد الذكاء.");
@@ -15507,6 +16279,9 @@ function stopStorageDocumentCountdowns() {
 }
 
 function disposeStorageRoute() {
+  state.storageFolderPasswords.clear();
+  state.storageDocumentPasswords.clear();
+  state.storageAIPreviousMarkup = null;
   cancelStoragePointerDrag();
   storageArrangeMode = false;
   storageMovingItem = null;
@@ -15524,6 +16299,7 @@ function disposeStorageRoute() {
 function bindStorageDocumentCountdowns() {
   stopStorageDocumentCountdowns();
   const editorForm = document.querySelector('form[data-submit="storage-document"]');
+  ensureStorageEditorTextFlows(editorForm?.querySelector("[data-storage-editor]"));
   const colorTools = editorForm?.querySelector(".storage-editor-colors");
   if (colorTools && !editorForm.querySelector('[data-action="storage-editor-timer"]')) {
     colorTools.insertAdjacentHTML("afterend", storageEditorTimerButtonMarkup(editorForm.dataset.timerEndsAt || "", editorForm.dataset.timerDisplayMode));
@@ -15600,7 +16376,7 @@ function storageDocumentComposer(data) {
     <label><span>كلمة المرور</span><span class="storage-secret-input"><input class="input" name="password" type="password" autocomplete="new-password" value="${escapeHtml(editing?.password || "")}" placeholder="••••••••••••"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <label class="storage-field-wide"><span>الكود <small>اختياري</small></span><span class="storage-secret-input"><input class="input" name="code" type="password" autocomplete="off" value="${escapeHtml(editing?.code || "")}" placeholder="OTP أو PIN أو Recovery Code"><button type="button" data-action="toggle-password">${dashboardIcon("eye")}</button></span></label>
     <section class="storage-custom-fields storage-field-wide"><header><div><h2>بيانات إضافية</h2><p>سمِّ كل حقل بالطريقة التي تناسبك.</p></div><button type="button" class="btn btn-secondary" data-action="storage-add-field">${dashboardIcon("add")} إضافة حقل</button></header><div data-storage-custom-fields>${existingFields}</div></section>
-  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<div class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان">H2</button><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-label="${type === "note" ? "نص الملاحظة" : "محتوى المستند"}" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></div>`;
+  </div>` : type === "code" ? `<div class="storage-vault-grid"><label class="storage-field-wide"><span>الكود / المفتاح</span><span class="storage-secret-input"><textarea class="input" name="code" rows="4" required placeholder="ألصق الكود أو المفتاح هنا">${escapeHtml(editing?.code || "")}</textarea><button type="button" data-action="storage-copy-field">${dashboardIcon("copy")}</button></span></label><label class="storage-field-wide"><span>وصف اختياري</span><textarea class="input" name="description" rows="3" placeholder="مثال: مفتاح بيئة الإنتاج">${escapeHtml(editing?.content?.description || "")}</textarea></label></div>` : `<div class="storage-editor-label"><span>${type === "note" ? "نص الملاحظة" : "محتوى المستند"}</span><small>${type === "note" ? "اكتب النوتة التي تريد الرجوع إليها لاحقًا." : "اكتب النص ونسّقه بالطريقة المناسبة؛ سيظهر كما هو عند عرض المحتوى."}</small><div class="storage-editor"><div class="storage-editor-toolbar" role="toolbar"><button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع">↶</button><button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة">↷</button><button type="button" data-action="storage-editor-command" data-command="bold" title="عريض"><b>B</b></button><button type="button" data-action="storage-editor-command" data-command="italic" title="مائل"><i>I</i></button><button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط"><u>U</u></button><div class="storage-editor-heading-tools" aria-label="حجم النص"><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="p" title="إرجاع إلى نص عادي" aria-label="نص عادي">نص</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2" title="عنوان فرعي">H2</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h1" title="عنوان رئيسي">H1</button></div><button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة">${dashboardIcon("listView")}</button><button type="button" data-action="storage-editor-link" title="رابط">${dashboardIcon("link")}</button><button type="button" class="storage-editor-box-tool" data-action="storage-editor-box" title="وضع مربع حول النص المحدد أو إزالته" aria-label="مربع حول النص" aria-pressed="false"><span aria-hidden="true">▢</span><b>مربع</b></button><div class="storage-editor-colors" aria-label="ألوان النص">${[["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]].map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div><button type="button" class="storage-editor-ai" data-action="storage-editor-ai-format">${dashboardIcon("sparkles")}<span>ترتيب النص بالذكاء الاصطناعي</span></button><button type="button" data-action="storage-editor-ai-undo" hidden title="استعادة النص قبل الترتيب">استعادة النص</button></div><div class="storage-editor-body" contenteditable="true" data-storage-editor role="textbox" aria-label="${type === "note" ? "نص الملاحظة" : "محتوى المستند"}" aria-multiline="true" data-placeholder="${type === "note" ? "اكتب ملاحظتك هنا..." : "ابدأ بكتابة محتوى المستند هنا..."}">${editing?.content?.body || ""}</div><footer><span data-storage-word-count>0 كلمة</span><span data-storage-autosave-status>${editing ? "تم الحفظ" : "سيُحفظ عند الضغط على حفظ"}</span></footer></div></div>`;
   return dashboardShell(`<section class="storage-center storage-compose-page">
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading"><div class="storage-title-icon">${dashboardIcon("document")}</div><div><h1>${title}</h1><p>احفظ معلوماتك داخل مساحة عملك الخاصة بشكل منظم وآمن.</p></div></header>
@@ -15616,6 +16392,8 @@ function storageDocumentComposer(data) {
 function storageDocumentView(data) {
   const item = state.storageDocument;
   if (item?.loading) return dashboardShell(`<div class="storage-document-loading"><i></i><i></i><i></i></div>`);
+  if (item?.folderLocked) return dashboardShell(`<section class="storage-center storage-compose-page"><div class="card storage-document-view"><div class="empty-state"><span>${dashboardIcon("security")}</span><h2>هذا الملف محمي بكلمة مرور</h2><p>${escapeHtml(item.error || "أدخل كلمة مرور الملف لعرض المستند.")}</p><form class="grid" data-submit="storage-folder-document-unlock" data-id="${escapeHtml(item.folderId)}" data-document-id="${escapeHtml(item.id)}"><label class="field"><span>كلمة مرور الملف</span><input class="input" name="password" type="password" required autocomplete="off" autofocus></label><button class="btn btn-primary" type="submit">فتح الملف</button><button class="btn btn-secondary" type="button" data-action="storage-close-document">العودة</button></form></div></div></section>`);
+  if (item?.locked && item?.error) return dashboardShell(`<section class="storage-center storage-compose-page"><div class="card storage-document-view"><div class="empty-state"><span>${dashboardIcon("security")}</span><h2>هذا الملف محمي بكلمة مرور</h2><p>${escapeHtml(item.error)}</p><form class="grid" data-submit="storage-document-unlock" data-id="${escapeHtml(item.id)}"><label class="field"><span>كلمة مرور الملف</span><input class="input" type="password" name="password" required autocomplete="off" autofocus></label><button class="btn btn-primary" type="submit">فتح الملف</button><button class="btn btn-secondary" type="button" data-action="storage-close-document">العودة إلى المجلد</button></form></div></div></section>`);
   if (item?.error) return dashboardShell(`<section class="storage-center"><div class="empty-state"><span>${dashboardIcon("warning")}</span><h2>تعذر فتح المستند</h2><p>${escapeHtml(item.error)}</p><div class="storage-document-error-actions"><button class="btn btn-primary" data-action="storage-retry-document" data-id="${escapeHtml(item.id)}">إعادة المحاولة</button><button class="btn btn-secondary" data-action="storage-close-document">العودة إلى المجلد</button></div></div></section>`);
   const isSecret = ["account", "code"].includes(item?.type);
   return dashboardShell(`<section class="storage-center storage-compose-page">
@@ -15626,15 +16404,32 @@ function storageDocumentView(data) {
   </section>`);
 }
 
-function storageShareDialog(share = { active: false }) {
+function storageShareDialog(share = { active: false }, { kind = "document" } = {}) {
   const active = share.active === true;
   const permission = share.permission === "edit" ? "edit" : "view";
-  return `<form class="storage-share-dialog" data-submit="storage-share" data-active="${active ? "1" : "0"}">
-    <div class="storage-share-intro"><span>${dashboardIcon("link")}</span><div><strong>${active ? "الرابط الخاص نشط" : "أنشئ رابط مشاركة خاص"}</strong><small>يمكن لأي شخص يملك الرابط فتح الملف من دون تسجيل الدخول. لا ترسله إلا لمن تثق به.</small></div></div>
-    <fieldset><legend>صلاحية من يفتح الرابط</legend><label><input type="radio" name="permission" value="view" ${permission === "view" ? "checked" : ""}><span>${dashboardIcon("eye")}<b>عرض فقط</b><small>يقرأ محتوى الملف ولا يستطيع تغييره.</small></span></label><label><input type="radio" name="permission" value="edit" ${permission === "edit" ? "checked" : ""}><span>${dashboardIcon("edit")}<b>السماح بالتعديل</b><small>يستطيع تعديل العنوان والمحتوى وحفظهما.</small></span></label></fieldset>
+  const isFolder = kind === "folder";
+  return `<form class="storage-share-dialog" data-submit="storage-share" data-kind="${kind}" data-active="${active ? "1" : "0"}">
+    <div class="storage-share-intro"><span>${dashboardIcon(isFolder ? "folder" : "link")}</span><div><strong>${active ? "الرابط الخاص نشط" : isFolder ? "أنشئ رابطًا للمجلد بالكامل" : "أنشئ رابط مشاركة خاص"}</strong><small>${isFolder ? "يعرض الرابط بنية المجلد وكل المستندات النصية الآمنة داخله وفي مجلداته الفرعية. تُستبعد بيانات الحسابات والأكواد والعناصر المحمية تلقائيًا." : "يمكن لأي شخص يملك الرابط فتح الملف من دون تسجيل الدخول. لا ترسله إلا لمن تثق به."}</small></div></div>
+    <fieldset><legend>صلاحية من يفتح الرابط</legend><label><input type="radio" name="permission" value="view" ${permission === "view" ? "checked" : ""}><span>${dashboardIcon("eye")}<b>عرض فقط</b><small>${isFolder ? "يتصفح المستندات الظاهرة ولا يستطيع تغييرها." : "يقرأ محتوى الملف ولا يستطيع تغييره."}</small></span></label><label><input type="radio" name="permission" value="edit" ${permission === "edit" ? "checked" : ""}><span>${dashboardIcon("edit")}<b>السماح بالتعديل</b><small>${isFolder ? "يستطيع تعديل المستندات النصية الظاهرة وحفظها." : "يستطيع تعديل العنوان والمحتوى وحفظهما."}</small></span></label></fieldset>
     ${active && share.url ? `<label class="storage-share-link"><span>رابط الملف</span><span><input class="input" readonly dir="ltr" value="${escapeHtml(share.url)}"><button type="button" class="btn btn-secondary" data-action="storage-share-copy" data-value="${escapeHtml(share.url)}">${dashboardIcon("copy")} نسخ</button></span></label>` : ""}
-    <div class="storage-share-actions">${active ? `<button type="button" class="btn btn-danger" data-action="storage-share-revoke">إيقاف الرابط</button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
+    <div class="storage-share-actions">${active ? `<button type="button" class="btn storage-share-delete" data-action="storage-share-delete-prompt">${dashboardIcon("delete")}<span>إزالة الرابط</span></button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
   </form>`;
+}
+
+function sharedStorageEditorToolbar() {
+  const colors = [["#173d39","داكن"],["#087267","أخضر"],["#2563eb","أزرق"],["#7c3aed","بنفسجي"],["#c2410c","برتقالي"],["#be123c","أحمر"]];
+  return `<div class="storage-editor-toolbar shared-document-toolbar" role="toolbar" aria-label="أدوات تنسيق المستند">
+    <button type="button" data-action="storage-editor-command" data-command="undo" title="تراجع" aria-label="تراجع">↶</button>
+    <button type="button" data-action="storage-editor-command" data-command="redo" title="إعادة" aria-label="إعادة">↷</button>
+    <button type="button" data-action="storage-editor-command" data-command="bold" title="عريض" aria-label="عريض"><b>B</b></button>
+    <button type="button" data-action="storage-editor-command" data-command="italic" title="مائل" aria-label="مائل"><i>I</i></button>
+    <button type="button" data-action="storage-editor-command" data-command="underline" title="تحته خط" aria-label="تحته خط"><u>U</u></button>
+    <div class="storage-editor-heading-tools" aria-label="حجم النص"><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="p">نص</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h2">H2</button><button type="button" data-action="storage-editor-command" data-command="formatBlock" data-value="h1">H1</button></div>
+    <button type="button" data-action="storage-editor-command" data-command="insertUnorderedList" title="قائمة" aria-label="قائمة">${dashboardIcon("listView")}</button>
+    <button type="button" data-action="storage-editor-link" title="إضافة رابط" aria-label="إضافة رابط">${dashboardIcon("link")}</button>
+    <button type="button" class="storage-editor-box-tool" data-action="storage-editor-box" title="مربع حول النص" aria-pressed="false"><span aria-hidden="true">▢</span><b>مربع</b></button>
+    <div class="storage-editor-colors" aria-label="ألوان النص">${colors.map(([color,label]) => `<button type="button" data-action="storage-editor-color" data-value="${color}" title="لون ${label}" aria-label="لون ${label}"><i style="--storage-text-color:${color}"></i></button>`).join("")}</div>
+  </div>`;
 }
 
 function sharedStorageDocumentPage() {
@@ -15643,7 +16438,33 @@ function sharedStorageDocumentPage() {
   if (data?.error || !data?.document) return `<main class="shared-document-shell"><header>${stackedLogo()}</header><section class="shared-document-error">${dashboardIcon("warning")}<h1>تعذر فتح الملف</h1><p>${escapeHtml(data?.error || "الرابط غير صالح أو أوقفه مالك الملف.")}</p><button class="btn btn-secondary" data-action="shared-document-reload">إعادة المحاولة</button></section></main>`;
   const item = data.document;
   const editable = item.permission === "edit";
-  return `<main class="shared-document-shell"><header><div>${stackedLogo()}<span>مساحة مشاركة آمنة</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "مسموح بالتعديل" : "عرض فقط"}</span></header><section class="shared-document-card"><div class="shared-document-owner"><span>${dashboardIcon("security")}</span><div><small>ملف مشترك بواسطة</small><strong>${escapeHtml(item.owner || "مستخدم Renvix")}</strong></div></div><form data-submit="shared-storage-document" data-token="${escapeHtml(state.sharedStorageToken)}" data-version="${escapeHtml(item.version)}"><label><span>عنوان الملف</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(item.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(item.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-rich-content shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-multiline="true"' : ""} data-shared-storage-editor>${item.body || "<p>لا يوجد محتوى.</p>"}</div>${editable ? `<footer><span>${dashboardIcon("info")} تُحفظ التغييرات عند الضغط على الزر.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس في محركات البحث</span><a href="/" data-link="/">Renvix</a></footer></main>`;
+  return `<main class="shared-document-shell"><header><div>${stackedLogo()}<span>مساحة مشاركة آمنة</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "مسموح بالتعديل" : "عرض فقط"}</span></header><section class="shared-document-card"><div class="shared-document-owner"><span>${dashboardIcon("security")}</span><div><small>ملف مشترك بواسطة</small><strong>${escapeHtml(item.owner || "مستخدم Renvix")}</strong></div><em>${dashboardIcon("success")} اتصال آمن</em></div><form data-submit="shared-storage-document" data-token="${escapeHtml(state.sharedStorageToken)}" data-version="${escapeHtml(item.version)}"><label><span>عنوان الملف</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(item.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(item.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-editor shared-document-editor-wrap">${editable ? sharedStorageEditorToolbar() : ""}<div class="storage-rich-content storage-editor-body shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-label="محتوى الملف المشترك" aria-multiline="true"' : ""} data-shared-storage-editor>${item.body || "<p>لا يوجد محتوى.</p>"}</div></div>${editable ? `<footer><span>${dashboardIcon("info")} راجع التغييرات ثم احفظها؛ سيظهر التأكيد فور اكتمال الحفظ.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس في محركات البحث</span><a href="/" data-link="/">Renvix</a></footer></main>`;
+}
+
+function sharedStorageFolderPage() {
+  const data = state.sharedStorageFolder;
+  if (data === null) return `<main class="shared-document-shell"><header>${stackedLogo()}</header><section class="shared-document-loading"><i></i><i></i><i></i></section></main>`;
+  if (data?.error || !data?.folder) return `<main class="shared-document-shell"><header>${stackedLogo()}</header><section class="shared-document-error">${dashboardIcon("warning")}<h1>تعذر فتح المجلد</h1><p>${escapeHtml(data?.error || "الرابط غير صالح أو أوقفه مالك المجلد.")}</p><button class="btn btn-secondary" data-action="shared-folder-reload">إعادة المحاولة</button></section></main>`;
+  const folder = data.folder;
+  const folders = Array.isArray(folder.folders) ? folder.folders : [];
+  const documents = Array.isArray(folder.documents) ? folder.documents : [];
+  const folderById = new Map(folders.map((item) => [item.id, item]));
+  const folderPath = (folderId) => {
+    const parts = [];
+    const visited = new Set();
+    let current = folderById.get(folderId);
+    while (current && !visited.has(current.id)) { visited.add(current.id); parts.unshift(current.name); current = folderById.get(current.parentId); }
+    return parts.join(" / ") || folder.name;
+  };
+  const editable = folder.permission === "edit";
+  const selected = state.sharedStorageFolderDocument;
+  const list = documents.map((item) => `<button type="button" class="${item.id === state.sharedStorageFolderDocumentId ? "active" : ""}${item.locked ? " is-locked" : ""}" data-action="shared-folder-open-document" data-id="${escapeHtml(item.id)}" data-shared-folder-document data-search-text="${escapeHtml(`${item.title} ${folderPath(item.folderId)}`.toLocaleLowerCase())}"><span>${dashboardIcon(item.locked ? "security" : "document")}</span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(folderPath(item.folderId))}${item.locked ? " · محمي بكلمة مرور" : ""}</small></div>${dashboardIcon("chevron")}</button>`).join("");
+  let workspace = `<section class="shared-folder-welcome">${dashboardIcon("folder")}<h2>${documents.length ? "اختر مستندًا لفتحه" : "لا توجد مستندات قابلة للمشاركة"}</h2><p>${documents.length ? "تصفّح المستندات من القائمة؛ ستبقى بنية المجلد واضحة أثناء القراءة والتعديل." : "قد يحتوي المجلد على بيانات سرية أو عناصر محمية استُبعدت تلقائيًا."}</p></section>`;
+  if (selected?.loading) workspace = `<section class="shared-folder-document-loading"><i></i><i></i><i></i></section>`;
+  else if (selected?.locked) workspace = `<section class="shared-folder-welcome shared-folder-unlock">${dashboardIcon("security")}<h2>${escapeHtml(selected.title || "مستند محمي")}</h2><p>هذا المستند ظاهر ضمن المجلد المشترك، لكن محتواه محمي بكلمة المرور التي وضعها المالك.</p><form data-submit="shared-storage-folder-unlock" data-document-id="${escapeHtml(selected.id)}"><label class="field"><span>كلمة مرور المستند</span><input class="input" name="password" type="password" required autocomplete="off" autofocus placeholder="أدخل كلمة المرور للمتابعة"></label>${selected.error ? `<small class="shared-folder-unlock-error">${escapeHtml(selected.error)}</small>` : ""}<button class="btn btn-primary" type="submit">${dashboardIcon("unlock")} فتح المستند</button></form></section>`;
+  else if (selected?.error) workspace = `<section class="shared-folder-welcome is-error">${dashboardIcon("warning")}<h2>تعذر فتح المستند</h2><p>${escapeHtml(selected.error)}</p><button class="btn btn-secondary" data-action="shared-folder-open-document" data-id="${escapeHtml(state.sharedStorageFolderDocumentId)}">إعادة المحاولة</button></section>`;
+  else if (selected?.id) workspace = `<form class="shared-folder-document-form" data-submit="shared-storage-folder-document" data-token="${escapeHtml(state.sharedStorageFolderToken)}" data-document-id="${escapeHtml(selected.id)}" data-version="${escapeHtml(selected.version)}"><label><span>عنوان المستند</span><input class="input" name="title" maxlength="180" required value="${escapeHtml(selected.title)}" ${editable ? "" : "readonly"}></label><div class="shared-document-content-label"><span>المحتوى</span><small>آخر تحديث ${new Date(selected.updatedAt).toLocaleString("ar-SA")}</small></div><div class="storage-editor shared-document-editor-wrap">${editable ? sharedStorageEditorToolbar() : ""}<div class="storage-rich-content storage-editor-body shared-document-editor" ${editable ? 'contenteditable="true" role="textbox" aria-label="محتوى المستند المشترك" aria-multiline="true"' : ""} data-shared-storage-editor>${selected.body || "<p>لا يوجد محتوى.</p>"}</div></div>${editable ? `<footer><span>${dashboardIcon("info")} صلاحية التعديل تشمل المستندات النصية الظاهرة في هذا المجلد.</span><button class="btn btn-primary" type="submit">${dashboardIcon("save")} حفظ التغييرات</button></footer>` : ""}</form>`;
+  return `<main class="shared-document-shell shared-folder-shell"><header><div>${stackedLogo()}<span>مجلد مشترك آمن</span></div><span class="shared-document-permission">${dashboardIcon(editable ? "edit" : "eye")} ${editable ? "عرض وتعديل" : "عرض فقط"}</span></header><section class="shared-folder-hero"><span>${dashboardIcon("folder")}</span><div><small>مجلد مشترك بواسطة ${escapeHtml(folder.owner || "مستخدم Renvix")}</small><h1>${escapeHtml(folder.name)}</h1><p>${escapeHtml(folder.description || "مجموعة مستندات منظمة داخل مساحة مشاركة خاصة.")}</p></div><strong>${documents.length.toLocaleString("ar-SA")} مستند</strong></section>${folder.hiddenItems ? `<aside class="shared-folder-privacy-note">${dashboardIcon("security")} استُبعد ${Number(folder.hiddenItems).toLocaleString("ar-SA")} عنصر غير قابل للمشاركة تلقائيًا، بينما تظهر المستندات المحمية بقفل وتتطلب كلمة مرورها.</aside>` : ""}<section class="shared-folder-browser"><aside><header><div><strong>محتويات المجلد</strong><small>المجلدات الفرعية مضمّنة</small></div></header><label>${dashboardIcon("search")}<input data-action="shared-folder-search" placeholder="ابحث داخل القائمة..."></label><nav>${list || `<p>لا توجد مستندات نصية متاحة.</p>`}</nav><p data-shared-folder-search-empty hidden>لا توجد نتيجة مطابقة.</p></aside><article>${workspace}</article></section><footer><span>${dashboardIcon("security")} الرابط خاص وغير مفهرس، والمستندات المحمية لا تُفتح إلا بكلمة مرورها</span><a href="/" data-link="/">Renvix</a></footer></main>`;
 }
 
 function storageCenterPage() {
@@ -15652,6 +16473,7 @@ function storageCenterPage() {
   if (state.storageDocument) return storageDocumentView(data || {});
   if (state.storageComposeType) return storageDocumentComposer(data || {});
   if (payload === null) return dashboardShell(`<section class="storage-center"><div class="storage-skeleton"><i></i><i></i><i></i><i></i><b></b><b></b></div></section>`);
+  if (payload?.code === "FOLDER_LOCKED") return dashboardShell(`<section class="storage-center storage-compose-page"><div class="card storage-document-view"><div class="empty-state"><span>${dashboardIcon("security")}</span><h2>هذا الملف محمي بكلمة مرور</h2><p>${escapeHtml(payload.error || "أدخل كلمة المرور لعرض المحتويات.")}</p><form class="grid" data-submit="storage-folder-unlock" data-id="${escapeHtml(payload.folderId || state.storageCurrentFolderId)}"><label class="field"><span>كلمة مرور الملف</span><input class="input" name="password" type="password" required autocomplete="off" autofocus></label><button class="btn btn-primary" type="submit">فتح الملف</button><button class="btn btn-secondary" type="button" data-action="storage-open-folder" data-id="">العودة إلى مركز التخزين</button></form></div></div></section>`);
   if (payload?.error || !data) return dashboardShell(`<section class="storage-center">${emptyState("تعذر تحميل مركز التخزين", payload?.error || "حاول مرة أخرى.", "إعادة المحاولة", "storage-reload")}</section>`);
   const usage = data.usage || {};
   const folders = Array.isArray(data.folders) ? data.folders : [];
@@ -15664,10 +16486,10 @@ function storageCenterPage() {
   const usagePercent = Math.min(100, Math.max(0, Number(usage.percent || usage.progressPercent || 0)));
   const availableBytes = usage.isUnlimited ? null : Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0));
   const capacityWarning = usagePercent >= 95 ? `<aside class="storage-capacity-alert critical">${dashboardIcon("warning")}<div><strong>مساحتك أوشكت على الامتلاء</strong><span>تبقّى ${formatStorageBytes(availableBytes)} فقط. رقِّ الباقة لتجنب توقف الرفع.</span></div><button class="btn btn-primary" data-link="/dashboard/billing">ترقية الباقة</button></aside>` : usagePercent >= 80 ? `<aside class="storage-capacity-alert">${dashboardIcon("warning")}<div><strong>مساحتك قاربت على الامتلاء</strong><span>راجع الملفات الكبيرة أو أفرغ سلة المحذوفات.</span></div><button data-action="storage-usage-details">إدارة المساحة</button></aside>` : "";
-  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon("folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
+  const foldersMarkup = folders.map((folder) => `<article class="storage-folder-card${folder.isPinned ? " is-pinned" : ""}" data-action="storage-open-folder" data-id="${escapeHtml(folder.id)}" data-storage-drop-folder="${escapeHtml(folder.id)}" data-storage-folder-system-type="${escapeHtml(folder.systemType || "custom")}" title="افتح المجلد أو أفلت مستندًا فوقه لنقله"><span>${dashboardIcon(folder.locked ? "security" : "folder")}</span><div><h3>${folder.isPinned ? `${dashboardIcon("star")}` : ""}${escapeHtml(folder.name)}</h3><small>${Number(folder.itemCount || 0).toLocaleString("ar-SA")} عنصر • ${formatStorageBytes(folder.sizeBytes)}${folder.isSystem ? " · مجلد نظامي" : ""}${folder.locked ? " · محمي بكلمة مرور" : ""}</small></div>${folder.isSystem ? `<i title="مجلد نظامي">${dashboardIcon("security")}</i>` : `<button type="button" data-action="storage-item-menu" data-kind="folder" data-id="${escapeHtml(folder.id)}" data-name="${escapeHtml(folder.name)}" data-pinned="${folder.isPinned ? "1" : "0"}" aria-label="المزيد">${dashboardIcon("more")}</button>`}</article>`).join("");
   const documentsMarkup = documents.map((doc) => {
     const timer = storageCountdownParts(doc.timerEndsAt, doc.timerDisplayMode);
-    return `<article class="storage-file-card storage-document-card${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small></div>${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} عرض المحتوى</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
+    return `<article class="storage-file-card storage-document-card${doc.locked ? " is-password-protected" : ""}${timer ? " has-timer" : ""}${timer?.expired ? " is-timer-expired" : ""}" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}" draggable="true" data-storage-draggable data-storage-kind="document" data-storage-document-type="${escapeHtml(doc.type)}" data-storage-name="${escapeHtml(doc.name)}" title="اسحب المستند إلى مجلد لنقله"><span class="${doc.type}">${dashboardIcon(doc.locked ? "security" : doc.type === "account" || doc.type === "code" ? "key" : "document")}</span><div class="storage-document-card-copy"><h3>${escapeHtml(doc.name)}</h3><small>${storageTypeLabel(doc.type)} · ${formatStorageBytes(doc.sizeBytes)}</small>${state.storageSearch && doc.matchContext ? `<em class="storage-search-match">${dashboardIcon("search")} مطابقة في ${escapeHtml(doc.matchContext)}</em>` : ""}</div>${doc.locked ? `<em class="storage-document-lock-badge">${dashboardIcon("security")} محمي بكلمة مرور</em>` : ""}${storageDocumentTimerMarkup(doc.timerEndsAt, doc.timerDisplayMode)}<div class="storage-document-card-actions"><button type="button" class="storage-document-open" data-action="storage-open-document" data-id="${escapeHtml(doc.id)}">${dashboardIcon("eye")} فتح النتيجة</button><button type="button" data-action="storage-item-menu" data-kind="document" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.name)}" aria-label="خيارات المستند">${dashboardIcon("more")}</button></div></article>`;
   }).join("");
   const assetsMarkup = assets.map((asset) => asset.mimeType?.startsWith("image/") ? `<article class="storage-image-card" draggable="true" data-storage-draggable data-id="${escapeHtml(asset.id)}" data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType)}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الصورة إلى مكان آخر لنقلها"><button class="storage-image-preview" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}">${asset.previewUrl ? `<img src="${escapeHtml(asset.previewUrl)}" alt="${escapeHtml(asset.name)}" loading="lazy">` : dashboardIcon("image")}</button><div><span><strong>${escapeHtml(asset.name)}</strong><small>${formatStorageBytes(asset.sizeBytes)}${asset.usedInCount ? ` · مستخدمة في ${Number(asset.usedInCount).toLocaleString("ar-SA")} قالب` : ""}</small></span><button data-action="storage-download-image" data-id="${escapeHtml(asset.id)}" title="تحميل">${dashboardIcon("download")}</button><button data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" data-used-in="${Number(asset.usedInCount || 0)}" title="المزيد">${dashboardIcon("more")}</button></div></article>` : `<article class="storage-file-card" data-action="storage-preview-image" data-id="${escapeHtml(asset.id)}" draggable="true" data-storage-draggable data-storage-kind="asset" data-storage-mime-type="${escapeHtml(asset.mimeType || "application/octet-stream")}" data-storage-name="${escapeHtml(asset.name)}" title="اسحب الملف إلى مكان آخر لنقله"><span>${dashboardIcon(asset.mimeType === "application/pdf" ? "pdf" : "document")}</span><div><h3>${escapeHtml(asset.name)}</h3><small>${asset.extension?.toUpperCase() || "FILE"} · ${formatStorageBytes(asset.sizeBytes)}</small></div><button type="button" data-action="storage-item-menu" data-kind="asset" data-id="${escapeHtml(asset.id)}" data-name="${escapeHtml(asset.name)}" aria-label="المزيد">${dashboardIcon("more")}</button></article>`).join("");
   const uploadPanel = state.storageUploads.length ? `<section class="card storage-upload-panel"><header><div><h2>رفع الملفات</h2><small>${state.storageUploads.filter((item) => item.status === "done" || item.status === "duplicate").length.toLocaleString("ar-SA")} من ${state.storageUploads.length.toLocaleString("ar-SA")} ملفات</small></div>${state.storageUploading ? "" : `<button data-action="storage-upload-dismiss">إغلاق</button>`}</header><div>${state.storageUploads.map((task) => `<article data-storage-upload-id="${task.id}" class="is-${task.status}"><span>${dashboardIcon(task.file?.type?.startsWith("image/") ? "image" : "document")}</span><div><strong>${escapeHtml(task.name)}</strong><small>${task.status === "duplicate" ? "هذا الملف موجود بالفعل — استُخدمت النسخة الحالية" : task.status === "failed" ? escapeHtml(task.error || "فشل الرفع") : task.status === "cancelled" ? "أُلغي الرفع" : task.status === "hashing" ? "جارٍ اكتشاف الملفات المكررة..." : task.status === "done" ? "اكتمل الرفع" : "جارٍ الرفع"}</small><em><i style="width:${task.progress}%"></i></em></div><b>${task.progress}%</b>${["uploading","hashing","queued"].includes(task.status) ? `<button data-action="storage-upload-cancel" data-id="${task.id}" aria-label="إلغاء">×</button>` : ""}</article>`).join("")}</div></section>` : "";
@@ -15684,7 +16506,7 @@ function storageCenterPage() {
       <article class="storage-space-stat" data-action="storage-usage-details" role="button" tabindex="0"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين</small><strong><b dir="ltr">${formatStorageBytes(usage.usedBytes)}</b> <i>من <span dir="ltr">${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</span></i></strong><div class="storage-stat-progress"><b style="width:${Number(usage.progressPercent || 0)}%"></b></div><em>${usagePercent.toLocaleString("ar-SA")}% مستخدم · ${availableBytes === null ? "مساحة غير محدودة" : `<span dir="ltr">${formatStorageBytes(availableBytes)}</span> متاحة`}</em></div><button data-action="${usagePercent >= 80 ? "storage-cleanup-review" : "storage-usage-details"}">${usagePercent >= 80 ? "إخلاء مساحة" : "إدارة المساحة"}</button></article>
     </section>
     ${uploadPanel}
-    <section class="card storage-browser"><header><div><h2>${isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث في الملفات والمجلدات والمستندات والحسابات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
+    <section class="card storage-browser"><header><div><h2>${state.storageSearch ? `نتائج البحث عن «${escapeHtml(state.storageSearch)}»` : isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${state.storageSearch ? `${(folders.length + documents.length + assets.length).toLocaleString("ar-SA")} نتيجة في العناوين والمحتوى والبريد وأسماء الملفات` : isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث بكلمة أو بريد داخل كل الملفات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
       ${!empty ? `<p class="storage-drag-hint">${dashboardIcon("folder")} اسحب أي مستند أو ملف وأفلته فوق المجلد المطلوب لنقله فورًا</p>` : ""}
       ${empty ? `<div class="storage-empty-state"><span>${dashboardIcon(isImages ? "image" : "folder")}</span><h3>${isImages ? "ارفع صورك هنا" : currentFolder ? "أضف أول ملف داخل هذه الحاوية" : "ابدأ بتنظيم ملفاتك"}</h3><p>${isImages ? "ستبقى صورك الخاصة محفوظة ويمكنك اختيارها لاحقًا داخل القوالب دون رفعها مجددًا." : "أنشئ حاوية باسم واضح، ثم افتحها وأضف العناصر بداخلها دون رفع ملف من جهازك."}</p><button class="btn btn-primary" data-action="${isImages ? "storage-upload-trigger" : currentFolder ? "storage-new-container" : "storage-new-folder"}">${isImages ? "رفع صور" : currentFolder ? "إضافة ملف جديد" : "إنشاء مجلد"}</button>${currentFolder && !isImages && !isFiles ? `<button class="btn btn-secondary" data-action="storage-create-document">إضافة محتوى</button>` : ""}${isFiles ? `<button class="btn btn-secondary" data-action="storage-upload-files-trigger">رفع ملف من الجهاز</button>` : ""}</div>` : `<div class="storage-items ${state.storageView}">${foldersMarkup}${documentsMarkup}${assetsMarkup}</div>`}
     </section>
@@ -15693,6 +16515,8 @@ function storageCenterPage() {
     <section class="card storage-activity"><header><h2>النشاط الحديث</h2><button data-link="/dashboard/reports">عرض الكل</button></header><div>${(data.activity || []).length ? data.activity.slice(0, 5).map((item) => `<article><span>${dashboardIcon(item.action === "UPLOAD_IMAGE" ? "image" : item.action === "CREATE_FOLDER" ? "folder" : item.action === "DELETE_ITEM" ? "delete" : "document")}</span><div><strong>${storageActivityLabel(item)}</strong><small>${escapeHtml(item.metadata?.name || item.metadata?.title || storageTypeLabel(item.metadata?.type))}</small><time>${new Date(item.createdAt).toLocaleString("ar-SA", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</time></div></article>`).join("") : `<p>ستظهر هنا عمليات الرفع والإنشاء والتعديل.</p>`}</div></section>
   </section>${accountStorageCleanupDialog()}`);
 }
+
+let lastRenderedRoute = null;
 
 function render() {
   const visibleSidebar = app.querySelector(".dashboard-shell > .sidebar");
@@ -15703,6 +16527,11 @@ function render() {
   const normalizedRoute = dashboardAliases[requestedRoute] || requestedRoute;
   if (normalizedRoute !== requestedRoute) history.replaceState({}, "", normalizedRoute + location.search);
   state.route = normalizedRoute;
+  if (lastRenderedRoute !== normalizedRoute) {
+    if (normalizedRoute === "/dashboard/billing") state.billingOverview = null;
+    if (normalizedRoute === "/dashboard/settings") state.accountSettings = null;
+    lastRenderedRoute = normalizedRoute;
+  }
   if (state.route !== "/dashboard/support/ai") {
     state.aiConversationRequestController?.abort();
     state.aiConversationRequestController = null;
@@ -15715,6 +16544,12 @@ function render() {
   if (!state.route.startsWith("/dashboard/support")) closeSupportLiveConnection();
   if (state.route.startsWith("/shared/document/")) {
     app.innerHTML = sharedStorageDocumentPage();
+    localizeElement(app);
+    syncRouteData();
+    return;
+  }
+  if (state.route.startsWith("/shared/folder/")) {
+    app.innerHTML = sharedStorageFolderPage();
     localizeElement(app);
     syncRouteData();
     return;
@@ -16094,19 +16929,19 @@ function bindQrImageState() {
 }
 
 document.addEventListener("mousedown", (event) => {
-  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"]');
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar [data-action="storage-editor-box"]');
   if (!control) return;
-  captureStorageEditorSelection();
+  captureStorageEditorSelection(control.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]"));
   event.preventDefault();
 });
 
 document.addEventListener("pointerdown", (event) => {
-  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"]');
-  if (control) captureStorageEditorSelection();
+  const control = event.target.closest?.('.storage-editor-toolbar [data-action="storage-editor-command"],.storage-editor-toolbar [data-action="storage-editor-color"],.storage-editor-toolbar [data-action="storage-editor-link"],.storage-editor-toolbar [data-action="storage-editor-box"]');
+  if (control) captureStorageEditorSelection(control.closest(".storage-editor")?.querySelector("[data-storage-editor],[data-shared-storage-editor]"));
 });
 
 document.addEventListener("selectionchange", () => {
-  const editor = document.querySelector("[data-storage-editor]");
+  const editor = activeStorageEditor();
   if (captureStorageEditorSelection(editor)) refreshStorageEditorToolbarState(editor);
 });
 
@@ -16230,6 +17065,17 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target.name === "htmlContent" && target.closest?.("form[data-campaign-studio]")) {
+    const form = target.closest("form[data-campaign-studio]");
+    if (target.dataset.approved === "true") {
+      delete target.dataset.approved;
+      if (form.elements.htmlContentApproved) form.elements.htmlContentApproved.value = "false";
+      state.campaignStudioPreviewSource = "main";
+      form.querySelector("[data-campaign-html-status]")?.replaceChildren(document.createTextNode("تم تعديل الكود. راجعه واعتمد التصميم مجددًا لإظهاره في المعاينة."));
+      renderCampaignStudioPreviewSource(form, "main");
+    }
+    scheduleCampaignStudioDraft(form);
+  }
   const storageTimerForm = target.closest?.('form[data-submit="storage-document-timer"]');
   if (storageTimerForm) updateStorageTimerDialogPreview(storageTimerForm);
   if (target.matches?.("[data-storage-editor]")) normalizeStorageBoldMarkup(target);
@@ -16245,6 +17091,18 @@ document.addEventListener("input", (event) => {
       frame.srcdoc = inspection.ok ? inspection.html : `<div dir="rtl" style="padding:24px;font-family:Arial;color:#991b1b">${escapeHtml(inspection.errors?.[0] || "أكمل الكود لعرض المعاينة")}</div>`;
     }, 340);
   }
+  if (target.dataset.action === "shared-folder-search") {
+    const term = String(target.value || "").trim().toLocaleLowerCase();
+    let visible = 0;
+    document.querySelectorAll("[data-shared-folder-document]").forEach((item) => {
+      const matches = !term || String(item.dataset.searchText || "").includes(term);
+      item.hidden = !matches;
+      if (matches) visible += 1;
+    });
+    const empty = document.querySelector("[data-shared-folder-search-empty]");
+    if (empty) empty.hidden = visible > 0;
+    return;
+  }
   if (target.dataset.action === "storage-search") {
     state.storageSearch = target.value;
     clearTimeout(state.storageSearchTimer);
@@ -16255,6 +17113,9 @@ document.addEventListener("input", (event) => {
     return;
   }
   if (target.matches?.("[data-storage-editor]")) {
+    target.querySelectorAll("[data-storage-text-flow]").forEach((flow) => {
+      if (String(flow.textContent || "").replace(/[\s\u00a0\u200b]/gu, "")) flow.removeAttribute("data-storage-text-flow");
+    });
     const words = String(target.innerText || "").trim().split(/\s+/).filter(Boolean).length;
     const output = target.closest(".storage-editor")?.querySelector("[data-storage-word-count]");
     if (output) output.textContent = `${words.toLocaleString("ar-SA")} كلمة`;
@@ -16306,7 +17167,12 @@ document.addEventListener("input", (event) => {
     }
     const counter = target.name ? target.closest(".field")?.querySelector(`[data-count-for="${target.name}"]`) : null;
     if (counter) counter.textContent = String(target.value?.length || 0);
+    const fixedContentChanged = ["subjectAlignment", "bodyAlignment", "themeColor", "cardImageUrl", "cardTitle", "cardBody", "cardButtonText", "cardButtonUrl"].includes(target.name);
+    if (fixedContentChanged && campaignStudioForm.elements.htmlContent?.value) {
+      campaignStudioForm.elements.htmlContent.value = campaignStudioApplyFixedEmailContent(campaignStudioForm.elements.htmlContent.value, campaignStudioForm);
+    }
     refreshCampaignStudioPreview(campaignStudioForm);
+    if (fixedContentChanged && state.campaignStudioPreviewSource === "html") renderCampaignStudioPreviewSource(campaignStudioForm, "html");
     scheduleCampaignStudioDraft(campaignStudioForm);
   }
   if (target.dataset.campaignPreviewField) {
@@ -16973,31 +17839,27 @@ document.addEventListener("change", (event) => {
   if (target.dataset.action === "salla-report-date-to") { state.sallaReportDateTo = target.value; return; }
   if (target.dataset.action === "salla-report-status") { state.sallaReportStatus = target.value || "all"; return; }
   if (target.dataset.action === "salla-report-channel") { state.sallaReportChannel = target.value || "all"; return; }
-  if (target.dataset.action === "campaign-studio-hero-image-file" && target.files?.[0]) {
+  if (target.dataset.action === "campaign-image-library-file" && target.files?.[0]) {
     void (async () => {
-      const form = target.closest("form[data-campaign-studio]");
-      const wrap = target.closest("[data-campaign-hero-image-wrap]");
+      const file = target.files[0];
+      const library = target.closest(".campaign-image-library");
       try {
-        const file = target.files[0];
         if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("اختر صورة PNG أو JPG أو WebP.");
-        if (file.size > 5 * 1024 * 1024) throw new Error("يجب ألا يتجاوز حجم صورة الحملة 5 ميجابايت.");
-        wrap?.classList.add("is-uploading");
-        const formData = new FormData(); formData.append("file", file);
+        if (file.size > 5 * 1024 * 1024) throw new Error("يجب ألا يتجاوز حجم الصورة 5 ميجابايت.");
+        library?.classList.add("is-uploading");
+        const formData = new FormData();
+        formData.append("file", file);
         const payload = await fetchJson("/api/campaigns/assets", { method:"POST", body:formData });
-        const hidden = wrap?.querySelector('[name="heroImageUrl"]');
-        if (hidden) hidden.value = payload.imageUrl;
-        wrap?.querySelector("[data-campaign-hero-image-placeholder]")?.remove();
-        const current = wrap?.querySelector("[data-campaign-hero-image-preview]");
-        if (current) current.src = payload.imageUrl;
-        else wrap?.insertAdjacentHTML("afterbegin", `<img src="${escapeHtml(payload.imageUrl)}" alt="صورة الحملة" data-campaign-hero-image-preview>`);
-        wrap?.classList.add("has-image");
-        const picker = wrap?.querySelector('[data-action="campaign-studio-hero-image-pick"]');
-        if (picker) picker.innerHTML = `${dashboardIcon("upload")} استبدال الصورة`;
-        if (!wrap?.querySelector('[data-action="campaign-studio-hero-image-remove"]')) picker?.insertAdjacentHTML("afterend", `<button type="button" class="btn btn-ghost danger-text" data-action="campaign-studio-hero-image-remove">حذف الصورة</button>`);
-        refreshCampaignStudioPreview(form); scheduleCampaignStudioDraft(form);
-        toast("تمت إضافة صورة الحملة إلى المعاينة.", "success");
-      } catch (error) { toast(error.message || "تعذر رفع صورة الحملة.", "danger"); }
-      finally { wrap?.classList.remove("is-uploading"); target.value = ""; }
+        const wrap = campaignImageTargetWrap();
+        if (!applyCampaignImageToWrap(wrap, payload.imageUrl)) throw new Error("تم حفظ الصورة، لكن تعذر تطبيقها على الحملة.");
+        closePortal();
+        toast("تم رفع الصورة وحفظها في مكتبة الحملات.", "success");
+      } catch (error) {
+        toast(error.message || "تعذر رفع صورة الحملة.", "danger");
+      } finally {
+        library?.classList.remove("is-uploading");
+        target.value = "";
+      }
     })();
     return;
   }

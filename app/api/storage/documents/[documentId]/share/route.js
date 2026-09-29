@@ -1,13 +1,18 @@
 import { requireSession } from "../../../../../../src/server/session.js";
 import { sameOriginRequest } from "../../../../../../src/server/campaign-contacts.js";
 import { getStorageDocumentShare, revokeStorageDocumentShare, saveStorageDocumentShare } from "../../../../../../src/server/storage-document-shares.js";
+import { appBaseUrl } from "../../../../../../src/server/app-url.js";
 
-function shareUrl(request, token) {
-  return new URL(`/shared/document/${encodeURIComponent(token)}`, request.url).toString();
+function shareUrl(_request, token) {
+  return new URL(`/shared/document/${encodeURIComponent(token)}`, appBaseUrl()).toString();
 }
 
 function failure(error, fallback) {
-  return Response.json({ ok: false, code: error?.code || "SHARE_FAILED", message: error?.message || fallback }, { status: Number(error?.status || 500) });
+  const status = Number(error?.status || 500);
+  return Response.json(
+    { ok: false, code: status >= 500 ? "SHARE_FAILED" : error?.code || "SHARE_FAILED", message: status >= 500 ? fallback : error?.message || fallback },
+    { status }
+  );
 }
 
 export async function GET(request, { params }) {

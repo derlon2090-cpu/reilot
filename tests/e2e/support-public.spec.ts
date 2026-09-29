@@ -17,7 +17,9 @@ test("support center opens dedicated help articles and keeps distinct FAQs", asy
 test("support search exposes an accessible direct link to a matching guide", async ({ page }) => {
   await page.goto("/support");
   await page.getByPlaceholder("ابحث عن موضوع أو سؤال...").fill("التكاملات");
-  const result = page.getByRole("button", { name: "اقرأ دليل التكاملات والإعدادات" });
+  const result = page
+    .locator("[data-support-search-results]")
+    .getByRole("button", { name: /التكاملات والإعدادات/ });
   await expect(result).toBeVisible();
   await result.click();
   await expect(page).toHaveURL(/\/blog\/integrations-settings-guide$/);

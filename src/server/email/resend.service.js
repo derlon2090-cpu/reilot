@@ -7,6 +7,7 @@ import { passwordChangedEmail } from "../../lib/email/templates/password-changed
 import { renewalReminderEmail } from "../../lib/email/templates/renewal-reminder.js";
 import { loginEmailOtp } from "../../lib/email/templates/login-email-otp.js";
 import { supportReplyEmail } from "../../lib/email/templates/support-reply.js";
+import { storageDocumentLockCodeEmail } from "../../lib/email/templates/storage-document-lock-code.js";
 import { inspectCustomEmailHtml, supportedEmailContentMode, supportedEmailDesign } from "../../lib/email/custom-email-html.js";
 
 function safeEmailThemeColor(value) {
@@ -30,6 +31,15 @@ function designedEmailBody({ design, safeText, themeColor }) {
 
 export async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes = 10, locale = "ar" }) {
   return sendEmail({ to, ...forgotPasswordCodeEmail({ code, expiresInMinutes, locale }) });
+}
+
+export async function sendStorageDocumentLockResetCodeEmail({ to, code, documentTitle, expiresInMinutes = 10, locale = "ar" }) {
+  return sendEmail({
+    to,
+    tags: [{ name: "purpose", value: "storage_document_lock_reset" }],
+    idempotencyKey: `storage-lock-reset-${crypto.createHash("sha256").update(`${String(to).trim().toLowerCase()}:${code}`).digest("hex")}`,
+    ...storageDocumentLockCodeEmail({ code, documentTitle, expiresInMinutes, locale })
+  });
 }
 
 export async function sendLoginEmailOtp({ to, code, expiresInMinutes = 5, locale = "ar", name = "" }) {

@@ -51,13 +51,14 @@ export function validationResponse(result) {
 export async function getSettingsProfile(session) {
   const result = await query(
     `SELECT u.name AS "fullName", u.email, u.image AS "avatarUrl", u.phone,
-            COALESCE(st.name, '') AS "storeName", COALESCE(tm.role, u.role) AS role,
+            COALESCE(st.name, t.name, '') AS "storeName", COALESCE(tm.role, u.role) AS role,
             COALESCE(s.language, 'ar') AS language,
             COALESCE(s.theme, 'light') AS theme,
             COALESCE(s.interface_density, 'comfortable') AS "interfaceDensity",
             u.mfa_enabled AS "mfaEnabled"
        FROM users u
        LEFT JOIN tenant_members tm ON tm.user_id = u.id AND tm.tenant_id = u.tenant_id
+       LEFT JOIN tenants t ON t.id = u.tenant_id
        LEFT JOIN LATERAL (
          SELECT name FROM stores WHERE tenant_id = u.tenant_id ORDER BY created_at LIMIT 1
        ) st ON true

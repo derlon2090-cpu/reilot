@@ -73,7 +73,7 @@ export async function GET(request) {
       `SELECT COALESCE(sum(CASE WHEN ps.billing_cycle = 'yearly' THEN pp.yearly_price_sar / 12.0 ELSE pp.monthly_price_sar END), 0)::numeric AS amount
          FROM platform_subscriptions ps
          JOIN platform_plans pp ON pp.id = ps.plan_id
-        WHERE ps.status IN ('active','trial')`
+        WHERE ps.status IN ('active','trial') AND ps.current_period_end>now()`
     ),
     query(
       `SELECT t.id,t.name,t.slug,t.status,t.created_at AS "createdAt",
@@ -82,7 +82,10 @@ export async function GET(request) {
               COALESCE(subscriptions.count,0)::int AS "subscriptionCount"
          FROM tenants t
          LEFT JOIN LATERAL (
-           SELECT u.name,u.email FROM users u WHERE u.tenant_id=t.id ORDER BY u.created_at LIMIT 1
+           SELECT u.name,u.email FROM users u
+           LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=t.id
+           WHERE u.tenant_id=t.id AND u.account_status <> 'removed'
+           ORDER BY CASE WHEN COALESCE(tm.role,u.role)='owner' THEN 0 ELSE 1 END,u.created_at LIMIT 1
          ) owner ON true
          LEFT JOIN LATERAL (
            SELECT count(*) AS count FROM tenant_members tm WHERE tm.tenant_id=t.id AND tm.status='active'
@@ -94,12 +97,18 @@ export async function GET(request) {
         ORDER BY t.created_at DESC LIMIT 20`
     ),
     query(
-      `SELECT ps.id,t.id AS "tenantId",t.name AS "tenantName",pp.name AS "planName",ps.status,
+      `SELECT ps.id,t.id AS "tenantId",t.name AS "tenantName",pp.name AS "planName",
+              CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
+                   THEN 'expired' ELSE ps.status END AS status,
               ps.billing_cycle AS "billingCycle",ps.current_period_start AS "startsAt",
               ps.current_period_end AS "expiresAt",ps.payment_provider AS "paymentProvider",
               COALESCE(ww.available_balance,0)::numeric AS "walletBalance"
-         FROM platform_subscriptions ps
-         JOIN tenants t ON t.id=ps.tenant_id
+         FROM tenants t
+         JOIN LATERAL (
+           SELECT * FROM platform_subscriptions x WHERE x.tenant_id=t.id
+           ORDER BY CASE WHEN x.status IN ('active','trial') AND x.current_period_end>now() THEN 0 ELSE 1 END,
+                    x.updated_at DESC,x.created_at DESC,x.id DESC LIMIT 1
+         ) ps ON true
          JOIN platform_plans pp ON pp.id=ps.plan_id
          LEFT JOIN whatsapp_wallets ww ON ww.tenant_id=t.id
         WHERE t.status <> 'disabled'
@@ -129,7 +138,9 @@ export async function GET(request) {
          LEFT JOIN LATERAL (SELECT count(*) AS count FROM stores s WHERE s.tenant_id=u.tenant_id) store_count ON true
          LEFT JOIN LATERAL (
            SELECT plan.name FROM platform_subscriptions ps JOIN platform_plans plan ON plan.id=ps.plan_id
-            WHERE ps.tenant_id=u.tenant_id ORDER BY ps.created_at DESC LIMIT 1
+            WHERE ps.tenant_id=u.tenant_id
+            ORDER BY CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end>now() THEN 0 ELSE 1 END,
+                     ps.updated_at DESC,ps.created_at DESC,ps.id DESC LIMIT 1
          ) pp ON true
         WHERE u.tenant_id IS NOT NULL AND t.status <> 'disabled'
         ORDER BY u.created_at DESC LIMIT 30`
@@ -137,13 +148,25 @@ export async function GET(request) {
     query(
       `SELECT s.id,t.id AS "tenantId",s.name,s.domain,s.created_at AS "createdAt",t.name AS "tenantName",t.status,
               owner.name AS "ownerName",owner.email AS "ownerEmail",
-              ps.status AS "subscriptionStatus",pp.name AS "planName",
+              COALESCE(owner.email,NULLIF(s.support_email,'')) AS "contactEmail",
+              CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
+                   THEN 'expired' ELSE ps.status END AS "subscriptionStatus",pp.name AS "planName",
+              ps.billing_cycle AS "billingCycle",
               ac.status AS "sallaStatus",wc.status AS "metaStatus",
               COALESCE(usage.used_messages,0)::int AS "messageVolume",
               COALESCE(ww.available_balance,0)::numeric AS "walletBalance"
          FROM stores s JOIN tenants t ON t.id=s.tenant_id
-         LEFT JOIN LATERAL (SELECT u.name,u.email FROM users u WHERE u.tenant_id=t.id ORDER BY u.created_at LIMIT 1) owner ON true
-         LEFT JOIN LATERAL (SELECT * FROM platform_subscriptions x WHERE x.tenant_id=t.id ORDER BY x.created_at DESC LIMIT 1) ps ON true
+         LEFT JOIN LATERAL (
+           SELECT u.name,u.email FROM users u
+           LEFT JOIN tenant_members tm ON tm.user_id=u.id AND tm.tenant_id=t.id
+           WHERE u.tenant_id=t.id AND u.account_status <> 'removed'
+           ORDER BY CASE WHEN COALESCE(tm.role,u.role)='owner' THEN 0 ELSE 1 END,u.created_at LIMIT 1
+         ) owner ON true
+         LEFT JOIN LATERAL (
+           SELECT * FROM platform_subscriptions x WHERE x.tenant_id=t.id
+           ORDER BY CASE WHEN x.status IN ('active','trial') AND x.current_period_end>now() THEN 0 ELSE 1 END,
+                    x.updated_at DESC,x.created_at DESC,x.id DESC LIMIT 1
+         ) ps ON true
          LEFT JOIN platform_plans pp ON pp.id=ps.plan_id
          LEFT JOIN app_connections ac ON ac.tenant_id=t.id AND ac.provider='salla'
          LEFT JOIN LATERAL (SELECT status FROM whatsapp_channels x WHERE x.tenant_id=t.id ORDER BY x.updated_at DESC LIMIT 1) wc ON true

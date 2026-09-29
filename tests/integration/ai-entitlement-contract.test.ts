@@ -41,6 +41,14 @@ describe("AI token entitlement database and service contract", () => {
     expect(usage).toContain("return snapshot || getAIEntitlementSummary(session)");
   });
 
+  it("does not reuse an AI balance from a previous plan after an admin upgrade", () => {
+    expect(service).toContain("p.plan_slug=pp.slug");
+    expect(service).toContain("date_trunc('milliseconds',p.period_start)=date_trunc('milliseconds',ps.current_period_start)");
+    expect(service).toContain("p.weekly_token_limit=pp.ai_weekly_token_limit");
+    expect(service).toContain("p.period_token_cap=pp.ai_period_token_cap AND p.max_cycles=pp.ai_max_cycles");
+    expect(usage).toContain("return snapshot || getAIEntitlementSummary(session)");
+  });
+
   it("separates email-template tasks while retaining the unified entitlement and provider ledgers", () => {
     expect(emailGenerationMigration).toContain("email_template_code_generate");
     expect(emailGenerationMigration).toContain("email_template_code_edit");

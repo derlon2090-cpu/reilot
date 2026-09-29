@@ -16,8 +16,7 @@ vi.mock("../../src/server/session.js", () => ({
 }));
 vi.mock("../../src/server/db.js", () => ({ query:queryMock }));
 
-import { POST } from "../../app/api/campaigns/assets/route.js";
-import { GET } from "../../app/api/public/campaign-image/[imageId]/route.js";
+import { DELETE, GET, POST } from "../../app/api/campaigns/assets/route.js";
 
 function imageRequest(bytes: number[], type = "image/png") {
   const data = new FormData();
@@ -39,15 +38,15 @@ describe("campaign image upload", () => {
 
     expect(response.status).toBe(200);
     expect(payload.storage).toBe("database");
-    expect(payload.imageUrl).toMatch(/\/api\/public\/campaign-image\/[0-9a-f-]+\?v=/);
+    expect(payload.imageUrl).toMatch(/\/api\/public\/salla-template-image\/[0-9a-f-]+\?v=/);
     expect(putMock).not.toHaveBeenCalled();
     expect(queryMock).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO tenant_campaign_assets"),
-      [expect.any(String), "tenant-1", payload.imageUrl, expect.any(Buffer), "image/png", "campaign-card.png", 6, "user-1"]
+      expect.stringContaining("INSERT INTO tenant_salla_template_images"),
+      [expect.any(String), "tenant-1", expect.stringMatching(/^campaign_asset_[0-9a-f-]+$/), payload.imageUrl, expect.any(Buffer), "image/png"]
     );
   });
 
-  it("uses managed Blob storage when configured while recording ownership", async () => {
+  it("uses managed Blob storage when configured and records it in the reusable library", async () => {
     process.env.BLOB_READ_WRITE_TOKEN = "test-token";
     const response = await POST(imageRequest([0xff, 0xd8, 0xff, 0xdb], "image/jpeg"));
     const payload = await response.json();
@@ -61,8 +60,8 @@ describe("campaign image upload", () => {
       expect.objectContaining({ access:"public", contentType:"image/jpeg" })
     );
     expect(queryMock).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO tenant_campaign_assets"),
-      expect.arrayContaining(["tenant-1", payload.imageUrl, null, null])
+      expect.stringContaining("INSERT INTO tenant_salla_template_images"),
+      [expect.any(String), "tenant-1", expect.stringMatching(/^campaign_asset_[0-9a-f-]+$/), payload.imageUrl, null, null]
     );
   });
 
@@ -76,35 +75,32 @@ describe("campaign image upload", () => {
     expect(queryMock).not.toHaveBeenCalled();
   });
 
-  it("removes a newly uploaded Blob if the ownership record cannot be saved", async () => {
-    process.env.BLOB_READ_WRITE_TOKEN = "test-token";
+  it("surfaces a database failure without pretending that the image was stored", async () => {
     queryMock.mockRejectedValueOnce(new Error("database unavailable"));
-
-    await expect(POST(imageRequest([0xff, 0xd8, 0xff, 0xdb], "image/jpeg"))).rejects.toThrow("database unavailable");
-    expect(deleteMock).toHaveBeenCalledWith("https://assets.blob.vercel-storage.com/campaign.png");
+    await expect(POST(imageRequest([0x89, 0x50, 0x4e, 0x47], "image/png"))).rejects.toThrow("database unavailable");
+    expect(putMock).not.toHaveBeenCalled();
   });
 
-  it("serves a database-backed campaign image with immutable safe headers", async () => {
+  it("lists only the tenant campaign image library", async () => {
     queryMock.mockResolvedValueOnce({ rows:[{
-      imageData:Buffer.from([0x89, 0x50, 0x4e, 0x47]),
-      contentType:"image/png"
+      id:"11111111-1111-4111-8111-111111111111",
+      imageUrl:"https://renvix.test/api/public/salla-template-image/11111111-1111-4111-8111-111111111111",
+      createdAt:"2026-09-25T00:00:00.000Z"
     }] });
-    const response = await GET(new Request("http://localhost/api/public/campaign-image/11111111-1111-4111-8111-111111111111"), {
-      params:Promise.resolve({ imageId:"11111111-1111-4111-8111-111111111111" })
-    });
-
+    const response = await GET(new Request("http://localhost/api/campaigns/assets"));
+    const payload = await response.json();
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/png");
-    expect(response.headers.get("cache-control")).toContain("immutable");
-    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(Uint8Array.from([0x89, 0x50, 0x4e, 0x47]));
+    expect(payload.assets).toHaveLength(1);
+    expect(payload.assets[0]).toMatchObject({ canDelete:true, name:"صورة حملة 1" });
+    expect(queryMock).toHaveBeenCalledWith(expect.stringContaining("template_key LIKE 'campaign_asset"), ["tenant-1"]);
+    expect(queryMock.mock.calls[0][0]).not.toContain("LIMIT");
   });
 
-  it("does not query storage for an invalid public image id", async () => {
-    const response = await GET(new Request("http://localhost/api/public/campaign-image/not-an-id"), {
-      params:Promise.resolve({ imageId:"not-an-id" })
-    });
-    expect(response.status).toBe(404);
-    expect(queryMock).not.toHaveBeenCalled();
+  it("deletes a tenant-owned campaign image and its managed blob", async () => {
+    queryMock.mockResolvedValueOnce({ rows:[{ imageUrl:"https://assets.blob.vercel-storage.com/campaign.png" }] });
+    const response = await DELETE(new Request("http://localhost/api/campaigns/assets?imageId=11111111-1111-4111-8111-111111111111", { method:"DELETE" }));
+    expect(response.status).toBe(200);
+    expect(queryMock).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM tenant_salla_template_images"), ["11111111-1111-4111-8111-111111111111", "tenant-1"]);
+    expect(deleteMock).toHaveBeenCalledWith("https://assets.blob.vercel-storage.com/campaign.png");
   });
 });

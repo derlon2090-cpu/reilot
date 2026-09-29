@@ -7,6 +7,7 @@ const port = process.env.E2E_PORT || "3100";
 const baseUrl = process.env.E2E_BASE_URL || `http://${host}:${port}`;
 const npmCli = process.env.npm_execpath;
 const playwrightCli = fileURLToPath(new URL("../../node_modules/@playwright/test/cli.js", import.meta.url));
+const nextCli = fileURLToPath(new URL("../../node_modules/next/dist/bin/next", import.meta.url));
 const runtimeEnv = {
   ...process.env,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || "https://renvix.app",
@@ -81,15 +82,20 @@ try {
       });
       if (buildCode !== 0) throw new Error("The production build failed before E2E tests.");
     }
-    server = spawn(process.execPath, [npmCli, "run", "start", "--", "-H", host, "-p", port], {
+    const serverArgs = process.env.E2E_SKIP_MIGRATIONS === "1"
+      ? [nextCli, "start", "-H", host, "-p", port]
+      : [npmCli, "run", "start", "--", "-H", host, "-p", port];
+    server = spawn(process.execPath, serverArgs, {
       stdio: "inherit",
       windowsHide: true,
       env: localServerEnv
     });
-    await waitForServer(new URL("/login", baseUrl));
-    await waitForServer(new URL("/advanced-pro-control", baseUrl), 120000, {
-      headers: { "x-forwarded-host": process.env.E2E_ADMIN_HOST || "wa-admin.renvix.app" }
-    });
+    await waitForServer(new URL(process.env.E2E_READINESS_PATH || "/login", baseUrl));
+    if (process.env.E2E_SKIP_ADMIN_READINESS !== "1") {
+      await waitForServer(new URL("/advanced-pro-control", baseUrl), 120000, {
+        headers: { "x-forwarded-host": process.env.E2E_ADMIN_HOST || "wa-admin.renvix.app" }
+      });
+    }
   }
 
   const code = await run(process.execPath, [playwrightCli, "test", "--config=playwright.config.ts", ...process.argv.slice(2)], {

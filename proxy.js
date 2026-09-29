@@ -142,6 +142,8 @@ export async function middlewareRequest(request, {
   const canonicalAuth = canonicalAuthPath(path);
   const authPage = isAuthPath(canonicalAuth) || path.startsWith("/auth/");
   const authApi = path.startsWith("/api/auth/");
+  const sharedDocumentPage = /^\/shared\/document\/[A-Za-z0-9_-]{43}$/.test(path);
+  const sharedFolderPage = /^\/shared\/folder\/[A-Za-z0-9_-]{43}$/.test(path);
   // Storage API aliases deliberately live outside `/api` so Vercel's legacy
   // blanket `/api/:path*` rewrite cannot send them to the retired backend.
   // Treat them as API requests here as well; otherwise the app-host canonical
@@ -149,8 +151,9 @@ export async function middlewareRequest(request, {
   const storageApi = path === "/storage-api" || path.startsWith("/storage-api/");
   const pageRequest = !path.startsWith("/api/") && !path.startsWith("/backend/") && !storageApi;
   const apiHost = authApiOrigin ? new URL(authApiOrigin).hostname.toLowerCase() : "";
+  const canonicalApiRequest = Boolean(apiHost) && directRequestHost === apiHost;
   const localAdminAuthBridge = hostKind === "admin" && authApi && isAdminAuthBridgeApi(path);
-  const adminSurface = hostKind === "admin" && (
+  const adminSurface = (hostKind === "admin" || (canonicalApiRequest && adminApi)) && (
     path === "/"
     || adminPage
     || adminApi
@@ -165,12 +168,20 @@ export async function middlewareRequest(request, {
         ? wrongHostPageResponse()
         : portalRedirect(request, origins.admin, path);
     }
-    if (adminApi && hostKind !== "admin" && requestHost !== apiHost) {
+    // A Vercel rewrite can preserve its frontend host in X-Forwarded-Host.
+    // The direct Host is the canonical API here, so keep the route available
+    // to the independent admin session and permission checks on Render.
+    if (adminApi && hostKind !== "admin" && requestHost !== apiHost && !canonicalApiRequest) {
       logAdminBoundaryEvent(request, "admin_api_wrong_host", requestHost, path);
       return wrongHostApiResponse();
     }
 
     if (dashboardPage && hostKind !== "app") {
+      return portalRedirect(request, origins.app, path);
+    }
+    // Shared documents use the dashboard-owned storage API. Keep both newly
+    // generated and previously issued links on the app host.
+    if ((sharedDocumentPage || sharedFolderPage) && hostKind !== "app" && hostKind !== "unknown") {
       return portalRedirect(request, origins.app, path);
     }
     if (authPage && !(hostKind === "admin" && isAdminVerificationPagePath(path)) && hostKind !== "auth") {
@@ -213,7 +224,7 @@ export async function middlewareRequest(request, {
     }
     if (hostKind === "auth" && path === "/") return portalRedirect(request, origins.auth, "/login");
     if (hostKind === "admin" && path === "/") return portalRedirect(request, origins.admin, "/admin");
-    if (pageRequest && hostKind === "app" && !dashboardPage) return portalRedirect(request, origins.site, path);
+    if (pageRequest && hostKind === "app" && !dashboardPage && !sharedDocumentPage && !sharedFolderPage) return portalRedirect(request, origins.site, path);
     if (pageRequest && hostKind === "auth" && !authPage) return portalRedirect(request, origins.site, path);
     if (pageRequest && hostKind === "admin" && !adminPage && !isAdminVerificationPagePath(path)) {
       return portalRedirect(request, origins.site, path);

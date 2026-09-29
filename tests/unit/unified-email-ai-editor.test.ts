@@ -64,8 +64,8 @@ describe("unified email AI editor", () => {
     }
     // One endpoint is shared by the template editor and the campaign studio;
     // both are explicit generation actions and both settle provider usage.
-    expect(app.match(/\/api\/ai\/email-template\/generate/g)).toHaveLength(2);
-    expect(app.match(/\/api\/ai\/email-template\/suggestions/g)).toHaveLength(1);
+    expect(app.match(/\/backend\/ai\/email-template\/generate/g)).toHaveLength(2);
+    expect(app.match(/\/backend\/ai\/email-template\/suggestions/g)).toHaveLength(1);
     expect(app).toContain('data-action="email-ai-regenerate"');
   });
 });

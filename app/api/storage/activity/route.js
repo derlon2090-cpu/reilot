@@ -1,10 +1,12 @@
 import { requireSession } from "../../../../src/server/session.js";
 import { getStorageCenter } from "../../../../src/server/storage-center.js";
+import { ensureStorageCenterSchema } from "../../../../src/server/storage-schema.js";
 
 export async function GET(request) {
   const auth = await requireSession(request);
   if (!auth.ok) return auth.response;
   try {
+    await ensureStorageCenterSchema();
     const storage = await getStorageCenter(auth.session);
     return Response.json({ ok: true, activity: storage.activity }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

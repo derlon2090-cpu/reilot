@@ -178,6 +178,17 @@ describe("canonical domain middleware", () => {
     }
   });
 
+  it("redirects legacy public-site share links to the dashboard host and keeps them public", async () => {
+    const token = "A".repeat(43);
+    const legacy = await run(`https://renvix.app/shared/document/${token}`);
+    expect(legacy.status).toBe(307);
+    expect(legacy.headers.get("location")).toBe(`https://dash.renvix.app/shared/document/${token}`);
+
+    const canonical = await run(`https://dash.renvix.app/shared/document/${token}`);
+    expect(canonical.headers.get("x-middleware-next")).toBe("1");
+    expect(canonical.headers.get("location")).toBeNull();
+  });
+
   it("does not expose storage API aliases from another canonical host", async () => {
     for (const host of ["renvix.app", "accounts.renvix.app", "wa-admin.renvix.app"]) {
       const response = await run(`https://${host}/storage-api/trash`, "customer");
@@ -301,6 +312,22 @@ describe("canonical domain middleware", () => {
     ));
     expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(allowAccess).not.toHaveBeenCalled();
+  });
+
+  it("uses the canonical API host for admin routes when a proxy forwards an unknown frontend host", async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.renvix.app";
+    process.env.NEXT_PUBLIC_ADMIN_URL = "https://another-admin.renvix.app";
+    const path = "/api/admin/tenants/11111111-1111-4111-8111-111111111111/actions";
+    const canonical = await middlewareRequest(request(`https://api.renvix.app${path}`, "admin", {
+      "x-forwarded-host": "wa-admin.renvix.app"
+    }));
+    expect(canonical.headers.get("x-middleware-next")).toBe("1");
+    expect(allowAccess).not.toHaveBeenCalled();
+
+    const unrelated = await middlewareRequest(request(`https://deployment.vercel.app${path}`, "admin", {
+      "x-forwarded-host": "wa-admin.renvix.app"
+    }));
+    expect(unrelated.status).toBe(404);
   });
 
   it("does not expose customer APIs from the administration host", async () => {

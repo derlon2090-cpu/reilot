@@ -27,16 +27,29 @@ describe("campaign studio", () => {
     expect(campaignsRoute).toContain("cp.consent_status <> 'revoked'");
   });
 
-  it("supports up to ten cards with real editing, ordering, image upload, draft saving and live preview", () => {
+  it("supports up to ten cards with real editing, ordering, reusable image library, draft saving and live preview", () => {
     expect(appSource).toContain("الحد الأقصى 10 بطاقات");
     expect(appSource).toContain('data-action="campaign-studio-card-copy"');
     expect(appSource).toContain('data-action="campaign-studio-card-up"');
     expect(appSource).toContain('data-action="campaign-studio-card-down"');
-    expect(appSource).toContain('data-action="campaign-studio-image-file"');
+    expect(appSource).toContain('data-action="campaign-studio-image-pick"');
+    expect(appSource).toContain('data-action="campaign-image-library-upload"');
+    expect(appSource).toContain('data-action="campaign-image-library-select"');
+    expect(appSource).toContain('data-action="campaign-image-library-delete"');
+    expect(appSource).toContain('data-action="campaign-image-library-show-all"');
+    expect(appSource).toContain('index >= 6 ? " is-library-hidden"');
+    expect(appSource).toContain('data-action="campaign-studio-image-remove"');
     expect(appSource).toContain("renvix.campaign-studio.${channel}.${kind}");
     expect(appSource).toContain("refreshCampaignStudioPreview");
     expect(assetsRoute).toContain("campaign-assets/${auth.session.tenantId}");
     expect(assetsRoute).toContain("MAX_IMAGE_BYTES = 5 * 1024 * 1024");
+    expect(assetsRoute).toContain("export async function GET");
+    expect(assetsRoute).toContain("export async function DELETE");
+    expect(stylesSource).toContain(".campaign-image-library-grid");
+    expect(appSource).toContain('openModal("مكتبة الصور"');
+    expect(stylesSource).toContain("repeat(auto-fill,minmax(min(160px,100%),1fr))");
+    expect(stylesSource).toContain("overflow:visible");
+    expect(stylesSource).toContain(".campaign-image-library-card.is-library-hidden{display:none}");
   });
 
   it("validates cards and store ownership on the server", () => {
@@ -54,15 +67,46 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain(".campaign-studio-email-preview.mobile");
   });
 
-  it("uses one canonical email template with color-only customization", () => {
+  it("uses one canonical email template with color and text-alignment customization", () => {
     expect(appSource).toContain('name="emailDesign"');
     expect(appSource).toContain('value="showcase"');
     expect(appSource).toContain("القالب الرئيسي المعتمد");
     expect(appSource).toContain('name="themeColor"');
-    expect(appSource).toContain("صورة المتجر أو غلاف الحملة");
-    expect(appSource).toContain('data-action="campaign-studio-hero-image-file"');
+    expect(appSource).not.toContain("صورة المتجر أو غلاف الحملة");
+    expect(appSource).not.toContain('data-action="campaign-studio-hero-image-pick"');
+    expect(appSource).not.toContain('name="heroImageUrl"');
+    expect(appSource).toContain('name="brandLogoUrl"');
+    expect(appSource).toMatch(/\["name"[^\n]+"brandLogoUrl"[^\n]+\]\.forEach/);
+    expect(appSource).toContain('data-action="campaign-studio-logo-image-pick"');
+    expect(appSource).toContain("campaignStudioApplyFixedLogo");
+    expect(appSource).not.toContain('class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png"');
     expect(stylesSource).toContain(".campaign-email-primary-template");
     expect(stylesSource).toContain("--campaign-email-color");
+    expect(appSource).toContain('campaignStudioAlignmentControl("subjectAlignment"');
+    expect(appSource).toContain('campaignStudioAlignmentControl("bodyAlignment"');
+    expect(appSource).toContain('aria-label="campaign-email-subject"');
+    expect(appSource).toContain('aria-label="campaign-email-body"');
+    expect(stylesSource).toContain(".campaign-email-alignment");
+    expect(schemaSource).toContain('["subjectAlignment", "bodyAlignment"]');
+  });
+
+  it("restores the selected campaign mode after navigation or refresh", () => {
+    expect(appSource).toContain('state.query.get("channel")');
+    expect(appSource).toContain('state.query.get("kind")');
+    expect(appSource).toContain('/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=custom');
+    expect(appSource).toContain('/dashboard/campaigns/new?channel=${encodeURIComponent(channel)}&kind=product');
+  });
+
+  it("keeps the customer logo and a protected canonical card section in every generated email", () => {
+    expect(appSource).toContain('aria-label="campaign-brand-logo"');
+    expect(appSource).toContain('campaignStudioApplyFixedEmailContent(payload?.html || "", form)');
+    expect(appSource).toContain('aria-label="campaign-email-cards"');
+    expect(appSource).toContain("function campaignStudioFixedCardsTable");
+    expect(appSource).toContain("function campaignStudioApplyFixedEmailContent");
+    expect(appSource).toContain("campaignStudioWithoutFixedCards");
+    expect(appSource).toContain('for (let index = 0; index < cards.length; index += 2)');
+    expect(appSource).toContain('pair.length === 1 ? \'<td width="50%"');
+    expect(stylesSource).not.toContain('.campaign-studio-email-preview.design-showcase .campaign-studio-preview-card:first-child');
   });
 
   it("provides a safe AI email-code workflow with focused code controls", () => {
@@ -71,22 +115,33 @@ describe("campaign studio", () => {
     expect(existsSync(new URL("../../app/api/ai/campaign-copy/generate/route.js", import.meta.url))).toBe(false);
     expect(appSource).toContain("توليد قالب برمجي (HTML)");
     expect(appSource).toContain("campaignStudioAIState");
-    expect(appSource).toContain("/api/ai/email-template/generate");
+    expect(appSource).toContain("/backend/ai/email-template/generate");
     expect(appSource).toContain('templateType: "campaign_email"');
-    expect(appSource).toContain('data-action="campaign-studio-ai-replace"');
+    expect(appSource).toContain('data-action="campaign-studio-ai-regenerate"');
     expect(appSource).toContain('data-action="campaign-studio-ai-approve"');
+    expect(appSource).toContain('data-action="campaign-studio-adopt-html"');
+    expect(appSource).toContain('class="campaign-html-optional">اختياري</b>');
+    expect(appSource).not.toContain('اعتماد التصميم <small>اختياري</small>');
     expect(appSource).toContain('data-action="campaign-studio-delete-html"');
     expect(appSource).toContain('data-action="campaign-studio-replace-html"');
     expect(appSource).toContain('data-action="campaign-studio-copy-html"');
     expect(appSource).not.toContain("توليد قالب أساسي");
     expect(appSource).toContain("syncAIQuota(payload)");
-    expect(appSource).toContain("inspectEmailHtmlClient(payload?.html || \"\")");
+    expect(appSource).toContain('campaignStudioApplyFixedEmailContent(payload?.html || "", form)');
     expect(appSource).toContain("campaignStudioAIModalMarkup");
     expect(appSource).toContain('data-submit="campaign-ai-code-generate"');
     expect(appSource).toContain('name="selectedColor"');
     expect(appSource).toContain("refreshCampaignStudioPreview(form)");
     expect(appSource).not.toContain("data-campaign-ai-prompt");
     expect(appSource).toContain("data-campaign-html-status");
+    expect(appSource).toContain('form.elements.htmlContent.value = inspection.html');
+    expect(appSource).toContain('name="htmlContentApproved"');
+    expect(appSource).toContain('data-action="campaign-studio-restore-main"');
+    expect(appSource).toContain("استرجاع التصميم الرئيسي");
+    expect(appSource).not.toContain('title="معاينة تصميم كود البريد"');
+    expect(appSource).toContain("النظام يثبّته تلقائيًا بعد المحتوى");
+    expect(appSource).toContain("{{unsubscribe_url}}");
+    expect(stylesSource).toContain(".campaign-generated-email-preview");
   });
 
   it("keeps generated code when sections close and makes campaign saving actionable", () => {
@@ -96,6 +151,7 @@ describe("campaign studio", () => {
     expect(stylesSource).toContain(".campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:static!important");
     expect(stylesSource).not.toContain(".campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-actions{position:fixed");
     expect(stylesSource).toContain(".campaign-studio[data-campaign-channel][data-campaign-kind] .campaign-studio-preview{position:sticky;top:76px");
+    expect(stylesSource).toContain("pointer-events:auto");
   });
 
   it("keeps social links collapsed while preserving entered icons in the preview", () => {
@@ -113,7 +169,7 @@ describe("campaign studio", () => {
     expect(appSource).toContain('const socialLinksEnabled = Object.keys(socialLinks).length > 0');
     expect(appSource).toContain("campaignStudioValidHttpUrl");
     expect(appSource).toContain("socialLinks ?");
-    expect(appSource).toContain('String(data.htmlContent || "").trim() || null');
+    expect(appSource).toContain('const approvedHtml = data.channel === "email" && String(data.htmlContentApproved) === "true"');
     expect(appSource).not.toContain('campaignStudioForm.elements.htmlContent.value = ""');
     expect(stylesSource).toContain(".campaign-email-social.is-empty");
   });

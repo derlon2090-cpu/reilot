@@ -44,7 +44,8 @@ async function activeSubscription(tenantId, now, runner) {
       FROM platform_subscriptions ps JOIN platform_plans pp ON pp.id=ps.plan_id
       WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial')
         AND ps.current_period_start <= $2::timestamptz + interval '1 minute' AND ps.current_period_end > $2::timestamptz
-      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,ps.created_at DESC LIMIT 1`,
+      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,
+               ps.updated_at DESC,ps.created_at DESC,ps.id DESC LIMIT 1`,
     [tenantId, now]
   );
   return result.rows[0] || null;
@@ -131,7 +132,7 @@ async function materializeEntitlement(tenantId, now, runner) {
         (tenant_id,subscription_id,plan_slug,period_start,period_end,weekly_token_limit,period_token_cap,max_cycles,status)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active')
        ON CONFLICT(subscription_id,period_start) DO UPDATE SET
-         period_end=EXCLUDED.period_end,status='active',weekly_token_limit=EXCLUDED.weekly_token_limit,
+         plan_slug=EXCLUDED.plan_slug,period_end=EXCLUDED.period_end,status='active',weekly_token_limit=EXCLUDED.weekly_token_limit,
          period_token_cap=EXCLUDED.period_token_cap,max_cycles=EXCLUDED.max_cycles,updated_at=now()
        RETURNING id,period_start AS "periodStart",period_end AS "periodEnd"`,
       [tenantId, subscription.subscriptionId, subscription.planSlug, subscription.periodStart, subscription.periodEnd,
@@ -143,9 +144,9 @@ async function materializeEntitlement(tenantId, now, runner) {
   const entitlementPeriodEnd = periodResult.rows[0].periodEnd;
   const closedPeriods = await runner.query(
     `UPDATE ai_entitlement_periods SET status='closed',updated_at=now()
-      WHERE tenant_id=$1 AND subscription_id=$2 AND id<>$3 AND status IN ('active','suspended')
+      WHERE tenant_id=$1 AND id<>$2 AND status IN ('active','suspended')
       RETURNING id`,
-    [tenantId, subscription.subscriptionId, periodId]
+    [tenantId, periodId]
   );
   if (closedPeriods.rows.length) {
     await runner.query(
@@ -177,7 +178,7 @@ async function materializeEntitlement(tenantId, now, runner) {
     planSlug: subscription.planSlug,
     periodStart: entitlementPeriodStart,
     periodEnd: entitlementPeriodEnd,
-    now,
+    now: new Date(Math.max(new Date(now).getTime(), new Date(entitlementPeriodStart).getTime())),
     subscriptionActive: true
   });
   const cycleNumber = Math.min(maxCycles, resolution.cycle?.cycleNumber || 1);
@@ -279,6 +280,10 @@ export async function getAIEntitlementSnapshot(session, { now = new Date() } = {
          SELECT p.id,p.period_start,p.period_end,p.period_token_cap,p.max_cycles
            FROM ai_entitlement_periods p
           WHERE p.tenant_id=ps.tenant_id AND p.subscription_id=ps.id AND p.status='active'
+            AND p.plan_slug=pp.slug
+            AND date_trunc('milliseconds',p.period_start)=date_trunc('milliseconds',ps.current_period_start)
+            AND p.weekly_token_limit=pp.ai_weekly_token_limit
+            AND p.period_token_cap=pp.ai_period_token_cap AND p.max_cycles=pp.ai_max_cycles
             AND p.period_start<=$2 AND p.period_end>$2
           ORDER BY p.period_start DESC LIMIT 1
        ) ep ON true
@@ -291,7 +296,8 @@ export async function getAIEntitlementSnapshot(session, { now = new Date() } = {
        ) ec ON true
       WHERE ps.tenant_id=$1 AND ps.status IN ('active','trial')
         AND ps.current_period_start<=$2::timestamptz+interval '1 minute' AND ps.current_period_end>$2
-      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,ps.created_at DESC
+      ORDER BY CASE ps.status WHEN 'active' THEN 0 ELSE 1 END,
+               ps.updated_at DESC,ps.created_at DESC,ps.id DESC
       LIMIT 1`,
     values: [session.tenantId, now],
     query_timeout: 2500
@@ -398,6 +404,7 @@ export async function reserveAITokens(session, input = {}) {
 export async function settleAITokenReservation(session, reservationId, input = {}) {
   return transaction(async (client) => {
     const taskType = String(input.taskType || "chat").slice(0, 80);
+    const local = input.provider === "renvix";
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [String(session.tenantId)]);
     const reservationResult = await client.query(
       `SELECT r.id,r.cycle_id AS "cycleId",r.requested_tokens AS "requestedTokens",r.status,r.provider_request_id AS "providerRequestId",
@@ -420,11 +427,17 @@ export async function settleAITokenReservation(session, reservationId, input = {
     const usage = actualTokenUsage(input.usage);
     const providerRequestId = String(input.providerRequestId || reservationId).slice(0, 180);
     const idempotencyKey = String(input.idempotencyKey || `provider-request:${providerRequestId}`).slice(0, 220);
-    const duplicate = await client.query(
-      `SELECT quota_units_charged AS "actualTokens" FROM ai_provider_usage_ledger
-        WHERE tenant_id=$1 AND provider='deepseek' AND (idempotency_key=$2 OR provider_request_id=$3) LIMIT 1`,
-      [session.tenantId, idempotencyKey, providerRequestId]
-    );
+    const duplicate = local
+      ? await client.query(
+        `SELECT actual_tokens AS "actualTokens" FROM ai_token_usage_ledger
+          WHERE tenant_id=$1 AND provider_request_id=$2 LIMIT 1`,
+        [session.tenantId, providerRequestId]
+      )
+      : await client.query(
+        `SELECT quota_units_charged AS "actualTokens" FROM ai_provider_usage_ledger
+          WHERE tenant_id=$1 AND provider='deepseek' AND (idempotency_key=$2 OR provider_request_id=$3) LIMIT 1`,
+        [session.tenantId, idempotencyKey, providerRequestId]
+      );
     if (duplicate.rows[0]) {
       await client.query(
         `UPDATE ai_entitlement_cycles SET reserved_tokens=GREATEST(0,reserved_tokens-$2),updated_at=now() WHERE id=$1`,
@@ -441,7 +454,7 @@ export async function settleAITokenReservation(session, reservationId, input = {
     if (usage.actualTokens > availableAfterRelease) {
       throw entitlementError("AI_ACTUAL_USAGE_EXCEEDS_CYCLE", "تجاوز الاستخدام الفعلي سقف دورة الذكاء المحجوزة.", 409);
     }
-    const costMicros = modelCostMicros(input.model, usage);
+    const costMicros = local ? 0 : modelCostMicros(input.model, usage);
     await client.query(
       `UPDATE ai_entitlement_cycles SET used_tokens=used_tokens+$2,
          reserved_tokens=GREATEST(0,reserved_tokens-$3),updated_at=now() WHERE id=$1`,
@@ -461,7 +474,7 @@ export async function settleAITokenReservation(session, reservationId, input = {
         String(input.model || "unknown"), String(input.routingMode || "flash"), usage.inputTokens, usage.outputTokens, usage.cacheHitTokens,
         usage.cacheMissTokens, usage.actualTokens, costMicros, taskType, input.aiRunId || null]
     );
-    await client.query(
+    if (!local) await client.query(
       `INSERT INTO ai_provider_usage_ledger
         (tenant_id,user_id,subscription_id,entitlement_cycle_id,reservation_id,provider,model,modality,
          native_usage_type,native_usage_amount,input_tokens,output_tokens,cached_tokens,total_tokens,
@@ -501,7 +514,7 @@ export async function settleAITokenReservation(session, reservationId, input = {
         [input.aiRunId, usage.actualTokens, session.tenantId, runStatus]
       );
     }
-    return { idempotent: false, ...usage, costMicros };
+    return { idempotent: false, ...usage, costMicros, remainingTokens: availableAfterRelease - usage.actualTokens };
   });
 }
 

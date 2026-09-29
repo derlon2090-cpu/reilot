@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "./AdminPortal.module.css";
 import SecurityCenter from "./SecurityCenter.jsx";
+import { defaultAdminPlanPeriod, parseAdminPlanPeriod, riyadhToday } from "../../shared/admin-plan-period.js";
 
 const ICONS = {
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8M16 3.2a4 4 0 0 1 0 7.6"/>',
@@ -112,6 +113,10 @@ function StatusPill({ value }) {
   return <span className={`${styles.adminStatus} ${styles[`adminStatus_${statusTone(value)}`]}`}>{humanStatus(value)}</span>;
 }
 
+function EmailAddress({ value }) {
+  return value ? <a className={styles.adminEmailLink} href={`mailto:${value}`} dir="ltr">{value}</a> : <span className={styles.adminReadOnlyLabel}>لا يوجد بريد</span>;
+}
+
 function SimpleTable({ columns, rows, emptyTitle }) {
   if (!rows?.length) return <Empty title={emptyTitle} />;
   return <div className={styles.adminTableWrap}><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>
@@ -127,6 +132,8 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [planId, setPlanId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -139,6 +146,9 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
     setNote("");
     setConfirmation("");
     setPlanId(plans.find((plan) => plan.name === row.planName)?.id || plans[0]?.id || "");
+    const defaultPeriod = defaultAdminPlanPeriod(new Date(), row.billingCycle);
+    setStartDate(defaultPeriod.startDate);
+    setEndDate(defaultPeriod.endDate);
     setError("");
     setSuccess("");
   }
@@ -146,13 +156,21 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
   async function submit(event) {
     event.preventDefault();
     if (!row.tenantId) return setError("تعذر تحديد مساحة عمل العميل.");
+    if (action === "change_plan") {
+      const period = parseAdminPlanPeriod(startDate, endDate);
+      if (!period.ok) return setError({
+        invalid_plan_period: "اختر تاريخي بداية ونهاية صحيحين، بحيث لا تسبق النهاية البداية.",
+        plan_period_start_future: "اختر اليوم أو تاريخًا سابقًا للبداية؛ تفعيل الباقة فوري.",
+        plan_period_not_active: "تاريخ النهاية يجب أن يكون اليوم أو بعده."
+      }[period.reason]);
+    }
     setBusy(true);
     setError("");
     try {
       const body = action === "add_credit"
         ? { action, amount: Number(amount), note: note.trim() }
         : action === "change_plan"
-          ? { action, planId }
+          ? { action, planId, startDate, endDate }
           : action === "restore_customer"
             ? { action }
             : { action, confirmation: confirmation.trim() };
@@ -164,14 +182,25 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const messages = {
+          untrusted_request_origin: "تعذر التحقق من مصدر الطلب. حدّث صفحة الإدارة وحاول مجددًا.",
+          admin_auth_required: "انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم حاول.",
+          admin_permission_denied: "حسابك لا يملك صلاحية إدارة باقات العملاء.",
           confirmation_mismatch: "اكتب اسم مساحة العمل كما هو لتأكيد الإزالة.",
           admin_tenant_cannot_be_removed: "لا يمكن إزالة مساحة عمل مرتبطة بحساب أدمن نشط.",
           customer_removed: "هذا العميل مُزال بالفعل ولا يمكن تعديل رصيده أو باقته.",
           customer_already_suspended: "هذا العميل محظور بالفعل.",
           customer_not_suspended: "هذا العميل غير محظور.",
-          plan_not_found: "الباقة المحددة غير متاحة حاليًا."
+          plan_not_found: "الباقة المحددة غير متاحة حاليًا.",
+          invalid_plan_period: "اختر تاريخي بداية ونهاية صحيحين، بحيث لا تسبق النهاية البداية.",
+          plan_period_start_future: "اختر اليوم أو تاريخًا سابقًا للبداية؛ تفعيل الباقة فوري.",
+          plan_period_not_active: "تاريخ النهاية يجب أن يكون اليوم أو بعده.",
+          subscription_not_found: "لا يوجد اشتراك منصة مرتبط بهذا العميل."
         };
-        throw new Error(messages[payload.reason] || "تعذر تنفيذ العملية. حاول مرة أخرى.");
+        throw new Error(messages[payload.reason] || payload.message || (response.status === 403
+          ? "لا تملك صلاحية تنفيذ العملية أو انتهت جلسة الإدارة. حدّث الصفحة وحاول مجددًا."
+          : response.status === 404
+            ? "خدمة إدارة العملاء غير متاحة على الخادم حاليًا. تحقق من نشر واجهة البرمجة."
+          : "تعذر تنفيذ العملية. حاول مرة أخرى."));
       }
       setSuccess(payload.message || "تم تنفيذ العملية بنجاح.");
       await onComplete?.();
@@ -184,7 +213,7 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
 
   if (!canManage) return <span className={styles.adminReadOnlyLabel}>عرض فقط</span>;
   const submitDisabled = busy || success || (action === "add_credit" && (!Number.isFinite(Number(amount)) || Number(amount) < 1))
-    || (action === "change_plan" && !planId)
+    || (action === "change_plan" && (!planId || !startDate || !endDate || endDate < startDate))
     || (["remove_customer", "suspend_customer"].includes(action) && confirmation.trim() !== tenantName);
   return <>
     <div className={styles.adminCustomerActions} aria-label={`إدارة ${tenantName}`}>
@@ -214,6 +243,11 @@ function TenantActions({ row, plans = [], onComplete, canManage = false }) {
           {action === "change_plan" ? <>
             <div className={styles.adminPlanChangeSummary}><div><span>الباقة الحالية</span><strong>{row.planName || "غير محددة"}</strong></div><Glyph name="swap" /><div><span>الباقة الجديدة</span><strong>{plans.find((plan) => plan.id === planId)?.name || "اختر الباقة"}</strong></div></div>
             <label><span>اختر الباقة الجديدة</span><select autoFocus value={planId} onChange={(event) => setPlanId(event.target.value)}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} — {Number(plan.monthlyPriceSar || 0).toLocaleString("en-US")} ر.س/شهر</option>)}</select></label>
+            <div className={styles.adminPlanPeriodGrid}>
+              <label><span>تاريخ بداية الباقة</span><input type="date" dir="ltr" lang="en" max={riyadhToday()} required value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+              <label><span>تاريخ نهاية الباقة <small>شامل لهذا اليوم</small></span><input type="date" dir="ltr" lang="en" min={startDate > riyadhToday() ? startDate : riyadhToday()} required value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+            </div>
+            <p className={styles.adminPlanPeriodNote}>تسري الصلاحيات فور الحفظ، وتبقى حتى نهاية يوم الانتهاء المحدد بتوقيت الرياض. يمكنك تعديل التاريخين قبل التأكيد.</p>
             <p className={styles.adminCustomerActionHint}>يُحدّث هذا الخيار صلاحيات باقة Renvix فورًا، ولا ينشئ عملية خصم جديدة لدى مزود الدفع الخارجي.</p>
           </> : null}
           {action === "remove_customer" ? <>
@@ -384,7 +418,8 @@ function Customers({ data, stats, admin, onRefresh }) {
       <div className={styles.adminActionRow}><button className={styles.adminPrimaryButton}>إضافة عميل +</button><button className={styles.adminOutlineButton}><Glyph name="mail" /> دعوة عميل</button><button className={styles.adminOutlineButton}>تصدير</button></div>
       <SearchFilters value={search} onChange={setSearch} searchPlaceholder="ابحث عن عميل أو بريد..." placeholders={["كل الباقات", "كل الحالات", "كل المصادر", "عدد المتاجر", "تاريخ الانضمام"]} />
       <SimpleTable emptyTitle="لا توجد حسابات عملاء حتى الآن" rows={rows} columns={[
-        { key: "name", label: "العميل" }, { key: "email", label: "البريد الإلكتروني" }, { key: "phone", label: "الهاتف" },
+        { key: "name", label: "العميل" }, { key: "tenantName", label: "المتجر" },
+        { key: "email", label: "البريد الإلكتروني", render: (value) => <EmailAddress value={value} /> }, { key: "phone", label: "الهاتف" },
         { key: "storeCount", label: "عدد المتاجر" }, { key: "planName", label: "الباقة الحالية" },
         { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> }, { key: "createdAt", label: "آخر نشاط", render: formatDate },
         { key: "actions", label: "إدارة المستخدم", render: (_value, row) => <UserActions row={row} onComplete={onRefresh} canManage={MANAGE_USER_ROLES.has(admin.role)} /> }
@@ -395,7 +430,7 @@ function Customers({ data, stats, admin, onRefresh }) {
 
 function Stores({ data, stats, admin, onRefresh }) {
   const [search, setSearch] = useState("");
-  const rows = useMemo(() => (data.stores || []).filter((row) => `${row.name} ${row.domain} ${row.ownerName}`.toLowerCase().includes(search.toLowerCase())), [data.stores, search]);
+  const rows = useMemo(() => (data.stores || []).filter((row) => `${row.name} ${row.domain} ${row.ownerName} ${row.contactEmail}`.toLowerCase().includes(search.toLowerCase())), [data.stores, search]);
   const ranked = [...(data.stores || [])].sort((a, b) => n(b.messageVolume) - n(a.messageVolume)).slice(0, 5);
   return <>
     <KpiGrid items={[
@@ -410,6 +445,7 @@ function Stores({ data, stats, admin, onRefresh }) {
         <SearchFilters value={search} onChange={setSearch} searchPlaceholder="ابحث عن متجر..." placeholders={["كل المنصات", "كل الحالات", "جميع الملاك", "كل الباقات"]} />
         <SimpleTable emptyTitle="لا توجد متاجر مسجلة حتى الآن" rows={rows} columns={[
           { key: "name", label: "المتجر" }, { key: "domain", label: "النطاق" }, { key: "ownerName", label: "المالك" },
+          { key: "contactEmail", label: "البريد الإلكتروني", render: (value) => <EmailAddress value={value} /> },
           { key: "planName", label: "الباقة" }, { key: "messageVolume", label: "حجم الرسائل", render: ar },
           { key: "sallaStatus", label: "سلة", render: (value) => <StatusPill value={value} /> }, { key: "status", label: "الحالة", render: (value) => <StatusPill value={value} /> },
           { key: "actions", label: "إدارة العميل", render: (_value, row) => <TenantActions row={row} plans={data.plans || []} onComplete={onRefresh} canManage={MANAGE_CUSTOMER_ROLES.has(admin.role)} /> }

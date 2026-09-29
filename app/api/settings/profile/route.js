@@ -27,11 +27,15 @@ export async function PATCH(request) {
       [parsed.data.fullName, parsed.data.phone ?? null, auth.session.userId, auth.session.tenantId]
     );
     if (parsed.data.storeName !== undefined && parsed.data.storeName !== null) {
-      await client.query(
+      const store = await client.query(
         `UPDATE stores SET name = $1, updated_at = now()
-          WHERE id = (SELECT id FROM stores WHERE tenant_id = $2 ORDER BY created_at LIMIT 1)`,
+          WHERE id = (SELECT id FROM stores WHERE tenant_id = $2 ORDER BY created_at LIMIT 1)
+          RETURNING id`,
         [parsed.data.storeName, auth.session.tenantId]
       );
+      if (!store.rows[0]) {
+        await client.query("INSERT INTO stores (tenant_id,name) VALUES ($1,$2)", [auth.session.tenantId, parsed.data.storeName]);
+      }
       await client.query("UPDATE tenants SET name = $1, updated_at = now() WHERE id = $2", [parsed.data.storeName, auth.session.tenantId]);
     }
     await client.query(

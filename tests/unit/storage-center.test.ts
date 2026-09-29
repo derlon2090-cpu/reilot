@@ -51,10 +51,11 @@ describe("storage center security helpers", () => {
   });
 
   it("removes executable rich-text content", () => {
-    const clean = sanitizeStorageHtml('<p onclick="steal()"><strong>نص عريض</strong> آمن</p><script>alert(1)</script><a href="javascript:alert(2)">رابط</a>');
+    const clean = sanitizeStorageHtml('<p onclick="steal()"><strong>نص عريض</strong> <span data-storage-text-box="true">آمن</span></p><script>alert(1)</script><a href="javascript:alert(2)">رابط</a>');
     expect(clean).not.toMatch(/script|onclick|javascript/i);
     expect(clean).toContain("آمن");
     expect(clean).toContain("<strong>نص عريض</strong>");
+    expect(clean).toContain('<span data-storage-text-box="true">آمن</span>');
   });
 
   it("builds storage management insights without deleting active files", () => {

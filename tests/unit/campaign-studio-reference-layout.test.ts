@@ -19,7 +19,8 @@ describe("campaign studio reference layout", () => {
     expect(appSource).toContain("function campaignStudioEmailPreview(cards, emailDesign, emailSender, kind)");
     expect(appSource).toContain('class="campaign-email-windowbar"');
     expect(appSource).toContain('class="campaign-email-message-meta"');
-    expect(appSource).toContain('src="/assets/renvix-logo-primary.png"');
+    expect(appSource).toContain('data-campaign-email-brand');
+    expect(appSource).toContain('alt="شعار المتجر"');
     expect(appSource).toContain('src="/assets/renvix-mark-deep-teal.svg"');
     expect(stylesSource).toMatch(/\.campaign-studio\.is-whatsapp \.campaign-studio-phone\{[^}]*min-height:720px/);
     expect(stylesSource).toMatch(/\.campaign-studio\.is-email \.campaign-studio-email-preview\{[^}]*min-height:720px/);
@@ -28,10 +29,10 @@ describe("campaign studio reference layout", () => {
   it("keeps the preview driven by the actual form cards, sender and social links", () => {
     expect(appSource).toContain("campaignStudioPreviewCards(cards, \"whatsapp\")");
     expect(appSource).toContain("campaignStudioPreviewCards(cards, \"email\")");
-    expect(appSource).toContain('safeStoreLogoUrl(form.elements.heroImageUrl?.value) || safeStoreLogoUrl(firstCard.imageUrl)');
     expect(appSource).toContain("form.elements.fromName?.value?.trim()");
     expect(appSource).toContain("campaignStudioSocialIconLinks(form)");
-    expect(appSource).toContain("data-campaign-email-hero-media");
+    expect(appSource).not.toContain("data-campaign-email-hero-media");
+    expect(appSource).not.toContain("heroImageUrl");
   });
 
   it("preserves the visual template when switching desktop, tablet and mobile preview modes", () => {

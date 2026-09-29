@@ -5,6 +5,7 @@ describe("authentication Turnstile UI integration", () => {
   const appSource = readFileSync("src/app/app.js", "utf8");
   const componentSource = readFileSync("src/app/auth-turnstile.js", "utf8");
   const stylesSource = readFileSync("src/styles/globals.css", "utf8");
+  const layoutSource = readFileSync("app/layout.jsx", "utf8");
 
   it("protects the four credential forms with distinct actions", () => {
     expect(componentSource).toContain('login: "login"');
@@ -17,10 +18,11 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain('appearance: "always"');
     expect(componentSource).toContain('size: "flexible"');
     expect(componentSource).toContain('theme: page?.dataset.authTheme');
-    expect(componentSource).toContain('retry: "never"');
-    expect(componentSource).toContain("AUTOMATIC_RETRY_DELAYS");
+    expect(componentSource).toContain('retry: "auto"');
+    expect(componentSource).not.toContain("AUTOMATIC_RETRY_DELAYS");
     expect(componentSource).toContain("retryableError(code)");
     expect(componentSource).toContain('"refresh-expired": "auto"');
+    expect(componentSource).toContain('"refresh-timeout": "auto"');
     expect(componentSource).toContain("scriptPromise = undefined");
     expect(componentSource).toContain('"error-callback"(errorCode)');
     expect(componentSource).toContain("return true");
@@ -29,7 +31,11 @@ describe("authentication Turnstile UI integration", () => {
     expect(componentSource).toContain("data-turnstile-retry");
     expect(componentSource).not.toContain('<div class="auth-turnstile-status"');
     expect(stylesSource).toContain('.auth-turnstile-slot{border:0;background:transparent}');
-    expect(stylesSource).toContain('.auth-turnstile-slot[data-turnstile-status="error"] .auth-turnstile-widget{display:none;min-height:0}');
+    expect(stylesSource).not.toContain('.auth-turnstile-slot[data-turnstile-status="error"] .auth-turnstile-widget{display:none;min-height:0}');
+    expect(stylesSource).toContain('.auth-turnstile-slot[data-turnstile-status="loading"] .auth-turnstile-widget:not(:has(iframe))');
+    expect(componentSource).toContain('جارٍ تحميل التحقق الأمني…');
+    expect(componentSource).toContain('اكتمل التحقق الأمني');
+    expect(layoutSource).toContain('challenges.cloudflare.com/turnstile/v0/api.js?render=explicit');
     expect(stylesSource).toContain(".auth-turnstile-retry[hidden]{display:none!important}");
   });
 

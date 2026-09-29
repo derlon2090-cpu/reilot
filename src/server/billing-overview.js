@@ -71,7 +71,8 @@ export async function getWhatsappBillingUsage(tenantId) {
 export async function getBillingOverview(tenantId) {
   const [current, plans, storage, usage, whatsapp, invoices, commerceConnections] = await Promise.all([
     query(
-      `SELECT ps.status, ps.billing_cycle AS "billingCycle",
+      `SELECT CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
+                     THEN 'expired' ELSE ps.status END AS status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
               ps.current_period_end AS "currentPeriodEnd",
               ps.trial_started_at AS "trialStartedAt", ps.trial_ends_at AS "trialEndsAt",
@@ -84,7 +85,7 @@ export async function getBillingOverview(tenantId) {
                    WHEN ps.status='active' AND ps.current_period_end>now() THEN 0
                    WHEN ps.status='trial' AND COALESCE(ps.trial_ends_at,ps.current_period_end)>now() THEN 1
                    WHEN ps.status='past_due' THEN 2 ELSE 3
-                 END, ps.created_at DESC LIMIT 1`,
+                 END, ps.updated_at DESC, ps.created_at DESC, ps.id DESC LIMIT 1`,
       [tenantId]
     ),
     getActivePlanCatalog(),
@@ -108,7 +109,8 @@ export async function getBillingOverview(tenantId) {
   let currentPlan = current.rows[0] || null;
   if (!currentPlan && usage?.platformSubscriptionId) {
     const created = await query(
-      `SELECT ps.status, ps.billing_cycle AS "billingCycle",
+      `SELECT CASE WHEN ps.status IN ('active','trial') AND ps.current_period_end<=now()
+                     THEN 'expired' ELSE ps.status END AS status, ps.billing_cycle AS "billingCycle",
               ps.current_period_start AS "currentPeriodStart",
               ps.current_period_end AS "currentPeriodEnd",
               ps.trial_started_at AS "trialStartedAt", ps.trial_ends_at AS "trialEndsAt",
@@ -136,12 +138,6 @@ export async function getBillingOverview(tenantId) {
       amount: numeric(invoice.amount),
       date: new Date(invoice.date).toLocaleDateString("ar-SA")
     })),
-    storage: currentPlan ? {
-      ...storage,
-      limitMb: numeric(currentPlan.storageLimitMb),
-      percent: numeric(currentPlan.storageLimitMb) > 0
-        ? Math.round((numeric(storage.usedMb) / numeric(currentPlan.storageLimitMb)) * 1000) / 10
-        : null
-    } : { ...storage, limitMb: null, percent: null }
+    storage: currentPlan ? storage : { ...storage, limitMb: null, percent: null }
   };
 }

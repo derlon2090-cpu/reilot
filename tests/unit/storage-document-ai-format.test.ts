@@ -8,131 +8,201 @@ import {
 } from "../../src/server/ai/storage-document-format.js";
 
 const session = { tenantId: "tenant-1", userId: "user-1" };
+const content = "حساب نتفلكس\nالبريد: user@example.com\nكلمة المرور: RiverSecret\nمفتاح الأمان: FalconKey";
+const request = { idempotencyKey: "storage-document-test-123456" };
+
+function dependencies(response = { sections: [{ start: 0, end: 4 }] }) {
+  const provider = {
+    available: true,
+    modelFor: vi.fn(() => "deepseek-v4-flash"),
+    completeStructured: vi.fn(async () => ({
+      message: { content: JSON.stringify(response) },
+      usage: { prompt_tokens: 100, completion_tokens: 40 },
+      providerRequestId: "deepseek-storage-1"
+    }))
+  };
+  return {
+    provider,
+    createProvider: () => provider,
+    createRun: vi.fn(async () => ({ id: "run-1" })),
+    finishRun: vi.fn(async () => null),
+    reserve: vi.fn(async () => ({ id: "reservation-1" })),
+    release: vi.fn(async () => null),
+    settle: vi.fn(async (_session, _reservationId, input) => ({
+      actualTokens: Number(input.usage.prompt_tokens) + Number(input.usage.completion_tokens)
+    })),
+    getUsage: vi.fn(async () => ({ remainingTokens: 9_860 }))
+  };
+}
 
 describe("storage document AI formatting", () => {
-  it("asks DeepSeek to preserve credentials, remove decorative icons, and separate accounts", () => {
-    const prompt = buildStorageDocumentFormatMessages("Netflix user@example.com pass-1234");
-    expect(prompt[0].content).toContain("دون تلخيص أو حذف");
-    expect(prompt[0].content).toContain("لا تضف أي أيقونات");
-    expect(prompt[0].content).toContain("افصل بين الحسابات بعنصر hr");
+  it("sends only structural descriptors, never raw account credentials", () => {
+    const prompt = buildStorageDocumentFormatMessages(content);
+    const serialized = JSON.stringify(prompt);
+    expect(serialized).toContain("sections");
+    expect(serialized).toContain("password");
+    for (const secret of ["user@example.com", "RiverSecret", "FalconKey"]) {
+      expect(serialized).not.toContain(secret);
+    }
+    expect(JSON.parse(prompt[1].content)).toHaveLength(4);
   });
 
-  it("allows document formatting tags and strips executable markup and event handlers", () => {
+  it("strips executable markup from legacy HTML", () => {
     const html = sanitizeAIStorageDocumentHtml('<h2 onclick="steal()">حساب</h2><script>alert(1)</script><p><strong>البريد:</strong> test@example.com</p><img src=x onerror=steal()>');
     expect(html).toBe("<h2>حساب</h2><p><strong>البريد:</strong> test@example.com</p>");
   });
 
-  it("rejects a result that drops an account credential", () => {
-    let error;
-    try {
-      validateAIStorageDocumentResult(
-        { html: "<h2>حساب نتفلكس</h2><p>test@example.com</p>" },
-        "حساب نتفلكس\ntest@example.com\npassword-9876"
-      );
-    } catch (caught) { error = caught; }
-    expect(error).toMatchObject({ code: "AI_STORAGE_SENSITIVE_VALUE_LOST", status: 422 });
+  it("renders original values from a valid section plan", () => {
+    const result = validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }] }, content);
+    expect(result.html).toContain("<strong>البريد:</strong> user@example.com");
+    expect(result.html).toContain("RiverSecret");
+    expect(result.html).toContain("FalconKey");
   });
 
-  it("builds a safe professional fallback that preserves fields and separates accounts", () => {
-    const html = buildSafeStorageDocumentHtml("حساب نتفلكس\nالبريد: user@example.com\nالرمز: 123456\n\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: pass-9876");
-    expect(html).toContain("<h3>حساب نتفلكس</h3>");
-    expect(html).toContain("<strong>البريد:</strong> user@example.com");
-    expect(html).toContain("<hr>");
-    expect(html).toContain("pass-9876");
+  it("bolds editable labels ending with a colon, including labels without a value", () => {
+    const html = buildSafeStorageDocumentHtml("ملاحظات\nRecovery / Additional Info:\nمفتاح الأمان: <secret>\nالعميل: أحمد");
+    expect(html).toContain("<strong>Recovery / Additional Info:</strong>");
+    expect(html).toContain("<strong>مفتاح الأمان:</strong> &lt;secret&gt;");
+    expect(html).toContain("<strong>العميل:</strong> أحمد");
+    expect(html).not.toContain("<strong>ملاحظات</strong>");
   });
 
-  it("uses the safe formatter when the server AI provider is not configured", async () => {
-    const createRun = vi.fn(async () => ({ id: "run-fallback-1" }));
-    const reserve = vi.fn(async () => ({ id: "reservation-fallback-1" }));
-    const settle = vi.fn(async (_session, _reservationId, input) => ({
-      actualTokens: Number(input.usage.prompt_tokens) + Number(input.usage.completion_tokens)
-    }));
-    const result = await formatStorageDocumentWithAI(session, {
-      content: "حساب نتفلكس\nالبريد: test@example.com\nالرمز: 123456"
-    }, {
-      idempotencyKey: "storage-document-fallback-123456",
-      dependencies: {
-        createProvider: () => ({ available: false }),
-        createRun,
-        finishRun: vi.fn(async () => null),
-        reserve,
-        release: vi.fn(async () => null),
-        settle,
-        getUsage: vi.fn(async () => ({ remainingTokens: 9_740, nextRefillAt: "2026-10-01T00:00:00.000Z" }))
-      }
+  it("does not mistake URL schemes or times for important labels", () => {
+    const html = buildSafeStorageDocumentHtml("روابط\nhttps://example.com\n12:30\nرابط: https://example.com");
+    expect(html).not.toContain("<strong>https:</strong>");
+    expect(html).not.toContain("<strong>12:</strong>");
+    expect(html).toContain("<strong>رابط:</strong> https://example.com");
+  });
+
+  it("rejects inferred splits and accepts only explicit blank-line boundaries", () => {
+    const twoAccounts = `${content}\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: SecondSecret`;
+    expect(() => validateAIStorageDocumentResult({ sections: [{ start: 1, end: 7 }] }, twoAccounts))
+      .toThrow();
+    expect(() => validateAIStorageDocumentResult({ sections: [{ start: 0, end: 6 }] }, twoAccounts))
+      .toThrow();
+    expect(() => validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }, { start: 4, end: 7 }] }, twoAccounts))
+      .toThrow();
+    expect(validateAIStorageDocumentResult({ sections: [{ start: 0, end: 7 }] }, twoAccounts).html)
+      .not.toContain("<hr data-storage-ai-separator>");
+    const withBlank = `${content}\n\nحساب أمازون\nالبريد: shop@example.com\nكلمة المرور: SecondSecret`;
+    expect(validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }, { start: 4, end: 7 }] }, withBlank).html)
+      .toContain("<hr data-storage-ai-separator>");
+  });
+
+  it("separates fifteen groups only where the user left a blank line", () => {
+    const input = Array.from({ length: 15 }, (_, index) => `حساب ${index + 1}\nالبريد: user${index + 1}@example.com\nكلمة المرور: pass-${index + 1}\nمفتاح الأمان: key-${index + 1}`).join("\n\n");
+    const html = buildSafeStorageDocumentHtml(input);
+    expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(14);
+    expect(html).toContain('15.</span><span data-storage-ai-heading-text dir="auto">حساب 15</span></h3>');
+    expect(html).toContain('data-storage-ai-number style="color:#087267"');
+    for (let index = 1; index <= 15; index++) {
+      expect(html).toContain(`user${index}@example.com`);
+      expect(html).toContain(`pass-${index}`);
+      expect(html).toContain(`key-${index}`);
+    }
+    const withoutUserGaps = buildSafeStorageDocumentHtml(input.replace(/\n\n/g, "\n"));
+    expect(withoutUserGaps).not.toContain("<hr data-storage-ai-separator>");
+    expect((withoutUserGaps.match(/data-storage-ai-number/g) || [])).toHaveLength(1);
+  });
+
+  it("keeps adjacent credentials and repeated emails together without a user blank line", () => {
+    const input = "حساب أول\nEmail: first@example.com\nPassword: FirstSecret\nSecurity Key: KeyOne\nحساب ثاني\nEmail: second@example.com\nPassword: SecondSecret";
+    const html = buildSafeStorageDocumentHtml(input);
+    expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(0);
+    expect(html).toContain('1.</span><span data-storage-ai-heading-text dir="auto">حساب أول');
+    expect(html).not.toContain('data-storage-ai-number style="color:#087267">2.</span>');
+    expect(html).toContain("SecondSecret");
+    expect(() => validateAIStorageDocumentResult({ sections: [
+      { start: 0, end: 2 }, { start: 2, end: 4 }, { start: 4, end: 7 }
+    ] }, input)).toThrow();
+  });
+
+  it("numbers only the start of each explicitly separated text, preserving inner numbered lines", () => {
+    const html = buildSafeStorageDocumentHtml("Email: one@example.com\nPassword: first\n8. ملاحظة داخل النص\n\nEmail: two@example.com\nPassword: second");
+    expect((html.match(/data-storage-ai-number/g) || [])).toHaveLength(2);
+    expect((html.match(/<hr data-storage-ai-separator>/g) || [])).toHaveLength(1);
+    expect(html).toContain("8. ملاحظة داخل النص");
+    expect(html).not.toContain("<ol>");
+  });
+
+  it("uses an editable platform number when the first line was a pasted list item", () => {
+    const html = buildSafeStorageDocumentHtml("4. حساب متجر\nEmail: shop@example.com\nPassword: secret");
+    expect(html).toContain('<span data-storage-ai-number style="color:#087267">1.</span><span data-storage-ai-heading-text dir="auto">حساب متجر');
+    expect(html).not.toContain("<hr data-storage-ai-separator>");
+  });
+
+  it("splits multiple fields pasted on one line and escapes HTML", () => {
+    const html = buildSafeStorageDocumentHtml("حساب أول\nالبريد: first@example.com كلمة المرور: <secret> مفتاح الأمان: 12345");
+    expect(html).toContain("<strong>البريد:</strong> first@example.com");
+    expect(html).toContain("<strong>كلمة المرور:</strong> &lt;secret&gt;");
+    expect(html).toContain("<strong>مفتاح الأمان:</strong> 12345");
+  });
+
+  it("charges and immediately returns the balance for local formatting", async () => {
+    const deps = dependencies();
+    const result = await formatStorageDocumentWithAI(session, { content }, {
+      ...request,
+      dependencies: { ...deps, createProvider: () => ({ available: false }) }
     });
-    expect(result).toMatchObject({ ok: true, fallback: true, quota: { charged: expect.any(Number), remaining: 9_740 } });
+    expect(result).toMatchObject({ ok: true, fallback: true, quota: { charged: expect.any(Number), remaining: 9_860 } });
     expect(result.quota.charged).toBeGreaterThan(0);
-    expect(result.html).toContain("test@example.com");
-    expect(createRun).toHaveBeenCalledWith(session, { taskType: "storage_document_format" });
-    expect(reserve).toHaveBeenCalledWith(session, expect.objectContaining({ requestedTokens: expect.any(Number) }));
-    expect(settle).toHaveBeenCalledWith(session, "reservation-fallback-1", expect.objectContaining({
-      model: "renvix-safe-formatter-v1",
-      routingMode: "flash",
-      taskType: "storage_document_format"
+    expect(result.html).toContain("RiverSecret");
+    expect(deps.createRun).toHaveBeenCalledOnce();
+    expect(deps.reserve).toHaveBeenCalledOnce();
+    expect(deps.settle).toHaveBeenCalledWith(session, "reservation-1", expect.objectContaining({
+      provider: "renvix", model: "renvix-local-formatter", taskType: "storage_document_format"
     }));
   });
 
-  it("does not return improved text when the shared chat balance cannot be reserved", async () => {
-    const settle = vi.fn();
-    const finishRun = vi.fn(async () => null);
-    const quotaError = Object.assign(new Error("balance exhausted"), {
-      code: "AI_PLAN_TOKEN_LIMIT_REACHED",
-      status: 429,
-      usage: { remainingTokens: 0 }
-    });
-    await expect(formatStorageDocumentWithAI(session, {
-      content: "حساب نتفلكس\nالبريد: test@example.com\nالرمز: 123456"
-    }, {
-      idempotencyKey: "storage-document-no-balance-123456",
-      dependencies: {
-        createProvider: () => ({ available: false }),
-        createRun: vi.fn(async () => ({ id: "run-no-balance" })),
-        finishRun,
-        reserve: vi.fn(async () => { throw quotaError; }),
-        release: vi.fn(async () => null),
-        settle
-      }
-    })).rejects.toMatchObject({ code: "AI_QUOTA_EXHAUSTED", status: 429 });
-    expect(settle).not.toHaveBeenCalled();
-    expect(finishRun).toHaveBeenCalledWith(session, "run-no-balance", { status: "failed" });
+  it("keeps the quota error when AI balance cannot be reserved", async () => {
+    const deps = dependencies();
+    deps.reserve.mockRejectedValueOnce(Object.assign(new Error("balance exhausted"), {
+      code: "AI_PLAN_TOKEN_LIMIT_REACHED", status: 429, usage: { remainingTokens: 0 }
+    }));
+    await expect(formatStorageDocumentWithAI(session, { content }, { ...request, dependencies: deps }))
+      .rejects.toMatchObject({ code: "AI_QUOTA_EXHAUSTED", status: 429 });
+    expect(deps.settle).not.toHaveBeenCalled();
+    expect(deps.finishRun).toHaveBeenCalledWith(session, "run-1", { status: "failed" });
   });
 
-  it("formats through the server-only provider and settles actual token usage", async () => {
-    const provider = {
-      available: true,
-      modelFor: vi.fn(() => "deepseek-v4-flash"),
-      completeStructured: vi.fn(async () => ({
-        message: { content: JSON.stringify({ html: "<h2>حساب نتفلكس</h2><p><strong>البريد:</strong> test@example.com</p><p><strong>الرمز:</strong> 123456</p>" }) },
-        usage: { prompt_tokens: 100, completion_tokens: 40 },
-        providerRequestId: "deepseek-storage-1"
-      }))
-    };
-    const settle = vi.fn(async () => ({ actualTokens: 140 }));
-    const result = await formatStorageDocumentWithAI(session, {
-      content: "حساب نتفلكس\nالبريد: test@example.com\nالرمز: 123456"
-    }, {
-      idempotencyKey: "storage-document-test-123456",
-      dependencies: {
-        createProvider: () => provider,
-        createRun: vi.fn(async () => ({ id: "run-1" })),
-        finishRun: vi.fn(async () => null),
-        reserve: vi.fn(async () => ({ id: "reservation-1" })),
-        release: vi.fn(async () => null),
-        settle,
-        getUsage: vi.fn(async () => ({ remainingTokens: 9_860 }))
-      }
-    });
+  it("charges actual token usage for a valid AI section plan", async () => {
+    const deps = dependencies();
+    const result = await formatStorageDocumentWithAI(session, { content }, { ...request, dependencies: deps });
     expect(result).toMatchObject({ ok: true, quota: { charged: 140, remaining: 9_860 } });
-    expect(result.html).toContain("test@example.com");
-    expect(provider.completeStructured).toHaveBeenCalledWith(expect.objectContaining({
-      model: "deepseek-v4-flash",
-      thinking: "disabled",
-      responseFormat: { type: "json_object" }
+    expect(result.html).toContain("FalconKey");
+    expect(deps.provider.completeStructured).toHaveBeenCalledWith(expect.objectContaining({
+      model: "deepseek-v4-flash", responseFormat: { type: "json_object" }
     }));
-    expect(settle).toHaveBeenCalledWith(session, "reservation-1", expect.objectContaining({
-      taskType: "storage_document_format",
-      providerRequestId: "deepseek-storage-1"
+    expect(deps.settle).toHaveBeenCalledWith(session, "reservation-1", expect.objectContaining({
+      taskType: "storage_document_format", providerRequestId: "deepseek-storage-1"
     }));
+  });
+
+  it("charges provider usage and formats locally when AI returns an unsafe plan", async () => {
+    const deps = dependencies({ sections: [{ start: 0, end: 2 }] });
+    const result = await formatStorageDocumentWithAI(session, { content }, { ...request, dependencies: deps });
+    expect(result).toMatchObject({ ok: true, fallback: true, quota: { charged: 140 } });
+    expect(result.html).toContain("RiverSecret");
+    expect(deps.release).not.toHaveBeenCalled();
+    expect(deps.settle).toHaveBeenCalledWith(session, "reservation-1", expect.objectContaining({
+      provider: "deepseek", providerRequestId: "deepseek-storage-1"
+    }));
+  });
+
+  it("does not show a successful formatting result when settlement fails", async () => {
+    const deps = dependencies();
+    deps.settle.mockRejectedValueOnce(Object.assign(new Error("database unavailable"), { status: 503 }));
+    await expect(formatStorageDocumentWithAI(session, { content }, { ...request, dependencies: deps }))
+      .rejects.toThrow("database unavailable");
+    expect(deps.release).toHaveBeenCalledWith(session, "reservation-1");
+  });
+
+  it("does not charge an aborted formatting request", async () => {
+    const deps = dependencies();
+    deps.provider.completeStructured.mockRejectedValueOnce(Object.assign(new Error("aborted"), { name: "AbortError" }));
+    await expect(formatStorageDocumentWithAI(session, { content }, { ...request, dependencies: deps }))
+      .rejects.toThrow("aborted");
+    expect(deps.release).toHaveBeenCalledWith(session, "reservation-1");
+    expect(deps.settle).not.toHaveBeenCalled();
   });
 });

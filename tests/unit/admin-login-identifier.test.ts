@@ -101,6 +101,26 @@ describe("admin login identifiers", () => {
     expect(emailChallengeMock).not.toHaveBeenCalled();
   });
 
+  it("lets an active operations administrator reach the email verification step", async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] })
+      .mockResolvedValueOnce({ rows: [{
+        userId: "user-2", name: "Operations Admin", email: "ops@renvix.app",
+        credentialId: "credential-2", passwordHash: "stored-hash",
+        adminId: "admin-2", adminRole: "operations_admin", status: "active", expiresAt: null
+      }] })
+      .mockResolvedValue({ rows: [] });
+
+    const response = await POST(new Request("http://localhost/api/admin/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "ops@renvix.app", password: "A-very-strong-password" })
+    }));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({ ok: true, requiresEmailOtp: true });
+  });
+
   it("never accepts a trusted browser or creates a direct admin session", () => {
     const source = readFileSync(resolve("app/api/admin/auth/login/route.js"), "utf8");
     const verificationSource = readFileSync(resolve("src/server/email-otp-v2.js"), "utf8");

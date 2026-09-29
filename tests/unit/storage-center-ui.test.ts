@@ -17,6 +17,18 @@ const styles = readFileSync(resolve("src/styles/globals.css"), "utf8");
 const storageService = readFileSync(resolve("src/server/storage-center.js"), "utf8");
 
 describe("storage center form wiring", () => {
+  it("encodes Unicode storage passwords into ASCII-safe request headers", () => {
+    const implementation = source.slice(source.indexOf("function encodeStoragePasswordHeader("), source.indexOf("async function fetchJson("));
+    const encode = runInNewContext(`${implementation}; encodeStoragePasswordHeader`, { TextEncoder, btoa });
+    const password = "كلمة مرور عربية 🔐";
+    const encoded = encode(password);
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(Buffer.from(encoded, "base64url").toString("utf8")).toBe(password);
+    expect(source).toContain('"X-Storage-Document-Password-B64"');
+    expect(source).toContain('"X-Storage-Folder-Passwords-B64"');
+    expect(source).not.toContain('"X-Storage-Document-Password": state.storageDocumentPasswords');
+  });
+
   it("validates real drop destinations and rejects unchanged or incompatible folders", () => {
     const implementation = source.slice(source.indexOf("function storageDropAllowed("), source.indexOf("function clearStorageDragState("));
     const allowed = runInNewContext(`${implementation}; storageDropAllowed`, { state: { storageCenter: { storage: { allFolders: [{ id: "child", parentId: "container" }, { id: "grandchild", parentId: "child" }] } } } });
@@ -74,6 +86,19 @@ describe("storage center form wiring", () => {
     expect(submitHandler).toContain("folderId: data.folderId || undefined");
   });
 
+  it("searches document content, encrypted email fields, and original file names", () => {
+    const encryptedSearch = storageService.slice(storageService.indexOf("async function findEncryptedStorageDocumentMatches"), storageService.indexOf("export async function getStorageImageLibrary"));
+    expect(encryptedSearch).toContain("decryptStorageValue(row.emailEncrypted)");
+    expect(storageService).toContain("storage_documents.content->>'body'");
+    expect(storageService).toContain("storage_documents.content->>'description'");
+    expect(storageService).toContain("lower(storage_assets.original_name)");
+    expect(storageService).toContain("البريد أو البيانات الإضافية");
+    expect(encryptedSearch).not.toContain("passwordEncrypted");
+    expect(encryptedSearch).not.toContain("codeEncrypted");
+    expect(source).toContain("مطابقة في ${escapeHtml(doc.matchContext)}");
+    expect(source).toContain("ابحث بكلمة أو بريد داخل كل الملفات");
+  });
+
   it("creates containers inside files and offers an explicit click-to-move mode", () => {
     expect(actionHandler).toContain('["storage-new-container", "إضافة ملف جديد"');
     expect(actionHandler).toContain('storageAction === "storage-start-move"');
@@ -116,8 +141,48 @@ describe("storage center form wiring", () => {
     expect(source).toContain("ألوان النص");
     expect(actionHandler).toContain("payload.fallback");
     expect(actionHandler).toContain("syncAIQuota(payload)");
-    expect(actionHandler).toContain("توكن من رصيد الشات");
+    expect(actionHandler).toContain("توكن فورًا من رصيد الذكاء");
+    expect(source).toContain('data-command="formatBlock" data-value="p"');
+    expect(source).toContain('data-command="formatBlock" data-value="h1"');
+    expect(source).toContain('data-command="formatBlock" data-value="h2"');
+    expect(source).toContain('const selectedBlockName =');
+    expect(source).not.toContain('data-action="storage-editor-remove-number"');
+    expect(source).not.toContain('data-action="storage-editor-remove-separator"');
+    expect(source).toContain('data-action="storage-editor-box"');
+    expect(source).toContain('data-storage-text-box');
+    expect(source).toContain('function toggleStorageEditorTextBox()');
+    expect(source).toContain('function normalizedStorageEditorTextRange(range, editor)');
+    expect(source).toContain('storageEditorSelectionBlock(textRange.startContainer, editor)');
+    expect(source).toContain('function placeStorageEditorCaretAfterBox(box, editor)');
+    expect(source).toContain('function ensureStorageEditorTextFlows(editor');
+    expect(source).toContain('box.setAttribute("dir", "auto")');
+    expect(source).toContain('data-storage-text-flow');
+    expect(source).toContain('box.after(flow)');
+    expect(source).toContain('let seed = "\\u00a0"');
+    expect(source).toContain('caret.collapse(true)');
+    expect(source).toContain('flow.removeAttribute("data-storage-text-flow")');
+    expect(styles).toContain('.storage-editor-body [data-storage-text-box]');
+    expect(styles).toContain('.storage-editor-body [data-storage-text-flow]');
+    expect(styles).toContain('unicode-bidi:plaintext');
+    expect(styles).toContain('vertical-align:middle');
+    expect(source).toContain("storageEditorTextForFormatting(editor)");
+    expect(styles).toContain(".storage-editor-body hr[data-storage-ai-separator]");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
+  });
+
+  it("separates document password removal, change, and email recovery", () => {
+    expect(actionHandler).toContain('storageAction === "storage-lock-remove-prompt"');
+    expect(actionHandler).toContain('data-submit="storage-document-lock-remove"');
+    expect(actionHandler).toContain('storageAction === "storage-lock-change-prompt"');
+    expect(actionHandler).toContain('storageAction === "storage-lock-recovery-request"');
+    expect(actionHandler).toContain('/lock/recovery/request`');
+    expect(submitHandler).toContain('type === "storage-document-lock-remove"');
+    expect(submitHandler).toContain('JSON.stringify({ currentPassword: data.currentPassword, remove: true })');
+    expect(submitHandler).toContain('type === "storage-document-lock-recovery"');
+    expect(submitHandler).toContain('/lock/recovery/reset`');
+    expect(source).toContain('storage-document-lock-badge');
+    expect(styles).toContain('.storage-document-card-copy');
+    expect(styles).toContain('.storage-lock-management');
   });
 
   it("persists a per-document countdown and marks expired document cards in red", () => {
@@ -149,6 +214,7 @@ describe("storage center form wiring", () => {
     expect(source).toContain("body: editor.innerHTML");
     expect(source).toContain("function restoreStorageDocumentDraft");
     expect(source).toContain("editor.innerHTML = draft.body");
+    expect(source).toContain("ensureStorageEditorTextFlows(editor)");
     expect(source).toContain('if (state.route === "/dashboard/storage") restoreStorageDocumentDraft()');
     expect(styles).toContain(".storage-editor:focus-within");
     expect(styles).toContain("@keyframes storage-editor-focus-line");
