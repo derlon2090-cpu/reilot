@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test";
 import { hasLiveCredentials, liveEmail, livePassword } from "./helpers/live-auth";
 import { stageArtifactPath } from "./helpers/stage-output";
 
-test.skip(!hasLiveCredentials, "requires a real authenticated test account");
+test.skip(!hasLiveCredentials, "requires a dedicated live E2E account");
 
-test("@critical authentication rejects random and wrong credentials before allowing a valid login", async ({ page, request }) => {
+test("@critical live authentication rejects invalid credentials before allowing the isolated test account", async ({ page, request }) => {
   test.setTimeout(90_000);
   const randomResponse = await request.post("/api/auth/login", {
     data: { email: "random-anything@test.com", password: "Anything@123" }

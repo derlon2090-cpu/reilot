@@ -17,7 +17,7 @@ const missingTrialTenantId = crypto.randomUUID();
 const missingTrialUserId = crypto.randomUUID();
 const missingTrialSession = { tenantId: missingTrialTenantId, userId: missingTrialUserId };
 
-describe.sequential("AI entitlement PostgreSQL lifecycle", () => {
+describe("AI entitlement PostgreSQL lifecycle", () => {
   beforeAll(async () => {
     const plan = await query("SELECT id FROM platform_plans WHERE slug='professional' LIMIT 1");
     if (!plan.rows[0]) throw new Error("professional plan fixture is missing");

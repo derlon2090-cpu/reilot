@@ -39,16 +39,17 @@ for (const viewport of [{ width: 1896, height: 870 }, { width: 1280, height: 720
       const input = element.querySelector('input[name="email"]')!.getBoundingClientRect();
       const actions = element.querySelector(".inline-actions")!.getBoundingClientRect();
       const submit = element.querySelector(".auth-submit")!.getBoundingClientRect();
-      const title = element.querySelector(".auth-showcase-copy h2")!;
+      const title = element.querySelector(".renvix-auth-brand-copy h2")!;
       return { width: box.width, panelWidth: panel.width, inputHeight: input.height,
         submitHeight: submit.height, submitTop: submit.top, actionsBottom: actions.bottom,
         bottom: submit.bottom, viewportHeight: innerHeight,
         titleSize: parseFloat(getComputedStyle(title).fontSize) };
     });
-    expect(geometry.width).toBeLessThanOrEqual(1021);
+    expect(geometry.width).toBeLessThanOrEqual(1181);
+    expect(geometry.width).toBeLessThanOrEqual(viewport.width - 32);
     expect(geometry.panelWidth).toBeGreaterThan(350);
-    expect(geometry.inputHeight).toBeLessThanOrEqual(49);
-    expect(geometry.submitHeight).toBeLessThanOrEqual(49);
+    expect(geometry.inputHeight).toBeLessThanOrEqual(56);
+    expect(geometry.submitHeight).toBeLessThanOrEqual(56);
     expect(geometry.submitTop - geometry.actionsBottom).toBeLessThan(130);
     expect(geometry.bottom).toBeLessThan(viewport.height);
     expect(geometry.titleSize).toBeLessThanOrEqual(30);

@@ -1,13 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { openMockPortalRoute } from "./helpers/mock-portal";
 
 async function openOrderLinksWorkspace(page) {
-  await page.goto("/");
-  await expect(page.locator("[data-link='/features']").first()).toBeVisible();
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/order-links");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openMockPortalRoute(page, "/dashboard/order-links");
 }
 
 const profile = {
@@ -192,7 +188,7 @@ test("order information builder and public page are responsive and private", asy
 
   await expect(page.locator(".public-order-entry .public-order-lookup-card")).toBeVisible();
   await expect(page.locator(".public-order-entry")).toContainText(profile.storeName);
-  await expect(page.locator(".public-order-entry .order-themed-action")).toHaveCSS("background-color", "rgb(34, 197, 94)");
+  await expect(page.locator(".public-order-entry .public-order-lookup-card")).toHaveAttribute("style", /--order-theme:#22C55E/);
   await expect(page.locator("body")).not.toContainText("محمد السعيد");
   await expect(page.locator(".public-order-result")).toHaveCount(0);
   await page.screenshot({ path: ".codex-artifacts/public-order-entry-desktop.png", fullPage: true });
@@ -301,8 +297,18 @@ test("manual customer order is added beneath one stable template link", async ({
   await expect(startDate).toHaveAttribute("readonly", "");
   await page.locator("[data-action='toggle-manual-start-date']").click();
   await expect(startDate).not.toHaveAttribute("readonly", "");
-  await page.locator("[data-order-field='manualStartDate']").fill("2026-07-16");
-  await page.locator("[data-order-field='manualEndDate']").fill("2026-08-16");
+  const activeStart = await page.evaluate(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 1);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  });
+  const activeEnd = await page.evaluate(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 30);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  });
+  await page.locator("[data-order-field='manualStartDate']").fill(activeStart);
+  await page.locator("[data-order-field='manualEndDate']").fill(activeEnd);
 
   await page.locator("[data-action='order-preview-show-result']").click();
   await expect(page.locator(".order-preview-slide.active .order-customer-card")).toContainText(customer.name);

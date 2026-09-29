@@ -11,7 +11,9 @@ afterEach(() => { delete process.env.PASSWORD_PEPPER; });
 describe("production password service", () => {
   it("creates only an OWASP-minimum Argon2id PHC hash", async () => {
     const hash = await hashPassword("Test@12345");
-    expect(hash).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
+    expect(hash).toMatch(/^\$argon2id\$v=19\$/);
+    const parameters = Object.fromEntries(hash.split("$")[3].split(",").map((entry) => entry.split("=")));
+    expect(parameters).toEqual({ m: "19456", t: "2", p: "1" });
     expect(hash).not.toContain("Test@12345");
     expect(needsRehash(hash)).toBe(false);
   });

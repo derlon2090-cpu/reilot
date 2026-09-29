@@ -118,7 +118,7 @@ afterEach(async () => {
   }
 });
 
-describe.sequential("unified AI balance across chat, email templates, and campaigns", () => {
+describe("unified AI balance across chat, email templates, and campaigns", () => {
   it("uses one real 100K cycle and reaches the exact 88,500 balance through all surfaces", async () => {
     const fixture = await createFixture();
     const starting = await expectAllSurfaces(fixture, 100_000, 0);

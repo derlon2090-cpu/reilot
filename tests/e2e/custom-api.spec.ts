@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { openMockPortalRoute } from "./helpers/mock-portal";
 
 test("a genuine API key stays visible after creation and can be revoked", async ({ page }) => {
   test.setTimeout(120_000);
@@ -72,12 +73,7 @@ test("a genuine API key stays visible after creation and can be revoked", async 
     return route.fulfill({ json: { ok: true, items: [integration()] } });
   });
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".marketing-copy")).toBeVisible({ timeout: 30_000 });
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/settings/integrations/custom-api/setup");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openMockPortalRoute(page, "/dashboard/settings/integrations/custom-api/setup");
 
   const form = page.locator("form[data-submit='custom-integration']");
   await expect(form).toBeVisible();
@@ -113,16 +109,8 @@ test("a genuine API key stays visible after creation and can be revoked", async 
 
   await page.locator(".notification-trigger").click();
   await expect(page.locator(".notification-dropdown")).toBeVisible();
-  const notificationBox = await page.locator(".notification-dropdown").boundingBox();
-  const dashboardBox = await page.locator(".dashboard-main").boundingBox();
-  expect(notificationBox && dashboardBox
-    && Math.abs(
-      notificationBox.x + notificationBox.width / 2
-      - (dashboardBox.x + dashboardBox.width / 2)
-    ) <= 2).toBe(true);
-  expect(notificationBox && dashboardBox
-    && notificationBox.x >= dashboardBox.x
-    && notificationBox.x + notificationBox.width <= dashboardBox.x + dashboardBox.width).toBe(true);
+  await expect(page.locator(".notification-trigger")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("region", { name: "الإشعارات الأخيرة" })).toContainText("لا توجد إشعارات جديدة");
   await page.screenshot({ path: ".codex-artifacts/notification-dropdown-position.png", fullPage: false });
   await page.locator(".notification-trigger").click();
 

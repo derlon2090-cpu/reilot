@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import styles from "./AdminPortal.module.css";
 
 function ReportIcon({ name }) {
@@ -28,7 +29,7 @@ export default function AdminSallaReportsPreview({ admin }) {
   const [search, setSearch] = useState("");
 
   return <div className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
-    <div className="salla-template-editor-top"><a className="btn btn-secondary" href="/admin/integrations">العودة إلى التطبيقات</a></div>
+    <div className="salla-template-editor-top"><Link className="btn btn-secondary" href="/admin/integrations">العودة إلى التطبيقات</Link></div>
     <div className="page-title">
       <div><h1>تقارير سلة</h1><p className="muted">معاينة إدارية مطابقة للواجهة التي تظهر للمستخدم بعد ربط متجر سلة بنجاح.</p></div>
       <div className="salla-report-head-actions">

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { openMockPortalRoute } from "./helpers/mock-portal";
 
 const score = {
   ok: true,
@@ -56,31 +57,29 @@ async function mockDashboard(page: Page) {
   await page.route("**/api/billing/message-usage", (route) => route.fulfill({ json: { ok: true, used: 0, limit: 100 } }));
   await page.route("**/api/notifications**", (route) => route.fulfill({ json: { ok: true, items: [], unreadCount: 0 } }));
   await page.route("**/api/security/score", (route) => route.fulfill({ json: score }));
-  await page.route("**/api/settings/security/sessions", (route) => route.fulfill({ json: { ok: true, items: score.sessions.items } }));
+  await page.route("**/api/settings/security/trusted-devices", (route) => route.fulfill({ json: { ok: true, items: [] } }));
+  await page.route("**/api/whatsapp/health", (route) => route.fulfill({ json: { ok: true, connected: true, health: { status: "good" } } }));
+  await page.route("**/api/settings/security/sessions", (route) => route.fulfill({ json: { ok: true, sessions: score.sessions.items } }));
 }
 
 test("security dashboard matches the RTL reference and keeps its actions functional", async ({ page }) => {
   await mkdir(".codex-artifacts", { recursive: true });
   await mockDashboard(page);
-  await page.goto("/");
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/security");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openMockPortalRoute(page, "/dashboard/security");
 
   await expect(page.getByRole("heading", { name: "الحماية والأمان", exact: true })).toBeVisible();
-  await expect(page.locator(".security-summary-grid > article")).toHaveCount(4);
-  await expect(page.locator(".security-main-grid > article")).toHaveCount(3);
+  await expect(page.locator(".security-ref-metrics > article")).toHaveCount(4);
+  await expect(page.locator(".security-ref-main > article")).toHaveCount(2);
+  await expect(page.locator(".security-ref-lower > article")).toHaveCount(3);
   await expect(page.getByText("الجلسة الحالية", { exact: true })).toBeVisible();
-  await expect(page.locator(".security-protection-list > div")).toHaveCount(5);
 
-  await page.getByRole("button", { name: "عرض جميع التنبيهات" }).click();
+  await page.getByRole("button", { name: "إعدادات التنبيهات" }).click();
   const alertsDialog = page.getByRole("dialog");
   await expect(alertsDialog.getByRole("heading", { name: "سجل تنبيهات الحماية" })).toBeVisible();
   await expect(alertsDialog.getByText("تم تسجيل دخول جديد", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "إغلاق", exact: true }).click();
 
-  await page.getByRole("button", { name: "إدارة الجلسات" }).click();
+  await page.getByRole("button", { name: "عرض جميع الجلسات" }).click();
   await expect(page.getByRole("heading", { name: "إدارة الجلسات النشطة", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "إغلاق", exact: true }).click();
 
@@ -91,13 +90,9 @@ test("security dashboard matches the RTL reference and keeps its actions functio
 test("security dashboard remains readable without horizontal overflow on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockDashboard(page);
-  await page.goto("/");
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/security");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openMockPortalRoute(page, "/dashboard/security");
   await expect(page.getByRole("heading", { name: "الحماية والأمان", exact: true })).toBeVisible();
-  const dimensions = await page.locator(".security-dashboard-page").evaluate((element) => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth }));
+  const dimensions = await page.locator(".security-reference-page").evaluate((element) => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
   await page.screenshot({ path: ".codex-artifacts/security-dashboard-mobile.png", fullPage: true });
 });

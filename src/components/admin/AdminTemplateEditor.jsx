@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import styles from "./AdminPortal.module.css";
 
 const LABELS = {
@@ -182,8 +183,8 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
 
   return <main className={styles.adminTemplateEditorPage} dir="rtl">
     <header className={styles.adminEditorTopbar}>
-      <a href="/admin/templates"><img src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" /></a>
-      <div><span>{admin.name || admin.email}</span><a href="/admin/templates">العودة إلى القوالب ←</a></div>
+      <Link href="/admin/templates"><img src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" /></Link>
+      <div><span>{admin.name || admin.email}</span><Link href="/admin/templates">العودة إلى القوالب ←</Link></div>
     </header>
     <section className={styles.adminEditorHeading}>
       <div><span>{channelLabel(form.channel)}</span><h1>{template.name}</h1><p>{template.description}</p></div>

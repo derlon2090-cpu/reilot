@@ -45,7 +45,7 @@ async function insertAttachment(id: string, suffix: string, sizeBytes = 4096) {
   await reconcileTenantStorageUsage(tenantId);
 }
 
-describe.sequential("AI attachment hard delete with PostgreSQL and R2 boundary", () => {
+describe("AI attachment hard delete with PostgreSQL and R2 boundary", () => {
   beforeAll(async () => {
     await query("INSERT INTO tenants(id,name,slug,status) VALUES($1,'Hard delete tenant',$2,'active')", [tenantId, `delete-${tenantId}`]);
     await query("INSERT INTO users(id,tenant_id,name,email,email_verified,role) VALUES($1,$2,'Delete User',$3,true,'owner')", [userId, tenantId, `delete-${userId}@example.test`]);

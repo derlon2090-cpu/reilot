@@ -1,3 +1,4 @@
+import Link from "next/link";
 import "./styles.css";
 
 const scopes = [
@@ -19,16 +20,16 @@ export default function ApiDocumentationPage() {
   return (
     <main className="api-docs" dir="rtl">
       <header className="api-docs__header">
-        <a className="api-docs__brand" href="/" aria-label="Renvix">
+        <Link className="api-docs__brand" href="/" aria-label="Renvix">
           <img src="/assets/renvix-logo-deep-teal.svg" alt="Renvix" />
-        </a>
+        </Link>
         <nav>
           <a href="#authentication">المصادقة</a>
           <a href="#requests">الطلبات</a>
           <a href="#webhooks">Webhook</a>
           <a href="/openapi/renvix-v1.json" target="_blank" rel="noreferrer">OpenAPI JSON</a>
         </nav>
-        <a className="api-docs__dashboard" href="/dashboard/settings/integrations/custom-api">العودة إلى لوحة التحكم</a>
+        <Link className="api-docs__dashboard" href="/dashboard/settings/integrations/custom-api">العودة إلى لوحة التحكم</Link>
       </header>
 
       <section className="api-docs__hero">

@@ -16,7 +16,7 @@ describe("security containment contract", () => {
   });
 
   it("enforces blocks before host and authentication routing and never uses browser fingerprinting", () => {
-    const middleware = read("middleware.js");
+    const middleware = read("proxy.js");
     const boundary = read("src/shared/security-block-boundary.js");
     expect(middleware.indexOf("const block = await checkSecurityBlockAtBoundary")).toBeLessThan(middleware.indexOf("const origins = configuredOrigins"));
     expect(boundary).toContain("__Host-rvx_trusted_browser");

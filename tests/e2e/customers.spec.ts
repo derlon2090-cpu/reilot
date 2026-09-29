@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
-
-test.skip(!hasLiveCredentials, "requires a real authenticated test account");
+import { installMockPortalBasics, openMockPortalRoute } from "./helpers/mock-portal";
 
 test("customers page supports opening the add customer workflow", async ({ page }) => {
-  await loginWithLiveCredentials(page);
-  await page.goto("/dashboard/customers");
+  await installMockPortalBasics(page);
+  await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [] } }));
+  await openMockPortalRoute(page, "/dashboard/customers");
   await expect(page.locator(".dashboard-shell")).toBeVisible();
-  await page.locator("[data-action='add-customer']").click();
-  await expect(page.locator("[role='dialog']")).toBeVisible();
+  await page.getByRole("button", { name: "إضافة عميل", exact: true }).last().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
 });

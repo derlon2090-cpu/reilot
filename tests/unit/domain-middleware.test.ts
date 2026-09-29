@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { isSensitiveFilePath, isStaticAssetPath, middlewareRequest } from "../../middleware.js";
+import { isSensitiveFilePath, isStaticAssetPath, middlewareRequest } from "../../proxy.js";
 
 const keys = [
   "NODE_ENV", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_AUTH_URL", "NEXT_PUBLIC_APP_URL",

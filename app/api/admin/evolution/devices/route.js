@@ -1,1 +1,2 @@
-export { dynamic, GET, POST } from "../../devices/route.js";
+export const dynamic = "force-dynamic";
+export { GET, POST } from "../../devices/route.js";

@@ -100,116 +100,24 @@ describe("mobile sidebar and MFA UI contracts", () => {
   });
 
   it("keeps every public authentication form paired with its own responsive illustration", () => {
+    expect(appSource).toContain("function authScene");
     expect(appSource).toContain("function authReferenceVisual");
-    expect(appSource).toContain("function authDashboardScene");
-    expect(appSource).toContain('class="auth-platform-scene"');
-    expect(appSource).toContain('class="auth-platform-monitor"');
-    expect(appSource).toContain('class="auth-platform-phone"');
-    expect(appSource).toContain('class="auth-platform-feature auth-platform-feature--security"');
+    expect(appSource).toContain("function authBrandIllustration");
     expect(appSource).toContain('class="auth-suite-scene auth-suite-scene--${kind}"');
     expect(appSource).toContain('kind === "signupOtp" ? signupOtpScene');
     expect(appSource).toContain('kind === "loginOtp" ? loginOtpScene');
-    expect(appSource).toContain('scene: "loginOtp"');
-    expect(appSource).toContain('scene: "signupOtp"');
-    expect(appSource).not.toContain('class="auth-showcase-caption"');
-    expect(appSource).toContain('class="auth-showcase-feature-connectors"');
-    expect(appSource).toContain('auth-feature-connector--alerts');
-    expect(appSource).toContain('class="auth-reference-feature-labels"');
-    expect(appSource).toContain('auth-reference-feature-label--${position}');
-    expect(appSource).toContain('kind === "login" || kind === "register"');
-    expect(appSource).toContain('class="auth-showcase-reference-art"');
-    expect(appSource).toContain("function prioritizeAuthReference");
-    expect(appSource).toContain('loading="eager" decoding="sync" fetchpriority="high"');
-    expect(appSource).toContain('width="1127" height="1038"');
-    for (const asset of ["dashboard-v2.png", "mfa-v2.png", "reset-v2.png", "login-otp-v2.png", "signup-otp-v2.png"]) {
-      expect(appSource).toContain(`/app/assets/auth-reference/${asset}`);
-      expect(fs.existsSync(path.join(root, "public/app/assets/auth-reference", asset))).toBe(true);
-    }
+    expect(appSource).toContain('authReferenceVisual(isRegister ? "register" : "login")');
+    expect(appSource).toContain('authReferenceVisual(signupVerification ? "signupOtp" : "loginOtp")');
+    expect(appSource).toContain('authReferenceVisual("reset")');
+    expect(appSource).toContain('authReferenceVisual("mfa")');
     expect(appSource).toContain('viewBox="12 7 486 305"');
-    for (const referenceContent of ["تذكيرات ذكية", "تقارير وتحليلات", "أتمتة التجديدات", "حملات مخصصة", "أمان وموثوقية", "1,250", "45,680", "98%", "تم تجديد اشتراكك بنجاح"]) {
-      expect(appSource).toContain(referenceContent);
-    }
-    expect(stylesSource).toContain(".auth-platform-scene::before");
-    expect(stylesSource).toContain("border:1px dashed rgba(17,127,115,.26)");
+    expect(stylesSource).toContain(".auth-suite-scene");
+    expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
     expect(stylesSource).toContain("height:100dvh!important");
     expect(stylesSource).toContain("height:100svh!important");
-    expect(stylesSource).toContain(".auth-showcase-caption");
-    expect(stylesSource).toContain("place-items:center!important");
-    expect(stylesSource).toContain("align-self:center!important");
-    expect(stylesSource).toContain("transform:scale(1.065)");
-    expect(stylesSource).toContain("transform-origin:center center!important");
-    expect(stylesSource).toContain("transform:translate(-50%,-50%) scale(.58)!important");
-    expect(stylesSource).toContain("Final auth flow correction: reference order, visible tabs and register-only scrolling.");
-    expect(stylesSource).toContain("flex:0 0 54px!important");
     expect(stylesSource).toContain("body:has(.auth-suite-shell.register)");
     expect(stylesSource).toContain("overflow-y:auto!important");
-    expect(stylesSource).toContain(".auth-suite-page .auth-suite-otp>.email-otp-panel{\n    grid-column:1!important");
-    expect(stylesSource).toContain(".auth-suite-page .auth-suite-otp>.auth-suite-email-visual{\n    grid-column:2!important");
-    expect(stylesSource).toContain("-webkit-text-fill-color:#183a36!important");
-    expect(stylesSource).toContain(".auth-showcase-dots,.auth-showcase-pagination{display:none!important}");
-    expect(stylesSource).toContain(".auth-suite-shell>.auth-suite-visual");
-    expect(stylesSource).toContain("Reference-derived artwork: keep mobile untouched and preserve approved panel sizes.");
-    expect(stylesSource).toContain(".auth-showcase-reference-art{display:none}");
-    expect(stylesSource).toContain(".auth-showcase-art>.auth-showcase-reference-art");
-    expect(stylesSource).toContain("object-fit:contain!important");
-    expect(stylesSource).toContain("Clean artwork balance: the reference asset owns its precisely attached connector paths.");
-    expect(stylesSource).toContain("Keep every reference illustration fully visible inside the approved fixed panel.");
-    expect(stylesSource).toContain("Stable access artwork: one panel size for sign-in/register, using embedded connectors.");
-    expect(stylesSource).toContain("Preserve the original artwork quality; connectors are a separate layer behind it.");
-    expect(stylesSource).toContain(".auth-showcase--login .auth-showcase-feature-connectors");
-    expect(stylesSource).toContain(".auth-feature-connector--security");
-    expect(stylesSource).toContain("z-index:4;");
-    expect(stylesSource).not.toContain(".auth-feature-connector::before");
-    expect(stylesSource).toContain(".auth-feature-connector--alerts{top:8.86%;left:13.04%;width:7.66%;transform:rotate(25.4deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--reports{top:9.83%;left:88.64%;width:12.1%;transform:rotate(166deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--automation{top:37.1%;left:10.56%;width:10.2%;transform:rotate(-26.3deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--campaigns{top:70.91%;left:10.38%;width:11.1%;transform:rotate(-32.5deg)}");
-    expect(stylesSource).toContain(".auth-feature-connector--channels{top:88%;left:38.4%;width:7.5%;transform:rotate(-51deg);display:none}");
-    expect(stylesSource).toContain(".auth-feature-connector--security{top:88.05%;left:73.4%;width:8.5%;transform:rotate(-143.5deg);display:none}");
-    expect(stylesSource).toContain(".auth-relocated-feature--channels{top:41%;left:95%");
-    expect(stylesSource).toContain(".auth-relocated-feature--security{top:76%;left:95%");
-    expect(appSource).not.toContain("auth-relocated-mask");
-    expect(stylesSource).not.toContain(".auth-relocated-mask");
-    expect(appSource).toContain('id="auth-dashboard-label-mask"');
-    expect(appSource).toContain('maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse"');
-    expect(appSource).toContain('mask="url(#auth-dashboard-label-mask)"');
-    expect(appSource).toContain('<rect x="20" y="137" width="190" height="58" fill="#000"></rect>');
-    expect(appSource).toContain('<rect x="940" y="145" width="187" height="62" fill="#000"></rect>');
-    expect(appSource).toContain('<rect x="5" y="465" width="165" height="98" fill="#000"></rect>');
-    expect(appSource).toContain('<rect x="5" y="820" width="165" height="106" fill="#000"></rect>');
-    expect(stylesSource).toContain('background:transparent;');
-    expect(stylesSource).not.toContain('background:radial-gradient(ellipse at center,#eef8f6');
-    expect(stylesSource).toContain('.auth-reference-feature-label>b,\n  .auth-relocated-feature>b{font-family:"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif;font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}');
-    expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label,.auth-relocated-feature){direction:ltr}');
-    expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] :is(.auth-reference-feature-label>b,.auth-relocated-feature>b){font-family:"Sora","Tajawal",system-ui,sans-serif;font-weight:500}');
-    expect(stylesSource).toContain('.auth-suite-page[data-auth-language="en"] .auth-reference-feature-label>b,\n  .auth-suite-page[data-auth-language="en"] .auth-relocated-feature>b{');
-    expect(stylesSource).toContain('font-size:8px;\n    line-height:1.2;\n    white-space:normal;\n    text-wrap:balance;');
-    expect(stylesSource).not.toContain('.auth-suite-page[data-auth-theme="dark"] .auth-reference-feature-label{');
-    expect(stylesSource).toContain(".auth-reference-feature-label>b,.auth-relocated-feature>b{font-size:9px}");
-    expect(stylesSource).toContain(".auth-reference-feature-label--alerts{top:15.1%;left:9.8%");
-    expect(stylesSource).toContain(".auth-reference-feature-label--reports{top:16%;left:91.7%");
-    expect(stylesSource).toContain(".auth-reference-feature-label--automation{top:48%;left:7.4%");
-    expect(stylesSource).toContain(".auth-reference-feature-label--campaigns{top:83.1%;left:7.4%");
-    expect(appSource).toContain('localizedCopy("تذكيرات ذكية", "Smart reminders")');
-    expect(appSource).toContain('localizedCopy("تقارير وتحليلات", "Reports and analytics")');
-    expect(appSource).toContain('localizedCopy("أتمتة التجديدات", "Renewal automation")');
-    expect(appSource).toContain('localizedCopy("حملات مخصصة", "Custom campaigns")');
-    expect(appSource).toContain('class="auth-relocated-connectors"');
-    expect(appSource).toContain('x1="910" y1="334" x2="984" y2="384"');
-    expect(appSource).toContain('circle cx="910" cy="334" r="4"');
-    expect(appSource).toContain('x1="910" y1="671" x2="984" y2="734"');
-    expect(appSource).toContain('circle cx="910" cy="671" r="4"');
-    expect(appSource).toContain('localizedCopy("قنوات متصلة", "Connected channels")');
-    expect(appSource).toContain('localizedCopy("أمان وموثوقية", "Security and reliability")');
-    expect(stylesSource).toContain(".auth-relocated-connectors line{");
-    expect(stylesSource).toContain("stroke-linecap:round;");
-    expect(stylesSource).toContain("vector-effect:non-scaling-stroke;");
-    expect(stylesSource).toContain(".auth-relocated-connectors circle{fill:currentColor}");
-    expect(stylesSource).toContain(".auth-relocated-feature::before{\n    content:none;");
-    expect(stylesSource).not.toContain("drop-shadow(0 0 1px rgba(5,101,92,.9))");
-    expect(stylesSource).toContain("max-height:330px!important");
   });
-
   it("loads desktop auth CSS without preloading obsolete bitmap references", () => {
     for (const source of [layoutSource, staticIndexSource]) {
       expect(source).toContain("(min-width: 768px)");
@@ -256,7 +164,11 @@ describe("mobile sidebar and MFA UI contracts", () => {
     expect(appSource).toContain('localStorage.setItem("renvix.auth.language"');
     expect(appSource).toContain('localStorage.setItem("renvix.auth.theme"');
     expect(appSource).toContain("if (authRoute) state.language = state.authDisplayLanguage");
-    expect(appSource).toContain("if (authRoute) state.language = siteLanguage");
+    expect(appSource).toContain("document.documentElement.lang = state.authDisplayLanguage");
+    expect(appSource).toContain(
+      'document.documentElement.dir = state.authDisplayLanguage === "ar" ? "rtl" : "ltr"',
+    );
+    expect(appSource).toContain("state.language = siteLanguage;");
     expect(stylesSource).toContain("@media (max-width:820px)");
     expect(stylesSource).toContain(".auth-suite-otp>.email-otp-visual{display:none}");
     expect(stylesSource).toContain('.auth-suite-page[data-auth-theme="dark"] .email-otp-panel');

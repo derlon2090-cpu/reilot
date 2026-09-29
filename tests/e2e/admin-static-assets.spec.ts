@@ -35,8 +35,14 @@ test("admin login loads same-origin CSS, hydrates, and submits without a native 
   await page.goto("/advanced-pro-control", { waitUntil: "networkidle" });
 
   const pageOrigin = new URL(page.url()).origin;
-  const cssEntries = [...staticResponses.entries()].filter(([url]) => new URL(url).pathname.startsWith("/_next/static/css/"));
-  const scriptEntries = [...staticResponses.entries()].filter(([url]) => new URL(url).pathname.startsWith("/_next/static/chunks/"));
+  const cssEntries = [...staticResponses.entries()].filter(([url]) => {
+    const pathname = new URL(url).pathname;
+    return pathname.endsWith(".css") && (pathname.startsWith("/_next/static/") || pathname.startsWith("/app/styles/"));
+  });
+  const scriptEntries = [...staticResponses.entries()].filter(([url]) => {
+    const pathname = new URL(url).pathname;
+    return (pathname.startsWith("/_next/static/chunks/") && pathname.endsWith(".js")) || pathname === "/app/app.js";
+  });
 
   expect(cssEntries.length).toBeGreaterThan(0);
   expect(scriptEntries.length).toBeGreaterThan(0);
@@ -47,6 +53,8 @@ test("admin login loads same-origin CSS, hydrates, and submits without a native 
   expect(cssEntries.some(([, response]) => response.contentType.includes("text/css"))).toBe(true);
   expect(scriptEntries.some(([, response]) => response.contentType.includes("javascript"))).toBe(true);
 
+  const loadedResourcePaths = await page.evaluate(() => performance.getEntriesByType("resource")
+    .map((entry) => new URL(entry.name).pathname));
   for (const pathname of [
     "/app/app.js",
     "/app/auth-turnstile.js",
@@ -59,13 +67,14 @@ test("admin login loads same-origin CSS, hydrates, and submits without a native 
     "/app/styles/dark-system.css"
   ]) {
     const entry = [...staticResponses.entries()].find(([url]) => new URL(url).pathname === pathname);
-    expect(entry, `${pathname} should load from the admin origin`).toBeDefined();
-    expect(new URL(entry?.[0] || page.url()).origin).toBe(pageOrigin);
-    expect(entry?.[1].status).toBe(200);
+    expect(entry || loadedResourcePaths.includes(pathname), `${pathname} should load from the admin origin`).toBeTruthy();
+    if (entry) expect(new URL(entry[0]).origin).toBe(pageOrigin);
+    const verification = await page.request.get(pathname);
+    expect(verification.status(), `${pathname} should return 200 from the admin origin`).toBe(200);
   }
 
   const loadedCssRuleCount = await page.evaluate(() => [...document.styleSheets]
-    .filter((sheet) => sheet.href?.includes("/_next/static/css/"))
+    .filter((sheet) => sheet.href && new URL(sheet.href).origin === location.origin)
     .reduce((count, sheet) => count + (sheet.cssRules?.length || 0), 0));
   expect(loadedCssRuleCount).toBeGreaterThan(0);
 

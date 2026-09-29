@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { openMockPortalRoute } from "./helpers/mock-portal";
 
 async function mockDashboardBasics(page) {
   await page.route("**/api/auth/session", (route) => route.fulfill({
@@ -29,23 +30,32 @@ test("template previews stay on the left and shared store branding is available"
   }));
   await page.route("**/api/templates/catalog", (route) => route.fulfill({ json: { ok: true, items: [] } }));
   await page.route("**/api/whatsapp/templates", (route) => route.fulfill({ json: { ok: true, items: [], integrations: [] } }));
+  await page.route("**/backend/ai/usage", (route) => route.fulfill({ json: { ok: true, usage: { remainingTokens: 10000, usedTokens: 0 } } }));
   await page.route("**/api/customers", (route) => route.fulfill({ json: { ok: true, items: [] } }));
   await page.route("**/api/order-information/template", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/order-link/subscriptions", (route) => route.fulfill({ json: { ok: true, items: [] } }));
   await page.route("**/api/order-link/list", (route) => route.fulfill({ json: { ok: true, items: [], stats: {} } }));
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#app")).toBeVisible({ timeout: 30_000 });
-  await page.evaluate(() => {
-    history.pushState({}, "", "/dashboard/templates?edit=renewal_email");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
+  await openMockPortalRoute(page, "/dashboard/templates?edit=renewal_email");
 
   await expect(page.locator(".store-logo-editor")).toBeVisible();
   await expect(page.locator(".email-preview-brand img.email-store-logo")).toHaveAttribute("src", logoUrl);
-  const emailEditor = await page.locator(".email-editor-v2").boundingBox();
-  const emailPreview = await page.locator(".email-preview-v2").boundingBox();
-  expect(emailEditor && emailPreview && emailPreview.x < emailEditor.x).toBe(true);
+  await expect(page.getByRole("heading", { name: "محتوى البريد" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "معاينة البريد الإلكتروني" })).toBeVisible();
+  const emailLayoutNode = page.locator(".renewal-email-builder");
+  await expect(emailLayoutNode).toHaveCSS("display", "grid");
+  await expect(emailLayoutNode).toHaveCSS("direction", "ltr");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  const emailLayout = await emailLayoutNode.evaluate((layout) => {
+    const editor = layout.querySelector(".renewal-email-main");
+    const preview = layout.querySelector(".renewal-email-preview-column");
+    return {
+      editorPrecedesPreview: Boolean(editor && preview && (editor.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING)),
+      gridTemplateAreas: getComputedStyle(layout).gridTemplateAreas
+    };
+  });
+  expect(emailLayout.editorPrecedesPreview).toBe(true);
+  expect(emailLayout.gridTemplateAreas).toContain("preview main");
   await page.screenshot({ path: ".codex-artifacts/renewal-email-store-branding.png", fullPage: true });
 
   await page.evaluate(() => {

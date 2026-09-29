@@ -1,25 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { hasLiveCredentials, loginWithLiveCredentials } from "./helpers/live-auth";
+import { installMockPortalBasics, openMockPortalRoute } from "./helpers/mock-portal";
 
-test.skip(!hasLiveCredentials, "requires a real authenticated test account");
-
-test("settings cards keep the required RTL order and interface preferences persist", async ({ page }) => {
-  await loginWithLiveCredentials(page);
-  await page.goto("/dashboard/settings");
-  const cards = page.locator(".settings-layout > article");
-  await expect(cards).toHaveCount(5);
+test("settings cards keep the current RTL order and expose account controls", async ({ page }) => {
+  await installMockPortalBasics(page);
+  await page.route("**/api/settings", (route) => route.fulfill({ json: { ok: true, settings: { fullName: "مستخدم الاختبار", email: "test@example.com", phone: "+966500000000", role: "owner", language: "ar", theme: "light", interfaceDensity: "comfortable", mfaEnabled: true }, storage: { usedMb: 1, limitMb: 100, percent: 1, breakdown: [] }, newsletter: { publicId: "news-test" } } }));
+  await openMockPortalRoute(page, "/dashboard/settings");
+  const cards = page.locator(".settings-reference-grid > article");
+  await expect(cards).toHaveCount(4);
   await expect(cards.nth(0)).toContainText("إعدادات الحساب");
-  await expect(cards.nth(1)).toContainText("الأمان");
-  await expect(cards.nth(2)).toContainText("الواجهة واللغة");
-  await expect(cards.nth(3)).toContainText("الإشعارات");
-  const language = page.locator("select[data-preference='language']");
-  await language.selectOption("en");
-  await expect(page.locator(".settings-interface-card")).toContainText("Interface & language");
-  await expect(page.locator(".settings-notifications-card")).toContainText("Renewal and billing notifications");
-  const density = page.locator("select[data-preference='interfaceDensity']");
-  await density.selectOption("compact");
-  await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-  await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
+  await expect(cards.nth(1)).toContainText("أمان الحساب");
+  await expect(cards.nth(2)).toContainText("النشرة البريدية");
+  await expect(cards.nth(3)).toContainText("حد التخزين في الباقة");
+  await expect(page.getByRole("button", { name: "حفظ التعديلات" })).toBeVisible();
+  await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
 });

@@ -74,7 +74,7 @@ export function isStaticAssetPath(pathname) {
     || STATIC_ASSET_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
-export async function middleware(request, event) {
+export async function proxy(request, event) {
   return middlewareRequest(request, {
     waitUntil: event?.waitUntil ? event.waitUntil.bind(event) : null
   });

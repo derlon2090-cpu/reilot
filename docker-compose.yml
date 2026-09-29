@@ -1,10 +1,14 @@
 services:
   database:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     restart: unless-stopped
+    stop_grace_period: 60s
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
     env_file: .env.production
-    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=50"]
-    mem_limit: 256m
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=100", "-c", "statement_timeout=30000", "-c", "idle_in_transaction_session_timeout=30000"]
+    mem_limit: ${DATABASE_MEMORY_LIMIT:-512m}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,13 +20,27 @@ services:
   app:
     build: .
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    pids_limit: 256
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     env_file: .env.production
+    environment:
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+      NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=512}
     depends_on:
       database:
         condition: service_healthy
       evolution-api:
         condition: service_started
-    mem_limit: 384m
+    mem_limit: ${APP_MEMORY_LIMIT:-768m}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /app/.next/cache:rw,nosuid,nodev,uid=1001,gid=1001,mode=0750,size=128m
     expose:
       - "3000"
     healthcheck:
@@ -33,11 +51,15 @@ services:
       start_period: 45s
 
   evolution-database:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
+    stop_grace_period: 60s
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
     env_file: deploy/evolution/.env
     command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=75"]
-    mem_limit: 256m
+    mem_limit: ${EVOLUTION_DATABASE_MEMORY_LIMIT:-384m}
     volumes:
       - evolution_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -47,10 +69,17 @@ services:
       retries: 10
 
   evolution-redis:
-    image: redis:7.4-alpine
+    image: redis:8.10-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     restart: unless-stopped
+    stop_grace_period: 30s
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
-    mem_limit: 160m
+    mem_limit: ${REDIS_MEMORY_LIMIT:-192m}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
     volumes:
       - evolution_redis_data:/data
     healthcheck:
@@ -60,32 +89,52 @@ services:
       retries: 10
 
   evolution-api:
-    image: evoapicloud/evolution-api:v2.3.7
+    # v2.4 is still release-candidate; keep the newest stable release pinned.
+    image: evoapicloud/evolution-api:v2.3.7@sha256:1bd8afc4a6cf48822e6cf02469aeae7bd35a12a6b616eacd1291926307f4d339
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    pids_limit: 384
+    security_opt:
+      - no-new-privileges:true
     env_file: deploy/evolution/.env
     depends_on:
       evolution-database:
         condition: service_healthy
       evolution-redis:
         condition: service_healthy
-    mem_limit: 768m
+    mem_limit: ${EVOLUTION_API_MEMORY_LIMIT:-768m}
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - evolution_instances:/evolution/instances
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.30-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
     restart: unless-stopped
+    stop_grace_period: 30s
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     depends_on:
       app:
         condition: service_healthy
     ports:
       - "80:80"
-    mem_limit: 64m
+    mem_limit: ${NGINX_MEMORY_LIMIT:-128m}
     volumes:
+      - ./deploy/nginx-main.conf:/etc/nginx/nginx.conf:ro
       - ./deploy/security/probe-log.conf:/etc/nginx/conf.d/00-security-gateway.conf:ro
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    tmpfs:
+      - /var/cache/nginx:rw,nosuid,nodev,size=64m
+      - /var/run:rw,nosuid,nodev,size=8m
+      - /var/log/nginx:rw,nosuid,nodev,size=64m
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "--header=Host: api.renvix.app", "http://127.0.0.1/api/health"]
       interval: 30s

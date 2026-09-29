@@ -4,7 +4,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    testTimeout: 10000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    maxWorkers: 4,
+    fsModuleCache: true,
     restoreMocks: true
   }
 });

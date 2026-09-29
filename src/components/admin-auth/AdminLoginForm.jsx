@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import styles from "../admin/AdminPortal.module.css";
 
 export default function AdminLoginForm() {
@@ -127,7 +128,7 @@ export default function AdminLoginForm() {
         </label>
         <div className={styles.loginOptions}>
           <span className={styles.rememberRow}>يُطلب رمز بريد جديد عند كل تسجيل دخول</span>
-          <a href="/advanced-pro-control/forgot-password">نسيت كلمة المرور؟</a>
+          <Link href="/advanced-pro-control/forgot-password">نسيت كلمة المرور؟</Link>
         </div>
         <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "جارٍ التحقق..." : "دخول إلى لوحة الأدمن"} <span aria-hidden="true">↲</span></button>
       </form>

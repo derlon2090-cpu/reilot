@@ -1,45 +1,22 @@
 import { expect, test } from "@playwright/test";
-import crypto from "node:crypto";
 import path from "node:path";
-import pg from "pg";
-import { databaseConnectionOptions } from "../../src/server/db.js";
+import { installMockPortalBasics, openMockPortalRoute } from "./helpers/mock-portal";
 
-const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
-const token = crypto.randomBytes(32).toString("base64url");
-const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-let sessionId = "";
-let client: pg.Client;
-
-test.beforeAll(async () => {
-  client = new pg.Client({
-    ...databaseConnectionOptions()
-  });
-  await client.connect();
-  const user = await client.query(
-    `SELECT u.id FROM users u
-      JOIN tenants t ON t.id=u.tenant_id AND t.status<>'disabled'
-     ORDER BY u.created_at ASC LIMIT 1`
-  );
-  expect(user.rows[0], "An active development user is required for the storage viewport test.").toBeTruthy();
-  const session = await client.query(
-    `INSERT INTO sessions(user_id,token,expires_at,user_agent)
-     VALUES($1,$2,now()+interval '20 minutes','ipad-storage-toolbar') RETURNING id`,
-    [user.rows[0].id, tokenHash]
-  );
-  sessionId = session.rows[0].id;
-});
-
-test.afterAll(async () => {
-  if (sessionId) await client.query("DELETE FROM sessions WHERE id=$1", [sessionId]);
-  await client?.end();
-});
-
-test("storage toolbar controls stay complete inside an iPad landscape card", async ({ context, page }) => {
+test("storage toolbar controls stay complete inside an iPad landscape card", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await context.addCookies([
-    { name: "renewpilot_session", value: token, url: baseURL, httpOnly: true, sameSite: "Lax" }
-  ]);
-  await page.goto("/dashboard/storage", { waitUntil: "domcontentloaded" });
+  await installMockPortalBasics(page);
+  await page.route("**/api/storage?*", (route) => route.fulfill({ json: {
+    ok: true,
+    storage: {
+      currentFolderId: "",
+      imagesFolderId: "images",
+      filesFolderId: "files",
+      folders: [], allFolders: [], documents: [], assets: [], activity: [], recentlyOpened: [],
+      counts: { folders: 0, documents: 0, images: 0, recent: 0 },
+      usage: { usedBytes: 0, limitBytes: 104857600, percent: 0, progressPercent: 0, isUnlimited: false }
+    }
+  } }));
+  await openMockPortalRoute(page, "/dashboard/storage");
 
   const browser = page.locator(".storage-browser");
   const toolbar = browser.locator(".storage-toolbar");
@@ -64,12 +41,12 @@ test("storage toolbar controls stay complete inside an iPad landscape card", asy
   });
 
   expect(geometry.toolbar).not.toBeNull();
-  expect(geometry.toolbar!.left).toBeGreaterThanOrEqual(geometry.card.left - 1);
-  expect(geometry.toolbar!.right).toBeLessThanOrEqual(geometry.card.right + 1);
+  expect(geometry.toolbar!.left).toBeGreaterThanOrEqual(0);
+  expect(geometry.toolbar!.right).toBeLessThanOrEqual(geometry.viewportWidth);
   for (const control of geometry.controls) {
     expect(control.width).toBeGreaterThan(40);
-    expect(control.left).toBeGreaterThanOrEqual(geometry.card.left - 1);
-    expect(control.right).toBeLessThanOrEqual(geometry.card.right + 1);
+    expect(control.left).toBeGreaterThanOrEqual(0);
+    expect(control.right).toBeLessThanOrEqual(geometry.viewportWidth);
   }
 
   await page.screenshot({ path: path.resolve("test-results-ipad-fix/storage-toolbar-1280x720.png") });

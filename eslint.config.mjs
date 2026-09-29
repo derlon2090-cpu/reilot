@@ -1,9 +1,5 @@
-import { FlatCompat } from "@eslint/eslintrc";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-
-const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const compat = new FlatCompat({ baseDirectory: currentDirectory });
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
   {
@@ -21,7 +17,22 @@ const eslintConfig = [
       "playwright-report/**"
     ]
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
+    // These admin screens intentionally start async loaders from effects and
+    // commit their results after the awaited network boundary.
+    files: [
+      "src/components/admin/AdminPortal.jsx",
+      "src/components/admin/AdminSallaCatalog.jsx",
+      "src/components/admin/AdminSections.jsx",
+      "src/components/admin/AdminTemplateEditor.jsx",
+      "src/components/admin/SecurityCenter.jsx"
+    ],
+    rules: {
+      "react-hooks/set-state-in-effect": "off"
+    }
+  },
   {
     files: ["tests/**/*.ts"],
     rules: {

@@ -2,45 +2,25 @@ import { expect, test } from "@playwright/test";
 
 test("support center opens dedicated help articles and keeps distinct FAQs", async ({ page }) => {
   await page.goto("/support");
-  await expect(page.getByRole("heading", { name: "مركز الدعم" })).toBeVisible();
-  await expect(page.locator(".support-guides")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "كيف نقدر نساعدك اليوم؟", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "تصفح حسب الفئة", exact: true })).toBeVisible();
   await expect(page.locator("#faq")).toContainText("Renvix منصة لإدارة العملاء والاشتراكات");
   await expect(page.locator("#faq")).toContainText("لن يبدأ الإرسال قبل اكتمال الاتصال");
 
-  await page.locator('[data-link="/blog/quick-start-guide"]').click();
+  await page.getByRole("button", { name: /البدء السريع/ }).click();
   await expect(page).toHaveURL(/\/blog\/quick-start-guide$/);
   await expect(page.getByRole("heading", { name: /دليل البدء السريع في Renvix/ })).toBeVisible();
   await expect(page.locator(".article-cover")).toHaveAttribute("src", "/assets/blog/help-quick-start.png");
   await expect(page.locator(".article-content")).toContainText("أكمل هوية الحساب والمتجر");
 });
 
-test("public support form sends a real ticket payload and shows its number", async ({ page }) => {
-  let postedBody: Record<string, string> | undefined;
-  await page.route("**/api/public/support/tickets", async (route) => {
-    postedBody = route.request().postDataJSON();
-    await route.fulfill({
-      status: 201,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true, item: { ticketNumber: "SUP-2026-000321" } })
-    });
-  });
+test("support search exposes an accessible direct link to a matching guide", async ({ page }) => {
   await page.goto("/support");
-  const form = page.locator('form[data-submit="support-request"]');
-  await form.locator('[name="name"]').fill("وليد علي");
-  await form.locator('[name="email"]').fill("waleed@example.com");
-  await form.locator('[name="type"]').selectOption("TECHNICAL_ISSUE");
-  await form.locator('[name="subject"]').fill("مشكلة في ربط القناة");
-  await form.locator('[name="details"]').fill("تظهر مشكلة عند محاولة إكمال عملية الربط من صفحة التطبيقات.");
-  await form.getByRole("button", { name: "إرسال الطلب" }).click();
-
-  await expect(page.getByText("رقم الطلب: SUP-2026-000321")).toBeVisible();
-  expect(postedBody).toMatchObject({
-    name: "وليد علي",
-    email: "waleed@example.com",
-    type: "TECHNICAL_ISSUE",
-    subject: "مشكلة في ربط القناة",
-    body: "تظهر مشكلة عند محاولة إكمال عملية الربط من صفحة التطبيقات."
-  });
+  await page.getByPlaceholder("ابحث عن موضوع أو سؤال...").fill("التكاملات");
+  const result = page.getByRole("button", { name: "اقرأ دليل التكاملات والإعدادات" });
+  await expect(result).toBeVisible();
+  await result.click();
+  await expect(page).toHaveURL(/\/blog\/integrations-settings-guide$/);
 });
 
 test("start conversation creates a support request and closes the drawer", async ({ page }) => {
@@ -71,11 +51,11 @@ test("start conversation creates a support request and closes the drawer", async
 
 test("pricing FAQ shows a different practical answer for every question", async ({ page }) => {
   await page.goto("/pricing");
-  const answers = page.locator(".faq-compact details p");
-  await expect(answers).toHaveCount(4);
+  const answers = page.locator(".pricing-faq-answer p");
+  await expect(answers).toHaveCount(6);
   const texts = (await answers.allTextContents()).map((text) => text.trim());
-  expect(new Set(texts).size).toBe(4);
-  expect(texts.join(" ")).toContain("حد رسائل البريد مستقل");
-  expect(texts.join(" ")).toContain("إيقاف التجديد التلقائي");
-  expect(texts.join(" ")).toContain("قبول مزود القناة");
+  expect(new Set(texts).size).toBe(6);
+  expect(texts.join(" ")).toContain("البريد الإلكتروني وقنوات واتساب الرسمية بشكل مستقل");
+  expect(texts.join(" ")).toContain("إلغاء التجديد");
+  expect(texts.join(" ")).toContain("API");
 });

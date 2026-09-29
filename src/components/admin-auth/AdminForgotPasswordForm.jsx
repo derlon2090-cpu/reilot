@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import styles from "../admin/AdminPortal.module.css";
 
 export default function AdminForgotPasswordForm() {
@@ -46,8 +47,7 @@ export default function AdminForgotPasswordForm() {
         <p>{message}</p>
         <form onSubmit={reset}><label>رمز التحقق<input className={styles.codeField} inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} required /></label><label>كلمة المرور الجديدة<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label><label>تأكيد كلمة المرور<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>{error ? <div className={styles.error}>{error}</div> : null}<button className={styles.primaryButton} disabled={busy}>{busy ? "جارٍ الحفظ..." : "تحديث كلمة المرور"}</button></form>
       </> : <p>يمكنك الآن الدخول بكلمة المرور الجديدة.</p>}
-      <a className={styles.backLink} href="/advanced-pro-control">العودة إلى دخول الأدمن</a>
+      <Link className={styles.backLink} href="/advanced-pro-control">العودة إلى دخول الأدمن</Link>
     </div>
   );
 }
-

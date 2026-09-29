@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { inspectCustomEmailHtml } from "../../lib/email/custom-email-html.js";
 import { sallaPageCssVariables } from "../../data/sallaPageCss.js";
 import {
@@ -62,7 +63,7 @@ function sallaEmailSampleCode(item) {
 function EmailDesignBuilder({ item, draft, setDraft }) {
   const [validation, setValidation] = useState(null);
   const activePreset = SALLA_EMAIL_DESIGN_PRESETS.find((preset) => preset.id === draft.emailDesign) || SALLA_EMAIL_DESIGN_PRESETS[0];
-  const usePreset = (design) => {
+  const applyPreset = (design) => {
     setDraft((current) => ({ ...current, emailDesign: design, emailContentMode: "preset" }));
     setValidation(null);
   };
@@ -84,7 +85,7 @@ function EmailDesignBuilder({ item, draft, setDraft }) {
     <input type="hidden" name="emailContentMode" value={draft.emailContentMode} readOnly />
     <div className="email-design-builder-head"><div><h3>قوالب بريد جاهزة</h3><p>اختر تصميمًا ثم اضغط اعتماد. لن يتغير المصدر النشط دون اعتمادك.</p></div><span className={`email-source-status ${draft.emailContentMode === "html" ? "is-code" : "is-preset"}`}>{draft.emailContentMode === "html" ? "الكود المعتمد" : `القالب المعتمد: ${activePreset.name}`}</span></div>
     <div className="email-design-workspace">
-      <div className="email-design-presets">{SALLA_EMAIL_DESIGN_PRESETS.map((preset) => <article key={preset.id} className={`email-design-preset design-${preset.id} ${draft.emailContentMode === "preset" && preset.id === activePreset.id ? "is-active" : ""}`} data-email-design-card={preset.id}><div className="email-design-thumb"><i /><b /><span /><em /></div><strong>{preset.name}</strong><small>{preset.caption}</small><button className="btn btn-secondary" type="button" onClick={() => usePreset(preset.id)}>{draft.emailContentMode === "preset" && preset.id === activePreset.id ? "معتمد ✓" : "اعتماد القالب"}</button></article>)}</div>
+      <div className="email-design-presets">{SALLA_EMAIL_DESIGN_PRESETS.map((preset) => <article key={preset.id} className={`email-design-preset design-${preset.id} ${draft.emailContentMode === "preset" && preset.id === activePreset.id ? "is-active" : ""}`} data-email-design-card={preset.id}><div className="email-design-thumb"><i /><b /><span /><em /></div><strong>{preset.name}</strong><small>{preset.caption}</small><button className="btn btn-secondary" type="button" onClick={() => applyPreset(preset.id)}>{draft.emailContentMode === "preset" && preset.id === activePreset.id ? "معتمد ✓" : "اعتماد القالب"}</button></article>)}</div>
       <div className="email-template-theme"><div><strong>تعديل لون القالب</strong><small>اختر لون الهوية أو استخدم منتقي اللون المخصص؛ يطبّق فورًا على العنوان والزر والتفاصيل البارزة.</small></div><div className="email-theme-palette">{EMAIL_THEME_PALETTE.map((color) => <button key={color} type="button" className={draft.emailThemeColor === color ? "active" : ""} style={{ "--email-palette": color }} aria-label={`اختيار لون القالب ${color}`} onClick={() => setDraft((current) => ({ ...current, emailThemeColor: color }))} />)}<label title="لون مخصص"><input type="color" name="emailThemeColor" value={draft.emailThemeColor} aria-label="لون قالب بريد مخصص" onChange={(event) => setDraft((current) => ({ ...current, emailThemeColor: event.target.value.toUpperCase() }))} /><span><DashboardIcon name="edit" /></span></label></div></div>
     </div>
     <details className="email-code-designer" open={draft.emailContentMode === "html"}><summary><span><DashboardIcon name="action" /> تصميم الرسالة بكود HTML <small>اختياري</small></span><b>فتح المحرر</b></summary><div className="email-code-designer-body"><label className="field"><span>كود محتوى البريد</span><textarea className="textarea email-html-editor" name="emailHtmlContent" dir="ltr" spellCheck={false} maxLength={30000} value={draft.emailHtmlContent} placeholder={sallaEmailSampleCode(item)} onChange={(event) => { setDraft((current) => ({ ...current, emailHtmlContent: event.target.value })); setValidation(null); }} /><small>محتوى HTML فقط. يتم فحص العناصر والروابط وCSS قبل الاعتماد والحفظ.</small></label><div className="email-code-actions"><button className="btn btn-primary" type="button" onClick={adoptHtml}>فحص واعتماد الكود</button><button className="btn btn-secondary" type="button" onClick={() => { setDraft((current) => ({ ...current, emailHtmlContent: sallaEmailSampleCode(item) })); setValidation(null); }}>إضافة نموذج احترافي</button></div><div className={`email-code-validation ${validation ? validation.ok ? "success" : "danger" : "neutral"}`}>{validationText}</div></div></details>
@@ -265,7 +266,7 @@ export default function AdminSallaCatalog({ admin }) {
   };
 
   return <div className={`${styles.adminSallaWorkspace} dashboard-main`} dir="rtl">
-    <div className="salla-template-editor-top">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <a className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</a>}</div>
+    <div className="salla-template-editor-top">{selected ? <button className="btn btn-secondary" type="button" onClick={() => setSelectedKey("")}><DashboardIcon name="arrow" /> العودة إلى القوالب</button> : <Link className="btn btn-secondary" href="/admin/integrations"><DashboardIcon name="arrow" /> العودة إلى التطبيقات</Link>}</div>
     <div className="salla-templates-page-head">
       <div className="page-title">
         <div><h1>{selected ? selected.name : "قوالب سلة"}</h1><p className="muted">{selected ? selected.description : "إدارة قوالب رسائل الطلبات المرتبطة بمتجر سلة، بنفس الواجهة التي تظهر للمستخدم بعد الربط."}</p></div>

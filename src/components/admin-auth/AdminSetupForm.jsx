@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import styles from "./AdminSetupForm.module.css";
 
 const initialFields = { name: "", email: "", password: "", confirmPassword: "" };
@@ -95,7 +96,7 @@ export default function AdminSetupForm() {
         <p className={styles.lead}>أنشئ الحساب الإداري الأول للمنصة. يُغلق هذا الرابط تلقائيًا بعد نجاح العملية.</p>
 
         {phase === "checking" ? <section className={styles.card}><div className={styles.loader} /><strong>جارٍ التحقق من حالة الإعداد وقاعدة البيانات…</strong></section> : null}
-        {status ? <section className={`${styles.card} ${styles[status.tone]}`} role={status.tone === "error" ? "alert" : "status"}><span className={styles.stateIcon}>{status.tone === "success" ? "✓" : status.tone === "warning" ? "!" : "×"}</span><h2>{status.title}</h2><p>{status.text}</p>{phase === "configured" ? <a href="/advanced-pro-control">الانتقال إلى تسجيل دخول الأدمن</a> : null}</section> : null}
+        {status ? <section className={`${styles.card} ${styles[status.tone]}`} role={status.tone === "error" ? "alert" : "status"}><span className={styles.stateIcon}>{status.tone === "success" ? "✓" : status.tone === "warning" ? "!" : "×"}</span><h2>{status.title}</h2><p>{status.text}</p>{phase === "configured" ? <Link href="/advanced-pro-control">الانتقال إلى تسجيل دخول الأدمن</Link> : null}</section> : null}
 
         {["ready", "submitting", "success"].includes(phase) ? <form className={styles.card} onSubmit={submit} noValidate>
           {phase === "success" ? <div className={styles.successBanner} role="status">✓ {message}</div> : null}

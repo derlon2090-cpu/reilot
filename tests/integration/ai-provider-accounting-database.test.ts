@@ -9,7 +9,7 @@ const userId = crypto.randomUUID();
 const subscriptionId = crypto.randomUUID();
 const session = { tenantId, userId };
 
-describe.sequential("provider-native PostgreSQL accounting", () => {
+describe("provider-native PostgreSQL accounting", () => {
   beforeAll(async () => {
     const plan = await query("SELECT id FROM platform_plans WHERE slug='professional' LIMIT 1");
     await query("INSERT INTO tenants(id,name,slug,status) VALUES($1,'Provider accounting test',$2,'active')", [tenantId, `provider-${tenantId}`]);

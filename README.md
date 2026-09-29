@@ -4,6 +4,8 @@
 
 ## التشغيل المحلي
 
+يتطلب المشروع Node.js 24 LTS (الإصدار المثبت في `.nvmrc`).
+
 ```bash
 npm run dev
 ```
@@ -60,6 +62,19 @@ docker compose up -d --build
 docker compose ps
 curl -fsS http://127.0.0.1/api/health
 ```
+
+Production infrastructure and runtime changes must follow the staged [Canary / Blue-Green rollout runbook](deploy/CANARY-BLUE-GREEN.md), including its 10% and 20% gates and rollback criteria.
+
+صور الحاويات مثبتة على إصدارات وdigests محددة لمنع تغيّر سلسلة التوريد دون مراجعة. قبل ترقية PostgreSQL إلى إصدار رئيسي جديد يجب تنفيذ `pg_upgrade` أو ترحيل dump/restore مخطط له؛ التحديث الحالي يثبت أحدث إصدار إصلاحي آمن داخل كل إصدار رئيسي مستخدم.
+
+فحوص التشغيل بعد النشر:
+
+```bash
+npm run security:tls-check
+npm run test:load
+```
+
+فحص TLS يتحقق من الثقة ومدة الصلاحية وTLS 1.2+ وإعادة توجيه HTTP. اختبار الحمل يستهدف health endpoint المحلي افتراضيًا (500 طلب، تزامن 50)، ولا يسمح باختبار عنوان بعيد إلا عند ضبط `LOAD_TEST_ALLOW_REMOTE=true` صراحةً لبنية تملكها.
 
 ترحيلات `drizzle/*.sql` لا تعمل داخل build أو عند بدء حاوية الويب. نفّذها من Release/Pre-deploy job مستقل عبر `npm run db:migrate:production` وفق [دليل migrations](docs/runbooks/production-migrations.md)، ثم شغّل فحص المخطط قبل تحويل الترافيك. أضف مهام `deploy/renewpilot.cron.example` إلى crontab على الخادم بعد نجاح فحص البيئة.
 
