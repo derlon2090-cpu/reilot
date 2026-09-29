@@ -59,17 +59,18 @@ describe("production migration safety", () => {
     expect(createFilesFolder).toBeGreaterThan(allowFiles);
   });
 
-  it("keeps database mutation out of frontend builds and gates every production server startup on migrations", () => {
+  it("keeps database mutation out of builds and web replica startup", () => {
     const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8"));
     const vercel = JSON.parse(readFileSync(resolve("vercel.json"), "utf8"));
     const docker = readFileSync(resolve("Dockerfile"), "utf8");
     expect(pkg.scripts.prebuild).toBe("node build.mjs");
-    expect(pkg.scripts["build:migration-runner"]).toContain("--bundle --platform=node --format=cjs");
+    expect(pkg.scripts["build:migration-runner"]).toBeUndefined();
     expect(pkg.scripts["db:migrate:production"]).toBe("node scripts/migrate-production.mjs");
-    expect(pkg.scripts.start).toBe("node scripts/migrate.mjs && next start");
+    expect(pkg.scripts.start).toBe("next start");
     expect(vercel.buildCommand).toBe("npm run build");
-    expect(docker).toContain("RUN npm run build:migration-runner");
-    expect(docker).toContain('CMD ["sh", "-c", "node scripts/migrate.bundle.cjs && exec node server.js"]');
+    expect(docker).not.toContain("RUN npm run build:migration-runner");
+    expect(docker).not.toContain("migrate.bundle.cjs");
+    expect(docker).toContain('CMD ["node", "server.js"]');
   });
 
   it("ships and runs the storage migration gate before authenticating the overview request", () => {

@@ -53,6 +53,23 @@ jobs:
     needs: application
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_DB: renvix_e2e
+          POSTGRES_USER: renvix_e2e
+          POSTGRES_PASSWORD: renvix_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U renvix_e2e -d renvix_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://renvix_e2e:renvix_e2e@127.0.0.1:5432/renvix_e2e
+      DATABASE_SSL: "false"
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,6 +82,8 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+      - name: Prepare isolated E2E database
+        run: npm run db:migrate
       - name: Run isolated browser journeys
         run: npm run test:e2e
 

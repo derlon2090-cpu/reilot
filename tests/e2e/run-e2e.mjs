@@ -7,7 +7,6 @@ const port = process.env.E2E_PORT || "3100";
 const baseUrl = process.env.E2E_BASE_URL || `http://${host}:${port}`;
 const npmCli = process.env.npm_execpath;
 const playwrightCli = fileURLToPath(new URL("../../node_modules/@playwright/test/cli.js", import.meta.url));
-const nextCli = fileURLToPath(new URL("../../node_modules/next/dist/bin/next", import.meta.url));
 const runtimeEnv = {
   ...process.env,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || "https://renvix.app",
@@ -82,10 +81,7 @@ try {
       });
       if (buildCode !== 0) throw new Error("The production build failed before E2E tests.");
     }
-    const serverArgs = process.env.E2E_SKIP_MIGRATIONS === "1"
-      ? [nextCli, "start", "-H", host, "-p", port]
-      : [npmCli, "run", "start", "--", "-H", host, "-p", port];
-    server = spawn(process.execPath, serverArgs, {
+    server = spawn(process.execPath, [npmCli, "run", "start", "--", "-H", host, "-p", port], {
       stdio: "inherit",
       windowsHide: true,
       env: localServerEnv

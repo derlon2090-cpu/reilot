@@ -17,7 +17,6 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
-RUN npm run build:migration-runner
 
 FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
 WORKDIR /app
@@ -32,7 +31,6 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/src ./src
-COPY --from=builder /app/.next/migrate.bundle.cjs ./scripts/migrate.bundle.cjs
 # Application code and static assets stay root-owned/read-only. Next.js only
 # receives a dedicated writable cache directory at runtime.
 RUN chmod -R a-w /app/public /app/.next/static /app/drizzle /app/scripts /app/src \
@@ -40,6 +38,6 @@ RUN chmod -R a-w /app/public /app/.next/static /app/drizzle /app/scripts /app/sr
     && chown -R nextjs:nodejs /app/.next/cache
 USER nextjs
 EXPOSE 3000
-# Apply every pending, checksummed migration under the PostgreSQL advisory
-# lock before accepting traffic. `exec` keeps SIGTERM delivery correct on Render.
-CMD ["sh", "-c", "node scripts/migrate.bundle.cjs && exec node server.js"]
+# Database migrations run once in the dedicated release workflow before traffic
+# is shifted. Keeping them out of web startup prevents replica races and restarts.
+CMD ["node", "server.js"]

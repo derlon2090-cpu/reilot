@@ -2,10 +2,9 @@
   "scripts": {
     "prebuild": "node build.mjs",
     "build": "next build",
-    "build:migration-runner": "esbuild scripts/migrate.mjs --bundle --platform=node --format=cjs --outfile=.next/migrate.bundle.cjs",
     "predev": "node build.mjs",
     "dev": "next dev",
-    "start": "node scripts/migrate.mjs && next start",
+    "start": "next start",
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:production": "node scripts/migrate-production.mjs",
     "db:verify-auth-schema": "node scripts/verify-auth-schema.mjs",
