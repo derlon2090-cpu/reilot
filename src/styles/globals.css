@@ -6151,16 +6151,35 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .notification-dropdown {
   position: absolute;
   top: calc(100% + 12px);
-  inset-inline-end: 0;
+  left: 50%;
+  inset-inline-end: auto;
   z-index: 120;
   width: min(390px, calc(100vw - 32px));
   max-height: calc(100dvh - 92px);
   margin: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #E8F1F0;
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 16px 38px rgba(6, 43, 40, .15);
+  transform: translateX(-50%);
+  transform-origin: top center;
+}
+
+.notification-dropdown::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  z-index: 0;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #E8F1F0;
+  border-inline-end: 0;
+  border-block-end: 0;
+  background: #fff;
+  pointer-events: none;
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .notification-dropdown-head,
@@ -6380,6 +6399,11 @@ input[type="password"]::-webkit-textfield-decoration-container {
   border-color: #062B28;
   background: #062B28;
   color: #F3F8F7;
+}
+
+:root[data-theme="dark"] .notification-dropdown::before {
+  border-color: #062B28;
+  background: #062B28;
 }
 
 :root[data-theme="dark"] .notification-dropdown-head,
@@ -11079,7 +11103,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 
 :root[data-theme="dark"] .settings-ref-avatar.fallback{color:#062B28;background:#77d9ca;box-shadow:0 0 0 7px rgba(119,217,202,.1)}:root[data-theme="dark"] .newsletter-live-badge{color:#83e2c1;background:#143d34}:root[data-theme="dark"] .newsletter-link-note,:root[data-theme="dark"] .settings-storage-caption{color:var(--text-muted)}:root[data-theme="dark"] .integration-card--unavailable{background:var(--surface)!important}:root[data-theme="dark"] .integration-card--unavailable .integration-action:disabled{color:var(--text);border-color:var(--border);background:var(--surface-soft)}
 
-@media(max-width:760px){.notification-dropdown{position:fixed;top:max(68px,calc(env(safe-area-inset-top) + 60px));left:50%;inset-inline-end:auto;transform:translateX(-50%)}.newsletter-link{grid-template-columns:1fr 1fr}.newsletter-link .input{grid-column:1/-1}.newsletter-preview{grid-template-columns:1fr}.newsletter-preview strong{grid-column:auto}.newsletter-public-header{height:64px}.newsletter-public-header .brand-logo-image{width:124px}.newsletter-public-main{margin-top:34px}.newsletter-public-card{border-radius:17px}}
+@media(max-width:760px){.notification-dropdown{position:fixed;top:max(68px,calc(env(safe-area-inset-top) + 60px));left:50%;inset-inline-end:auto;transform:translateX(-50%)}.notification-dropdown::before{display:none}.newsletter-link{grid-template-columns:1fr 1fr}.newsletter-link .input{grid-column:1/-1}.newsletter-preview{grid-template-columns:1fr}.newsletter-preview strong{grid-column:auto}.newsletter-public-header{height:64px}.newsletter-public-header .brand-logo-image{width:124px}.newsletter-public-main{margin-top:34px}.newsletter-public-card{border-radius:17px}}
 
 /* Final auth flow correction: reference order, visible tabs and register-only scrolling. */
 @media (min-width:744px){

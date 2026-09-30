@@ -111,6 +111,14 @@ test("a genuine API key stays visible after creation and can be revoked", async 
   await expect(page.locator(".notification-dropdown")).toBeVisible();
   await expect(page.locator(".notification-trigger")).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("region", { name: "الإشعارات الأخيرة" })).toContainText("لا توجد إشعارات جديدة");
+  const notificationTriggerBox = await page.locator(".notification-trigger").boundingBox();
+  const notificationDropdownBox = await page.locator(".notification-dropdown").boundingBox();
+  expect(notificationTriggerBox && notificationDropdownBox).toBeTruthy();
+  expect(Math.abs(
+    (notificationTriggerBox!.x + notificationTriggerBox!.width / 2)
+    - (notificationDropdownBox!.x + notificationDropdownBox!.width / 2)
+  )).toBeLessThanOrEqual(2);
+  expect(notificationDropdownBox!.y).toBeGreaterThan(notificationTriggerBox!.y + notificationTriggerBox!.height);
   await page.screenshot({ path: ".codex-artifacts/notification-dropdown-position.png", fullPage: false });
   await page.locator(".notification-trigger").click();
 
