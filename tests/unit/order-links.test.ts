@@ -88,10 +88,10 @@ describe("order information links", () => {
   it("moves persisted order links to the canonical dashboard without changing their secret", () => {
     const env = {
       NODE_ENV: "production",
-      NEXT_PUBLIC_APP_URL: "https://dash.renvix.app"
+      NEXT_PUBLIC_SITE_URL: "https://renvix.app"
     } as NodeJS.ProcessEnv;
     expect(canonicalOrderPublicUrl("https://reilot.vercel.app/o/trhrjr5?t=secret-token", env))
-      .toBe("https://dash.renvix.app/o/trhrjr5?t=secret-token");
+      .toBe("https://renvix.app/o/trhrjr5?t=secret-token");
     expect(canonicalOrderPublicUrl("https://reilot.vercel.app/login?t=secret-token", env)).toBeNull();
     expect(canonicalOrderPublicUrl("not-a-url", env)).toBeNull();
   });

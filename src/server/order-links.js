@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { appBaseUrl } from "./app-url.js";
+import { siteBaseUrl } from "./app-url.js";
 import { query, transaction } from "./db.js";
 import { assertPlanCapacity } from "./plan-entitlements.js";
 import { randomToken, sha256 } from "./security.js";
@@ -28,7 +28,7 @@ export function canonicalOrderPublicUrl(value, env = process.env) {
   }
 
   if (!/^\/o\/[a-z0-9-]+\/?$/.test(stored.pathname)) return null;
-  const canonical = new URL(stored.pathname, `${appBaseUrl(env)}/`);
+  const canonical = new URL(stored.pathname, `${siteBaseUrl(env)}/`);
   canonical.search = stored.search;
   return canonical.toString();
 }
@@ -135,7 +135,7 @@ export async function saveOrderLinkProfile({ tenantId, storeName, slug, logoUrl,
                    is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`,
         [tenantId, name, slugResult.slug, normalizedLogoUrl || null, normalizeLogoBorderRadius(logoBorderRadius), normalizeOrderLinkStyle(defaultTemplateStyle), normalizeOrderLinkColor(defaultThemeColor), Boolean(isActive)]
       );
-      const baseUrl = appBaseUrl();
+      const baseUrl = siteBaseUrl();
       await client.query(
         `UPDATE order_template_links
             SET public_url = $2 || '/o/' || $3 ||
@@ -193,7 +193,7 @@ export async function ensureTemplatePublicLink({ tenantId, templateId, expiresIn
     }
 
     const publicToken = randomToken(12);
-    const baseUrl = appBaseUrl();
+    const baseUrl = siteBaseUrl();
     const publicUrl = `${baseUrl}/o/${encodeURIComponent(profile.slug)}?t=${encodeURIComponent(publicToken)}`;
     const days = expiresInDays == null ? null : Math.min(3650, Math.max(1, Number(expiresInDays || 30)));
     const inserted = await client.query(
