@@ -16,6 +16,42 @@ import {
 
 const orderLinkIpSalt = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || crypto.randomBytes(32).toString("hex");
 
+export function canonicalOrderPublicUrl(value, env = process.env) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  let stored;
+  try {
+    stored = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  if (!/^\/o\/[a-z0-9-]+\/?$/.test(stored.pathname)) return null;
+  const canonical = new URL(stored.pathname, `${appBaseUrl(env)}/`);
+  canonical.search = stored.search;
+  return canonical.toString();
+}
+
+async function repairTemplatePublicUrl(client, tenantId, item) {
+  const publicUrl = canonicalOrderPublicUrl(item?.publicUrl);
+  if (!publicUrl || publicUrl === item.publicUrl) return item;
+
+  await client.query(
+    `UPDATE order_template_links
+        SET public_url = $3, updated_at = now()
+      WHERE id = $1 AND tenant_id = $2`,
+    [item.id, tenantId, publicUrl]
+  );
+  await client.query(
+    `UPDATE order_info_links
+        SET public_url = $3, updated_at = now()
+      WHERE template_link_id = $1 AND tenant_id = $2`,
+    [item.id, tenantId, publicUrl]
+  );
+  return { ...item, publicUrl };
+}
+
 function profileRow(row) {
   if (!row) return null;
   return {
@@ -143,7 +179,7 @@ export async function ensureTemplatePublicLink({ tenantId, templateId, expiresIn
     );
     if (existing.rows[0]) {
       if (existing.rows[0].status === "active" && (!existing.rows[0].expiresAt || new Date(existing.rows[0].expiresAt) > new Date())) {
-        return { ok: true, item: existing.rows[0] };
+        return { ok: true, item: await repairTemplatePublicUrl(client, tenantId, existing.rows[0]) };
       }
       const restored = await client.query(
         `UPDATE order_template_links
@@ -153,7 +189,7 @@ export async function ensureTemplatePublicLink({ tenantId, templateId, expiresIn
                     opened_count AS "openedCount", created_at AS "createdAt"`,
         [existing.rows[0].id, tenantId]
       );
-      return { ok: true, item: restored.rows[0] };
+      return { ok: true, item: await repairTemplatePublicUrl(client, tenantId, restored.rows[0]) };
     }
 
     const publicToken = randomToken(12);

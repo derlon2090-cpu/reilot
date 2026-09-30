@@ -1,5 +1,6 @@
 import { query } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
+import { canonicalOrderPublicUrl } from "../../../../src/server/order-links.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -39,5 +40,13 @@ export async function GET(req) {
   ]);
   const normalized = stats.rows[0] || { activeTemplates: 0, sentLinks: 0, openedLinks: 0, todayRequests: 0 };
   normalized.openRate = normalized.sentLinks > 0 ? Math.round((normalized.openedLinks / normalized.sentLinks) * 1000) / 10 : 0;
-  return Response.json({ ok: true, items: links.rows, stats: normalized, capabilities: capabilities.rows[0] || {} });
+  return Response.json({
+    ok: true,
+    items: links.rows.map((item) => ({
+      ...item,
+      publicUrl: canonicalOrderPublicUrl(item.publicUrl)
+    })),
+    stats: normalized,
+    capabilities: capabilities.rows[0] || {}
+  });
 }

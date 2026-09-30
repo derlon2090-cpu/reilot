@@ -9,7 +9,7 @@ import {
   maskPublicPhone,
   validateOrderSlug
 } from "../../src/lib/orderLinks.js";
-import { publicOrderPayload } from "../../src/server/order-links.js";
+import { canonicalOrderPublicUrl, publicOrderPayload } from "../../src/server/order-links.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -85,6 +85,17 @@ describe("order information links", () => {
     expect(payload.order).not.toHaveProperty("email");
   });
 
+  it("moves persisted order links to the canonical dashboard without changing their secret", () => {
+    const env = {
+      NODE_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "https://dash.renvix.app"
+    } as NodeJS.ProcessEnv;
+    expect(canonicalOrderPublicUrl("https://reilot.vercel.app/o/trhrjr5?t=secret-token", env))
+      .toBe("https://dash.renvix.app/o/trhrjr5?t=secret-token");
+    expect(canonicalOrderPublicUrl("https://reilot.vercel.app/login?t=secret-token", env)).toBeNull();
+    expect(canonicalOrderPublicUrl("not-a-url", env)).toBeNull();
+  });
+
   it("removes the fixed logo frame and exposes a real persisted corner control", () => {
     expect(appSource).toContain('name="logoBorderRadius" data-order-field="logoBorderRadius"');
     expect(appSource).toContain("logoBorderRadius: safeStoreLogoRadius(draft.logoBorderRadius)");
@@ -130,5 +141,6 @@ describe("order information links", () => {
     expect(appSource).not.toContain('linkId: "", publicUrl: "", createdOrderNumber: "", createdCustomerName: ""');
     expect(templatesRouteSource).toContain('tl.id AS "templateLinkId", tl.public_url AS "publicUrl", tl.status AS "linkStatus"');
     expect(templatesRouteSource).toContain('LEFT JOIN order_template_links tl');
+    expect(templatesRouteSource).toContain('canonicalOrderPublicUrl(item.publicUrl)');
   });
 });

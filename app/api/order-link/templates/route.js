@@ -1,6 +1,6 @@
 import { query, transaction } from "../../../../src/server/db.js";
 import { requireSession } from "../../../../src/server/session.js";
-import { normalizedTemplateInput } from "../../../../src/server/order-links.js";
+import { canonicalOrderPublicUrl, normalizedTemplateInput } from "../../../../src/server/order-links.js";
 
 export async function GET(req) {
   const auth = await requireSession(req);
@@ -19,7 +19,13 @@ export async function GET(req) {
         AND t.template_group='order_information' ORDER BY t.updated_at DESC LIMIT 1`,
     [auth.session.tenantId]
   );
-  return Response.json({ ok: true, items: result.rows });
+  return Response.json({
+    ok: true,
+    items: result.rows.map((item) => ({
+      ...item,
+      publicUrl: canonicalOrderPublicUrl(item.publicUrl)
+    }))
+  });
 }
 
 export async function POST(req) {
