@@ -48,11 +48,19 @@ describe("channel billing separation", () => {
     expect(whatsappTopupRoute).toContain("لا تبيع Renvix رصيد واتساب");
   });
 
-  it("keeps the plan catalog full-width without an embedded email-credit sales panel", () => {
+  it("adds separate email-credit and storage purchase tabs without embedding them in the plan catalog", () => {
     expect(appSource).not.toContain("function emailCreditPanel");
     expect(appSource).not.toContain('class="email-credit-packages"');
     expect(appSource).not.toContain('data-action="billing-tab" data-tab="topup"');
     expect(appSource).toContain('panel = `${overview}${trialNotice}${plansPanel}');
+    expect(appSource).toContain('["emailTopup", "شحن رسائل البريد", "email"]');
+    expect(appSource).toContain('["storageTopup", "شراء مساحة تخزينية", "archive"]');
+    expect(appSource).toContain("function emailCreditPurchasePanel");
+    expect(appSource).toContain("function storagePurchasePanel");
+    expect(appSource).toContain('billingPurchaseRequestUrl("email", messages)');
+    expect(appSource).toContain('billingPurchaseRequestUrl("storage", option.mb)');
+    expect(appSource).toContain('purchaseKind = ["email", "storage"]');
+    expect(appSource).toContain('option value="BILLING" ${purchaseSubject ? "selected" : ""}');
   });
 
   it("keeps commerce-connection billing data genuine", () => {

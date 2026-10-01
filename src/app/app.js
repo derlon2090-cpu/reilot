@@ -8436,6 +8436,36 @@ function billingInvoices(invoices = []) {
   return `<article class="card table-card billing-tab-panel"><div class="section-head"><div><h2>الفواتير</h2><p>لا تظهر إلا الفواتير الصادرة والمسجلة فعليًا.</p></div></div>${invoices.length ? simpleTable(["رقم الفاتورة", "التاريخ", "الوصف", "المبلغ", "الحالة"], invoices.map((invoice) => [invoice.number, invoice.date, invoice.description, formatMoney(invoice.amount), status(invoice.status)])) : emptyState("لا توجد فواتير بعد", "ستظهر الفواتير هنا بعد إتمام أول عملية دفع موثقة.")}</article>`;
 }
 
+function billingPurchaseRequestUrl(kind, quantity) {
+  const params = new URLSearchParams({ purchase: kind, quantity: String(quantity) });
+  return `/dashboard/support/new?${params.toString()}`;
+}
+
+function emailCreditPurchasePanel(emailUsage = {}) {
+  const unlimited = emailUsage?.unlimited === true || Number(emailUsage?.limit) === -1;
+  const rawRemaining = emailUsage?.remaining === null || emailUsage?.remaining === undefined ? Number.NaN : Number(emailUsage.remaining);
+  const remaining = unlimited ? "غير محدود" : Number.isFinite(rawRemaining) ? Math.max(0, rawRemaining).toLocaleString("ar-SA") : "—";
+  const packages = [1_000, 5_000, 10_000, 25_000];
+  return `<article class="card billing-addon-panel billing-tab-panel" data-addon="email">
+    <header class="billing-addon-header"><span class="billing-addon-icon">${dashboardIcon("email")}</span><div><small>إضافة مستقلة إلى باقتك</small><h2>شحن رسائل البريد</h2><p>اختر عدد الرسائل المطلوب، وسيصل طلبك إلى فريق الفوترة لتأكيد السعر وطريقة الدفع قبل إضافة الرصيد.</p></div><div class="billing-addon-current"><small>الرصيد الحالي</small><strong>${remaining}</strong><span>${unlimited ? "لا يحتاج إلى شحن" : "رسالة متبقية"}</span></div></header>
+    <div class="billing-addon-grid" aria-label="خيارات شحن رسائل البريد">${packages.map((messages) => `<article class="billing-addon-option"><span>${dashboardIcon("email")}</span><small>رصيد إضافي</small><strong>${messages.toLocaleString("ar-SA")}</strong><em>رسالة بريد</em><button class="btn btn-primary" data-link="${billingPurchaseRequestUrl("email", messages)}">طلب الشحن</button></article>`).join("")}</div>
+    <p class="billing-purchase-note">${dashboardIcon("security")} لا يتم أي خصم أو تعديل للرصيد قبل تأكيد السعر وطريقة الدفع من فريق الفوترة.</p>
+  </article>`;
+}
+
+function storagePurchasePanel(storageUsage = {}) {
+  const rawLimit = storageUsage?.limitMb === null || storageUsage?.limitMb === undefined ? Number.NaN : Number(storageUsage.limitMb);
+  const rawUsed = storageUsage?.usedMb === null || storageUsage?.usedMb === undefined ? Number.NaN : Number(storageUsage.usedMb);
+  const unlimited = rawLimit === -1;
+  const available = unlimited ? "غير محدود" : Number.isFinite(rawLimit) && Number.isFinite(rawUsed) ? storageAmountLabel(Math.max(0, rawLimit - rawUsed)) : "—";
+  const packages = [{ mb: 1_024, label: "1 GB" }, { mb: 5_120, label: "5 GB" }, { mb: 10_240, label: "10 GB" }, { mb: 25_600, label: "25 GB" }];
+  return `<article class="card billing-addon-panel billing-tab-panel" data-addon="storage">
+    <header class="billing-addon-header"><span class="billing-addon-icon">${dashboardIcon("archive")}</span><div><small>مساحة إضافية لحسابك</small><h2>شراء مساحة تخزينية</h2><p>وسّع مساحة المستندات والمرفقات مع الإبقاء على ملفاتك الحالية وإعدادات الصلاحيات كما هي.</p></div><div class="billing-addon-current"><small>المساحة المتاحة</small><strong>${escapeHtml(available)}</strong><span>${unlimited ? "ضمن باقتك الحالية" : "قبل الوصول إلى الحد"}</span></div></header>
+    <div class="billing-addon-grid" aria-label="خيارات شراء مساحة تخزينية">${packages.map((option) => `<article class="billing-addon-option"><span>${dashboardIcon("archive")}</span><small>مساحة إضافية</small><strong dir="ltr">${option.label}</strong><em>للمستندات والمرفقات</em><button class="btn btn-primary" data-link="${billingPurchaseRequestUrl("storage", option.mb)}">طلب الشراء</button></article>`).join("")}</div>
+    <p class="billing-purchase-note">${dashboardIcon("security")} يراجع فريق الفوترة الطلب ويؤكد السعر وطريقة الدفع قبل تفعيل المساحة الإضافية.</p>
+  </article>`;
+}
+
 function billingWorkspacePage() {
   if (state.billingOverview === null || state.messageUsage === null) {
     return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">جاري تحميل بيانات خطتك واستخدامك الموثق...</p><div class="card loading-state" role="status" aria-live="polite">جاري مزامنة بيانات الفوترة</div>`);
@@ -8459,7 +8489,7 @@ function billingWorkspacePage() {
   const trialExpired = trialPlan && (statusKey === "expired" || (statusKey === "trial" && days === 0));
   const paidExpired = !trialPlan && statusKey === "expired";
   const invoices = data.invoices || [];
-  const tab = ["overview", "plans", "whatsapp", "email", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
+  const tab = ["overview", "plans", "whatsapp", "email", "emailTopup", "storageTopup", "invoices"].includes(state.billingTab) ? state.billingTab : "overview";
   const numberOrNull = (value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
   const valueText = (value, suffix = "") => numberOrNull(value) === null ? "—" : `${numberOrNull(value).toLocaleString("ar-SA")}${suffix}`;
   const usedEmail = numberOrNull(emailUsage?.used);
@@ -8476,7 +8506,8 @@ function billingWorkspacePage() {
   const planLabel = trialActive || trialExpired ? "التجربة المجانية" : current.planName || "—";
   const tabs = [
     ["overview", "نظرة عامة", "home"], ["plans", "الباقات", "publicPlans"], ["whatsapp", "استخدام واتساب", "whatsapp"],
-    ["email", "استخدام البريد", "email"], ["invoices", "الفواتير", "document"]
+    ["email", "استخدام البريد", "email"], ["emailTopup", "شحن رسائل البريد", "email"],
+    ["storageTopup", "شراء مساحة تخزينية", "archive"], ["invoices", "الفواتير", "document"]
   ];
   const overview = `<section class="billing-stats-grid">
     <article class="card billing-stat"><span>${dashboardIcon("subscriptions")}</span><div><small>الخطة الحالية</small><strong>${escapeHtml(planLabel)}</strong><em>${statusLabel}</em></div></article>
@@ -8499,6 +8530,8 @@ function billingWorkspacePage() {
   if (tab === "plans") panel = `${trialNotice}${plansPanel}`;
   if (tab === "whatsapp") panel = whatsapp ? `<section class="billing-tab-panel">${whatsappBillingCard(whatsapp, true)}</section>` : emptyState("بيانات استخدام واتساب غير متاحة", "لم نعرض رقمًا تقديريًا بدل البيانات الفعلية.");
   if (tab === "email") panel = `<section class="billing-tab-panel">${emailBillingCard(usage)}</section>`;
+  if (tab === "emailTopup") panel = emailCreditPurchasePanel(emailUsage);
+  if (tab === "storageTopup") panel = storagePurchasePanel(accountStorage);
   if (tab === "invoices") panel = billingInvoices(invoices);
   return dashboardShell(`${pageTitle("الفوترة والباقات")}<p class="page-kicker">إدارة خطتك ورصيد البريد والفواتير، مع عرض استخدام واتساب المتزامن من Meta.</p>
     <nav class="billing-tabs dashboard-line-tabs" aria-label="أقسام الفوترة">${tabs.map(([key, label, icon]) => `<button class="${tab === key ? "active" : ""}" data-action="billing-tab" data-tab="${key}" aria-current="${tab === key ? "page" : "false"}"><span class="dashboard-line-tab-icon">${dashboardIcon(icon)}</span><span>${label}</span></button>`).join("")}</nav>${panel}`);
@@ -15709,9 +15742,16 @@ function supportHomePage() {
 
 function supportNewTicketPage() {
   const email = state.dashboardOverview?.profile?.email || state.accountSettings?.profile?.email || "";
+  const purchaseKind = ["email", "storage"].includes(state.query.get("purchase")) ? state.query.get("purchase") : "";
+  const quantity = Number(state.query.get("quantity"));
+  const allowedQuantities = purchaseKind === "email" ? [1_000, 5_000, 10_000, 25_000] : purchaseKind === "storage" ? [1_024, 5_120, 10_240, 25_600] : [];
+  const validQuantity = allowedQuantities.includes(quantity) ? quantity : null;
+  const purchaseSubject = validQuantity ? purchaseKind === "email" ? `طلب شحن ${quantity.toLocaleString("ar-SA")} رسالة بريد` : `طلب شراء مساحة تخزينية ${storageAmountLabel(quantity)}` : "";
+  const purchaseBody = purchaseSubject ? `أرغب في ${purchaseSubject.replace(/^طلب /, "")}.\nيرجى تزويدي بالسعر النهائي وطريقة الدفع قبل تنفيذ الطلب.` : "";
   return `<section class="rvx-support-suite rvx-new-ticket">${supportSuiteHeader("أرسل لنا رسالة", "أرسل تفاصيل رسالتك وسنرد عليك في أقرب وقت ممكن.", "send")}
+    ${purchaseSubject ? `<aside class="rvx-purchase-prefill">${dashboardIcon("billing")}<div><strong>تم تجهيز طلب الشراء</strong><span>راجع الكمية والتفاصيل ثم أرسل الطلب إلى فريق الفوترة.</span></div></aside>` : ""}
     <div class="rvx-ticket-form-layout"><aside><div class="rvx-info-card"><h2>${dashboardIcon("info")} معلومات تهمك</h2>${[["وقت الاستجابة","نرد على معظم الرسائل خلال 24 ساعة عمل","clock"],["دعم آمن وموثوق","رسائلك ومعلوماتك محفوظة وآمنة بالكامل","security"],["دعم باللغة العربية","فريق Renvix متاح لمساعدتك طوال أيام الأسبوع","message"]].map(([title,body,icon]) => `<article><span>${dashboardIcon(icon)}</span><div><strong>${title}</strong><p>${body}</p></div></article>`).join("")}</div><div class="rvx-help-note">للحصول على إجابة فورية، جرّب <button data-link="/dashboard/support/ai">ذكاء Renvix الشامل</button></div></aside>
-      <section class="rvx-ticket-form-card"><form data-submit="support-ticket"><label class="wide"><span>البريد الإلكتروني المسجل *</span><div>${dashboardIcon("email")}<input value="${escapeHtml(email)}" readonly placeholder="بريد حسابك المسجل"></div></label><label><span>تصنيف الرسالة *</span><select name="type" required><option value="">اختر تصنيف الرسالة</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="BILLING">الفوترة والباقات</option><option value="ACCOUNT">الحساب</option><option value="SUGGESTION">اقتراح</option><option value="INQUIRY">استفسار عام</option></select></label><label><span>الأولوية *</span><select name="priority" required><option value="NORMAL">متوسطة</option><option value="LOW">منخفضة</option><option value="HIGH">عالية</option><option value="URGENT">عاجلة</option></select></label><label class="wide"><span>الموضوع *</span><div>${dashboardIcon("document")}<input name="subject" minlength="5" maxlength="150" required placeholder="أدخل موضوع الرسالة"></div></label><label class="wide"><span>تفاصيل الرسالة *</span><textarea name="body" minlength="10" maxlength="2000" required placeholder="يرجى وصف استفسارك أو المشكلة التي تواجهها بالتفصيل..."></textarea></label><label class="wide rvx-file-drop">${dashboardIcon("upload")}<strong>اسحب وأفلت الملفات هنا أو <u>اختر ملفًا من جهازك</u></strong><small>PDF, PNG, JPG, TXT — حتى 10MB لكل ملف</small><input name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.log"></label><button class="rvx-primary-action wide" type="submit">إرسال الرسالة ${dashboardIcon("send")}</button></form></section></div>
+      <section class="rvx-ticket-form-card"><form data-submit="support-ticket"><label class="wide"><span>البريد الإلكتروني المسجل *</span><div>${dashboardIcon("email")}<input value="${escapeHtml(email)}" readonly placeholder="بريد حسابك المسجل"></div></label><label><span>تصنيف الرسالة *</span><select name="type" required><option value="">اختر تصنيف الرسالة</option><option value="TECHNICAL_ISSUE">مشكلة تقنية</option><option value="INTEGRATION">التكاملات وربط القنوات</option><option value="BILLING" ${purchaseSubject ? "selected" : ""}>الفوترة والباقات</option><option value="ACCOUNT">الحساب</option><option value="SUGGESTION">اقتراح</option><option value="INQUIRY">استفسار عام</option></select></label><label><span>الأولوية *</span><select name="priority" required><option value="NORMAL">متوسطة</option><option value="LOW">منخفضة</option><option value="HIGH">عالية</option><option value="URGENT">عاجلة</option></select></label><label class="wide"><span>الموضوع *</span><div>${dashboardIcon("document")}<input name="subject" minlength="5" maxlength="150" required value="${escapeHtml(purchaseSubject)}" placeholder="أدخل موضوع الرسالة"></div></label><label class="wide"><span>تفاصيل الرسالة *</span><textarea name="body" minlength="10" maxlength="2000" required placeholder="يرجى وصف استفسارك أو المشكلة التي تواجهها بالتفصيل...">${escapeHtml(purchaseBody)}</textarea></label><label class="wide rvx-file-drop">${dashboardIcon("upload")}<strong>اسحب وأفلت الملفات هنا أو <u>اختر ملفًا من جهازك</u></strong><small>PDF, PNG, JPG, TXT — حتى 10MB لكل ملف</small><input name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.log"></label><button class="rvx-primary-action wide" type="submit">إرسال الرسالة ${dashboardIcon("send")}</button></form></section></div>
   </section>`;
 }
 
