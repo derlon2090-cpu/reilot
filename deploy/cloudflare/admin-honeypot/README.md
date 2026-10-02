@@ -1,10 +1,12 @@
 # Renvix admin honeypot
 
-Optional stronger IP containment is now available with EDGE_AUTO_BLOCK and
-the internal EdgeBan Durable Object. See `../../security/HARDENED-DEPLOYMENT.md`
-for rollout and account-wide impact. The device-only behavior described below
-is the default when that explicit option is false; enabling it blocks an IP
-after two external page requests in 60 seconds for seven days across the account.
+Every external request checks both its trusted Cloudflare source IP and signed
+device marker against the central block registry. High-confidence extraction
+paths are denied on their first request and create a permanent device block plus
+a seven-day IP block. Sources that rotate or discard device cookies are contained
+after sustained multi-path scanning. Optional account-wide Cloudflare containment
+remains available with `EDGE_AUTO_BLOCK`; see
+`../../security/HARDENED-DEPLOYMENT.md` for its wider blast radius.
 
 This Cloudflare Worker is isolated from the real Renvix application and admin
 deployment. It serves a self-contained administrative session-check shell and sends bounded,
@@ -32,11 +34,12 @@ session can cause the browser to receive a new ID. Every request carrying a
 valid signed ID is checked against active blocks before the decoy is served.
 Surface discovery remains bounded telemetry. Config/runtime probes receive
 synthetic artifacts containing no secrets and a short-lived, device-bound HMAC
-canary link. Deep extraction paths request device containment; following a
-valid canary produces a high-confidence progression signal. Later requests
-carrying an actively blocked signed ID receive a professional block notice and
-a support-review reference. IP blocking is optional and disabled by default
-because shared IPs can belong to unrelated users. See
+canary link. Deep extraction paths are denied immediately; following a valid
+canary produces a high-confidence progression signal. Later requests matching
+an active device or IP block receive a professional block notice and a
+support-review reference. The central seven-day IP block is risk-qualified;
+account-wide Cloudflare IP blocking remains optional because shared IPs can
+belong to unrelated users. See
 `../../../docs/security/honeypot-defense-architecture.md` for the complete
 stage model, failure modes, rollout gates, and rollback.
 
@@ -55,13 +58,16 @@ Deployment requirements:
    and set the same server-only value on the ingestion service.
    Keep `SECURITY_INGESTION_URL` on the Render backend origin
    (`https://api.renvix.app/api/security/ingest/honeypot`).
+   Set an independent 32+ byte `SECURITY_BLOCK_PEPPER` on the API; automatic
+   device/IP blocks intentionally cannot be persisted without it.
 4. Keep Cloudflare WAF and zone rate limits enabled. The binding in
    `wrangler.toml` is an additional Worker-local guard.
 5. Never add real Renvix application assets, analytics, cookies, redirects, or
    the real administration hostname to this Worker.
 
-Ordinary paths return the decoy shell; reserved config, log, archive, repository,
-and canary paths return bounded synthetic artifacts. The client script and
+Ordinary paths return the decoy shell; config/runtime probes return bounded
+synthetic artifacts, while extraction and canary paths return 403 after their
+event is recorded. The client script and
 telemetry endpoint are same-origin Worker routes. The signed internal probe at
 `/.well-known/renvix-security-probe` now verifies the complete Worker → API
 signature and network path without creating a security incident.

@@ -49,16 +49,16 @@ describe("security containment contract", () => {
     expect(blockCheck).toContain("honeypotDeviceToken");
   });
 
-  it("automatically contains the signed honeypot ID without automatically blocking its IP", () => {
+  it("automatically contains deep extraction by signed device and temporary IP scope", () => {
     const center = read("src/server/security-center.js");
     const worker = read("deploy/cloudflare/admin-honeypot/src/worker.js");
     const page = read("deploy/cloudflare/admin-honeypot/src/page.js");
     expect(worker).toContain("auto_block_device");
-    expect(center).toContain("automatic_device_containment");
-    expect(center).toContain("تقدم عميق داخل ملفات الطُعم — عزل وقائي آلي");
-    expect(center).toContain('securityTargetHash("device", input.honeypotDeviceId)');
+    expect(center).toContain("`automatic_${target.type}_containment`");
+    expect(center).toContain("عزل وقائي آلي لنشاط الفخ الأمني");
+    expect(center).toContain('type: "device", value: input.honeypotDeviceId');
+    expect(center).toContain('type: "ip", value: input.sourceIp');
     expect(page).toContain("/__renvix/pixel.gif");
     expect(page).not.toContain("<form");
-    expect(center).not.toContain('securityTargetHash("ip", input.sourceIp)');
   });
 });

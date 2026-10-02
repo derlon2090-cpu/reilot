@@ -11,8 +11,9 @@ export const SECURITY_RETENTION_DAYS = 90;
 const SECURITY_SEVERITY_RANK = Object.freeze({ INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 });
 
 export function incidentAlertMode(incident) {
+  if (['HIGH', 'CRITICAL'].includes(incident?.severity)) return 'immediate';
   if (incident?.incident_type === 'ADMIN_HONEYPOT_ACCESS') return 'digest';
-  return ['HIGH', 'CRITICAL'].includes(incident?.severity) ? 'immediate' : 'none';
+  return 'none';
 }
 
 const REDACTED = "[redacted]";
@@ -226,6 +227,20 @@ export function calculateThreatScore({
   return clamp(score, 0, 100);
 }
 
+export function honeypotContainmentPolicy({
+  trapStage = 0, canaryValidated = false, riskScore = 0, attempts24h = 1,
+  distinctPaths24h = 1, rateLimited = false
+} = {}) {
+  const deepExtraction = Number(trapStage) >= 2 || canaryValidated === true;
+  const sustainedScanner = Number(attempts24h) >= 5 && Number(distinctPaths24h) >= 2;
+  const abusiveVolume = Number(attempts24h) >= 10 || rateLimited === true;
+  return {
+    blockDevice: deepExtraction,
+    blockIp: deepExtraction || Number(riskScore) >= 50 || sustainedScanner || abusiveVolume,
+    reason: deepExtraction ? "deep_extraction" : abusiveVolume ? "abusive_volume" : sustainedScanner ? "sustained_scanner" : Number(riskScore) >= 50 ? "high_risk" : "observe"
+  };
+}
+
 export function parseUserAgent(userAgent = "", clientHints = {}) {
   const ua = cleanText(userAgent, 700);
   const browserMatch = ua.match(/(?:Edg|Edge)\/([\d.]+)/) || ua.match(/Chrome\/([\d.]+)/)
@@ -343,26 +358,35 @@ export function incidentAlertDedupeKey(incident, recipient) {
 
 async function queueIncidentAlerts(client, incident) {
   if (incidentAlertMode(incident) !== 'immediate') return;
-  // Decoy-only reconnaissance remains visible in the incident ledger and the
-  // daily digest. It must not page operators per request or severity change.
+  // The key includes the incident and severity, so repeated signals remain
+  // grouped without suppressing a genuine HIGH/CRITICAL escalation.
   const recipients = await client.query(
     `SELECT DISTINCT u.email FROM admin_users au JOIN users u ON u.id=au.user_id
       WHERE au.status='active' AND au.role IN ('super_admin','security_admin') AND u.email IS NOT NULL`
   );
   const configured = String(process.env.SECURITY_ALERT_RECIPIENTS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
-  const emails = [...new Set([...recipients.rows.map((row) => row.email), ...configured])];
+  const emails = [...new Set([
+    ...recipients.rows.map((row) => String(row.email || "").trim().toLowerCase()).filter(Boolean),
+    ...configured
+  ])];
   for (const email of emails) {
     const recipient = cleanText(email, 254);
     await client.query(
       `INSERT INTO security_alert_deliveries (incident_id,channel,recipient,severity,dedupe_key)
-       VALUES ($1,'email',$2,$3,$4) ON CONFLICT (dedupe_key) DO NOTHING`,
+       VALUES ($1,'email',$2,$3,$4)
+       ON CONFLICT (dedupe_key) DO UPDATE
+         SET status='pending',attempts=0,available_at=now(),failure_code=NULL
+       WHERE security_alert_deliveries.status='skipped'`,
       [incident.id, recipient, incident.severity, incidentAlertDedupeKey(incident, recipient)]
     );
   }
   if (incident.severity === 'CRITICAL' && process.env.SECURITY_CRITICAL_WEBHOOK_URL) {
     await client.query(
       `INSERT INTO security_alert_deliveries (incident_id,channel,recipient,severity,dedupe_key)
-       VALUES ($1,'secondary_webhook','configured','CRITICAL',$2) ON CONFLICT (dedupe_key) DO NOTHING`,
+       VALUES ($1,'secondary_webhook','configured','CRITICAL',$2)
+       ON CONFLICT (dedupe_key) DO UPDATE
+         SET status='pending',attempts=0,available_at=now(),failure_code=NULL
+       WHERE security_alert_deliveries.status='skipped'`,
       [incident.id, `${incident.id}:secondary:CRITICAL`]
     );
   }
@@ -414,10 +438,19 @@ export async function ingestHoneypotEvent(rawInput) {
     // Serialize correlation for a source. A row lock cannot protect the
     // first event because there is no incident row to lock yet.
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`security-source:${sourceKey}`]);
+    if (input.honeypotDeviceId) {
+      // A signed pseudonymous device marker is stronger than a mutable IP for
+      // correlation. Lock it as well to prevent parallel IPs creating twins.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`honeypot-device:${input.honeypotDeviceId}`]);
+    }
     const recent = await client.query(
-      `SELECT count(*)::int AS attempts,count(DISTINCT requested_path)::int AS "distinctPaths",
-              bool_or(requested_path=$2) AS "pathSeen",array_agg(DISTINCT event_type) AS "eventTypes"
-         FROM security_source_events WHERE source_key=$1 AND last_seen > now()-interval '15 minutes'`,
+      `SELECT count(*) FILTER (WHERE last_seen>now()-interval '15 minutes')::int AS attempts,
+              count(DISTINCT requested_path) FILTER (WHERE last_seen>now()-interval '15 minutes')::int AS "distinctPaths",
+              bool_or(requested_path=$2 AND last_seen>now()-interval '15 minutes') AS "pathSeen",
+              bool_or(requested_path=$2) AS "pathSeen24h",
+              array_agg(DISTINCT event_type) FILTER (WHERE last_seen>now()-interval '15 minutes') AS "eventTypes",
+              count(*)::int AS "attempts24h",count(DISTINCT requested_path)::int AS "distinctPaths24h"
+         FROM security_source_events WHERE source_key=$1 AND last_seen > now()-interval '24 hours'`,
       [sourceKey, input.requestedPath]
     );
     const facts = recent.rows[0] || {};
@@ -433,17 +466,29 @@ export async function ingestHoneypotEvent(rawInput) {
       trapStage: input.trapStage,
       canaryValidated: input.canaryValidated
     });
-    // Only deep-file progression requests preventive containment of the signed
-    // pseudonymous ID. Surface discovery remains telemetry-only where listed.
-    const riskScore = telemetryOnly ? 10 : input.autoBlockDevice ? Math.max(calculatedRiskScore, 25) : calculatedRiskScore;
+    const attempts24h = Number(facts.attempts24h || 0) + 1;
+    const distinctPaths24h = Number(facts.distinctPaths24h || 0) + (facts.pathSeen24h ? 0 : 1);
+    const preliminaryContainment = honeypotContainmentPolicy({
+      trapStage: input.trapStage, canaryValidated: input.canaryValidated,
+      riskScore: calculatedRiskScore, attempts24h, distinctPaths24h, rateLimited: input.rateLimited
+    });
+    // Preserve low-noise telemetry, but guarantee an incident exists whenever
+    // an automatic containment decision must be auditable.
+    const riskScore = telemetryOnly && !preliminaryContainment.blockIp
+      ? 10
+      : (input.autoBlockDevice || preliminaryContainment.blockIp) ? Math.max(calculatedRiskScore, 25) : calculatedRiskScore;
     const severity = severityForRisk(riskScore);
+    const containment = honeypotContainmentPolicy({
+      trapStage: input.trapStage, canaryValidated: input.canaryValidated,
+      riskScore, attempts24h, distinctPaths24h, rateLimited: input.rateLimited
+    });
     const classification = telemetryOnly ? "LOW/TELEMETRY"
       : input.canaryValidated ? "HIGH/DEEP_CANARY"
         : input.trapStage >= 2 ? "DEEP_FILE_ACCESS" : "STANDARD";
     const safeEvidence = redactSecurityValue({
       requestedPath: input.requestedPath, method: input.method, country: input.country,
       asn: input.asn, deviceClass: input.deviceClass, browser: input.browser, os: input.os,
-      attempts, distinctPaths, cfRayId: input.cfRayId,
+      attempts, distinctPaths, attempts24h, distinctPaths24h, cfRayId: input.cfRayId,
       clientSignal: input.telemetry?.kind || "http_request",
       honeypotDeviceId: input.honeypotDeviceId || null,
       automaticDeviceContainment: input.autoBlockDevice,
@@ -455,10 +500,14 @@ export async function ingestHoneypotEvent(rawInput) {
       interaction: input.telemetry?.interaction || null
     });
     const existingIncident = await client.query(
-      `SELECT * FROM security_incidents WHERE source_key=$1
-        AND status IN ('Open','Investigating','Mitigated') AND last_seen>now()-interval '24 hours'
-        ORDER BY last_seen DESC LIMIT 1 FOR UPDATE`,
-      [sourceKey]
+      `SELECT si.* FROM security_incidents si WHERE
+        (si.source_key=$1 OR ($2::text<>'' AND EXISTS (
+          SELECT 1 FROM security_source_events linked
+          WHERE linked.incident_id=si.id AND linked.metadata->>'honeypotDeviceId'=$2
+        )))
+        AND si.status IN ('Open','Investigating','Mitigated') AND si.last_seen>now()-interval '24 hours'
+        ORDER BY si.last_seen DESC LIMIT 1 FOR UPDATE`,
+      [sourceKey, input.honeypotDeviceId]
     );
     let incident = existingIncident.rows[0] || null;
     if (incident) {
@@ -511,36 +560,44 @@ export async function ingestHoneypotEvent(rawInput) {
           realtimeNotificationsSuppressed: telemetryOnly
         })]
     );
-    let automaticBlock = null;
-    if (input.autoBlockDevice && input.honeypotDeviceId && incident) {
-      const targetHash = securityTargetHash("device", input.honeypotDeviceId);
-      if (targetHash) {
-        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`honeypot-device-block:${targetHash}`]);
-        const activeBlock = await client.query(
-          `SELECT * FROM security_blocks WHERE target_type='device' AND target_hash=$1 AND revoked_at IS NULL
-            AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
-          [targetHash]
-        );
-        automaticBlock = activeBlock.rows[0] || null;
-        if (!automaticBlock) {
-          automaticBlock = (await client.query(
-            `INSERT INTO security_blocks
-              (target_type,target_hash,target_label,reason,severity,blocked_by,expires_at,incident_id,metadata)
-             VALUES ('device',$1,$2,$3,$4,NULL,NULL,$5,$6::jsonb) RETURNING *`,
-            [targetHash, input.honeypotDeviceId, "تقدم عميق داخل ملفات الطُعم — عزل وقائي آلي",
-              incident.severity, incident.id, JSON.stringify({
-                automated: true, source: "admin_honeypot", trapStage: input.trapStage,
-                trapFamily: input.trapFamily, canaryValidated: input.canaryValidated
-              })]
-          )).rows[0];
-          await appendIncidentEvent(client, incident.id, "automatic_device_containment", {
-            referenceId: automaticBlock.reference_id,
-            honeypotDeviceId: input.honeypotDeviceId,
-            scope: "device",
-            duration: "permanent"
-          }, { type: "worker" });
-        }
+    const automaticBlocks = [];
+    const containmentTargets = [
+      ...(containment.blockDevice && input.honeypotDeviceId ? [{ type: "device", value: input.honeypotDeviceId, expiresAt: null }] : []),
+      ...(containment.blockIp && isIP(input.sourceIp) ? [{ type: "ip", value: input.sourceIp, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }] : [])
+    ];
+    for (const target of incident ? containmentTargets : []) {
+      const targetHash = securityTargetHash(target.type, target.value);
+      if (!targetHash) continue;
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`honeypot-${target.type}-block:${targetHash}`]);
+      const active = await client.query(
+        `SELECT * FROM security_blocks WHERE target_type=$1 AND target_hash=$2 AND revoked_at IS NULL
+          AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+        [target.type, targetHash]
+      );
+      let block = active.rows[0] || null;
+      if (block && target.expiresAt && block.expires_at) {
+        block = (await client.query(
+          `UPDATE security_blocks SET expires_at=GREATEST(expires_at,$2),severity=$3,incident_id=$4,
+                  reason=$5,metadata=metadata||$6::jsonb WHERE id=$1 RETURNING *`,
+          [block.id, target.expiresAt, incident.severity, incident.id, "عزل وقائي آلي لنشاط الفخ الأمني",
+            JSON.stringify({ lastAutomaticReason: containment.reason })]
+        )).rows[0];
+      } else if (!block) {
+        block = (await client.query(
+          `INSERT INTO security_blocks
+            (target_type,target_hash,target_label,reason,severity,blocked_by,expires_at,incident_id,metadata)
+           VALUES ($1,$2,$3,$4,$5,NULL,$6,$7,$8::jsonb) RETURNING *`,
+          [target.type, targetHash, target.value, "عزل وقائي آلي لنشاط الفخ الأمني", incident.severity,
+            target.expiresAt, incident.id, JSON.stringify({ automated: true, source: "admin_honeypot",
+              policyReason: containment.reason, trapStage: input.trapStage, trapFamily: input.trapFamily,
+              canaryValidated: input.canaryValidated })]
+        )).rows[0];
+        await appendIncidentEvent(client, incident.id, `automatic_${target.type}_containment`, {
+          referenceId: block.reference_id, scope: target.type,
+          duration: target.expiresAt ? "7_days" : "permanent", policyReason: containment.reason
+        }, { type: "worker" });
       }
+      if (block) automaticBlocks.push(block);
     }
     const finding = await client.query(
       `INSERT INTO security_findings
@@ -562,7 +619,7 @@ export async function ingestHoneypotEvent(rawInput) {
         classification,
         trapStage: input.trapStage,
         canaryValidated: input.canaryValidated,
-        automaticBlockReference: automaticBlock?.reference_id || null
+          automaticBlockReferences: automaticBlocks.map((block) => block.reference_id)
       }
     });
     const mitigation = await client.query(
@@ -576,11 +633,12 @@ export async function ingestHoneypotEvent(rawInput) {
       riskScore, severity, classification,
       realtimeNotificationsSuppressed: telemetryOnly,
       mitigation: mitigation.rows[0] || null,
-      automaticBlockReference: automaticBlock?.reference_id || null
+      automaticBlockReference: automaticBlocks[0]?.reference_id || null,
+      automaticBlockReferences: automaticBlocks.map((block) => block.reference_id)
     };
   });
-  // The ingest route's generic queue drain remains safe: decoy incidents do
-  // not create immediate email/webhook deliveries.
+  // HIGH/CRITICAL incidents are drained immediately; lower-confidence decoy
+  // activity remains in the bounded daily digest.
   await dispatchIncidentAlertsImmediately(outcome);
   return outcome;
 }
@@ -1142,6 +1200,19 @@ async function dispatchIncidentAlertsImmediately(outcome) {
 
 export async function processSecurityAlerts({ limit = 20, incidentId = null } = {}) {
   const rows = await transaction(async (client) => {
+    // Reconcile severe open incidents before claiming deliveries. This repairs
+    // incidents created while alerting was disabled and revives rows that an
+    // older digest-only policy marked as skipped.
+    const unqueued = await client.query(
+      `SELECT * FROM security_incidents
+        WHERE status IN ('Open','Investigating','Mitigated')
+          AND severity IN ('HIGH','CRITICAL')
+          AND last_seen>now()-interval '7 days'
+          AND ($1::uuid IS NULL OR id=$1)
+        ORDER BY last_seen DESC LIMIT 50 FOR UPDATE`,
+      [incidentId || null]
+    );
+    for (const incident of unqueued.rows) await queueIncidentAlerts(client, incident);
     const selected = await client.query(
       `SELECT sad.*,si.incident_number,si.title,si.risk_score,si.affected_service,si.first_seen,
               si.occurrence_count,se.source_ip,se.country,se.region,se.city_approx,se.asn,se.browser,se.os,
@@ -1149,7 +1220,7 @@ export async function processSecurityAlerts({ limit = 20, incidentId = null } = 
          FROM security_alert_deliveries sad JOIN security_incidents si ON si.id=sad.incident_id
          LEFT JOIN LATERAL (SELECT source_ip,country,region,city_approx,asn,browser,os,device_class,requested_path FROM security_source_events x
            WHERE x.incident_id=si.id ORDER BY x.last_seen DESC LIMIT 1) se ON true
-        WHERE sad.status IN ('pending','failed') AND si.incident_type <> 'ADMIN_HONEYPOT_ACCESS'
+        WHERE sad.status IN ('pending','failed')
           AND sad.available_at<=now() AND sad.attempts<3
           AND ($2::uuid IS NULL OR sad.incident_id=$2)
         ORDER BY sad.created_at FOR UPDATE OF sad SKIP LOCKED LIMIT $1`,

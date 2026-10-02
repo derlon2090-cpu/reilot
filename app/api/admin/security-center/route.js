@@ -27,7 +27,7 @@ export async function GET(request) {
     query(`SELECT COALESCE(requested_path,'/') AS label,count(*)::int AS count FROM security_source_events
             WHERE event_type='ADMIN_HONEYPOT_ACCESS' AND last_seen>now()-interval '7 days' GROUP BY requested_path ORDER BY count DESC LIMIT 8`),
     query(`SELECT se.event_id AS id,se.last_seen AS time,se.severity,se.risk_score AS "riskScore",se.source_ip AS ip,
-                  concat_ws('، ',se.country,se.city_approx) AS location,se.device_class AS device,se.browser,se.os,
+                  COALESCE(NULLIF(concat_ws('، ',se.country,se.city_approx),''),'غير متاح') AS location,se.device_class AS device,se.browser,se.os,
                   se.requested_path AS path,se.method,se.metadata->'clientTelemetry' AS telemetry,
                   se.metadata->>'honeypotDeviceId' AS "honeypotDeviceId",
                   se.metadata->>'deviceFingerprint' AS "deviceFingerprint",

@@ -25,10 +25,17 @@ function runtime() {
   };
 }
 
+function ingestionCalls(fetchSpy: ReturnType<typeof vi.spyOn>) {
+  return fetchSpy.mock.calls.filter(([target]) => String(target).includes("/api/security/ingest/honeypot"));
+}
+
 describe("isolated admin honeypot", () => {
   it("uses an explicit four-stage trap catalog and expiring device-bound canaries", async () => {
     expect(classifyTrapPath("/")).toMatchObject({ stage: 0, family: "surface_discovery" });
     expect(classifyTrapPath("/.env.live")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/production/.env")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/wp-json/gravitysmtp/v1/tests/mock-data")).toMatchObject({ stage: 1, family: "framework_probe" });
+    expect(classifyTrapPath("/credentials.json")).toMatchObject({ stage: 2, family: "credential_extraction" });
     expect(classifyTrapPath("/storage/logs/laravel.log")).toMatchObject({ stage: 2, family: "log_extraction" });
     expect(classifyTrapPath("/_internal/archive/manifest.json")).toMatchObject({ stage: 3, family: "deep_canary" });
     const secret = "deep-canary-test-secret-with-32-bytes";
@@ -65,7 +72,7 @@ describe("isolated admin honeypot", () => {
         expect(body).toBe(referenceBody);
       }
       await Promise.all(pending);
-      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(ingestionCalls(fetchSpy)).toHaveLength(4);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -153,7 +160,7 @@ describe("isolated admin honeypot", () => {
       }), env, context);
       expect(shallow.status).toBe(200);
       await Promise.all(pending);
-      const shallowEvent = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      const shallowEvent = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
       expect(shallowEvent.auto_block_device).toBe(false);
       expect(shallowEvent.trap_stage).toBe(0);
 
@@ -161,11 +168,11 @@ describe("isolated admin honeypot", () => {
       const deep = await honeypotWorker.fetch(new Request("https://admin.renvix.app/storage/logs/laravel.log", {
         headers: { "cf-connecting-ip": "203.0.113.12", "user-agent": "test-agent" }
       }), env, context);
-      expect(deep.status).toBe(200);
-      expect(deep.headers.get("content-type")).toContain("text/plain");
-      expect(await deep.text()).toContain("credentials\":\"redacted");
+      expect(deep.status).toBe(403);
+      expect(deep.headers.get("content-type")).toContain("text/html");
+      expect(await deep.text()).toContain("تم حظر الوصول");
       await Promise.all(pending);
-      const deepEvent = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      const deepEvent = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
       expect(deepEvent.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
       expect(deepEvent.auto_block_device).toBe(true);
       expect(deepEvent).toMatchObject({ trap_stage: 2, trap_family: "log_extraction", deep_file_access: true });
@@ -198,8 +205,8 @@ describe("isolated admin honeypot", () => {
       const deep = await honeypotWorker.fetch(new Request(`https://admin.renvix.app${link}`, {
         headers: { cookie, "cf-connecting-ip": "203.0.113.40", "user-agent": "test-agent" }
       }), env, context);
-      expect(deep.status).toBe(200);
-      expect(await deep.json()).toMatchObject({ state: "sealed", data: [] });
+      expect(deep.status).toBe(403);
+      expect(await deep.text()).toContain("تم حظر الوصول");
       await Promise.all(pending);
       const ingestionCall = fetchSpy.mock.calls.find(([target]) => String(target).includes("/api/security/ingest/honeypot"));
       const event = JSON.parse(String(ingestionCall?.[1]?.body));
@@ -227,7 +234,10 @@ describe("isolated admin honeypot", () => {
       fetchSpy.mockClear();
       fetchSpy.mockImplementation(async (url, init) => {
         expect(String(url)).toBe("https://api.renvix.app/api/security/block-check");
-        expect(JSON.parse(String(init?.body))).toEqual({ honeypotDeviceId: deviceId });
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          sourceIp: "203.0.113.10", honeypotDeviceId: deviceId,
+          requestedHost: "admin.renvix.app", requestedPath: "/login", method: "GET"
+        });
         expect(new Headers(init?.headers).get("x-security-signature")).toMatch(/^[a-f0-9]{64}$/);
         return new Response(JSON.stringify({ ok: true, blocked: true, referenceId: "SEC-DEVICE-1" }), {
           status: 200, headers: { "content-type": "application/json" }

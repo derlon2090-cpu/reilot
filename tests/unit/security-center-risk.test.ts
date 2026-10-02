@@ -1,8 +1,10 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateThreatScore, incidentAlertDedupeKey, incidentAlertMode, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
-  honeypotDeviceFingerprint, isRoutineScannerTelemetryPath, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
+  honeypotContainmentPolicy, honeypotDeviceFingerprint, isRoutineScannerTelemetryPath, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
   verifyHoneypotDeviceToken, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
@@ -16,8 +18,10 @@ describe("security center risk and privacy policy", () => {
     expect(severityForRisk(score)).toBe("LOW");
   });
 
-  it("keeps honeypot alerts in a digest while paging for a real production incident", () => {
-    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'CRITICAL' })).toBe('digest');
+  it("pages severe honeypot incidents while keeping low-confidence activity in the digest", () => {
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'CRITICAL' })).toBe('immediate');
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'HIGH' })).toBe('immediate');
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'MEDIUM' })).toBe('digest');
     expect(incidentAlertMode({ incident_type: 'ORIGIN_INTRUSION', severity: 'HIGH' })).toBe('immediate');
   });
 
@@ -52,10 +56,24 @@ describe("security center risk and privacy policy", () => {
     }))).toBe("MEDIUM");
   });
 
+  it("contains deep extraction immediately and persistent scanners across rotating device IDs", () => {
+    expect(honeypotContainmentPolicy({ trapStage: 2, attempts24h: 1 })).toMatchObject({ blockDevice: true, blockIp: true });
+    expect(honeypotContainmentPolicy({ trapStage: 0, attempts24h: 5, distinctPaths24h: 3 }))
+      .toMatchObject({ blockDevice: false, blockIp: true, reason: "sustained_scanner" });
+    expect(honeypotContainmentPolicy({ trapStage: 0, attempts24h: 1, distinctPaths24h: 1, riskScore: 10 }))
+      .toMatchObject({ blockDevice: false, blockIp: false });
+  });
+
   it("deduplicates repeated alerts while allowing severity escalation", () => {
     const low = incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com");
     expect(incidentAlertDedupeKey({ id: "incident-1", severity: "LOW" }, "security@example.com")).toBe(low);
     expect(incidentAlertDedupeKey({ id: "incident-1", severity: "HIGH" }, "security@example.com")).not.toBe(low);
+  });
+
+  it("correlates honeypot signals by the signed device marker across IP changes", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/server/security-center.js"), "utf8");
+    expect(source).toContain("linked.metadata->>'honeypotDeviceId'=$2");
+    expect(source).toContain("honeypot-device:${input.honeypotDeviceId}");
   });
 
   it("redacts secrets recursively and bounds attacker controlled fields", () => {

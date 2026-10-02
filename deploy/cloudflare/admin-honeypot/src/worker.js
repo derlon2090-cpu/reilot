@@ -134,15 +134,23 @@ function blockCheckUrl(env) {
   }
 }
 
-async function checkDeviceBlock(env, deviceId) {
-  if (!DEVICE_ID_PATTERN.test(deviceId)) return null;
-  const cached = blockCache.get(deviceId);
+async function checkSecurityBlock(env, request, deviceId) {
+  const sourceIp = text(request.headers.get("cf-connecting-ip"), 80);
+  if (!sourceIp && !DEVICE_ID_PATTERN.test(deviceId)) return null;
+  const url = new URL(request.url);
+  const cacheKey = `${sourceIp}:${DEVICE_ID_PATTERN.test(deviceId) ? deviceId : "no-device"}`;
+  const cached = blockCache.get(cacheKey);
   if (cached?.expiresAt > Date.now()) return cached.value;
   const endpoint = blockCheckUrl(env);
   const secret = String(env.HONEYPOT_INGESTION_SECRET || "");
   if (!endpoint || secret.length < 32) return null;
   const timestamp = Date.now().toString();
-  const body = JSON.stringify({ honeypotDeviceId: deviceId });
+  const body = JSON.stringify({
+    sourceIp,
+    honeypotDeviceId: DEVICE_ID_PATTERN.test(deviceId) ? deviceId : "",
+    requestedHost: text(url.hostname, 253).toLowerCase(), requestedPath: text(url.pathname, 300),
+    method: text(request.method, 12), referrer: text(request.headers.get("referer"), 500)
+  });
   const signature = await hmac(secret, `${timestamp}.${body}`);
   try {
     const result = await fetch(endpoint, {
@@ -156,8 +164,12 @@ async function checkDeviceBlock(env, deviceId) {
     const decision = payload?.blocked
       ? { blocked: true, referenceId: text(payload.referenceId, 40) || "SEC-UNKNOWN" }
       : { blocked: false };
-    if (blockCache.size >= BLOCK_CACHE_MAX) blockCache.delete(blockCache.keys().next().value);
-    blockCache.set(deviceId, { value: decision, expiresAt: Date.now() + BLOCK_CACHE_TTL_MS });
+    // Never cache an allow decision: ingestion may create a block immediately
+    // after this check. Positive decisions are safe to cache briefly.
+    if (decision.blocked) {
+      if (blockCache.size >= BLOCK_CACHE_MAX) blockCache.delete(blockCache.keys().next().value);
+      blockCache.set(cacheKey, { value: decision, expiresAt: Date.now() + BLOCK_CACHE_TTL_MS });
+    }
     return decision;
   } catch {
     return null;
@@ -220,7 +232,8 @@ function eventBody(request, rateLimited, telemetry = null, honeypotDeviceId = ""
   const pagePath = telemetry?.pagePath?.startsWith("/") ? telemetry.pagePath : url.pathname;
   return JSON.stringify({
     source_ip: text(request.headers.get("cf-connecting-ip"), 80),
-    country: text(cf.country, 80), region: text(cf.region, 100), city_approx: text(cf.city, 100),
+    country: text(cf.country || request.headers.get("cf-ipcountry"), 80),
+    region: text(cf.region, 100), city_approx: text(cf.city, 100),
     asn: cf.asn ? `AS${String(cf.asn).slice(0, 16)}` : "",
     isp_org: text(cf.asOrganization, 180),
     user_agent: text(request.headers.get("user-agent"), 700),
@@ -320,6 +333,10 @@ const worker = {
       family: canary.valid ? canary.family : trap.family,
       canaryValidated: canary.valid
     };
+    const block = !rateLimited && !internalRoute ? await checkSecurityBlock(env, request, identity.id) : null;
+    if (block?.blocked && !internalRoute) {
+      return blockedResponse(block.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
+    }
     if (!internalRoute) {
       context.waitUntil(containHoneypotVisitor(request, env, {
         weight: trap.stage >= 2 ? 2 : 1,
@@ -327,10 +344,6 @@ const worker = {
       }).catch(error => {
         console.error(JSON.stringify({ event: 'edge_ban_failed', message: String(error.message).slice(0, 160) }));
       }));
-    }
-    const block = identity.existing && !rateLimited && !internalRoute ? await checkDeviceBlock(env, identity.id) : null;
-    if (block?.blocked && !internalRoute) {
-      return blockedResponse(block.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
     }
     if (url.pathname === HONEYPOT_SCRIPT_PATH && request.method === "GET") return scriptResponse(identity.setCookies);
     if (url.pathname === HONEYPOT_PIXEL_PATH && request.method === "GET") return pixelResponse(identity.setCookies);
@@ -344,9 +357,13 @@ const worker = {
 
     const autoBlockDevice = trap.stage >= 2 || canary.valid;
     if (!rateLimited) {
-      const delivery = sendEvent(request, env, false, null, identity.id, autoBlockDevice, trapContext)
-        .finally(() => { if (autoBlockDevice) blockCache.delete(identity.id); });
+      const delivery = sendEvent(request, env, false, null, identity.id, autoBlockDevice, trapContext);
       queueEvent(context, delivery);
+    }
+    // A high-confidence extraction path is denied on the first request. The
+    // signed event above persists device and IP containment for later requests.
+    if (trap.stage >= 2) {
+      return blockedResponse(`HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
     }
     if (trap.stage > 0) {
       const token = trap.stage < 3

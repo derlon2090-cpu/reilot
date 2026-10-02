@@ -20,8 +20,10 @@ Cloudflare WAF / rate limits
           |
           +--> stage classifier + synthetic artifacts
           +--> signed, device-bound, 24-48h deep canary
+          +--> signed-device + trusted-IP lookup on every request
+          +--> first-request denial for high-confidence extraction
           +--> Durable Object progression counter
-          |       `--> optional 7-day edge IP containment
+          |       `--> optional account-wide 7-day edge containment
           `--> HMAC-signed bounded event
                     |
                     v
@@ -50,8 +52,8 @@ isolated Worker.
 |---|---|---|---|---|
 | 0 | Surface discovery | `/`, `/login`, arbitrary paths | Static session shell | Telemetry only |
 | 1 | Config/runtime probe | `/.env.*`, `/.vscode/*`, `/actuator/*`, `/api/gql` | Synthetic bounded artifact with signed deep link | LOW/TELEMETRY |
-| 2 | Extraction attempt | `/storage/logs/*`, `*.log`, backups, dumps, `.git/*` | Synthetic log/archive index | Weighted edge signal; device block when correlated risk creates an incident |
-| 3 | Deep canary | `/_internal/archive/manifest.json?c=...` | Empty sealed manifest | Immediate weighted edge signal; high-confidence correlation when signature is valid |
+| 2 | Extraction attempt | `/storage/logs/*`, `*.log`, credentials, backups, dumps, `.git/*` | Immediate 403 after recording | Permanent signed-device block and seven-day IP block |
+| 3 | Deep canary | `/_internal/archive/manifest.json?c=...` | Immediate 403 after validation | Permanent signed-device block and seven-day IP block |
 
 The deep token is an HMAC over the day, pseudonymous device ID, source trap
 family, and fixed target path. It expires after the current/adjacent UTC day,
@@ -75,8 +77,9 @@ Only `canary_validated=true` is retained.
 
 - If ingestion is unavailable, the Worker still returns a bounded decoy and
   never exposes an origin.
-- If block lookup is unavailable, the isolated honeypot continues collecting;
-  production middleware remains the authoritative device-block boundary.
+- If block lookup is unavailable, high-confidence stage 2/3 paths are still
+  denied locally; production middleware remains the authoritative central
+  device/IP block boundary.
 - If Cloudflare containment fails, Durable Object alarms retry without creating
   duplicate owned rules.
 - `EDGE_AUTO_BLOCK=false` is the safe default. Enabling it is an explicit,

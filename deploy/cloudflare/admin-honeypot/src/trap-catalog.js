@@ -50,7 +50,13 @@ export function classifyTrapPath(value) {
   if (/^\/\.git(?:\/|$)/.test(path)) {
     return { stage: 2, family: "repository_extraction", profile: "git_metadata", path };
   }
-  if (/^\/\.env(?:[./]|$)/.test(path)) {
+  if (/(?:^|\/)credentials?(?:\.json|\.ya?ml|\.txt)?$/.test(path)
+      || /(?:^|\/)wp-content\/debug\.log$/.test(path)) {
+    return { stage: 2, family: "credential_extraction", profile: "synthetic_log", path };
+  }
+  if (/^\/\.env(?:[./]|$)/.test(path)
+      || /(?:^|\/)\.env(?:[./]|$)/.test(path)
+      || /^\/(?:env|env\.txt|env-config\.js)$/.test(path)) {
     return { stage: 1, family: "environment_probe", profile: "environment_stub", path };
   }
   if (/^\/\.vscode(?:\/|$)/.test(path)) {
@@ -58,6 +64,10 @@ export function classifyTrapPath(value) {
   }
   if (path === "/info.php" || /^\/actuator(?:\/|$)/.test(path) || /^\/api\/gql(?:\/|$)/.test(path)) {
     return { stage: 1, family: "runtime_probe", profile: "runtime_stub", path };
+  }
+  if (/^\/{1,2}(?:wp-admin|wp-json|wordpress|wp)(?:\/|$)/.test(path)
+      || /^\/{1,2}(?:xmlrpc|index)\.php$/.test(path)) {
+    return { stage: 1, family: "framework_probe", profile: "runtime_stub", path };
   }
   if (path === "/.well-known/security.txt") {
     return { stage: 1, family: "disclosure_probe", profile: "security_contact", path };
