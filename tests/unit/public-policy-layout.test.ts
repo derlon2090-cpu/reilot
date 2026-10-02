@@ -26,7 +26,8 @@ describe("public legal policy layout", () => {
     expect(policySource).toContain("policy-hero-mark");
     expect(policySource).toContain("policy-updated");
     expect(policySource).toContain("policy-aside");
-    expect(policySource).toContain("policy-help-card");
+    expect(policySource).not.toContain("policy-help-card");
+    expect(policySource).not.toContain("هل لديك سؤال؟");
     expect(policySource).toContain("policy-card-icon");
     expect(policySource).toContain("policy-copy");
     expect(policySource).toContain("policy-contact-icon");

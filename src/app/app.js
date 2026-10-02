@@ -4106,12 +4106,6 @@ function policyPage() {
             <h2>${localizedCopy("في هذه الصفحة", "On this page")}</h2>
             ${content.sections.map(([title], index) => `<a href="#policy-${index + 1}" data-policy-anchor="policy-${index + 1}"><span aria-hidden="true"></span>${escapeHtml(title)}</a>`).join("")}
           </nav>
-          <section class="policy-help-card">
-            <span aria-hidden="true">${dashboardIcon("support")}</span>
-            <h2>${localizedCopy("هل لديك سؤال؟", "Have a question?")}</h2>
-            <p>${localizedCopy("نحن هنا لمساعدتك وتوضيح أي بند.", "We are here to help clarify any section.")}</p>
-            <button class="btn btn-secondary" data-link="/support">${localizedCopy("تواصل مع الدعم", "Contact support")}</button>
-          </section>
         </aside>
         <article class="policy-content">
           ${content.sections.map(([title, body], index) => `<section class="policy-card" id="policy-${index + 1}"><span class="policy-card-icon" aria-hidden="true">${dashboardIcon(policySectionIcons[index] || "document")}</span><div><h2><b>${index + 1}.</b> ${escapeHtml(title)}</h2><div class="policy-copy">${renderPolicyBody(body)}</div></div></section>`).join("")}
