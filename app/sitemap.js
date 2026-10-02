@@ -16,6 +16,12 @@ export default function sitemap() {
     { url: `${baseUrl}/pricing`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${baseUrl}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     ...helpArticles.map((slug) => ({ url: `${baseUrl}/blog/${slug}`, lastModified: now, changeFrequency: "monthly", priority: 0.55 })),
-    { url: `${baseUrl}/support`, lastModified: now, changeFrequency: "monthly", priority: 0.5 }
+    { url: `${baseUrl}/support`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    ...["terms", "privacy", "protection-policy", "refund-policy"].map((path) => ({
+      url: `${baseUrl}/${path}`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3
+    }))
   ];
 }

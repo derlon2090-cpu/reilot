@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("../../src/app/app.js", import.meta.url), "utf8");
+const sitemapSource = readFileSync(new URL("../../app/sitemap.js", import.meta.url), "utf8");
 const policySource = appSource.slice(
   appSource.indexOf("function policyPage()"),
   appSource.indexOf("function authPublicPage()")
@@ -11,6 +12,7 @@ describe("Renvix public policies", () => {
   it("identifies Renvix and both official website domains", () => {
     expect(policySource).toContain("سياسة الخصوصية - رينفكس");
     expect(policySource).toContain("سياسة الاستخدام - رينفكس");
+    expect(policySource).toContain("سياسة الحماية والاستخدام المقبول - رينفكس");
     expect(policySource).toContain("سياسة الاستبدال والاسترجاع - رينفكس");
     expect(policySource).toContain("renvix.app");
     expect(policySource).toContain("renvix.click");
@@ -29,6 +31,16 @@ describe("Renvix public policies", () => {
     expect(policySource).toContain("حصل على الموافقات المطلوبة");
     expect(policySource).toContain("القنوات والتكاملات الخارجية");
     expect(policySource).toContain("مفاتيح API");
+  });
+
+  it("defines proportionate security enforcement and a permanent-ban appeal process", () => {
+    expect(policySource).toContain("متى يصبح الحظر نهائيًا");
+    expect(policySource).toContain("كيفية تنفيذ الحظر النهائي");
+    expect(policySource).toContain("الاعتراض وطلب المراجعة");
+    expect(policySource).toContain("تجنب حظر أشخاص غير مرتبطين بالمخالفة");
+    expect(policySource).toContain("ولا يُعد ذلك تفويضًا مفتوحًا لجمع أي بيانات");
+    expect(policySource).toContain("موافقة مستقلة متى كانت الموافقة مطلوبة نظامًا");
+    expect(sitemapSource).toContain('"protection-policy"');
   });
 
   it("applies the requested first-subscription refund rules", () => {
@@ -53,5 +65,7 @@ describe("Renvix public policies", () => {
     expect(policySource).toContain("July 31, 2026");
     expect(policySource).toContain("14 أغسطس 2026");
     expect(policySource).toContain("August 14, 2026");
+    expect(policySource).toContain("2 أكتوبر 2026");
+    expect(policySource).toContain("October 2, 2026");
   });
 });

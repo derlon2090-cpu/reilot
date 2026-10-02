@@ -13,10 +13,12 @@ const policySource = appSource.slice(
 );
 
 describe("public legal policy layout", () => {
-  it("shows all three legal destinations together in the footer", () => {
-    expect(footerSource).toMatch(/data-link="\/terms"[\s\S]*data-link="\/privacy"[\s\S]*data-link="\/refund-policy"/);
+  it("shows all four legal destinations together in the footer", () => {
+    expect(footerSource).toMatch(/data-link="\/terms"[\s\S]*data-link="\/privacy"[\s\S]*data-link="\/protection-policy"[\s\S]*data-link="\/refund-policy"/);
     expect(footerSource).toContain("السياسات القانونية");
+    expect(footerSource).toContain("سياسة الحماية والحظر");
     expect(footerSource).toContain("سياسة الاستبدال والاسترجاع");
+    expect(appSource).toContain('"/protection-policy": policyPage');
   });
 
   it("renders the shared hero, contents, support and section-card structure", () => {

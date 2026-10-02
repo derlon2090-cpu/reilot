@@ -1,7 +1,7 @@
 export const ORDER_LINK_STYLES = new Set(["classic", "modern", "professional", "minimal", "premium", "colorful"]);
 export const ORDER_LINK_COLORS = new Set(["#0B3F3B", "#0B3F3B", "#E8F1F0", "#22C55E", "#F97316", "#EF4444", "#64748B", "#062B28"]);
 export const RESERVED_ORDER_SLUGS = new Set([
-  "admin", "api", "dashboard", "login", "register", "support", "pricing", "blog", "terms", "privacy", "o"
+  "admin", "api", "dashboard", "login", "register", "support", "pricing", "blog", "terms", "privacy", "protection-policy", "refund-policy", "o"
 ]);
 
 export const DEFAULT_VISIBLE_FIELDS = Object.freeze({
