@@ -94,6 +94,57 @@ sudo systemctl disable renvix-origin-restore.service
 sudo nft delete table inet renvix_origin
 ```
 
+## Trusted client IP restoration and incident containment
+
+Nginx must accept `CF-Connecting-IP` only when the TCP peer belongs to a
+currently published Cloudflare network. Install the validated refresher and
+its timer; do not paste a permanent CIDR snapshot into the configuration:
+
+```bash
+sudo install -m 0750 deploy/security/sync-cloudflare-realip.py /usr/local/sbin/sync-cloudflare-realip.py
+sudo install -m 0644 deploy/security/renvix-realip-refresh.service /etc/systemd/system/
+sudo install -m 0644 deploy/security/renvix-realip-refresh.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now renvix-realip-refresh.timer
+sudo systemctl start renvix-realip-refresh.service
+sudo nginx -T | grep -E 'set_real_ip_from|real_ip_header|real_ip_recursive'
+```
+
+The generated HTTP-context configuration contains one validated directive per
+published network followed by the exact header policy:
+
+```nginx
+set_real_ip_from <validated-current-cloudflare-cidr>;
+real_ip_header CF-Connecting-IP;
+real_ip_recursive on;
+```
+
+Install the WAF rules from the checked-in expressions after placing a scoped
+API token and zone ID in root-owned `/etc/renvix-secops/cloudflare.env`:
+
+```bash
+sudo deploy/security/install-probe-waf \
+  deploy/security/cloudflare-probe-expression.txt \
+  deploy/security/cloudflare-cloud-asn-expression.txt \
+  deploy/security/cloudflare-protocol-abuse-expression.txt \
+  deploy/security/cloudflare-latest-incidents-expression.txt
+```
+
+For direct-origin sources only, the exact iptables/ipset loader is:
+
+```bash
+sudo install -m 0750 deploy/security/ipset-probe-action /usr/local/sbin/ipset-probe-action
+sudo install -m 0750 deploy/security/load-incident-blocklist /usr/local/sbin/load-incident-blocklist
+sudo /usr/local/sbin/load-incident-blocklist deploy/security/incident-scanner-ips.txt
+sudo ipset list renvix_probe4
+sudo iptables -w -C INPUT -m set --match-set renvix_probe4 src -j DROP
+```
+
+The kernel sees a Cloudflare proxy as the packet source, so this iptables set
+cannot block a proxied visitor by `CF-Connecting-IP`; use the WAF/Worker edge
+ban for that visitor. Never add shared Cloudflare or WARP addresses, or
+AS13335 as a whole, to the origin blocklist.
+
 Kernel sets also support operator-selected network containment:
 
 ```bash

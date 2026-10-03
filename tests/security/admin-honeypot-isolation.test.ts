@@ -34,6 +34,10 @@ describe("isolated admin honeypot", () => {
     expect(classifyTrapPath("/")).toMatchObject({ stage: 0, family: "surface_discovery" });
     expect(classifyTrapPath("/.env.live")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/production/.env")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/fly.toml")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/assets/env-config.js")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
+    expect(classifyTrapPath("/.git/HEAD")).toMatchObject({ stage: 2, family: "repository_extraction" });
     expect(classifyTrapPath("/wp-json/gravitysmtp/v1/tests/mock-data")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/credentials.json")).toMatchObject({ stage: 2, family: "credential_extraction" });
     expect(classifyTrapPath("/storage/logs/laravel.log")).toMatchObject({ stage: 2, family: "log_extraction" });

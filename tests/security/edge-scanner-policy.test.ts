@@ -6,8 +6,9 @@ const read = (path: string) => readFileSync(path, "utf8");
 describe("edge scanner policy", () => {
   it("uses the current ASN field and preserves explicit public endpoints", () => {
     const expression = read("deploy/security/cloudflare-cloud-asn-expression.txt");
-    expect(expression).toContain("ip.src.asnum in {14061 14618 48090 199457 202412 396982 34343}");
+    expect(expression).toContain("ip.src.asnum in {14061 14618 48090 199457 202412 396982 34343 25369}");
     expect(expression).not.toContain("ip.geoip.asnum");
+    expect(expression).not.toContain("13335");
     expect(expression).toContain('"/api/v1/legit-webhook"');
     expect(expression).toContain('"/health"');
   });
@@ -23,6 +24,9 @@ describe("edge scanner policy", () => {
       expect(nginx).toContain(nginxToken);
     }
     expect(edge).toContain('starts_with(lower(http.request.uri.path), "/admin/")');
+    for (const token of ["*/.git*", "*/fly.toml", "*/env-config*", "wlwmanifest", '".toml"', '".local"', '".staging"']) {
+      expect(edge).toContain(token);
+    }
     expect(nginx).toContain("return 444;");
     expect(nginx).toContain(".well-known/security\\.txt");
     expect(nginx).toContain("storage/logs");
@@ -63,10 +67,13 @@ describe("edge scanner policy", () => {
     expect(loader).toContain("ipaddress.ip_address");
     for (const ip of [
       "147.182.200.94", "138.197.191.87", "142.93.0.66", "159.65.18.197",
-      "159.65.144.72", "130.12.180.117", "34.140.132.132", "91.148.245.81"
+      "159.65.144.72", "130.12.180.117", "34.140.132.132", "91.148.245.81",
+      "91.92.240.86", "35.241.202.92", "85.204.70.92", "23.98.157.29"
     ]) {
       expect(incidentIps).toContain(ip);
     }
+    expect(incidentIps).not.toContain("104.28.254.47");
+    expect(incidentIps).not.toContain("104.28.222.43");
     expect(read("deploy/security/install-honeypot-blacklist")).toContain("honeypot_blacklist");
   });
 
@@ -74,10 +81,21 @@ describe("edge scanner policy", () => {
     const payload = JSON.parse(read("deploy/security/cloudflare-latest-incidents-rule.json"));
     expect(payload.action).toBe("block");
     expect(payload.enabled).toBe(true);
-    expect(payload.expression).toContain("ip.src.asnum in {14061 14618 48090 199457 202412 396982 34343}");
-    for (const token of ["/.env", "/.vscode", "/storage/logs", "/actuator", "/info.php", "/api/gql", "canary", ".log", "/.well-known/security.txt"]) {
+    expect(payload.expression).not.toContain("ip.src.asnum");
+    expect(payload.expression).toContain('lower(http.host) ne "admin.renvix.app"');
+    for (const token of ["*/.env*", "*/.git*", "*/fly.toml", "*/env-config*", "wlwmanifest", "/.vscode", "/storage/logs", "/actuator", "/info.php", "/api/gql", "canary", ".log", "/.well-known/security.txt"]) {
       expect(payload.expression).toContain(token);
     }
+  });
+
+  it("restores client IPs only from Cloudflare's validated published ranges", () => {
+    const updater = read("deploy/security/sync-cloudflare-realip.py");
+    expect(updater).toContain("https://www.cloudflare.com/ips-v{version}");
+    expect(updater).toContain("set_real_ip_from");
+    expect(updater).toContain("real_ip_header CF-Connecting-IP");
+    expect(updater).toContain("real_ip_recursive on");
+    expect(updater).toContain("ipaddress.ip_network");
+    expect(updater).toContain("nginx', '-t");
   });
 
   it("installs the hard block before the ASN managed challenge", () => {

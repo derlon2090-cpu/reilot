@@ -8,3 +8,9 @@
 130.12.180.117
 34.140.132.132
 91.148.245.81
+# Direct client/origin sources from 2026-10-03. Never add shared Cloudflare
+# proxy/WARP observations (AS13335) to an origin firewall blocklist.
+91.92.240.86
+35.241.202.92
+85.204.70.92
+23.98.157.29

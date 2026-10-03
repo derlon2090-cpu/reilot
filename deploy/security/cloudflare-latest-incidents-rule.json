@@ -1,7 +1,7 @@
 {
   "action": "block",
-  "expression": "(ip.src.asnum in {14061 14618 48090 199457 202412 396982 34343} or lower(http.request.uri.path) contains \"/.env\" or lower(http.request.uri.path) contains \"/.vscode\" or lower(http.request.uri.path) contains \"/storage/logs\" or lower(http.request.uri.path) contains \"/actuator\" or lower(http.request.uri.path) eq \"/info.php\" or lower(http.request.uri.path) eq \"/api/gql\" or starts_with(lower(http.request.uri.path), \"/api/gql/\") or lower(http.request.uri.path) contains \"canary\" or ends_with(lower(http.request.uri.path), \".log\") or lower(http.request.uri.path) eq \"/.well-known/security.txt\")",
-  "description": "Block latest honeypot scanner ASNs and sensitive probe vectors",
+  "expression": "(lower(http.host) ne \"admin.renvix.app\" and (lower(http.request.uri.path) wildcard \"*/.env*\" or lower(http.request.uri.path) wildcard \"*/.git*\" or lower(http.request.uri.path) wildcard \"*/env-config*\" or lower(http.request.uri.path) wildcard \"*/fly.toml\" or lower(http.request.uri.path) wildcard \"*wlwmanifest*.xml\" or ends_with(lower(http.request.uri.path), \".toml\") or ends_with(lower(http.request.uri.path), \".local\") or ends_with(lower(http.request.uri.path), \".staging\") or lower(http.request.uri.path) contains \"/.vscode\" or lower(http.request.uri.path) contains \"/storage/logs\" or lower(http.request.uri.path) contains \"/actuator\" or lower(http.request.uri.path) eq \"/info.php\" or lower(http.request.uri.path) eq \"/api/gql\" or starts_with(lower(http.request.uri.path), \"/api/gql/\") or lower(http.request.uri.path) contains \"canary\" or ends_with(lower(http.request.uri.path), \".log\") or lower(http.request.uri.path) eq \"/.well-known/security.txt\"))",
+  "description": "Block sensitive probe vectors; isolated honeypot excluded",
   "enabled": true,
   "ref": "renvix_latest_honeypot_incidents"
 }

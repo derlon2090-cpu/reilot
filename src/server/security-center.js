@@ -79,6 +79,10 @@ export function isRoutineScannerTelemetryPath(value) {
   const path = normalizedPath(value).toLowerCase();
   return /^\/\.vscode(?:\/|$)/.test(path)
     || /^\/\.env(?:[./]|$)/.test(path)
+    || /(?:^|\/)\.git(?:[./]|$)/.test(path)
+    || /(?:^|\/)env-config[^/]*$/.test(path)
+    || /(?:^|\/)fly\.toml$/.test(path)
+    || /(?:^|\/)[^/]*wlwmanifest[^/]*\.xml$/.test(path)
     || path === "/info.php"
     || /^\/api\/gql(?:\/|$)/.test(path)
     || /^\/actuator(?:\/|$)/.test(path)
@@ -1189,7 +1193,8 @@ function alertBodies(incident) {
 }
 
 async function dispatchIncidentAlertsImmediately(outcome) {
-  if (!outcome?.incidentId || incidentAlertMode({ incident_type: outcome.incidentType, severity: outcome.severity }) !== 'immediate') return;
+  if (outcome?.realtimeNotificationsSuppressed || !outcome?.incidentId
+      || incidentAlertMode({ incident_type: outcome.incidentType, severity: outcome.severity }) !== 'immediate') return;
   try {
     await processSecurityAlerts({ limit: 20, incidentId: outcome.incidentId });
   } catch (error) {
@@ -1200,6 +1205,23 @@ async function dispatchIncidentAlertsImmediately(outcome) {
 
 export async function processSecurityAlerts({ limit = 20, incidentId = null } = {}) {
   const rows = await transaction(async (client) => {
+    // A routine reconnaissance event remains visible in the incident timeline,
+    // but it must never be resurrected as email/webhook work by reconciliation.
+    // If the same incident later receives any non-silent signal, normal alerting
+    // resumes because the NOT EXISTS predicate no longer matches.
+    await client.query(
+      `UPDATE security_alert_deliveries sad
+          SET status='skipped',failure_code='silent_telemetry_policy'
+        FROM security_incidents si
+       WHERE sad.incident_id=si.id
+         AND si.incident_type='ADMIN_HONEYPOT_ACCESS'
+         AND sad.status IN ('pending','failed')
+         AND NOT EXISTS (
+           SELECT 1 FROM security_source_events se
+            WHERE se.incident_id=si.id
+              AND COALESCE(se.metadata->>'realtimeNotificationsSuppressed','false') <> 'true'
+         )`
+    );
     // Reconcile severe open incidents before claiming deliveries. This repairs
     // incidents created while alerting was disabled and revives rows that an
     // older digest-only policy marked as skipped.
@@ -1209,6 +1231,11 @@ export async function processSecurityAlerts({ limit = 20, incidentId = null } = 
           AND severity IN ('HIGH','CRITICAL')
           AND last_seen>now()-interval '7 days'
           AND ($1::uuid IS NULL OR id=$1)
+          AND (incident_type<>'ADMIN_HONEYPOT_ACCESS' OR EXISTS (
+            SELECT 1 FROM security_source_events se
+             WHERE se.incident_id=security_incidents.id
+               AND COALESCE(se.metadata->>'realtimeNotificationsSuppressed','false') <> 'true'
+          ))
         ORDER BY last_seen DESC LIMIT 50 FOR UPDATE`,
       [incidentId || null]
     );

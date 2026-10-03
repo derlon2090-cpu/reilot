@@ -29,9 +29,17 @@ describe("security center risk and privacy policy", () => {
     for (const path of [
       "/.vscode/sftp.json", "/info.php", "/api/gql", "/actuator/env",
       "/.well-known/security.txt", "/.env.production", "/.env.live",
-      "/storage/logs/laravel.log", "/zzcanary-123.xml"
+      "/storage/logs/laravel.log", "/zzcanary-123.xml", "/.git/HEAD",
+      "/fly.toml", "/assets/env-config.js", "/wp-includes/wlwmanifest.xml"
     ]) expect(isRoutineScannerTelemetryPath(path)).toBe(true);
     expect(isRoutineScannerTelemetryPath("/api/auth/login")).toBe(false);
+  });
+
+  it("prevents silent telemetry from being resurrected by alert reconciliation", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/server/security-center.js"), "utf8");
+    expect(source).toContain("outcome?.realtimeNotificationsSuppressed");
+    expect(source).toContain("silent_telemetry_policy");
+    expect(source).toContain("NOT EXISTS (");
   });
 
   it("raises a correlated honeypot, admin login, and MFA sequence", () => {
