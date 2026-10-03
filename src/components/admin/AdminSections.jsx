@@ -5,6 +5,7 @@ import Link from "next/link";
 import styles from "./AdminPortal.module.css";
 import SecurityCenter from "./SecurityCenter.jsx";
 import { defaultAdminPlanPeriod, parseAdminPlanPeriod, riyadhToday } from "../../shared/admin-plan-period.js";
+import { platformNotificationScheduleDefaults } from "../../lib/platform-notification-schedule.js";
 
 const ICONS = {
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8M16 3.2a4 4 0 0 1 0 7.6"/>',
@@ -526,6 +527,7 @@ function Notifications() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scheduleMinimum, setScheduleMinimum] = useState("");
   const [form, setForm] = useState({
     title: "", body: "", notificationType: "general", priority: "normal", audienceType: "all_users",
     scheduleMode: "draft", scheduledAt: "", expiresAt: "", deliverySurfaces: ["notification_center"],
@@ -543,6 +545,12 @@ function Notifications() {
   useEffect(() => {
     load().catch(() => setError("تعذر تحميل سجل إشعارات المنصة."));
   }, [load]);
+
+  useEffect(() => {
+    const defaults = platformNotificationScheduleDefaults();
+    setScheduleMinimum(defaults.minimum);
+    setForm((current) => current.scheduledAt ? current : { ...current, scheduledAt: defaults.scheduledAt });
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -594,7 +602,12 @@ function Notifications() {
         throw new Error(fieldMessage || result.message || "تعذر حفظ الإشعار.");
       }
       setNotice(result.message || "تم حفظ الإشعار.");
-      setForm((current) => ({ ...current, title: "", body: "", actionLabel: "", actionUrl: "" }));
+      const nextSchedule = platformNotificationScheduleDefaults();
+      setScheduleMinimum(nextSchedule.minimum);
+      setForm((current) => ({
+        ...current, title: "", body: "", actionLabel: "", actionUrl: "",
+        scheduledAt: nextSchedule.scheduledAt
+      }));
       await load();
     } catch (submissionError) {
       setError(submissionError.message || "تعذر حفظ الإشعار.");
@@ -636,7 +649,7 @@ function Notifications() {
           <label className={styles.adminFormField}><span>رابط الإجراء</span><input value={form.actionUrl} onChange={(event) => setField("actionUrl", event.target.value)} placeholder="/dashboard/..." dir="ltr" /></label>
         </div>
         <div className={styles.adminFormGrid}>
-          <label className={styles.adminFormField}><span>موعد الجدولة</span><input type="datetime-local" value={form.scheduledAt} onChange={(event) => setField("scheduledAt", event.target.value)} /></label>
+          <label className={styles.adminFormField}><span>موعد الجدولة</span><input type="datetime-local" min={scheduleMinimum || undefined} value={form.scheduledAt} onChange={(event) => setField("scheduledAt", event.target.value)} /><small>يبدأ تلقائيًا من اليوم بأقرب موعد متاح.</small></label>
           <label className={styles.adminFormField}><span>تاريخ الانتهاء (للشريط العلوي)</span><input type="datetime-local" value={form.expiresAt} onChange={(event) => setField("expiresAt", event.target.value)} /></label>
         </div>
         <div className={styles.adminNotificationOptions}><label><input type="checkbox" checked={form.pinned} onChange={(event) => setField("pinned", event.target.checked)} /> تثبيت أعلى القائمة</label><label><input type="checkbox" checked={form.requireAcknowledgement} onChange={(event) => setField("requireAcknowledgement", event.target.checked)} /> يتطلب تأكيد الاطلاع</label></div>

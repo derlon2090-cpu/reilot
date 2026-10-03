@@ -3100,25 +3100,6 @@ function homePricingSection() {
   return `<section class="home-section home-pricing" id="pricing"><div class="container"><header class="home-section-heading" data-reveal><span>${localizedCopy("خطط مرنة", "Flexible plans")}</span><h2>${localizedCopy("اختر الباقة المناسبة لنمو أعمالك", "Choose the right plan for your growth")}</h2><p>${localizedCopy("ابدأ بما يناسب فريقك، وطوّر حدودك عندما يتوسع عملك.", "Start with what fits your team and grow your limits as you scale.")}</p></header><div class="home-pricing-cards">${pricingCards(true)}</div><a href="/pricing" class="home-text-link" data-link="/pricing">${localizedCopy("قارن جميع تفاصيل الباقات", "Compare all plan details")}${dashboardIcon("arrowLeft")}</a></div></section>`;
 }
 
-function homeSupportSection() {
-  const services = [
-    [localizedCopy("مساعد Renvix الذكي", "Renvix smart assistant"), localizedCopy("مساعد يفهم اشتراكاتك وتقاريرك ويساعدك في الوصول إلى الإجابة بسرعة.", "An assistant that understands subscriptions and reports to help you faster."), localizedCopy("جرّب المساعد", "Try the assistant"), "/dashboard/support/ai", "sparkles", "assistant"],
-    [localizedCopy("تذاكر الدعم", "Support tickets"), localizedCopy("دعم منظم ومتابعة كاملة لتذاكرك من الإنشاء حتى الحل.", "Organized support and complete ticket follow-up from creation to resolution."), localizedCopy("فتح تذكرة جديدة", "Open a ticket"), "/dashboard/support/new", "support", "ticket"],
-    [localizedCopy("قاعدة المعرفة", "Knowledge base"), localizedCopy("إجابات وأدلة عملية تساعدك على استخدام المنصة بكفاءة.", "Practical answers and guides that help you use the platform efficiently."), localizedCopy("استكشف المقالات", "Explore articles"), "/support", "helpBook", "knowledge"]
-  ];
-  const stats = [
-    ["4.9", "1", "/5", localizedCopy("تقييم العملاء", "Customer rating"), "star"],
-    ["92", "0", "%", localizedCopy("نسبة الحل من أول رد", "Solved on first response"), "reports"],
-    ["15", "0", localizedCopy(" دقيقة", " min"), localizedCopy("متوسط وقت الاستجابة", "Average response time"), "clock"]
-  ];
-  const supportVisual = (kind, icon) => {
-    if (kind === "assistant") return `<div class="home-support-visual home-assistant-illustration" aria-hidden="true"><img src="/assets/support-robot-v2.png" width="1254" height="1254" alt="" loading="lazy" decoding="async"><em></em></div>`;
-    if (kind === "ticket") return `<div class="home-support-visual home-ticket-illustration" aria-hidden="true"><i>${dashboardIcon("message")}</i><b>•••</b><em></em></div>`;
-    return `<div class="home-support-visual home-knowledge-illustration" aria-hidden="true"><span>${dashboardIcon(icon)}</span><i></i><i></i></div>`;
-  };
-  return `<section class="home-section home-support" aria-labelledby="home-support-title"><div class="container"><header class="home-section-heading home-support-heading" data-reveal><span>${localizedCopy("دعم متكامل متى احتجته", "Complete support when you need it")}</span><h2 id="home-support-title">${localizedCopy("دعم يساعدك على الاستمرار بثقة", "Support that keeps you moving confidently")}</h2><p>${localizedCopy("مساعد ذكي، فريق دعم عربي، وقاعدة معرفة واضحة — كل ما تحتاجه للوصول إلى الحل بسرعة.", "Smart assistance, an Arabic support team, and a clear knowledge base—everything you need to reach a solution quickly.")}</p></header><div class="home-support-panel" data-reveal><div class="home-support-grid">${services.map(([title, body, label, path, icon, kind], index) => `<article class="${kind}" data-reveal style="--rvx-delay:${index * 70}ms">${supportVisual(kind, icon)}<div class="home-support-copy"><h3>${title}</h3><p>${body}</p><a href="${path}" data-link="${path}">${label}${dashboardIcon("arrowLeft")}</a></div></article>`).join("")}</div><div class="home-trust-stats" aria-label="${localizedCopy("مؤشرات جودة الدعم", "Support quality indicators")}">${stats.map(([target, decimals, suffix, label, icon]) => `<article><span>${dashboardIcon(icon)}</span><strong data-count-target="${target}" data-count-start="0" data-count-decimals="${decimals}" data-count-locale="en-US" data-count-suffix="${suffix}">${target}${suffix}</strong><small>${label}</small></article>`).join("")}</div></div></div></section>`;
-}
-
 function marketingHomePage() {
   return publicShell(`<main class="marketing-v3 renvix-home">
     <section class="home-hero"><div class="container home-hero-grid">
@@ -3129,7 +3110,6 @@ function marketingHomePage() {
     ${homeFeaturesSection()}
     ${homeJourneySection()}
     ${homePricingSection()}
-    ${homeSupportSection()}
   </main>`);
 }
 
