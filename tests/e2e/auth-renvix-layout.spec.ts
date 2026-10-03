@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 
 const source = readFileSync("src/app/app.js", "utf8");
 const css = readFileSync("src/styles/globals.css", "utf8");
-const logoData = "data:image/png;base64," + readFileSync("public/assets/renvix-logo-primary.png").toString("base64");
+const logoData = "data:image/svg+xml;base64," + readFileSync("public/assets/renvix-logo-official.svg").toString("base64");
 const baselineSource = execFileSync("git", ["show", "f8a0102:src/app/app.js"], {encoding:"utf8",maxBuffer:8e6});
 const baselineCss = execFileSync("git", ["show", "f8a0102:src/styles/globals.css"], {encoding:"utf8",maxBuffer:8e6});
 function extract(text:string, name:string) {
@@ -29,7 +29,7 @@ async function fixture(page:Page, kind:string, width:number, old=false, language
     const state = {route:"/${kind}",query:new URLSearchParams(),authDisplayLanguage:"${language}",authDisplayTheme:"light",resetStep:${kind === "forgot" ? 1 : 2},resetEmail:"example@renvix.app",emailOtpStatus:{purpose:"signup",maskedEmail:"ex***@renvix.app"},mfaLoginStatus:{}};
     const localizedCopy = (ar,en) => state.authDisplayLanguage === "en" ? en : ar;
     const escapeHtml = value => String(value || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
-    const stackedLogo = () => '<div class="brand-logo-stacked"><img class="brand-logo-image brand-logo-image--primary" src="${logoData}" width="814" height="228"></div>';
+    const stackedLogo = () => '<div class="brand-logo-stacked"><img class="brand-logo-image brand-logo-image--primary" src="${logoData}" width="360" height="180"></div>';
     const dashboardIcon = () => '<svg class="line-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>';
     const authScene = () => '<svg viewBox="0 0 100 100"></svg>';
     const authIntroIcon = dashboardIcon, authRecoveryIcon = dashboardIcon;

@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 34 324 162" role="img" aria-labelledby="renvix-favicon-title">
-  <title id="renvix-favicon-title">Renvix</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 34 324 162" role="img" aria-labelledby="title desc">
+  <title id="title">Renvix</title>
+  <desc id="desc">Renvix official infinity logo</desc>
   <defs>
     <mask id="dot-gaps">
       <rect x="0" y="0" width="360" height="220" fill="#fff"/>

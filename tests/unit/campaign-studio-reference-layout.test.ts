@@ -21,7 +21,7 @@ describe("campaign studio reference layout", () => {
     expect(appSource).toContain('class="campaign-email-message-meta"');
     expect(appSource).toContain('data-campaign-email-brand');
     expect(appSource).toContain('alt="شعار المتجر"');
-    expect(appSource).toContain('src="/assets/renvix-mark-deep-teal.svg"');
+    expect(appSource).toContain('src="/assets/renvix-logo-official.svg"');
     expect(stylesSource).toMatch(/\.campaign-studio\.is-whatsapp \.campaign-studio-phone\{[^}]*min-height:720px/);
     expect(stylesSource).toMatch(/\.campaign-studio\.is-email \.campaign-studio-email-preview\{[^}]*min-height:720px/);
   });

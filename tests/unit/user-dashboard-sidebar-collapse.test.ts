@@ -16,7 +16,7 @@ describe("user dashboard collapsible sidebar", () => {
   });
 
   it("uses the Renvix mark and icon-only navigation when collapsed", () => {
-    expect(appSource).toContain('/assets/renvix-mark-deep-teal.svg');
+    expect(appSource).toContain('/assets/renvix-logo-official.svg');
     expect(appSource).toContain('dashboard-shell ${state.sidebarCollapsed ? "sidebar-collapsed" : ""}');
     expect(stylesSource).toContain(".dashboard-shell.sidebar-collapsed { grid-template-columns: 82px minmax(0, 1fr) !important; }");
     expect(stylesSource).toContain(".dashboard-shell.sidebar-collapsed .side-link span");

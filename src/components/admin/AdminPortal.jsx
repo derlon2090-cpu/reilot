@@ -64,7 +64,7 @@ const ROLE_SCOPES = {
 function Brand({ compact = false }) {
   return (
     <div className={styles.brand} aria-label="Renvix">
-      <img className={styles.brandLogo} src={compact ? "/assets/renvix-mark-deep-teal.svg" : "/assets/renvix-logo-deep-teal.svg"} width={compact ? "220" : "760"} height="220" alt="Renvix" />
+      <img className={styles.brandLogo} src="/assets/renvix-logo-official.svg" width={compact ? "92" : "360"} height={compact ? "46" : "180"} alt="Renvix" />
     </div>
   );
 }

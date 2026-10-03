@@ -79,7 +79,7 @@ describe("campaign studio", () => {
     expect(appSource).toMatch(/\["name"[^\n]+"brandLogoUrl"[^\n]+\]\.forEach/);
     expect(appSource).toContain('data-action="campaign-studio-logo-image-pick"');
     expect(appSource).toContain("campaignStudioApplyFixedLogo");
-    expect(appSource).not.toContain('class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png"');
+    expect(appSource).not.toContain('class="campaign-email-brand"><img class="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-official.svg"');
     expect(stylesSource).toContain(".campaign-email-primary-template");
     expect(stylesSource).toContain("--campaign-email-color");
     expect(appSource).toContain('campaignStudioAlignmentControl("subjectAlignment"');

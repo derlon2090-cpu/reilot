@@ -24,9 +24,9 @@
 :root[data-theme="dark"] .public-footer.marketing-footer .brand{border:0!important;background:transparent!important;box-shadow:none!important}
 
 /* The legacy PNG has a white bitmap canvas. Dark mode uses transparent vectors. */
-:root[data-theme="dark"] .brand-logo-image{content:url("/assets/renvix-logo-deep-teal.svg")!important;filter:brightness(0) invert(1)!important;opacity:1!important}
+:root[data-theme="dark"] .brand-logo-image{content:url("/assets/renvix-logo-official.svg")!important;filter:brightness(0) invert(1)!important;opacity:1!important}
 :root[data-theme="dark"] .home-ops-center .brand-logo-image,
-:root[data-theme="dark"] .flow-center .brand-logo-image{content:url("/assets/renvix-mark-deep-teal.svg")!important}
+:root[data-theme="dark"] .flow-center .brand-logo-image{content:url("/assets/renvix-logo-official.svg")!important}
 
 /* Home operational artwork. */
 :root[data-theme="dark"] .home-ops-card{color:var(--dark-text)!important;border-color:var(--dark-line)!important;background:var(--dark-surface)!important}

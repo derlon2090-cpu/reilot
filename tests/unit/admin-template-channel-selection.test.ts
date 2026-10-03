@@ -42,9 +42,9 @@ describe("admin template channel selection", () => {
   });
 
   it("keeps the Renvix admin logo fixed in preview and actual email HTML", () => {
-    const logoUrl = "https://renvix.app/assets/renvix-logo-deep-teal.png";
+    const logoUrl = "https://renvix.app/assets/renvix-logo-official.svg";
     const html = baseEmail({ title: "Admin", children: "Message", brandImageUrl: logoUrl });
-    expect(editorSource).toContain('/assets/renvix-logo-deep-teal.svg');
+    expect(editorSource).toContain('/assets/renvix-logo-official.svg');
     expect(deliverySource).toContain(logoUrl);
     expect(deliverySource).toContain("brandImageUrl: adminEmailLogoUrl()");
     expect(resendSource).toContain('brandImageUrl = ""');
