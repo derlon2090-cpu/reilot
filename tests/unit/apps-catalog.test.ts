@@ -17,6 +17,12 @@ describe("applications catalog", () => {
     expect(appSource).toContain("تحرير");
   });
 
+  it("omits the redundant applications benefits banner", () => {
+    expect(appSource).not.toContain("مزايا ربط التطبيقات");
+    expect(appSource).not.toContain('class="apps-benefits card"');
+    expect(styles).not.toContain(".apps-benefits");
+  });
+
   it("shows Zid and Shopify in Arabic as matching unavailable integrations", () => {
     expect(appSource).toContain("integration-card--unavailable");
     expect(appSource).toContain("غير متاح حاليًا");

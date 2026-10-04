@@ -5422,17 +5422,10 @@ function appsPage() {
       { title: "آخر مزامنة", value: stats.lastSyncAt ? new Date(stats.lastSyncAt).toLocaleDateString("ar-SA") : "—", caption: stats.lastSyncAt ? "آخر نشاط محفوظ" : "لا توجد مزامنة حتى الآن", tone: "warning", icon: "reports" },
       { title: "الرسائل المرسلة", value: 0, caption: "لم يتم إرسال أي رسالة", tone: "info", icon: "notifications" }
     ];
-    const benefits = [
-      ["subscriptions", "مزامنة الطلبات", "زامن الطلبات الجديدة والمحدثة تلقائيًا"],
-      ["customers", "إنشاء العملاء تلقائيًا", "أنشئ ملف العميل في النظام تلقائيًا"],
-      ["apps", "ربط المنتج بالباقة", "اربط المنتجات بخطط الاشتراك والتجديد"],
-      ["template", "إرسال رابط معلومات الطلب", "أرسل رابطًا آمنًا يحتوي على معلومات العميل والطلب"]
-    ];
     return dashboardShell(`${pageTitle("تطبيقاتنا")}
       <section class="apps-overview-stats" aria-label="ملخص التطبيقات">${statCards.map((item) => `<article class="apps-overview-stat ${item.tone}"><span class="apps-stat-icon">${dashboardIcon(item.icon)}</span><div><strong>${item.title}</strong><b>${item.value}</b><small>${item.caption}</small></div></article>`).join("")}</section>
       ${linkedAppsSection(connection, customIntegrations)}
-      ${appsCatalogMarkup(data, connected, customIntegrations)}
-      <section class="apps-benefits card"><div class="apps-benefits-title"><span>☆</span><div><h2>مزايا ربط التطبيقات</h2><p>اربط تطبيقاتك واستمتع بأتمتة كاملة لعملياتك وتقليل الجهد اليدوي.</p></div></div><div class="apps-benefits-grid">${benefits.map(([icon,title,description]) => `<article><span>${dashboardIcon(icon)}</span><div><strong>${title}</strong><small>${description}</small></div></article>`).join("")}</div></section>`);
+      ${appsCatalogMarkup(data, connected, customIntegrations)}`);
   }
   return dashboardShell(`${pageTitle("تطبيقاتنا")}
     ${statGrid([{ title: "التطبيقات المتاحة", value: stats.availableApps || 0, caption: "تطبيق", icon: "apps" }, { title: "التطبيقات المرتبطة", value: stats.connectedApps || 0, caption: "اتصال", tone: "success", icon: "apps" }, { title: "آخر مزامنة", value: stats.lastSyncAt ? new Date(stats.lastSyncAt).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" }) : "لا يوجد", caption: "تحديث البيانات", tone: "warning", icon: "reports" }, { title: "طلبات تمت مزامنتها", value: stats.syncedOrders || 0, caption: "طلب حقيقي", tone: "purple", icon: "subscriptions" }])}

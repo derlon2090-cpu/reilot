@@ -5602,19 +5602,6 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 .integration-empty-card > small { margin-top: 14px; color: #8391a6; font-size: 9px; }
 .integration-empty-card > small button { padding: 0; color: #0B3F3B; background: transparent; cursor: pointer; font-weight: 700; }
 
-.apps-benefits { margin-top: 17px; padding: 18px 20px; display: grid; grid-template-columns: minmax(210px, .72fr) minmax(0, 2fr); gap: 22px; align-items: center; }
-.apps-benefits-title { display: flex; align-items: flex-start; gap: 11px; }
-.apps-benefits-title > span { color: #0B3F3B; font-size: 25px; line-height: 1; }
-.apps-benefits h2 { margin: 0 0 5px; color: #062B28; font-size: 15px; }
-.apps-benefits p { margin: 0; color: #71809a; font-size: 10px; line-height: 1.7; }
-.apps-benefits-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; }
-.apps-benefits-grid article { min-width: 0; display: flex; align-items: center; gap: 10px; }
-.apps-benefits-grid article > span { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; color: #0B3F3B; border-radius: 8px; background: #F3F8F7; }
-.apps-benefits-grid .line-icon { width: 20px; height: 20px; }
-.apps-benefits-grid strong,
-.apps-benefits-grid small { display: block; }
-.apps-benefits-grid strong { color: #062B28; font-size: 11px; }
-.apps-benefits-grid small { margin-top: 3px; color: #7b8aa0; font-size: 8px; line-height: 1.55; }
 .integration-guide { color: #062B28; line-height: 1.9; }
 .integration-guide ol { margin: 12px 0 0; padding-inline-start: 22px; }
 
@@ -5622,32 +5609,26 @@ html[dir="ltr"] .auth-benefits > div { text-align: left; }
 :root[data-theme="dark"] .linked-apps-section,
 :root[data-theme="dark"] .linked-app-card,
 :root[data-theme="dark"] .integration-card,
-:root[data-theme="dark"] .integration-empty-card,
-:root[data-theme="dark"] .apps-benefits { color: #E8F1F0; border-color: #062B28; background: #062B28; }
+:root[data-theme="dark"] .integration-empty-card { color: #E8F1F0; border-color: #062B28; background: #062B28; }
 :root[data-theme="dark"] .apps-overview-stat strong,
 :root[data-theme="dark"] .apps-overview-stat b,
 :root[data-theme="dark"] .integration-card h2,
-:root[data-theme="dark"] .integration-empty-card h2,
-:root[data-theme="dark"] .apps-benefits h2,
-:root[data-theme="dark"] .apps-benefits-grid strong { color: #F3F8F7; }
+:root[data-theme="dark"] .integration-empty-card h2 { color: #F3F8F7; }
 :root[data-theme="dark"] .integration-description,
 :root[data-theme="dark"] .integration-features li { color: #E8F1F0; }
 
 @media (max-width: 1280px) {
   .apps-catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .apps-benefits { grid-template-columns: 1fr; }
   .linked-app-card { grid-template-columns: 52px minmax(0,1fr); }
   .linked-app-actions { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) {
   .apps-overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .apps-benefits-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .linked-apps-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 620px) {
   .apps-overview-stats,
-  .apps-catalog,
-  .apps-benefits-grid { grid-template-columns: 1fr; }
+  .apps-catalog { grid-template-columns: 1fr; }
   .integration-card,
   .integration-empty-card { min-height: 365px; }
 }
