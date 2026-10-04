@@ -12175,7 +12175,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .dashboard-shell.sidebar-collapsed .sidebar-brand { justify-content: flex-start; padding: 0 8px; }
   .dashboard-shell.sidebar-collapsed .sidebar .brand { width: 100%; justify-content: flex-start; }
   .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark {
-    content: url('/assets/renvix-logo-official.svg');
+    content: url('/assets/renvix-logo-exact.png');
     width: 142px;
     height: auto;
     max-height: 42px;
@@ -12540,7 +12540,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   box-shadow:0 8px 20px rgba(0,0,0,.24)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-logo .brand-logo-image{
-  content:url("/assets/renvix-logo-official.svg")!important;
+  content:url("/assets/renvix-logo-exact.png")!important;
   filter:brightness(0) invert(1)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-intro h1,.auth-suite-panel h1,.email-otp-panel h1){

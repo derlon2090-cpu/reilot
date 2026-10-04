@@ -7,7 +7,7 @@ const publicIdentity = await readFile("public/app/styles/identity-system.css", "
 const layout = await readFile("app/layout.jsx", "utf8");
 const staticIndex = await readFile("index.html", "utf8");
 const appSource = await readFile("src/app/app.js", "utf8");
-const officialLogo = await readFile("public/assets/renvix-logo-official.svg", "utf8");
+const officialMark = await readFile("public/assets/renvix-logo-official.svg", "utf8");
 const spaPage = await readFile("app/[[...slug]]/page.jsx", "utf8");
 
 describe("Renvix identity system", () => {
@@ -31,23 +31,23 @@ describe("Renvix identity system", () => {
     expect(staticIndex).not.toContain("IBM+Plex+Sans+Arabic");
   });
 
-  it("uses the official symbol consistently across every brand role", () => {
+  it("keeps official logo variants as immutable image assets", () => {
     expect(appSource).toContain("const RENVIX_BRAND_ASSETS = Object.freeze");
-    expect(appSource).toContain('primary: "/assets/renvix-logo-official.svg"');
-    expect(appSource).toContain('compact: "/assets/renvix-logo-official.svg"');
+    expect(appSource).toContain('primary: "/assets/renvix-logo-primary.png"');
+    expect(appSource).toContain('compact: "/assets/renvix-logo-deep-teal.svg"');
     expect(appSource).toContain('icon: "/assets/renvix-logo-official.svg"');
-    expect(appSource).toContain('compactDark: "/assets/renvix-logo-official-light.svg"');
+    expect(appSource).toContain('compactDark: "/assets/renvix-logo-auth-dark.svg"');
+    expect(officialMark).toContain('stroke="#00595D"');
+    expect(officialMark).not.toContain("<text");
     expect(appSource).toContain('surface === "footer" ? "primary"');
     expect(appSource).toContain('logo(false, "footer")');
-    expect(identity).toContain("Official symbol-only logo roles");
-    expect(officialLogo).toContain('stroke="#00595D"');
-    expect(officialLogo).not.toContain("<text");
+    expect(identity).toContain("Wordmarks remain image assets");
     expect(identity).toContain("object-fit:contain");
-    expect(identity).toContain('content:url("/assets/renvix-logo-official.svg")!important');
-    expect(identity).toContain('content:url("/assets/renvix-logo-official.svg")!important');
+    expect(identity).toContain('content:url("/assets/renvix-logo-deep-teal.svg")!important');
+    expect(identity).toContain('content:url("/assets/renvix-logo-primary.png")!important');
     expect(identity).toContain(".brand-logo-image--footer");
     expect(identity).toContain("direction:rtl!important");
-    expect(identity).toContain('content:url("/assets/renvix-logo-official.svg")!important');
+    expect(identity).toContain('content:url("/assets/renvix-logo-primary.png")!important');
     expect(identity).toContain("visibility:visible!important");
     expect(identity).not.toContain(".marketing-footer-bottom::before");
     expect(identity).toContain("mix-blend-mode:screen");
@@ -62,7 +62,7 @@ describe("Renvix identity system", () => {
       expect(markup).toContain('rel="modulepreload"');
       expect(markup).toContain('/app/locales/ar.json');
       expect(markup).toContain('/app/locales/en.json');
-      expect(markup).toContain('rel="preload" as="image" href="/assets/renvix-logo-official.svg"');
+      expect(markup).toContain('rel="preload" as="image" href="/assets/renvix-logo-primary.png"');
     }
   });
 

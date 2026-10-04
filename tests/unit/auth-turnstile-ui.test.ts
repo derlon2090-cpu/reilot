@@ -57,7 +57,7 @@ describe("authentication Turnstile UI integration", () => {
   });
 
   it("keeps the approved Renvix logo asset and readable auth text in dark mode", () => {
-    expect(stylesSource).toContain('content:url("/assets/renvix-logo-official.svg")!important');
+    expect(stylesSource).toContain('content:url("/assets/renvix-logo-exact.png")!important');
     expect(stylesSource).toContain("filter:brightness(0) invert(1)!important");
     expect(stylesSource).toContain("color:#f8fbfb!important");
     expect(stylesSource).toContain(".auth-suite-page[data-auth-theme=\"dark\"] .policy-check button");

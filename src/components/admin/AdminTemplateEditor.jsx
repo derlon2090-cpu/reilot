@@ -43,7 +43,7 @@ function TemplatePreview({ template, rendered }) {
   const body = rendered?.body || template.body || "";
   if (template.channel === "email") {
     return <div className={styles.adminEmailPreview}>
-      <img src="/assets/renvix-logo-official.svg" width="360" height="180" alt="Renvix" />
+      <img src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" />
       <div className={styles.adminEmailLine} />
       <h3>{rendered?.subject || template.subject || template.name}</h3>
       <div className={styles.adminEmailBody}>{body}</div>
@@ -183,7 +183,7 @@ export default function AdminTemplateEditor({ templateKey, admin }) {
 
   return <main className={styles.adminTemplateEditorPage} dir="rtl">
     <header className={styles.adminEditorTopbar}>
-      <Link href="/admin/templates"><img src="/assets/renvix-logo-official.svg" width="360" height="180" alt="Renvix" /></Link>
+      <Link href="/admin/templates"><img src="/assets/renvix-logo-deep-teal.svg" width="760" height="220" alt="Renvix" /></Link>
       <div><span>{admin.name || admin.email}</span><Link href="/admin/templates">العودة إلى القوالب ←</Link></div>
     </header>
     <section className={styles.adminEditorHeading}>

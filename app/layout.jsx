@@ -50,7 +50,7 @@ export default function RootLayout({ children }) {
           }}
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
-        <link rel="preload" as="image" href="/assets/renvix-logo-official.svg" fetchPriority="high" />
+        <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
         <link rel="modulepreload" href="/app/app.js?v=20260928-storage-folder-lock-v6" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />

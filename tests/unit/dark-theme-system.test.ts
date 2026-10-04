@@ -43,7 +43,7 @@ describe("site-wide dark theme system", () => {
 
   it("uses the transparent logo assets in dark mode", async () => {
     const css = await readFile(`${root}/src/styles/dark-system.css`, "utf8");
-    expect(css).toContain('/assets/renvix-logo-official.svg');
+    expect(css).toContain('/assets/renvix-logo-deep-teal.svg');
     expect(css).toContain('/assets/renvix-logo-official.svg');
   });
 });

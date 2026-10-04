@@ -12175,7 +12175,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   .dashboard-shell.sidebar-collapsed .sidebar-brand { justify-content: flex-start; padding: 0 8px; }
   .dashboard-shell.sidebar-collapsed .sidebar .brand { width: 100%; justify-content: flex-start; }
   .dashboard-shell.sidebar-collapsed .sidebar .brand-logo-image--mark {
-    content: url('/assets/renvix-logo-official.svg');
+    content: url('/assets/renvix-logo-exact.png');
     width: 142px;
     height: auto;
     max-height: 42px;
@@ -12540,7 +12540,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   box-shadow:0 8px 20px rgba(0,0,0,.24)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] .auth-suite-brandbar-logo .brand-logo-image{
-  content:url("/assets/renvix-logo-official.svg")!important;
+  content:url("/assets/renvix-logo-exact.png")!important;
   filter:brightness(0) invert(1)!important;
 }
 .auth-suite-page[data-auth-theme="dark"] :is(.auth-suite-intro h1,.auth-suite-panel h1,.email-otp-panel h1){
@@ -14422,7 +14422,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
   --home-radius-card: 17px;
   --home-radius-large: 22px;
   --home-shadow-card: 0 12px 32px rgba(7, 55, 50, .065);
-  --home-section-space: 72px;
+  --home-section-space: 88px;
   overflow-x: clip;
   color: var(--home-text);
   background: var(--home-surface);
@@ -14790,13 +14790,13 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 @media (hover:hover) and (pointer:fine) { .home-brands-track:hover { animation-play-state: paused; } }
 
 .home-section { padding-block: var(--home-section-space); }
-.home-section-heading { max-width: 770px; margin: 0 auto 34px; text-align: center; }
+.home-section-heading { max-width: 770px; margin: 0 auto 42px; text-align: center; }
 .home-section-heading > span { color: #0a796d; font-size: 12px; font-weight: 800; }
 .home-section-heading h2 { margin: 8px 0 10px; color: #092824; font-size: clamp(28px, 3.2vw, 42px); line-height: 1.25; letter-spacing: -.03em; }
 .home-section-heading p { max-width: 660px; margin: 0 auto; color: var(--home-text-secondary); font-size: 15px; line-height: 1.8; }
 .home-features { background: #fff; }
 .home-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.home-feature-grid article { min-height: 176px; padding: 22px; border: 1px solid var(--home-border); border-radius: var(--home-radius-card); background: #fff; box-shadow: none; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.home-feature-grid article { min-height: 188px; padding: 24px; border: 1px solid var(--home-border); border-radius: var(--home-radius-card); background: #fff; box-shadow: none; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
 .home-feature-grid article > span { width: 47px; height: 47px; display: grid; place-items: center; color: #0a766a; border-radius: 13px; background: var(--home-surface-subtle); }
 .home-feature-grid article > span .line-icon { width: 23px; height: 23px; }
 .home-feature-grid h3 { margin: 19px 0 7px; color: #123b36; font-size: 18px; }
@@ -14820,9 +14820,9 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .home-journey-grid article:hover > span { border-color: #9ec7c0; background: #eaf6f4; }
 @keyframes journey-highlight { from { right: -36px; } to { right: calc(100% + 36px); } }
 
-.home-pricing { padding-bottom: 64px; background: #fff; }
+.home-pricing { padding-bottom: 80px; background: #fff; }
 .home-pricing-cards > .grid { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; align-items: stretch; gap: 15px !important; }
-.home-pricing .pricing-card { position: relative; min-width: 0; min-height: 410px; padding: 21px !important; display: flex; flex-direction: column; border: 1px solid var(--home-border) !important; border-radius: var(--home-radius-card) !important; background: #fff !important; box-shadow: none !important; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease !important; }
+.home-pricing .pricing-card { position: relative; min-width: 0; min-height: 430px; padding: 22px !important; display: flex; flex-direction: column; border: 1px solid var(--home-border) !important; border-radius: var(--home-radius-card) !important; background: #fff !important; box-shadow: none !important; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease !important; }
 .home-pricing .pricing-card.featured { border-color: var(--home-primary) !important; background: #f7fbfa !important; }
 .home-pricing .pricing-card .badge { width: fit-content; min-height: 25px; margin-bottom: 13px; padding: 3px 9px; border-radius: 99px; font-size: 10px; }
 .home-pricing .pricing-card.featured .badge { color: #fff; background: var(--home-primary); }
@@ -14838,7 +14838,7 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .home-pricing .pricing-card .plan-feature-list li { display: flex; align-items: flex-start; gap: 7px; color: #536d68; font-size: 11px; line-height: 1.55; }
 .home-pricing .pricing-card .plan-feature-list .line-icon { width: 15px; height: 15px; flex: 0 0 15px; color: #148260; }
 .home-pricing .pricing-card > .btn { width: 100%; margin-top: auto; }
-.home-pricing .pricing-current-loading { min-height: 410px; }
+.home-pricing .pricing-current-loading { min-height: 430px; }
 .home-pricing .pricing-card-loading { overflow: hidden; }
 @media (hover:hover) and (pointer:fine) { .home-pricing .pricing-card:hover { transform: translateY(-4px); border-color: #a9c9c3 !important; box-shadow: var(--home-shadow-card) !important; } }
 .home-text-link { width: fit-content; margin: 25px auto 0; display: flex; align-items: center; gap: 8px; color: var(--home-primary); font-size: 13px; font-weight: 800; text-decoration: none; }

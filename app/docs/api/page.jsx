@@ -21,7 +21,7 @@ export default function ApiDocumentationPage() {
     <main className="api-docs" dir="rtl">
       <header className="api-docs__header">
         <Link className="api-docs__brand" href="/" aria-label="Renvix">
-          <img src="/assets/renvix-logo-official.svg" alt="Renvix" />
+          <img src="/assets/renvix-logo-deep-teal.svg" alt="Renvix" />
         </Link>
         <nav>
           <a href="#authentication">المصادقة</a>

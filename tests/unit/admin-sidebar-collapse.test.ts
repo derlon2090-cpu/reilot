@@ -11,8 +11,8 @@ describe("admin sidebar collapse contract", () => {
     expect(portalSource).toContain('localStorage.setItem("renvix.admin.sidebar.collapsed", String(next))');
   });
 
-  it("keeps the official Renvix mark in both expanded and compact modes", () => {
-    expect(portalSource).toContain('src="/assets/renvix-logo-official.svg"');
+  it("switches between the full wordmark and the compact Renvix mark", () => {
+    expect(portalSource).toContain('compact ? "/assets/renvix-logo-official.svg" : "/assets/renvix-logo-deep-teal.svg"');
     expect(portalSource).toContain('name={sidebarCollapsed ? "close" : "menu"}');
     expect(portalSource).toContain('aria-expanded={!sidebarCollapsed}');
   });
