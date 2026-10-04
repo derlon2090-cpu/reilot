@@ -28,6 +28,7 @@ describe("edge scanner policy", () => {
       expect(edge).toContain(token);
     }
     expect(nginx).toContain("return 444;");
+    expect(nginx).toContain("location ~* ^/+.*(wp-includes|wlwmanifest\\.xml)");
     expect(nginx).toContain(".well-known/security\\.txt");
     expect(nginx).toContain("storage/logs");
     expect(nginx).toContain("zzcanary-");
@@ -74,7 +75,10 @@ describe("edge scanner policy", () => {
     }
     expect(incidentIps).not.toContain("104.28.254.47");
     expect(incidentIps).not.toContain("104.28.222.43");
-    expect(read("deploy/security/install-honeypot-blacklist")).toContain("honeypot_blacklist");
+    const blacklist = read("deploy/security/install-honeypot-blacklist");
+    expect(blacklist).toContain("honeypot_blacklist");
+    expect(blacklist).toContain("185.19.40.179 timeout 604800");
+    expect(blacklist).toContain("timeout 0");
   });
 
   it("ships a single terminating WAF payload for the incident vectors", () => {

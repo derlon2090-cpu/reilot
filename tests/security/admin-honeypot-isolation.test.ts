@@ -37,6 +37,7 @@ describe("isolated admin honeypot", () => {
     expect(classifyTrapPath("/fly.toml")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/assets/env-config.js")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
+    expect(classifyTrapPath("//test/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/.git/HEAD")).toMatchObject({ stage: 2, family: "repository_extraction" });
     expect(classifyTrapPath("/wp-json/gravitysmtp/v1/tests/mock-data")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/credentials.json")).toMatchObject({ stage: 2, family: "credential_extraction" });
@@ -52,6 +53,30 @@ describe("isolated admin honeypot", () => {
       .resolves.toMatchObject({ valid: false });
     await expect(verifyDeepCanary(token, secret, device, Date.UTC(2026, 9, 2)))
       .resolves.toMatchObject({ valid: false });
+  });
+
+  it("records consecutive-slash WordPress manifest probes through ingestion only", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    const { pending, context, env } = runtime();
+    try {
+      const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app//test/wp-includes/wlwmanifest.xml", {
+        headers: { "cf-connecting-ip": "185.19.40.179", "user-agent": "incident-200-test" }
+      }), env, context);
+      expect(response.status).toBe(200);
+      await Promise.all(pending);
+      const calls = ingestionCalls(fetchSpy);
+      expect(calls).toHaveLength(1);
+      const body = JSON.parse(String(calls[0][1]?.body));
+      expect(body).toMatchObject({
+        source_ip: "185.19.40.179",
+        requested_path: "//test/wp-includes/wlwmanifest.xml",
+        trap_stage: 1,
+        trap_family: "framework_probe"
+      });
+      expect(String(calls[0][0])).toContain("/api/security/ingest/honeypot");
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it("serves one self-contained shell for ordinary discovery paths and records the HTTP event", async () => {

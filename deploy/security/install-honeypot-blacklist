@@ -11,10 +11,28 @@ apt-get update
 apt-get install -y ipset ipset-persistent iptables-persistent
 
 set_name=honeypot_blacklist
-ipset create "$set_name" hash:ip family inet hashsize 1024 maxelem 65536 -exist
+
+# timeout support is enabled with a zero default so established incident
+# sources remain permanent while a responder can add bounded entries safely.
+# Upgrade an older set atomically; the iptables reference follows the set name
+# across the swap and therefore never opens a firewall gap.
+if ! ipset list "$set_name" >/dev/null 2>&1; then
+  ipset create "$set_name" hash:ip family inet hashsize 1024 maxelem 65536 timeout 0
+elif ! ipset save "$set_name" | sed -n '1p' | grep -Eq '(^|[[:space:]])timeout[[:space:]]+0([[:space:]]|$)'; then
+  migration_set="hpbl_migrate_$$"
+  trap 'ipset destroy "$migration_set" >/dev/null 2>&1 || true' EXIT
+  ipset create "$migration_set" hash:ip family inet hashsize 1024 maxelem 65536 timeout 0
+  while read -r operation saved_set saved_ip _; do
+    [[ $operation == add && $saved_set == "$set_name" ]] || continue
+    ipset add "$migration_set" "$saved_ip" timeout 0 -exist
+  done < <(ipset save "$set_name")
+  ipset swap "$set_name" "$migration_set"
+  ipset destroy "$migration_set"
+  trap - EXIT
+fi
 
 while read -r ip; do
-  ipset add "$set_name" "$ip" -exist
+  ipset add "$set_name" "$ip" timeout 0 -exist
 done <<'EOF'
 147.182.200.94
 138.197.191.87
@@ -25,6 +43,10 @@ done <<'EOF'
 34.140.132.132
 91.148.245.81
 EOF
+
+# INC-2026-000200: legacy WordPress manifest probe. Re-running this installer
+# refreshes only this bounded entry; it does not convert permanent entries.
+ipset add "$set_name" 185.19.40.179 timeout 604800 -exist
 
 # No interface selector is used: every packet traversing INPUT is covered.
 # DROP is intentionally silent (no REJECT, TCP RST, or ICMP response).
@@ -52,4 +74,5 @@ iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP
 if iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
   iptables -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP
 fi
-echo "Persistent silent DROP installed for 8 incident sources."
+ipset test "$set_name" 185.19.40.179
+echo "Silent DROP installed: 8 permanent sources and INC-2026-000200 for 7 days."
