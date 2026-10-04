@@ -50,6 +50,7 @@ describe("storage center form wiring", () => {
     expect(allowed(container, target("other"))).toBe(true);
     expect(allowed(container, target("files", "files"))).toBe(true);
     expect(allowed(container, target("images", "images"))).toBe(false);
+    expect(allowed({ ...container, isSystem: true }, target("other"))).toBe(false);
   });
   it("routes storage traffic around the external API rewrite and rejects HTML masquerading as success", () => {
     expect(source).toContain('if (url === "/api/storage") return "/storage-api"');
@@ -105,7 +106,7 @@ describe("storage center form wiring", () => {
     expect(actionHandler).toContain('storageAction === "storage-place-item"');
     expect(actionHandler).toContain('storageAction === "storage-cancel-move"');
     expect(actionHandler).toContain('storageAction === "storage-toggle-arrange"');
-    expect(source).toContain('تحريك الملفات والمستندات');
+    expect(source).toContain('ترتيب ونقل العناصر');
     expect(source).toContain('storage-arrange-bar');
     expect(source).not.toContain('card.insertAdjacentHTML("beforeend", `<button type="button" class="storage-move-handle"');
     expect(source).toContain('bindStorageMoveControls()');
@@ -118,10 +119,19 @@ describe("storage center form wiring", () => {
     expect(source).toContain('card.setPointerCapture(event.pointerId)');
     expect(source).toContain('document.addEventListener("contextmenu"');
     expect(source).toContain('async function reorderStorageCards');
+    expect(source).toContain('card.dataset.storageSystem = row.isSystem ? "1" : "0"');
+    expect(source).toContain('isSystem: card.dataset.storageSystem === "1"');
+    expect(source).toContain('المجلدات النظامية قابلة للترتيب فقط');
     expect(source).toContain('/move`, {');
     expect(storageService).toContain('folder.isSystem && folder.systemType !== "files"');
     expect(storageService).toContain('destination?.systemType === "images"');
     expect(styles).toContain('.storage-folder-card.storage-drop-ready');
+  });
+
+  it("shows the storage summary only on the Storage Center overview", () => {
+    expect(source).toContain("const isStorageOverview = !data.currentFolderId;");
+    expect(source).toContain('${isStorageOverview ? `<section class="storage-stats"');
+    expect(source).toContain('aria-label="ملخص مركز التخزين"');
   });
 
   it("moves documents to a visible 15-day trash flow", () => {

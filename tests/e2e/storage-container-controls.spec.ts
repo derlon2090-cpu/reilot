@@ -33,7 +33,7 @@ async function setupPointerFixture(page: Page) {
     document.addEventListener("click",event=>{const action=event.target.closest("[data-action]");if(action)void handleAction(action);});
     bindStorageMoveControls();
   ` });
-  await page.getByRole("button", { name: "تحريك الملفات والمستندات" }).click();
+  await page.getByRole("button", { name: "ترتيب ونقل العناصر" }).click();
 }
 
 test("real mouse drag starting on the preview button reorders documents and saves the order", async ({ page }) => {
@@ -130,7 +130,7 @@ test("explicit move button selects a container, supports touch targets and persi
     document.addEventListener("click", event => { const action = event.target.closest("[data-action]"); if (action) void handleAction(action); });
     bindStorageMoveControls();
   ` });
-  const move = page.getByRole("button", { name: "تحريك الملفات والمستندات" });
+  const move = page.getByRole("button", { name: "ترتيب ونقل العناصر" });
   await expect(move).toBeVisible();
   await expect(page.locator('.storage-folder-card [data-action="storage-start-move"]')).toHaveCount(0);
   await expect(page.locator('.storage-folder-card')).toHaveAttribute("draggable", "false");

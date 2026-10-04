@@ -16530,6 +16530,7 @@ function storageCenterPage() {
   const count = data.counts || {};
   const isImages = data.currentFolderId === data.imagesFolderId;
   const isFiles = data.currentFolderId === data.filesFolderId;
+  const isStorageOverview = !data.currentFolderId;
   const currentFolder = (data.allFolders || []).find((item) => item.id === data.currentFolderId);
   const usagePercent = Math.min(100, Math.max(0, Number(usage.percent || usage.progressPercent || 0)));
   const availableBytes = usage.isUnlimited ? null : Math.max(0, Number(usage.limitBytes || 0) - Number(usage.usedBytes || 0));
@@ -16546,13 +16547,13 @@ function storageCenterPage() {
     ${storageBreadcrumbs(data)}
     <header class="storage-page-heading storage-main-heading"><div class="storage-title-icon">${dashboardIcon("archive")}</div><div><h1>${currentFolder ? escapeHtml(currentFolder.name) : "مركز التخزين"}</h1><p>${currentFolder ? (isImages ? "صورك المحفوظة جاهزة لإعادة الاستخدام." : "أنشئ ملفات لتنظيم العناصر بداخلها، واضغط تحريك لتغيير أماكنها.") : "احفظ بياناتك ومستنداتك وصورك بشكل منظم وآمن، واستخدمها عند الحاجة داخل Renvix."}</p></div><div class="storage-primary-actions"><button class="btn btn-primary storage-create-button" data-action="storage-create-menu">${dashboardIcon("add")} ${currentFolder ? (isImages ? "رفع صورة" : "إضافة ملف") : "إنشاء أو رفع"}</button><input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" data-action="storage-image-input"><input type="file" hidden multiple accept="application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.zip" data-action="storage-file-input"></div></header>
     ${capacityWarning}
-    <section class="storage-stats">
+    ${isStorageOverview ? `<section class="storage-stats" aria-label="ملخص مركز التخزين">
       <article><span>${dashboardIcon("folder")}</span><div><small>إجمالي المجلدات</small><strong>${Number(count.folders || 0).toLocaleString("ar-SA")}</strong><em>مجلدات منظمة</em></div></article>
       <article><span>${dashboardIcon("document")}</span><div><small>إجمالي المستندات</small><strong>${Number(count.documents || 0).toLocaleString("ar-SA")}</strong><em>مستند محفوظ</em></div></article>
       <article><span>${dashboardIcon("image")}</span><div><small>الصور المحفوظة</small><strong>${Number(count.images || 0).toLocaleString("ar-SA")}</strong><em>صورة محفوظة</em></div></article>
       <article><span>${dashboardIcon("clock")}</span><div><small>العناصر الحديثة</small><strong>${Number(count.recent || 0).toLocaleString("ar-SA")}</strong><em>خلال آخر 7 أيام</em></div></article>
       <article class="storage-space-stat" data-action="storage-usage-details" role="button" tabindex="0"><span>${dashboardIcon("archive")}</span><div><small>مساحة التخزين</small><strong><b dir="ltr">${formatStorageBytes(usage.usedBytes)}</b> <i>من <span dir="ltr">${usage.isUnlimited ? "غير محدود" : formatStorageBytes(usage.limitBytes)}</span></i></strong><div class="storage-stat-progress"><b style="width:${Number(usage.progressPercent || 0)}%"></b></div><em>${usagePercent.toLocaleString("ar-SA")}% مستخدم · ${availableBytes === null ? "مساحة غير محدودة" : `<span dir="ltr">${formatStorageBytes(availableBytes)}</span> متاحة`}</em></div><button data-action="${usagePercent >= 80 ? "storage-cleanup-review" : "storage-usage-details"}">${usagePercent >= 80 ? "إخلاء مساحة" : "إدارة المساحة"}</button></article>
-    </section>
+    </section>` : ""}
     ${uploadPanel}
     <section class="card storage-browser"><header><div><h2>${state.storageSearch ? `نتائج البحث عن «${escapeHtml(state.storageSearch)}»` : isImages ? "ملف الصور" : isFiles ? "الملفات" : currentFolder ? "المحتويات" : "المجلدات والملفات"}</h2><small>${state.storageSearch ? `${(folders.length + documents.length + assets.length).toLocaleString("ar-SA")} نتيجة في العناوين والمحتوى والبريد وأسماء الملفات` : isImages ? "صورك المحفوظة متاحة لإعادة الاستخدام داخل القوالب." : "نظّم ملفاتك في مجلدات واضحة."}</small></div><div class="storage-toolbar"><label>${dashboardIcon("search")}<input data-action="storage-search" value="${escapeHtml(state.storageSearch)}" placeholder="ابحث بكلمة أو بريد داخل كل الملفات..."></label><select data-action="storage-type-filter"><option value="all">كل الأنواع</option><option value="folder" ${state.storageTypeFilter === "folder" ? "selected" : ""}>المجلدات</option><option value="document" ${state.storageTypeFilter === "document" ? "selected" : ""}>المستندات</option><option value="image" ${state.storageTypeFilter === "image" ? "selected" : ""}>الصور</option><option value="file" ${state.storageTypeFilter === "file" ? "selected" : ""}>الملفات</option></select><input class="storage-date-filter" type="date" data-action="storage-date-filter" value="${escapeHtml(state.storageDateFrom)}" title="من تاريخ"><select data-action="storage-sort"><option value="newest" ${state.storageSort === "newest" ? "selected" : ""}>الأحدث</option><option value="oldest" ${state.storageSort === "oldest" ? "selected" : ""}>الأقدم</option><option value="modified" ${state.storageSort === "modified" ? "selected" : ""}>آخر تعديل</option><option value="name" ${state.storageSort === "name" ? "selected" : ""}>الاسم</option><option value="size" ${state.storageSort === "size" ? "selected" : ""}>الأكبر حجمًا</option></select><div><button class="${state.storageView === "grid" ? "active" : ""}" data-action="storage-view" data-view="grid">${dashboardIcon("gridView")}</button><button class="${state.storageView === "list" ? "active" : ""}" data-action="storage-view" data-view="list">${dashboardIcon("listView")}</button></div></div></header>
       ${!empty ? `<p class="storage-drag-hint">${dashboardIcon("folder")} اسحب أي مستند أو ملف وأفلته فوق المجلد المطلوب لنقله فورًا</p>` : ""}
@@ -17478,10 +17479,14 @@ function bindStorageMoveControls() {
   browser.querySelectorAll('.storage-folder-card').forEach((card) => {
     const row = state.storageCenter?.storage?.folders?.find((folder) => folder.id === card.dataset.id);
     card.dataset.storageKind = "folder";
-    if (!row || row.isSystem) return;
+    if (!row) return;
     card.setAttribute("data-storage-draggable", "");
     card.dataset.storageKind = "folder";
     card.dataset.storageName = row.name;
+    card.dataset.storageSystem = row.isSystem ? "1" : "0";
+    card.title = row.isSystem
+      ? "اسحب لتغيير الترتيب؛ هذا مجلد نظامي ثابت لا يمكن وضعه داخل مجلد آخر"
+      : "افتح المجلد، أو فعّل التحريك لتغيير ترتيبه أو نقله";
   });
   browser.querySelectorAll("[data-storage-draggable]").forEach((card) => {
     const data = state.storageCenter?.storage || {};
@@ -17512,13 +17517,13 @@ function bindStorageMoveControls() {
     [...list.children].sort((a, b) => (rank.get(`${a.dataset.storageKind}:${a.dataset.id}`) ?? 9999) - (rank.get(`${b.dataset.storageKind}:${b.dataset.id}`) ?? 9999)).forEach((card) => list.append(card));
   }
   const hint = browser.querySelector('.storage-drag-hint');
-  if (hint) hint.textContent = storageArrangeMode ? (state.storageSearch || state.storageDateFrom || (state.storageTypeFilter && state.storageTypeFilter !== "all") ? "يمكنك النقل داخل حاوية. امسح البحث والفلاتر لتفعيل إعادة الترتيب." : "اسحب فوق بطاقة لتغيير الترتيب، أو إلى وسط حاوية للنقل داخلها.") : "اضغط «تحريك الملفات والمستندات» أعلاه لتفعيل تغيير الأماكن.";
+  if (hint) hint.textContent = storageArrangeMode ? (state.storageSearch || state.storageDateFrom || (state.storageTypeFilter && state.storageTypeFilter !== "all") ? "يمكنك النقل داخل حاوية. امسح البحث والفلاتر لتفعيل إعادة الترتيب." : "اسحب فوق بطاقة لتغيير الترتيب، أو إلى وسط حاوية للنقل داخلها.") : "اضغط «ترتيب ونقل العناصر» أعلاه لتفعيل تغيير الأماكن.";
   let bar = document.querySelector(".storage-arrange-bar");
   if (!bar) {
     browser.insertAdjacentHTML("beforebegin", '<section class="storage-arrange-bar"></section>');
     bar = document.querySelector(".storage-arrange-bar");
   }
-  bar.innerHTML = `<button type="button" class="btn ${storageArrangeMode ? "btn-primary" : "btn-secondary"}" data-action="storage-toggle-arrange" aria-pressed="${storageArrangeMode}" ${storageMoveInFlight ? "disabled" : ""}>${dashboardIcon(storageArrangeMode ? "close" : "folder")}${storageArrangeMode ? "إنهاء التحريك" : "تحريك الملفات والمستندات"}</button><span role="status">${storageArrangeMode ? "اسحب مباشرةً: فوق مستند أو حافة بطاقة للترتيب، ووسط حاوية للنقل داخلها. لا تحتاج لضغط مطوّل." : "فعّل التحريك لتغيير أماكن الملفات والمستندات بسهولة."}</span>`;
+  bar.innerHTML = `<button type="button" class="btn ${storageArrangeMode ? "btn-primary" : "btn-secondary"}" data-action="storage-toggle-arrange" aria-pressed="${storageArrangeMode}" ${storageMoveInFlight ? "disabled" : ""}>${dashboardIcon(storageArrangeMode ? "close" : "folder")}${storageArrangeMode ? "إنهاء التحريك" : "ترتيب ونقل العناصر"}</button><span role="status">${storageArrangeMode ? "اسحب البطاقة فوق بطاقة أخرى لترتيبها، أو إلى وسط مجلد لنقلها داخله. المجلدات النظامية قابلة للترتيب فقط." : "فعّل التحريك لترتيب المجلدات والملفات أو نقلها إلى مجلد آخر."}</span>`;
   document.querySelector(".storage-move-mode")?.remove();
   if (!storageMovingItem) return;
   const folders = [{ id: "", name: "مركز التخزين" }, ...(state.storageCenter?.storage?.allFolders || [])];
@@ -17534,6 +17539,7 @@ function storageDropAllowed(item, target) {
   if (!item || !target) return false;
   const folderId = target.dataset.storageDropFolder || "";
   if (folderId === item.sourceFolderId) return false;
+  if (item.kind === "folder" && item.isSystem) return false;
   if (!folderId) return ["folder", "document", "asset"].includes(item.kind);
   const systemType = target.dataset.storageFolderSystemType || "custom";
   if (item.kind === "folder") {
@@ -17679,7 +17685,7 @@ document.addEventListener("pointerdown", (event) => {
   const card = event.target?.closest?.('.storage-items [data-storage-draggable]');
   if (!card) return;
   cancelStoragePointerDrag();
-  storagePointerDrag = { id: event.pointerId, card, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false, item: { id: card.dataset.id, kind: card.dataset.storageKind, name: card.dataset.storageName || "العنصر", mimeType: card.dataset.storageMimeType || "", documentType: card.dataset.storageDocumentType || "", sourceFolderId: card.dataset.storageSourceFolderId || "" } };
+  storagePointerDrag = { id: event.pointerId, card, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false, item: { id: card.dataset.id, kind: card.dataset.storageKind, name: card.dataset.storageName || "العنصر", mimeType: card.dataset.storageMimeType || "", documentType: card.dataset.storageDocumentType || "", sourceFolderId: card.dataset.storageSourceFolderId || "", isSystem: card.dataset.storageSystem === "1" } };
   card.setPointerCapture(event.pointerId);
 }, true);
 
@@ -17734,6 +17740,10 @@ function selectStorageArrangeCard(card) {
   const destination = storageDropTargetFor(card);
   if (storageMovingItem && storageDropAllowed(storageMovingItem, destination)) {
     return void moveStorageItemByDrop(storageMovingItem, destination);
+  }
+  if (card.dataset.storageSystem === "1") {
+    toast("هذا مجلد نظامي: اسحبه لتغيير ترتيبه، ولا يمكن نقله داخل مجلد آخر.", "info");
+    return;
   }
   void handleAction({ dataset: { action: "storage-start-move", kind: card.dataset.storageKind, id: card.dataset.id } });
 }
