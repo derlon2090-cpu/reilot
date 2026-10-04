@@ -144,7 +144,7 @@ export async function isTrustedDevice({ userId, rawToken, riskDetected = false }
   return result.trusted;
 }
 
-export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent, locale = "ar", purpose = "login", loginAttemptId = null }) {
+export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent, locale = "ar", purpose = "login", loginAttemptId = null, sourceMfaChallengeId = null }) {
   // Some long-lived databases applied 0040 before `admin_login` was added to
   // its purpose CHECK constraint. Store every interactive sign-in challenge
   // under the stable `login` purpose and keep the admin intent in the signed
@@ -154,6 +154,18 @@ export async function createLoginEmailOtpChallenge({ user, ipAddress, userAgent,
   let code = "";
   const challenge = await transaction(async (client) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email-otp:${user.id}:${storagePurpose}`]);
+    if (sourceMfaChallengeId) {
+      const sourceChallenge = await client.query(
+        `SELECT id FROM auth_mfa_login_challenges
+          WHERE id=$1 AND user_id=$2 AND consumed_at IS NULL AND invalidated_at IS NULL
+            AND expires_at > now()
+          FOR UPDATE`,
+        [sourceMfaChallengeId, user.id]
+      );
+      if (!sourceChallenge.rows[0]) {
+        throw Object.assign(new Error("MFA challenge is no longer valid"), { code: "MFA_CHALLENGE_INVALID" });
+      }
+    }
     await client.query(
       `UPDATE auth_mfa_login_challenges SET invalidated_at=now(),updated_at=now()
         WHERE user_id=$1 AND consumed_at IS NULL AND invalidated_at IS NULL`,

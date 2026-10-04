@@ -4215,7 +4215,7 @@ function authSuiteFrame(content, pageClass = "auth-light-page") {
     : state.route === "/register" ? localizedCopy("ابدأ رحلتك مع Renvix وأنشئ مساحة عملك خلال دقائق.", "Start your Renvix journey and create your workspace in minutes.")
     : content.includes('data-submit="forgot"') ? localizedCopy("أدخل بريدك الإلكتروني وسنرسل لك رمزًا من 6 أرقام لإعادة تعيين كلمة المرور.", "Enter your email and we will send a 6-digit code to reset your password.")
     : content.includes('data-submit="reset-password"') ? localizedCopy("أدخل رمز التحقق المرسل إلى بريدك الإلكتروني، ثم أنشئ كلمة مرور جديدة.", "Enter the verification code sent to your email, then create a new password.")
-    : content.includes('data-submit="mfa-login"') ? localizedCopy("أدخل رمز التحقق من تطبيق المصادقة أو وسيلة التحقق المرتبطة بحسابك.", "Enter the code from your authenticator or the verification method linked to your account.")
+    : content.includes('data-submit="mfa-login"') ? localizedCopy("أدخل رمز تطبيق المصادقة، أو اطلب رمزًا آمنًا على بريدك المسجل.", "Enter your authenticator code, or request a secure code at your registered email address.")
     : content.includes('data-submit="email-otp"') ? localizedCopy("أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى بريدك الإلكتروني.", "Enter the 6-digit code we sent to your email.") : "";
   if (desktopDescription) content = content.replace(/(<div class="auth-suite-intro">[\s\S]*?<p>)([\s\S]*?)(<\/p>)/, (_, start, mobileDescription, end) => start + '<span class="renvix-auth-mobile-copy">' + mobileDescription + '</span><span class="renvix-auth-desktop-copy">' + escapeHtml(desktopDescription) + '</span>' + end);
   const html = `<main class="${pageClass} auth-suite-page auth-renvix" dir="${arabic ? "rtl" : "ltr"}" data-auth-language="${language}" data-auth-theme="${theme}"><div class="auth-suite-stage"><header class="auth-suite-brandbar"><div class="auth-suite-brandbar-logo">${stackedLogo()}</div><div class="auth-suite-brandbar-controls" role="group" aria-label="${arabic ? "اللغة والمظهر" : "Language and theme"}"><button type="button" class="${arabic ? "active" : ""}" data-action="auth-display-language" data-language="ar">العربية</button><span aria-hidden="true"></span><button type="button" class="${arabic ? "" : "active"}" data-action="auth-display-language" data-language="en">English</button><button type="button" class="auth-suite-theme-button" data-action="auth-display-theme" aria-label="${arabic ? "تغيير المظهر" : "Change theme"}">${dashboardIcon(theme === "dark" ? "sun" : "moon")}</button></div></header>${content}</div></main>`;
@@ -4339,7 +4339,7 @@ function mfaLoginPage() {
   if (statusData?.error) {
     return authSuiteFrame(`<section class="email-otp-invalid card"><span>${dashboardIcon("security")}</span><h1>تعذر متابعة التحقق الثنائي</h1><p>${escapeHtml(statusData.error)}</p><button class="btn btn-primary" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></section>`, "email-otp-page mfa-login-page");
   }
-  return authSuiteFrame(`<section class="reset-light-shell mfa-login-shell auth-suite-shell auth-suite-mfa"><article class="card reset-light-panel mfa-login-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("mfa")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام، ويمكنك أيضًا استخدام أحد رموز الاسترداد المحفوظة.</p></div><form data-submit="mfa-login" class="grid auth-form auth-suite-form" novalidate><label class="field"><span data-mfa-code-label>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="000000" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-recovery">استخدام رمز استرداد</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted auth-suite-note">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual auth-suite-visual auth-suite-mfa-visual">${authReferenceVisual("mfa")}</aside></section>`, "auth-light-page mfa-login-page");
+  return authSuiteFrame(`<section class="reset-light-shell mfa-login-shell auth-suite-shell auth-suite-mfa"><article class="card reset-light-panel mfa-login-panel auth-suite-panel">${authMobileMark()}<div class="auth-suite-intro"><span class="auth-suite-intro-icon">${authIntroIcon("mfa")}</span><h1>أدخل رمز تطبيق المصادقة</h1><p>اكتب الرمز الحالي المكوّن من 6 أرقام، أو اختر إرسال رمز إلى بريدك المسجل.</p></div><form data-submit="mfa-login" class="grid auth-form auth-suite-form" novalidate><label class="field"><span data-mfa-code-label>رمز التحقق أو الاسترداد</span><input class="input code-input" name="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="000000" ${statusData ? "" : "disabled"} required autofocus></label><button class="btn btn-primary auth-submit" type="submit" ${statusData ? "" : "disabled"}>تحقق وسجّل الدخول</button><button class="btn btn-secondary" type="button" data-action="mfa-login-email-fallback" ${statusData ? "" : "disabled"}>إرسال رمز إلى البريد بدلًا من ذلك</button><button class="btn btn-secondary" type="button" data-action="mfa-login-recovery">استخدام رمز استرداد</button><button class="btn btn-secondary" type="button" data-action="mfa-login-cancel">العودة إلى تسجيل الدخول</button></form><p class="muted auth-suite-note">صلاحية طلب التحقق خمس دقائق، ويُغلق بعد خمس محاولات غير صحيحة.</p></article><aside class="card reset-light-visual mfa-login-visual auth-suite-visual auth-suite-mfa-visual">${authReferenceVisual("mfa")}</aside></section>`, "auth-light-page mfa-login-page");
 }
 
 async function loadMfaLoginStatus(force = false) {
@@ -11876,6 +11876,46 @@ async function handleAction(target) {
     void fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
     return navigate("/login");
   }
+  if (action === "mfa-login-email-fallback") {
+    const originalText = target.textContent;
+    target.disabled = true;
+    target.textContent = "جارٍ إرسال الرمز...";
+    try {
+      const response = await fetch("/api/auth/mfa/email-fallback", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: state.authDisplayLanguage })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        const message = payload.reason === "challenge_expired" || payload.reason === "challenge_invalid"
+          ? "انتهت صلاحية طلب التحقق. سجّل الدخول مرة أخرى."
+          : payload.reason === "account_blocked"
+            ? "الحساب غير متاح حاليًا. تواصل مع الدعم."
+            : "تعذر إرسال رمز البريد الآن. حاول مرة أخرى بعد قليل.";
+        throw new Error(message);
+      }
+      state.mfaLoginStatus = null;
+      state.emailOtpStatus = payload;
+      history.replaceState({}, "", "/verify-email");
+      state.route = "/verify-email";
+      render();
+      requestAnimationFrame(() => document.querySelector("[data-otp-digit]")?.focus());
+      appToast.success("تم إرسال رمز التحقق", {
+        description: payload.maskedEmail ? `أرسلنا الرمز إلى ${payload.maskedEmail}` : "أرسلنا الرمز إلى بريدك الإلكتروني المسجل.",
+        id: "mfa-email-fallback"
+      });
+    } catch (error) {
+      target.disabled = false;
+      target.textContent = originalText;
+      appToast.error("تعذر التحويل إلى التحقق بالبريد", {
+        description: error.message,
+        id: "mfa-email-fallback-error"
+      });
+    }
+    return;
+  }
   if (action === "mfa-login-recovery") {
     const form = document.querySelector('[data-submit="mfa-login"]');
     form?.classList.add("renvix-auth-recovery-mode");
@@ -14932,7 +14972,11 @@ async function handleSubmit(form, event) {
   }
   if (type === "mfa-login") {
     clearFormErrors(form);
-    const code = String(data.code || "").trim();
+    const rawCode = String(data.code || "").trim();
+    const normalizedDigits = normalizeEmailOtpCode(rawCode);
+    const code = normalizedDigits.length === 6 && /^[\d\u0660-\u0669\u06F0-\u06F9\s\u200E\u200F\u202A-\u202E]+$/.test(rawCode)
+      ? normalizedDigits
+      : rawCode;
     if (!/^\d{6}$/.test(code) && !/^[A-Za-z0-9-]{8,32}$/.test(code)) {
       setFormError(form, "code", "أدخل رمز تحقق صالحًا.");
       return appToast.warning("أدخل رمز تحقق صالحًا", { description: "اكتب الرمز المكوّن من 6 أرقام أو أحد رموز الاسترداد.", id: "mfa-login-invalid-format" });

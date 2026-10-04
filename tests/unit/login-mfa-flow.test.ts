@@ -23,7 +23,8 @@ vi.mock("../../src/server/db.js", () => ({
 vi.mock("../../src/server/session.js", () => ({ createSession: createSessionMock }));
 vi.mock("../../src/server/mfa.js", () => ({
   decryptMfaSecret: decryptMfaSecretMock,
-  matchingTotpCounter: matchingTotpCounterMock
+  matchingTotpCounter: matchingTotpCounterMock,
+  normalizeTotpCode: (value: unknown) => String(value || "").trim()
 }));
 vi.mock("../../src/server/trusted-browser.js", () => ({ trustBrowserForUser: trustBrowserForUserMock }));
 

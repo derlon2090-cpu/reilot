@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { createSession } from "./session.js";
-import { decryptMfaSecret, matchingTotpCounter } from "./mfa.js";
+import { decryptMfaSecret, matchingTotpCounter, normalizeTotpCode } from "./mfa.js";
 import { sha256 } from "./security.js";
 import { trustBrowserForUser } from "./trusted-browser.js";
 import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
@@ -126,13 +126,47 @@ export async function getMfaLoginStatus(rawCookie) {
   };
 }
 
+export async function getMfaEmailFallbackContext(rawCookie) {
+  const id = parseChallengeId(rawCookie);
+  if (!id) return { ok: false, status: 401, reason: "challenge_invalid" };
+  const result = await query(
+    `SELECT c.id,c.user_id AS "userId",c.tenant_id AS "tenantId",c.expires_at AS "expiresAt",
+            c.consumed_at AS "consumedAt",c.invalidated_at AS "invalidatedAt",
+            c.target_path AS "targetPath",c.login_attempt_id AS "loginAttemptId",
+            u.email,u.name,u.account_status AS "accountStatus"
+       FROM auth_mfa_login_challenges c
+       JOIN users u ON u.id=c.user_id
+      WHERE c.id=$1 LIMIT 1`,
+    [id]
+  );
+  const row = result.rows[0];
+  if (!row || row.consumedAt || row.invalidatedAt) return { ok: false, status: 401, reason: "challenge_invalid" };
+  if (row.accountStatus && row.accountStatus !== "active") return { ok: false, status: 403, reason: "account_blocked" };
+  if (new Date(row.expiresAt) <= new Date()) return { ok: false, status: 410, reason: "challenge_expired" };
+  return {
+    ok: true,
+    challengeId: id,
+    targetPath: row.targetPath === "/admin" ? "/admin" : "/dashboard",
+    loginAttemptId: row.loginAttemptId || null,
+    user: {
+      id: row.userId,
+      tenantId: row.tenantId,
+      email: row.email,
+      name: row.name
+    }
+  };
+}
+
 function normalizeRecoveryCode(value) {
   return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
 export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent, existingBrowserToken = "" }) {
   const challengeId = parseChallengeId(rawCookie);
-  const normalizedCode = String(code || "").trim();
+  const rawCode = String(code || "").trim();
+  const normalizedCode = /^([\d\u0660-\u0669\u06F0-\u06F9\s\u200E\u200F\u202A-\u202E]{6,32})$/.test(rawCode)
+    ? normalizeTotpCode(rawCode)
+    : rawCode;
   if (!challengeId || !normalizedCode) return { ok: false, status: 400, reason: "invalid_code" };
 
   return transaction(async (client) => {

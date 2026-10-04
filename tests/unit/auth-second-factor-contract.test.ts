@@ -34,6 +34,7 @@ describe("unified second-factor contract", () => {
     expect(mfaPage).toContain("أدخل رمز تطبيق المصادقة");
     expect(mfaPage).toContain("auth-suite-mfa");
     expect(mfaPage).toContain("استخدام رمز استرداد");
+    expect(mfaPage).toContain("mfa-login-email-fallback");
     expect(mfaPage).not.toContain("إعادة إرسال الرمز");
     expect(source).toContain('if (!await enterDashboardAfterSessionVerification())');
     expect(source).toContain('window.location.replace("/admin")');
@@ -44,5 +45,7 @@ describe("unified second-factor contract", () => {
     const email = await readFile(new URL("../../src/server/email-otp-v2.js", import.meta.url), "utf8");
     expect(mfa).toContain("UPDATE auth_email_otp_challenges SET invalidated_at=now()");
     expect(email).toContain("UPDATE auth_mfa_login_challenges SET invalidated_at=now()");
+    expect(email).toContain("sourceMfaChallengeId");
+    expect(email).toContain("FOR UPDATE");
   });
 });
