@@ -83,7 +83,8 @@ export function isRoutineScannerTelemetryPath(value) {
     || /(?:^|\/)env-config[^/]*$/.test(path)
     || /(?:^|\/)fly\.toml$/.test(path)
     || /(?:^|\/)[^/]*wlwmanifest[^/]*\.xml$/.test(path)
-    || path === "/info.php"
+    || /^\/(?:info|pinfo|phpinfo)\.php$/.test(path)
+    || /^\/api\/(?:pinfo|phpinfo)\.php$/.test(path)
     || /^\/api\/gql(?:\/|$)/.test(path)
     || /^\/actuator(?:\/|$)/.test(path)
     || path === "/.well-known/security.txt"

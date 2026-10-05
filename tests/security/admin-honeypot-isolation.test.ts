@@ -41,6 +41,8 @@ describe("isolated admin honeypot", () => {
     expect(classifyTrapPath("/.git/HEAD")).toMatchObject({ stage: 2, family: "repository_extraction" });
     expect(classifyTrapPath("/wp-json/gravitysmtp/v1/tests/mock-data")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/credentials.json")).toMatchObject({ stage: 2, family: "credential_extraction" });
+    expect(classifyTrapPath("/pinfo.php")).toMatchObject({ stage: 1, family: "runtime_probe" });
+    expect(classifyTrapPath("/api/phpinfo.php")).toMatchObject({ stage: 1, family: "runtime_probe" });
     expect(classifyTrapPath("/storage/logs/laravel.log")).toMatchObject({ stage: 2, family: "log_extraction" });
     expect(classifyTrapPath("/_internal/archive/manifest.json")).toMatchObject({ stage: 3, family: "deep_canary" });
     const secret = "deep-canary-test-secret-with-32-bytes";

@@ -1,0 +1,30 @@
+[Unit]
+Description=Renvix first-hit honeypot kernel sentry
+After=network-pre.target netfilter-persistent.service nginx.service
+Wants=network-pre.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStartPre=/usr/local/sbin/honeypot-sentry --setup
+ExecStart=/usr/local/sbin/honeypot-sentry --follow /var/log/nginx/honeypot-probes.log
+ExecStopPost=/usr/local/sbin/honeypot-sentry --save
+Restart=always
+RestartSec=1s
+UMask=0027
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_OVERRIDE
+AmbientCapabilities=CAP_NET_ADMIN CAP_DAC_OVERRIDE
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ReadWritePaths=-/etc/ipset.conf /var/log/nginx /var/log/renvix
+
+[Install]
+WantedBy=multi-user.target

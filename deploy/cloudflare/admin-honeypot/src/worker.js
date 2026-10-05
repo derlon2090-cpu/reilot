@@ -337,9 +337,8 @@ const worker = {
     if (block?.blocked && !internalRoute) {
       return blockedResponse(block.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
     }
-    if (!internalRoute) {
+    if (!internalRoute && trap.stage > 0) {
       context.waitUntil(containHoneypotVisitor(request, env, {
-        weight: trap.stage >= 2 ? 2 : 1,
         reason: canary.valid ? "signed_deep_canary" : `trap_stage_${trap.stage}`
       }).catch(error => {
         console.error(JSON.stringify({ event: 'edge_ban_failed', message: String(error.message).slice(0, 160) }));

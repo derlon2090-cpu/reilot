@@ -55,7 +55,7 @@ upsert_rule() {
 upsert_rule renvix_protocol_abuse block \
   'Renvix unsupported HTTP methods' "$protocol_expression"
 upsert_rule renvix_latest_honeypot_incidents block \
-  'Block latest sensitive probe vectors; isolated honeypot excluded' "$latest_incident_expression"
+  'Block confirmed incident sources globally and sensitive vectors outside the isolated honeypot' "$latest_incident_expression"
 upsert_rule renvix_probe_paths block \
   'Renvix sensitive probe paths; isolated honeypot excluded' "$sensitive_expression"
 upsert_rule renvix_commercial_cloud_asn managed_challenge \

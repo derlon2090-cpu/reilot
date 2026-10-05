@@ -63,7 +63,8 @@ export function classifyTrapPath(value) {
   if (/^\/\.vscode(?:\/|$)/.test(path)) {
     return { stage: 1, family: "ide_probe", profile: "ide_stub", path };
   }
-  if (path === "/info.php" || /^\/actuator(?:\/|$)/.test(path) || /^\/api\/gql(?:\/|$)/.test(path)) {
+  if (/^\/(?:info|pinfo|phpinfo)\.php$/.test(path) || /^\/api\/(?:pinfo|phpinfo)\.php$/.test(path)
+      || /^\/actuator(?:\/|$)/.test(path) || /^\/api\/gql(?:\/|$)/.test(path)) {
     return { stage: 1, family: "runtime_probe", profile: "runtime_stub", path };
   }
   if (/^\/{1,2}(?:wp-admin|wp-json|wordpress|wp)(?:\/|$)/.test(path)

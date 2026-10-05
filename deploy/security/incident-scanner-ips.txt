@@ -14,3 +14,6 @@
 35.241.202.92
 85.204.70.92
 23.98.157.29
+# INC-2026-000202/203: Google Cloud runtime/repository/credential probes.
+34.152.30.165
+34.52.133.111

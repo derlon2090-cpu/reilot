@@ -13,14 +13,14 @@ function runtime() {
 }
 
 describe('honeypot edge containment', () => {
-  it('treats a deep trap as two signals and contains it immediately', async () => {
+  it('contains a deep trap on its first signal', async () => {
     const api = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(Response.json({ success: true, result: [] }))
       .mockResolvedValueOnce(Response.json({ success: true, result: { id: 'deep-rule' } }));
     const ctx = runtime();
     const object = new EdgeBan(ctx, { CF_ACCOUNT_ID: 'account1', CF_EDGE_BLOCK_TOKEN: 'secret' });
     const request = new Request('https://internal/', {
-      method: 'POST', body: JSON.stringify({ ip: '192.0.2.90', weight: 2, reason: 'signed_deep_canary' })
+      method: 'POST', body: JSON.stringify({ ip: '192.0.2.90', reason: 'signed_deep_canary' })
     });
     expect((await object.fetch(request)).status).toBe(204);
     expect(api).toHaveBeenCalledTimes(2);
@@ -35,8 +35,6 @@ describe('honeypot edge containment', () => {
     const object = new EdgeBan(ctx, { CF_ACCOUNT_ID: 'account1', CF_EDGE_BLOCK_TOKEN: 'secret' });
     const request = () => new Request('https://internal/', { method: 'POST', body: JSON.stringify({ ip: '2001:db8::1' }) });
     expect((await object.fetch(request())).status).toBe(204);
-    expect(api).not.toHaveBeenCalled();
-    expect((await object.fetch(request())).status).toBe(204);
     expect(api).toHaveBeenCalledTimes(2);
     expect(JSON.parse(String(api.mock.calls[1][1].body))).toMatchObject({ mode: 'block', configuration: { target: 'ip6', value: '2001:db8::1' } });
     expect(ctx.storage.setAlarm).toHaveBeenCalled();
@@ -50,7 +48,6 @@ describe('honeypot edge containment', () => {
     const ctx = runtime();
     const object = new EdgeBan(ctx, { CF_ACCOUNT_ID: 'account1', CF_EDGE_BLOCK_TOKEN: 'secret' });
     const request = () => new Request('https://internal/', { method: 'POST', body: JSON.stringify({ ip: '192.0.2.1' }) });
-    await object.fetch(request());
     await expect(object.fetch(request())).rejects.toThrow();
     expect(await ctx.storage.get('ruleId')).toBeUndefined();
     expect(ctx.storage.setAlarm).toHaveBeenCalled();
@@ -68,7 +65,6 @@ describe('honeypot edge containment', () => {
     const ctx = runtime();
     const object = new EdgeBan(ctx, { CF_ACCOUNT_ID: 'account1', CF_EDGE_BLOCK_TOKEN: 'secret' });
     const request = () => new Request('https://internal/', { method: 'POST', body: JSON.stringify({ ip: '192.0.2.5' }) });
-    await object.fetch(request());
     await object.fetch(request());
     await ctx.storage.put('expiresAt', Date.now() - 1);
     await object.alarm();

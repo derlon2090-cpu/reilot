@@ -1,6 +1,5 @@
 // Service-internal DO: never exposed as an HTTP log-ingestion endpoint.
 const BAN_MS = 7 * 24 * 60 * 60 * 1000;
-const WINDOW_MS = 60 * 1000;
 export class EdgeBan {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -66,19 +65,10 @@ export class EdgeBan {
     return this.ctx.blockConcurrencyWhile(async () => {
       const payload = await request.json();
       const ip = payload?.ip;
-      const weight = payload?.weight === 2 ? 2 : 1;
       const reason = /^(?:trap_stage_[0-3]|signed_deep_canary)$/.test(String(payload?.reason || ""))
         ? String(payload.reason) : "honeypot_progression";
       if (typeof ip !== 'string' || !/^[0-9a-fA-F:.]{3,45}$/.test(ip)) return new Response(null, { status: 400 });
       if (await this.ctx.storage.get('ruleId')) return new Response(null, { status: 204 });
-      if (await this.ctx.storage.get('pendingIp') !== ip) {
-        const now = Date.now();
-        const windowStart = Number(await this.ctx.storage.get('windowStart'));
-        const hits = now - windowStart < WINDOW_MS ? Number(await this.ctx.storage.get('hits')) + weight : weight;
-        await this.ctx.storage.put('windowStart', hits === 1 ? now : windowStart);
-        await this.ctx.storage.put('hits', hits);
-        if (hits < 2) return new Response(null, { status: 204 });
-      }
       await this.ctx.storage.put('pendingIp', ip);
       await this.ctx.storage.put('reason', reason);
       await this.ctx.storage.setAlarm(Date.now() + 60000);
@@ -111,7 +101,7 @@ export class EdgeBan {
   }
 }
 
-export async function containHoneypotVisitor(request, env, { weight = 1, reason = "honeypot_progression" } = {}) {
+export async function containHoneypotVisitor(request, env, { reason = "honeypot_progression" } = {}) {
   if (env.EDGE_AUTO_BLOCK !== 'true') return;
   if (!env.EDGE_BANS || !env.CF_ACCOUNT_ID || !env.CF_EDGE_BLOCK_TOKEN) throw new Error('Missing edge containment binding/secret');
   // CF creates this header on the visitor request. Ignore telemetry body IP fields.
@@ -122,7 +112,7 @@ export async function containHoneypotVisitor(request, env, { weight = 1, reason 
   const stub = env.EDGE_BANS.get(env.EDGE_BANS.idFromName(ip));
   const response = await stub.fetch('https://edge-ban.internal/', {
     method: 'POST',
-    body: JSON.stringify({ ip, weight: weight === 2 ? 2 : 1, reason })
+    body: JSON.stringify({ ip, reason })
   });
   if (!response.ok) throw new Error(`Containment failed: ${response.status}`);
 }

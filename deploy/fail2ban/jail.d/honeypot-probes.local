@@ -4,9 +4,9 @@ filter = honeypot-probes
 logpath = /var/log/nginx/honeypot-probes.log
 backend = auto
 usedns = no
-maxretry = 6
+maxretry = 1
 findtime = 60
-bantime = 86400
+bantime = 604800
 bantime.increment = false
 ignoreip = 127.0.0.1/8 ::1
 # Direct host-managed Nginx only. One constant-time ipset lookup replaces one

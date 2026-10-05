@@ -1,8 +1,8 @@
 # Probe containment deployment
 
-For the current two-hit / seven-day policy and incident 67, use
-`INC-2026-000067.md`. The six-hit / 24-hour jail below is the earlier policy
-and is disabled in the checked-in configuration.
+For the first-hit / seven-day policy prepared for incidents 202 and 203, use
+`INC-2026-000202-000203.md`. The enabled scanner jail and the optional sentry
+now use the same threshold and ban duration.
 
 The latest four incident groups add the IDE/config, GraphQL/actuator,
 environment, log-extraction, and canary vectors plus eight confirmed source
@@ -132,7 +132,7 @@ can reject the visitor's TLS handshake at Cloudflare's edge.
 `deploy/nginx.conf` now drops reserved paths in server rewrite phase before
 upstream selection. Include `probe-log.conf` in the `http {}` context BEFORE
 that server config. It logs only decoy attempts to the dedicated log, without
-request-controlled text. No log buffer delays the sixth-request detection.
+request-controlled text. No log buffer delays first-hit detection.
 The paths use normalized `$uri`, including percent-decoding; query strings
 do not bypass detection. Keep this gate in all public HTTP and HTTPS servers.
 Preserve existing certificates, TLS settings and application locations.
@@ -182,6 +182,18 @@ sudo install -m 0750 deploy/security/install-honeypot-blacklist /usr/local/sbin/
 sudo /usr/local/sbin/install-honeypot-blacklist
 ```
 
+For immediate first-hit handling without waiting for Fail2ban scheduling,
+install the hardened systemd watcher. It consumes only the fixed-format,
+path-free probe log and writes a rotating local action log; it sends no push
+notifications. Log delivery and scheduler latency mean this is low-latency,
+not a guaranteed sub-millisecond path:
+
+```bash
+sudo install -m 0750 deploy/security/install-honeypot-sentry /usr/local/sbin/install-honeypot-sentry
+sudo /usr/local/sbin/install-honeypot-sentry
+sudo systemctl is-active renvix-honeypot-sentry
+```
+
 To seed the separate timed Fail2ban ipset with the eight confirmed sources before
 Fail2ban sees another request, install and run the validated batch loader. The
 entries receive the ipset action's seven-day safety timeout; Fail2ban can
@@ -228,10 +240,8 @@ done
 # 444 is not an HTTP response: expect curl 52 (empty reply), HTTP 000.
 # Cloudflare may convert origin 444 to a 52x; WAF blocks typically return 403.
 
-# From a NON-ignored controlled test IP, six requests within 60 seconds:
-for i in 1 2 3 4 5 6; do
-  curl --http1.1 --resolve "$HOST:443:$ORIGIN" --max-time 3 -sS "https://$HOST/index.php" || true
-done
+# From a NON-ignored controlled test IP, one reserved-path request:
+curl --http1.1 --resolve "$HOST:443:$ORIGIN" --max-time 3 -sS "https://$HOST/index.php" || true
 sudo fail2ban-client status honeypot-probes
 sudo fail2ban-regex /var/log/nginx/honeypot-probes.log /etc/fail2ban/filter.d/honeypot-probes.conf
 # After the action completes, from that same banned direct-origin test IP:
@@ -242,7 +252,7 @@ curl --http1.1 --resolve "$HOST:443:$ORIGIN" --connect-timeout 3 --max-time 5 -v
 sudo fail2ban-client set honeypot-probes unbanip CONTROLLED_TEST_IP
 ```
 
-For proxied dynamic testing send the six requests via the proxied hostname
+For proxied dynamic testing send one reserved-path request via the proxied hostname
 instead; first verify Cloudflare forwards them and the log contains the true
 test source. Check the added WAF rule and subsequent HTTP block. A successful
 edge TLS handshake is expected and is not a failed WAF test.

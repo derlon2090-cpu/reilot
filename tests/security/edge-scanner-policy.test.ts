@@ -9,6 +9,7 @@ describe("edge scanner policy", () => {
     expect(expression).toContain("ip.src.asnum in {14061 14618 48090 199457 202412 396982 34343 25369}");
     expect(expression).not.toContain("ip.geoip.asnum");
     expect(expression).not.toContain("13335");
+    expect(expression).not.toContain('lower(http.host) ne "admin.renvix.app"');
     expect(expression).toContain('"/api/v1/legit-webhook"');
     expect(expression).toContain('"/health"');
   });
@@ -18,7 +19,8 @@ describe("edge scanner policy", () => {
     const nginx = read("deploy/nginx.conf");
     for (const [edgeToken, nginxToken] of [
       [".vscode", "vscode"], [".idea", "idea"], [".svn", "svn"],
-      ["graphql", "graphql"], ["/api/gql", "api/gql"], ["info", "info"], ["phpinfo", "phpinfo"]
+      ["graphql", "graphql"], ["/api/gql", "api/gql"], ["info", "info"], ["pinfo", "pinfo"],
+      ["phpinfo", "phpinfo"], ["credentials", "credentials"]
     ]) {
       expect(edge).toContain(edgeToken);
       expect(nginx).toContain(nginxToken);
@@ -69,7 +71,8 @@ describe("edge scanner policy", () => {
     for (const ip of [
       "147.182.200.94", "138.197.191.87", "142.93.0.66", "159.65.18.197",
       "159.65.144.72", "130.12.180.117", "34.140.132.132", "91.148.245.81",
-      "91.92.240.86", "35.241.202.92", "85.204.70.92", "23.98.157.29"
+      "91.92.240.86", "35.241.202.92", "85.204.70.92", "23.98.157.29",
+      "34.152.30.165", "34.52.133.111"
     ]) {
       expect(incidentIps).toContain(ip);
     }
@@ -78,7 +81,14 @@ describe("edge scanner policy", () => {
     const blacklist = read("deploy/security/install-honeypot-blacklist");
     expect(blacklist).toContain("honeypot_blacklist");
     expect(blacklist).toContain("185.19.40.179 timeout 604800");
+    expect(blacklist).toContain("34.152.30.165 timeout 604800");
+    expect(blacklist).toContain("34.52.133.111 timeout 604800");
     expect(blacklist).toContain("timeout 0");
+    const sentry = read("deploy/security/honeypot-sentry");
+    const service = read("deploy/security/renvix-honeypot-sentry.service");
+    expect(sentry).toContain("timeout_seconds=604800");
+    expect(sentry).toContain("ipset add");
+    expect(service).toContain("Restart=always");
   });
 
   it("ships a single terminating WAF payload for the incident vectors", () => {
@@ -87,7 +97,8 @@ describe("edge scanner policy", () => {
     expect(payload.enabled).toBe(true);
     expect(payload.expression).not.toContain("ip.src.asnum");
     expect(payload.expression).toContain('lower(http.host) ne "admin.renvix.app"');
-    for (const token of ["*/.env*", "*/.git*", "*/fly.toml", "*/env-config*", "wlwmanifest", "/.vscode", "/storage/logs", "/actuator", "/info.php", "/api/gql", "canary", ".log", "/.well-known/security.txt"]) {
+    expect(payload.expression).toContain("ip.src in {34.152.30.165 34.52.133.111}");
+    for (const token of ["*/.env*", "*/.git*", "*/fly.toml", "*/env-config*", "wlwmanifest", "/.vscode", "/storage/logs", "/actuator", "/info.php", "/pinfo.php", "/api/phpinfo.php", "/credentials", "/api/gql", "canary", ".log", "/.well-known/security.txt"]) {
       expect(payload.expression).toContain(token);
     }
   });

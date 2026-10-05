@@ -20,4 +20,4 @@ if [[ -n ${TEST_ORIGIN:-} ]]; then
   [[ $status == 200 ]] || { echo "Application root unhealthy: $status" >&2; exit 1; }
 fi
 
-echo 'Validation passed. A controlled two-hit source test is still required to verify ban and expiry.'
+echo 'Validation passed. A controlled first-hit source test is still required to verify ban and expiry.'

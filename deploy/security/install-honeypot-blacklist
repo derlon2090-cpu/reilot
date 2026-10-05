@@ -48,6 +48,11 @@ EOF
 # refreshes only this bounded entry; it does not convert permanent entries.
 ipset add "$set_name" 185.19.40.179 timeout 604800 -exist
 
+# INC-2026-000202/203: GCP sources observed probing pinfo/phpinfo, Git
+# metadata and credential decoys. Refresh to a bounded seven-day ban.
+ipset add "$set_name" 34.152.30.165 timeout 604800 -exist
+ipset add "$set_name" 34.52.133.111 timeout 604800 -exist
+
 # No interface selector is used: every packet traversing INPUT is covered.
 # DROP is intentionally silent (no REJECT, TCP RST, or ICMP response).
 iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
@@ -75,4 +80,6 @@ if iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
   iptables -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP
 fi
 ipset test "$set_name" 185.19.40.179
-echo "Silent DROP installed: 8 permanent sources and INC-2026-000200 for 7 days."
+ipset test "$set_name" 34.152.30.165
+ipset test "$set_name" 34.52.133.111
+echo "Silent DROP installed: 8 permanent sources and current incident sources for 7 days."

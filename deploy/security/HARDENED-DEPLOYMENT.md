@@ -167,12 +167,13 @@ at origin if only HTTPS origin pulls are needed.
 ## Honeypot Worker immediate account-scoped Block
 
 The existing Worker now calls its internal EdgeBan Durable Object for each
-external page visit, excluding its script/pixel/telemetry resources and the
-already signed health probe. It captures CF-Connecting-IP at the request,
+classified probe path, excluding ordinary stage-0 visits plus its
+script/pixel/telemetry resources and the already signed health probe. It
+captures CF-Connecting-IP at the request,
 not from untrusted log JSON. This direct event path avoids log-export delay.
 The first request still receives the isolated decoy response; it cannot be
-retroactively dropped. With EDGE_AUTO_BLOCK enabled, the second external page
-request within 60 seconds starts a seven-day account block. It applies after Cloudflare
+retroactively dropped. With EDGE_AUTO_BLOCK enabled, that first classified
+probe starts a seven-day account block. It applies after Cloudflare
 propagation and covers zones in YOUR account, not unrelated Cloudflare users.
 
 ```bash
@@ -185,8 +186,9 @@ npx wrangler deploy
 ```
 
 Auto-block is deliberately false in the checked-in config until the secret,
-account ID and trusted test IPs are supplied. It is two-hit, seven-day
-containment; the separate host jail in INC-2026-000067.md also uses 2-in-60 / 7 days. Account blocks
+account ID and trusted test IPs are supplied. Classified probe paths use
+first-hit, seven-day containment; ordinary stage-0 visits are excluded. The
+separate host jail also uses first-hit / 7-day containment. Account blocks
 can affect shared-IP users across all account zones. Keep this mode only on
 the intentionally isolated honeypot; never attach it to normal application
 routes. Disable unneeded workers.dev/preview exposure and do not route other

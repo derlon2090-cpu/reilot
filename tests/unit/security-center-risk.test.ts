@@ -27,7 +27,8 @@ describe("security center risk and privacy policy", () => {
 
   it("classifies the four latest scanner vector groups as low telemetry", () => {
     for (const path of [
-      "/.vscode/sftp.json", "/info.php", "/api/gql", "/actuator/env",
+      "/.vscode/sftp.json", "/info.php", "/pinfo.php", "/phpinfo.php",
+      "/api/pinfo.php", "/api/phpinfo.php", "/api/gql", "/actuator/env",
       "/.well-known/security.txt", "/.env.production", "/.env.live",
       "/storage/logs/laravel.log", "/zzcanary-123.xml", "/.git/HEAD",
       "/fly.toml", "/assets/env-config.js", "/wp-includes/wlwmanifest.xml",

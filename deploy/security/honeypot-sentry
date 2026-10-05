@@ -1,0 +1,79 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+readonly set4=honeypot_blacklist
+readonly set6=honeypot_blacklist6
+readonly timeout_seconds=604800
+readonly audit_log=/var/log/renvix/honeypot-sentry.log
+
+require_root() {
+  if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+    echo "honeypot-sentry must run as root" >&2
+    exit 1
+  fi
+}
+
+ensure_set_and_rule() {
+  local family=$1 set_name=$2 firewall=$3
+  ipset create "$set_name" hash:ip family "$family" timeout "$timeout_seconds" maxelem 262144 -exist
+  "$firewall" -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+    || "$firewall" -w -I INPUT 1 -m set --match-set "$set_name" src -j DROP
+  if [[ $firewall == iptables ]] && "$firewall" -w -nL DOCKER-USER >/dev/null 2>&1; then
+    "$firewall" -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+      || "$firewall" -w -I DOCKER-USER 1 -m set --match-set "$set_name" src -j DROP
+  fi
+}
+
+setup() {
+  require_root
+  command -v ipset >/dev/null
+  command -v iptables >/dev/null
+  command -v ip6tables >/dev/null
+  install -d -m 0750 -o root -g root /var/log/renvix
+  touch "$audit_log"
+  chmod 0640 "$audit_log"
+  ensure_set_and_rule inet "$set4" iptables
+  ensure_set_and_rule inet6 "$set6" ip6tables
+}
+
+save_sets() {
+  require_root
+  local destination=/etc/ipset.conf temporary
+  temporary=$(mktemp "${destination}.XXXXXX")
+  trap 'rm -f "$temporary"' EXIT
+  ipset save > "$temporary"
+  chmod 0600 "$temporary"
+  mv -f "$temporary" "$destination"
+  trap - EXIT
+}
+
+block_ip() {
+  local ip=$1 set_name
+  [[ $ip =~ ^[0-9A-Fa-f:.]+$ ]] || return 0
+  if [[ $ip == *:* ]]; then set_name=$set6; else set_name=$set4; fi
+  if ipset add "$set_name" "$ip" timeout "$timeout_seconds" -exist 2>/dev/null; then
+    # The input is restricted to an IP alphabet before it reaches this local log.
+    printf '%(%Y-%m-%dT%H:%M:%SZ)T source_ip=%s action=drop timeout_seconds=%d\n' \
+      -1 "$ip" "$timeout_seconds" >> "$audit_log"
+  fi
+}
+
+follow_log() {
+  require_root
+  local probe_log=${1:-/var/log/nginx/honeypot-probes.log} line ip
+  [[ $probe_log == /* ]] || { echo "probe log path must be absolute" >&2; exit 2; }
+  touch "$probe_log"
+  while IFS= read -r line; do
+    if [[ $line =~ ^([^[:space:]]+)[[:space:]]+\[[^]]+\][[:space:]]+probe[[:space:]]+status=444$ ]]; then
+      ip=${BASH_REMATCH[1]}
+      block_ip "$ip"
+    fi
+  done < <(tail -n 0 --follow=name --retry "$probe_log")
+}
+
+case ${1:-} in
+  --setup) setup ;;
+  --save) save_sets ;;
+  --follow) setup; follow_log "${2:-}" ;;
+  *) echo "Usage: $0 --setup | --save | --follow /absolute/probe.log" >&2; exit 2 ;;
+esac

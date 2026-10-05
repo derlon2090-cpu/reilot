@@ -3,8 +3,9 @@
 Every external request checks both its trusted Cloudflare source IP and signed
 device marker against the central block registry. High-confidence extraction
 paths are denied on their first request and create a permanent device block plus
-a seven-day IP block. Sources that rotate or discard device cookies are contained
-after sustained multi-path scanning. Optional account-wide Cloudflare containment
+a seven-day IP block. A classified probe path can trigger optional edge
+containment on its first request; ordinary stage-0 visits never trigger it.
+Optional account-wide Cloudflare containment
 remains available with `EDGE_AUTO_BLOCK`; see
 `../../security/HARDENED-DEPLOYMENT.md` for its wider blast radius.
 
