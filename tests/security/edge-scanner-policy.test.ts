@@ -51,12 +51,24 @@ describe("edge scanner policy", () => {
     expect(nginx).toContain("limit_req zone=renvix_auth");
     expect(nginx).toContain("client_header_timeout 10s");
     expect(nginx).toContain("reset_timedout_connection on");
+    expect(nginx).toContain("renvix-honeypot-deny-*.conf");
     expect(nginx).toContain('^(?:TRACE|CONNECT)$');
     expect(nginx).toContain("proxy_next_upstream off");
     expect(nginx).toContain("Connection $connection_upgrade");
     expect(gateway).toContain("limit_conn_zone $binary_remote_addr");
     expect(gateway).toContain("limit_req_zone $renvix_auth_limit_key");
     expect(compose).toContain("./deploy/security/probe-log.conf:/etc/nginx/conf.d/00-security-gateway.conf:ro");
+  });
+
+  it("ships a bounded honeypot intelligence engine instead of raw regex generation", () => {
+    const engine = read("deploy/security/honeypot-intel-engine.py");
+    const service = read("deploy/security/renvix-honeypot-intel.service");
+    expect(engine).toContain("SAFE_PATH");
+    expect(engine).toContain("classify_path");
+    expect(engine).toContain('location = "{path}"');
+    expect(engine).toContain('run([nginx, "-t"])');
+    expect(engine).toContain("os.replace");
+    expect(service).toContain("ProtectSystem=strict");
   });
 
   it("uses ipset for constant-time dynamic source containment", () => {

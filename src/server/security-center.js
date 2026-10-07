@@ -10,7 +10,12 @@ export const SECURITY_SEVERITIES = Object.freeze(["INFO", "LOW", "MEDIUM", "HIGH
 export const SECURITY_RETENTION_DAYS = 90;
 const SECURITY_SEVERITY_RANK = Object.freeze({ INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 });
 
-export function incidentAlertMode(incident) {
+export function honeypotCollectorModeEnabled(env = process.env) {
+  return String(env.HONEYPOT_COLLECTOR_MODE ?? "true").trim().toLowerCase() !== "false";
+}
+
+export function incidentAlertMode(incident, env = process.env) {
+  if (incident?.incident_type === 'ADMIN_HONEYPOT_ACCESS' && honeypotCollectorModeEnabled(env)) return 'collector';
   if (['HIGH', 'CRITICAL'].includes(incident?.severity)) return 'immediate';
   if (incident?.incident_type === 'ADMIN_HONEYPOT_ACCESS') return 'digest';
   return 'none';
@@ -1205,11 +1210,11 @@ async function dispatchIncidentAlertsImmediately(outcome) {
 }
 
 export async function processSecurityAlerts({ limit = 20, incidentId = null } = {}) {
+  const collectorMode = honeypotCollectorModeEnabled();
   const rows = await transaction(async (client) => {
-    // A routine reconnaissance event remains visible in the incident timeline,
-    // but it must never be resurrected as email/webhook work by reconciliation.
-    // If the same incident later receives any non-silent signal, normal alerting
-    // resumes because the NOT EXISTS predicate no longer matches.
+    // Collector mode keeps honeypot evidence in the incident timeline but
+    // prevents old email/webhook work from being resurrected. When collector
+    // mode is disabled, the narrower per-event silent policy still applies.
     await client.query(
       `UPDATE security_alert_deliveries sad
           SET status='skipped',failure_code='silent_telemetry_policy'
@@ -1217,11 +1222,12 @@ export async function processSecurityAlerts({ limit = 20, incidentId = null } = 
        WHERE sad.incident_id=si.id
          AND si.incident_type='ADMIN_HONEYPOT_ACCESS'
          AND sad.status IN ('pending','failed')
-         AND NOT EXISTS (
+         AND ($1::boolean OR NOT EXISTS (
            SELECT 1 FROM security_source_events se
             WHERE se.incident_id=si.id
               AND COALESCE(se.metadata->>'realtimeNotificationsSuppressed','false') <> 'true'
-         )`
+         ))`,
+      [collectorMode]
     );
     // Reconcile severe open incidents before claiming deliveries. This repairs
     // incidents created while alerting was disabled and revives rows that an
@@ -1232,13 +1238,13 @@ export async function processSecurityAlerts({ limit = 20, incidentId = null } = 
           AND severity IN ('HIGH','CRITICAL')
           AND last_seen>now()-interval '7 days'
           AND ($1::uuid IS NULL OR id=$1)
-          AND (incident_type<>'ADMIN_HONEYPOT_ACCESS' OR EXISTS (
+          AND (incident_type<>'ADMIN_HONEYPOT_ACCESS' OR ($2::boolean=false AND EXISTS (
             SELECT 1 FROM security_source_events se
              WHERE se.incident_id=security_incidents.id
                AND COALESCE(se.metadata->>'realtimeNotificationsSuppressed','false') <> 'true'
-          ))
+          )))
         ORDER BY last_seen DESC LIMIT 50 FOR UPDATE`,
-      [incidentId || null]
+      [incidentId || null, collectorMode]
     );
     for (const incident of unqueued.rows) await queueIncidentAlerts(client, incident);
     const selected = await client.query(

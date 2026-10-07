@@ -1,0 +1,38 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+state_file=${HONEYPOT_INTEL_STATE:-/var/lib/renvix/honeypot-intel-state.json}
+production_base=${PRODUCTION_BASE_URL:?Set PRODUCTION_BASE_URL, preferably a direct-origin --resolve test URL}
+honeypot_base=${HONEYPOT_BASE_URL:-https://admin.renvix.app}
+mode=${PRODUCTION_TEST_MODE:-direct}
+
+[[ -f $state_file ]] || { echo "Missing state file: $state_file" >&2; exit 1; }
+failures=0
+while IFS= read -r path; do
+  [[ -n $path ]] || continue
+  set +e
+  production_status=$(curl --http1.1 --path-as-is --connect-timeout 3 --max-time 6 -sS -o /dev/null -w '%{http_code}' "$production_base$path")
+  production_exit=$?
+  set -e
+  if [[ $mode == direct ]]; then
+    if [[ $production_status != 000 || $production_exit -eq 0 ]]; then
+      echo "FAIL production path=$path status=$production_status curl_exit=$production_exit" >&2
+      failures=$((failures + 1))
+    fi
+  elif [[ $production_status != 000 && $production_status != 403 ]]; then
+    echo "FAIL edge path=$path status=$production_status" >&2
+    failures=$((failures + 1))
+  fi
+
+  honeypot_status=$(curl --http1.1 --path-as-is --connect-timeout 3 --max-time 8 -sS -o /dev/null -w '%{http_code}' "$honeypot_base$path" || true)
+  if [[ $honeypot_status == 000 ]]; then
+    echo "FAIL honeypot unreachable path=$path" >&2
+    failures=$((failures + 1))
+  fi
+done < <(python3 -c 'import json,sys; data=json.load(open(sys.argv[1],encoding="utf-8")); print("\n".join(sorted(data.get("paths",{}))))' "$state_file")
+
+if (( failures > 0 )); then
+  echo "Verification failed: $failures checks" >&2
+  exit 1
+fi
+echo "All harvested paths are blocked on production and reachable on the honeypot."

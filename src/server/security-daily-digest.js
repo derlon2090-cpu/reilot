@@ -1,8 +1,10 @@
 import { query, transaction } from './db.js';
 import { sendEmail } from '../lib/email/send-email.js';
+import { honeypotCollectorModeEnabled } from './security-center.js';
 
 export async function processSecurityDailyDigest(now = new Date()) {
   const day = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+  if (honeypotCollectorModeEnabled()) return { day, queued: 0, sent: 0, failed: 0, collectorMode: true };
   const from = `${day}T00:00:00.000Z`;
   const until = new Date(Date.parse(from) + 86400000).toISOString();
   const stats = await query(`SELECT count(*)::int AS hits,count(DISTINCT source_key)::int AS sources,

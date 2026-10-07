@@ -259,3 +259,40 @@ edge TLS handshake is expected and is not a failed WAF test.
 
 Sources: Cloudflare Rulesets API add-rule documentation, Nginx realip and
 request-processing documentation, and the upstream Fail2ban jail.conf.
+
+## Honeypot intelligence collector
+
+`honeypot-intel-engine.py` polls the authenticated, path-only export endpoint
+or consumes a trusted JSONL file. It accepts only environment, Git, PHP,
+storage, credential, and WordPress-manifest families. It never embeds an
+attacker-supplied regex: each accepted value becomes a quoted exact-match
+location. Updates are atomic, capped at 2,048 paths, tested with `nginx -t`,
+and rolled back if validation or reload fails.
+
+Set the same independent 32+ character value as
+`HONEYPOT_INTEL_EXPORT_TOKEN` on the application and in the root-owned host
+token file, then install and start the service:
+
+```bash
+sudo install -m 0750 deploy/security/install-honeypot-intel /usr/local/sbin/install-honeypot-intel
+sudo /usr/local/sbin/install-honeypot-intel
+sudoedit /etc/renvix-secops/honeypot-intel.token
+sudo systemctl start renvix-honeypot-intel
+sudo systemctl status renvix-honeypot-intel
+```
+
+The Nginx server includes `/etc/nginx/snippets/renvix-honeypot-deny-*.conf`.
+Collector mode is enabled with `HONEYPOT_COLLECTOR_MODE=true`: evidence,
+incidents, containment, and in-app analysis remain, while email, daily digest,
+and critical webhook delivery for `ADMIN_HONEYPOT_ACCESS` are suppressed.
+Other production incident types retain their normal alert behavior.
+
+Verify from an exempt controlled source. Direct mode expects origin `444`
+(curl HTTP `000`/empty reply); edge mode accepts a Cloudflare `403`:
+
+```bash
+sudo PRODUCTION_BASE_URL=https://app.example.com \
+  HONEYPOT_BASE_URL=https://admin.renvix.app \
+  PRODUCTION_TEST_MODE=direct \
+  /usr/local/sbin/verify-honeypot-intel
+```

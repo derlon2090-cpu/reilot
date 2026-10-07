@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  calculateThreatScore, incidentAlertDedupeKey, incidentAlertMode, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
+  calculateThreatScore, honeypotCollectorModeEnabled, incidentAlertDedupeKey, incidentAlertMode, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
   honeypotContainmentPolicy, honeypotDeviceFingerprint, isRoutineScannerTelemetryPath, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
   verifyHoneypotDeviceToken, verifySignedIngestion
 } from "../../src/server/security-center.js";
@@ -18,10 +18,12 @@ describe("security center risk and privacy policy", () => {
     expect(severityForRisk(score)).toBe("LOW");
   });
 
-  it("pages severe honeypot incidents while keeping low-confidence activity in the digest", () => {
-    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'CRITICAL' })).toBe('immediate');
-    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'HIGH' })).toBe('immediate');
-    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'MEDIUM' })).toBe('digest');
+  it("keeps honeypot incidents in collector mode while production incidents can page", () => {
+    expect(honeypotCollectorModeEnabled({ HONEYPOT_COLLECTOR_MODE: 'true' })).toBe(true);
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'CRITICAL' })).toBe('collector');
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'HIGH' })).toBe('collector');
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'MEDIUM' })).toBe('collector');
+    expect(incidentAlertMode({ incident_type: 'ADMIN_HONEYPOT_ACCESS', severity: 'HIGH' }, { HONEYPOT_COLLECTOR_MODE: 'false' })).toBe('immediate');
     expect(incidentAlertMode({ incident_type: 'ORIGIN_INTRUSION', severity: 'HIGH' })).toBe('immediate');
   });
 

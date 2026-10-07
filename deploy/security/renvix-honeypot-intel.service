@@ -1,0 +1,27 @@
+[Unit]
+Description=Renvix honeypot path intelligence engine
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+EnvironmentFile=/etc/renvix-secops/honeypot-intel.env
+ExecStart=/usr/local/sbin/honeypot-intel-engine
+Restart=always
+RestartSec=5s
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/etc/nginx/snippets /var/lib/renvix
+
+[Install]
+WantedBy=multi-user.target

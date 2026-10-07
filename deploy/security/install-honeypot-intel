@@ -1,0 +1,31 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
+
+source_dir=$(cd -- "$(dirname -- "$0")" && pwd)
+install -d -m 0700 /etc/renvix-secops
+install -d -m 0750 /var/lib/renvix /etc/nginx/snippets
+install -m 0750 "$source_dir/honeypot-intel-engine.py" /usr/local/sbin/honeypot-intel-engine
+install -m 0750 "$source_dir/verify-honeypot-intel" /usr/local/sbin/verify-honeypot-intel
+install -m 0644 "$source_dir/renvix-honeypot-intel.service" /etc/systemd/system/renvix-honeypot-intel.service
+if [[ ! -f /etc/renvix-secops/honeypot-intel.env ]]; then
+  install -m 0600 /dev/null /etc/renvix-secops/honeypot-intel.env
+  printf '%s\n' \
+    'HONEYPOT_INTEL_URL=https://api.renvix.app/api/internal/security/honeypot-intel' \
+    'HONEYPOT_INTEL_TOKEN_FILE=/etc/renvix-secops/honeypot-intel.token' \
+    > /etc/renvix-secops/honeypot-intel.env
+fi
+if [[ ! -f /etc/renvix-secops/honeypot-intel.token ]]; then
+  install -m 0600 /dev/null /etc/renvix-secops/honeypot-intel.token
+fi
+if [[ ! -f /etc/nginx/snippets/renvix-honeypot-deny-rules.conf ]]; then
+  install -m 0640 /dev/null /etc/nginx/snippets/renvix-honeypot-deny-rules.conf
+fi
+nginx -t
+systemctl daemon-reload
+systemctl enable renvix-honeypot-intel.service
+echo "Set the export token, then run: sudo systemctl start renvix-honeypot-intel"

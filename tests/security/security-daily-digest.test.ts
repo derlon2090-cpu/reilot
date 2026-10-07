@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), sendEmail: vi.fn(), transaction: vi.fn() }));
 vi.mock('../../src/server/db.js', () => ({ query: mocks.query, transaction: mocks.transaction }));
@@ -6,7 +6,9 @@ vi.mock('../../src/lib/email/send-email.js', () => ({ sendEmail: mocks.sendEmail
 import { processSecurityDailyDigest } from '../../src/server/security-daily-digest.js';
 
 describe('daily honeypot notification hygiene', () => {
+  beforeEach(() => vi.clearAllMocks());
   it('sends one bounded daily summary and does not resend a claimed delivery', async () => {
+    vi.stubEnv('HONEYPOT_COLLECTOR_MODE', 'false');
     vi.stubEnv('SECURITY_ALERT_RECIPIENTS', 'security@example.com');
     let claimed = false;
     mocks.query.mockImplementation(async (sql: string) => {
@@ -30,6 +32,15 @@ describe('daily honeypot notification hygiene', () => {
     expect(await processSecurityDailyDigest(now)).toMatchObject({ sent: 0 });
     expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
     expect(mocks.sendEmail.mock.calls[0][0].text).toContain('Decoy requests: 9');
+    vi.unstubAllEnvs();
+  });
+
+  it('does not queue or send a digest while collector mode is enabled', async () => {
+    vi.stubEnv('HONEYPOT_COLLECTOR_MODE', 'true');
+    expect(await processSecurityDailyDigest(new Date('2026-09-19T12:00:00.000Z')))
+      .toMatchObject({ queued: 0, sent: 0, collectorMode: true });
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
     vi.unstubAllEnvs();
   });
 });
