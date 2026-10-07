@@ -80,7 +80,8 @@ describe("edge scanner policy", () => {
     expect(incidentIps).not.toContain("104.28.222.43");
     const blacklist = read("deploy/security/install-honeypot-blacklist");
     expect(blacklist).toContain("honeypot_blacklist");
-    expect(blacklist).toContain("185.19.40.179 timeout 604800");
+    expect(blacklist).toContain("185.19.40.179");
+    expect(blacklist).not.toContain('185.19.40.179 timeout 604800');
     expect(blacklist).toContain("34.152.30.165 timeout 604800");
     expect(blacklist).toContain("34.52.133.111 timeout 604800");
     expect(blacklist).toContain("timeout 0");
@@ -89,6 +90,10 @@ describe("edge scanner policy", () => {
     expect(sentry).toContain("timeout_seconds=604800");
     expect(sentry).toContain("ipset add");
     expect(service).toContain("Restart=always");
+    const triage = read("deploy/security/triage-honeypot-ban");
+    expect(triage).toContain("ipset test");
+    expect(triage).toContain("renvix-honeypot-sentry.service");
+    expect(triage).not.toContain("honeypot-autoban.service");
   });
 
   it("ships a single terminating WAF payload for the incident vectors", () => {
@@ -97,7 +102,7 @@ describe("edge scanner policy", () => {
     expect(payload.enabled).toBe(true);
     expect(payload.expression).not.toContain("ip.src.asnum");
     expect(payload.expression).toContain('lower(http.host) ne "admin.renvix.app"');
-    expect(payload.expression).toContain("ip.src in {34.152.30.165 34.52.133.111}");
+    expect(payload.expression).toContain("ip.src in {34.152.30.165 34.52.133.111 185.19.40.179}");
     for (const token of ["*/.env*", "*/.git*", "*/fly.toml", "*/env-config*", "wlwmanifest", "/.vscode", "/storage/logs", "/actuator", "/info.php", "/pinfo.php", "/api/phpinfo.php", "/credentials", "/api/gql", "canary", ".log", "/.well-known/security.txt"]) {
       expect(payload.expression).toContain(token);
     }

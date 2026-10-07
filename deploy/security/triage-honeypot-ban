@@ -1,0 +1,58 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+readonly service_name=renvix-honeypot-sentry.service
+readonly set_name=honeypot_blacklist
+readonly target_ip=${1:-185.19.40.179}
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root: sudo $0 [IPv4]" >&2
+  exit 1
+fi
+
+normalized_ip=$(python3 -c 'import ipaddress,sys; ip=ipaddress.ip_address(sys.argv[1]); assert ip.version == 4; print(ip)' "$target_ip")
+command -v ipset >/dev/null
+command -v iptables >/dev/null
+
+echo "== Before remediation =="
+if ipset list "$set_name" >/dev/null 2>&1; then
+  ipset test "$set_name" "$normalized_ip" || true
+else
+  echo "Missing ipset: $set_name"
+fi
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+  && echo "INPUT references $set_name" \
+  || echo "INPUT does not reference $set_name"
+
+ipset create "$set_name" hash:ip family inet hashsize 1024 maxelem 65536 timeout 0 -exist
+ipset add "$set_name" "$normalized_ip" timeout 0 -exist
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+  || iptables -w -I INPUT 1 -m set --match-set "$set_name" src -j DROP
+
+if iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
+  iptables -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+    || iptables -w -I DOCKER-USER 1 -m set --match-set "$set_name" src -j DROP
+fi
+
+temporary=$(mktemp /etc/ipset.conf.XXXXXX)
+trap 'rm -f "$temporary"' EXIT
+ipset save > "$temporary"
+chmod 0600 "$temporary"
+mv -f "$temporary" /etc/ipset.conf
+trap - EXIT
+if command -v netfilter-persistent >/dev/null; then
+  netfilter-persistent save
+elif service iptables save >/dev/null 2>&1; then
+  :
+else
+  echo "Warning: no supported iptables persistence helper was found" >&2
+fi
+
+echo "== After remediation =="
+ipset test "$set_name" "$normalized_ip"
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP
+systemctl --no-pager --full status "$service_name" || true
+journalctl --no-pager -u "$service_name" -n 100 || true
+
+echo "Important: origin ipset cannot identify a visitor behind Cloudflare."
+echo "Verify the Cloudflare WAF rule and EDGE_AUTO_BLOCK separately."

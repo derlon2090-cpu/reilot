@@ -38,6 +38,7 @@ describe("isolated admin honeypot", () => {
     expect(classifyTrapPath("/assets/env-config.js")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("//test/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
+    expect(classifyTrapPath("//site/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/.git/HEAD")).toMatchObject({ stage: 2, family: "repository_extraction" });
     expect(classifyTrapPath("/wp-json/gravitysmtp/v1/tests/mock-data")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/credentials.json")).toMatchObject({ stage: 2, family: "credential_extraction" });
@@ -61,7 +62,7 @@ describe("isolated admin honeypot", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const { pending, context, env } = runtime();
     try {
-      const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app//test/wp-includes/wlwmanifest.xml", {
+      const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app//site/wp-includes/wlwmanifest.xml", {
         headers: { "cf-connecting-ip": "185.19.40.179", "user-agent": "incident-200-test" }
       }), env, context);
       expect(response.status).toBe(200);
@@ -71,7 +72,7 @@ describe("isolated admin honeypot", () => {
       const body = JSON.parse(String(calls[0][1]?.body));
       expect(body).toMatchObject({
         source_ip: "185.19.40.179",
-        requested_path: "//test/wp-includes/wlwmanifest.xml",
+        requested_path: "//site/wp-includes/wlwmanifest.xml",
         trap_stage: 1,
         trap_family: "framework_probe"
       });

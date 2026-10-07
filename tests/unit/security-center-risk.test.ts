@@ -32,7 +32,7 @@ describe("security center risk and privacy policy", () => {
       "/.well-known/security.txt", "/.env.production", "/.env.live",
       "/storage/logs/laravel.log", "/zzcanary-123.xml", "/.git/HEAD",
       "/fly.toml", "/assets/env-config.js", "/wp-includes/wlwmanifest.xml",
-      "//test/wp-includes/wlwmanifest.xml"
+      "//test/wp-includes/wlwmanifest.xml", "//site/wp-includes/wlwmanifest.xml"
     ]) expect(isRoutineScannerTelemetryPath(path)).toBe(true);
     expect(isRoutineScannerTelemetryPath("/api/auth/login")).toBe(false);
   });

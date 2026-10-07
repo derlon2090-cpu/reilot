@@ -42,11 +42,11 @@ done <<'EOF'
 130.12.180.117
 34.140.132.132
 91.148.245.81
+185.19.40.179
 EOF
 
-# INC-2026-000200: legacy WordPress manifest probe. Re-running this installer
-# refreshes only this bounded entry; it does not convert permanent entries.
-ipset add "$set_name" 185.19.40.179 timeout 604800 -exist
+# INC-2026-000200/204: this source returned after the initial bounded block.
+# It is now a confirmed repeat source and remains in the persistent set.
 
 # INC-2026-000202/203: GCP sources observed probing pinfo/phpinfo, Git
 # metadata and credential decoys. Refresh to a bounded seven-day ban.
@@ -82,4 +82,4 @@ fi
 ipset test "$set_name" 185.19.40.179
 ipset test "$set_name" 34.152.30.165
 ipset test "$set_name" 34.52.133.111
-echo "Silent DROP installed: 8 permanent sources and current incident sources for 7 days."
+echo "Silent DROP installed: 9 permanent sources and current incident sources for 7 days."
