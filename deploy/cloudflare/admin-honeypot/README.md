@@ -1,26 +1,30 @@
 # Renvix admin honeypot
 
-Every external request checks both its Cloudflare source IP and signed device
-marker against the central block registry. High-confidence paths (`.env`, `.git`,
-`config.json`, `wlwmanifest`, and `/storage/logs`) receive an empty 403 response
-without waiting for background telemetry or account-wide containment. The
-telemetry and optional containment are scheduled separately.
-Exact comma-separated `TRUSTED_TEST_IPS` entries are exempt from account-wide
-Cloudflare IP bans. `EDGE_AUTO_BLOCK` is enabled in the deployment config, but
-account-wide bans fail closed until a real account ID, the `CF_EDGE_BLOCK_TOKEN`
-secret, and at least one trusted test IP are configured. Set those before
-deployment. See
+`admin.renvix.app` is a dedicated honeypot, not an administration login. Every
+visitor route receives a block page and HTTP 403 immediately; the Worker does
+not wait for the central API or telemetry, so the session-check spinner is not
+served. Before responding, the Worker records a seven-day source-IP block in
+the per-IP Durable Object. That local block remains active even if the API
+token or ingestion service is unavailable. Existing tabs receive the same
+block through the status endpoint.
+
+The optional account-wide Cloudflare rule is reconciled by the Durable
+Object alarm. Exact `TRUSTED_TEST_IPS` entries are exempt from the optional
+account-wide Cloudflare rule and event ingestion. The local seven-day block is
+limited to this honeypot hostname, and the test source still receives its
+immediate block page. The account-wide rule needs `EDGE_AUTO_BLOCK=true`, a valid account ID, and the
+`CF_EDGE_BLOCK_TOKEN` secret; its failure does not disable the local block. See
 `../../security/HARDENED-DEPLOYMENT.md` for its wider blast radius.
 
-Existing central blocks are checked before the Worker rate limiter, so hitting
-the request limit cannot hide an already-blocked source. The Worker reports a
-rate-limit crossing once per source/device per minute; the central risk policy
-can then create its seven-day IP block. An open decoy page checks for a new
-block periodically and replaces the session-check spinner with the block notice.
+Existing Durable Object blocks are checked before telemetry and central
+lookups, so a delayed API cannot keep a blocked visitor waiting. The Worker
+records a signed, bounded event in the background and marks the signed device
+for central containment. Account-wide Cloudflare IP blocking is a separate
+second layer.
 
 This Cloudflare Worker is isolated from the real Renvix application and admin
-deployment. It serves a self-contained administrative session-check shell and sends bounded,
-signed security events to the existing ingestion service.
+deployment. It returns a self-contained block page and sends bounded, signed
+security events to the existing ingestion service.
 
 The browser telemetry is intentionally aggregated. It includes device and
 viewport characteristics plus counts for pointer movement, clicks, scrolling,
@@ -70,18 +74,17 @@ Deployment requirements:
    (`https://api.renvix.app/api/security/ingest/honeypot`).
    Set an independent 32+ byte `SECURITY_BLOCK_PEPPER` on the API; automatic
    device/IP blocks intentionally cannot be persisted without it.
-   Before account-wide edge bans, set a real `CF_ACCOUNT_ID`, add the account
-   firewall-write token with `wrangler secret put CF_EDGE_BLOCK_TOKEN`, and
-   configure at least one exact IP in `TRUSTED_TEST_IPS`. The runtime refuses
-   to create account rules if any prerequisite is missing.
+   The Durable Object local block works without account credentials. To enable
+   the additional account-wide rule, set a real `CF_ACCOUNT_ID`, add a narrowly
+   scoped firewall-write token with `wrangler secret put CF_EDGE_BLOCK_TOKEN`,
+   and list controlled test addresses in `TRUSTED_TEST_IPS`.
 4. Keep Cloudflare WAF and zone rate limits enabled. The binding in
    `wrangler.toml` is an additional Worker-local guard.
 5. Never add real Renvix application assets, analytics, cookies, redirects, or
    the real administration hostname to this Worker.
 
-Ordinary paths return the decoy shell; config/runtime probes return bounded
-synthetic artifacts, while extraction and canary paths return 403 after their
-event is recorded. The client script and
-telemetry endpoint are same-origin Worker routes. The signed internal probe at
+All public visitor paths return a 403 block page after the local IP record is
+stored. Internal script, pixel, telemetry, and signed health-probe routes stay
+separate from visitor navigation. The signed internal probe at
 `/.well-known/renvix-security-probe` now verifies the complete Worker → API
 signature and network path without creating a security incident.

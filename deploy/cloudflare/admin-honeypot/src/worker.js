@@ -1,9 +1,9 @@
-import { containHoneypotVisitor } from './edge-ban.js';
+import { checkHoneypotVisitor, containHoneypotVisitor, isTrustedHoneypotVisitor } from './edge-ban.js';
 export { EdgeBan } from './edge-ban.js';
 import {
-  HONEYPOT_HTML, HONEYPOT_PIXEL_PATH, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
+  HONEYPOT_PIXEL_PATH, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
 } from "./page.js";
-import { buildDecoyArtifact, classifyTrapPath, isHighConfidenceDecoyPath, issueDeepCanary, verifyDeepCanary } from "./trap-catalog.js";
+import { classifyTrapPath, verifyDeepCanary } from "./trap-catalog.js";
 
 const BASE_HEADERS = Object.freeze({
   "cache-control": "no-store, max-age=0",
@@ -29,26 +29,6 @@ const RATE_LIMIT_EVENT_TTL_MS = 60_000;
 const RATE_LIMIT_EVENT_MAX = 2_000;
 const rateLimitEvents = new Map();
 const TRACKING_PIXEL = Uint8Array.from(atob("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="), (character) => character.charCodeAt(0));
-
-function scheduleHighConfidenceContainment(request, env, context, trap) {
-  const reason = `trap_stage_${trap.stage}`;
-  const task = Promise.resolve().then(async () => {
-    const containment = containHoneypotVisitor(request, env, { reason });
-    const [rateLimited, identity] = await Promise.all([
-      rateLimit(request, env).catch(() => true),
-      deviceIdentity(request, env).catch(() => ({ id: "" }))
-    ]);
-    const trapContext = { stage: trap.stage, family: trap.family, canaryValidated: false };
-    const telemetry = rateLimited ? Promise.resolve() : sendEvent(request, env, false, null, identity.id, true, trapContext);
-    const results = await Promise.allSettled([containment, telemetry]);
-    for (const result of results) {
-      if (result.status === "rejected") throw result.reason;
-    }
-  }).catch(error => {
-    console.error(JSON.stringify({ event: "high_confidence_decoy_handling_failed", message: String(error?.message || "unknown").slice(0, 160) }));
-  });
-  context.waitUntil(task);
-}
 
 function text(value, max) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
@@ -89,23 +69,12 @@ function emptyResponse(status = 204, setCookies = []) {
   return response(null, status, "text/plain; charset=utf-8", SCRIPT_CSP, {}, setCookies);
 }
 
-function pageResponse(setCookies = []) {
-  return response(HONEYPOT_HTML, 200, "text/html; charset=utf-8", HTML_CSP, {}, setCookies);
-}
-
 function scriptResponse(setCookies = []) {
   return response(HONEYPOT_SCRIPT, 200, "application/javascript; charset=utf-8", SCRIPT_CSP, {}, setCookies);
 }
 
 function pixelResponse(setCookies = []) {
   return response(TRACKING_PIXEL, 200, "image/gif", SCRIPT_CSP, {}, setCookies);
-}
-
-function artifactResponse(artifact, setCookies = []) {
-  return response(artifact.body, 200, artifact.contentType, SCRIPT_CSP, {
-    "content-disposition": "inline",
-    "x-download-options": "noopen"
-  }, setCookies);
 }
 
 function cookieValue(request, name) {
@@ -358,11 +327,6 @@ const worker = {
       || url.pathname === HONEYPOT_PIXEL_PATH
       || url.pathname === HONEYPOT_TELEMETRY_PATH;
     const trap = internalRoute ? classifyTrapPath("/") : classifyTrapPath(url.pathname);
-    if (!internalRoute && isHighConfidenceDecoyPath(url.pathname)) {
-      const rejected = new Response(null, { status: 403, headers: BASE_HEADERS });
-      scheduleHighConfidenceContainment(request, env, context, trap);
-      return rejected;
-    }
     const identity = await deviceIdentity(request, env);
     const canary = !internalRoute && trap.stage >= 3
       ? await verifyDeepCanary(url.searchParams.get("c"), env.HONEYPOT_INGESTION_SECRET, identity.id)
@@ -372,17 +336,9 @@ const worker = {
       family: canary.valid ? canary.family : trap.family,
       canaryValidated: canary.valid
     };
-    const block = !internalRoute ? await checkSecurityBlock(env, request, identity.id) : null;
-    if (block?.blocked && !internalRoute) {
-      return blockedResponse(block.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
-    }
-    const rateLimited = await rateLimit(request, env);
-    if (!internalRoute && trap.stage > 0) {
-      context.waitUntil(containHoneypotVisitor(request, env, {
-        reason: canary.valid ? "signed_deep_canary" : `trap_stage_${trap.stage}`
-      }).catch(error => {
-        console.error(JSON.stringify({ event: 'edge_ban_failed', message: String(error.message).slice(0, 160) }));
-      }));
+    const localBlock = !internalRoute ? await checkHoneypotVisitor(request, env) : null;
+    if (localBlock?.blocked && !internalRoute) {
+      return blockedResponse(localBlock.referenceId, identity.setCookies);
     }
     if (url.pathname === HONEYPOT_SCRIPT_PATH && request.method === "GET") return scriptResponse(identity.setCookies);
     if (url.pathname === HONEYPOT_PIXEL_PATH && request.method === "GET") return pixelResponse(identity.setCookies);
@@ -392,13 +348,22 @@ const worker = {
       if (origin && origin !== url.origin) return emptyResponse(204, identity.setCookies);
       if (request.headers.get("x-renvix-status-check") === "1") {
         if (origin !== url.origin) return emptyResponse(204, identity.setCookies);
-        const block = await checkSecurityBlock(env, request, identity.id);
-        if (block?.blocked) {
-          return response(JSON.stringify({ ok: false, blocked: true, referenceId: block.referenceId || "SEC-UNKNOWN" }), 403,
+        let activeBlock = await checkHoneypotVisitor(request, env);
+        if (!activeBlock) {
+          try { await containHoneypotVisitor(request, env, { reason: "honeypot_entry" }); }
+          catch (error) {
+            console.error(JSON.stringify({ event: "edge_ban_failed", message: String(error?.message || "unknown").slice(0, 160) }));
+          }
+          activeBlock = await checkHoneypotVisitor(request, env);
+        }
+        if (!activeBlock) activeBlock = await checkSecurityBlock(env, request, identity.id);
+        if (activeBlock?.blocked) {
+          return response(JSON.stringify({ ok: false, blocked: true, referenceId: activeBlock.referenceId || "SEC-UNKNOWN" }), 403,
             "application/json; charset=utf-8", SCRIPT_CSP, {}, identity.setCookies);
         }
         return emptyResponse(204, identity.setCookies);
       }
+      const rateLimited = await rateLimit(request, env).catch(() => true);
       const telemetry = (!origin || origin === url.origin) ? await readTelemetry(request) : null;
       if (telemetry && (!rateLimited || shouldReportRateLimitedRequest(request, identity.id))) {
         queueEvent(context, sendEvent(request, env, rateLimited, rateLimited ? null : telemetry, identity.id));
@@ -406,23 +371,21 @@ const worker = {
       return emptyResponse(204, identity.setCookies);
     }
 
-    const autoBlockDevice = trap.stage >= 2 || canary.valid;
-    if (!rateLimited || shouldReportRateLimitedRequest(request, identity.id)) {
-      const delivery = sendEvent(request, env, rateLimited, null, identity.id, autoBlockDevice, trapContext);
-      queueEvent(context, delivery);
+    const autoBlockDevice = true;
+    const trustedTestVisitor = isTrustedHoneypotVisitor(request, env);
+    if (!trustedTestVisitor) {
+      queueEvent(context, sendEvent(request, env, false, null, identity.id, autoBlockDevice, trapContext));
     }
-    // A high-confidence extraction path is denied on the first request. The
-    // signed event above persists device and IP containment for later requests.
-    if (trap.stage >= 2) {
-      return blockedResponse(`HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
+    try {
+      await containHoneypotVisitor(request, env, {
+        reason: canary.valid ? "signed_deep_canary" : trap.stage > 0 ? `trap_stage_${trap.stage}` : "honeypot_entry"
+      });
+    } catch (error) {
+      console.error(JSON.stringify({ event: "edge_ban_failed", message: String(error?.message || "unknown").slice(0, 160) }));
     }
-    if (trap.stage > 0) {
-      const token = trap.stage < 3
-        ? await issueDeepCanary(env.HONEYPOT_INGESTION_SECRET, identity.id, trap.family)
-        : "";
-      return artifactResponse(buildDecoyArtifact(trap, token), identity.setCookies);
-    }
-    return pageResponse(identity.setCookies);
+    // This hostname is a dedicated trap. Deny immediately and persist a local
+    // seven-day Durable Object block before returning, without waiting for API.
+    return blockedResponse(`HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
   }
 };
 

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import honeypotWorker from "../../deploy/cloudflare/admin-honeypot/src/worker.js";
+import { EdgeBan } from "../../deploy/cloudflare/admin-honeypot/src/edge-ban.js";
 import { classifyTrapPath, isHighConfidenceDecoyPath, issueDeepCanary, verifyDeepCanary } from "../../deploy/cloudflare/admin-honeypot/src/trap-catalog.js";
 
 const root = process.cwd();
@@ -13,15 +14,35 @@ const ingestion = fs.readFileSync(path.join(root, "app/api/security/ingest/honey
 const alertMigration = fs.readFileSync(path.join(root, "drizzle/0092_honeypot_first_alerts.sql"), "utf8");
 const workerConfig = fs.readFileSync(path.join(root, "deploy/cloudflare/admin-honeypot/wrangler.toml"), "utf8");
 
-function runtime() {
+function runtime({ durableBlocks = true } = {}) {
   const pending: Promise<unknown>[] = [];
+  const env: Record<string, unknown> = {
+    SECURITY_INGESTION_URL: "https://api.renvix.app/api/security/ingest/honeypot",
+    HONEYPOT_INGESTION_SECRET: "a-long-independent-honeypot-secret"
+  };
+  const objects = new Map<string, EdgeBan>();
+  if (durableBlocks) env.EDGE_BANS = {
+    idFromName: (id: string) => id,
+    get: (id: string) => {
+      if (!objects.has(id)) {
+        const values = new Map<string, unknown>();
+        const storage = {
+          get: async (key: string) => values.get(key),
+          put: async (key: string, value: unknown) => { values.set(key, value); },
+          delete: async (key: string) => values.delete(key),
+          setAlarm: async () => {}, deleteAlarm: async () => {}
+        };
+        const object = new EdgeBan({ storage, blockConcurrencyWhile: (task: () => unknown) => task() } as never, env as never);
+        objects.set(id, object);
+      }
+      const object = objects.get(id)!;
+      return { fetch: (url: string, init?: RequestInit) => object.fetch(new Request(url, init)) };
+    }
+  };
   return {
     pending,
     context: { waitUntil(promise: Promise<unknown>) { pending.push(promise); } },
-    env: {
-      SECURITY_INGESTION_URL: "https://api.renvix.app/api/security/ingest/honeypot",
-      HONEYPOT_INGESTION_SECRET: "a-long-independent-honeypot-secret"
-    }
+    env
   };
 }
 
@@ -72,7 +93,7 @@ describe("isolated admin honeypot", () => {
         headers: { "cf-connecting-ip": "185.19.40.179", "user-agent": "incident-200-test" }
       }), env, context);
       expect(response.status).toBe(403);
-      expect(await response.text()).toBe("");
+      expect(await response.text()).toContain("تم حظر الوصول");
       await Promise.all(pending);
       const calls = ingestionCalls(fetchSpy);
       expect(calls).toHaveLength(1);
@@ -100,7 +121,7 @@ describe("isolated admin honeypot", () => {
         headers: { "cf-connecting-ip": "203.0.113.91", "user-agent": "high-confidence-probe-test" }
       }), env, context);
       expect(response.status).toBe(403);
-      expect(await response.text()).toBe("");
+      expect(await response.text()).toContain("تم حظر الوصول");
       await vi.waitFor(() => expect(finishIngestion).toBeTypeOf("function"));
       expect(finishIngestion).toBeTypeOf("function");
       finishIngestion?.(new Response(null, { status: 200 }));
@@ -122,7 +143,7 @@ describe("isolated admin honeypot", () => {
         headers: { "cf-connecting-ip": "203.0.113.92", "user-agent": "environment-probe-test" }
       }), env, context);
       expect(response.status).toBe(403);
-      expect(await response.text()).toBe("");
+      expect(await response.text()).toContain("تم حظر الوصول");
       await Promise.all(pending);
       const event = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
       expect(event).toMatchObject({ trap_stage: 1, trap_family: "environment_probe", auto_block_device: true });
@@ -131,29 +152,51 @@ describe("isolated admin honeypot", () => {
     }
   });
 
-  it("serves one self-contained shell for ordinary discovery paths and records the HTTP event", async () => {
+  it("blocks every public honeypot route immediately instead of leaving a session spinner", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const { pending, context, env } = runtime();
     try {
-      let referenceBody = "";
-      for (const requestedPath of ["/", "/admin", "/login", "/random/path"]) {
+      for (const [index, requestedPath] of ["/", "/admin", "/login", "/random/path"].entries()) {
         const response = await honeypotWorker.fetch(new Request(`https://admin.renvix.app${requestedPath}`, {
-          headers: { "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
+          headers: { "cf-connecting-ip": `203.0.113.${10 + index}`, "user-agent": "test-agent" }
         }), env, context);
         const body = await response.text();
-        expect(response.status).toBe(200);
+        expect(response.status).toBe(403);
         expect(response.headers.get("content-type")).toContain("text/html");
-        expect(response.headers.get("content-security-policy")).toContain("script-src 'self'");
-        expect(body).toContain('data-honeypot-shell="v2"');
-        expect(body).toContain("/__renvix/honeypot.js");
-        expect(body).toContain("/__renvix/pixel.gif");
-        expect(body).not.toContain("<form");
-        expect(body).not.toContain('type="password"');
-        if (!referenceBody) referenceBody = body;
-        expect(body).toBe(referenceBody);
+        expect(body).toContain("تم حظر الوصول");
+        expect(body).toContain("مراجعة الحظر مع الدعم");
+        expect(body).not.toContain("جارٍ التحقق من الجلسة");
       }
       await Promise.all(pending);
       expect(ingestionCalls(fetchSpy)).toHaveLength(4);
+      for (const [, init] of ingestionCalls(fetchSpy)) {
+        expect(JSON.parse(String(init?.body)).auto_block_device).toBe(true);
+      }
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("shows the block notice to an already-open spinner page as soon as its IP is contained", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ ok: true }));
+    const { pending, context, env } = runtime();
+    try {
+      const ip = "203.0.113.77";
+      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/", {
+        headers: { "cf-connecting-ip": ip, "user-agent": "open-tab-test" }
+      }), env, context);
+      expect(first.status).toBe(403);
+      const status = await honeypotWorker.fetch(new Request("https://admin.renvix.app/__renvix/telemetry", {
+        method: "POST",
+        headers: {
+          origin: "https://admin.renvix.app", "cf-connecting-ip": ip,
+          "x-renvix-status-check": "1", "content-type": "application/json"
+        },
+        body: "{}"
+      }), env, context);
+      expect(status.status).toBe(403);
+      expect(await status.json()).toMatchObject({ blocked: true });
+      await Promise.all(pending);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -232,17 +275,18 @@ describe("isolated admin honeypot", () => {
     }
   });
 
-  it("contains deep-file access but leaves shallow discovery as telemetry", async () => {
+  it("contains the first ordinary visit as well as deep-file access", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const { pending, context, env } = runtime();
     try {
       const shallow = await honeypotWorker.fetch(new Request("https://admin.renvix.app/portal", {
         headers: { "cf-connecting-ip": "203.0.113.11", "user-agent": "test-agent" }
       }), env, context);
-      expect(shallow.status).toBe(200);
+      expect(shallow.status).toBe(403);
+      expect(await shallow.text()).toContain("تم حظر الوصول");
       await Promise.all(pending);
       const shallowEvent = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
-      expect(shallowEvent.auto_block_device).toBe(false);
+      expect(shallowEvent.auto_block_device).toBe(true);
       expect(shallowEvent.trap_stage).toBe(0);
 
       fetchSpy.mockClear();
@@ -250,8 +294,8 @@ describe("isolated admin honeypot", () => {
         headers: { "cf-connecting-ip": "203.0.113.12", "user-agent": "test-agent" }
       }), env, context);
       expect(deep.status).toBe(403);
-      expect(deep.headers.get("content-type")).toBeNull();
-      expect(await deep.text()).toBe("");
+      expect(deep.headers.get("content-type")).toContain("text/html");
+      expect(await deep.text()).toContain("تم حظر الوصول");
       await Promise.all(pending);
       const deepEvent = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
       expect(deepEvent.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
@@ -262,7 +306,7 @@ describe("isolated admin honeypot", () => {
     }
   });
 
-  it("issues and verifies a device-bound deep canary without exposing secrets", async () => {
+  it("blocks a shallow probe immediately and never exposes synthetic artifacts or a spinner", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (target) => {
       if (String(target).endsWith("/api/security/block-check")) {
         return Response.json({ ok: true, blocked: false });
@@ -276,15 +320,17 @@ describe("isolated admin honeypot", () => {
       }), env, context);
       const cookie = String(first.headers.get("set-cookie") || "").split(";")[0];
       const body = await first.text();
-      expect(body).toContain("DATABASE_URL=redacted://invalid");
-      expect(body).not.toMatch(/password=/i);
-      const link = body.match(/CONFIG_ARCHIVE=(\S+)/)?.[1] || "";
-      expect(link).toMatch(/^\/_internal\/archive\/manifest\.json\?c=hp1\./);
+      expect(first.status).toBe(403);
+      expect(body).toContain("تم حظر الوصول");
+      expect(body).not.toContain("DATABASE_URL");
+      expect(body).not.toContain("جارٍ التحقق من الجلسة");
       await Promise.all(pending);
+      const deviceId = cookie.split("=")[1].split(".")[0];
+      const token = await issueDeepCanary(env.HONEYPOT_INGESTION_SECRET, deviceId, "environment_probe");
       fetchSpy.mockClear();
 
-      const deep = await honeypotWorker.fetch(new Request(`https://admin.renvix.app${link}`, {
-        headers: { cookie, "cf-connecting-ip": "203.0.113.40", "user-agent": "test-agent" }
+      const deep = await honeypotWorker.fetch(new Request(`https://admin.renvix.app/_internal/archive/manifest.json?c=${token}`, {
+        headers: { cookie, "cf-connecting-ip": "203.0.113.41", "user-agent": "test-agent" }
       }), env, context);
       expect(deep.status).toBe(403);
       expect(await deep.text()).toContain("تم حظر الوصول");
@@ -295,7 +341,6 @@ describe("isolated admin honeypot", () => {
         trap_stage: 3, trap_family: "environment_probe", canary_validated: true,
         deep_file_access: true, auto_block_device: true
       });
-      expect(String(ingestionCall?.[1]?.body)).not.toContain(link.split("?c=")[1]);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -303,7 +348,7 @@ describe("isolated admin honeypot", () => {
 
   it("issues a signed Host-Only device ID and denies a blocked identifier", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
-    const { pending, context, env } = runtime();
+    const { pending, context, env } = runtime({ durableBlocks: false });
     try {
       const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/login", {
         headers: { "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
@@ -317,21 +362,22 @@ describe("isolated admin honeypot", () => {
         expect(String(url)).toBe("https://api.renvix.app/api/security/block-check");
         expect(JSON.parse(String(init?.body))).toMatchObject({
           sourceIp: "203.0.113.10", honeypotDeviceId: deviceId,
-          requestedHost: "admin.renvix.app", requestedPath: "/login", method: "GET"
+          requestedHost: "admin.renvix.app", requestedPath: "/__renvix/telemetry", method: "POST"
         });
         expect(new Headers(init?.headers).get("x-security-signature")).toMatch(/^[a-f0-9]{64}$/);
         return new Response(JSON.stringify({ ok: true, blocked: true, referenceId: "SEC-DEVICE-1" }), {
           status: 200, headers: { "content-type": "application/json" }
         });
       });
-      const blocked = await honeypotWorker.fetch(new Request("https://admin.renvix.app/login", {
-        headers: { cookie, "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent" }
+      const blocked = await honeypotWorker.fetch(new Request("https://admin.renvix.app/__renvix/telemetry", {
+        method: "POST",
+        headers: {
+          cookie, "cf-connecting-ip": "203.0.113.10", "user-agent": "test-agent",
+          origin: "https://admin.renvix.app", "x-renvix-status-check": "1"
+        }, body: "{}"
       }), env, context);
       expect(blocked.status).toBe(403);
-      const blockedBody = await blocked.text();
-      expect(blockedBody).toContain("تم حظر الوصول");
-      expect(blockedBody).toContain("مراجعة الحظر مع الدعم");
-      expect(blockedBody).toContain("SEC-DEVICE-1");
+      expect(await blocked.json()).toMatchObject({ blocked: true, referenceId: "SEC-DEVICE-1" });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
       fetchSpy.mockRestore();

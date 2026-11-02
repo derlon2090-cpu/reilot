@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateThreatScore, honeypotCollectorModeEnabled, incidentAlertDedupeKey, incidentAlertMode, ingestHoneypotEvent, parseUserAgent, redactSecurityValue,
-  honeypotContainmentPolicy, honeypotDeviceFingerprint, isRoutineScannerTelemetryPath, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
+  honeypotContainmentPolicy, honeypotDeviceFingerprint, honeypotIncidentRiskScore, isRoutineScannerTelemetryPath, normalizeHoneypotTelemetry, remediationPolicy, severityForRisk,
   verifyHoneypotDeviceToken, verifySignedIngestion
 } from "../../src/server/security-center.js";
 import { nextTenHourRun } from "../../src/server/security-inspector.js";
@@ -74,6 +74,15 @@ describe("security center risk and privacy policy", () => {
       .toMatchObject({ blockDevice: false, blockIp: true, reason: "sustained_scanner" });
     expect(honeypotContainmentPolicy({ trapStage: 0, attempts24h: 1, distinctPaths24h: 1, riskScore: 10 }))
       .toMatchObject({ blockDevice: false, blockIp: false });
+  });
+
+  it("persists low-risk telemetry incidents whenever an automatic device block is requested", () => {
+    expect(honeypotIncidentRiskScore({
+      telemetryOnly: true, blockIp: false, autoBlockDevice: true, calculatedRiskScore: 8
+    })).toBe(25);
+    expect(honeypotIncidentRiskScore({
+      telemetryOnly: true, blockIp: false, autoBlockDevice: false, calculatedRiskScore: 8
+    })).toBe(10);
   });
 
   it("deduplicates repeated alerts while allowing severity escalation", () => {

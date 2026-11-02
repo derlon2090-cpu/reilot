@@ -2,11 +2,10 @@
 
 ## Objective
 
-Detect commodity reconnaissance without paging operators, distinguish direct
-deep-file extraction from accidental discovery, and produce a high-confidence
-signal only when a visitor follows a cryptographically issued canary. The
-system never exposes production data, accepts credentials, or performs
-counter-attacks.
+Stop every visitor to the isolated administration honeypot immediately, keep a
+seven-day source-IP block in Cloudflare Durable Objects, and record signed,
+bounded evidence for central device containment. The system never exposes
+production data, accepts credentials, or performs counter-attacks.
 
 ## Trust boundaries
 
@@ -18,12 +17,11 @@ Cloudflare WAF / rate limits
   |-- production hosts: block probe paths before origin
   `-- admin.renvix.app: isolated Worker honeypot only
           |
-          +--> stage classifier + synthetic artifacts
-          +--> signed, device-bound, 24-48h deep canary
-          +--> signed-device + trusted-IP lookup on every request
-          +--> first-request denial for high-confidence extraction
-          +--> Durable Object progression counter
-          |       `--> optional account-wide 7-day edge containment
+          +--> stage classifier for evidence
+          +--> immediate 403 block page for every visitor route
+          +--> Durable Object IP block written before response (7 days)
+          |       `--> optional account-wide Cloudflare IP rule
+          +--> signed-device event for central containment
           `--> HMAC-signed bounded event
                     |
                     v
@@ -50,15 +48,14 @@ isolated Worker.
 
 | Stage | Meaning | Examples | Response | Containment |
 |---|---|---|---|---|
-| 0 | Surface discovery | `/`, `/login`, arbitrary paths | Static session shell | Telemetry only |
-| 1 | Config/runtime probe | `/.env.*`, `/.vscode/*`, `/actuator/*`, `/api/gql` | Synthetic bounded artifact with signed deep link | LOW/TELEMETRY |
-| 2 | Extraction attempt | `/storage/logs/*`, `*.log`, credentials, backups, dumps, `.git/*` | Immediate 403 after recording | Permanent signed-device block and seven-day IP block |
-| 3 | Deep canary | `/_internal/archive/manifest.json?c=...` | Immediate 403 after validation | Permanent signed-device block and seven-day IP block |
+| 0 | Surface discovery | `/`, `/login`, arbitrary paths | Immediate 403 block page | Seven-day local IP block and signed-device event |
+| 1 | Config/runtime probe | `/.env.*`, `/.vscode/*`, `/actuator/*`, `/api/gql` | Immediate 403 block page | Seven-day local IP block and signed-device event |
+| 2 | Extraction attempt | `/storage/logs/*`, `*.log`, credentials, backups, dumps, `.git/*` | Immediate 403 block page | Seven-day local IP block and signed-device event |
+| 3 | Deep canary | `/_internal/archive/manifest.json?c=...` | Immediate 403 block page | Seven-day local IP block and signed-device event |
 
-The deep token is an HMAC over the day, pseudonymous device ID, source trap
-family, and fixed target path. It expires after the current/adjacent UTC day,
-cannot be replayed from another device ID, and is never forwarded to storage.
-Only `canary_validated=true` is retained.
+Existing signed canary validation remains in place for old links and staged
+security testing. The current honeypot does not issue synthetic artifacts or
+canary links to visitors.
 
 ## Evidence policy
 
@@ -67,19 +64,22 @@ Only `canary_validated=true` is retained.
   booleans.
 - Never store submitted credentials, request bodies, cookie values, canary
   tokens, clipboard data, browser history, or exact GPS.
-- Surface commodity probe families remain `LOW/TELEMETRY` and do not create
-  real-time webhook/push noise.
+- Exact `TRUSTED_TEST_IPS` addresses receive the 403 response and the local
+  honeypot-only block, while remaining excluded from account-wide rules and
+  event persistence.
+- Untrusted honeypot visits trigger device containment even when the path is a
+  common route; the risk-score floor ensures that an auditable incident row is
+  created for that automatic block.
 - A signed deep-canary traversal adds 35 risk points and stage 3 adds 25. A
   direct stage-3 guess remains MEDIUM; a valid progression becomes HIGH.
 - The append-only ledger and incident event chain preserve an auditable record.
 
 ## Failure modes
 
-- If ingestion is unavailable, the Worker still returns a bounded decoy and
-  never exposes an origin.
-- If block lookup is unavailable, high-confidence stage 2/3 paths are still
-  denied locally; production middleware remains the authoritative central
-  device/IP block boundary.
+- If ingestion or block lookup is unavailable, the Worker still stores the
+  source-IP block in its Durable Object and returns 403 immediately.
+- If the Durable Object binding is unavailable, the first visitor request is
+  still denied; persistence cannot be guaranteed until the binding is restored.
 - If Cloudflare containment fails, Durable Object alarms retry without creating
   duplicate owned rules.
 - `EDGE_AUTO_BLOCK=false` is the safe default. Enabling it is an explicit,

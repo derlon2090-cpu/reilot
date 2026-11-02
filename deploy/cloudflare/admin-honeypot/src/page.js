@@ -95,7 +95,7 @@ export const HONEYPOT_SCRIPT = `(() => {
     state.blocked = true;
     const reference = short(referenceId, 40).replace(/[^a-z0-9-]/gi, "") || "SEC-UNKNOWN";
     document.title = "تم حظر الوصول";
-    document.body.innerHTML = `<main dir="rtl" style="max-width:520px;margin:10vh auto;padding:42px 36px;border:1px solid #d4e4e1;border-radius:24px;background:#fff;box-shadow:0 24px 70px #103f381f;text-align:center;font-family:Tahoma,Arial,sans-serif;color:#113c38"><div style="width:70px;height:70px;margin:0 auto 22px;display:grid;place-items:center;border-radius:50%;background:#fff1f0;color:#b42318;font-size:32px">!</div><h1>تم حظر الوصول</h1><p style="color:#647b77;line-height:1.9">تم إيقاف هذا الاتصال وفق سياسة الحماية. إذا كنت تعتقد أن الحظر حدث بالخطأ، راجع الدعم واذكر الرقم المرجعي.</p><div style="margin:24px 0;padding:13px;border-radius:10px;background:#f3f7f6;font:700 13px monospace;direction:ltr">${reference}</div><a href="mailto:support@renvix.app?subject=Security%20block%20review" style="display:inline-flex;min-height:46px;align-items:center;justify-content:center;padding:0 24px;border-radius:11px;background:#0b5650;color:#fff;text-decoration:none;font-weight:800">مراجعة الحظر مع الدعم</a></main>`;
+    document.body.innerHTML = '<main dir="rtl" style="max-width:520px;margin:10vh auto;padding:42px 36px;border:1px solid #d4e4e1;border-radius:24px;background:#fff;box-shadow:0 24px 70px #103f381f;text-align:center;font-family:Tahoma,Arial,sans-serif;color:#113c38"><div style="width:70px;height:70px;margin:0 auto 22px;display:grid;place-items:center;border-radius:50%;background:#fff1f0;color:#b42318;font-size:32px">!</div><h1>تم حظر الوصول</h1><p style="color:#647b77;line-height:1.9">تم إيقاف هذا الاتصال وفق سياسة الحماية. إذا كنت تعتقد أن الحظر حدث بالخطأ، راجع الدعم واذكر الرقم المرجعي.</p><div style="margin:24px 0;padding:13px;border-radius:10px;background:#f3f7f6;font:700 13px monospace;direction:ltr">' + reference + '</div><a href="mailto:support@renvix.app?subject=Security%20block%20review" style="display:inline-flex;min-height:46px;align-items:center;justify-content:center;padding:0 24px;border-radius:11px;background:#0b5650;color:#fff;text-decoration:none;font-weight:800">مراجعة الحظر مع الدعم</a></main>';
   }
 
   function handleBlockResponse(response) {
@@ -147,6 +147,7 @@ export const HONEYPOT_SCRIPT = `(() => {
 
   setTimeout(() => transmit("page_view", false), 250);
   setInterval(() => transmit("interaction", false), 15000);
+  setTimeout(checkBlockStatus, 250);
   setInterval(checkBlockStatus, 15000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") transmit("page_hidden", true); });
   addEventListener("pagehide", () => transmit("page_exit", true));

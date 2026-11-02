@@ -252,6 +252,14 @@ export function honeypotContainmentPolicy({
   };
 }
 
+export function honeypotIncidentRiskScore({
+  telemetryOnly = false, blockIp = false, autoBlockDevice = false, calculatedRiskScore = 0
+} = {}) {
+  if (telemetryOnly && !blockIp && !autoBlockDevice) return 10;
+  if (autoBlockDevice || blockIp) return Math.max(Number(calculatedRiskScore) || 0, 25);
+  return Number(calculatedRiskScore) || 0;
+}
+
 export function parseUserAgent(userAgent = "", clientHints = {}) {
   const ua = cleanText(userAgent, 700);
   const browserMatch = ua.match(/(?:Edg|Edge)\/([\d.]+)/) || ua.match(/Chrome\/([\d.]+)/)
@@ -486,9 +494,10 @@ export async function ingestHoneypotEvent(rawInput) {
     });
     // Preserve low-noise telemetry, but guarantee an incident exists whenever
     // an automatic containment decision must be auditable.
-    const riskScore = telemetryOnly && !preliminaryContainment.blockIp
-      ? 10
-      : (input.autoBlockDevice || preliminaryContainment.blockIp) ? Math.max(calculatedRiskScore, 25) : calculatedRiskScore;
+    const riskScore = honeypotIncidentRiskScore({
+      telemetryOnly, blockIp: preliminaryContainment.blockIp,
+      autoBlockDevice: input.autoBlockDevice, calculatedRiskScore
+    });
     const severity = severityForRisk(riskScore);
     const containment = honeypotContainmentPolicy({
       trapStage: input.trapStage, canaryValidated: input.canaryValidated,

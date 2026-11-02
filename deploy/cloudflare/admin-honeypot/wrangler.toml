@@ -9,12 +9,12 @@ routes = [
 
 [vars]
 SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"
-# Account-wide IP bans fail closed until a real account ID, API token secret,
-# and at least one exact trusted test IP are configured.
+# Local Durable Object IP blocks work without API credentials. These settings
+# enable the optional account-wide Cloudflare rule when the token is present.
 EDGE_AUTO_BLOCK = "true"
-CF_ACCOUNT_ID = "REPLACE_WITH_ACCOUNT_ID"
+CF_ACCOUNT_ID = "e87f5f036618c196f98b927f238ed179"
 # Comma-separated exact CF-Connecting-IP values exempt from account-wide bans.
-TRUSTED_TEST_IPS = ""
+TRUSTED_TEST_IPS = "37.243.1.54"
 
 [[durable_objects.bindings]]
 name = "EDGE_BANS"
