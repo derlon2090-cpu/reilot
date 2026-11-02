@@ -58,7 +58,7 @@ export default function RootLayout({ children }) {
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
         <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260911-brand-surfaces-v159" />
         <link rel="stylesheet" href="/app/styles/identity-system.css?v=20260911-brand-surfaces-v159" />
-        <link rel="stylesheet" href="/app/styles/auth-renvix.css?v=20260914-auth-renvix-v162" media="(min-width: 768px)" />
+        <link rel="stylesheet" href="/app/styles/auth-renvix.css?v=20261102-auth-viewport-v163" media="(min-width: 768px)" />
       </head>
       <body>
         {children}

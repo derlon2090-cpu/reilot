@@ -52,3 +52,26 @@ html:has(.auth-suite-page.auth-renvix),body:has(.auth-suite-page.auth-renvix){he
   .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-illustration{width:min(100%,460px)!important;max-height:300px!important}
   .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-brand-copy{max-width:540px!important}
 }
+
+/* Give shorter laptop and tablet viewports breathing room without clipping the form. */
+@media (min-width:1024px) and (max-height:950px){
+  .auth-suite-page.auth-renvix.auth-renvix{padding-block:24px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell{min-height:calc(100dvh - 48px)!important;gap:clamp(28px,3vw,48px)!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>article{min-height:0!important;padding-block:22px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-card-header{margin-bottom:12px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-intro{margin-bottom:12px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-intro h1{font-size:clamp(30px,2.6vw,38px)!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-intro p{font-size:14px!important;line-height:1.6!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-mode-tabs{height:48px!important;min-height:48px!important;margin-bottom:12px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-mode-tabs button{height:42px!important;min-height:42px!important}
+  .auth-suite-page.auth-renvix.auth-renvix :is(.auth-suite-form,.email-otp-form){gap:10px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .field{gap:4px!important}
+  .auth-suite-page.auth-renvix.auth-renvix :is(.input,.email-otp-digit){height:48px!important;min-height:48px!important}
+  .auth-suite-page.auth-renvix.auth-renvix :is(.auth-submit,.email-otp-submit,.btn-primary,.btn-secondary){min-height:48px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-switch{margin-top:12px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-footer{margin-top:12px!important}
+}
+@media (min-width:768px) and (max-width:1023px) and (orientation:portrait){
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>aside{display:none!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>article{margin-block:auto!important}
+}
