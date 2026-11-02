@@ -37,3 +37,18 @@ html:has(.auth-suite-page.auth-renvix),body:has(.auth-suite-page.auth-renvix){he
 .auth-suite-page.auth-renvix.auth-renvix{padding:12px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell{grid-template-columns:minmax(250px,.72fr) minmax(410px,1.28fr)!important;gap:12px!important;min-height:calc(100dvh - 24px)!important}.auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>article{min-height:calc(100dvh - 24px)!important;padding:26px 22px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>aside{top:12px!important;min-height:calc(100dvh - 24px)!important;padding:22px 12px!important}.auth-suite-page.auth-renvix.auth-renvix .renvix-auth-card-header{margin-bottom:20px!important}.auth-suite-page.auth-renvix.auth-renvix .renvix-auth-card-header :is(.brand-logo-stacked,.brand-logo-image){width:126px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-suite-brandbar-controls>button{font-size:11px!important;padding-inline:4px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-suite-intro h1{font-size:29px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-suite-intro p{font-size:12px!important}.auth-suite-page.auth-renvix.auth-renvix :is(.input,.email-otp-digit){height:56px!important;min-height:56px!important}.auth-suite-page.auth-renvix.auth-renvix :is(.auth-submit,.email-otp-submit,.btn-primary,.btn-secondary){min-height:56px!important}.auth-suite-page.auth-renvix.auth-renvix .renvix-auth-illustration{max-height:260px!important}.auth-suite-page.auth-renvix.auth-renvix .renvix-auth-brand-copy h2{font-size:22px!important}.auth-suite-page.auth-renvix.auth-renvix .renvix-auth-brand-copy p{font-size:11px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-platform-card strong{font-size:10px!important}.auth-suite-page.auth-renvix.auth-renvix .auth-platform-card em{display:none!important}
 }
 @media (prefers-reduced-motion:reduce){.auth-suite-page.auth-renvix.auth-renvix *{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* Keep tablet auth layouts spacious; reserve the two-column composition for wider screens. */
+@media (min-width:1200px){
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell{grid-template-columns:minmax(0,.96fr) minmax(500px,1.04fr)!important;gap:clamp(36px,4vw,64px)!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>article{min-width:0!important}
+}
+@media (min-width:768px) and (max-width:1023px){
+  .auth-suite-page.auth-renvix.auth-renvix{place-items:start center!important;padding:24px clamp(20px,4vw,40px)!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell{grid-template-columns:minmax(0,1fr)!important;gap:20px!important;min-height:0!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>article{grid-column:1!important;grid-row:1!important;width:100%!important;max-width:760px!important;min-height:0!important;padding:clamp(28px,5vw,48px)!important;border-radius:24px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .auth-suite-shell>aside{grid-column:1!important;grid-row:2!important;position:relative!important;top:auto!important;width:100%!important;max-width:760px!important;min-height:0!important;padding:30px clamp(24px,5vw,48px)!important;border-radius:26px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-brand-panel{gap:14px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-illustration{width:min(100%,460px)!important;max-height:300px!important}
+  .auth-suite-page.auth-renvix.auth-renvix .renvix-auth-brand-copy{max-width:540px!important}
+}
