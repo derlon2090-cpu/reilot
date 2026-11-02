@@ -25,6 +25,9 @@ const DEVICE_ID_PATTERN = /^hpd_[a-f0-9]{32}$/;
 const BLOCK_CACHE_TTL_MS = 5_000;
 const BLOCK_CACHE_MAX = 1_000;
 const blockCache = new Map();
+const RATE_LIMIT_EVENT_TTL_MS = 60_000;
+const RATE_LIMIT_EVENT_MAX = 2_000;
+const rateLimitEvents = new Map();
 const TRACKING_PIXEL = Uint8Array.from(atob("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="), (character) => character.charCodeAt(0));
 
 function scheduleHighConfidenceContainment(request, env, context, trap) {
@@ -329,6 +332,18 @@ async function rateLimit(request, env) {
   return !outcome.success;
 }
 
+function shouldReportRateLimitedRequest(request, deviceId) {
+  const sourceIp = text(request.headers.get("cf-connecting-ip"), 80);
+  if (!sourceIp) return false;
+  const key = `${sourceIp}:${DEVICE_ID_PATTERN.test(deviceId) ? deviceId : "no-device"}`;
+  const now = Date.now();
+  const lastReportedAt = rateLimitEvents.get(key) || 0;
+  if (now - lastReportedAt < RATE_LIMIT_EVENT_TTL_MS) return false;
+  if (rateLimitEvents.size >= RATE_LIMIT_EVENT_MAX) rateLimitEvents.delete(rateLimitEvents.keys().next().value);
+  rateLimitEvents.set(key, now);
+  return true;
+}
+
 function queueEvent(context, promise) {
   context.waitUntil(promise.catch((error) => {
     console.error("HONEYPOT_INGESTION_FAILED", String(error?.message || "unknown").slice(0, 160));
@@ -348,7 +363,6 @@ const worker = {
       scheduleHighConfidenceContainment(request, env, context, trap);
       return rejected;
     }
-    const rateLimited = await rateLimit(request, env);
     const identity = await deviceIdentity(request, env);
     const canary = !internalRoute && trap.stage >= 3
       ? await verifyDeepCanary(url.searchParams.get("c"), env.HONEYPOT_INGESTION_SECRET, identity.id)
@@ -358,10 +372,11 @@ const worker = {
       family: canary.valid ? canary.family : trap.family,
       canaryValidated: canary.valid
     };
-    const block = !rateLimited && !internalRoute ? await checkSecurityBlock(env, request, identity.id) : null;
+    const block = !internalRoute ? await checkSecurityBlock(env, request, identity.id) : null;
     if (block?.blocked && !internalRoute) {
       return blockedResponse(block.referenceId || `HP-${identity.id.slice(-12).toUpperCase()}`, identity.setCookies);
     }
+    const rateLimited = await rateLimit(request, env);
     if (!internalRoute && trap.stage > 0) {
       context.waitUntil(containHoneypotVisitor(request, env, {
         reason: canary.valid ? "signed_deep_canary" : `trap_stage_${trap.stage}`
@@ -374,14 +389,26 @@ const worker = {
 
     if (url.pathname === HONEYPOT_TELEMETRY_PATH && request.method === "POST") {
       const origin = request.headers.get("origin");
+      if (origin && origin !== url.origin) return emptyResponse(204, identity.setCookies);
+      if (request.headers.get("x-renvix-status-check") === "1") {
+        if (origin !== url.origin) return emptyResponse(204, identity.setCookies);
+        const block = await checkSecurityBlock(env, request, identity.id);
+        if (block?.blocked) {
+          return response(JSON.stringify({ ok: false, blocked: true, referenceId: block.referenceId || "SEC-UNKNOWN" }), 403,
+            "application/json; charset=utf-8", SCRIPT_CSP, {}, identity.setCookies);
+        }
+        return emptyResponse(204, identity.setCookies);
+      }
       const telemetry = (!origin || origin === url.origin) ? await readTelemetry(request) : null;
-      if (telemetry && !rateLimited) queueEvent(context, sendEvent(request, env, false, telemetry, identity.id));
+      if (telemetry && (!rateLimited || shouldReportRateLimitedRequest(request, identity.id))) {
+        queueEvent(context, sendEvent(request, env, rateLimited, rateLimited ? null : telemetry, identity.id));
+      }
       return emptyResponse(204, identity.setCookies);
     }
 
     const autoBlockDevice = trap.stage >= 2 || canary.valid;
-    if (!rateLimited) {
-      const delivery = sendEvent(request, env, false, null, identity.id, autoBlockDevice, trapContext);
+    if (!rateLimited || shouldReportRateLimitedRequest(request, identity.id)) {
+      const delivery = sendEvent(request, env, rateLimited, null, identity.id, autoBlockDevice, trapContext);
       queueEvent(context, delivery);
     }
     // A high-confidence extraction path is denied on the first request. The
