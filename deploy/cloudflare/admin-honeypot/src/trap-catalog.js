@@ -2,7 +2,9 @@ const TOKEN_PATTERN = /^hp1\.(\d{5})\.([a-z0-9_]{2,32})\.([a-f0-9]{64})$/;
 const DEEP_TARGET = "/_internal/archive/manifest.json";
 
 function normalizedPath(value) {
-  const path = String(value || "/").split("?")[0].slice(0, 300).toLowerCase();
+  let valuePath = String(value || "/").split("?")[0].slice(0, 300);
+  try { valuePath = decodeURIComponent(valuePath); } catch { /* Keep malformed paths bounded and opaque. */ }
+  const path = valuePath.toLowerCase();
   return path.startsWith("/") ? path : `/${path}`;
 }
 
@@ -40,22 +42,24 @@ export function classifyTrapPath(value) {
   if ([DEEP_TARGET, "/_ops/diagnostics/export", "/private/backups/index.json"].includes(path)) {
     return { stage: 3, family: "deep_canary", profile: "sealed_manifest", path };
   }
-  if (/^\/storage\/logs(?:\/|$)/.test(path) || path.endsWith(".log")) {
+  if (/^\/storage\/logs[^/]*(?:\/|$)/.test(path) || path.endsWith(".log")) {
     return { stage: 2, family: "log_extraction", profile: "synthetic_log", path };
   }
   if (/^\/(?:backup|backups|private\/backup|database|db)(?:\/|$)/.test(path)
       || /\.(?:sql|dump|sqlite|tar|zip)(?:\.|$)/.test(path)) {
     return { stage: 2, family: "archive_extraction", profile: "archive_index", path };
   }
-  if (/^\/\.git(?:\/|$)/.test(path)) {
+  if (/(?:^|\/)\.git[^/]*(?:\/|$)/.test(path)) {
     return { stage: 2, family: "repository_extraction", profile: "git_metadata", path };
+  }
+  if (/(?:^|\/)config\.json[^/]*(?:\/|$)/.test(path)) {
+    return { stage: 2, family: "config_extraction", profile: "synthetic_log", path };
   }
   if (/(?:^|\/)credentials?(?:\.json|\.ya?ml|\.txt)?$/.test(path)
       || /(?:^|\/)wp-content\/debug\.log$/.test(path)) {
     return { stage: 2, family: "credential_extraction", profile: "synthetic_log", path };
   }
-  if (/^\/\.env(?:[./]|$)/.test(path)
-      || /(?:^|\/)\.env(?:[./]|$)/.test(path)
+  if (/(?:^|\/)\.env[^/]*(?:\/|$)/.test(path)
       || /(?:^|\/)env-config[^/]*$/.test(path)
       || /(?:^|\/)fly\.toml$/.test(path)) {
     return { stage: 1, family: "environment_probe", profile: "environment_stub", path };
@@ -69,7 +73,7 @@ export function classifyTrapPath(value) {
   }
   if (/^\/{1,2}(?:wp-admin|wp-json|wordpress|wp)(?:\/|$)/.test(path)
       || /^\/{1,2}(?:xmlrpc|index)\.php$/.test(path)
-      || /(?:^|\/)[^/]*wlwmanifest[^/]*\.xml$/.test(path)) {
+      || /(?:^|\/)wlwmanifest[^/]*(?:\/|$)/.test(path)) {
     return { stage: 1, family: "framework_probe", profile: "runtime_stub", path };
   }
   if (path === "/.well-known/security.txt") {
@@ -79,6 +83,15 @@ export function classifyTrapPath(value) {
     return { stage: 3, family: "canary_probe", profile: "sealed_manifest", path };
   }
   return { stage: 0, family: "surface_discovery", profile: "session_shell", path };
+}
+
+export function isHighConfidenceDecoyPath(value) {
+  const path = normalizedPath(value);
+  return /(?:^|\/)\.env[^/]*(?:\/|$)/.test(path)
+    || /(?:^|\/)\.git[^/]*(?:\/|$)/.test(path)
+    || /(?:^|\/)config\.json[^/]*(?:\/|$)/.test(path)
+    || /(?:^|\/)wlwmanifest[^/]*(?:\/|$)/.test(path)
+    || /^\/storage\/logs[^/]*(?:\/|$)/.test(path);
 }
 
 export async function issueDeepCanary(secret, deviceId, family, now = Date.now()) {

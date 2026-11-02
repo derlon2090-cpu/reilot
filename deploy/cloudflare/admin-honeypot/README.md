@@ -1,12 +1,13 @@
 # Renvix admin honeypot
 
-Every external request checks both its trusted Cloudflare source IP and signed
-device marker against the central block registry. High-confidence extraction
-paths are denied on their first request and create a permanent device block plus
-a seven-day IP block. A classified probe path can trigger optional edge
-containment on its first request; ordinary stage-0 visits never trigger it.
-Optional account-wide Cloudflare containment
-remains available with `EDGE_AUTO_BLOCK`; see
+Every external request checks both its Cloudflare source IP and signed device
+marker against the central block registry. High-confidence paths (`.env`, `.git`,
+`config.json`, `wlwmanifest`, and `/storage/logs`) receive an empty 403 response
+without waiting for background telemetry or account-wide containment. The
+telemetry and optional containment are scheduled separately.
+Exact comma-separated `TRUSTED_TEST_IPS` entries are exempt from account-wide
+Cloudflare IP bans. Set test/admin egress IPs before enabling `EDGE_AUTO_BLOCK`;
+it remains false by default. See
 `../../security/HARDENED-DEPLOYMENT.md` for its wider blast radius.
 
 This Cloudflare Worker is isolated from the real Renvix application and admin
@@ -33,9 +34,9 @@ through the existing device block scope.
 It is not a hardware serial number: clearing site data or closing an incognito
 session can cause the browser to receive a new ID. Every request carrying a
 valid signed ID is checked against active blocks before the decoy is served.
-Surface discovery remains bounded telemetry. Config/runtime probes receive
-synthetic artifacts containing no secrets and a short-lived, device-bound HMAC
-canary link. Deep extraction paths are denied immediately; following a valid
+Surface discovery remains bounded telemetry. Non-targeted config/runtime probes
+receive synthetic artifacts containing no secrets and a short-lived, device-bound
+HMAC canary link. Deep extraction paths are denied immediately; following a valid
 canary produces a high-confidence progression signal. Later requests matching
 an active device or IP block receive a professional block notice and a
 support-review reference. The central seven-day IP block is risk-qualified;

@@ -3,7 +3,7 @@ export { EdgeBan } from './edge-ban.js';
 import {
   HONEYPOT_HTML, HONEYPOT_PIXEL_PATH, HONEYPOT_SCRIPT, HONEYPOT_SCRIPT_PATH, HONEYPOT_TELEMETRY_PATH
 } from "./page.js";
-import { buildDecoyArtifact, classifyTrapPath, issueDeepCanary, verifyDeepCanary } from "./trap-catalog.js";
+import { buildDecoyArtifact, classifyTrapPath, isHighConfidenceDecoyPath, issueDeepCanary, verifyDeepCanary } from "./trap-catalog.js";
 
 const BASE_HEADERS = Object.freeze({
   "cache-control": "no-store, max-age=0",
@@ -26,6 +26,26 @@ const BLOCK_CACHE_TTL_MS = 5_000;
 const BLOCK_CACHE_MAX = 1_000;
 const blockCache = new Map();
 const TRACKING_PIXEL = Uint8Array.from(atob("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="), (character) => character.charCodeAt(0));
+
+function scheduleHighConfidenceContainment(request, env, context, trap) {
+  const reason = `trap_stage_${trap.stage}`;
+  const task = Promise.resolve().then(async () => {
+    const containment = containHoneypotVisitor(request, env, { reason });
+    const [rateLimited, identity] = await Promise.all([
+      rateLimit(request, env).catch(() => true),
+      deviceIdentity(request, env).catch(() => ({ id: "" }))
+    ]);
+    const trapContext = { stage: trap.stage, family: trap.family, canaryValidated: false };
+    const telemetry = rateLimited ? Promise.resolve() : sendEvent(request, env, false, null, identity.id, true, trapContext);
+    const results = await Promise.allSettled([containment, telemetry]);
+    for (const result of results) {
+      if (result.status === "rejected") throw result.reason;
+    }
+  }).catch(error => {
+    console.error(JSON.stringify({ event: "high_confidence_decoy_handling_failed", message: String(error?.message || "unknown").slice(0, 160) }));
+  });
+  context.waitUntil(task);
+}
 
 function text(value, max) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
@@ -319,12 +339,17 @@ const worker = {
   async fetch(request, env, context) {
     const url = new URL(request.url);
     if (await isInternalProbe(request, env, url)) return endToEndProbe(env);
-    const rateLimited = await rateLimit(request, env);
-    const identity = await deviceIdentity(request, env);
     const internalRoute = url.pathname === HONEYPOT_SCRIPT_PATH
       || url.pathname === HONEYPOT_PIXEL_PATH
       || url.pathname === HONEYPOT_TELEMETRY_PATH;
     const trap = internalRoute ? classifyTrapPath("/") : classifyTrapPath(url.pathname);
+    if (!internalRoute && isHighConfidenceDecoyPath(url.pathname)) {
+      const rejected = new Response(null, { status: 403, headers: BASE_HEADERS });
+      scheduleHighConfidenceContainment(request, env, context, trap);
+      return rejected;
+    }
+    const rateLimited = await rateLimit(request, env);
+    const identity = await deviceIdentity(request, env);
     const canary = !internalRoute && trap.stage >= 3
       ? await verifyDeepCanary(url.searchParams.get("c"), env.HONEYPOT_INGESTION_SECRET, identity.id)
       : { valid: false, family: "" };

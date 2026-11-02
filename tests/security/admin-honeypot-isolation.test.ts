@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import honeypotWorker from "../../deploy/cloudflare/admin-honeypot/src/worker.js";
-import { classifyTrapPath, issueDeepCanary, verifyDeepCanary } from "../../deploy/cloudflare/admin-honeypot/src/trap-catalog.js";
+import { classifyTrapPath, isHighConfidenceDecoyPath, issueDeepCanary, verifyDeepCanary } from "../../deploy/cloudflare/admin-honeypot/src/trap-catalog.js";
 
 const root = process.cwd();
 const workerSource = fs.readFileSync(path.join(root, "deploy/cloudflare/admin-honeypot/src/worker.js"), "utf8");
@@ -33,6 +33,7 @@ describe("isolated admin honeypot", () => {
   it("uses an explicit four-stage trap catalog and expiring device-bound canaries", async () => {
     expect(classifyTrapPath("/")).toMatchObject({ stage: 0, family: "surface_discovery" });
     expect(classifyTrapPath("/.env.live")).toMatchObject({ stage: 1, family: "environment_probe" });
+    expect(classifyTrapPath("/%2eenv.backup")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/production/.env")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/fly.toml")).toMatchObject({ stage: 1, family: "environment_probe" });
     expect(classifyTrapPath("/assets/env-config.js")).toMatchObject({ stage: 1, family: "environment_probe" });
@@ -40,12 +41,17 @@ describe("isolated admin honeypot", () => {
     expect(classifyTrapPath("//test/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("//site/wp-includes/wlwmanifest.xml")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/.git/HEAD")).toMatchObject({ stage: 2, family: "repository_extraction" });
+    expect(classifyTrapPath("/config.json.save")).toMatchObject({ stage: 2, family: "config_extraction" });
+    expect(classifyTrapPath("/config.json%2esave")).toMatchObject({ stage: 2, family: "config_extraction" });
     expect(classifyTrapPath("/wp-json/gravitysmtp/v1/tests/mock-data")).toMatchObject({ stage: 1, family: "framework_probe" });
     expect(classifyTrapPath("/credentials.json")).toMatchObject({ stage: 2, family: "credential_extraction" });
     expect(classifyTrapPath("/pinfo.php")).toMatchObject({ stage: 1, family: "runtime_probe" });
     expect(classifyTrapPath("/api/phpinfo.php")).toMatchObject({ stage: 1, family: "runtime_probe" });
     expect(classifyTrapPath("/storage/logs/laravel.log")).toMatchObject({ stage: 2, family: "log_extraction" });
     expect(classifyTrapPath("/_internal/archive/manifest.json")).toMatchObject({ stage: 3, family: "deep_canary" });
+    for (const path of ["/.env.production", "/.git/config", "/config.json.save", "/wp-includes/wlwmanifest.xml", "/storage/logs/app.log"]) {
+      expect(isHighConfidenceDecoyPath(path)).toBe(true);
+    }
     const secret = "deep-canary-test-secret-with-32-bytes";
     const device = `hpd_${"a".repeat(32)}`;
     const token = await issueDeepCanary(secret, device, "environment_probe", Date.UTC(2026, 8, 27));
@@ -58,14 +64,15 @@ describe("isolated admin honeypot", () => {
       .resolves.toMatchObject({ valid: false });
   });
 
-  it("records consecutive-slash WordPress manifest probes through ingestion only", async () => {
+  it("rejects consecutive-slash WordPress manifest probes immediately and records telemetry in the background", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const { pending, context, env } = runtime();
     try {
       const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app//site/wp-includes/wlwmanifest.xml", {
         headers: { "cf-connecting-ip": "185.19.40.179", "user-agent": "incident-200-test" }
       }), env, context);
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe("");
       await Promise.all(pending);
       const calls = ingestionCalls(fetchSpy);
       expect(calls).toHaveLength(1);
@@ -77,6 +84,48 @@ describe("isolated admin honeypot", () => {
         trap_family: "framework_probe"
       });
       expect(String(calls[0][0])).toContain("/api/security/ingest/honeypot");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("returns the high-confidence denial without waiting for Renvix telemetry", async () => {
+    let finishIngestion: ((response: Response) => void) | undefined;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise((resolve) => {
+      finishIngestion = resolve;
+    }));
+    const { pending, context, env } = runtime();
+    try {
+      const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app/config.json.save", {
+        headers: { "cf-connecting-ip": "203.0.113.91", "user-agent": "high-confidence-probe-test" }
+      }), env, context);
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe("");
+      await vi.waitFor(() => expect(finishIngestion).toBeTypeOf("function"));
+      expect(finishIngestion).toBeTypeOf("function");
+      finishIngestion?.(new Response(null, { status: 200 }));
+      await Promise.all(pending);
+      const event = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
+      expect(event).toMatchObject({
+        source_ip: "203.0.113.91", trap_stage: 2, trap_family: "config_extraction", auto_block_device: true
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("rejects environment-file probes on their first request and keeps the event", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    const { pending, context, env } = runtime();
+    try {
+      const response = await honeypotWorker.fetch(new Request("https://admin.renvix.app/.env.backup", {
+        headers: { "cf-connecting-ip": "203.0.113.92", "user-agent": "environment-probe-test" }
+      }), env, context);
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe("");
+      await Promise.all(pending);
+      const event = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
+      expect(event).toMatchObject({ trap_stage: 1, trap_family: "environment_probe", auto_block_device: true });
     } finally {
       fetchSpy.mockRestore();
     }
@@ -201,8 +250,8 @@ describe("isolated admin honeypot", () => {
         headers: { "cf-connecting-ip": "203.0.113.12", "user-agent": "test-agent" }
       }), env, context);
       expect(deep.status).toBe(403);
-      expect(deep.headers.get("content-type")).toContain("text/html");
-      expect(await deep.text()).toContain("تم حظر الوصول");
+      expect(deep.headers.get("content-type")).toBeNull();
+      expect(await deep.text()).toBe("");
       await Promise.all(pending);
       const deepEvent = JSON.parse(String(ingestionCalls(fetchSpy)[0][1]?.body));
       expect(deepEvent.honeypot_device_id).toMatch(/^hpd_[a-f0-9]{32}$/);
@@ -222,7 +271,7 @@ describe("isolated admin honeypot", () => {
     });
     const { pending, context, env } = runtime();
     try {
-      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/.env.production", {
+      const first = await honeypotWorker.fetch(new Request("https://admin.renvix.app/fly.toml", {
         headers: { "cf-connecting-ip": "203.0.113.40", "user-agent": "test-agent" }
       }), env, context);
       const cookie = String(first.headers.get("set-cookie") || "").split(";")[0];
@@ -355,6 +404,8 @@ describe("isolated admin honeypot", () => {
     expect(ingestion).toContain("16_384");
     expect(ingestion).not.toContain('request.headers.get("x-forwarded-for")');
     expect(workerConfig).toContain('SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"');
+    expect(workerConfig).toContain('EDGE_AUTO_BLOCK = "false"');
+    expect(workerConfig).toContain('TRUSTED_TEST_IPS = ""');
   });
 
   it("keeps the scanner lock and audit ledger tamper evident", () => {
