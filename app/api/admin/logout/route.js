@@ -12,9 +12,9 @@ export async function POST(request) {
       admin,
       action: "admin.logout",
       resource: "admin_portal"
-    });
+    }).catch(() => null);
   }
-  await destroySession(request, { cookieName: ADMIN_SESSION_COOKIE });
+  await destroySession(request, { cookieName: ADMIN_SESSION_COOKIE }).catch(() => null);
   return Response.json(
     { ok: true, redirectUrl: adminPageUrl("/advanced-pro-control") },
     { headers: { "Set-Cookie": clearAdminSessionCookie() } }
