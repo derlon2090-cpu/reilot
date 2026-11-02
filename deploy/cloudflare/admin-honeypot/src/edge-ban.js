@@ -1,5 +1,21 @@
 // Service-internal DO: never exposed as an HTTP log-ingestion endpoint.
 const BAN_MS = 7 * 24 * 60 * 60 * 1000;
+let edgeAutoBlockConfigurationWarningLogged = false;
+
+function warnAutoBlockUnavailable() {
+  if (edgeAutoBlockConfigurationWarningLogged) return;
+  edgeAutoBlockConfigurationWarningLogged = true;
+  console.error(JSON.stringify({ event: 'edge_auto_block_unconfigured' }));
+}
+
+function isIpAddress(value) {
+  const ip = String(value || '').trim();
+  const octets = ip.split('.');
+  if (octets.length === 4 && octets.every(octet => /^\d{1,3}$/.test(octet) && Number(octet) <= 255)) return true;
+  if (!ip.includes(':') || !/^[0-9a-f:]+$/i.test(ip)) return false;
+  try { return new URL(`http://[${ip}]/`).hostname.length > 2; } catch { return false; }
+}
+
 export class EdgeBan {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -103,12 +119,20 @@ export class EdgeBan {
 
 export async function containHoneypotVisitor(request, env, { reason = "honeypot_progression" } = {}) {
   if (env.EDGE_AUTO_BLOCK !== 'true') return;
-  if (!env.EDGE_BANS || !env.CF_ACCOUNT_ID || !env.CF_EDGE_BLOCK_TOKEN) throw new Error('Missing edge containment binding/secret');
   // CF creates this header on the visitor request. Ignore telemetry body IP fields.
   const ip = request.headers.get('CF-Connecting-IP');
-  if (!ip || !/^[0-9a-fA-F:.]{3,45}$/.test(ip)) throw new Error('Missing trusted visitor IP');
-  const trusted = (env.TRUSTED_TEST_IPS || '').split(',').map(value => value.trim());
+  if (!isIpAddress(ip)) throw new Error('Missing trusted visitor IP');
+  const trusted = (env.TRUSTED_TEST_IPS || '').split(',').map(value => value.trim()).filter(Boolean);
   if (trusted.includes(ip)) return;
+  if (!trusted.length || trusted.some(value => !isIpAddress(value))) {
+    warnAutoBlockUnavailable();
+    return;
+  }
+  if (typeof env.EDGE_BANS?.get !== 'function' || !/^[a-f0-9]{32}$/i.test(String(env.CF_ACCOUNT_ID || ''))
+      || String(env.CF_EDGE_BLOCK_TOKEN || '').length < 20) {
+    warnAutoBlockUnavailable();
+    return;
+  }
   const stub = env.EDGE_BANS.get(env.EDGE_BANS.idFromName(ip));
   const response = await stub.fetch('https://edge-ban.internal/', {
     method: 'POST',

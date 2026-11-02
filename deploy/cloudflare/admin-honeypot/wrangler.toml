@@ -9,8 +9,9 @@ routes = [
 
 [vars]
 SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"
-# Set true AFTER installing CF_EDGE_BLOCK_TOKEN and trusted test IP exemptions.
-EDGE_AUTO_BLOCK = "false"
+# Account-wide IP bans fail closed until a real account ID, API token secret,
+# and at least one exact trusted test IP are configured.
+EDGE_AUTO_BLOCK = "true"
 CF_ACCOUNT_ID = "REPLACE_WITH_ACCOUNT_ID"
 # Comma-separated exact CF-Connecting-IP values exempt from account-wide bans.
 TRUSTED_TEST_IPS = ""

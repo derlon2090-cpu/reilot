@@ -6,8 +6,10 @@ marker against the central block registry. High-confidence paths (`.env`, `.git`
 without waiting for background telemetry or account-wide containment. The
 telemetry and optional containment are scheduled separately.
 Exact comma-separated `TRUSTED_TEST_IPS` entries are exempt from account-wide
-Cloudflare IP bans. Set test/admin egress IPs before enabling `EDGE_AUTO_BLOCK`;
-it remains false by default. See
+Cloudflare IP bans. `EDGE_AUTO_BLOCK` is enabled in the deployment config, but
+account-wide bans fail closed until a real account ID, the `CF_EDGE_BLOCK_TOKEN`
+secret, and at least one trusted test IP are configured. Set those before
+deployment. See
 `../../security/HARDENED-DEPLOYMENT.md` for its wider blast radius.
 
 This Cloudflare Worker is isolated from the real Renvix application and admin
@@ -62,6 +64,10 @@ Deployment requirements:
    (`https://api.renvix.app/api/security/ingest/honeypot`).
    Set an independent 32+ byte `SECURITY_BLOCK_PEPPER` on the API; automatic
    device/IP blocks intentionally cannot be persisted without it.
+   Before account-wide edge bans, set a real `CF_ACCOUNT_ID`, add the account
+   firewall-write token with `wrangler secret put CF_EDGE_BLOCK_TOKEN`, and
+   configure at least one exact IP in `TRUSTED_TEST_IPS`. The runtime refuses
+   to create account rules if any prerequisite is missing.
 4. Keep Cloudflare WAF and zone rate limits enabled. The binding in
    `wrangler.toml` is an additional Worker-local guard.
 5. Never add real Renvix application assets, analytics, cookies, redirects, or

@@ -404,7 +404,7 @@ describe("isolated admin honeypot", () => {
     expect(ingestion).toContain("16_384");
     expect(ingestion).not.toContain('request.headers.get("x-forwarded-for")');
     expect(workerConfig).toContain('SECURITY_INGESTION_URL = "https://api.renvix.app/api/security/ingest/honeypot"');
-    expect(workerConfig).toContain('EDGE_AUTO_BLOCK = "false"');
+    expect(workerConfig).toContain('EDGE_AUTO_BLOCK = "true"');
     expect(workerConfig).toMatch(/TRUSTED_TEST_IPS = "[^"]*"/);
   });
 

@@ -77,4 +77,15 @@ describe('honeypot edge containment', () => {
     await expect(containHoneypotVisitor(new Request('https://honeypot/', { headers: { 'CF-Connecting-IP': '192.0.2.1' } }), env)).resolves.toBeUndefined();
     await expect(containHoneypotVisitor(new Request('https://honeypot/', { method: 'POST', body: '{"ip":"192.0.2.2"}' }), env)).rejects.toThrow('Missing trusted visitor IP');
   });
+
+  it('fails closed when account-wide blocking lacks a trusted test IP or Cloudflare credentials', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const request = new Request('https://honeypot/', { headers: { 'CF-Connecting-IP': '192.0.2.2' } });
+    const missingTrusted = { EDGE_AUTO_BLOCK: 'true', CF_ACCOUNT_ID: 'a'.repeat(32), CF_EDGE_BLOCK_TOKEN: 'x'.repeat(32), EDGE_BANS: {} };
+    await expect(containHoneypotVisitor(request, missingTrusted)).resolves.toBeUndefined();
+    const missingCredential = { ...missingTrusted, CF_ACCOUNT_ID: 'account1', TRUSTED_TEST_IPS: '192.0.2.1' };
+    await expect(containHoneypotVisitor(request, missingCredential)).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
 });
