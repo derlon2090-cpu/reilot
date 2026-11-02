@@ -43,10 +43,21 @@ export function verifyTotp(secret, code, now = Date.now()) {
   return matchingTotpCounter(secret, code, now) !== null;
 }
 
+export function normalizeTotpCode(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
+    .replace(/[\s\u200E\u200F\u202A-\u202E]/g, "");
+}
+
 export function matchingTotpCounter(secret, code, now = Date.now()) {
-  if (!/^\d{6}$/.test(String(code || ""))) return null;
+  const normalizedCode = normalizeTotpCode(code);
+  if (!/^\d{6}$/.test(normalizedCode)) return null;
   const counter = Math.floor(now / 30_000);
-  const offset = [-1, 0, 1].find((candidate) => hotp(secret, counter + candidate) === String(code));
+  // Mobile clocks can legitimately drift around a minute. Keep the window
+  // small and rely on mfa_last_verified_step to reject replayed time steps.
+  const offset = [0, -1, 1, -2, 2].find((candidate) => hotp(secret, counter + candidate) === normalizedCode);
   return offset === undefined ? null : counter + offset;
 }
 

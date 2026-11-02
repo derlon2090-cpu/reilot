@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { query, transaction } from "./db.js";
 import { createSession } from "./session.js";
-import { decryptMfaSecret, matchingTotpCounter } from "./mfa.js";
+import { decryptMfaSecret, matchingTotpCounter, normalizeTotpCode } from "./mfa.js";
 import { sha256 } from "./security.js";
 import { trustBrowserForUser } from "./trusted-browser.js";
 import { secureCookieEnabled, sharedCookieDomainAttribute } from "./cookie-policy.js";
@@ -132,7 +132,10 @@ function normalizeRecoveryCode(value) {
 
 export async function verifyMfaLogin({ rawCookie, code, ipAddress, userAgent, existingBrowserToken = "" }) {
   const challengeId = parseChallengeId(rawCookie);
-  const normalizedCode = String(code || "").trim();
+  const rawCode = String(code || "").trim();
+  const normalizedCode = /^([\d\u0660-\u0669\u06F0-\u06F9\s\u200E\u200F\u202A-\u202E]{6,32})$/.test(rawCode)
+    ? normalizeTotpCode(rawCode)
+    : rawCode;
   if (!challengeId || !normalizedCode) return { ok: false, status: 400, reason: "invalid_code" };
 
   return transaction(async (client) => {

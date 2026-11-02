@@ -14932,7 +14932,11 @@ async function handleSubmit(form, event) {
   }
   if (type === "mfa-login") {
     clearFormErrors(form);
-    const code = String(data.code || "").trim();
+    const rawCode = String(data.code || "").trim();
+    const normalizedDigits = normalizeEmailOtpCode(rawCode);
+    const code = normalizedDigits.length === 6 && /^[\d\u0660-\u0669\u06F0-\u06F9\s\u200E\u200F\u202A-\u202E]+$/.test(rawCode)
+      ? normalizedDigits
+      : rawCode;
     if (!/^\d{6}$/.test(code) && !/^[A-Za-z0-9-]{8,32}$/.test(code)) {
       setFormError(form, "code", "أدخل رمز تحقق صالحًا.");
       return appToast.warning("أدخل رمز تحقق صالحًا", { description: "اكتب الرمز المكوّن من 6 أرقام أو أحد رموز الاسترداد.", id: "mfa-login-invalid-format" });
