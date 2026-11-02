@@ -238,16 +238,17 @@ export function calculateThreatScore({
 }
 
 export function honeypotContainmentPolicy({
-  trapStage = 0, canaryValidated = false, riskScore = 0, attempts24h = 1,
+  trapStage = 0, canaryValidated = false, autoBlockDevice = false, riskScore = 0, attempts24h = 1,
   distinctPaths24h = 1, rateLimited = false
 } = {}) {
   const deepExtraction = Number(trapStage) >= 2 || canaryValidated === true;
   const sustainedScanner = Number(attempts24h) >= 5 && Number(distinctPaths24h) >= 2;
   const abusiveVolume = Number(attempts24h) >= 10 || rateLimited === true;
   return {
-    blockDevice: deepExtraction,
+    blockDevice: deepExtraction || autoBlockDevice === true,
     blockIp: deepExtraction || Number(riskScore) >= 50 || sustainedScanner || abusiveVolume,
-    reason: deepExtraction ? "deep_extraction" : abusiveVolume ? "abusive_volume" : sustainedScanner ? "sustained_scanner" : Number(riskScore) >= 50 ? "high_risk" : "observe"
+    reason: deepExtraction ? "deep_extraction" : autoBlockDevice === true ? "automatic_device_containment"
+      : abusiveVolume ? "abusive_volume" : sustainedScanner ? "sustained_scanner" : Number(riskScore) >= 50 ? "high_risk" : "observe"
   };
 }
 
@@ -480,6 +481,7 @@ export async function ingestHoneypotEvent(rawInput) {
     const distinctPaths24h = Number(facts.distinctPaths24h || 0) + (facts.pathSeen24h ? 0 : 1);
     const preliminaryContainment = honeypotContainmentPolicy({
       trapStage: input.trapStage, canaryValidated: input.canaryValidated,
+      autoBlockDevice: input.autoBlockDevice,
       riskScore: calculatedRiskScore, attempts24h, distinctPaths24h, rateLimited: input.rateLimited
     });
     // Preserve low-noise telemetry, but guarantee an incident exists whenever
@@ -490,6 +492,7 @@ export async function ingestHoneypotEvent(rawInput) {
     const severity = severityForRisk(riskScore);
     const containment = honeypotContainmentPolicy({
       trapStage: input.trapStage, canaryValidated: input.canaryValidated,
+      autoBlockDevice: input.autoBlockDevice,
       riskScore, attempts24h, distinctPaths24h, rateLimited: input.rateLimited
     });
     const classification = telemetryOnly ? "LOW/TELEMETRY"
