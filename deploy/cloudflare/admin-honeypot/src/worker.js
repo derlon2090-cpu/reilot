@@ -30,14 +30,11 @@ const RATE_LIMIT_EVENT_MAX = 2_000;
 const rateLimitEvents = new Map();
 const TRACKING_PIXEL = Uint8Array.from(atob("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="), (character) => character.charCodeAt(0));
 
-function scheduleHighConfidenceContainment(request, env, context, trap) {
+function scheduleHighConfidenceContainment(request, env, context, trap, identity) {
   const reason = `trap_stage_${trap.stage}`;
   const task = Promise.resolve().then(async () => {
     const containment = containHoneypotVisitor(request, env, { weight: 2, reason });
-    const [rateLimited, identity] = await Promise.all([
-      rateLimit(request, env).catch(() => true),
-      deviceIdentity(request, env).catch(() => ({ id: "" }))
-    ]);
+    const rateLimited = await rateLimit(request, env).catch(() => true);
     const trapContext = { stage: trap.stage, family: trap.family, canaryValidated: false };
     const telemetry = rateLimited ? Promise.resolve() : sendEvent(request, env, false, null, identity.id, true, trapContext);
     const results = await Promise.allSettled([containment, telemetry]);
@@ -358,12 +355,12 @@ const worker = {
       || url.pathname === HONEYPOT_PIXEL_PATH
       || url.pathname === HONEYPOT_TELEMETRY_PATH;
     const trap = internalRoute ? classifyTrapPath("/") : classifyTrapPath(url.pathname);
+    const identity = await deviceIdentity(request, env);
     if (!internalRoute && isHighConfidenceDecoyPath(url.pathname)) {
-      const rejected = new Response(null, { status: 403, headers: BASE_HEADERS });
-      scheduleHighConfidenceContainment(request, env, context, trap);
+      const rejected = response(null, 403, "text/plain; charset=utf-8", SCRIPT_CSP, {}, identity.setCookies);
+      scheduleHighConfidenceContainment(request, env, context, trap, identity);
       return rejected;
     }
-    const identity = await deviceIdentity(request, env);
     const canary = !internalRoute && trap.stage >= 3
       ? await verifyDeepCanary(url.searchParams.get("c"), env.HONEYPOT_INGESTION_SECRET, identity.id)
       : { valid: false, family: "" };

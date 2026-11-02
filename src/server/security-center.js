@@ -589,6 +589,18 @@ export async function ingestHoneypotEvent(rawInput) {
           [block.id, target.expiresAt, incident.severity, incident.id, "عزل وقائي آلي لنشاط الفخ الأمني",
             JSON.stringify({ lastAutomaticReason: containment.reason })]
         )).rows[0];
+      } else if (block && target.type === "device") {
+        block = (await client.query(
+          `UPDATE security_blocks SET expires_at=NULL,severity=$2,incident_id=$3,reason=$4,metadata=metadata||$5::jsonb
+            WHERE id=$1 RETURNING *`,
+          [block.id, incident.severity, incident.id, "عزل وقائي آلي دائم لمعرّف جهاز الفخ الأمني",
+            JSON.stringify({ automated: true, source: "admin_honeypot", policyReason: containment.reason,
+              honeypotDeviceId: input.honeypotDeviceId, trapStage: input.trapStage, trapFamily: input.trapFamily,
+              ipLocation: { ...input.ipLocation, country: input.country, region: input.region, city: input.cityApprox } })]
+        )).rows[0];
+        await appendIncidentEvent(client, incident.id, "automatic_device_containment", {
+          referenceId: block.reference_id, scope: "device", duration: "permanent", policyReason: containment.reason
+        }, { type: "worker" });
       } else if (!block) {
         block = (await client.query(
           `INSERT INTO security_blocks
@@ -597,7 +609,16 @@ export async function ingestHoneypotEvent(rawInput) {
           [target.type, targetHash, target.value, "عزل وقائي آلي لنشاط الفخ الأمني", incident.severity,
             target.expiresAt, incident.id, JSON.stringify({ automated: true, source: "admin_honeypot",
               policyReason: containment.reason, trapStage: input.trapStage, trapFamily: input.trapFamily,
-              canaryValidated: input.canaryValidated })]
+              canaryValidated: input.canaryValidated,
+              ...(target.type === "device" ? {
+                honeypotDeviceId: input.honeypotDeviceId,
+                ipLocation: {
+                  ...input.ipLocation,
+                  country: input.country,
+                  region: input.region,
+                  city: input.cityApprox
+                }
+              } : {}) })]
         )).rows[0];
         await appendIncidentEvent(client, incident.id, `automatic_${target.type}_containment`, {
           referenceId: block.reference_id, scope: target.type,
@@ -800,6 +821,7 @@ export async function listSecurityBlocks(limit = 100) {
     `SELECT b.id,b.reference_id AS "referenceId",b.target_type AS "targetType",b.target_label AS "targetLabel",
             b.reason,b.severity,b.created_at AS "createdAt",b.expires_at AS "expiresAt",b.revoked_at AS "revokedAt",
             b.revoke_reason AS "revokeReason",b.edge_provider AS "edgeProvider",b.edge_rule_id AS "edgeRuleId",
+            b.metadata->'ipLocation' AS "ipLocation",
             CASE WHEN b.revoke_reason='expired' THEN 'expired'
                  WHEN b.revoked_at IS NOT NULL THEN 'revoked'
                  WHEN b.expires_at IS NOT NULL AND b.expires_at<=now() THEN 'expired' ELSE 'active' END AS status,

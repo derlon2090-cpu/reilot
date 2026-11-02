@@ -35,9 +35,10 @@ function confidence(value) {
 }
 
 function approximateLocation(event) {
+  const location = event?.location || [event?.ipLocation?.city, event?.ipLocation?.region, event?.ipLocation?.country].filter(Boolean).join("، ");
   const coordinates = event?.ipLocation?.latitude != null && event?.ipLocation?.longitude != null
     ? `${event.ipLocation.latitude}, ${event.ipLocation.longitude}` : "لا تتوفر إحداثيات";
-  return `${event?.location || "غير معروف"} · ${coordinates}`;
+  return `${location || "غير معروف"} · ${coordinates}`;
 }
 
 function Table({ columns, rows, onRow }) {
@@ -277,7 +278,7 @@ export default function SecurityCenter() {
     ]} /></section> : null}
 
     {tab === "blocks" ? <section className={styles.adminSurface}><div className={styles.securitySectionHead}><div><h3>إدارة المحظورين</h3><p>الحساب والجلسة وRenvix Device ID والجهاز الموثوق وIP أهداف مستقلة. لا يُعامل IP أو بصمة المتصفح كجهاز قطعي.</p></div></div><Table rows={data?.blocks} onRow={(block) => block.status === "active" && data?.permissions?.canManageIncidents ? setUnblock(block) : null} columns={[
-      { key: "referenceId", label: "المرجع" }, { key: "targetType", label: "النطاق" }, { key: "targetLabel", label: "الهدف" }, { key: "severity", label: "الخطورة", render: (value) => <Severity value={value} /> },
+      { key: "referenceId", label: "المرجع" }, { key: "targetType", label: "النطاق" }, { key: "targetLabel", label: "الهدف" }, { key: "ipLocation", label: "الموقع التقريبي عبر IP", render: (_, row) => approximateLocation(row) }, { key: "severity", label: "الخطورة", render: (value) => <Severity value={value} /> },
       { key: "status", label: "الحالة" }, { key: "incidentNumber", label: "الحادث" }, { key: "expiresAt", label: "الانتهاء", render: (value) => value ? date(value) : "دائم" }, { key: "createdAt", label: "الإنشاء", render: date }
     ]} /></section> : null}
 
