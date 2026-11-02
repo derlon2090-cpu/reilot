@@ -8,6 +8,12 @@ after sustained multi-path scanning. Optional account-wide Cloudflare containmen
 remains available with `EDGE_AUTO_BLOCK`; see
 `../../security/HARDENED-DEPLOYMENT.md` for its wider blast radius.
 
+Existing central blocks are checked before the Worker rate limiter, so hitting
+the request limit cannot hide an already-blocked source. The Worker reports a
+rate-limit crossing once per source/device per minute; the central risk policy
+can then create its seven-day IP block. An open decoy page checks for a new
+block periodically and replaces the session-check spinner with the block notice.
+
 This Cloudflare Worker is isolated from the real Renvix application and admin
 deployment. It serves a self-contained administrative session-check shell and sends bounded,
 signed security events to the existing ingestion service.
