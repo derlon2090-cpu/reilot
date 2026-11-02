@@ -7,16 +7,16 @@ now use the same threshold and ban duration.
 The latest four incident groups add the IDE/config, GraphQL/actuator,
 environment, log-extraction, and canary vectors plus eight confirmed source
 addresses. `cloudflare-latest-incidents-rule.json` is the requested single
-terminating edge rule. It deliberately blocks the listed commercial-cloud
-ASNs globally; review expected AWS, Google Cloud, and DigitalOcean client
-traffic before enabling it because this can block legitimate users.
+terminating edge rule. It blocks the listed source addresses and sensitive
+vectors outside the honeypot. Commercial-cloud ASNs are handled by the separate
+managed-challenge policy, not a blanket ASN block.
 
 These are Linux deployment artifacts, not an active server deployment. The
-exact requested WAF rule is intentionally broader than the safer managed-
-challenge policy and includes a wholesale AS48090 block. Reserved decoy paths
-must not be legitimate PHP or WordPress application routes. Shared NAT IP bans
-can affect other users on the same IP; zero collateral impact cannot be
-guaranteed with IP-based containment.
+WAF block rule applies to explicit incident IPs and reserved probe paths;
+commercial-cloud ASNs use the separate managed-challenge policy. Reserved
+decoy paths must not be legitimate PHP or WordPress application routes. Shared
+NAT IP bans can affect other users on the same IP; zero collateral impact
+cannot be guaranteed with IP-based containment.
 This threshold protects decoy routes, not real login brute force; real logins
 need separate authentication-failure counters and rate limits.
 
@@ -205,6 +205,10 @@ sudo install -m 0750 deploy/security/load-incident-blocklist /usr/local/sbin/loa
 sudo /usr/local/sbin/load-incident-blocklist deploy/security/incident-scanner-ips.txt
 sudo ipset list renvix_probe4
 ```
+
+For the 2026-11-02 alert batch, `INC-2026-000205.md` has the origin, edge, and
+Nginx rollout steps. `block-current-incident-batch` installs the eight current
+source blocks in `honeypot_blacklist` for seven days and verifies them.
 
 The general access log excludes decoy probes. Only the minimal line required
 for Fail2ban (`IP`, server timestamp, fixed marker, status) is kept in

@@ -53,6 +53,23 @@ EOF
 ipset add "$set_name" 34.152.30.165 timeout 604800 -exist
 ipset add "$set_name" 34.52.133.111 timeout 604800 -exist
 
+# INC-2026-000205: eight current scanner sources reported in the incident
+# bundle. Start with a bounded seven-day block; do not make a batch of new
+# observations permanent without repeat-incident confirmation.
+while read -r ip; do
+  [[ -n $ip ]] || continue
+  ipset add "$set_name" "$ip" timeout 604800 -exist
+done <<'EOF'
+45.138.12.16
+194.5.53.185
+174.138.22.143
+34.14.21.20
+136.112.238.192
+34.88.208.172
+195.178.110.159
+45.148.10.62
+EOF
+
 # No interface selector is used: every packet traversing INPUT is covered.
 # DROP is intentionally silent (no REJECT, TCP RST, or ICMP response).
 iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
@@ -82,4 +99,12 @@ fi
 ipset test "$set_name" 185.19.40.179
 ipset test "$set_name" 34.152.30.165
 ipset test "$set_name" 34.52.133.111
+ipset test "$set_name" 45.138.12.16
+ipset test "$set_name" 194.5.53.185
+ipset test "$set_name" 174.138.22.143
+ipset test "$set_name" 34.14.21.20
+ipset test "$set_name" 136.112.238.192
+ipset test "$set_name" 34.88.208.172
+ipset test "$set_name" 195.178.110.159
+ipset test "$set_name" 45.148.10.62
 echo "Silent DROP installed: 9 permanent sources and current incident sources for 7 days."

@@ -23,6 +23,19 @@ chmod 0640 /var/log/nginx/honeypot-probes.log
 /usr/local/sbin/honeypot-sentry --setup
 ipset add honeypot_blacklist 34.152.30.165 timeout 604800 -exist
 ipset add honeypot_blacklist 34.52.133.111 timeout 604800 -exist
+while read -r ip; do
+  [[ -n $ip ]] || continue
+  ipset add honeypot_blacklist "$ip" timeout 604800 -exist
+done <<'EOF'
+45.138.12.16
+194.5.53.185
+174.138.22.143
+34.14.21.20
+136.112.238.192
+34.88.208.172
+195.178.110.159
+45.148.10.62
+EOF
 /usr/local/sbin/honeypot-sentry --save
 
 systemctl daemon-reload

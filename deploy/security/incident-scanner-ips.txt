@@ -17,3 +17,12 @@
 # INC-2026-000202/203: Google Cloud runtime/repository/credential probes.
 34.152.30.165
 34.52.133.111
+# INC-2026-000205: current alert batch (seven-day timed containment).
+45.138.12.16
+194.5.53.185
+174.138.22.143
+34.14.21.20
+136.112.238.192
+34.88.208.172
+195.178.110.159
+45.148.10.62

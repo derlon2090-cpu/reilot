@@ -34,6 +34,8 @@ describe("edge scanner policy", () => {
     expect(nginx).toContain(".well-known/security\\.txt");
     expect(nginx).toContain("storage/logs");
     expect(nginx).toContain("zzcanary-");
+    expect(nginx).toContain("\\.(?:save|bak|backup|old|example|test|production|local|staging)$");
+    expect(edge).toContain('ends_with(lower(http.request.uri.path), ".backup")');
     expect(nginx).toContain("access_log off;");
     expect(nginx).toContain("if=$log_regular_access");
     expect(read("deploy/security/probe-log.conf")).toContain("map $is_decoy_probe $log_regular_access");
@@ -84,7 +86,9 @@ describe("edge scanner policy", () => {
       "147.182.200.94", "138.197.191.87", "142.93.0.66", "159.65.18.197",
       "159.65.144.72", "130.12.180.117", "34.140.132.132", "91.148.245.81",
       "91.92.240.86", "35.241.202.92", "85.204.70.92", "23.98.157.29",
-      "34.152.30.165", "34.52.133.111"
+      "34.152.30.165", "34.52.133.111", "45.138.12.16", "194.5.53.185",
+      "174.138.22.143", "34.14.21.20", "136.112.238.192", "34.88.208.172",
+      "195.178.110.159", "45.148.10.62"
     ]) {
       expect(incidentIps).toContain(ip);
     }
@@ -96,6 +100,10 @@ describe("edge scanner policy", () => {
     expect(blacklist).not.toContain('185.19.40.179 timeout 604800');
     expect(blacklist).toContain("34.152.30.165 timeout 604800");
     expect(blacklist).toContain("34.52.133.111 timeout 604800");
+    expect(blacklist).toContain('ipset add "$set_name" "$ip" timeout 604800 -exist');
+    for (const ip of ["45.138.12.16", "194.5.53.185", "174.138.22.143", "34.14.21.20", "136.112.238.192", "34.88.208.172", "195.178.110.159", "45.148.10.62"]) {
+      expect(blacklist).toContain(ip);
+    }
     expect(blacklist).toContain("timeout 0");
     const sentry = read("deploy/security/honeypot-sentry");
     const service = read("deploy/security/renvix-honeypot-sentry.service");
@@ -106,6 +114,11 @@ describe("edge scanner policy", () => {
     expect(triage).toContain("ipset test");
     expect(triage).toContain("renvix-honeypot-sentry.service");
     expect(triage).not.toContain("honeypot-autoban.service");
+    const currentBatch = read("deploy/security/block-current-incident-batch");
+    expect(currentBatch).toContain("readonly timeout_seconds=604800");
+    expect(currentBatch).toContain('iptables -w -I INPUT 1 -m set --match-set "$set_name" src -j DROP');
+    expect(currentBatch).toContain('ipset test "$set_name" "$ip"');
+    expect(currentBatch).toContain("netfilter-persistent save");
   });
 
   it("ships a single terminating WAF payload for the incident vectors", () => {
@@ -114,7 +127,7 @@ describe("edge scanner policy", () => {
     expect(payload.enabled).toBe(true);
     expect(payload.expression).not.toContain("ip.src.asnum");
     expect(payload.expression).toContain('lower(http.host) ne "admin.renvix.app"');
-    expect(payload.expression).toContain("ip.src in {34.152.30.165 34.52.133.111 185.19.40.179}");
+    expect(payload.expression).toContain("ip.src in {34.152.30.165 34.52.133.111 185.19.40.179 45.138.12.16 194.5.53.185 174.138.22.143 34.14.21.20 136.112.238.192 34.88.208.172 195.178.110.159 45.148.10.62}");
     for (const token of ["*/.env*", "*/.git*", "*/fly.toml", "*/env-config*", "wlwmanifest", "/.vscode", "/storage/logs", "/actuator", "/info.php", "/pinfo.php", "/api/phpinfo.php", "/credentials", "/api/gql", "canary", ".log", "/.well-known/security.txt"]) {
       expect(payload.expression).toContain(token);
     }

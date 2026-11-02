@@ -1,0 +1,57 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
+
+for command_name in ipset iptables python3; do
+  command -v "$command_name" >/dev/null || { echo "Missing dependency: $command_name" >&2; exit 1; }
+done
+
+readonly set_name=honeypot_blacklist
+readonly timeout_seconds=604800
+readonly -a incident_ips=(
+  45.138.12.16
+  194.5.53.185
+  174.138.22.143
+  34.14.21.20
+  136.112.238.192
+  34.88.208.172
+  195.178.110.159
+  45.148.10.62
+)
+
+ipset create "$set_name" hash:ip family inet timeout "$timeout_seconds" maxelem 65536 -exist
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+  || iptables -w -I INPUT 1 -m set --match-set "$set_name" src -j DROP
+if iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
+  iptables -w -C DOCKER-USER -m set --match-set "$set_name" src -j DROP 2>/dev/null \
+    || iptables -w -I DOCKER-USER 1 -m set --match-set "$set_name" src -j DROP
+fi
+
+for ip in "${incident_ips[@]}"; do
+  normalized=$(python3 -c 'import ipaddress,sys; value=ipaddress.ip_address(sys.argv[1]); assert value.version == 4; print(value)' "$ip")
+  ipset add "$set_name" "$normalized" timeout "$timeout_seconds" -exist
+done
+
+temporary=$(mktemp /etc/ipset.conf.XXXXXX)
+trap 'rm -f "$temporary"' EXIT
+ipset save > "$temporary"
+chmod 0600 "$temporary"
+mv -f "$temporary" /etc/ipset.conf
+trap - EXIT
+
+if command -v netfilter-persistent >/dev/null; then
+  netfilter-persistent save
+else
+  echo "Missing netfilter-persistent; install iptables-persistent to save the firewall rule." >&2
+  exit 1
+fi
+
+iptables -w -C INPUT -m set --match-set "$set_name" src -j DROP
+for ip in "${incident_ips[@]}"; do
+  ipset test "$set_name" "$ip"
+done
+echo "Installed eight seven-day source blocks in $set_name."
