@@ -12952,7 +12952,11 @@ async function handleAction(target) {
   if (action === "customer-message") {
     const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
     if (!row) return toast("تعذر العثور على سجل العميل", "danger");
-    return openModal("إرسال رسالة للعميل", `<div class="suite-contact-send"><span class="suite-channel-logo whatsapp">${dashboardIcon("send")}</span><h3>${escapeHtml(row.name)}</h3><p>أنشئ حملة موجهة من القناة المناسبة، مع مراجعة القالب والموافقة قبل الإرسال.</p><dl>${row.email ? `<div><dt>البريد الإلكتروني</dt><dd dir="ltr">${escapeHtml(row.email)}</dd></div>` : ""}${row.phone ? `<div><dt>رقم الجوال</dt><dd dir="ltr">${escapeHtml(row.phone)}</dd></div>` : ""}</dl><div class="inline-actions"><button class="btn btn-primary" data-action="campaign-create">إنشاء حملة</button><button class="btn btn-secondary" data-link="/dashboard/channels">مراجعة القنوات</button></div></div>`);
+    const channel = row.email ? "email" : row.phone ? "whatsapp" : "";
+    const createCampaignButton = channel
+      ? `<button class="btn btn-primary" type="button" data-action="campaign-create" data-kind="custom" data-channel="${channel}">إنشاء حملة</button>`
+      : `<button class="btn btn-primary" type="button" disabled title="أضف بريدًا إلكترونيًا أو رقم جوال للعميل أولًا">إنشاء حملة</button>`;
+    return openModal("إرسال رسالة للعميل", `<div class="suite-contact-send"><span class="suite-channel-logo whatsapp">${dashboardIcon("send")}</span><h3>${escapeHtml(row.name)}</h3><p>أنشئ حملة موجهة من القناة المناسبة، مع مراجعة القالب والموافقة قبل الإرسال.</p><dl>${row.email ? `<div><dt>البريد الإلكتروني</dt><dd dir="ltr">${escapeHtml(row.email)}</dd></div>` : ""}${row.phone ? `<div><dt>رقم الجوال</dt><dd dir="ltr">${escapeHtml(row.phone)}</dd></div>` : ""}</dl><div class="inline-actions">${createCampaignButton}<button class="btn btn-secondary" type="button" data-link="/dashboard/channels">مراجعة القنوات</button></div></div>`);
   }
   if (action === "customer-archive") {
     const row = (state.dbCustomers || []).find((item) => item.id === target.dataset.id);
