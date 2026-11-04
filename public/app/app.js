@@ -8788,6 +8788,7 @@ function openModal(title, body, foot = "") {
   </section></div>`;
   localizeElement(portal);
   portal.querySelector(".modal")?.focus();
+  syncStorageShareMetricsPolling();
 }
 
 function openDrawer(title, body) {
@@ -9953,6 +9954,49 @@ async function openStorageDocument(documentId, { updateHistory = true } = {}) {
 function storageShareEndpoint(kind, id) {
   const resource = kind === "folder" ? "folders" : "documents";
   return `/api/storage/${resource}/${encodeURIComponent(id)}/share`;
+}
+
+let storageShareMetricsTimer = 0;
+let storageShareMetricsRequestPending = false;
+
+function syncStorageShareMetricsPolling() {
+  if (storageShareMetricsTimer) clearInterval(storageShareMetricsTimer);
+  storageShareMetricsTimer = 0;
+  const form = portal.querySelector('form[data-submit="storage-share"][data-active="1"]');
+  if (!form) return;
+  const refresh = async () => {
+    if (document.visibilityState === "hidden" || storageShareMetricsRequestPending) return;
+    const currentForm = portal.querySelector('form[data-submit="storage-share"][data-active="1"]');
+    if (!currentForm) {
+      clearInterval(storageShareMetricsTimer);
+      storageShareMetricsTimer = 0;
+      return;
+    }
+    const kind = currentForm.dataset.kind === "folder" ? "folder" : "document";
+    const id = state.storageShareItemId || state.storageShareDocumentId;
+    if (!id) return;
+    storageShareMetricsRequestPending = true;
+    try {
+      const payload = await fetchJson(storageShareEndpoint(kind, id), { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+      const metrics = portal.querySelector("[data-storage-share-metrics]");
+      if (!metrics || portal.querySelector('form[data-submit="storage-share"]') !== currentForm || !payload.share?.active) return;
+      const count = Math.max(0, Number(payload.share.accessCount) || 0);
+      const accessedAt = payload.share.lastAccessedAt && Number.isFinite(new Date(payload.share.lastAccessedAt).getTime())
+        ? new Date(payload.share.lastAccessedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" })
+        : "";
+      const countNode = metrics.querySelector("[data-share-access-count]");
+      const dateNode = metrics.querySelector("[data-share-last-accessed]");
+      if (countNode) countNode.textContent = `${count.toLocaleString("ar-SA")} زيارة`;
+      if (dateNode) dateNode.textContent = accessedAt ? `آخر زيارة ${accessedAt}` : "لم تتم زيارة الرابط بعد";
+      metrics.dataset.updatedAt = String(Date.now());
+    } catch {
+      // Keep the last known metrics visible and retry on the next interval.
+    } finally {
+      storageShareMetricsRequestPending = false;
+    }
+  };
+  void refresh();
+  storageShareMetricsTimer = setInterval(refresh, 2000);
 }
 
 async function openSharedFolderDocument(documentId, { password = "" } = {}) {
@@ -16533,7 +16577,7 @@ function storageShareDialog(share = { active: false }, { kind = "document" } = {
     <fieldset><legend>صلاحية من يفتح الرابط</legend><label><input type="radio" name="permission" value="view" ${permission === "view" ? "checked" : ""}><span>${dashboardIcon("eye")}<b>عرض فقط <em class="storage-share-recommended">موصى به</em></b><small>${isFolder ? "يتصفح المستندات الظاهرة ولا يستطيع تغييرها." : "يقرأ محتوى الملف ولا يستطيع تغييره."}</small></span></label><label><input type="radio" name="permission" value="edit" ${permission === "edit" ? "checked" : ""}><span>${dashboardIcon("edit")}<b>السماح بالتعديل</b><small>${isFolder ? "يستطيع تعديل المستندات النصية الظاهرة وحفظها." : "يستطيع تعديل العنوان والمحتوى وحفظهما."}</small></span></label></fieldset>
     <aside class="storage-share-advice"><span>${dashboardIcon("info")}</span><p><strong>اقتراح أمان</strong> استخدم «عرض فقط» للمراجعة. فعّل التعديل للأشخاص الموثوقين فقط؛ وتُحفظ تعديلاتهم مباشرةً على المستندات النصية المشمولة بالرابط.</p></aside>
     ${active && share.url ? `<label class="storage-share-link"><span>رابط الملف</span><span><input class="input" readonly dir="ltr" value="${escapeHtml(share.url)}"><button type="button" class="btn btn-secondary" data-action="storage-share-copy" data-value="${escapeHtml(share.url)}">${dashboardIcon("copy")} نسخ</button></span></label>` : ""}
-    ${active ? `<section class="storage-share-metrics" aria-live="polite" aria-label="إحصاءات الرابط"><span>${dashboardIcon("reports")}</span><div><strong>${accessCount.toLocaleString("ar-SA")} زيارة</strong><small>${lastAccessedAt ? `آخر زيارة ${escapeHtml(lastAccessedAt)}` : "لم تتم زيارة الرابط بعد"}</small></div><em>تُحدّث عند فتح الرابط العام</em></section>` : ""}
+    ${active ? `<section class="storage-share-metrics" data-storage-share-metrics aria-live="polite" aria-label="إحصاءات الرابط"><span>${dashboardIcon("reports")}</span><div><strong data-share-access-count>${accessCount.toLocaleString("ar-SA")} زيارة</strong><small data-share-last-accessed>${lastAccessedAt ? `آخر زيارة ${escapeHtml(lastAccessedAt)}` : "لم تتم زيارة الرابط بعد"}</small></div><em>تحديث تلقائي عند فتح الرابط العام</em></section>` : ""}
     <div class="storage-share-actions">${active ? `<button type="button" class="btn storage-share-delete" data-action="storage-share-delete-prompt">${dashboardIcon("delete")}<span>إزالة الرابط</span></button><button type="button" class="btn btn-secondary" data-action="storage-share-regenerate">إنشاء رابط جديد</button>` : ""}<button type="submit" class="btn btn-primary">${active ? "حفظ الصلاحية" : "إنشاء الرابط"}</button></div>
   </form>`;
 }
