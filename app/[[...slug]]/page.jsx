@@ -50,7 +50,14 @@ export default async function SpaPage({ params }) {
 
   return (
     <>
-      <div id="app" />
+      <div id="app">
+        <main role="status" aria-live="polite" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, boxSizing: "border-box", background: "#f7faf9", color: "#123c38", fontFamily: "Arial, sans-serif", textAlign: "center" }}>
+          <div style={{ maxWidth: 420, padding: 34, border: "1px solid #dcebe7", borderRadius: 20, background: "#fff", boxShadow: "0 18px 60px #0a51400d" }}>
+            <strong style={{ fontSize: 20 }}>جارٍ تجهيز Renvix</strong>
+            <p style={{ margin: "12px 0 0", color: "#647b78", lineHeight: 1.8 }}>لحظات ونفتح لك الصفحة.</p>
+          </div>
+        </main>
+      </div>
       <div id="portal" />
     </>
   );

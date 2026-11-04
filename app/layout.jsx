@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="modulepreload" href="/app/app.js?v=20260928-storage-folder-lock-v6" crossOrigin="anonymous" />
+        <link rel="modulepreload" href="/app/app.js?v=20261104-boot-recovery-v2" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
         <link rel="stylesheet" href="/app/styles/globals.css?v=20260928-storage-folder-lock-v6" />
@@ -62,7 +62,30 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Script type="module" src="/app/app.js?v=20260928-storage-folder-lock-v6" strategy="afterInteractive" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+              var app=document.getElementById("app");
+              var key="renvix.app-boot-retry";
+              function recover(){
+                if(!app||app.dataset.appReady==="true")return;
+                app.innerHTML='<main role="alert" style="min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:#f7faf9;color:#123c38;font-family:Arial,sans-serif;text-align:center"><div style="max-width:440px;padding:34px;border:1px solid #dcebe7;border-radius:20px;background:#fff;box-shadow:0 18px 60px #0a51400d"><strong style="font-size:20px">تعذر فتح الصفحة مؤقتًا</strong><p style="margin:12px 0 22px;color:#647b78;line-height:1.9">قد يكون الاتصال انقطع أثناء التحميل. أعد المحاولة؛ لن تفقد بيانات حسابك.</p><button type="button" id="renvix-app-retry" style="border:0;border-radius:10px;padding:12px 22px;background:#075b52;color:#fff;font:700 15px Arial;cursor:pointer">إعادة المحاولة</button></div></main>';
+                document.getElementById("renvix-app-retry")?.addEventListener("click",function(){location.reload()},{once:true});
+                var last=0;
+                try{last=Number(sessionStorage.getItem(key)||0)}catch(e){}
+                if(!last||Date.now()-last>60000){
+                  try{sessionStorage.setItem(key,String(Date.now()))}catch(e){}
+                  setTimeout(function(){if(app.dataset.appReady!=="true")location.reload()},2500);
+                }
+              }
+              window.addEventListener("error",function(event){if(event.target===window||(event.target&&event.target.tagName==="SCRIPT"&&/\\/app\\/app\\.js/.test(event.target.src)))recover()});
+              window.addEventListener("unhandledrejection",recover);
+              window.addEventListener("pageshow",function(event){if(event.persisted&&app&&app.dataset.appReady!=="true")recover()});
+              setTimeout(function(){if(app&&app.dataset.appReady!=="true")recover()},15000);
+            })();`
+          }}
+        />
+        <Script type="module" src="/app/app.js?v=20261104-boot-recovery-v2" strategy="afterInteractive" />
       </body>
     </html>
   );
