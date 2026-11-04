@@ -71,6 +71,7 @@ export async function getStorageDocumentShare(session, documentId) {
   if (!UUID.test(String(documentId || ""))) throw shareError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   const result = await query(
     `SELECT s.permission,s.token_encrypted AS "tokenEncrypted",s.created_at AS "createdAt",s.updated_at AS "updatedAt",
+            s.access_count AS "accessCount",s.last_accessed_at AS "lastAccessedAt",
             d.title,d.type
        FROM storage_documents d
        LEFT JOIN storage_document_shares s ON s.document_id=d.id AND s.revoked_at IS NULL
@@ -81,7 +82,7 @@ export async function getStorageDocumentShare(session, documentId) {
   if (!row) throw shareError("DOCUMENT_NOT_FOUND", "المستند غير موجود.", 404);
   if (!SHAREABLE_TYPES.has(row.type)) throw shareError("DOCUMENT_NOT_SHAREABLE", "لا يمكن مشاركة بيانات الحسابات أو الأكواد السرية برابط عام.", 403);
   if (!row.permission) return { active: false, shareable: true };
-  return { active: true, permission: row.permission, token: decryptStorageShareToken(row.tokenEncrypted), createdAt: row.createdAt, updatedAt: row.updatedAt };
+  return { active: true, permission: row.permission, token: decryptStorageShareToken(row.tokenEncrypted), createdAt: row.createdAt, updatedAt: row.updatedAt, accessCount: Number(row.accessCount || 0), lastAccessedAt: row.lastAccessedAt || null };
 }
 
 export async function saveStorageDocumentShare(session, documentId, input = {}) {
@@ -100,14 +101,17 @@ export async function saveStorageDocumentShare(session, documentId, input = {}) 
     const regenerate = input.regenerate === true || !current.rows[0];
     const token = regenerate ? crypto.randomBytes(32).toString("base64url") : decryptStorageShareToken(current.rows[0].tokenEncrypted);
     const encrypted = encryptStorageShareToken(token);
-    await client.query(
+    const saved = await client.query(
       `INSERT INTO storage_document_shares(tenant_id,document_id,token_hash,token_encrypted,permission,created_by,revoked_at)
        VALUES($1,$2,$3,$4::jsonb,$5,$6,NULL)
        ON CONFLICT(document_id) DO UPDATE SET token_hash=EXCLUDED.token_hash,token_encrypted=EXCLUDED.token_encrypted,
-         permission=EXCLUDED.permission,revoked_at=NULL,updated_at=now()`,
+         permission=EXCLUDED.permission,revoked_at=NULL,updated_at=now(),
+         access_count=CASE WHEN storage_document_shares.token_hash IS DISTINCT FROM EXCLUDED.token_hash THEN 0 ELSE storage_document_shares.access_count END,
+         last_accessed_at=CASE WHEN storage_document_shares.token_hash IS DISTINCT FROM EXCLUDED.token_hash THEN NULL ELSE storage_document_shares.last_accessed_at END
+       RETURNING access_count AS "accessCount",last_accessed_at AS "lastAccessedAt"`,
       [session.tenantId, documentId, hashStorageShareToken(token), JSON.stringify(encrypted), permission, session.userId]
     );
-    return { active: true, permission, token, regenerated: regenerate };
+    return { active: true, permission, token, regenerated: regenerate, accessCount: Number(saved.rows[0]?.accessCount || 0), lastAccessedAt: saved.rows[0]?.lastAccessedAt || null };
   });
 }
 
@@ -136,7 +140,11 @@ export async function getPublicStorageDocument(token) {
     [hashStorageShareToken(token)]
   );
   if (!result.rows[0]) throw shareError("SHARE_NOT_FOUND", "رابط المشاركة غير صالح أو تم إيقافه.", 404);
-  void query("UPDATE storage_document_shares SET last_accessed_at=now(),access_count=access_count+1 WHERE token_hash=$1", [hashStorageShareToken(token)]).catch(() => {});
+  try {
+    await query("UPDATE storage_document_shares SET last_accessed_at=now(),access_count=access_count+1 WHERE token_hash=$1", [hashStorageShareToken(token)]);
+  } catch (error) {
+    console.error("storage document share visit tracking failed", error?.message || error);
+  }
   return publicDocument(result.rows[0]);
 }
 

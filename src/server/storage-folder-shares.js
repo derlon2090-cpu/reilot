@@ -90,7 +90,8 @@ export async function getStorageFolderShare(session, folderId) {
   if (!UUID.test(String(folderId || ""))) throw folderShareError("FOLDER_NOT_FOUND", "المجلد غير موجود.", 404);
   await assertFolderCanBeShared(session, folderId);
   const result = await query(
-    `SELECT share.permission,share.token_encrypted AS "tokenEncrypted",share.created_at AS "createdAt",share.updated_at AS "updatedAt"
+    `SELECT share.permission,share.token_encrypted AS "tokenEncrypted",share.created_at AS "createdAt",share.updated_at AS "updatedAt",
+            share.access_count AS "accessCount",share.last_accessed_at AS "lastAccessedAt"
        FROM storage_folders folder
        LEFT JOIN storage_folder_shares share ON share.folder_id=folder.id AND share.revoked_at IS NULL
       WHERE folder.id=$1 AND folder.tenant_id=$2 AND folder.deleted_at IS NULL LIMIT 1`,
@@ -98,7 +99,7 @@ export async function getStorageFolderShare(session, folderId) {
   );
   const row = result.rows[0];
   if (!row?.permission) return { active: false, shareable: true };
-  return { active: true, permission: row.permission, token: decryptStorageShareToken(row.tokenEncrypted), createdAt: row.createdAt, updatedAt: row.updatedAt };
+  return { active: true, permission: row.permission, token: decryptStorageShareToken(row.tokenEncrypted), createdAt: row.createdAt, updatedAt: row.updatedAt, accessCount: Number(row.accessCount || 0), lastAccessedAt: row.lastAccessedAt || null };
 }
 
 export async function saveStorageFolderShare(session, folderId, input = {}) {
@@ -110,14 +111,17 @@ export async function saveStorageFolderShare(session, folderId, input = {}) {
     const current = await client.query("SELECT id,token_encrypted AS \"tokenEncrypted\" FROM storage_folder_shares WHERE folder_id=$1 FOR UPDATE", [folderId]);
     const regenerate = input.regenerate === true || !current.rows[0];
     const token = regenerate ? crypto.randomBytes(32).toString("base64url") : decryptStorageShareToken(current.rows[0].tokenEncrypted);
-    await client.query(
+    const saved = await client.query(
       `INSERT INTO storage_folder_shares(tenant_id,folder_id,token_hash,token_encrypted,permission,created_by,revoked_at)
        VALUES($1,$2,$3,$4::jsonb,$5,$6,NULL)
        ON CONFLICT(folder_id) DO UPDATE SET token_hash=EXCLUDED.token_hash,token_encrypted=EXCLUDED.token_encrypted,
-         permission=EXCLUDED.permission,revoked_at=NULL,updated_at=now()`,
+         permission=EXCLUDED.permission,revoked_at=NULL,updated_at=now(),
+         access_count=CASE WHEN storage_folder_shares.token_hash IS DISTINCT FROM EXCLUDED.token_hash THEN 0 ELSE storage_folder_shares.access_count END,
+         last_accessed_at=CASE WHEN storage_folder_shares.token_hash IS DISTINCT FROM EXCLUDED.token_hash THEN NULL ELSE storage_folder_shares.last_accessed_at END
+       RETURNING access_count AS "accessCount",last_accessed_at AS "lastAccessedAt"`,
       [session.tenantId, folderId, hashStorageShareToken(token), JSON.stringify(encryptStorageShareToken(token)), permission, session.userId]
     );
-    return { active: true, permission, token, regenerated: regenerate };
+    return { active: true, permission, token, regenerated: regenerate, accessCount: Number(saved.rows[0]?.accessCount || 0), lastAccessedAt: saved.rows[0]?.lastAccessedAt || null };
   });
 }
 
@@ -197,7 +201,11 @@ export async function getPublicStorageFolder(token) {
       [share.folderId, share.tenantId]
     )
   ]);
-  void query("UPDATE storage_folder_shares SET last_accessed_at=now(),access_count=access_count+1 WHERE token_hash=$1", [hashStorageShareToken(token)]).catch(() => {});
+  try {
+    await query("UPDATE storage_folder_shares SET last_accessed_at=now(),access_count=access_count+1 WHERE token_hash=$1", [hashStorageShareToken(token)]);
+  } catch (error) {
+    console.error("storage folder share visit tracking failed", error?.message || error);
+  }
   return {
     id: share.folderId,
     name: share.name,
