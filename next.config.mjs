@@ -65,6 +65,13 @@ const nextConfig = {
         ]
       },
       {
+        // app.js is requested with the current deployment SHA as its version query.
+        source: "/app/app.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
         source: "/data/:path*",
         headers: [
           { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, proxy-revalidate" },

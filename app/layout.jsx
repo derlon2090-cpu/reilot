@@ -21,6 +21,7 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const appBundleVersion = process.env.VERCEL_GIT_COMMIT_SHA || "20261104-app-startup-cache-v1";
   const appUrl = appBaseUrl();
   const adminUrl = adminBaseUrl();
   const siteUrl = siteBaseUrl();
@@ -51,7 +52,7 @@ export default function RootLayout({ children }) {
         />
         <link rel="stylesheet" href="/app/styles/tokens.css" />
         <link rel="preload" as="image" href="/assets/renvix-logo-primary.png" fetchPriority="high" />
-        <link rel="modulepreload" href="/app/app.js?v=20261104-boot-recovery-v3" crossOrigin="anonymous" />
+        <link rel="modulepreload" href={`/app/app.js?v=${appBundleVersion}`} crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
         <link rel="stylesheet" href="/app/styles/globals.css?v=20260928-storage-folder-lock-v6" />
@@ -80,7 +81,7 @@ export default function RootLayout({ children }) {
             })();`
           }}
         />
-        <Script type="module" src="/app/app.js?v=20261104-boot-recovery-v3" strategy="afterInteractive" />
+        <Script type="module" src={`/app/app.js?v=${appBundleVersion}`} strategy="afterInteractive" />
       </body>
     </html>
   );
