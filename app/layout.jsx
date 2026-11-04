@@ -21,7 +21,8 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const appBundleVersion = process.env.VERCEL_GIT_COMMIT_SHA || "20261104-app-startup-cache-v1";
+  // Change this only when public/app/app.js changes so routine deploys reuse the browser cache.
+  const appBundleVersion = "33aa023410dccc4af611316d0fb934450ef08f1e";
   const appUrl = appBaseUrl();
   const adminUrl = adminBaseUrl();
   const siteUrl = siteBaseUrl();
@@ -81,7 +82,7 @@ export default function RootLayout({ children }) {
             })();`
           }}
         />
-        <Script type="module" src={`/app/app.js?v=${appBundleVersion}`} strategy="beforeInteractive" />
+        <Script type="module" src={`/app/app.js?v=${appBundleVersion}`} strategy="afterInteractive" />
       </body>
     </html>
   );
