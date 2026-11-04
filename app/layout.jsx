@@ -81,7 +81,7 @@ export default function RootLayout({ children }) {
             })();`
           }}
         />
-        <Script type="module" src={`/app/app.js?v=${appBundleVersion}`} strategy="afterInteractive" />
+        <Script type="module" src={`/app/app.js?v=${appBundleVersion}`} strategy="beforeInteractive" />
       </body>
     </html>
   );
