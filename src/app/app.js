@@ -7,10 +7,20 @@ import { formatAITokenCount } from "./ai-token-format.js?v=20260922-exact-balanc
 const app = document.querySelector("#app");
 const portal = document.querySelector("#portal");
 
+function markAppReady() {
+  app.dataset.appReady = "true";
+  try { sessionStorage.removeItem("renvix.app-boot-retry"); } catch { /* Storage may be unavailable in private browsing. */ }
+}
+
 const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(async (locale) => {
-  const response = await fetch(`/app/locales/${locale}.json`);
-  if (!response.ok) throw new Error(`Unable to load ${locale} locale`);
-  return [locale, await response.json()];
+  try {
+    const response = await fetch(`/app/locales/${locale}.json`, { cache: "force-cache" });
+    if (!response.ok) throw new Error(`Unable to load ${locale} locale`);
+    const messages = await response.json();
+    return [locale, messages && typeof messages === "object" ? messages : { phrases: {} }];
+  } catch {
+    return [locale, { phrases: {} }];
+  }
 })));
 
 const operationalEnglishPhrases = {
@@ -16691,12 +16701,14 @@ function render() {
   if (!state.route.startsWith("/dashboard/support")) closeSupportLiveConnection();
   if (state.route.startsWith("/shared/document/")) {
     app.innerHTML = sharedStorageDocumentPage();
+    markAppReady();
     localizeElement(app);
     syncRouteData();
     return;
   }
   if (state.route.startsWith("/shared/folder/")) {
     app.innerHTML = sharedStorageFolderPage();
+    markAppReady();
     localizeElement(app);
     syncRouteData();
     return;
@@ -16745,6 +16757,7 @@ function render() {
           ? dashboardSupportPage
           : pages[state.route] || dashboardHome;
     app.innerHTML = dashboardPage();
+    markAppReady();
     restoreDashboardSidebarScroll();
     if (state.route === "/dashboard/storage") restoreStorageDocumentDraft();
     localizeElement(app);
@@ -16798,6 +16811,7 @@ function render() {
   const siteLanguage = state.language;
   if (authRoute) state.language = state.authDisplayLanguage;
   app.innerHTML = page();
+  markAppReady();
   localizeElement(app);
   if (state.route === "/dashboard/support/ai") requestAnimationFrame(openAIConversationAtLatestMessage);
   if (authRoute) {
