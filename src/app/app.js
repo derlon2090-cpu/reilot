@@ -13,13 +13,17 @@ function markAppReady() {
 }
 
 const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(async (locale) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1800);
   try {
-    const response = await fetch(`/app/locales/${locale}.json`, { cache: "force-cache" });
+    const response = await fetch(`/app/locales/${locale}.json`, { cache: "force-cache", signal: controller.signal });
     if (!response.ok) throw new Error(`Unable to load ${locale} locale`);
     const messages = await response.json();
     return [locale, messages && typeof messages === "object" ? messages : { phrases: {} }];
   } catch {
     return [locale, { phrases: {} }];
+  } finally {
+    clearTimeout(timeout);
   }
 })));
 
