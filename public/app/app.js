@@ -10299,7 +10299,7 @@ async function handleAction(target) {
       const payload = await fetchJson("/api/ai/storage-document/format", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Idempotency-Key": `storage-document-${crypto.randomUUID()}` },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, language: state.language === "en" ? "en" : "ar" }),
         timeoutMs: 45_000,
         timeoutMessage: "استغرق ترتيب النص وقتًا أطول من المتوقع. حاول مرة أخرى."
       });
