@@ -3051,8 +3051,8 @@ function homeDashboardPreview() {
     <span class="home-integration-node node-cloud" aria-label="Cloud">${dashboardIcon("cloud")}</span>
     <span class="home-integration-node node-api" aria-label="API">${dashboardIcon("code")}</span>
     <svg class="home-integration-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M8.6 25 H9.7 Q10.8 25 10.8 28 V72 Q10.8 75 9.7 75 H8.6 M10.8 50 H13.5"/>
-      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M91.4 25 H90.3 Q89.2 25 89.2 28 V72 Q89.2 75 90.3 75 H91.4 M89.2 50 H86.5"/>
+      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M8.6 25 H10.8 V75 H8.6 M10.8 50 H13.5"/>
+      <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M91.4 25 H89.2 V75 H91.4 M89.2 50 H86.5"/>
       <g class="home-branch-points">
         <circle cx="10.8" cy="25" r=".42"/><circle cx="10.8" cy="50" r=".42"/><circle cx="10.8" cy="75" r=".42"/><circle cx="13.5" cy="50" r=".42"/>
         <circle cx="89.2" cy="25" r=".42"/><circle cx="89.2" cy="50" r=".42"/><circle cx="89.2" cy="75" r=".42"/><circle cx="86.5" cy="50" r=".42"/>
@@ -3066,7 +3066,7 @@ function homeDashboardPreview() {
         <section class="home-donut-card"><header><strong>${localizedCopy("حالة التجديدات", "Renewal status")}</strong></header><div class="home-donut"><span><strong>72%</strong></span></div><ul><li><i></i><span>${localizedCopy("تم التجديد", "Renewed")}</span><b>72%</b></li><li><i></i><span>${localizedCopy("بانتظار الدفع", "Awaiting payment")}</span><b>18%</b></li><li><i></i><span>${localizedCopy("فشل", "Failed")}</span><b>10%</b></li></ul></section>
       </div>
       <div class="home-dashboard-lower">
-        <section class="home-dashboard-integrations"><header><strong>${localizedCopy("التكاملات", "Integrations")}</strong></header><div class="home-channel-row"><span class="whatsapp">${dashboardIcon("whatsapp")}</span><span class="email">${dashboardIcon("email")}</span><span class="sms">SMS</span><b>+3</b></div></section>
+        <section class="home-dashboard-integrations"><header><strong>${localizedCopy("التكاملات", "Integrations")}</strong></header><div class="home-channel-row"><span class="whatsapp" aria-label="WhatsApp">${dashboardIcon("whatsapp")}</span><span class="email" aria-label="Email">${dashboardIcon("email")}</span><b aria-label="3 more integrations">+3</b></div></section>
         <section class="home-dashboard-alerts"><header><strong>${localizedCopy("التنبيهات", "Alerts")}</strong></header><p><i></i><span>${localizedCopy("تجديد بعد 3 أيام", "Renewal in 3 days")}</span><time>${localizedCopy("12 اشتراك", "12 subscriptions")}</time></p><p><i></i><span>${localizedCopy("تجديد بعد 7 أيام", "Renewal in 7 days")}</span><time>${localizedCopy("27 اشتراك", "27 subscriptions")}</time></p></section>
         <section class="home-dashboard-activity"><header><strong>${localizedCopy("النشاطات الأخيرة", "Recent activity")}</strong></header><p><i class="activity-state success"></i><span>${localizedCopy("تم تجديد اشتراك شركة هاجر", "Hajar Co. subscription renewed")}</span><time>${localizedCopy("منذ 5 دقائق", "5m ago")}</time></p><p><i class="activity-state info"></i><span>${localizedCopy("تم إرسال تنبيه لتجديد اشتراك محمد", "Renewal alert sent to Mohammed")}</span><time>${localizedCopy("منذ 15 دقيقة", "15m ago")}</time></p></section>
       </div>
