@@ -1,11 +1,17 @@
 import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 test("static entry never ships the old wait card or timeout replacement", async () => {
   const html = await readFile("index.html", "utf8");
+  const layout = await readFile("app/layout.jsx", "utf8");
+  const bundle = await readFile("public/app/app.js");
+  const bundleVersion = createHash("sha256").update(bundle).digest("hex");
   expect(html).not.toContain("جارٍ تجهيز Renvix");
   expect(html).not.toContain("تعذر فتح الصفحة مؤقتًا");
   expect(html).toContain("منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك");
+  expect(html).toContain(bundleVersion);
+  expect(layout).toContain(bundleVersion);
 });
 
 test("login is server rendered without the startup splash", async ({ page }) => {
