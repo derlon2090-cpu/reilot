@@ -13,6 +13,8 @@ const submitHandler = source.slice(
   source.indexOf('document.addEventListener("submit"')
 );
 const managementRoute = readFileSync(resolve("app/api/storage/management/route.js"), "utf8");
+const aiFormatRoute = readFileSync(resolve("app/api/ai/storage-document/format/route.js"), "utf8");
+const aiFormatAlias = readFileSync(resolve("app/storage-api/ai-format/route.js"), "utf8");
 const styles = readFileSync(resolve("src/styles/globals.css"), "utf8");
 const storageService = readFileSync(resolve("src/server/storage-center.js"), "utf8");
 
@@ -147,6 +149,9 @@ describe("storage center form wiring", () => {
     expect(actionHandler).toContain('storageAction === "storage-editor-color"');
     expect(actionHandler).toContain('storageAction === "storage-editor-ai-format"');
     expect(actionHandler).toContain('fetchJson("/api/ai/storage-document/format"');
+    expect(aiFormatRoute).toContain("export const maxDuration = 60;");
+    expect(aiFormatAlias).toContain("export const maxDuration = 60;");
+    expect(actionHandler).toContain("timeoutMs: 45_000");
     expect(source).toContain("ترتيب النص بالذكاء الاصطناعي");
     expect(source).toContain("ألوان النص");
     expect(actionHandler).toContain("payload.fallback");

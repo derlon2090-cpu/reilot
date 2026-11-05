@@ -3,6 +3,7 @@ import { sameOriginRequest } from "../../../../../src/server/campaign-contacts.j
 import { formatStorageDocumentWithAI } from "../../../../../src/server/ai/storage-document-format.js";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request) {
   const auth = await requireSession(request);
