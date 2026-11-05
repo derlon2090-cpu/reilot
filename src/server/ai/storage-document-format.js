@@ -40,25 +40,48 @@ function safeDocumentLineMarkup(line, firstLine = false, number = null) {
   const label = field?.[1]?.trim();
   if (label && !/^(?:https?|ftp|mailto)$/iu.test(label) && !/^\d+$/u.test(label)) {
     const value = field[3]?.trim();
-    return wrap("p", `<strong>${escapeDocumentText(`${label}${field[2]}`)}</strong>${value ? ` ${escapeDocumentText(value)}` : ""}`);
+    const kind = documentFieldKind(label);
+    const visibleLabel = kind === "email" ? "الإيميل"
+      : kind === "password" ? "كلمة المرور"
+        : kind === "mfa" ? "رمز التحقق الثنائي"
+          : label;
+    const isolatesDirection = ["email", "password", "mfa"].includes(kind);
+    const valueMarkup = !value ? ""
+      : isolatesDirection ? ` <bdi dir="ltr">${escapeDocumentText(value)}</bdi>`
+        : ` ${escapeDocumentText(value)}`;
+    return wrap("p", `<strong>${escapeDocumentText(`${visibleLabel}:`)}</strong>${valueMarkup}`);
+  }
+  if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/u.test(text)) {
+    return wrap("p", `<strong>الإيميل:</strong> <bdi dir="ltr">${escapeDocumentText(text)}</bdi>`);
   }
   if (firstLine && text.length <= 100) return wrap("h3", escapeDocumentText(text));
   return wrap("p", escapeDocumentText(text));
 }
 
-const FIELD_LABEL = "(?:البريد(?: الإلكتروني)?|الإيميل|الايميل|email|e-mail|username|اسم المستخدم|كلمة المرور|الرقم السري|password|pass|pwd|مفتاح الأمان|مفتاح الامان|الرمز|الكود|رمز التحقق|security key|api key|token|code|otp)";
-const INLINE_FIELD = new RegExp(`(?:^|\\s)(?=${FIELD_LABEL}\\s*[:：])`, "giu");
+const EMAIL_FIELD = /^(?:البريد(?: الإلكتروني| الالكتروني)?|الإيميل|الايميل|email|e-mail)$/iu;
+const PASSWORD_FIELD = /^(?:كلمة المرور|كلمة السر|الرقم السري|password|pass|pwd)$/iu;
+const MFA_FIELD = /^(?:رمز التحقق الثنائي|رمز المصادقة الثنائية|رمز تطبيق المصادقة|رمز المصادقة|two[- ]factor(?: authentication)?(?: code)?|2fa(?: code)?|mfa(?: code)?|authenticator(?: app)?(?: code)?)$/iu;
+
+function documentFieldKind(label) {
+  const value = String(label || "").trim();
+  if (EMAIL_FIELD.test(value)) return "email";
+  if (PASSWORD_FIELD.test(value)) return "password";
+  if (MFA_FIELD.test(value)) return "mfa";
+  if (/^(?:username|اسم المستخدم)$/iu.test(value)) return "identity";
+  if (/^(?:مفتاح الأمان|مفتاح الامان|الرمز|الكود|رمز التحقق|security key|api key|token|code|otp)$/iu.test(value)) return "key";
+  return "";
+}
+
+const FIELD_LABEL = "(?:البريد(?: الإلكتروني| الالكتروني)?|الإيميل|الايميل|email|e-mail|username|اسم المستخدم|كلمة المرور|كلمة السر|الرقم السري|password|pass|pwd|مفتاح الأمان|مفتاح الامان|الرمز|الكود|رمز التحقق(?: الثنائي)?|رمز المصادقة(?: الثنائية)?|رمز تطبيق المصادقة|two[- ]factor(?: authentication)?(?: code)?|2fa(?: code)?|mfa(?: code)?|authenticator(?: app)?(?: code)?|security key|api key|token|code|otp)";
+const INLINE_FIELD = new RegExp(`(?:^|\\s)${FIELD_LABEL}\\s*[:：]`, "giu");
 
 function fieldKind(line) {
   const label = String(line).split(/[:：]/u, 1)[0].trim().toLowerCase();
-  if (/^(?:البريد(?: الإلكتروني)?|الإيميل|الايميل|email|e-mail|username|اسم المستخدم)$/u.test(label)) return "identity";
-  if (/^(?:كلمة المرور|الرقم السري|password|pass|pwd)$/u.test(label)) return "password";
-  if (/^(?:مفتاح الأمان|مفتاح الامان|الرمز|الكود|رمز التحقق|security key|api key|token|code|otp)$/u.test(label)) return "key";
-  return /[:：]/u.test(line) ? "other" : "";
+  return documentFieldKind(label) || (/[:：]/u.test(line) ? "other" : "");
 }
 
 function splitDocumentLine(line) {
-  const starts = [...String(line).matchAll(INLINE_FIELD)].map((match) => match.index + (match[0].startsWith(" ") ? 1 : 0));
+  const starts = [...String(line).matchAll(INLINE_FIELD)].map((match) => match.index + (match[0].match(/^\s*/u)?.[0].length || 0));
   if (starts.length < 2 && (starts.length === 0 || starts[0] === 0)) return [line.trim()];
   const boundaries = [...new Set([0, ...starts, line.length])].sort((a, b) => a - b);
   return boundaries.slice(0, -1).map((start, index) => line.slice(start, boundaries[index + 1]).trim()).filter(Boolean);

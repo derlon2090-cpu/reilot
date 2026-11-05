@@ -54,7 +54,7 @@ describe("storage document AI formatting", () => {
 
   it("renders original values from a valid section plan", () => {
     const result = validateAIStorageDocumentResult({ sections: [{ start: 0, end: 4 }] }, content);
-    expect(result.html).toContain("<strong>البريد:</strong> user@example.com");
+    expect(result.html).toContain('<strong>الإيميل:</strong> <bdi dir="ltr">user@example.com</bdi>');
     expect(result.html).toContain("RiverSecret");
     expect(result.html).toContain("FalconKey");
   });
@@ -65,6 +65,21 @@ describe("storage document AI formatting", () => {
     expect(html).toContain("<strong>مفتاح الأمان:</strong> &lt;secret&gt;");
     expect(html).toContain("<strong>العميل:</strong> أحمد");
     expect(html).not.toContain("<strong>ملاحظات</strong>");
+  });
+
+  it("localizes and emphasizes email, password, and two-factor labels", () => {
+    const html = buildSafeStorageDocumentHtml([
+      "user@example.com",
+      "Email: next@example.com",
+      "كلمة السر: MySecret123",
+      "MFA code: 123456",
+      "رمز المصادقة الثنائية: 654321"
+    ].join("\n"));
+    expect(html).toContain('<strong>الإيميل:</strong> <bdi dir="ltr">user@example.com</bdi>');
+    expect(html).toContain('<strong>الإيميل:</strong> <bdi dir="ltr">next@example.com</bdi>');
+    expect(html).toContain('<strong>كلمة المرور:</strong> <bdi dir="ltr">MySecret123</bdi>');
+    expect(html).toContain('<strong>رمز التحقق الثنائي:</strong> <bdi dir="ltr">123456</bdi>');
+    expect(html).toContain('<strong>رمز التحقق الثنائي:</strong> <bdi dir="ltr">654321</bdi>');
   });
 
   it("does not mistake URL schemes or times for important labels", () => {
@@ -133,8 +148,8 @@ describe("storage document AI formatting", () => {
 
   it("splits multiple fields pasted on one line and escapes HTML", () => {
     const html = buildSafeStorageDocumentHtml("حساب أول\nالبريد: first@example.com كلمة المرور: <secret> مفتاح الأمان: 12345");
-    expect(html).toContain("<strong>البريد:</strong> first@example.com");
-    expect(html).toContain("<strong>كلمة المرور:</strong> &lt;secret&gt;");
+    expect(html).toContain('<strong>الإيميل:</strong> <bdi dir="ltr">first@example.com</bdi>');
+    expect(html).toContain('<strong>كلمة المرور:</strong> <bdi dir="ltr">&lt;secret&gt;</bdi>');
     expect(html).toContain("<strong>مفتاح الأمان:</strong> 12345");
   });
 
