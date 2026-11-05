@@ -14,6 +14,24 @@ test("static entry never ships the old wait card or timeout replacement", async 
   expect(layout).toContain(bundleVersion);
 });
 
+test("server entry remains styled and within the viewport before the client app starts", async ({ page }) => {
+  await page.setViewportSize({ width: 638, height: 301 });
+  await page.route("**/app/app.js*", (route) => route.abort());
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const shell = page.locator(".renvix-entry-shell");
+  await expect(shell.getByRole("heading", { name: "Renvix" })).toBeVisible();
+  await expect(shell.getByRole("link", { name: "تسجيل الدخول" })).toBeVisible();
+  const layout = await page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    card: document.querySelector(".renvix-entry-shell section")?.getBoundingClientRect().toJSON()
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.width);
+  expect(layout.card?.x).toBeGreaterThanOrEqual(0);
+  expect(layout.card?.right).toBeLessThanOrEqual(layout.width);
+});
+
 test("login is server rendered without the startup splash", async ({ page }) => {
   const response = await page.goto("/login", { waitUntil: "domcontentloaded" });
 
@@ -37,6 +55,10 @@ test("site entry has useful content immediately instead of a loading card", asyn
   const initialHtml = await response!.text();
   expect(initialHtml).toContain("منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك");
   expect(initialHtml).not.toContain("جارٍ تجهيز Renvix");
-  await expect(page.getByRole("heading", { name: "Renvix" })).toBeVisible();
+  expect(initialHtml).toContain('class="renvix-entry-shell"');
+  expect(initialHtml).toContain("linear-gradient(145deg");
+  await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 30000 });
+  await expect(page.locator(".renvix-entry-shell")).toHaveCount(0);
+  await expect(page.locator("#app h1").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "تسجيل الدخول" })).toBeVisible();
 });
