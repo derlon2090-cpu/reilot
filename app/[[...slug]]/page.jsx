@@ -82,14 +82,14 @@ export default async function SpaPage({ params }) {
             </div>
           </main>
         ) : (
-          <main className="renvix-entry-shell" dir="rtl" style={{ minHeight: "100svh", width: "100%", maxWidth: "100vw", display: "grid", gridTemplateRows: "auto 1fr", gap: 24, overflowX: "hidden", boxSizing: "border-box", padding: "clamp(20px, 4vw, 48px)", background: "linear-gradient(145deg, #f2f8f7 0%, #fff 54%, #eaf6f3 100%)", color: "#123c38", fontFamily: "var(--font-alexandria), Alexandria, Arial, sans-serif" }}>
-            <header style={{ width: "min(1180px, 100%)", justifySelf: "center", display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
-              <img src="/assets/renvix-logo-primary.png" width="180" height="51" alt="Renvix" style={{ display: "block", width: "clamp(142px, 18vw, 190px)", maxWidth: "55vw", height: "auto", objectFit: "contain" }} />
-            </header>
-            <section style={{ width: "min(760px, 100%)", justifySelf: "center", alignSelf: "center", boxSizing: "border-box", padding: "clamp(28px, 6vw, 72px)", border: "1px solid #dcebe7", borderRadius: 28, background: "rgba(255,255,255,.96)", boxShadow: "0 24px 70px rgba(10,81,64,.08)", textAlign: "center" }}>
-              <h1 style={{ margin: 0, color: "#123c38", fontSize: "clamp(25px, 4.5vw, 42px)", lineHeight: 1.5 }}>Renvix</h1>
-              <p style={{ margin: "12px 0 0", color: "#647b78", fontSize: "clamp(14px, 2vw, 18px)", lineHeight: 1.9 }}>منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك</p>
-              <a href="/login" style={{ display: "inline-flex", minHeight: 50, alignItems: "center", justifyContent: "center", boxSizing: "border-box", maxWidth: "100%", marginTop: 28, padding: "0 28px", borderRadius: 12, background: "#075b52", color: "#fff", fontWeight: 700, lineHeight: 1.5, textDecoration: "none" }}>تسجيل الدخول</a>
+          <main className="renvix-entry-shell" dir="rtl">
+            <section className="renvix-entry-card" role="status" aria-live="polite" aria-label="جارٍ تجهيز Renvix">
+              <img className="renvix-entry-logo" src="/assets/renvix-logo-primary.png" width="180" height="51" alt="Renvix" />
+              <div className="renvix-entry-loader" aria-hidden="true"><span><img src="/assets/renvix-mark-deep-teal.svg" width="28" height="28" alt="" /></span></div>
+              <h1>جارٍ تجهيز Renvix</h1>
+              <p>لحظات ونفتح لك الصفحة</p>
+              <div className="renvix-entry-progress" aria-hidden="true"><span /></div>
+              <small>يتم تحميل الصفحة بأمان</small>
             </section>
           </main>
         )}

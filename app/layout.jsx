@@ -56,7 +56,7 @@ export default function RootLayout({ children }) {
         <link rel="modulepreload" href={`/app/app.js?v=${appBundleVersion}`} crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/ar.json" crossOrigin="anonymous" />
         <link rel="preload" as="fetch" href="/app/locales/en.json" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="/app/styles/globals.css?v=20260928-storage-folder-lock-v6" />
+        <link rel="stylesheet" href="/app/styles/globals.css?v=20261105-entry-loader-v1" />
         <link rel="stylesheet" href="/app/styles/dark-system.css?v=20260813-preferences-v109" />
         <link rel="stylesheet" href="/app/styles/approved-templates-reference.css?v=20260911-brand-surfaces-v159" />
         <link rel="stylesheet" href="/app/styles/identity-system.css?v=20260911-brand-surfaces-v159" />

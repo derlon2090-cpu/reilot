@@ -14642,6 +14642,60 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .home-hero-trust .line-icon { width: 17px; height: 17px; color: #0b8b7d; stroke-width: 2.3; }
 .home-hero-visual[data-reveal] { transform: translateX(-22px) scale(.985); transition-duration: 650ms; transition-delay: 100ms; }
 .home-hero-visual[data-reveal].is-visible { transform: translateX(0) scale(1); }
+.renvix-entry-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(20px, 5vw, 56px);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #123c38;
+  background: radial-gradient(ellipse at 50% 42%, #fff 0%, #f9fcfb 42%, #edf6f4 100%);
+  font-family: var(--font-alexandria), Alexandria, Arial, sans-serif;
+}
+.renvix-entry-shell::before,
+.renvix-entry-shell::after { position: absolute; z-index: -1; width: min(52vw, 520px); aspect-ratio: 1; border: 1px solid rgba(20,132,119,.07); border-radius: 50%; content: ""; pointer-events: none; }
+.renvix-entry-shell::before { top: -32%; right: -17%; }
+.renvix-entry-shell::after { bottom: -54%; left: -20%; width: min(68vw, 680px); }
+.renvix-entry-card {
+  width: min(100%, 420px);
+  min-height: 350px;
+  padding: clamp(30px, 6vw, 48px) 30px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid #dcebe7;
+  border-radius: 26px;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 24px 70px rgba(10,81,64,.075), 0 3px 10px rgba(10,81,64,.025);
+  text-align: center;
+  backdrop-filter: blur(12px);
+  animation: renvix-entry-appear .55s cubic-bezier(.2,.8,.2,1) both;
+}
+.renvix-entry-logo { display: block; width: clamp(150px, 42vw, 190px); height: auto; margin: 0 auto 28px; object-fit: contain; }
+.renvix-entry-loader { position: relative; width: 64px; height: 64px; margin-bottom: 18px; display: grid; place-items: center; }
+.renvix-entry-loader::before { position: absolute; inset: 0; border: 3px solid #e3efed; border-top-color: #087267; border-right-color: #51afa2; border-radius: 50%; content: ""; animation: renvix-entry-spin .95s cubic-bezier(.6,.1,.4,.9) infinite; }
+.renvix-entry-loader > span { width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid #e3efed; border-radius: 50%; background: #f1f8f6; }
+.renvix-entry-loader img { width: 26px; height: 26px; object-fit: contain; }
+.renvix-entry-card h1 { margin: 0; color: #123c38; font-size: clamp(19px, 4vw, 23px); font-weight: 750; line-height: 1.55; }
+.renvix-entry-card p { margin: 4px 0 20px; color: #718783; font-size: 14px; line-height: 1.8; }
+.renvix-entry-progress { width: min(100%, 210px); height: 4px; overflow: hidden; border-radius: 99px; background: #eaf2f0; }
+.renvix-entry-progress span { width: 38%; height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg, #45aa9d, #075f56); animation: renvix-entry-progress 1.65s ease-in-out infinite; }
+.renvix-entry-card > small { margin-top: 12px; color: #94a5a1; font-size: 10px; }
+@keyframes renvix-entry-spin { to { transform: rotate(360deg); } }
+@keyframes renvix-entry-progress { 0% { transform: translateX(-260%); } 55% { transform: translateX(165%); } 100% { transform: translateX(370%); } }
+@keyframes renvix-entry-appear { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .renvix-entry-card, .renvix-entry-loader::before, .renvix-entry-progress span { animation: none; }
+  .renvix-entry-card { opacity: 1; transform: none; }
+  .renvix-entry-progress span { width: 100%; }
+}
+
 .home-dashboard-scene {
   --home-dashboard-gutter: clamp(76px, 13.5%, 96px);
   --home-node-size: 54px;
