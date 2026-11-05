@@ -82,6 +82,21 @@ describe("storage document AI formatting", () => {
     expect(html).toContain('<strong>رمز التحقق الثنائي:</strong> <bdi dir="ltr">654321</bdi>');
   });
 
+  it("labels a credential-like line after an email as the password in the selected interface language", () => {
+    const input = "waehs4050@gmail.com\nAa@1234";
+    const arabic = buildSafeStorageDocumentHtml(input, "ar");
+    const english = buildSafeStorageDocumentHtml(input, "en");
+
+    expect(arabic).toContain('<strong>الإيميل:</strong> <bdi dir="ltr">waehs4050@gmail.com</bdi>');
+    expect(arabic).toContain('<strong>كلمة المرور:</strong> <bdi dir="ltr">Aa@1234</bdi>');
+    expect(english).toContain('<strong>Email:</strong> <bdi dir="ltr">waehs4050@gmail.com</bdi>');
+    expect(english).toContain('<strong>Password:</strong> <bdi dir="ltr">Aa@1234</bdi>');
+
+    const descriptors = JSON.parse(buildStorageDocumentFormatMessages(input)[1].content);
+    expect(descriptors.map(({ type }) => type)).toEqual(["email", "password"]);
+    expect(JSON.stringify(descriptors)).not.toContain("Aa@1234");
+  });
+
   it("does not mistake URL schemes or times for important labels", () => {
     const html = buildSafeStorageDocumentHtml("روابط\nhttps://example.com\n12:30\nرابط: https://example.com");
     expect(html).not.toContain("<strong>https:</strong>");

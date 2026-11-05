@@ -5,7 +5,10 @@ import { createAIRun, finishAIRun } from "./provider-accounting.js";
 import { estimateAITokens, getAIUsageSummary } from "./usage.js";
 
 const TASK_TYPE = "storage_document_format";
-const inputSchema = z.object({ content: z.string().trim().min(3).max(50_000) }).strict();
+const inputSchema = z.object({
+  content: z.string().trim().min(3).max(50_000),
+  language: z.enum(["ar", "en"]).optional().default("ar")
+}).strict();
 const outputSchema = z.object({ sections: z.array(z.object({ start: z.number().int().min(0), end: z.number().int().positive() }).strict()).min(1).max(500) }).strict();
 const allowedTags = new Set(["p", "br", "strong", "b", "em", "i", "u", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "span"]);
 
@@ -30,20 +33,24 @@ function escapeDocumentText(value) {
     .replace(/'/g, "&#39;");
 }
 
-function safeDocumentLineMarkup(line, firstLine = false, number = null) {
+function safeDocumentLineMarkup(line, firstLine = false, number = null, language = "ar", inferredKind = "") {
   const text = String(line || "").trim();
   if (!text) return "";
   const wrap = (tag, markup) => number === null
     ? `<${tag}>${markup}</${tag}>`
     : `<${tag} data-storage-ai-heading><span data-storage-ai-number style="color:#087267">${number}.</span><span data-storage-ai-heading-text dir="auto">${markup}</span></${tag}>`;
+  if (inferredKind === "password") {
+    const label = language === "en" ? "Password:" : "كلمة المرور:";
+    return wrap("p", `<strong>${label}</strong> <bdi dir="ltr">${escapeDocumentText(text)}</bdi>`);
+  }
   const field = text.match(/^([^:：]{1,80})([:：])(?:\s*(.*))?$/u);
   const label = field?.[1]?.trim();
   if (label && !/^(?:https?|ftp|mailto)$/iu.test(label) && !/^\d+$/u.test(label)) {
     const value = field[3]?.trim();
     const kind = documentFieldKind(label);
-    const visibleLabel = kind === "email" ? "الإيميل"
-      : kind === "password" ? "كلمة المرور"
-        : kind === "mfa" ? "رمز التحقق الثنائي"
+    const visibleLabel = kind === "email" ? (language === "en" ? "Email" : "الإيميل")
+      : kind === "password" ? (language === "en" ? "Password" : "كلمة المرور")
+        : kind === "mfa" ? (language === "en" ? "Two-factor code" : "رمز التحقق الثنائي")
           : label;
     const isolatesDirection = ["email", "password", "mfa"].includes(kind);
     const valueMarkup = !value ? ""
@@ -52,7 +59,8 @@ function safeDocumentLineMarkup(line, firstLine = false, number = null) {
     return wrap("p", `<strong>${escapeDocumentText(`${visibleLabel}:`)}</strong>${valueMarkup}`);
   }
   if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/u.test(text)) {
-    return wrap("p", `<strong>الإيميل:</strong> <bdi dir="ltr">${escapeDocumentText(text)}</bdi>`);
+    const label = language === "en" ? "Email:" : "الإيميل:";
+    return wrap("p", `<strong>${label}</strong> <bdi dir="ltr">${escapeDocumentText(text)}</bdi>`);
   }
   if (firstLine && text.length <= 100) return wrap("h3", escapeDocumentText(text));
   return wrap("p", escapeDocumentText(text));
@@ -97,6 +105,17 @@ function documentLines(content) {
       breakBefore = false;
     }
   }
+  for (let index = 0; index < lines.length; index++) {
+    const current = lines[index];
+    const preceding = lines[index - 1];
+    const currentKind = fieldKind(current.text) || (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/u.test(current.text) ? "email" : "");
+    if (preceding && !current.breakBefore && !currentKind && !/[:：]/u.test(current.text) &&
+      !/^https?:\/\//iu.test(current.text) && preceding.kind === "email" &&
+      /^(?=.{4,128}$)(?=.*\p{L})(?=.*(?:\p{Lu}|\d|[^\p{L}\d])).+$/u.test(current.text)) {
+      current.inferredKind = "password";
+    }
+    current.kind = current.inferredKind || currentKind;
+  }
   return lines;
 }
 
@@ -113,24 +132,24 @@ function localSections(lines) {
   return sections;
 }
 
-function renderDocumentSections(lines, sections) {
+function renderDocumentSections(lines, sections, language = "ar") {
   return sections.map(({ start, end }, groupIndex) => {
-    return lines.slice(start, end).map(({ text }, index) => {
+    return lines.slice(start, end).map(({ text, inferredKind }, index) => {
       const line = index === 0 ? text.replace(/^\d+[.)]\s+/u, "") : text;
-      return safeDocumentLineMarkup(line, index === 0, index === 0 ? groupIndex + 1 : null);
+      return safeDocumentLineMarkup(line, index === 0, index === 0 ? groupIndex + 1 : null, language, inferredKind);
     }).join("");
   }).join('<hr data-storage-ai-separator>');
 }
 
-export function buildSafeStorageDocumentHtml(content) {
+export function buildSafeStorageDocumentHtml(content, language = "ar") {
   const lines = documentLines(content);
-  return renderDocumentSections(lines, localSections(lines));
+  return renderDocumentSections(lines, localSections(lines), language);
 }
 
-function safeFallbackResult(content, reason = "AI_PROVIDER_UNAVAILABLE") {
+function safeFallbackResult(content, reason = "AI_PROVIDER_UNAVAILABLE", language = "ar") {
   return {
     ok: true,
-    html: buildSafeStorageDocumentHtml(content),
+    html: buildSafeStorageDocumentHtml(content, language),
     fallback: true,
     fallbackReason: String(reason || "AI_PROVIDER_UNAVAILABLE").slice(0, 100)
   };
@@ -153,7 +172,7 @@ export function sanitizeAIStorageDocumentHtml(value) {
   }).slice(0, 120_000);
 }
 
-export function validateAIStorageDocumentResult(value, originalContent) {
+export function validateAIStorageDocumentResult(value, originalContent, language = "ar") {
   const parsed = outputSchema.safeParse(value);
   if (!parsed.success) throw serviceError("AI_STORAGE_INVALID_OUTPUT", "تعذر التحقق من نتيجة ترتيب النص.", 422);
   const lines = documentLines(originalContent);
@@ -170,14 +189,14 @@ export function validateAIStorageDocumentResult(value, originalContent) {
   if ([...ends].some((end) => !safeEnds.has(end)) || [...safeEnds].some((end) => !ends.has(end))) {
     throw serviceError("AI_STORAGE_ACCOUNTS_MIXED", "أعاد الذكاء تقسيمًا قد يخلط بيانات الحسابات؛ استُخدم الترتيب الآمن.", 422);
   }
-  return Object.freeze({ html: renderDocumentSections(lines, parsed.data.sections) });
+  return Object.freeze({ html: renderDocumentSections(lines, parsed.data.sections, language) });
 }
 
 export function buildStorageDocumentFormatMessages(content) {
   const lines = documentLines(content);
-  const descriptors = lines.map(({ text, breakBefore }, index) => ({
+  const descriptors = lines.map(({ text, breakBefore, kind }, index) => ({
     index,
-    type: fieldKind(text) || (/^(?:[-*•]|\d+[.)])\s/u.test(text) ? "list" : "text"),
+    type: kind || (/^(?:[-*•]|\d+[.)])\s/u.test(text) ? "list" : "text"),
     blankBefore: breakBefore
   }));
   return [
@@ -209,8 +228,8 @@ function quotaLimitError(error) {
 }
 
 async function chargedSafeFallback(session, input = {}) {
-  const { deps, content, reason, idempotencyKey, providerUsage, providerRequestId, model } = input;
-  const result = safeFallbackResult(content, reason);
+  const { deps, content, language, reason, idempotencyKey, providerUsage, providerRequestId, model } = input;
+  const result = safeFallbackResult(content, reason, language);
   const local = !providerUsage;
   const usage = providerUsage || {
     prompt_tokens: estimateAITokens(content),
@@ -249,6 +268,7 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
   const parsed = inputSchema.safeParse(rawInput);
   if (!parsed.success) throw serviceError("AI_STORAGE_INVALID_REQUEST", "اكتب محتوى المستند قبل طلب ترتيبه.", 400);
   const idempotencyKey = String(options.idempotencyKey || "").trim().slice(0, 180);
+  const language = parsed.data.language;
   if (!/^[a-zA-Z0-9:_-]{16,180}$/.test(idempotencyKey)) throw serviceError("AI_STORAGE_IDEMPOTENCY_REQUIRED", "معرّف الطلب غير صالح.", 400);
   const deps = { ...defaultDependencies, ...(options.dependencies || {}) };
   const messages = buildStorageDocumentFormatMessages(parsed.data.content);
@@ -257,6 +277,7 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
     return chargedSafeFallback(session, {
       deps,
       content: parsed.data.content,
+      language,
       idempotencyKey,
       reason: provider.available ? "AI_INPUT_TOO_LONG" : "AI_PROVIDER_DISABLED"
     });
@@ -279,10 +300,10 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
     const actualTokens = Number(usage.prompt_tokens || 0) + Number(usage.completion_tokens || 0);
     if (actualTokens <= 0) throw serviceError("AI_PROVIDER_USAGE_MISSING", "تعذر اعتماد استهلاك عملية الترتيب.", 502);
     let result;
-    try { result = validateAIStorageDocumentResult(parseProviderJson(response.message), parsed.data.content); } catch (validationError) {
+    try { result = validateAIStorageDocumentResult(parseProviderJson(response.message), parsed.data.content, language); } catch (validationError) {
       settlementAttempted = true;
       return chargedSafeFallback(session, {
-        deps, content: parsed.data.content, idempotencyKey,
+        deps, content: parsed.data.content, language, idempotencyKey,
         reason: validationError?.code || "AI_STORAGE_INVALID_OUTPUT",
         reservation, aiRun, providerUsage: usage, providerRequestId: response.providerRequestId,
         model: provider.modelFor("flash")
@@ -309,7 +330,7 @@ export async function formatStorageDocumentWithAI(session, rawInput, options = {
       !settled && !settlementAttempted && (status >= 500 || String(error?.code || "").startsWith("AI_PROVIDER_"));
     if (canUseFallback) {
       return chargedSafeFallback(session, {
-        deps, content: parsed.data.content, idempotencyKey,
+        deps, content: parsed.data.content, language, idempotencyKey,
         reason: error?.code || "AI_PROVIDER_FAILED", reservation, aiRun
       });
     }
