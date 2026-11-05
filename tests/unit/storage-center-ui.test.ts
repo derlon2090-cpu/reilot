@@ -183,6 +183,7 @@ describe("storage center form wiring", () => {
     expect(source).toContain("storageEditorTextForFormatting(editor)");
     expect(source).toContain('text += node.matches("[data-storage-ai-separator]") ? "\\n\\n" : "\\n";');
     expect(styles).toContain(".storage-editor-body hr[data-storage-ai-separator]");
+    expect(styles).toContain(".storage-editor-body [data-storage-ai-heading],.storage-rich-content [data-storage-ai-heading]{display:grid;grid-template-columns:minmax(0,1fr)");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
   });
 
