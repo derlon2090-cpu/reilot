@@ -3053,11 +3053,8 @@ function homeDashboardPreview() {
     <svg class="home-integration-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M8.6 25 H10.8 V75 H8.6 M10.8 50 H13.5"/>
       <path class="home-branch-tree" vector-effect="non-scaling-stroke" d="M91.4 25 H89.2 V75 H91.4 M89.2 50 H86.5"/>
-      <g class="home-branch-points">
-        <circle cx="10.8" cy="25" r=".42"/><circle cx="10.8" cy="50" r=".42"/><circle cx="10.8" cy="75" r=".42"/><circle cx="13.5" cy="50" r=".42"/>
-        <circle cx="89.2" cy="25" r=".42"/><circle cx="89.2" cy="50" r=".42"/><circle cx="89.2" cy="75" r=".42"/><circle cx="86.5" cy="50" r=".42"/>
-      </g>
     </svg>
+    <div class="home-integration-points" aria-hidden="true"><i style="--point-x:10.8%;--point-y:25%"></i><i style="--point-x:10.8%;--point-y:50%"></i><i style="--point-x:10.8%;--point-y:75%"></i><i style="--point-x:13.5%;--point-y:50%"></i><i style="--point-x:89.2%;--point-y:25%"></i><i style="--point-x:89.2%;--point-y:50%"></i><i style="--point-x:89.2%;--point-y:75%"></i><i style="--point-x:86.5%;--point-y:50%"></i></div>
     <article class="home-dashboard" aria-label="${localizedCopy("معاينة حية للوحة تحكم Renvix", "Live Renvix dashboard preview")}">
       <header class="home-dashboard-header"><img src="/assets/renvix-logo-primary.png" width="122" height="34" alt="رينفكس Renvix"><div><strong>${localizedCopy("مرحبًا، أحمد", "Welcome, Ahmed")}</strong><small>${localizedCopy("إليك نظرة عامة على اشتراكاتك والتنبيهات اليوم", "Here is today's subscription and alerts overview")}</small></div></header>
       <div class="home-dashboard-metrics">${metrics.map(([label, value, change, icon, tone]) => `<section><header><span>${dashboardIcon(icon)}</span><small>${label}</small></header><strong>${value}</strong><em class="${tone}">${change}</em></section>`).join("")}</div>
