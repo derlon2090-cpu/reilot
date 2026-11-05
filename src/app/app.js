@@ -9580,7 +9580,11 @@ function storageEditorTextForFormatting(editor) {
       text += node.nodeValue.replace(/\u00a0/g, " ");
       return;
     }
-    if (node.nodeType !== Node.ELEMENT_NODE || node.matches("[data-storage-ai-number],hr")) return;
+    if (node.nodeType !== Node.ELEMENT_NODE || node.matches("[data-storage-ai-number]")) return;
+    if (node.tagName === "HR") {
+      text += node.matches("[data-storage-ai-separator]") ? "\n\n" : "\n";
+      return;
+    }
     if (node.tagName === "BR") { text += "\n"; return; }
     const before = text.length;
     node.childNodes.forEach(read);

@@ -64,24 +64,6 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){
-              var app=document.getElementById("app");
-              function recover(reason){
-                if(!app||app.dataset.appReady==="true")return;
-                var message=reason||"قد يكون الاتصال انقطع أثناء التحميل. أعد المحاولة؛ لن تفقد بيانات حسابك.";
-                app.innerHTML='<main role="alert" style="min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:#f7faf9;color:#123c38;font-family:Arial,sans-serif;text-align:center"><div style="max-width:440px;padding:34px;border:1px solid #dcebe7;border-radius:20px;background:#fff;box-shadow:0 18px 60px #0a51400d"><strong style="font-size:20px">تعذر فتح الصفحة مؤقتًا</strong><p id="renvix-app-error" style="margin:12px 0 22px;color:#647b78;line-height:1.9"></p><button type="button" id="renvix-app-retry" style="border:0;border-radius:10px;padding:12px 22px;background:#075b52;color:#fff;font:700 15px Arial;cursor:pointer">إعادة المحاولة</button></div></main>';
-                document.getElementById("renvix-app-error").textContent=message;
-                document.getElementById("renvix-app-retry")?.addEventListener("click",function(){location.reload()},{once:true});
-              }
-              window.addEventListener("error",function(event){if(event.target===window||(event.target&&event.target.tagName==="SCRIPT"&&/\\/app\\/app\\.js/.test(event.target.src)))recover("تعذر تحميل أو تشغيل ملف التطبيق. تحقق من الاتصال ثم أعد المحاولة.")});
-              window.addEventListener("unhandledrejection",function(){recover("تعذر إكمال تهيئة الموقع. تحقق من الاتصال ثم أعد المحاولة.")});
-              window.addEventListener("pageshow",function(event){if(event.persisted&&app&&app.dataset.appReady!=="true")recover("لم تكتمل استعادة الصفحة. أعد المحاولة للمتابعة.")});
-              setTimeout(function(){if(app&&app.dataset.appReady!=="true")recover("استغرق بدء الموقع وقتًا أطول من المعتاد. لم نعد تحميل الصفحة تلقائيًا لتجنب تكرار الانتظار.")},20000);
-            })();`
-          }}
-        />
         <Script type="module" src={`/app/app.js?v=${appBundleVersion}`} strategy="afterInteractive" />
       </body>
     </html>

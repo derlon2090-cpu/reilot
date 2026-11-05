@@ -176,6 +176,7 @@ describe("storage center form wiring", () => {
     expect(styles).toContain('unicode-bidi:plaintext');
     expect(styles).toContain('vertical-align:middle');
     expect(source).toContain("storageEditorTextForFormatting(editor)");
+    expect(source).toContain('text += node.matches("[data-storage-ai-separator]") ? "\\n\\n" : "\\n";');
     expect(styles).toContain(".storage-editor-body hr[data-storage-ai-separator]");
     expect(styles).toContain(".storage-editor-body{min-height:330px;padding:22px;outline:none;font-size:14px;font-weight:400");
   });
