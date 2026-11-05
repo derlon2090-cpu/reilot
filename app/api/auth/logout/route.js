@@ -6,10 +6,19 @@ import { clearMfaChallengeCookie } from "../../../../src/server/login-mfa.js";
 export async function POST(req) {
   const originDenied = mutationOriginResponse(req);
   if (originDenied) return originDenied;
-  await destroySession(req).catch(() => undefined);
+  let sessionRevoked = true;
+  try {
+    await destroySession(req);
+  } catch {
+    sessionRevoked = false;
+  }
   const headers = new Headers();
+  // Older deployments may have issued this cookie as host-only before the
+  // shared AUTH_COOKIE_DOMAIN setting was configured. Clear both variants.
+  headers.append("Set-Cookie", clearSessionCookie({ hostOnly: true }));
   headers.append("Set-Cookie", clearSessionCookie());
   headers.append("Set-Cookie", clearChallengeCookie());
   headers.append("Set-Cookie", clearMfaChallengeCookie());
-  return Response.json({ ok: true }, { headers });
+  headers.set("Cache-Control", "no-store");
+  return Response.json({ ok: true, sessionRevoked }, { headers });
 }

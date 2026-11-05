@@ -363,6 +363,8 @@
   background: white;
   cursor: pointer;
 }
+.logoutButton:disabled { opacity: .65; cursor: wait; }
+.logoutError { max-width: 250px; color: #a33b45 !important; font-size: 11px !important; line-height: 1.5; }
 
 .content {
   padding: 32px;

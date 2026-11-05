@@ -165,6 +165,8 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [securityFeed, setSecurityFeed] = useState({ notifications: [], unreadCount: 0 });
   const [securityFeedOpen, setSecurityFeedOpen] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
     try {
@@ -220,8 +222,18 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
   }
 
   async function logout() {
-    await fetch("/api/admin/logout", { method: "POST" }).catch(() => null);
-    onLogout();
+    if (logoutPending) return;
+    setLogoutPending(true);
+    setLogoutError("");
+    try {
+      const response = await fetch("/api/admin/logout", { method: "POST", credentials: "include", cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok !== true) throw new Error("admin_logout_failed");
+      window.location.replace(payload.redirectUrl || "/advanced-pro-control");
+    } catch {
+      setLogoutPending(false);
+      setLogoutError("تعذر تأكيد تسجيل الخروج. تحقق من الاتصال ثم حاول مرة أخرى.");
+    }
   }
 
   function toggleSidebar() {
@@ -397,7 +409,8 @@ function Dashboard({ admin, onLogout, initialPanel = "overview", children = null
                 <footer><button type="button" onClick={() => window.location.assign("/admin/security-center")}>فتح مركز الأمان</button></footer>
               </section> : null}
             </div>
-            <button onClick={logout} className={styles.logoutButton}>تسجيل الخروج</button>
+            {logoutError ? <span className={styles.logoutError} role="alert">{logoutError}</span> : null}
+            <button onClick={logout} className={styles.logoutButton} disabled={logoutPending}>{logoutPending ? "جارٍ تسجيل الخروج…" : "تسجيل الخروج"}</button>
           </div>
         </header>
 

@@ -12373,16 +12373,24 @@ async function handleAction(target) {
   if (action === "profile-menu") { state.profileOpen = !state.profileOpen; render(); }
   if (action === "logout-confirm") openModal(t("auth.logoutConfirmTitle"), `<p>${t("auth.logoutConfirmMessage")}</p>`, `<button class="btn btn-danger" data-action="logout">${t("auth.logout")}</button><button class="btn btn-secondary" data-action="close-modal">${t("common.cancel")}</button>`);
   if (action === "logout") {
-    const finishLogout = () => {
+    target.disabled = true;
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok !== true) throw new Error("logout_failed");
       state.storageDocumentPasswords.clear();
       state.storageFolderPasswords.clear();
       state.storageAIPreviousMarkup = null;
       clearCachedDashboardProfile();
       closePortal();
-      appToast.info("تم تسجيل الخروج", { description: "تم إنهاء جلستك بأمان.", id: "logout-success" });
-      navigate("/login");
-    };
-    fetch("/api/auth/logout", { method: "POST", credentials: "include" }).finally(finishLogout);
+      window.location.replace("/login");
+    } catch {
+      target.disabled = false;
+      appToast.error(localizedCopy("تعذر تأكيد تسجيل الخروج", "Could not confirm sign out"), {
+        description: localizedCopy("لم يؤكد الخادم إنهاء الجلسة. تحقق من الاتصال ثم حاول مرة أخرى.", "The server did not confirm that the session ended. Check your connection and try again."),
+        id: "logout-failed"
+      });
+    }
   }
   if (action === "recalculate-security") {
     target.disabled = true;
