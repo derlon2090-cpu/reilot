@@ -59,6 +59,6 @@ test("site entry has useful content immediately instead of a loading card", asyn
   expect(initialHtml).toContain("linear-gradient(145deg");
   await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 30000 });
   await expect(page.locator(".renvix-entry-shell")).toHaveCount(0);
-  await expect(page.locator("#app h1").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "تسجيل الدخول" })).toBeVisible();
+  await expect(page.locator("#app .home-hero")).toBeVisible();
+  await expect(page.locator("#app .home-hero h1")).toBeVisible();
 });
