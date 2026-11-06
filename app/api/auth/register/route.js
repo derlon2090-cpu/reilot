@@ -25,24 +25,44 @@ export async function POST(req) {
   if (originDenied) return originDenied;
   try {
     const body = await req.json().catch(() => null);
-    if (!body || typeof body !== "object") {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
       return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
+    }
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
+    const rawEmail = typeof body.email === "string" ? body.email : "";
+    const rawPhone = typeof body.phone === "string" ? body.phone : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const confirmPassword = typeof body.confirmPassword === "string" ? body.confirmPassword : "";
+    if (name.length < 3 || name.length > 100) {
+      return Response.json({ ok: false, reason: "invalid_name" }, { status: 400 });
+    }
+    if (companyName.length > 160 || Buffer.byteLength(password, "utf8") > 1024) {
+      return Response.json({ ok: false, reason: "invalid_request" }, { status: 400 });
+    }
+    if (rawEmail.length > 254) return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
+    if (rawPhone.length > 32) return Response.json({ ok: false, reason: "invalid_phone" }, { status: 400 });
+    if (password !== confirmPassword) {
+      return Response.json({ ok: false, reason: "password_mismatch" }, { status: 400 });
+    }
+    if (!(body.acceptPolicies === true || body.acceptPolicies === "on")) {
+      return Response.json({ ok: false, reason: "policy_required" }, { status: 400 });
     }
     const turnstile = await verifyTurnstileToken({ token: body.turnstileToken, expectedAction: TURNSTILE_ACTIONS.register, request: req });
     if (!turnstile.ok) return turnstileFailureResponse(turnstile);
-    const email = normalizeEmail(body.email);
+    const email = normalizeEmail(rawEmail);
     if (!isValidEmail(email)) return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
-    const phone = normalizeAccountPhone(body.phone);
+    const phone = normalizeAccountPhone(rawPhone);
     if (!phone) return Response.json({ ok: false, reason: "invalid_phone" }, { status: 400 });
     const commercePlatform = normalizeCommercePlatform(body.commercePlatform);
     if (!commercePlatform) return Response.json({ ok: false, reason: "invalid_commerce_platform" }, { status: 400 });
     const result = await registerAccount({
-      name: body.name,
-      companyName: body.companyName,
+      name,
+      companyName,
       email,
       phone,
       commercePlatform,
-      password: body.password,
+      password,
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
       userAgent: req.headers.get("user-agent")
     });

@@ -15172,6 +15172,12 @@ async function handleSubmit(form, event) {
           invalid_phone: "أدخل رقم جوال سعودي صحيح.",
           invalid_commerce_platform: "اختر منصة متجر صحيحة.",
           weak_password: "كلمة المرور لا تحقق شروط الأمان.",
+          password_mismatch: "كلمتا المرور غير متطابقتين.",
+          policy_required: "وافق على شروط الاستخدام وسياسة الخصوصية للمتابعة.",
+          invalid_name: "أدخل الاسم كاملًا (3 إلى 100 أحرف).",
+          invalid_request: "راجع البيانات المدخلة ثم حاول مرة أخرى.",
+          server_error: "تعذر إكمال التسجيل مؤقتًا. لم يتم إنشاء الحساب؛ حاول بعد قليل.",
+          rate_limited: "وصلت إلى حد المحاولات. انتظر قليلًا ثم حاول مجددًا.",
           email_otp_unavailable: "تعذر إرسال رمز التحقق إلى بريدك حاليًا. يجري فحص خدمة البريد؛ حاول بعد قليل.",
           database_unavailable: "تعذر الاتصال بقاعدة البيانات، حاول لاحقًا.",
           database_schema_missing: "تعذر إنشاء مساحة العمل، حاول لاحقًا."
@@ -15184,6 +15190,12 @@ async function handleSubmit(form, event) {
           invalid_phone: "Enter a valid Saudi mobile number.",
           invalid_commerce_platform: "Choose a valid store platform.",
           weak_password: "The password does not meet the security requirements.",
+          password_mismatch: "The passwords do not match.",
+          policy_required: "Accept the Terms and Privacy Policy to continue.",
+          invalid_name: "Enter a full name between 3 and 100 characters.",
+          invalid_request: "Review the submitted details and try again.",
+          server_error: "Registration is temporarily unavailable. Your account was not created; try again shortly.",
+          rate_limited: "Too many attempts. Wait a little and try again.",
           email_otp_unavailable: "The verification email could not be sent right now. Please try again shortly.",
           database_unavailable: "The database is currently unavailable. Please try again later.",
           database_schema_missing: "The workspace could not be created. Please try again later."
@@ -15213,7 +15225,10 @@ async function handleSubmit(form, event) {
       }
     } catch {
       setSubmitBusy(button, false, localizedCopy("إنشاء الحساب", "Create account"));
-      return toast(t("common.serverError"), "danger");
+      return appToast.error(localizedCopy("تعذر الاتصال بخدمة التسجيل", "Couldn't reach the registration service"), {
+        description: localizedCopy("تحقق من اتصال الإنترنت وحاول مرة أخرى. لم يتم إنشاء الحساب.", "Check your internet connection and try again. Your account was not created."),
+        id: "register-network-error"
+      });
     }
     toast(t("auth.registerSuccess"));
     return;
