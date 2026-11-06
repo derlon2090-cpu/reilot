@@ -87,6 +87,41 @@ export async function verifyPassword(password, storedHash) {
   }
 }
 
+export async function verifyAccountPassword(password, storedHash) {
+  const stored = String(storedHash || "");
+  if (!stored.startsWith("$argon2id$")) {
+    const valid = await verifyPassword(password, stored);
+    return { valid, needsRehash: valid && needsRehash(stored) };
+  }
+
+  const candidate = String(password ?? "");
+  const candidateBytes = Buffer.byteLength(candidate, "utf8");
+  if (!stored || !candidateBytes || candidateBytes > MAX_PASSWORD_BYTES) {
+    return { valid: false, needsRehash: false };
+  }
+
+  let secret;
+  let pepper;
+  try {
+    secret = passwordBuffer(candidate);
+    pepper = pepperBuffer();
+    const valid = await argon2.verify(stored, secret, pepper ? { secret: pepper } : {});
+    if (valid) return { valid: true, needsRehash: needsRehash(stored) };
+
+    // Accounts created before PASSWORD_PEPPER was enabled have valid Argon2id
+    // hashes without a secret. Accept those once, then migrate them on login.
+    if (!pepper) return { valid: false, needsRehash: false };
+    const legacyValid = await argon2.verify(stored, secret);
+    return { valid: legacyValid, needsRehash: legacyValid };
+  } catch (error) {
+    if (error?.code === "AUTH_CONFIGURATION_ERROR") throw error;
+    return { valid: false, needsRehash: false };
+  } finally {
+    secret?.fill(0);
+    pepper?.fill(0);
+  }
+}
+
 export function needsRehash(storedHash) {
   const stored = String(storedHash || "");
   if (!stored.startsWith("$argon2id$v=19$")) return true;

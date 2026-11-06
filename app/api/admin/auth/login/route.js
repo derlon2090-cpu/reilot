@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { auditAdmin, requestIp } from "../../../../../src/server/admin-auth.js";
 import { databaseFailureReason, query } from "../../../../../src/server/db.js";
-import { hashPassword, needsRehash, verifyPassword } from "../../../../../src/server/password.js";
+import { hashPassword, verifyAccountPassword } from "../../../../../src/server/password.js";
 import { isValidEmail, normalizeEmail, safeErrorMessage, sha256 } from "../../../../../src/server/security.js";
 import { ADMIN_SESSION_COOKIE, destroySession } from "../../../../../src/server/session.js";
 import { adminChallengeCookie, createLoginEmailOtpChallenge } from "../../../../../src/server/email-otp-v2.js";
@@ -92,7 +92,10 @@ export async function POST(request) {
   );
   const admin = result.rows[0];
   authStage = "password_verification";
-  const passwordValid = admin ? await verifyPassword(parsed.data.password, admin.passwordHash) : false;
+  const passwordCheck = admin
+    ? await verifyAccountPassword(parsed.data.password, admin.passwordHash)
+    : { valid: false, needsRehash: false };
+  const passwordValid = passwordCheck.valid;
   const allowedRole = ["super_admin", "operations_admin", "admin", "support_admin", "billing_admin", "security_admin", "security_auditor", "read_only", "viewer"].includes(admin?.adminRole);
   const expired = Boolean(admin?.expiresAt && new Date(admin.expiresAt).getTime() <= Date.now());
   const valid = passwordValid && admin?.adminId && admin.status === "active" && !expired && allowedRole;
@@ -144,7 +147,7 @@ export async function POST(request) {
     });
   }
 
-  if (needsRehash(admin.passwordHash)) {
+  if (passwordCheck.needsRehash) {
     await query("UPDATE accounts SET password_hash=$1,updated_at=now() WHERE id=$2 AND password_hash=$3", [
       await hashPassword(parsed.data.password), admin.credentialId, admin.passwordHash
     ]);

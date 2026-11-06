@@ -1,5 +1,5 @@
 import { query, transaction } from "./db.js";
-import { hashPassword, needsRehash, verifyPassword } from "./password.js";
+import { hashPassword, verifyAccountPassword } from "./password.js";
 import { createSession } from "./session.js";
 import { isStrongPassword, normalizeAccountPhone, normalizeCommercePlatform, normalizeEmail, sha256 } from "./security.js";
 import { classifyPasswordStrength } from "./security-score.js";
@@ -125,7 +125,10 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     return { ok: false, status: 403, reason: "account_blocked" };
   }
   authStage = "password_verification";
-  const valid = user ? await verifyPassword(password, user.passwordHash) : false;
+  const passwordCheck = user
+    ? await verifyAccountPassword(password, user.passwordHash)
+    : { valid: false, needsRehash: false };
+  const valid = passwordCheck.valid;
   authStage = "login_attempt_audit";
   const loginAttempt = await query(
     `INSERT INTO login_attempts (email, email_hash, ip_address, user_agent, success, failure_reason)
@@ -153,7 +156,7 @@ export async function loginAccount({ email, password, ipAddress, userAgent, trus
     ok: false, status: 403, reason: "access_unavailable", referenceId: accountBlock.referenceId
   };
 
-  if (needsRehash(user.passwordHash)) {
+  if (passwordCheck.needsRehash) {
     await query("UPDATE accounts SET password_hash=$1,updated_at=now() WHERE id=$2 AND password_hash=$3", [
       await hashPassword(password), user.credentialId, user.passwordHash
     ]);

@@ -15485,7 +15485,13 @@ async function handleSubmit(form, event) {
         setSubmitBusy(button, false, "إرسال رابط الاستعادة");
         if (body.reason === "account_blocked") return appToast.error("حسابك محظور", { description: "حسابك محظور، راجع الدعم.", id: "forgot-account-blocked" });
         if (response.status === 429) return appToast.warning("انتظر قبل إعادة الإرسال", { description: "يمكنك طلب رمز جديد بعد قليل.", id: "forgot-rate-limit" });
-        return appToast.error("تعذر إرسال الطلب", { description: "حدث خطأ غير متوقع. حاول مرة أخرى بعد قليل.", id: "forgot-error" });
+        const fallback = state.language === "en"
+          ? "We couldn't process the request. Please try again shortly."
+          : "تعذر تنفيذ الطلب. حاول مرة أخرى بعد قليل.";
+        return appToast.error(
+          state.language === "en" ? "Couldn't send reset code" : "تعذر إرسال رمز الاستعادة",
+          { description: body.message || fallback, id: "forgot-error" }
+        );
       }
       state.resetEmail = data.email;
       state.resetStep = 2;
