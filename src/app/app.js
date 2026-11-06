@@ -1,7 +1,7 @@
 import { features, knowledgeBase } from "../data/publicData.js?v=20260811-central-plan-catalog-v1";
 import { SALLA_PAGE_CSS_VARIABLES, normalizeSallaPageCssCode, sallaPageCssVariables } from "../data/sallaPageCss.js";
 import { EMAIL_DESIGN_PRESETS, EMAIL_THEME_PALETTE, SALLA_EMAIL_DESIGN_IDS, SALLA_TEMPLATE_PREVIEW_GUIDANCE } from "../data/sallaTemplateUi.js";
-import { AuthTurnstile } from "./auth-turnstile.js?v=20260921-immediate-visible";
+import { AuthTurnstile } from "./auth-turnstile.js?v=20261106-turnstile-retry-v2";
 import { formatAITokenCount } from "./ai-token-format.js?v=20260922-exact-balance";
 
 const app = document.querySelector("#app");

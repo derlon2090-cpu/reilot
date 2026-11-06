@@ -129,7 +129,9 @@ export const AuthTurnstile = {
         const input = form.querySelector('input[name="turnstileToken"]');
         const manualRetry = slot.querySelector("[data-turnstile-retry]");
         let widgetId;
+        let retryableFailures = 0;
         const resetWidget = () => {
+          retryableFailures = 0;
           retryButton(slot, false);
           setReady(form, false);
           status(slot, "pending");
@@ -149,6 +151,7 @@ export const AuthTurnstile = {
           "refresh-timeout": "auto",
           "response-field": false,
           callback(token) {
+            retryableFailures = 0;
             if (input) input.value = token;
             retryButton(slot, false);
             message(slot, localized(page, "Security verification complete", "اكتمل التحقق الأمني"), "success");
@@ -167,8 +170,14 @@ export const AuthTurnstile = {
             setReady(form, false);
             if (retryableError(code)) {
               status(slot, "pending");
+              retryableFailures += 1;
+              if (retryableFailures <= 2) {
+                retryButton(slot, false);
+                message(slot, localized(page, `Security check interrupted (code ${code}). Cloudflare is retrying (${retryableFailures}/2)…`, `انقطع التحقق الأمني (الرمز ${code})، وتعيد Cloudflare المحاولة (${retryableFailures}/2)…`), "pending");
+                return false;
+              }
               retryButton(slot, true);
-              message(slot, localized(page, `Security check interrupted. Cloudflare is retrying automatically (code ${code}). You can retry manually.`, `انقطع التحقق الأمني. تعيد Cloudflare المحاولة تلقائيًا (الرمز ${code}). يمكنك إعادة التحقق يدويًا.`), "pending");
+              message(slot, localized(page, `Cloudflare could not complete the security check (code ${code}). Retry, or try another network or browser.`, `تعذر إكمال التحقق الأمني بعد المحاولات التلقائية (الرمز ${code}). أعد المحاولة أو جرّب شبكة أو متصفحًا آخر.`), "error");
             } else {
               status(slot, "error");
               retryButton(slot, !configurationError(code));
