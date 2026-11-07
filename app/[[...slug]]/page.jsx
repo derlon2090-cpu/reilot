@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Script from "next/script";
 import { redirect } from "next/navigation";
 import { getSession } from "../../src/server/session.js";
 import { authBaseUrl } from "../../src/server/app-url.js";
@@ -82,16 +83,19 @@ export default async function SpaPage({ params }) {
             </div>
           </main>
         ) : (
-          <main className="renvix-entry-shell" dir="rtl">
-            <section className="renvix-entry-card" role="status" aria-live="polite" aria-label="جارٍ تجهيز Renvix">
-              <img className="renvix-entry-logo" src="/assets/renvix-logo-primary.png" width="180" height="51" alt="Renvix" />
-              <div className="renvix-entry-loader" aria-hidden="true"><span><img src="/assets/renvix-mark-deep-teal.svg" width="28" height="28" alt="" /></span></div>
-              <h1>جارٍ تجهيز Renvix</h1>
-              <p>لحظات ونفتح لك الصفحة</p>
-              <div className="renvix-entry-progress" aria-hidden="true"><span /></div>
-              <small>يتم تحميل الصفحة بأمان</small>
-            </section>
-          </main>
+          <>
+            <main className="renvix-entry-shell" dir="rtl">
+              <section className="renvix-entry-card" role="status" aria-live="polite" aria-label="جارٍ تجهيز Renvix">
+                <img className="renvix-entry-logo" src="/assets/renvix-logo-primary.png" width="180" height="51" alt="Renvix" />
+                <div className="renvix-entry-loader" aria-hidden="true"><span><img src="/assets/renvix-mark-deep-teal.svg" width="28" height="28" alt="" /></span></div>
+                <h1>جارٍ تجهيز Renvix</h1>
+                <p>لحظات ونفتح لك الصفحة</p>
+                <div className="renvix-entry-progress" aria-hidden="true"><span /></div>
+                <small>يتم تحميل الصفحة بأمان</small>
+              </section>
+            </main>
+            <Script id="renvix-app-boot-watchdog" strategy="afterInteractive">{`(()=>{const app=document.getElementById('app');if(!app||app.dataset.appReady==='true')return;setTimeout(()=>{if(app.dataset.appReady==='true')return;const key='renvix.app-boot-retry';try{if(sessionStorage.getItem(key)!=='1'){sessionStorage.setItem(key,'1');location.reload();return}}catch{}const english=document.documentElement.lang==='en';app.innerHTML='<main dir="'+(english?'ltr':'rtl')+'" style="min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:#f4faf8;color:#123c38;font-family:Arial,sans-serif;text-align:center"><section style="width:min(560px,100%);padding:36px 28px;box-sizing:border-box;border:1px solid #dcebe7;border-radius:24px;background:#fff;box-shadow:0 18px 50px #0a514012"><h1 style="margin:0 0 12px;font-size:24px">'+(english?'The page could not be opened':'تعذر فتح الصفحة')+'</h1><p style="margin:0;color:#647b78;line-height:1.8">'+(english?'The app did not finish loading. Check your connection and try again.':'لم يكتمل تحميل الموقع. تحقق من الاتصال ثم أعد المحاولة.')+'</p><button onclick="location.reload()" style="min-height:46px;margin:22px 8px 0;padding:0 24px;border:0;border-radius:12px;background:#075b52;color:#fff;font:inherit;font-weight:700;cursor:pointer">'+(english?'Try again':'إعادة المحاولة')+'</button><a href="/login" style="display:inline-flex;align-items:center;min-height:46px;margin:22px 8px 0;padding:0 20px;border:1px solid #dcebe7;border-radius:12px;color:#075b52;text-decoration:none;font-weight:700">'+(english?'Sign in':'تسجيل الدخول')+'</a></section></main>'},12000)})();`}</Script>
+          </>
         )}
       </div>
       <div id="portal" />
