@@ -48,7 +48,7 @@ describe("central security block boundary", () => {
     expect(result).toEqual({ blocked: true, referenceId: "SEC-8F21A7" });
   });
 
-  it("fails closed for a locally verified honeypot marker when the central lookup is unavailable", async () => {
+  it("does not block a locally verified honeypot marker when the central lookup is unavailable", async () => {
     const honeypotSecret = "h".repeat(32);
     const deviceId = `hpd_${"a".repeat(32)}`;
     const signature = createHmac("sha256", honeypotSecret).update(`honeypot-device:${deviceId}`).digest("hex");
@@ -60,7 +60,22 @@ describe("central security block boundary", () => {
       SECURITY_BLOCK_CHECK_SECRET: "x".repeat(32),
       HONEYPOT_INGESTION_SECRET: honeypotSecret,
       SECURITY_BLOCK_CHECK_URL: "https://api.renvix.app/api/security/block-check"
-    })).resolves.toEqual({ blocked: true, referenceId: "HP-AAAAAAAAAAAA" });
+    })).resolves.toEqual({ blocked: false, enforcement: "unavailable" });
+  });
+
+  it("does not turn an authentic marker into a block when the central decision allows it", async () => {
+    const honeypotSecret = "h".repeat(32);
+    const deviceId = `hpd_${"c".repeat(32)}`;
+    const signature = createHmac("sha256", honeypotSecret).update(`honeypot-device:${deviceId}`).digest("hex");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, blocked: false })));
+
+    await expect(checkSecurityBlockAtBoundary(request({
+      renvix_honeypot_device: `${deviceId}.${signature}`
+    }), {
+      SECURITY_BLOCK_CHECK_SECRET: "x".repeat(32),
+      HONEYPOT_INGESTION_SECRET: honeypotSecret,
+      SECURITY_BLOCK_CHECK_URL: "https://api.renvix.app/api/security/block-check"
+    })).resolves.toEqual({ blocked: false, enforcement: "active" });
   });
 
   it("does not trust a forged honeypot marker when the central lookup is unavailable", async () => {

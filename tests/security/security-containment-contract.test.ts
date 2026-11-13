@@ -15,14 +15,15 @@ describe("security containment contract", () => {
     expect(migration).toContain("incident_id uuid NOT NULL");
   });
 
-  it("enforces blocks before host and authentication routing and never uses browser fingerprinting", () => {
+  it("enforces confirmed blocks before routing without treating a marker as proof of abuse", () => {
     const middleware = read("proxy.js");
     const boundary = read("src/shared/security-block-boundary.js");
     expect(middleware.indexOf("const block = await checkSecurityBlockAtBoundary")).toBeLessThan(middleware.indexOf("const origins = configuredOrigins"));
     expect(boundary).toContain("__Host-rvx_trusted_browser");
     expect(boundary).toContain("access_unavailable");
-    expect(boundary).toContain("verifiedHoneypotDeviceId");
-    expect(boundary).toContain("localBlock ||");
+    expect(boundary).toContain("Only a persisted central containment decision blocks");
+    expect(boundary).not.toContain("localHoneypotBlock");
+    expect(boundary).not.toContain("localBlock ||");
     expect(`${middleware}\n${boundary}`).not.toMatch(/canvas|webgl|audiofingerprint/i);
   });
 

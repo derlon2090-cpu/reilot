@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const evaluateSecurityBlockRequest = vi.hoisted(() => vi.fn(async () => ({
-  referenceId: "SEC-DEVICE-1", targetType: "device", honeypotDeviceId: `hpd_${"a".repeat(32)}`
+  referenceId: "SEC-DEVICE-1", targetType: "device", honeypotDeviceId: `hpd_${"a".repeat(32)}`, markerOnly: false
 })));
 const recordBlockedHoneypotNavigation = vi.hoisted(() => vi.fn(async () => ({ recorded: true })));
 
@@ -64,6 +64,27 @@ describe("honeypot device block decision authentication", () => {
       requestedHost: "renvix.app", requestedPath: "/pricing", method: "GET",
       honeypotDeviceId: `hpd_${"a".repeat(32)}`
     }));
+  });
+
+  it("treats a signed marker without a persisted containment record as allowed", async () => {
+    const secret = "m".repeat(40);
+    evaluateSecurityBlockRequest.mockResolvedValueOnce({
+      referenceId: "HP-AAAAAAAAAAAA", targetType: "device",
+      honeypotDeviceId: `hpd_${"a".repeat(32)}`, markerOnly: true
+    });
+    const body = JSON.stringify({ honeypotDeviceToken: "signed-marker" });
+    const timestamp = Date.now().toString();
+    const signature = crypto.createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+    vi.stubEnv("SECURITY_BLOCK_CHECK_SECRET", secret);
+
+    const response = await POST(new Request("https://api.renvix.app/api/security/block-check", {
+      method: "POST",
+      headers: { "x-security-timestamp": timestamp, "x-security-signature": signature },
+      body
+    }));
+
+    await expect(response.json()).resolves.toEqual({ ok: true, blocked: false });
+    expect(recordBlockedHoneypotNavigation).not.toHaveBeenCalled();
   });
 
   it("rejects an unsigned device decision request before database evaluation", async () => {

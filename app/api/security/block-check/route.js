@@ -29,14 +29,15 @@ export async function POST(request) {
     sourceIp: body.sourceIp, sessionHashes: body.sessionHashes, deviceToken: body.deviceToken,
     honeypotDeviceId: body.honeypotDeviceId, honeypotDeviceToken: body.honeypotDeviceToken
   });
-  if (block?.honeypotDeviceId && !block.markerOnly) {
+  const confirmedBlock = block && !block.markerOnly ? block : null;
+  if (confirmedBlock?.honeypotDeviceId) {
     await recordBlockedHoneypotNavigation({
-      block, sourceIp: body.sourceIp, requestedHost: body.requestedHost, requestedPath: body.requestedPath,
-      method: body.method, referrer: body.referrer, honeypotDeviceId: block.honeypotDeviceId
+      block: confirmedBlock, sourceIp: body.sourceIp, requestedHost: body.requestedHost, requestedPath: body.requestedPath,
+      method: body.method, referrer: body.referrer, honeypotDeviceId: confirmedBlock.honeypotDeviceId
     }).catch(() => undefined);
   }
   return Response.json(
-    block ? { ok: true, blocked: true, referenceId: block.referenceId } : { ok: true, blocked: false },
+    confirmedBlock ? { ok: true, blocked: true, referenceId: confirmedBlock.referenceId } : { ok: true, blocked: false },
     { headers: { "cache-control": "private, no-store" } }
   );
 }
