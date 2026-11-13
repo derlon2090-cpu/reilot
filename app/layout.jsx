@@ -22,7 +22,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   // Change this only when public/app/app.js changes so routine deploys reuse the browser cache.
-  const appBundleVersion = "cab656b16ce262d251d85601c86d3eb201a653b4c202fa58dbfd1fe0fe605680";
+  const appBundleVersion = "72aaeda734b3c6dbedea7457ed8a27f651b391efdb31eb16ca8b333907f2c6ce";
   const appUrl = appBaseUrl();
   const adminUrl = adminBaseUrl();
   const siteUrl = siteBaseUrl();

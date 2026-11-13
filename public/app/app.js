@@ -12,7 +12,26 @@ function markAppReady() {
   try { sessionStorage.removeItem("renvix.app-boot-retry"); } catch { /* Storage may be unavailable in private browsing. */ }
 }
 
-const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(async (locale) => {
+const localeMessages = {
+  ar: {
+    app: { name: "Renvix" },
+    sidebar: { home: "الرئيسية" },
+    public: { features: "المميزات", pricing: "الأسعار", support: "الدعم" },
+    auth: { loginTitle: "تسجيل الدخول", createAccount: "إنشاء حساب", logout: "تسجيل الخروج" },
+    dashboard: { profile: "الملف الشخصي", settings: "الإعدادات" },
+    phrases: {}
+  },
+  en: {
+    app: { name: "Renvix" },
+    sidebar: { home: "Home" },
+    public: { features: "Features", pricing: "Pricing", support: "Support" },
+    auth: { loginTitle: "Sign in", createAccount: "Create account", logout: "Sign out" },
+    dashboard: { profile: "Profile", settings: "Settings" },
+    phrases: {}
+  }
+};
+
+const localeMessagesReady = Promise.all(["ar", "en"].map(async (locale) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 1800);
   try {
@@ -25,7 +44,10 @@ const localeMessages = Object.fromEntries(await Promise.all(["ar", "en"].map(asy
   } finally {
     clearTimeout(timeout);
   }
-})));
+})).then((entries) => {
+  Object.assign(localeMessages, Object.fromEntries(entries));
+  return localeMessages;
+});
 
 const operationalEnglishPhrases = {
   "فحص الجاهزية": "Readiness Check",
@@ -12376,6 +12398,7 @@ async function handleAction(target) {
   }
   if (action === "language") {
     const language = target.dataset.language || (state.language === "ar" ? "en" : "ar");
+    await localeMessagesReady;
     void saveInterfacePreferences({ language })
       .then(() => toast(language === "ar" ? "تم تفعيل الواجهة العربية" : "English interface enabled"))
       .catch(() => toast(localizedCopy("تعذر مزامنة اللغة مع الحساب. حاول مرة أخرى.", "Could not sync the language with your account. Try again."), "danger"));

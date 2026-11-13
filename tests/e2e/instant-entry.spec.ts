@@ -33,6 +33,20 @@ test("server entry renders the real home hero before the client app starts", asy
   expect(layout.card?.right).toBeLessThanOrEqual(layout.width);
 });
 
+test("locale downloads never block the first complete home render", async ({ page }) => {
+  await page.route("**/app/locales/*.json", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await route.abort();
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const startedAt = Date.now();
+  await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 1400 });
+  expect(Date.now() - startedAt).toBeLessThan(1400);
+  await expect(page.locator("#app .home-features")).toBeVisible();
+  await expect(page.locator("#app .home-journey")).toBeVisible();
+});
+
 test("login is server rendered without the startup splash", async ({ page }) => {
   const response = await page.goto("/login", { waitUntil: "domcontentloaded" });
 
