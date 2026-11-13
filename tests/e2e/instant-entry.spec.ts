@@ -44,6 +44,46 @@ test("versioned styles are cached across page refreshes", async ({ request }) =>
   expect(response.headers()["cache-control"]).not.toContain("no-store");
 });
 
+test("public navigation keeps identical dimensions while the app starts", async ({ page }) => {
+  test.setTimeout(60000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  let releaseApp!: () => void;
+  const appGate = new Promise<void>((resolve) => { releaseApp = resolve; });
+  await page.route("**/app/app.js*", async (route) => {
+    await appGate;
+    await route.continue();
+  });
+
+  await page.goto("/", { waitUntil: "commit" });
+  await page.waitForSelector(".renvix-first-paint .public-nav");
+  await page.waitForFunction(() => [...document.styleSheets].some((sheet) => sheet.href?.includes("globals.css")));
+  const readMetrics = () => page.evaluate(() => {
+    const box = (selector: string) => {
+      const rect = document.querySelector(selector)?.getBoundingClientRect();
+      return rect ? { x: rect.x, width: rect.width, height: rect.height } : null;
+    };
+    return {
+      nav: box(".public-nav"),
+      brand: box(".nav-inner > .brand"),
+      links: box(".nav-links"),
+      actions: box(".nav-actions")
+    };
+  });
+  const initial = await readMetrics();
+  releaseApp();
+  await page.waitForLoadState("domcontentloaded");
+  await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 30000 });
+  const final = await readMetrics();
+
+  for (const key of ["nav", "brand", "links", "actions"] as const) {
+    expect(initial[key]).not.toBeNull();
+    expect(final[key]).not.toBeNull();
+    expect(Math.abs(final[key]!.x - initial[key]!.x), `${key} x shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(final[key]!.width - initial[key]!.width), `${key} width shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(final[key]!.height - initial[key]!.height), `${key} height shift`).toBeLessThanOrEqual(1);
+  }
+});
+
 test("locale downloads never block the first complete home render", async ({ page }) => {
   await page.route("**/app/locales/*.json", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 2500));

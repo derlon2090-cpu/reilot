@@ -41,6 +41,49 @@ const homeBrands = [
   ["الرعد للاتصالات", "/assets/brands/alraad-telecom.jpg"]
 ];
 
+function FirstPaintNavIcon({ type }) {
+  const paths = {
+    home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
+    features: <path d="m12 3 1.55 4.7L18 9.4l-3.65 2.8L15.55 17 12 14.3 8.45 17l1.2-4.8L6 9.4l4.45-1.7Z" />,
+    plans: <><path d="m12 2 8 4.5v11L12 22l-8-4.5v-11Z" /><path d="m4 6.5 8 4.5 8-4.5M12 11v11" /></>,
+    blog: <><path d="M6 3h10l3 3v15H6z" /><path d="M15 3v4h4M9 11h7M9 15h7" /></>,
+    support: <><path d="M4 14v-2a8 8 0 0 1 16 0v2" /><path d="M18 19h-2v-7h4v5a2 2 0 0 1-2 2ZM6 19H4a2 2 0 0 1-2-2v-5h4v7Z" /><path d="M16 19c0 1.1-.9 2-2 2h-2" /></>,
+    login: <><path d="M10 17l5-5-5-5" /><path d="M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>,
+    register: <><circle cx="9" cy="7" r="4" /><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 8v6M16 11h6" /></>,
+    globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9" /></>,
+    menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+    more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>
+  };
+  return <svg className="line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type] || paths.home}</svg>;
+}
+
+const firstPaintNavLinks = [
+  ["/", "الرئيسية", "home"],
+  ["/features", "المميزات", "features"],
+  ["/pricing", "الباقات", "plans"],
+  ["/blog", "المدونة", "blog"],
+  ["/support", "الدعم", "support"]
+];
+
+function PublicFirstPaintNav() {
+  return <nav className="public-nav">
+    <div className="container nav-inner">
+      <a className="brand btn-ghost" href="/" aria-label="Renvix"><img className="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt="Renvix" decoding="sync" loading="eager" fetchPriority="high" /></a>
+      <div className="nav-links" aria-label="التنقل الرئيسي">
+        {firstPaintNavLinks.map(([href, label, icon], index) => <a href={href} className={`nav-link ${index === 0 ? "active" : ""}`} aria-current={index === 0 ? "page" : undefined} key={href}><span className="public-nav-icon"><FirstPaintNavIcon type={icon} /></span><span>{label}</span></a>)}
+        <details className="public-nav-more"><summary><FirstPaintNavIcon type="more" /><span>المزيد</span></summary><div>{firstPaintNavLinks.slice(3).map(([href, label, icon]) => <a href={href} key={`more-${href}`}><FirstPaintNavIcon type={icon} /><span>{label}</span></a>)}</div></details>
+      </div>
+      <div className="nav-actions">
+        <div className="public-nav-preferences"><span className="public-nav-preference-label">اللغة</span><div className="public-language-switch"><button className="locale-link active" type="button">عربي</button><button className="locale-link" type="button">EN</button></div><button className="public-language-compact" type="button"><strong>English</strong><FirstPaintNavIcon type="globe" /></button></div>
+        <div className="public-auth-actions"><a className="btn btn-secondary public-login-action" href="/login"><span>تسجيل الدخول</span><FirstPaintNavIcon type="login" /></a><a className="btn btn-primary public-register-action" href="/register"><span>إنشاء حساب</span><FirstPaintNavIcon type="register" /></a></div>
+      </div>
+      <a href="/register" className="mobile-public-login"><FirstPaintNavIcon type="register" /><span>إنشاء حساب</span></a>
+      <button className="mobile-menu" type="button" aria-label="فتح القائمة" aria-expanded="false"><FirstPaintNavIcon type="menu" /></button>
+    </div>
+    <div className="public-mobile-drawer" aria-hidden="true" />
+  </nav>;
+}
+
 function FirstPaintIcon({ type = "feature" }) {
   return (
     <svg className="line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -100,29 +143,7 @@ function PublicFirstPaintFooter() {
 function PublicHomeFirstPaint({ plans = [] }) {
   return (
     <div className="page-shell public-site renvix-first-paint">
-      <nav className="public-nav" aria-label="التنقل الرئيسي">
-        <div className="container nav-inner">
-          <a className="brand btn-ghost" href="/" aria-label="Renvix">
-            <img className="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt="Renvix" />
-          </a>
-          <div className="nav-links">
-            <a className="nav-link active" href="/" aria-current="page">الرئيسية</a>
-            <a className="nav-link" href="/features">المميزات</a>
-            <a className="nav-link" href="/pricing">الباقات</a>
-            <a className="nav-link" href="/blog">المدونة</a>
-            <a className="nav-link" href="/support">الدعم</a>
-          </div>
-          <div className="nav-actions">
-            <div className="public-nav-preferences"><button className="public-language-compact" type="button"><strong>English</strong></button></div>
-            <div className="public-auth-actions">
-              <a className="btn btn-secondary public-login-action" href="/login">تسجيل الدخول</a>
-              <a className="btn btn-primary public-register-action" href="/register">إنشاء حساب</a>
-            </div>
-          </div>
-          <a href="/register" className="mobile-public-login">إنشاء حساب</a>
-          <button className="mobile-menu" type="button" aria-label="فتح القائمة">☰</button>
-        </div>
-      </nav>
+      <PublicFirstPaintNav />
       <main className="marketing-v3 renvix-home">
         <section className="home-hero">
           <div className="container home-hero-grid">
