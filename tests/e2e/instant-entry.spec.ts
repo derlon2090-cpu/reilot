@@ -63,4 +63,15 @@ test("site entry has useful content immediately instead of a loading card", asyn
   await expect(page.locator(".renvix-first-paint")).toHaveCount(0);
   await expect(page.locator("#app .home-hero")).toBeVisible();
   await expect(page.locator("#app .home-hero h1")).toBeVisible();
+  await expect(page.locator("#app .home-hero-copy")).toHaveClass(/is-visible/);
+
+  await page.evaluate(() => {
+    (window as typeof window & { __renvixInitialHero?: Element | null }).__renvixInitialHero = document.querySelector("#app .home-hero");
+  });
+  await page.waitForTimeout(2500);
+  const keptVisibleHero = await page.evaluate(() => {
+    const initialHero = (window as typeof window & { __renvixInitialHero?: Element | null }).__renvixInitialHero;
+    return initialHero === document.querySelector("#app .home-hero");
+  });
+  expect(keptVisibleHero).toBe(true);
 });

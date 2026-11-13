@@ -1630,7 +1630,10 @@ async function loadRemotePage(key, url, target, options, { renderOnComplete = tr
     if (target === "storageCenter" && state.storageCenterRequestController?.signal === options?.signal) {
       state.storageCenterRequestController = null;
     }
-    if (renderOnComplete && (target !== "storageCenter" || (state.route === "/dashboard/storage" && storageRevisionAtStart === state.storageCenterRevision))) render();
+    if (renderOnComplete && (target !== "storageCenter" || (state.route === "/dashboard/storage" && storageRevisionAtStart === state.storageCenterRevision))) {
+      if (target === "publicPlans" && state.route === "/") refreshPublicHomePricingCards();
+      else render();
+    }
   }
   return state[target];
 }
@@ -2856,6 +2859,13 @@ function pricingCards(short = false, billingCycle = state.billing) {
       <button class="btn ${plan.popular ? "btn-primary" : "btn-secondary"}" ${plan.contactSales ? 'data-link="/contact"' : price == null ? "disabled" : `data-link="/register?plan=${encodeURIComponent(plan.slug)}"`}>${plan.contactSales ? "تواصل معنا" : price == null ? "السعر غير متاح" : "اختر الباقة"}</button>
     </article>`;
   }).join("")}</div>`;
+}
+
+function refreshPublicHomePricingCards() {
+  const cards = app.querySelector(".home-pricing-cards");
+  if (!cards) return;
+  cards.innerHTML = pricingCards(true);
+  cards.querySelectorAll("[data-reveal]").forEach((element) => element.classList.add("is-visible"));
 }
 
 function featuresPage() {
@@ -16716,6 +16726,8 @@ function render() {
   applyPreferences();
   const requestedRoute = location.pathname;
   const normalizedRoute = dashboardAliases[requestedRoute] || requestedRoute;
+  const preserveVisibleFirstPaint = normalizedRoute === "/" && Boolean(app.querySelector(".renvix-first-paint"));
+  const repeatedRouteRender = lastRenderedRoute === normalizedRoute;
   if (normalizedRoute !== requestedRoute) history.replaceState({}, "", normalizedRoute + location.search);
   state.route = normalizedRoute;
   if (lastRenderedRoute !== normalizedRoute) {
@@ -16845,6 +16857,9 @@ function render() {
   const siteLanguage = state.language;
   if (authRoute) state.language = state.authDisplayLanguage;
   app.innerHTML = page();
+  if (preserveVisibleFirstPaint || repeatedRouteRender) {
+    app.querySelectorAll("[data-reveal]").forEach((element) => element.classList.add("is-visible"));
+  }
   markAppReady();
   localizeElement(app);
   if (state.route === "/dashboard/support/ai") requestAnimationFrame(openAIConversationAtLatestMessage);
