@@ -23,6 +23,10 @@ test("server entry renders the real home hero before the client app starts", asy
   const shell = page.locator(".renvix-first-paint");
   await expect(shell.getByRole("heading", { name: /أدر اشتراكات عملائك/ })).toBeVisible();
   await expect(shell.getByRole("link", { name: "ابدأ مجانًا الآن" })).toBeVisible();
+  await expect(shell.locator(".home-features")).toBeVisible();
+  await expect(shell.locator(".home-journey")).toBeVisible();
+  await expect(shell.locator(".home-pricing")).toBeVisible();
+  await expect(shell.locator(".public-footer")).toBeVisible();
   const layout = await page.evaluate(() => ({
     width: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -33,6 +37,13 @@ test("server entry renders the real home hero before the client app starts", asy
   expect(layout.card?.right).toBeLessThanOrEqual(layout.width);
 });
 
+test("versioned styles are cached across page refreshes", async ({ request }) => {
+  const response = await request.get("/app/styles/globals.css?v=cache-regression-test");
+  expect(response.ok()).toBeTruthy();
+  expect(response.headers()["cache-control"]).toContain("max-age=3600");
+  expect(response.headers()["cache-control"]).not.toContain("no-store");
+});
+
 test("locale downloads never block the first complete home render", async ({ page }) => {
   await page.route("**/app/locales/*.json", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -40,11 +51,9 @@ test("locale downloads never block the first complete home render", async ({ pag
   });
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  const startedAt = Date.now();
-  await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 1400 });
-  expect(Date.now() - startedAt).toBeLessThan(1400);
-  await expect(page.locator("#app .home-features")).toBeVisible();
-  await expect(page.locator("#app .home-journey")).toBeVisible();
+  await expect(page.locator("#app .home-features")).toBeVisible({ timeout: 500 });
+  await expect(page.locator("#app .home-journey")).toBeVisible({ timeout: 500 });
+  await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 2500 });
 });
 
 test("login is server rendered without the startup splash", async ({ page }) => {

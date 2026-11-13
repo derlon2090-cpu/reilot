@@ -59,9 +59,15 @@ const nextConfig = {
       {
         source: "/app/:path*",
         headers: [
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, proxy-revalidate" },
-          { key: "Pragma", value: "no-cache" },
-          { key: "Expires", value: "0" }
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, proxy-revalidate" }
+        ]
+      },
+      {
+        // Styles use versioned URLs in the root layout. Keep them across refreshes
+        // so the browser does not download more than a megabyte of CSS each time.
+        source: "/app/styles/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" }
         ]
       },
       {
