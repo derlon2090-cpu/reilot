@@ -14,6 +14,57 @@ const authTitles = {
   recovery: "استرداد الوصول | Renvix"
 };
 
+function PublicHomeFirstPaint() {
+  return (
+    <div className="page-shell public-site renvix-first-paint">
+      <nav className="public-nav" aria-label="التنقل الرئيسي">
+        <div className="container nav-inner">
+          <a className="brand btn-ghost" href="/" aria-label="Renvix">
+            <img className="brand-logo-image brand-logo-image--primary" src="/assets/renvix-logo-primary.png" width="814" height="228" alt="Renvix" />
+          </a>
+          <div className="nav-links">
+            <a className="nav-link active" href="/" aria-current="page">الرئيسية</a>
+            <a className="nav-link" href="/features">المميزات</a>
+            <a className="nav-link" href="/pricing">الباقات</a>
+            <a className="nav-link" href="/blog">المدونة</a>
+            <a className="nav-link" href="/support">الدعم</a>
+          </div>
+          <div className="nav-actions">
+            <div className="public-nav-preferences"><button className="public-language-compact" type="button"><strong>English</strong></button></div>
+            <div className="public-auth-actions">
+              <a className="btn btn-secondary public-login-action" href="/login">تسجيل الدخول</a>
+              <a className="btn btn-primary public-register-action" href="/register">إنشاء حساب</a>
+            </div>
+          </div>
+          <a href="/register" className="mobile-public-login">إنشاء حساب</a>
+          <button className="mobile-menu" type="button" aria-label="فتح القائمة">☰</button>
+        </div>
+      </nav>
+      <main className="marketing-v3 renvix-home">
+        <section className="home-hero">
+          <div className="container home-hero-grid">
+            <div className="home-hero-copy is-visible" data-reveal>
+              <span className="home-hero-badge"><i />منصة ذكية لإدارة الاشتراكات والتجديدات</span>
+              <h1>أدر اشتراكات عملائك<br />وجدّدها بذكاء مع <em>Renvix</em></h1>
+              <p>منصة متكاملة تساعدك على إدارة الاشتراكات، أتمتة التنبيهات، التواصل عبر واتساب والبريد، وتحليل الأداء لتنمو أعمالك بثقة واستدامة.</p>
+              <div className="home-hero-actions">
+                <a href="/register" className="btn btn-primary">ابدأ مجانًا الآن</a>
+                <a href="/features" className="btn btn-secondary">استكشف المميزات</a>
+              </div>
+              <div className="home-hero-trust"><span>✓ تجربة مجانية 14 يومًا</span><span>✓ لا بطاقة ائتمانية مطلوبة</span><span>✓ إعداد سريع خلال دقائق</span></div>
+            </div>
+            <div className="home-hero-visual is-visible" data-reveal>
+              <article className="home-first-paint-preview" aria-label="معاينة لوحة تحكم Renvix">
+                <img src="/assets/dashboard-preview.webp" width="838" height="360" alt="معاينة لوحة تحكم Renvix" />
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 export async function generateMetadata({ params }) {
   const { slug = [] } = await params;
   if (slug[0] === "shared" && slug[1] === "document") {
@@ -33,6 +84,7 @@ export default async function SpaPage({ params }) {
   const authPath = isAuthPath(path);
   const isLogin = path === "/login";
   const isRegister = path === "/register";
+  const isHome = path === "/";
 
   if (isDashboard || authPath) {
     const requestHeaders = await headers();
@@ -81,16 +133,7 @@ export default async function SpaPage({ params }) {
               </section>
             </div>
           </main>
-        ) : (
-          <main className="renvix-entry-shell" dir="rtl">
-            <header><img src="/assets/renvix-logo-primary.png" width="180" height="51" alt="Renvix" /></header>
-            <section>
-              <h1>Renvix</h1>
-              <p>منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك</p>
-              <a href="/login">تسجيل الدخول</a>
-            </section>
-          </main>
-        )}
+        ) : isHome ? <PublicHomeFirstPaint /> : null}
       </div>
       <div id="portal" />
     </>

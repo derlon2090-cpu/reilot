@@ -9,23 +9,24 @@ test("static entry never ships the old wait card or timeout replacement", async 
   const bundleVersion = createHash("sha256").update(bundle).digest("hex");
   expect(html).not.toContain("جارٍ تجهيز Renvix");
   expect(html).not.toContain("تعذر فتح الصفحة مؤقتًا");
-  expect(html).toContain("منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك");
+  expect(html).toContain("أدر اشتراكات عملائك");
+  expect(html).toContain('class="page-shell public-site renvix-first-paint"');
   expect(html).toContain(bundleVersion);
   expect(layout).toContain(bundleVersion);
 });
 
-test("server entry remains styled and within the viewport before the client app starts", async ({ page }) => {
+test("server entry renders the real home hero before the client app starts", async ({ page }) => {
   await page.setViewportSize({ width: 638, height: 301 });
   await page.route("**/app/app.js*", (route) => route.abort());
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
-  const shell = page.locator(".renvix-entry-shell");
-  await expect(shell.getByRole("heading", { name: "Renvix" })).toBeVisible();
-  await expect(shell.getByRole("link", { name: "تسجيل الدخول" })).toBeVisible();
+  const shell = page.locator(".renvix-first-paint");
+  await expect(shell.getByRole("heading", { name: /أدر اشتراكات عملائك/ })).toBeVisible();
+  await expect(shell.getByRole("link", { name: "ابدأ مجانًا الآن" })).toBeVisible();
   const layout = await page.evaluate(() => ({
     width: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
-    card: document.querySelector(".renvix-entry-shell section")?.getBoundingClientRect().toJSON()
+    card: document.querySelector(".renvix-first-paint .home-hero")?.getBoundingClientRect().toJSON()
   }));
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.width);
   expect(layout.card?.x).toBeGreaterThanOrEqual(0);
@@ -53,12 +54,13 @@ test("site entry has useful content immediately instead of a loading card", asyn
 
   expect(response?.ok()).toBeTruthy();
   const initialHtml = await response!.text();
-  expect(initialHtml).toContain("منصة واحدة لإدارة اشتراكاتك وتنمية أعمالك");
+  expect(initialHtml).toContain("أدر اشتراكات عملائك");
   expect(initialHtml).not.toContain("جارٍ تجهيز Renvix");
-  expect(initialHtml).toContain('class="renvix-entry-shell"');
-  expect(initialHtml).toContain("linear-gradient(145deg");
+  expect(initialHtml).not.toContain('class="renvix-entry-shell"');
+  expect(initialHtml).toContain('class="page-shell public-site renvix-first-paint"');
+  expect(initialHtml).toContain('class="home-hero"');
   await expect(page.locator("#app")).toHaveAttribute("data-app-ready", "true", { timeout: 30000 });
-  await expect(page.locator(".renvix-entry-shell")).toHaveCount(0);
+  await expect(page.locator(".renvix-first-paint")).toHaveCount(0);
   await expect(page.locator("#app .home-hero")).toBeVisible();
   await expect(page.locator("#app .home-hero h1")).toBeVisible();
 });

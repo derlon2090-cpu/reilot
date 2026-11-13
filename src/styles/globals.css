@@ -14642,31 +14642,8 @@ html:has(.auth-suite-page),body:has(.auth-suite-page){overflow:hidden!important;
 .home-hero-trust .line-icon { width: 17px; height: 17px; color: #0b8b7d; stroke-width: 2.3; }
 .home-hero-visual[data-reveal] { transform: translateX(-22px) scale(.985); transition-duration: 650ms; transition-delay: 100ms; }
 .home-hero-visual[data-reveal].is-visible { transform: translateX(0) scale(1); }
-.renvix-entry-shell {
-  position: relative;
-  isolation: isolate;
-  min-height: 100svh;
-  width: 100%;
-  box-sizing: border-box;
-  padding: clamp(24px, 5vw, 64px);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  color: #123c38;
-  background: linear-gradient(145deg, #fbfdfc, #f1f8f6);
-  font-family: var(--font-alexandria), Alexandria, Arial, sans-serif;
-  text-align: center;
-}
-.renvix-entry-shell::before,
-.renvix-entry-shell::after { position: absolute; z-index: -1; width: min(52vw, 520px); aspect-ratio: 1; border: 1px solid rgba(20,132,119,.07); border-radius: 50%; content: ""; pointer-events: none; }
-.renvix-entry-shell::before { top: -32%; right: -17%; }
-.renvix-entry-shell::after { bottom: -54%; left: -20%; width: min(68vw, 680px); }
-.renvix-entry-shell > header { position: absolute; top: clamp(22px, 4vw, 42px); right: clamp(24px, 6vw, 80px); }
-.renvix-entry-shell > header img { display: block; width: clamp(142px, 20vw, 180px); height: auto; object-fit: contain; }
-.renvix-entry-shell > section { width: min(100%, 720px); }
-.renvix-entry-shell h1 { margin: 0; color: #0b3f3b; font-size: clamp(42px, 8vw, 78px); font-weight: 750; line-height: 1.15; }
-.renvix-entry-shell p { margin: 16px 0 28px; color: #58716d; font-size: clamp(17px, 2.4vw, 24px); line-height: 1.8; }
-.renvix-entry-shell a { min-height: 48px; padding: 0 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; color: #fff; background: #075f56; box-shadow: 0 12px 28px rgba(7,95,86,.18); font-weight: 700; text-decoration: none; }
+.home-first-paint-preview { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #dce8e6; border-radius: 18px; background: #fff; box-shadow: var(--home-shadow-card); }
+.home-first-paint-preview img { display: block; width: 100%; height: auto; aspect-ratio: 838 / 360; border-radius: 11px; object-fit: cover; object-position: top center; }
 
 .home-dashboard-scene {
   --home-dashboard-gutter: clamp(76px, 13.5%, 96px);
